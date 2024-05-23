@@ -7,7 +7,7 @@ import sys
 import time
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
-import test_fio
+from .test_fio import test_fio
 
 ipfs_service = """
 [Unit]
