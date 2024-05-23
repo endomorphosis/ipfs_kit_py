@@ -91,6 +91,9 @@ class install_ipfs:
 						pass
 				else:
 					self.role = "leecher"
+			else:
+				self.role = "leecher"
+				pass
 
 			if "ipfs_path" in meta:
 				if meta['ipfs_path'] is not None:
