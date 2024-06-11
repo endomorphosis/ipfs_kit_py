@@ -26,14 +26,13 @@ from ipfs_kit_lib import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_serv
 
 class ipfs_kit:
     def __init__(self, resources, meta=None):
-        self.role = None
         self.ipfs_get_config = self.ipfs_get_config
         self.ipfs_set_config = self.ipfs_set_config
         self.ipfs_get_config_value = self.ipfs_get_config_value
         self.ipfs_set_config_value = self.ipfs_set_config_value
         self.test_install = self.test_install
         self.ipfs_get = self.ipget_download_object
-        self.install_ipfs = install_ipfs.install_ipfs_daemon(None)
+        self.install_ipfs = install_ipfs(resources, meta=meta).install_ipfs_daemon()
 
         if meta is not None:
             if "config" in meta:

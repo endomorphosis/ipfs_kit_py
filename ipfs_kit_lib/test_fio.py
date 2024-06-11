@@ -18,9 +18,21 @@ class test_fio:
 
     def disk_device_name_from_location(self, location):
         directory_tree = location.split("/")
-
-        command = "df -h"
-        df = subprocess.check_output(command, shell=True)
+        if os.path.isdir(location) == True:
+            command = "df -h " + os.path.realpath(location)
+        else:
+            print("location is not directory")
+            if os.getuid() == 0:
+                command = "df -h /"
+            else:
+                homedir = os.path.expanduser("~")
+                command = "df -h " + os.path.realpath(homedir)
+        # df = os.system(command)
+        # df = subprocess.check_output(command, shell=True, stderr=None)
+        # df = df.decode()
+        # df = df.split("\n")
+        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        df = df.communicate()[0]
         df = df.decode()
         df = df.split("\n")
         for line in df:
@@ -44,8 +56,21 @@ class test_fio:
         return "rootfs"
     
     def disk_device_total_capacity(self, device):
-        command = "df -h"
-        df = subprocess.check_output(command, shell=True)
+        
+        if "dev" not in device:
+            command = "df -h " + device
+        else:
+            # print("location is not device")
+            if os.getuid() == 0:
+                command = "df -h /"
+            else:
+                homedir = os.path.expanduser("~")
+                command = "df -h " + os.path.realpath(homedir)
+        # df = os.system(command)
+        # df = subprocess.check_output(command, shell=True, stderr=None)
+        # df = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
+        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        df = df.communicate()[0]
         df = df.decode()
         df = df.split("\n")
         for line in df:
@@ -58,8 +83,21 @@ class test_fio:
         return None
     
     def disk_device_used_capacity(self, device):
-        command = "df -h"
-        df = subprocess.check_output(command, shell=True)
+        if "dev" not in device:
+            command = "df -h " + device
+        else:
+            # print("location is not device")
+            if os.getuid() == 0:
+                command = "df -h /"
+            else:
+                homedir = os.path.expanduser("~")
+                command = "df -h " + os.path.realpath(homedir)
+        # df = os.system(command)
+        # df = subprocess.check_output(command, shell=True, stderr=None)
+        # df = df.decode()
+        # df = df.split("\n")
+        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        df = df.communicate()[0]
         df = df.decode()
         df = df.split("\n")
         for line in df:
@@ -73,10 +111,25 @@ class test_fio:
 
 
     def disk_device_avail_capacity(self, device):
-        command = "df -h"
-        df = subprocess.check_output(command, shell=True)
+        if "dev" not in device:
+            command = "df -h " + device
+        else:
+            # print("location is not device")
+            if os.getuid() == 0:
+                command = "df -h /"
+            else:
+                homedir = os.path.expanduser("~")
+                command = "df -h " + os.path.realpath(homedir)
+        # df = os.system(command)
+        # df = subprocess.check_output(command, shell=True, stderr=None)
+        # df = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
+        # df = df.decode()
+        # df = df.split("\n")
+        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        df = df.communicate()[0]
         df = df.decode()
         df = df.split("\n")
+
         for line in df:
             if device in line:
                 ## remove duplicate spaces in line

@@ -91,17 +91,23 @@ class install_ipfs:
 						pass
 				else:
 					self.role = "leecher"
-			else:
-				self.role = "leecher"
-				pass
 
 			if "ipfs_path" in meta:
 				if meta['ipfs_path'] is not None:
 					self.ipfs_path = meta['ipfs_path']
+					homedir_path = os.path.expanduser("~")
+
 					#NOTE bug invalid permissions check
-					if not os.path.exists(self.ipfs_path):
-						os.makedirs(self.ipfs_path)
-					test_disk = test_fio.test_fio(None)
+					if os.getuid != 0:
+						if homedir_path in os.path.realpath(self.ipfs_path):
+							if not os.path.exists(os.path.realpath(self.ipfs_path)):
+								os.makedirs(self.ipfs_path)
+					if os.getuid() == 0:
+						if not os.path.exists(self.ipfs_path):
+							os.makedirs(self.ipfs_path)
+							pass
+					#test_disk = test_fio.test_fio(None)
+					test_disk = test_fio(None)
 					self.disk_name = test_disk.disk_device_name_from_location(self.ipfs_path)
 					self.disk_stats = {
 						"disk_size": test_disk.disk_device_total_capacity(self.disk_name),
