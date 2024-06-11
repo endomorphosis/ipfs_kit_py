@@ -22,7 +22,7 @@ ipfs_transformers_dir = os.path.join(parent_dir, "ipfs_transformers")
 #sys.path.append(ipfs_lib_dir)
 #sys.path.append(ipfs_lib_dir2)
 sys.path.append(ipfs_transformers_dir)
-from ipfs_kit_lib import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget
+from ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget
 
 class ipfs_kit:
     def __init__(self, resources, meta=None):
