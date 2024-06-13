@@ -6,6 +6,9 @@ https://github.com/endomorphosis/ipfs_transformers/
 for huggingface datasets python library visit:
 https://github.com/endomorphosis/ipfs_datasets/
 
+for faiss KNN index python library visit:
+https://github.com/endomorphosis/ipfs_faiss
+
 for transformers.js visit:                          
 https://github.com/endomorphosis/ipfs_transformers_js
 
