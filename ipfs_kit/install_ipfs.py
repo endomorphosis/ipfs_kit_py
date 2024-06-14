@@ -5,6 +5,7 @@ import json
 import math
 import sys
 import time
+import random
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
 from .test_fio import test_fio
@@ -77,10 +78,101 @@ peerlist = """
 
 class install_ipfs:
 	def __init__(self, resources, meta=None):
+		self.env = {}
+		self.env_path = ""
+		#NOTE: fix this
+		self.this_dir = os.path.dirname(os.path.realpath(__file__))
+		self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+		self.path_string = "PATH="+ self.path
+		self.ipfs_dist_tar = "https://dist.ipfs.tech/kubo/v0.26.0/kubo_v0.26.0_linux-amd64.tar.gz"
+		self.ipfs_follow_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-follow/v1.0.8/ipfs-cluster-follow_v1.0.8_linux-amd64.tar.gz"
+		self.ipfs_cluster_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.0.8/ipfs-cluster-ctl_v1.0.8_linux-amd64.tar.gz"
+		self.ipfs_cluster_service_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-service/v1.0.8/ipfs-cluster-service_v1.0.8_linux-amd64.tar.gz"
+		self.config = None
+		self.secret = None
+		self.role = None
+		self.ipfs_path = None
+		self.cluster_name = None
+		self.cluster_location = None
 		if meta is not None:
+
+			if self.secret == None:
+				self.secret = str(random.randbytes(32))
+				pass
+		
+			if "role" in list(meta.keys()):
+				self.role = meta['role']
+				if self.role not in  ["master","worker","leecher"]:
+					raise Exception("role is not either master, worker, leecher")
+			else:
+				self.role = "leecher"
+				pass
+
+			if "ipfs_path" in list(meta.keys()):
+				self.ipfs_path = meta['ipfs_path']
+				if not os.path.exists(self.ipfs_path):
+					os.makedirs(self.ipfs_path)
+					pass
+				test_disk = test_fio(None)
+				self.disk_name = test_disk.disk_device_name_from_location(self.ipfs_path)
+				self.disk_stats = {
+					"disk_size": test_disk.disk_device_total_capacity(self.disk_name),
+					"disk_used": test_disk.disk_device_used_capacity(self.disk_name),
+					"disk_avail": test_disk.disk_device_avail_capacity(self.disk_name),
+					"disk_name": self.disk_name
+				}
+				pass
+			else:
+				if os.geteuid() == 0:
+					self.ipfs_path = "/root/.cache/ipfs"
+				else:
+					self.ipfs_path = os.path.join(os.path.join(os.path.expanduser("~"), ".cache") ,"ipfs" )
+				if not os.path.exists(self.ipfs_path):
+					os.makedirs(self.ipfs_path)
+					pass
+				test_disk = test_fio(None)
+				self.disk_name = test_disk.disk_device_name_from_location(self.ipfs_path)
+				self.disk_stats = {
+					"disk_size": test_disk.disk_device_total_capacity(self.disk_name),
+					"disk_used": test_disk.disk_device_used_capacity(self.disk_name),
+					"disk_avail": test_disk.disk_device_avail_capacity(self.disk_name),
+					"disk_name": self.disk_name
+				}
+
+			if "cluster_name" in list(meta.keys()):
+				self.cluster_name = meta['cluster_name']
+				pass					
+
+			if "cluster_location" in list(meta.keys()):
+				self.cluster_location = meta['cluster_location']
+				pass
+
+			if self.role in ["master","worker","leecher"] and self.ipfs_path is not None:
+				self.ipfs_install_command = self.install_ipfs_daemon
+				self.ipfs_config_command = self.config_ipfs
+				pass
+
+			if self.role == "worker":
+				if self.cluster_name is not None and self.ipfs_path is not None:
+					self.cluster_install = self.install_ipfs_cluster_follow
+					self.cluster_config = self.config_ipfs_cluster_follow
+					pass
+				pass
+
+			if self.role == "master":
+				if self.cluster_name is not None and self.ipfs_path is not None:
+					self.cluster_name = meta['cluster_name']
+					self.cluster_ctl_install = self.install_ipfs_cluster_ctl
+					self.cluster_ctl_config = self.config_ipfs_cluster_ctl
+					self.cluster_service_install = self.install_ipfs_cluster_service
+					self.cluster_service_config = self.config_ipfs_cluster_service
+					pass
+				pass
+
 			if "config" in meta:
 				if meta['config'] is not None:
 					self.config = meta['config']
+				
 			if "role" in meta:
 				if meta['role'] is not None:
 					self.role = meta['role']
@@ -160,7 +252,8 @@ class install_ipfs:
 		if "cluster_location"  not in list(self.__dict__.keys()):
 			self.cluster_location = "/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv"
 			pass
-			
+		self.bin_path = os.path.join(self.this_dir, "bin")
+	
 	def install_ipfs_daemon(self):
 		try:
 			detect = subprocess.check_output("which ipfs",shell=True)
@@ -174,37 +267,48 @@ class install_ipfs:
 			pass
 		if detect == 0:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
-					command = "wget https://dist.ipfs.tech/kubo/v0.26.0/kubo_v0.26.0_linux-amd64.tar.gz -O " + this_tempfile.name
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+				command = "wget https://dist.ipfs.tech/kubo/v0.26.0/kubo_v0.26.0_linux-amd64.tar.gz -O " + this_tempfile.name
+				results = subprocess.check_output(command, shell=True)
+				results = results.decode()
+				command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
+				results = subprocess.check_output(command, shell=True)
+				results = results.decode()
+				if (os.geteuid() == 0):
 					command = "cd /tmp/kubo ; sudo bash install.sh"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					command = "ipfs --version"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					
-					if os.getuid() == 0:
-						with open("/etc/systemd/system/ipfs.service", "w") as file:
-							file.write(ipfs_service)
-
-					else:
-						#NOTE: Clean this up and make better logging or drop the error all together
-						print('You need to be root to write to /etc/systemd/system/ipfs.service')
-
-					if "ipfs" in results:
-						return True
-					else:
-						return False
+					with open (os.path.join(self.this_dir, "ipfs.service"), "r") as file:
+						ipfs_service = file.read()
+					with open("/etc/systemd/system/ipfs.service", "w") as file:
+						file.write(ipfs_service)
+					command = "systemctl enable ipfs"
+					subprocess.call(command, shell=True)
+					pass
+				else:
+					#NOTE: Clean this up and make better logging or drop the error all together
+					print('You need to be root to write to /etc/systemd/system/ipfs.service')
+					command = 'cd ${tmpDir}/kubo && mkdir -p "${thisDir}/bin/" && mv ipfs "${thisDir}/bin/" && chmod +x "${thisDir}/bin/ipfs"'
+					results = subprocess.check_output(command, shell=True)
+					pass
+			command = "ipfs --version"
+			results = subprocess.check_output(command, shell=True)
+			results = results.decode()
+			if "ipfs" in results:
+				return True
+			else:
+				return False
+		else:
+			return True
 
 	def install_ipfs_cluster_follow(self):
 		try:
 			detect = subprocess.check_output("which ipfs-cluster-follow",shell=True)
 			detect = detect.decode()
 			if len(detect) > 0:
+				print("ipfs-cluster-follow is already installed.")
 				return True
 		except Exception as e:
 			detect = 0
@@ -213,12 +317,35 @@ class install_ipfs:
 			pass
 		if detect == 0:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
-				command = "wget https://dist.ipfs.tech/ipfs-cluster-follow/v1.0.8/ipfs-cluster-follow_v1.0.8_linux-amd64.tar.gz -O " + this_tempfile.name
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-				command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
+				url = self.ipfs_follow_dist_tar
+				tar_path = os.path.join("tmp",this_tempfile.name)
+				if self.this_dir is not None:
+					this_dir = self.this_dir
+				else:
+					this_dir = os.path.dirname(os.path.realpath(__file__))
+					 
+				try:
+					command = "wget " + url + " -O " + this_tempfile.name
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					
+					if os.geteuid() == 0:
+						with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
+							ipfs_cluster_follow = file.read()
+						with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
+							file.write(ipfs_cluster_follow)
+
+						pass
+					else:
+						pass
+
+				except Exception as e:
+					print(e)
+					pass
+
 				command = "cd /tmp/ipfs-cluster-follow ; sudo mv ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
@@ -226,12 +353,6 @@ class install_ipfs:
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				
-				if os.geteuid() == 0:
-					with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
-						file.write(ipfs_cluster_follow)
-				else:
-					#NOTE: Clean this up and make better logging or drop the error all together
-					print('You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service')
 				
 				if "ipfs-cluster-follow" in results:
 					return True
