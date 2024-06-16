@@ -705,62 +705,63 @@ class install_ipfs:
 		run_ipfs_cluster_service = self.path_string + " ipfs-cluster-service daemon"
 		print("Starting ipfs-cluster-service daemon")
 		
-		results1 = None
-		if cluster_name is not None and ipfs_path is not None and disk_stats is not None:
-			try:
-				command1 = "ipfs-cluster-ctl " + self.cluster_name + " init"
-				#results1 = subprocess.check_output(command1, shell=True)
-				#results1 = results1.decode()
-			except Exception as e:
-				#results1 = str(e)
-				pass
-			finally:
-				pass
+		try:
+			cluster_service_daemon_output = ""
+			cluster_Service_damon = subprocess.Popen(run_ipfs_cluster_service, shell=True)
+			time.sleep(5)
+			cluster_service_daemon_output = cluster_Service_damon.communicate()
+			find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
+			find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+			find_daemon_results = find_daemon_results.decode()
+			pass
+		except Exception as e:
+			find_daemon_results = str(e)
+			pass
+		finally:
+			pass
+		run_daemon = find_daemon_results
 
-			try:
-				basename = os.path.basename(__file__)
-				this_dir = os.path.dirname(__file__)
-				homedir = os.path.expanduser("~")
-				os.makedirs(ipfs_path+"/" , exist_ok=True)
-				os.makedirs(ipfs_path+"/" + "/pebble" , exist_ok=True)
-				#os.makedirs(homedir + "/.ipfs-cluster-follow/" + cluster_name , exist_ok=True)
-				filename = "service.json"
-				dst_file = "service.json"
-				#command2 = "cp -rf " + this_dir + "/" + filename + " " + dst_path  + "/" + dst_file
-				command3 = "cp -rf " + this_dir + "/" + filename + " ~/.ipfs-cluster/" + dst_file
-				filename = "peerstore"
-				dst_file = "peerstore"
-				#command3 = "cp -rf " + this_dir + "/" + filename + "  ~/.ipfs_cluster-follow/" + dst_file
-				command4 = "cp -rf " + this_dir + "/" + filename + "  ~/.ipfs-cluster/" + dst_file
-				results3 = subprocess.check_output(command3, shell=True)
-				results3 = results3.decode()
-				results4 = subprocess.check_output(command4, shell=True)
-				results4 = results4.decode()
+		try:
+			run_cluster_ctl_cmd = "ipfs-cluster-ctl --version"
+			run_cluster_ctl = subprocess.check_output(run_cluster_ctl_cmd, shell=True)
+			run_cluster_ctl = run_cluster_ctl.decode()
+			pass
+		except Exception as e:
+			run_cluster_ctl = str(e)
+			if e.code == 'ETIMEDOUT':
+				print("ipfs-cluster-ctl command timed out but did not fail")
+				run_cluster_ctl = True
+				pass
+			else:
+				print("ipfs-cluster-ctl command failed")
+				pass
+		finally:
+			pass
 
-				if not os.path.exists("~/.ipfs-cluster/pebble"):
-					command5 = "rm -rf ~/.ipfs-cluster/pebble ;"
-					results5 = subprocess.check_output(command5, shell=True)
-					results5 = results5.decode()
-					command6 = "ln -s " + ipfs_path + "/pebble ~/.ipfs-cluster/pebble"
-					results6 = subprocess.check_output(command6, shell=True)
-					results6 = results6.decode()
-			except Exception as e:
-				results3 = str(e)
-				results5 = str(e)
-				results4 = str(e)
-				results6 = str(e)
-			finally:
+		if find_daemon_results == 0:
+			print("ipfs-cluster-service daemon did not start")
+			raise Exception("ipfs-cluster-service daemon did not start")
+		else:
+			ps_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep"
+			ps_daemon_results = subprocess.check_output(ps_daemon, shell=True)
+			ps_daemon_results = ps_daemon_results.decode()
+			while ps_daemon_results == 0:
+				ps_daemon_results = subprocess.check_output(ps_daemon, shell=True)
+				ps_daemon_results = ps_daemon_results.decode()
+				kill_process = "kill -9 " + ps_daemon_results.split()[1]
+				kill_process_results = subprocess.check_output(kill_process, shell=True)
+				kill_process_results = kill_process_results.decode()
+				if ps_daemon_results.split()[1] != "":
+					kill_damon_results = subprocess.check_output(kill_process, shell=True)
+					kill_damon_results = kill_damon_results.decode()
+					pass
+				ps_daemon_results = subprocess.check_output(ps_daemon, shell=True)
+				ps_daemon_results = ps_daemon_results.decode()
 				pass
-			try:
-				command5 = " ipfs-cluster-service daemon"
-				results5 = subprocess.Popen(command5, shell=True)
-			except Exception as e:
-				results5 = str(e)
-			finally:
-				pass
-			return {
-				"results1":results1
-			}
+			pass
+		results["run_daemon"] = run_daemon
+		results["run_cluster_ctl"] = run_cluster_ctl
+		return results
 
 	def config_ipfs_cluster_follow(self, **kwargs):
 		if "cluster_name" in list(kwargs.keys()):
