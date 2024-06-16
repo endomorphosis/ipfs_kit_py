@@ -942,29 +942,53 @@ class install_ipfs:
 		return results
 					
 	def config_ipfs(self, **kwargs):
+		results = {}
+
+		cluster_name = None
+		secret = None
+		disk_stats = None
+		ipfs_path = None
+		
+		if "cluster_name" in list(kwargs.keys()):
+			cluster_name = kwargs['cluster_name']
+			self.cluster_name = cluster_name
+		elif "cluster_name" in list(self.__dict__.keys()):
+			cluster_name = self.cluster_name
+		
 		if "disk_stats" in list(kwargs.keys()):
 			disk_stats = kwargs['disk_stats']
 			self.disk_stats = disk_stats
-		else:
+		elif "disk_stats" in list(self.__dict__.keys()):
 			disk_stats = self.disk_stats
 
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
 			self.ipfs_path = ipfs_path
-		else:
+		elif "ipfs_path" in list(self.__dict__.keys()):
 			ipfs_path = self.ipfs_path
+		
+		if "secret" in list(kwargs.keys()):
+			secret = kwargs['secret']
+			self.secret = secret
+		elif "secret" in list(self.__dict__.keys()):
+			secret = self.secret
 
-		if "disk_stats" not in list(self.__dict__.keys()):
+		if disk_stats is None:
 			raise Exception("disk_stats is None")
-		else:        
-			if self.disk_stats is None:
-				raise Exception("disk_stats is None")
-		if "ipfs_path" not in list(self.__dict__.keys()):
+		if ipfs_path is None:
 			raise Exception("ipfs_path is None")
-		else:
-			if self.ipfs_path is None:
-				raise Exception("ipfs_path is None")
+		if cluster_name is None:
+			raise Exception("cluster_name is None")
+		if secret is None:
+			raise Exception("secret is None")
 
+		if "this_dir" in list(self.__dict__.keys()):
+			this_dir = self.this_dir
+		else:
+			this_dir = os.path.dirname(os.path.realpath(__file))
+
+		home_dir = os.path.expanduser("~")
+		
 		if ipfs_path[-1] != "/":
 			ipfs_path = ipfs_path + "/ipfs/"
 		else:
