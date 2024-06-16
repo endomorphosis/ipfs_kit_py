@@ -764,129 +764,182 @@ class install_ipfs:
 		return results
 
 	def config_ipfs_cluster_follow(self, **kwargs):
+		results = {}
+
+		cluster_name = None
+		secret = None
+		disk_stats = None
+		ipfs_path = None
+		
 		if "cluster_name" in list(kwargs.keys()):
 			cluster_name = kwargs['cluster_name']
 			self.cluster_name = cluster_name
-		else:
+		elif "cluster_name" in list(self.__dict__.keys()):
 			cluster_name = self.cluster_name
+		
 		if "disk_stats" in list(kwargs.keys()):
 			disk_stats = kwargs['disk_stats']
 			self.disk_stats = disk_stats
-		else:
+		elif "disk_stats" in list(self.__dict__.keys()):
 			disk_stats = self.disk_stats
 
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
 			self.ipfs_path = ipfs_path
-		else:
+		elif "ipfs_path" in list(self.__dict__.keys()):
 			ipfs_path = self.ipfs_path
+		
+		if "secret" in list(kwargs.keys()):
+			secret = kwargs['secret']
+			self.secret = secret
+		elif "secret" in list(self.__dict__.keys()):
+			secret = self.secret
 
-		if "disk_stats" not in list(self.__dict__.keys()):
+		if disk_stats is None:
 			raise Exception("disk_stats is None")
-		else:        
-			if self.disk_stats is None:
-				raise Exception("disk_stats is None")
-		if "ipfs_path" not in list(self.__dict__.keys()):
+		if ipfs_path is None:
 			raise Exception("ipfs_path is None")
+		if cluster_name is None:
+			raise Exception("cluster_name is None")
+		if secret is None:
+			raise Exception("secret is None")
+
+		if "this_dir" in list(self.__dict__.keys()):
+			this_dir = self.this_dir
 		else:
-			if self.ipfs_path is None:
-				raise Exception("ipfs_path is None")
-		results1 = None
-		results2 = None
-		ipfs_path = os.path.join(ipfs_path, "ipfs_cluster")          
-		self.run_ipfs_daemon()
-		if cluster_name is not None and ipfs_path is not None and disk_stats is not None:
-			this_dir = os.path.dirname(__file__)
-			dst_path = ipfs_path
+			this_dir = os.path.dirname(os.path.realpath(__file))
+
+		home_dir = os.path.expanduser("~")
+		cluster_path = os.path.join(ipfs_path, cluster_name)
+		follow_path = os.path.join(ipfs_path, "ipfs_cluster") + "/"		
+		run_daemon = None
+		follow_init_cmd_results = None
+		worker_id = "worker-" + str(random.randbytes(32))
+		if os.geteuid() == 0:
+			follow_path = os.path.join("/root", ".ipfs-cluster-follow", cluster_name) + "/"
+		else:
+			follow_path = os.path.join(os.path.expanduser("~"), ".ipfs-cluster-follow", cluster_name) + "/"
+
+		if (cluster_name is not None and ipfs_path is not None and disk_stats is not None):
 			try:
-				if os.getuid() == 0:
-					# Add enabler for ipfs-cluster-follow from the install into the config 
-					command0 = "systemctl enable ipfs-cluster-follow"
-					results0 = subprocess.check_output(command0, shell=True)
+				rm_command = "rm -rf " + follow_path
+				rm_results = subprocess.check_output(rm_command, shell=True)
+				rm_results = rm_results.decode()
+				follow_init_cmd = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
+				follow_init_cmd_results = subprocess.check_output(follow_init_cmd, shell=True)
+				if not os.path.exists(cluster_path):
+					os.makedirs(cluster_path)
+					pass
+				if not os.path.exists(follow_path):
+					os.makedirs(follow_path)
+					pass
+				with open(os.path.join(this_dir, "service_follower.json"), "r") as file:
+					service_config = file.read()
+				service_config = service_config.replace('"cluster_name": "ipfs-cluster"', 'cluster_name": "'+cluster_name+'"')				
+				service_config = service_config.replace('"peername": "worker"', '"peername": "'+worker_id+'"')
+				service_config = service_config.replace('"secret": "96d5952479d0a2f9fbf55076e5ee04802f15ae5452b5faafc98e2bd48cf564d3"', '"secret": "'+ secret +'"')
+				with open(os.path.join(follow_path, "service.json"), "w") as file:
+					file.write(service_config)
+				with open(os.path.join(this_dir, "peerstore"), "r") as file:
+					peer_store = file.read()
+				with open(os.path.join(follow_path, "peerstore"), "w") as file:
+					file.write(peer_store)
 
-					#command1 = "IPFS_CLUSTER_PATH="+ ipfs_path +" ipfs-cluster-follow ipfs_cluster init " + cluster_name
-					command1 = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
-					results1 = subprocess.check_output(command1, shell=True)
-					results1 = results1.decode() 
+				pebble_link = os.path.join(follow_path, "pebble")
+				pebble_dir = os.path.join(cluster_path, "pebble")
 
-					# TODO: Add test cases
+				if cluster_path != follow_path:
+					if os.path.exists(pebble_link):
+						command2 = "rm -rf " + pebble_link
+						results2 = subprocess.check_output(command2, shell=True)
+						results2 = results2.decode()
+						pass
+					if not os.path.exists(pebble_dir):
+						os.makedirs(pebble_dir)
+						pass
+					command3 = "ln -s " + pebble_dir + " " + pebble_link
+					results3 = subprocess.check_output(command3, shell=True)
+					results3 = results3.decode()
+					pass
+				if os.geteuid() == 0:
+					with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
+						service_file = file.read()
+					new_service = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-follow run","ExecStart=/usr/local/bin/ipfs-cluster-follow "+ cluster_name + " run")
+					new_service = new_service.replace("Description=IPFS Cluster Follow","Description=IPFS Cluster Follow "+ cluster_name)
+					with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
+						file.write(new_service)
+					enable_ipfs_cluster_follow_service = "systemctl enable ipfs-cluster-follow"
+					enable_ipfs_cluster_follow_service_results = subprocess.check_output(enable_ipfs_cluster_follow_service, shell=True)
+					enable_ipfs_cluster_follow_service_results = enable_ipfs_cluster_follow_service_results.decode()
+					subprocess.call("systemctl daemon-reload", shell=True)
+					pass
 				else:
-					#command1 = "IPFS_CLUSTER_PATH="+ ipfs_path +" ipfs-cluster-follow ipfs_cluster init " + cluster_name
-					command1 = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
-					results1 = subprocess.check_output(command1, shell=True)
-					results1 = results1.decode() 
+					pass
+			except Exception as e:
+				raise Exception(str(e))
+			finally:
+				pass
+			pass
+		else:
+			pass
 
-					print('You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service')				
-				
-			except Exception as e:
-				results1 = str(e)
-			finally:
+		try:
+			find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+			find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+			find_daemon_results = find_daemon_results.decode()
+			if find_daemon_results > 0:
+				kill_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | awk '{print $2}' | xargs kill -9"
+				kill_daemon_results = subprocess.check_output(kill_daemon, shell=True)
+				kill_daemon_results = kill_daemon_results.decode()
 				pass
-			try:
-				basename = os.path.basename(__file__)
-				os.makedirs(ipfs_path+"/" + cluster_name , exist_ok=True)
-				os.makedirs(ipfs_path+"/" + cluster_name + "/pebble" , exist_ok=True)
-				homedir = os.path.expanduser("~")
-				os.makedirs(homedir + "/.ipfs-cluster-follow/" + cluster_name , exist_ok=True)
-				filename = "service_follower.json"
-				dst_file = "service.json"
-				#command2 = "cp -rf " + this_dir + "/" + filename + " " + dst_path  + "/" + dst_file
-				command3 = "cp -rf " + this_dir + "/" + filename + " ~/.ipfs-cluster-follow/" + cluster_name + "/" + dst_file
-				filename = "peerstore"
-				dst_file = "peerstore"
-				#command3 = "cp -rf " + this_dir + "/" + filename + "  ~/.ipfs_cluster-follow/" + dst_file
-				command4 = "cp -rf " + this_dir + "/" + filename + "  ~/.ipfs-cluster-follow/" + cluster_name + "/" + dst_file
-				results3 = subprocess.check_output(command3, shell=True)
-				results3 = results3.decode()
-				results4 = subprocess.check_output(command4, shell=True)
-				results4 = results4.decode()
-
-				if not os.path.exists("~/.ipfs-cluster-follow/"+ cluster_name + "/pebble"):
-					command5 = "rm -rf ~/.ipfs-cluster-follow/" + cluster_name + "/pebble ;"
-					results5 = subprocess.check_output(command5, shell=True)
-					results5 = results5.decode()
-					command6 = "ln -s " + ipfs_path + "/" + cluster_name + "/pebble ~/.ipfs-cluster-follow/" + cluster_name + "/pebble"
-					results6 = subprocess.check_output(command6, shell=True)
-					results6 = results6.decode()
-			except Exception as e:
-				results3 = str(e)
-				results5 = str(e)
-				results4 = str(e)
-				results2 = str(e)
-				results6 = str(e)
-			finally:
-				pass
-			try:
-				command4 = "IPFS_CLUSTER_PATH="+ ipfs_path +" ipfs-cluster-follow " + cluster_name + " run"
-				command5 = "ipfs-cluster-follow " + cluster_name + " run"
-				results5 = subprocess.Popen(command5, shell=True)
-			except Exception as e:
-				results5 = str(e)
-			finally:
-				pass
-			new_ipfs_cluster_follow = ipfs_cluster_follow.replace("run"," "+ cluster_name + " run")
-			
+			run_daemon_results = None
 			if os.geteuid() == 0:
-				with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
-					file.write(new_ipfs_cluster_follow)
+				reload_damon = "systemctl daemon-reload"
+				reload_damon_results = subprocess.check_output(reload_damon, shell=True)
+				reload_damon_results = reload_damon_results.decode()
+
+				enable_damon = "systemctl enable ipfs-cluster-follow"
+				enable_damon_results = subprocess.check_output(enable_damon, shell=True)
+				enable_damon_results = enable_damon_results.decode()
+
+				start_damon = "systemctl start ipfs-cluster-follow"
+				start_damon_results = subprocess.check_output(start_damon, shell=True)
+				start_damon_results = start_damon_results.decode()
+				time.sleep(2)
+				run_daemon = "systemctl status ipfs-cluster-follow"
+				run_daemon_results = subprocess.check_output(run_daemon, shell=True)
+				run_daemon_results = run_daemon_results.decode()
+				pass
 			else:
-				#NOTE: Clean this up and make better logging or drop the error all together
-				print('You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service')
-			
-			# TODO: Add test cases to all the config functions
+				run_daemon_cmd = "ipfs-cluster-follow " + cluster_name + " run"
+				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+				time.sleep(2)
+				run_daemon_results = run_daemon_results.decode()
+				if run_daemon_results is not None:
+					results["run_daemon"] = run_daemon_results
+					pass
+				time.sleep(2)
+				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
 
-			#command = "ps -ef | grep ipfs | grep -v grep | awk '{print $2}' | xargs kill -9"
-			#results = subprocess.run(command, shell=True)
-			results = {
-				"results1":results1,
-				"results2":results2,
-				"results3":results3,
-				"results4":results4,
-				"results5":results5,
-				"results6":results6
-			}
+				if find_daemon_results == 0:
+					print("ipfs-cluster-follow daemon did not start")
+					raise Exception("ipfs-cluster-follow daemon did not start")
+				else:
+					kill_damon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | awk '{print $2}' | xargs kill -9"
+					kill_damon_results = subprocess.check_output(kill_damon, shell=True)
+					kill_damon_results = kill_damon_results.decode()
+					pass
+				pass
+		except Exception as e:
+			print(e)
+			pass
+		finally:
+			pass
 
-			return results
+		results["run_daemon"] = run_daemon
+		results["follow_init_cmd_results"] = follow_init_cmd_results
+		return results
 					
 	def config_ipfs(self, **kwargs):
 		if "disk_stats" in list(kwargs.keys()):
