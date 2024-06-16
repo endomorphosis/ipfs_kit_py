@@ -88,6 +88,7 @@ class install_ipfs:
 		self.ipfs_follow_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-follow/v1.0.8/ipfs-cluster-follow_v1.0.8_linux-amd64.tar.gz"
 		self.ipfs_cluster_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.0.8/ipfs-cluster-ctl_v1.0.8_linux-amd64.tar.gz"
 		self.ipfs_cluster_service_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-service/v1.0.8/ipfs-cluster-service_v1.0.8_linux-amd64.tar.gz"
+		self.ipfs_ipget_dist_tar = "https://dist.ipfs.tech/ipget/v0.10.0/ipget_v0.10.0_linux-amd64.tar.gz"
 		self.config = None
 		self.secret = None
 		self.role = None
@@ -253,6 +254,7 @@ class install_ipfs:
 			self.cluster_location = "/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv"
 			pass
 		self.bin_path = os.path.join(self.this_dir, "bin")
+		self.tmp_path = "/tmp"
 	
 	def install_ipfs_daemon(self):
 		try:
@@ -266,15 +268,16 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == 0:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
+			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 				command = "wget https://dist.ipfs.tech/kubo/v0.26.0/kubo_v0.26.0_linux-amd64.tar.gz -O " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
+				command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				if (os.geteuid() == 0):
-					command = "cd /tmp/kubo ; sudo bash install.sh"
+					#command = "cd /tmp/kubo ; sudo bash install.sh"
+					command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					command = "ipfs --version"
@@ -290,10 +293,10 @@ class install_ipfs:
 				else:
 					#NOTE: Clean this up and make better logging or drop the error all together
 					print('You need to be root to write to /etc/systemd/system/ipfs.service')
-					command = 'cd ${tmpDir}/kubo && mkdir -p "${thisDir}/bin/" && mv ipfs "${thisDir}/bin/" && chmod +x "${thisDir}/bin/ipfs"'
+					command = 'cd ${self.tmpDir}/kubo && mkdir -p "${thisDir}/bin/" && mv ipfs "${thisDir}/bin/" && chmod +x "${thisDir}/bin/ipfs"'
 					results = subprocess.check_output(command, shell=True)
 					pass
-			command = "ipfs --version"
+			command = self.path_string + " ipfs --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs" in results:
@@ -316,7 +319,7 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == 0:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
+			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 				url = self.ipfs_follow_dist_tar
 				tar_path = os.path.join("tmp",this_tempfile.name)
 				if self.this_dir is not None:
@@ -328,7 +331,7 @@ class install_ipfs:
 					command = "wget " + url + " -O " + this_tempfile.name
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
+					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					
@@ -337,22 +340,26 @@ class install_ipfs:
 							ipfs_cluster_follow = file.read()
 						with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
 							file.write(ipfs_cluster_follow)
-
+						command = "systemctl enable ipfs-cluster-follow"
+						results = subprocess.call(command, shell=True)
+						# command = "cd /tmp/ipfs-cluster-follow ; sudo mv ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow"
+						command = "sudo mv " + os.path.join(self.tmp_path, "ipfs-cluster-follow",  "ipfs-cluster-follow") + " " + "/usr/local/bin/ipfs-cluster-follow"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
 						pass
 					else:
+						command = "mv " + os.path.join("/tmp/ipfs-cluster-follow","ipfs-cluster-follow") + " " + os.path.join(self.this_dir , "bin","ipfs-cluster-follow")
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
 						pass
 
 				except Exception as e:
 					print(e)
 					pass
 
-				command = "cd /tmp/ipfs-cluster-follow ; sudo mv ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow"
+				command = self.path_string + " ipfs-cluster-follow --version"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "ipfs-cluster-follow --version"
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-				
 				
 				if "ipfs-cluster-follow" in results:
 					return True
@@ -370,18 +377,19 @@ class install_ipfs:
 			print(e)
 		finally:
 			pass
-		if detect == 0:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
-				command = "wget https://dist.ipfs.tech/ipfs-cluster-ctl/v1.0.8/ipfs-cluster-ctl_v1.0.8_linux-amd64.tar.gz -O " + this_tempfile.name
+			url = self.ipfs_cluster_dist_tar
+			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
+				command = "wget " + url + " -O " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
+				command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "cd /tmp/ipfs-cluster-ctl ; sudo mv ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl"
+				# command = "cd /tmp/ipfs-cluster-ctl ; sudo mv ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl"
+				command = "sudo mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + " /usr/local/bin/ipfs-cluster-ctl"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "ipfs-cluster-ctl --version"
+				command = self.path_string + " ipfs-cluster-ctl --version"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				if "ipfs-cluster-ctl" in results:
@@ -401,28 +409,34 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == 0:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
-				command = "wget https://dist.ipfs.tech/ipfs-cluster-service/v1.0.8/ipfs-cluster-service_v1.0.8_linux-amd64.tar.gz -O " + this_tempfile.name
+			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
+				url = self.ipfs_cluster_service_dist_tar
+				command = "wget " + url + " -O " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "cd /tmp/ipfs-cluster-service ; sudo mv ipfs-cluster-service /usr/local/bin/ipfs-cluster-service"
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-				command = "ipfs-cluster-service --version"
+				if os.geteuid() == 0:
+					# command = "cd /tmp/ipfs-cluster-service ; sudo mv ipfs-cluster-service /usr/local/bin/ipfs-cluster-service"
+					command = "mv " + os.path.join(self.tmp_path ,'ipfs-cluster-service','ipfs-cluster-service') + " " + "/usr/local/bin/ipfs-cluster-service"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					with open(os.path.join(self.this_dir, "ipfs-cluster-service.service"), "r") as file:
+						ipfs_cluster_service = file.read()
+					with open("/etc/systemd/system/ipfs-cluster-service.service", "w") as file:
+						file.write(ipfs_cluster_service)
+					command = "systemctl enable ipfs-cluster-service"
+					subprocess.call(command, shell=True)
+				else:
+					command = "mv " + os.path.join(self.tmp_path,'ipfs-cluster-service','ipfs-cluster-service') + " " + os.path.join(self.this_dir,"bin","ipfs-cluster-service")
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+
+				command = self.path_string + " ipfs-cluster-service --version"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				
-				if os.geteuid() == 0:
-					with open("/etc/systemd/system/ipfs-cluster-service.service", "w") as file:
-						file.write(ipfs_cluster_service)
-
-				else:
-					#NOTE: Clean this up and make better logging or drop the error all together
-					print('You need to be root to write to /etc/systemd/system/ipfs-cluster-service.service')
-
 				if "ipfs-cluster-service" in results:
 					return True
 				else:
@@ -440,14 +454,17 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == 0:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir="/tmp") as this_tempfile:
-					command = "wget https://dist.ipfs.tech/ipget/v0.10.0/ipget_v0.10.0_linux-amd64.tar.gz -O " + this_tempfile.name
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "tar -xvzf " + this_tempfile.name + " -C /tmp"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "cd /tmp/ipget ; sudo bash install.sh"
+			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
+				url = self.ipfs_ipget_dist_tar
+				command = "wget " + url + " -O " + this_tempfile.name
+				results = subprocess.check_output(command, shell=True)
+				results = results.decode()
+				command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+				results = subprocess.check_output(command, shell=True)
+				results = results.decode()
+				# command = "cd /tmp/ipget ; sudo bash install.sh"
+				if os.getegid() == 0:
+					command = "cd sudo bash " + os.path.join(self.tmp_path, "ipget", "install.sh")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					command = "sudo sysctl -w net.core.rmem_max=2500000"
@@ -456,13 +473,18 @@ class install_ipfs:
 					command = "sudo sysctl -w net.core.wmem_max=2500000"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = "ipget --version"
-					results = subprocess.check_output(command, shell=True)
+				else:
+					command = 'cd ' + self.tmp_path + '/ipget && mv ipget "' + self.this_dir + '/bin/" && chmod +x "' + self.this_dir + '/bin/ipget"'
+					results = subprocess.call(command, shell=True)
 					results = results.decode()
-					if "ipget" in results:
-						return True
-					else:
-						return False
+					
+				command = "ipget --version"
+				results = subprocess.check_output(command, shell=True)
+				results = results.decode()
+				if "ipget" in results:
+					return True
+				else:
+					return False
 
 	def config_ipfs_cluster_service(self, **kwargs):
 		if "cluster_name" in list(kwargs.keys()):
