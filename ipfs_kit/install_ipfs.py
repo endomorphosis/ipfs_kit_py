@@ -988,150 +988,206 @@ class install_ipfs:
 			this_dir = os.path.dirname(os.path.realpath(__file))
 
 		home_dir = os.path.expanduser("~")
-		
-		if ipfs_path[-1] != "/":
-			ipfs_path = ipfs_path + "/ipfs/"
-		else:
-			ipfs_path = ipfs_path + "ipfs/"
-
+		ipfs_path = os.path.join(ipfs_path, "ipfs") + "/"
+		identity = None
+		config = None
+		peer_id = None
+		run_daemon = None
+		public_key = None
+		ipfs_daemon = None
 		os.makedirs(ipfs_path, exist_ok=True)
+		ipfs_dir_contents = os.listdir(ipfs_path)
+		if len(ipfs_dir_contents) > 0:
+			print("ipfs directory is not empty")
+			for del_file in ipfs_dir_contents:
+				if os.path.isfile(del_file):
+					os.remove(del_file)
+					pass
+				elif os.path.isdir(del_file):
+					shutil.rmtree(del_file)
+					pass
+				else:
+					print("unknown file type " + del_file + " in ipfs directory")
+					pass
+			pass
+		
+			results = {
+				"config" : None,
+				"identity": None,
+				"public_key": None
+			}
+
 		if disk_stats is not None and ipfs_path is not None and disk_stats is not None:
 			try:
-				command1 = "IPFS_PATH="+ ipfs_path +" ipfs init --profile=badgerds"
-				results1 = subprocess.check_output(command1, shell=True)
-				results1 = results1.decode()
-			except Exception as e:
-				results1 = str(e)
-			finally:
-				pass
-			try:
-				command2 = "IPFS_PATH="+ ipfs_path +" ipfs id "
-				results2 = subprocess.check_output(command2, shell=True)
-				results2 = results2.decode()
-				peer_id = results2
-			except Exception as e:
-				results2 = str(e)
-			try:
-				command4 = "IPFS_PATH="+ ipfs_path + " ipfs config profile apply badgerds"
-				results4 = subprocess.check_output(command4, shell=True)
-				results4 = results4.decode()
-			except Exception as e:
-				results4 = str(e)
-			finally:
-				pass
-			min_free_space = 32 * 1024 * 1024 * 1024
-			disk_available = self.disk_stats['disk_avail']
-			if "T" in disk_available:
-				disk_available = float(disk_available.replace("T","")) * 1024 * 1024 * 1024 * 1024
-			elif "G" in disk_available:
-				disk_available = float(disk_available.replace("G","")) * 1024 * 1024 * 1024
-			elif "M" in disk_available:
-				disk_available = float(disk_available.replace("M","")) * 1024 * 1024
+			
+				peer_id = None
+				disk_available = None
+				min_free_space = 32 * 1024 * 1024 * 1024
+				allocate = None
+				disk_available = self.disk_stats['disk_avail']
+				if "T" in disk_available:
+					disk_available = float(disk_available.replace("T","")) * 1024 * 1024 * 1024 * 1024
+				elif "G" in disk_available:
+					disk_available = float(disk_available.replace("G","")) * 1024 * 1024 * 1024
+				elif "M" in disk_available:
+					disk_available = float(disk_available.replace("M","")) * 1024 * 1024
 
-			if disk_available > min_free_space:
-				allocate = math.ceil((( disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
-				try:
-					command5 = "IPFS_PATH="+ ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
-					results5 = subprocess.check_output(command5, shell=True)
-					results5 = results5.decode()
-				except Exception as e:
-					results5 = str(e)
-				finally:
+				if disk_available > min_free_space:
+					allocate = math.ceil((( disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
+					command = "IPFS_PATH="+ ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
 					pass
-			else:
-				results5 = "disk_available is less than min_free_space"
-			basedir = os.path.dirname(__file__)
-			with open(basedir + "/peerstore", "r") as file:
-				peerlist = file.read()
-			peerlist = peerlist.split("\n")
-			for peer in peerlist:
-				if peer != "":
-					try:
-						command6 = "IPFS_PATH="+ ipfs_path + " ipfs bootstrap add " + peer
-						# TODO: Permission error on the config when installing as user
-						results6 = subprocess.check_output(command6, shell=True)
-						results6 = results6.decode()
-					except Exception as e:
-						results6 = str(e)
-					finally:
+
+
+				peer_list_path = os.path.join(this_dir, "peerstore")
+				if os.path.exists(peer_list_path):
+					with open(peer_list_path, "r") as file:
+						peerlist = file.read()
+					peerlist = peerlist.split("\n")
+					for peer in peerlist:
+						if peer != "":
+							command = "IPFS_PATH="+ ipfs_path + " ipfs bootstrap add " + peer
+							results = subprocess.check_output(command, shell=True)
+							results = results.decode()
+							pass
 						pass
-			try:
-				command7 = "IPFS_PATH="+ ipfs_path + " ipfs init"
-				results7 = subprocess.Popen(command7, shell=True)
+
+				if os.geteuid() == 0:
+					with open(os.path.join(this_dir, "ipfs.service"), "r") as file:
+						ipfs_service = file.read()
+					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && ")
+					with open("/etc/systemd/system/ipfs.service", "w") as file:
+						file.write(ipfs_service_text)
+					pass
+				
+				config_get_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs config show'
+				config_data = subprocess.check_output(config_get_cmd, shell=True)
+				config_data = config_data.decode()
+				results["config"] = config_data
+				results["identity"] = peer_id["ID"]
+				results["public_key"] = peer_id["PublicKey"]
+				results["agent_version"] = peer_id["AgentVersion"]
+				results["addresses"] = peer_id["Addresses"]
 			except Exception as e:
-				results7 = str(e)
+				print("error configuring IPFS in config_ipfs()")
+				print(e)
 			finally:
 				pass
 
-			if os.geteuid() == 0:
-				ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && ")
-				with open("/etc/systemd/system/ipfs.service", "w") as file:
-					file.write(ipfs_service_text)
+		pass
+		if os.geteuid() == 0:
+			try:
+				reload_daemon_cmd = "systemctl daemon-reload"
+				reload_daemon_results = subprocess.check_output(reload_daemon_cmd, shell=True)
+				reload_daemon_results = reload_daemon_results.decode()
 
-				try:
-					# Reload daemon
-					command11 = "systemctl daemon-reload"
-					results11 = subprocess.Popen(command11, shell=True)
-					
-					# Enable service 
-					command0 = "systemctl enable ipfs"
-					results0 = subprocess.Popen(command0, shell=True)
+				enable_daemon_cmd = "systemctl enable ipfs"
+				enable_daemon_results = subprocess.check_output(enable_daemon_cmd, shell=True)
+				enable_daemon_results = enable_daemon_results.decode()
 
-					# Start daemon
-					command22 = "systemctl start ipfs"
-					results22 = subprocess.Popen(command22, shell=True)
+				find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
+				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+				find_daemon_results = find_daemon_results.decode()
 
-					# Check if daemon is running
-					command3 = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
-					results3 = subprocess.check_output(command3, shell=True)
-					results3 = results3.decode()
+				if find_daemon_results > 0:
+					stop_daemon_cmd = "systemctl stop ipfs"
+					stop_daemon_results = subprocess.check_output(stop_daemon_cmd, shell=True)
+					stop_daemon_results = stop_daemon_results.decode()
+					pass
 
-					if(int(results3) > 0):
-							# Downloads image from ipfs as a test
-							command5 = "bash -c \"export IPFS_PATH="+ ipfs_path + " && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq >" + ipfs_path + "/test.jpg \" " 
-							results5 = subprocess.Popen(command5, shell=True)
+				start_daemon_cmd = "systemctl start ipfs"
+				start_daemon_results = subprocess.check_output(start_daemon_cmd, shell=True)
+				start_daemon_results = start_daemon_results.decode()
+				
+				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+				find_daemon_results = find_daemon_results.decode()
+				
+				if find_daemon_results > 0:
+					stop_daemon_cmd_results = subprocess.check_output(stop_daemon_cmd, shell=True)
+					stop_daemon_cmd_results = stop_daemon_cmd_results.decode()
+					find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+					pass
+				
+				if find_daemon_results == 0:
+					test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+					test_daemon_results = subprocess.check_output(test_daemon, shell=True)
+					test_daemon_results = test_daemon_results.decode()
+					time.sleep(5)
 
-							# Time out for 2 seconds to allow the file to download
-							time.sleep(5)	 
+					if os.path.exists("/tmp/test.jpg"):
+						if os.path.getsize("/tmp/test.jpg") > 0:
+							os.remove("/tmp/test.jpg")
+							pass
+						else:
+							raise Exception("ipfs failed to download test file")
+						pass
+					pass
+				else:
+					raise Exception("ipfs daemon did not start")
+					pass
+			except Exception as e:
+				print("error starting ipfs daemon")
+				print(e)
+			finally:
+				stop_daemon_cmd = "systemctl stop ipfs"
+				stop_daemon_results = subprocess.check_output(stop_daemon_cmd, shell=True)
+				stop_daemon_results = stop_daemon_results.decode()
+				pass
+		else:
+			find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
+			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+			find_daemon_results = find_daemon_results.decode()
+			if find_daemon_results > 0:
+				kill_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | awk '{print $2}' | xargs kill -9"
+				kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
+				kill_daemon_results = kill_daemon_results.decode()
+				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
+				find_daemon_results = find_daemon_results.decode()
+				pass
+			run_daemon_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
+			run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+			time.sleep(5)
+			run_daemon_results = run_daemon_results.decode()
+			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
+			find_daemon_results = find_daemon_results.decode()
+			try:
+				test_daemon = 'bash -c "IPFS_PATH='+ ipfs_path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
+				test_daemon_results = test_daemon_results.decode()
+				time.sleep(5)
 
-							if os.path.exists(ipfs_path + "/test.jpg"):
-								if os.path.getsize(ipfs_path + "/test.jpg") > 0:
-									# Remove the test file
-									pass
-								else:
-									raise Exception("ipfs failed to download test file")
-							
-							os.remove(ipfs_path + "/test.jpg")
-								
+				if os.path.exists("/tmp/test.jpg"):
+					if os.path.getsize("/tmp/test.jpg") > 0:
+						os.remove("/tmp/test.jpg")
+						pass
 					else:
 						raise Exception("ipfs failed to download test file")
+					pass
+				else:
+					raise Exception("ipfs failed to download test file")
+					
+			except Exception as e:
+				print("error starting ipfs daemon")
+				print(e)
+			finally:
+				pass
 			
-				except Exception as e:
-					# Should this return an error or log it like line 673
-					return str(e)
+			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) ==52:
+				identity = results["identity"]
+				config = json.load(results["config"].replace("\n",""))
+				public_key = config["Identity"]["PrivKey"]
+				ipfs_daemon = run_daemon_results
+				pass
 
-				finally:
-					command6 = "systemctl stop ipfs"
-					results6 = subprocess.Popen(command6, shell=True)
 
-			else:
-				#NOTE: Not sure if this needs to logged or excepted 
-				print('You need to be root to write to /etc/systemd/system/ipfs.service')
-
-			if "exit" not in results1:
-				identity = results1.split("\n")
-				identity = identity[1].replace("peer identity: ","").strip()
-			ipfs_id = json.loads(results2)
-			identity = ipfs_id['ID']
-			public_key = ipfs_id['PublicKey']
-			config = json.loads(results4) 
-			#ipfs_daemon = results7 
 			results = {
 				"config":config,
 				"identity":identity,
 				"public_key":public_key,
-#                "ipfs_daemon":ipfs_daemon
+                "ipfs_daemon":ipfs_daemon
 			}
+			
 			return results
 		
 	def run_ipfs_cluster_service(self, **kwargs):
