@@ -6,75 +6,60 @@ import math
 import sys
 import time
 import random
+import shutil
+
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
 from .test_fio import test_fio
 
-ipfs_service = """
-[Unit]
-Description=IPFS Daemon
-After=network.target
+# ipfs_service = """
+# [Unit]
+# Description=IPFS Daemon
+# After=network.target
 
-[Service]
-ExecStart=/usr/local/bin/ipfs daemon --enable-gc --enable-pubsub-experiment \"
-Restart=on-failure
-User=root
-Group=root
+# [Service]
+# ExecStart=/usr/local/bin/ipfs daemon --enable-gc --enable-pubsub-experiment \"
+# Restart=on-failure
+# User=root
+# Group=root
 
-[Install]
-WantedBy=multi-user.target
-"""
+# [Install]
+# WantedBy=multi-user.target
+# """
 
-ipfs_cluster_service = """
-[Unit]
-Description=IPFS Cluster Daemon
-After=network.target
+# ipfs_cluster_service = """
+# [Unit]
+# Description=IPFS Cluster Daemon
+# After=network.target
 
-[Service]
-ExecStart=/usr/local/bin/ipfs-cluster-service daemon
-Restart=on-failure
-User=root
-Group=root
+# [Service]
+# ExecStart=/usr/local/bin/ipfs-cluster-service daemon
+# Restart=on-failure
+# User=root
+# Group=root
 
-[Install]
-WantedBy=multi-user.target
+# [Install]
+# WantedBy=multi-user.target
 
-"""
+# """
 
 #NOTE FIX THIS SYSTEMCTL SERVICE
 
-ipfs_cluster_follow = """
-[Unit]
-Description=IPFS Cluster Follow Daemon
-After=network.target
+# ipfs_cluster_follow = """
+# [Unit]
+# Description=IPFS Cluster Follow Daemon
+# After=network.target
 
-[Service]
-ExecStart=/usr/local/bin/ipfs-cluster-follow run
-Restart=on-failure
-User=root
-Group=root
+# [Service]
+# ExecStart=/usr/local/bin/ipfs-cluster-follow run
+# Restart=on-failure
+# User=root
+# Group=root
 
-[Install]
-WantedBy=multi-user.target
+# [Install]
+# WantedBy=multi-user.target
 
-"""
-
-
-peerlist = """
-/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv
-/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv
-12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/127.0.0.1/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/127.0.0.1/udp/4001/quic-v1/webtransport/certhash/uEiCQ69lFLNBxmYKhz9pIa6M50fSdJHmgkMnT-Azj4x4jKw/certhash/uEiA0dWNgdbav2huMaLhaX8Aul1n8bOAmNcc3k0HD6Q4juw/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/167.99.96.231/tcp/4001/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/167.99.96.231/udp/4001/quic-v1/webtransport/certhash/uEiCQ69lFLNBxmYKhz9pIa6M50fSdJHmgkMnT-Azj4x4jKw/certhash/uEiA0dWNgdbav2huMaLhaX8Aul1n8bOAmNcc3k0HD6Q4juw/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip4/167.99.96.231/udp/4001/quic-v1/webtransport/certhash/uEiCQ69lFLNBxmYKhz9pIa6M50fSdJHmgkMnT-Azj4x4jKw/certhash/uEiA0dWNgdbav2huMaLhaX8Aul1n8bOAmNcc3k0HD6Q4juw/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip6/::1/tcp/4001/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip6/::1/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D
-/ip6/::1/udp/4001/quic-v1/webtransport/certhash/uEiCQ69lFLNBxmYKhz9pIa6M50fSdJHmgkMnT-Azj4x4jKw/certhash/uEiA0dWNgdbav2huMaLhaX8Aul1n8bOAmNcc3k0HD6Q4juw/p2p/12D3KooWS9pEXDb2FEsD"
-"""
+# """
 
 class install_ipfs:
 	def __init__(self, resources, meta=None):
@@ -807,7 +792,7 @@ class install_ipfs:
 		if "this_dir" in list(self.__dict__.keys()):
 			this_dir = self.this_dir
 		else:
-			this_dir = os.path.dirname(os.path.realpath(__file))
+			this_dir = os.path.dirname(os.path.realpath(__file__))
 
 		home_dir = os.path.expanduser("~")
 		cluster_path = os.path.join(ipfs_path, cluster_name)
@@ -985,7 +970,7 @@ class install_ipfs:
 		if "this_dir" in list(self.__dict__.keys()):
 			this_dir = self.this_dir
 		else:
-			this_dir = os.path.dirname(os.path.realpath(__file))
+			this_dir = os.path.dirname(os.path.realpath(__file__))
 
 		home_dir = os.path.expanduser("~")
 		ipfs_path = os.path.join(ipfs_path, "ipfs") + "/"
@@ -1187,53 +1172,81 @@ class install_ipfs:
 				"public_key":public_key,
                 "ipfs_daemon":ipfs_daemon
 			}
-			
+
 			return results
 		
 	def run_ipfs_cluster_service(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
-		else:
+		elif "ipfs_path" in list(self.__dict__.keys()):
 			ipfs_path = self.ipfs_path
+		try:			
+			ipfs_path = os.path.join(ipfs_path, "ipfs")
+			if not os.path.exists(ipfs_path):
+				os.makedirs(ipfs_path, exist_ok=True)
 
-		ipfs_path = ipfs_path + "ipfs/"
-		os.makedirs(ipfs_path, exist_ok=True)
+			run_command = "IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service"
+			run_command_results = subprocess.Popen(run_command, shell=True)
+			run_command_results = run_command_results.decode()
+		except Exception as e:
+			run_command_results = str(e)
+			print("error running ipfs-cluster-service")
+			print(e)
+		finally:
+			pass
 
-		command = "IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service"
-		results = subprocess.Popen(command, shell=True)
-		return results
+		return run_command_results
 	
 	def run_ipfs_cluster_ctl(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
-			ipfs_path = ipfs_path + "ipfs/"
-			os.makedirs(ipfs_path, exist_ok=True)
-		else:
+		elif "ipfs_path" in list(self.__dict__.keys()):
 			ipfs_path = self.ipfs_path          
-			ipfs_path = ipfs_path + "ipfs/"
+		try:
 			os.makedirs(ipfs_path, exist_ok=True)
+			ipfs_path = os.path.join(ipfs_path, "ipfs")
 
-		command = "IPFS_CLUSTER_PATH="+ self.ipfs_path +"/ipfs/ ipfs-cluster-ctl"
-		results = subprocess.Popen(command, shell=True)
-		return results
+			run_ipfs_cluster_command = "IPFS_CLUSTER_PATH="+ self.ipfs_path +"/ipfs/ ipfs-cluster-ctl"
+			run_ipfs_cluster_command_results = subprocess.Popen(run_ipfs_cluster_command, shell=True)
+			run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+		except Exception as e:
+			run_ipfs_cluster_command_results = str(e)
+			print("error running ipfs-cluster-ctl")
+			print(e)
+		finally:
+			pass
+
+		return run_ipfs_cluster_command_results
 	
+	def remove_directory(self, dir_path):
+		try:
+			shutil.rmtree(dir_path)
+		except Exception as e:
+			print("error removing directory " + dir_path)
+			print(e)
+			return False
+		finally:
+			return True
+
 	def run_ipfs_cluster_follow(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
-			ipfs_path = ipfs_path + "ipfs/"
-			os.makedirs(ipfs_path, exist_ok=True)
-		else:
+		elif "ipfs_path" in list(self.__dict__.keys()):
 			ipfs_path = self.ipfs_path          
-			ipfs_path = ipfs_path + "ipfs/"
-			os.makedirs(ipfs_path, exist_ok=True)
+			
 		try:
-			command7 = "IPFS_PATH="+ ipfs_path + "/ipfs/ ipfs daemon --enable-pubsub-experiment"
-			results7 = subprocess.Popen(command7, shell=True)
+			ipfs_path = os.path.join(ipfs_path, "ipfs")
+			os.makedirs(ipfs_path, exist_ok=True)
+			run_ipfs_cluster_follow = "IPFS_PATH="+ ipfs_path + "/ipfs/ ipfs daemon --enable-pubsub-experiment"
+			run_ipfs_cluster_follow_results = subprocess.Popen(run_ipfs_cluster_follow, shell=True)
 		except Exception as e:
-			results7 = str(e)
+			run_ipfs_cluster_follow_results = str(e)
+			print("error running ipfs-cluster-follow")
+			print(e)
 		finally:
 			pass
-		return results7
+
+		return run_ipfs_cluster_follow_results
 	
 	def run_ipfs_daemon(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
@@ -1241,21 +1254,47 @@ class install_ipfs:
 		else:
 			ipfs_path = self.ipfs_path
 
-		if ipfs_path[-1] != "/":
-			ipfs_path = ipfs_path + "/ipfs/"
-		else:
-			ipfs_path = ipfs_path + "ipfs/"
-		os.makedirs(ipfs_path, exist_ok=True)
-
 		try:
-			command7 = "IPFS_PATH="+ ipfs_path + " ipfs daemon --enable-pubsub-experiment"
-			results7 = subprocess.Popen(command7, shell=True)
+			ipfs_path = os.path.join(ipfs_path, "ipfs")
+			os.makedirs(ipfs_path, exist_ok=True)
+			run_ipfs_daemon_command = "IPFS_PATH="+ ipfs_path + " ipfs daemon --enable-pubsub-experiment"
+			run_ipfs_daemon_command_results = subprocess.Popen(run_ipfs_daemon_command, shell=True)
+			run_ipfs_daemon_command_results = run_ipfs_daemon_command_results.decode()
 		except Exception as e:
-			results7 = str(e)
+			run_ipfs_daemon_command = str(e)
+			print("error running ipfs daemon")
+			print(e)
 		finally:
 			pass
 	
-		return results7
+		return run_ipfs_daemon_command
+	
+	def kill_process_by_pattern(self, pattern):
+		try:
+			pid_cmds = 'pgrep -f ' + pattern
+			pids = subprocess.check_output(pid_cmds, shell=True)
+			pids = pids.decode()
+			if pids != "":
+				kill_cmds = 'pkill -f ' + pattern
+				kill_results = subprocess.check_output(kill_cmds, shell=True)
+				kill_results = kill_results.decode()
+				pass
+		except Exception as e:
+			print("error killing process by pattern " + pattern)
+			print(e)
+			return False
+		finally:
+			return True
+
+
+	def uninstall_ipfs_kit(self, **kwargs):
+		home_dir = os.path.expanduser("~")
+		self.kill_process_by_pattern('ipfs.*daemon')
+		self.kill_process_by_pattern('ipfs-cluster-follow')
+		self.remove_directory(self.ipfs_path)
+		self.remove_directory(os.path.join(home_dir, '.ipfs-cluster-follow', 'ipfs_cluster', 'api-socket'))
+		self.remove_binaries('/usr/local/bin', ['ipfs', 'ipget', 'ipfs-cluster-service', 'ipfs-cluster-ctl'])
+		return True
 	
 	def uninstall_ipfs(self):
 		try:
@@ -1281,6 +1320,9 @@ class install_ipfs:
 			return False
 		finally:
 			pass
+
+
+	
 
 	def uninstall_ipfs_cluster_service(self):
 		# TODO: This needs to be tested
@@ -1374,6 +1416,26 @@ class install_ipfs:
 			return False
 		finally:
 			pass
+
+
+	def remove_binaries(self, bin_path, bin_list):
+		try:
+			for binary in bin_list:
+				file_path = os.path.join(bin_path, binary)
+				if os.path.exists(file_path):
+					os.remove(file_path)
+					pass
+		except Exception as e:
+			print("error removing binaries")
+			print(e)
+			return False
+		finally:
+			return True
+			pass
+		
+
+
+		
 	
 	def test_uninstall(self):
 		if self.role == "leecher" or self.role == "worker" or self.role == "master":
@@ -1465,7 +1527,7 @@ class install_ipfs:
 		pass
 
 
-	def install_config(self, **kwargs):
+	def install_and_configure(self, **kwargs):
 		results = {}
 		if self.role == "leecher" or self.role == "worker" or self.role == "master":
 			ipget = self.install_ipget()
@@ -1511,7 +1573,7 @@ if __name__ == "__main__":
 	install = install_ipfs(None, meta=meta) 
 	# results = install.test_uninstall()
 	
-	results = install.install_config()
+	results = install.install_and_configure()
 
 	print(results)
 	pass

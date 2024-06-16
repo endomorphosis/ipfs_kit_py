@@ -7,6 +7,6 @@ setup(
 		'ipfs_kit',
 	],
 	install_requires=[
-		
+		"shutil",
     ]
 )
