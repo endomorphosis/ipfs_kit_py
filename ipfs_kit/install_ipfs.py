@@ -1141,9 +1141,9 @@ class install_ipfs:
 			run_daemon_cmd = 'IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
 			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
 			time.sleep(5)
-			run_daemon_results = run_daemon.communicate()
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
 			find_daemon_results = find_daemon_results.decode().strip()
+			test_daemon_results = None
 			try:
 				test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
 				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
@@ -1165,23 +1165,24 @@ class install_ipfs:
 				print(e)
 			finally:
 				pass
-			
-			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) ==52:
+			private_key = None
+			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) == 52:
 				identity = results["identity"]
-				config = json.load(results["config"].replace("\n",""))
-				public_key = config["Identity"]["PrivKey"]
-				ipfs_daemon = run_daemon_results
+				config = results["config"]
+				if "PrivKey" in list(config["Identity"].keys()):
+					private_key = config["Identity"]["PrivKey"]
+				ipfs_daemon = test_daemon_results
 				pass
 
 
-			results = {
+		results = {
 				"config":config,
 				"identity":identity,
-				"public_key":public_key,
+				"public_key":private_key,
                 "ipfs_daemon":ipfs_daemon
 			}
 
-			return results
+		return results
 		
 	def run_ipfs_cluster_service(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
