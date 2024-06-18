@@ -10,7 +10,7 @@ import shutil
 
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
-from .test_fio import test_fio
+from test_fio import test_fio
 
 # ipfs_service = """
 # [Unit]
@@ -63,9 +63,11 @@ from .test_fio import test_fio
 
 class install_ipfs:
 	def __init__(self, resources, meta=None):
-		self.env = {}
-		self.env_path = ""
-		#NOTE: fix this
+		self.env_path = os.environ.get('PATH', '')
+		if "path" in list(meta.keys()):
+			self.path = meta['path']
+		else:
+			self.path = self.env_path
 		self.this_dir = os.path.dirname(os.path.realpath(__file__))
 		self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
 		self.path_string = "PATH="+ self.path
@@ -81,7 +83,6 @@ class install_ipfs:
 		self.cluster_name = None
 		self.cluster_location = None
 		if meta is not None:
-
 			if self.secret == None:
 				self.secret = str(random.randbytes(32))
 				pass
@@ -1220,7 +1221,17 @@ class install_ipfs:
 	
 	def remove_directory(self, dir_path):
 		try:
-			shutil.rmtree(dir_path)
+			# get permissions of path
+			if os.path.exists(dir_path):
+				permissions = os.stat(dir_path)
+				user_id = permissions.st_uid
+				group_id = permissions.st_gid
+				my_user = os.getuid()
+				my_group = os.getgid()
+				if user_id == my_user and os.access(dir_path, os.W_OK):
+					shutil.rmtree(dir_path)
+				elif group_id == my_group and os.access(dir_path, os.W_OK):
+					shutil.rmtree(dir_path)
 		except Exception as e:
 			print("error removing directory " + dir_path)
 			print(e)
@@ -1270,15 +1281,24 @@ class install_ipfs:
 		return run_ipfs_daemon_command
 	
 	def kill_process_by_pattern(self, pattern):
+		pids = None
 		try:
-			pid_cmds = 'pgrep -f ' + pattern
+			pid_cmds = 'ps -ef | grep ' + pattern + ' | grep -v grep '
 			pids = subprocess.check_output(pid_cmds, shell=True)
 			pids = pids.decode()
-			if pids != "":
-				kill_cmds = 'pkill -f ' + pattern
-				kill_results = subprocess.check_output(kill_cmds, shell=True)
-				kill_results = kill_results.decode()
-				pass
+			pids = pids.split("\n")
+		except Exception as e:
+			pass
+		finally:
+			pass
+		try:
+			if pids is not None:
+				for pid in pids:
+					if pid != "":
+						kill_cmds = 'kill -9 ' + pid
+						kill_results = subprocess.check_output(kill_cmds, shell=True)
+						kill_results = kill_results.decode()
+						pass
 		except Exception as e:
 			print("error killing process by pattern " + pattern)
 			print(e)
@@ -1289,7 +1309,7 @@ class install_ipfs:
 
 	def uninstall_ipfs_kit(self, **kwargs):
 		home_dir = os.path.expanduser("~")
-		self.kill_process_by_pattern('ipfs.*daemon')
+		self.kill_process_by_pattern('ipfs.daemon')
 		self.kill_process_by_pattern('ipfs-cluster-follow')
 		self.remove_directory(self.ipfs_path)
 		self.remove_directory(os.path.join(home_dir, '.ipfs-cluster-follow', 'ipfs_cluster', 'api-socket'))
@@ -1421,10 +1441,29 @@ class install_ipfs:
 	def remove_binaries(self, bin_path, bin_list):
 		try:
 			for binary in bin_list:
-				file_path = os.path.join(bin_path, binary)
-				if os.path.exists(file_path):
-					os.remove(file_path)
-					pass
+					file_path = os.path.join(bin_path, binary)
+					if os.path.exists(file_path):
+						binary_permission = os.stat(file_path)
+						user_id = binary_permission.st_uid
+						group_id = binary_permission.st_gid
+						my_user = os.getuid()
+						my_group = os.getgid()
+						parent_permissions = os.stat(bin_path)
+						parent_user = parent_permissions.st_uid
+						parent_group = parent_permissions.st_gid
+						if user_id == my_user and os.access(file_path, os.W_OK) and parent_user == my_user and os.access(bin_path, os.W_OK):
+							rm_command = "chmod 777 " +  file_path +" && rm -rf " + file_path
+							rm_results = subprocess.check_output(rm_command, shell=True)
+							rm_results = rm_results.decode()
+							pass
+						elif group_id == my_group and os.access(file_path, os.W_OK) and parent_group == my_group and os.access(bin_path, os.W_OK):
+							rm_command = "chmod 777 " +  file_path +" && rm -rf " + file_path
+							rm_results = subprocess.check_output(rm_command, shell=True)
+							rm_results = rm_results.decode()
+							pass
+						else:
+							print("insufficient permissions to remove " + file_path)
+							pass
 		except Exception as e:
 			print("error removing binaries")
 			print(e)
@@ -1432,23 +1471,21 @@ class install_ipfs:
 		finally:
 			return True
 			pass
-		
-
-
-		
 	
 	def test_uninstall(self):
+		ipfs_kit = self.uninstall_ipfs_kit()
 		if self.role == "leecher" or self.role == "worker" or self.role == "master":
 			ipfs = self.uninstall_ipfs()
 			ipget = self.uninstall_ipget()
+			pass
+		if self.role == "worker":
+			cluster_follow = self.uninstall_ipfs_cluster_follow()
 			pass
 		if self.role == "master":
 			cluster_service  = self.uninstall_ipfs_cluster_service()
 			cluster_ctl = self.uninstall_ipfs_cluster_ctl()
 			pass
-		if self.role == "worker":
-			cluster_follow = self.uninstall_ipfs_cluster_follow()
-			pass
+
 
 	def install_executables(self, **kwargs):
 		results = {}
@@ -1568,11 +1605,9 @@ if __name__ == "__main__":
 		"cluster_location":"/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv",
 		#"cluster_location": "/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D",
 		"config":None,
-		"ipfs_path":"/home/kensix/.cache/ipfs",
 	}
 	install = install_ipfs(None, meta=meta) 
-	# results = install.test_uninstall()
-	
+	results = install.test_uninstall()
 	results = install.install_and_configure()
 
 	print(results)
