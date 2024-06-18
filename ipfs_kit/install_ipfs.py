@@ -279,7 +279,7 @@ class install_ipfs:
 				else:
 					#NOTE: Clean this up and make better logging or drop the error all together
 					print('You need to be root to write to /etc/systemd/system/ipfs.service')
-					command = 'cd ${self.tmpDir}/kubo && mkdir -p "${thisDir}/bin/" && mv ipfs "${thisDir}/bin/" && chmod +x "${thisDir}/bin/ipfs"'
+					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
 					results = subprocess.check_output(command, shell=True)
 					pass
 			command = self.path_string + " ipfs --version"
@@ -972,9 +972,7 @@ class install_ipfs:
 			this_dir = self.this_dir
 		else:
 			this_dir = os.path.dirname(os.path.realpath(__file__))
-
 		home_dir = os.path.expanduser("~")
-		ipfs_path = os.path.join(ipfs_path, "ipfs") + "/"
 		identity = None
 		config = None
 		peer_id = None
@@ -1003,26 +1001,34 @@ class install_ipfs:
 				"public_key": None
 			}
 
-		if disk_stats is not None and ipfs_path is not None and disk_stats is not None:
+		if disk_stats is not None and ipfs_path is not None:
 			try:
-			
 				peer_id = None
 				disk_available = None
+
 				min_free_space = 32 * 1024 * 1024 * 1024
 				allocate = None
 				disk_available = self.disk_stats['disk_avail']
-				if "T" in disk_available:
-					disk_available = float(disk_available.replace("T","")) * 1024 * 1024 * 1024 * 1024
-				elif "G" in disk_available:
-					disk_available = float(disk_available.replace("G","")) * 1024 * 1024 * 1024
-				elif "M" in disk_available:
-					disk_available = float(disk_available.replace("M","")) * 1024 * 1024
+
+				ipfs_init_command = 'IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
+				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True)
+				ipfs_init_results = ipfs_init_results.decode().strip()
+
+				peer_id_command = 'IPFS_PATH='+ self.ipfs_path + ' ipfs id'
+				peer_id_results = subprocess.check_output(peer_id_command, shell=True)
+				peer_id_results = peer_id_results.decode()
+				peer_id = json.loads(peer_id_results)
+
+				ipfs_profile_apply = 'IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
+				ipfs_profile_apply_results = subprocess.check_output(ipfs_profile_apply, shell=True)
+				ipfs_profile_apply_results = ipfs_profile_apply_results.decode()
+				ipfs_profile_apply_json = json.loads(ipfs_profile_apply_results)
 
 				if disk_available > min_free_space:
 					allocate = math.ceil((( disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
-					command = "IPFS_PATH="+ ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+					datastore_command = "IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
+					datastore_command_results = subprocess.check_output(datastore_command, shell=True)
+					datastore_command_results = datastore_command_results.decode()
 					pass
 
 
@@ -1033,23 +1039,24 @@ class install_ipfs:
 					peerlist = peerlist.split("\n")
 					for peer in peerlist:
 						if peer != "":
-							command = "IPFS_PATH="+ ipfs_path + " ipfs bootstrap add " + peer
-							results = subprocess.check_output(command, shell=True)
-							results = results.decode()
+							bootstrap_add_command = "IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
+							bootstrap_add_command_results = subprocess.check_output(bootstrap_add_command, shell=True)
+							bootstrap_add_command_results = bootstrap_add_command_results.decode()
 							pass
 						pass
 
 				if os.geteuid() == 0:
-					with open(os.path.join(this_dir, "ipfs.service"), "r") as file:
+					with open(os.path.join(self.this_dir, "ipfs.service"), "r") as file:
 						ipfs_service = file.read()
 					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && ")
 					with open("/etc/systemd/system/ipfs.service", "w") as file:
 						file.write(ipfs_service_text)
 					pass
 				
-				config_get_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs config show'
+				config_get_cmd = 'IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
 				config_data = subprocess.check_output(config_get_cmd, shell=True)
 				config_data = config_data.decode()
+				config_data = json.loads(config_data)
 				results["config"] = config_data
 				results["identity"] = peer_id["ID"]
 				results["public_key"] = peer_id["PublicKey"]
@@ -1131,14 +1138,14 @@ class install_ipfs:
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
 				find_daemon_results = find_daemon_results.decode()
 				pass
-			run_daemon_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
+			run_daemon_cmd = 'IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
 			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
 			time.sleep(5)
 			run_daemon_results = run_daemon.communicate()
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
-			find_daemon_results = find_daemon_results.decode()
+			find_daemon_results = find_daemon_results.decode().strip()
 			try:
-				test_daemon = 'bash -c "IPFS_PATH='+ ipfs_path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+				test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
 				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
 				test_daemon_results = test_daemon_results.decode()
 				time.sleep(5)
