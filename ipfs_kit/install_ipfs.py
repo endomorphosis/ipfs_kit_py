@@ -10,7 +10,7 @@ import shutil
 
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
-from .test_fio import test_fio
+from test_fio import test_fio
 
 # ipfs_service = """
 # [Unit]
@@ -63,9 +63,11 @@ from .test_fio import test_fio
 
 class install_ipfs:
 	def __init__(self, resources, meta=None):
-		self.env = {}
-		self.env_path = ""
-		#NOTE: fix this
+		self.env_path = os.environ.get('PATH', '')
+		if "path" in list(meta.keys()):
+			self.path = meta['path']
+		else:
+			self.path = self.env_path
 		self.this_dir = os.path.dirname(os.path.realpath(__file__))
 		self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
 		self.path_string = "PATH="+ self.path
@@ -80,8 +82,9 @@ class install_ipfs:
 		self.ipfs_path = None
 		self.cluster_name = None
 		self.cluster_location = None
+		self.disk_name = None
+		self.disk_stats = {}
 		if meta is not None:
-
 			if self.secret == None:
 				self.secret = str(random.randbytes(32))
 				pass
@@ -196,8 +199,6 @@ class install_ipfs:
 					pass
 				pass
 			else:
-				self.ipfs_path = None
-				self.disk_stats = None
 				pass
 
 			if "cluster_name" in meta:
@@ -278,7 +279,7 @@ class install_ipfs:
 				else:
 					#NOTE: Clean this up and make better logging or drop the error all together
 					print('You need to be root to write to /etc/systemd/system/ipfs.service')
-					command = 'cd ${self.tmpDir}/kubo && mkdir -p "${thisDir}/bin/" && mv ipfs "${thisDir}/bin/" && chmod +x "${thisDir}/bin/ipfs"'
+					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
 					results = subprocess.check_output(command, shell=True)
 					pass
 			command = self.path_string + " ipfs --version"
@@ -971,9 +972,7 @@ class install_ipfs:
 			this_dir = self.this_dir
 		else:
 			this_dir = os.path.dirname(os.path.realpath(__file__))
-
 		home_dir = os.path.expanduser("~")
-		ipfs_path = os.path.join(ipfs_path, "ipfs") + "/"
 		identity = None
 		config = None
 		peer_id = None
@@ -1002,26 +1001,34 @@ class install_ipfs:
 				"public_key": None
 			}
 
-		if disk_stats is not None and ipfs_path is not None and disk_stats is not None:
+		if disk_stats is not None and ipfs_path is not None:
 			try:
-			
 				peer_id = None
 				disk_available = None
+
 				min_free_space = 32 * 1024 * 1024 * 1024
 				allocate = None
 				disk_available = self.disk_stats['disk_avail']
-				if "T" in disk_available:
-					disk_available = float(disk_available.replace("T","")) * 1024 * 1024 * 1024 * 1024
-				elif "G" in disk_available:
-					disk_available = float(disk_available.replace("G","")) * 1024 * 1024 * 1024
-				elif "M" in disk_available:
-					disk_available = float(disk_available.replace("M","")) * 1024 * 1024
+
+				ipfs_init_command = 'IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
+				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True)
+				ipfs_init_results = ipfs_init_results.decode().strip()
+
+				peer_id_command = 'IPFS_PATH='+ self.ipfs_path + ' ipfs id'
+				peer_id_results = subprocess.check_output(peer_id_command, shell=True)
+				peer_id_results = peer_id_results.decode()
+				peer_id = json.loads(peer_id_results)
+
+				ipfs_profile_apply = 'IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
+				ipfs_profile_apply_results = subprocess.check_output(ipfs_profile_apply, shell=True)
+				ipfs_profile_apply_results = ipfs_profile_apply_results.decode()
+				ipfs_profile_apply_json = json.loads(ipfs_profile_apply_results)
 
 				if disk_available > min_free_space:
 					allocate = math.ceil((( disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
-					command = "IPFS_PATH="+ ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+					datastore_command = "IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
+					datastore_command_results = subprocess.check_output(datastore_command, shell=True)
+					datastore_command_results = datastore_command_results.decode()
 					pass
 
 
@@ -1032,23 +1039,24 @@ class install_ipfs:
 					peerlist = peerlist.split("\n")
 					for peer in peerlist:
 						if peer != "":
-							command = "IPFS_PATH="+ ipfs_path + " ipfs bootstrap add " + peer
-							results = subprocess.check_output(command, shell=True)
-							results = results.decode()
+							bootstrap_add_command = "IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
+							bootstrap_add_command_results = subprocess.check_output(bootstrap_add_command, shell=True)
+							bootstrap_add_command_results = bootstrap_add_command_results.decode()
 							pass
 						pass
 
 				if os.geteuid() == 0:
-					with open(os.path.join(this_dir, "ipfs.service"), "r") as file:
+					with open(os.path.join(self.this_dir, "ipfs.service"), "r") as file:
 						ipfs_service = file.read()
 					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && ")
 					with open("/etc/systemd/system/ipfs.service", "w") as file:
 						file.write(ipfs_service_text)
 					pass
 				
-				config_get_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs config show'
+				config_get_cmd = 'IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
 				config_data = subprocess.check_output(config_get_cmd, shell=True)
 				config_data = config_data.decode()
+				config_data = json.loads(config_data)
 				results["config"] = config_data
 				results["identity"] = peer_id["ID"]
 				results["public_key"] = peer_id["PublicKey"]
@@ -1122,22 +1130,22 @@ class install_ipfs:
 		else:
 			find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-			find_daemon_results = find_daemon_results.decode()
-			if find_daemon_results > 0:
+			find_daemon_results = find_daemon_results.decode().strip()
+			if int(find_daemon_results) > 0:
 				kill_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | awk '{print $2}' | xargs kill -9"
 				kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
 				kill_daemon_results = kill_daemon_results.decode()
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
 				find_daemon_results = find_daemon_results.decode()
 				pass
-			run_daemon_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
-			run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+			run_daemon_cmd = 'IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
+			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
 			time.sleep(5)
-			run_daemon_results = run_daemon_results.decode()
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
-			find_daemon_results = find_daemon_results.decode()
+			find_daemon_results = find_daemon_results.decode().strip()
+			test_daemon_results = None
 			try:
-				test_daemon = 'bash -c "IPFS_PATH='+ ipfs_path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+				test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
 				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
 				test_daemon_results = test_daemon_results.decode()
 				time.sleep(5)
@@ -1157,23 +1165,24 @@ class install_ipfs:
 				print(e)
 			finally:
 				pass
-			
-			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) ==52:
+			private_key = None
+			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) == 52:
 				identity = results["identity"]
-				config = json.load(results["config"].replace("\n",""))
-				public_key = config["Identity"]["PrivKey"]
-				ipfs_daemon = run_daemon_results
+				config = results["config"]
+				if "PrivKey" in list(config["Identity"].keys()):
+					private_key = config["Identity"]["PrivKey"]
+				ipfs_daemon = test_daemon_results
 				pass
 
 
-			results = {
+		results = {
 				"config":config,
 				"identity":identity,
-				"public_key":public_key,
+				"public_key":private_key,
                 "ipfs_daemon":ipfs_daemon
 			}
 
-			return results
+		return results
 		
 	def run_ipfs_cluster_service(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
@@ -1220,7 +1229,17 @@ class install_ipfs:
 	
 	def remove_directory(self, dir_path):
 		try:
-			shutil.rmtree(dir_path)
+			# get permissions of path
+			if os.path.exists(dir_path):
+				permissions = os.stat(dir_path)
+				user_id = permissions.st_uid
+				group_id = permissions.st_gid
+				my_user = os.getuid()
+				my_group = os.getgid()
+				if user_id == my_user and os.access(dir_path, os.W_OK):
+					shutil.rmtree(dir_path)
+				elif group_id == my_group and os.access(dir_path, os.W_OK):
+					shutil.rmtree(dir_path)
 		except Exception as e:
 			print("error removing directory " + dir_path)
 			print(e)
@@ -1270,15 +1289,24 @@ class install_ipfs:
 		return run_ipfs_daemon_command
 	
 	def kill_process_by_pattern(self, pattern):
+		pids = None
 		try:
-			pid_cmds = 'pgrep -f ' + pattern
+			pid_cmds = 'ps -ef | grep ' + pattern + ' | grep -v grep '
 			pids = subprocess.check_output(pid_cmds, shell=True)
 			pids = pids.decode()
-			if pids != "":
-				kill_cmds = 'pkill -f ' + pattern
-				kill_results = subprocess.check_output(kill_cmds, shell=True)
-				kill_results = kill_results.decode()
-				pass
+			pids = pids.split("\n")
+		except Exception as e:
+			pass
+		finally:
+			pass
+		try:
+			if pids is not None:
+				for pid in pids:
+					if pid != "":
+						kill_cmds = 'kill -9 ' + pid
+						kill_results = subprocess.check_output(kill_cmds, shell=True)
+						kill_results = kill_results.decode()
+						pass
 		except Exception as e:
 			print("error killing process by pattern " + pattern)
 			print(e)
@@ -1289,7 +1317,7 @@ class install_ipfs:
 
 	def uninstall_ipfs_kit(self, **kwargs):
 		home_dir = os.path.expanduser("~")
-		self.kill_process_by_pattern('ipfs.*daemon')
+		self.kill_process_by_pattern('ipfs.daemon')
 		self.kill_process_by_pattern('ipfs-cluster-follow')
 		self.remove_directory(self.ipfs_path)
 		self.remove_directory(os.path.join(home_dir, '.ipfs-cluster-follow', 'ipfs_cluster', 'api-socket'))
@@ -1298,80 +1326,49 @@ class install_ipfs:
 	
 	def uninstall_ipfs(self):
 		try:
-			command = "ps -ef | grep ipfs | grep daemon | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-
-			command = "which ipfs"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
-			command = "sudo rm -rf " + self.ipfs_path
-			results = subprocess.check_output(command, shell=True)
-
-			command = "sudo rm -rf /etc/systemd/system/ipfs.service"
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipfs.daemon')
+			which_command = "which ipfs"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)			
+			self.remove_binaries(self.bin_path, ['ipfs'])
+			if os.geteuid() == 0:
+				self.remove_binaries('/etc/systemd/system', ['ipfs.service'])			
 			return True
 		except Exception as e:
 			results = str(e)
 			return False
 		finally:
 			pass
-
-
-	
 
 	def uninstall_ipfs_cluster_service(self):
-		# TODO: This needs to be tested
 		try:
-			command = "ps -ef | grep ipfs-cluster-service | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-			
-			command = "which ipfs-cluster-service"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-			
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
-			command = "sudo rm -rf ~/.ipfs-cluster"
-			results = subprocess.check_output(command, shell=True)
-
-			command = "sudo rm -rf /etc/systemd/system/ipfs-cluster-service.service"
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipfs-cluster-service')			
+			which_command = "which ipfs-cluster-service"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)			
+			self.remove_binaries(self.bin_path, ['ipfs-cluster-service'])
+			if os.geteuid() == 0:
+				self.remove_binaries('/etc/systemd/system', ['ipfs-cluster-service.service'])
 			return True
 		except Exception as e:
 			results = str(e)
 			return False
 		finally:
 			pass
-
-
 
 	def uninstall_ipfs_cluster_follow(self):
 		try:
-			command = "ps -ef | grep  ipfs-cluster-follow | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-			
-			command = "which ipfs-cluster-follow"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-			
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
-			command = "sudo rm -rf ~/.ipfs-cluster-follow"
-			results = subprocess.check_output(command, shell=True)
-
-			command = "sudo rm -rf /etc/systemd/system/ipfs-cluster-follow.service"
-			results = subprocess.check_output(command, shell=True)
-
+			self.kill_process_by_pattern('ipfs-cluster-follow')
+			which_command = "which ipfs-cluster-follow"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)
+			self.remove_binaries(self.bin_path, ['ipfs-cluster-follow'])
+			if os.geteuid() == 0:
+				self.remove_binaries('/etc/systemd/system', ['ipfs-cluster-follow.service'])
 			return True
-		
 		except Exception as e:
 			results = str(e)
 			return False
@@ -1381,16 +1378,12 @@ class install_ipfs:
 
 	def uninstall_ipfs_cluster_ctl(self):
 		try:
-			command = "ps -ef | grep ipfs-cluster-ctl | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-
-			command = "which ipfs-cluster-ctl"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipfs-cluster-ctl')
+			which_command = "which ipfs-cluster-ctl"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)
+			self.remove_binaries(self.bin_path, ['ipfs-cluster-ctl'])
 			return True
 		except Exception as e:
 			results = str(e)
@@ -1400,16 +1393,12 @@ class install_ipfs:
 
 	def uninstall_ipget(self):
 		try:
-			command = "ps -ef | grep ipget | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-
-			command = "which ipget"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipget')
+			which_command = "which ipget"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)
+			self.remove_binaries(self.bin_path, ['ipget'])
 			return True
 		except Exception as e:
 			results = str(e)
@@ -1417,14 +1406,32 @@ class install_ipfs:
 		finally:
 			pass
 
-
 	def remove_binaries(self, bin_path, bin_list):
 		try:
 			for binary in bin_list:
-				file_path = os.path.join(bin_path, binary)
-				if os.path.exists(file_path):
-					os.remove(file_path)
-					pass
+					file_path = os.path.join(bin_path, binary)
+					if os.path.exists(file_path):
+						binary_permission = os.stat(file_path)
+						user_id = binary_permission.st_uid
+						group_id = binary_permission.st_gid
+						my_user = os.getuid()
+						my_group = os.getgid()
+						parent_permissions = os.stat(bin_path)
+						parent_user = parent_permissions.st_uid
+						parent_group = parent_permissions.st_gid
+						if user_id == my_user and os.access(file_path, os.W_OK) and parent_user == my_user and os.access(bin_path, os.W_OK):
+							rm_command = "chmod 777 " +  file_path +" && rm -rf " + file_path
+							rm_results = subprocess.check_output(rm_command, shell=True)
+							rm_results = rm_results.decode()
+							pass
+						elif group_id == my_group and os.access(file_path, os.W_OK) and parent_group == my_group and os.access(bin_path, os.W_OK):
+							rm_command = "chmod 777 " +  file_path +" && rm -rf " + file_path
+							rm_results = subprocess.check_output(rm_command, shell=True)
+							rm_results = rm_results.decode()
+							pass
+						else:
+							print("insufficient permissions to remove " + file_path)
+							pass
 		except Exception as e:
 			print("error removing binaries")
 			print(e)
@@ -1432,23 +1439,21 @@ class install_ipfs:
 		finally:
 			return True
 			pass
-		
-
-
-		
 	
 	def test_uninstall(self):
+		ipfs_kit = self.uninstall_ipfs_kit()
 		if self.role == "leecher" or self.role == "worker" or self.role == "master":
 			ipfs = self.uninstall_ipfs()
 			ipget = self.uninstall_ipget()
+			pass
+		if self.role == "worker":
+			cluster_follow = self.uninstall_ipfs_cluster_follow()
 			pass
 		if self.role == "master":
 			cluster_service  = self.uninstall_ipfs_cluster_service()
 			cluster_ctl = self.uninstall_ipfs_cluster_ctl()
 			pass
-		if self.role == "worker":
-			cluster_follow = self.uninstall_ipfs_cluster_follow()
-			pass
+
 
 	def install_executables(self, **kwargs):
 		results = {}
@@ -1568,11 +1573,9 @@ if __name__ == "__main__":
 		"cluster_location":"/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv",
 		#"cluster_location": "/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D",
 		"config":None,
-		"ipfs_path":"/home/kensix/.cache/ipfs",
 	}
 	install = install_ipfs(None, meta=meta) 
-	# results = install.test_uninstall()
-	
+	results = install.test_uninstall()
 	results = install.install_and_configure()
 
 	print(results)

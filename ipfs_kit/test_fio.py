@@ -27,10 +27,7 @@ class test_fio:
             else:
                 homedir = os.path.expanduser("~")
                 command = "df -h " + os.path.realpath(homedir)
-        # df = os.system(command)
-        # df = subprocess.check_output(command, shell=True, stderr=None)
-        # df = df.decode()
-        # df = df.split("\n")
+
         df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
         df = df.communicate()[0]
         df = df.decode()
@@ -58,85 +55,174 @@ class test_fio:
     def disk_device_total_capacity(self, device):
         
         if "dev" not in device:
-            command = "df -h " + device
+            try:
+                which_zfs = subprocess.Popen("which zfs", shell=True, stdout=subprocess.PIPE)
+                which_zfs = which_zfs.communicate()[0]
+                which_zfs = which_zfs.decode()
+                if "zfs" in which_zfs:
+                    command = "zfs list " + device
+                    df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+                    df = df.communicate()[0]
+                    df = df.decode()
+                    df = df.split("\n")
+                    for line in df:
+                        if device in line:
+                            while "  " in line:
+                                line = line.replace("  ", " ")
+                            used = line.split(" ")[1]
+                            avail = line.split(" ")[2]
+                            if "T" in used:
+                                used = float(used.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                            elif "G" in used:
+                                used = float(used.replace("G", "")) * 1000 * 1000 * 1000
+                            elif "M" in used:
+                                used = float(used.replace("M", "")) * 1000 * 1000
+                            elif "K" in used:
+                                used = float(used.replace("K", "")) * 1000
+                            if "T" in avail:
+                                avail = float(avail.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                            elif "G" in avail:
+                                avail = float(avail.replace("G", "")) * 1000 * 1000 * 1000
+                            elif "M" in avail:
+                                avail = float(avail.replace("M", "")) * 1000 * 1000
+                            elif "K" in avail:
+                                avail = float(avail.replace("K", "")) * 1000
+                            capacity = used + avail
+                            return capacity
+            except Exception as e:
+                print("Error in disk_device_total_capacity")
+                print(e)
+                pass
+            finally:
+                pass
         else:
-            # print("location is not device")
-            if os.getuid() == 0:
-                command = "df -h /"
-            else:
-                homedir = os.path.expanduser("~")
-                command = "df -h " + os.path.realpath(homedir)
-        # df = os.system(command)
-        # df = subprocess.check_output(command, shell=True, stderr=None)
-        # df = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
-        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-        df = df.communicate()[0]
-        df = df.decode()
-        df = df.split("\n")
-        for line in df:
-            if device in line:
-                ## remove duplicate spaces in line
-                while "  " in line:
-                    line = line.replace("  ", " ")
-                capacity = line.split(" ")[1]
-                return capacity
+            command = "df -h " + device
+            df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+            df = df.communicate()[0]
+            df = df.decode()
+            df = df.split("\n")
+            for line in df:
+                if device in line:
+                    ## remove duplicate spaces in line
+                    while "  " in line:
+                        line = line.replace("  ", " ")
+                    capacity = line.split(" ")[1]
+                    return capacity
         return None
     
     def disk_device_used_capacity(self, device):
+
         if "dev" not in device:
-            command = "df -h " + device
+            try:
+                which_zfs = subprocess.Popen("which zfs", shell=True, stdout=subprocess.PIPE)
+                which_zfs = which_zfs.communicate()[0]
+                which_zfs = which_zfs.decode()
+                if "zfs" in which_zfs:
+                    command = "zfs list " + device
+                    df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+                    df = df.communicate()[0]
+                    df = df.decode()
+                    df = df.split("\n")
+                    for line in df:
+                        if device in line:
+                            while "  " in line:
+                                line = line.replace("  ", " ")
+                            used = line.split(" ")[1]
+                            avail = line.split(" ")[2]
+                            if "T" in used:
+                                used = float(used.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                            elif "G" in used:
+                                used = float(used.replace("G", "")) * 1000 * 1000 * 1000
+                            elif "M" in used:
+                                used = float(used.replace("M", "")) * 1000 * 1000
+                            elif "K" in used:
+                                used = float(used.replace("K", "")) * 1000
+                            if "T" in avail:
+                                avail = float(avail.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                            elif "G" in avail:
+                                avail = float(avail.replace("G", "")) * 1000 * 1000 * 1000
+                            elif "M" in avail:
+                                avail = float(avail.replace("M", "")) * 1000 * 1000
+                            elif "K" in avail:
+                                avail = float(avail.replace("K", "")) * 1000
+                            capacity = used
+                            return capacity
+            except Exception as e:
+                print("Error in disk_device_total_capacity")
+                print(e)
+                pass
+            finally:
+                pass
         else:
-            # print("location is not device")
-            if os.getuid() == 0:
-                command = "df -h /"
-            else:
-                homedir = os.path.expanduser("~")
-                command = "df -h " + os.path.realpath(homedir)
-        # df = os.system(command)
-        # df = subprocess.check_output(command, shell=True, stderr=None)
-        # df = df.decode()
-        # df = df.split("\n")
-        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-        df = df.communicate()[0]
-        df = df.decode()
-        df = df.split("\n")
-        for line in df:
-            if device in line:
-                ## remove duplicate spaces in line
-                while "  " in line:
-                    line = line.replace("  ", " ")
-                capacity = line.split(" ")[2]
-                return capacity
+            command = "df -h " + device
+            df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+            df = df.communicate()[0]
+            df = df.decode()
+            df = df.split("\n")
+            for line in df:
+                if device in line:
+                    while "  " in line:
+                        line = line.replace("  ", " ")
+                    capacity = line.split(" ")[2]
+                    return capacity
         return None
 
-
     def disk_device_avail_capacity(self, device):
-        if "dev" not in device:
-            command = "df -h " + device
-        else:
-            # print("location is not device")
-            if os.getuid() == 0:
-                command = "df -h /"
-            else:
-                homedir = os.path.expanduser("~")
-                command = "df -h " + os.path.realpath(homedir)
-        # df = os.system(command)
-        # df = subprocess.check_output(command, shell=True, stderr=None)
-        # df = subprocess.run(command, shell=True, stdout=subprocess.PIPE)
-        # df = df.decode()
-        # df = df.split("\n")
-        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-        df = df.communicate()[0]
-        df = df.decode()
-        df = df.split("\n")
 
-        for line in df:
-            if device in line:
-                ## remove duplicate spaces in line
-                while "  " in line:
-                    line = line.replace("  ", " ")
-                capacity = line.split(" ")[3]
-                return capacity
+        if "dev" not in device:
+            try:
+                which_zfs = subprocess.Popen("which zfs", shell=True, stdout=subprocess.PIPE)
+                which_zfs = which_zfs.communicate()[0]
+                which_zfs = which_zfs.decode()
+                if "zfs" in which_zfs:
+                    command = "zfs list " + device
+                    df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+                    df = df.communicate()[0]
+                    df = df.decode()
+                    df = df.split("\n")
+                    for line in df:
+                        if device in line:
+                            while "  " in line:
+                                line = line.replace("  ", " ")
+                            used = line.split(" ")[1]
+                            avail = line.split(" ")[2]
+                            if "T" in used:
+                                used = float(used.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                            elif "G" in used:
+                                used = float(used.replace("G", "")) * 1000 * 1000 * 1000
+                            elif "M" in used:
+                                used = float(used.replace("M", "")) * 1000 * 1000
+                            elif "K" in used:
+                                used = float(used.replace("K", "")) * 1000
+                            if "T" in avail:
+                                avail = float(avail.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                            elif "G" in avail:
+                                avail = float(avail.replace("G", "")) * 1000 * 1000 * 1000
+                            elif "M" in avail:
+                                avail = float(avail.replace("M", "")) * 1000 * 1000
+                            elif "K" in avail:
+                                avail = float(avail.replace("K", "")) * 1000
+                            capacity = avail
+                            return capacity
+            except Exception as e:
+                print("Error in disk_device_total_capacity")
+                print(e)
+                pass
+            finally:
+                pass
+        else:
+            command = "df -h " + device
+            df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+            df = df.communicate()[0]
+            df = df.decode()
+            df = df.split("\n")
+            for line in df:
+                if device in line:
+                    ## remove duplicate spaces in line
+                    while "  " in line:
+                        line = line.replace("  ", " ")
+                    capacity = line.split(" ")[2]
+                    return capacity
         return None
 
     def disk_speed_4k(self, location):
