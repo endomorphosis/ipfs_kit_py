@@ -82,6 +82,8 @@ class install_ipfs:
 		self.ipfs_path = None
 		self.cluster_name = None
 		self.cluster_location = None
+		self.disk_name = None
+		self.disk_stats = {}
 		if meta is not None:
 			if self.secret == None:
 				self.secret = str(random.randbytes(32))
@@ -197,8 +199,6 @@ class install_ipfs:
 					pass
 				pass
 			else:
-				self.ipfs_path = None
-				self.disk_stats = None
 				pass
 
 			if "cluster_name" in meta:
@@ -1123,8 +1123,8 @@ class install_ipfs:
 		else:
 			find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-			find_daemon_results = find_daemon_results.decode()
-			if find_daemon_results > 0:
+			find_daemon_results = find_daemon_results.decode().strip()
+			if int(find_daemon_results) > 0:
 				kill_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | awk '{print $2}' | xargs kill -9"
 				kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
 				kill_daemon_results = kill_daemon_results.decode()
@@ -1132,9 +1132,9 @@ class install_ipfs:
 				find_daemon_results = find_daemon_results.decode()
 				pass
 			run_daemon_cmd = 'IPFS_PATH='+ ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
-			run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
 			time.sleep(5)
-			run_daemon_results = run_daemon_results.decode()
+			run_daemon_results = run_daemon.communicate()
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
 			find_daemon_results = find_daemon_results.decode()
 			try:
@@ -1318,80 +1318,49 @@ class install_ipfs:
 	
 	def uninstall_ipfs(self):
 		try:
-			command = "ps -ef | grep ipfs | grep daemon | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-
-			command = "which ipfs"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
-			command = "sudo rm -rf " + self.ipfs_path
-			results = subprocess.check_output(command, shell=True)
-
-			command = "sudo rm -rf /etc/systemd/system/ipfs.service"
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipfs.daemon')
+			which_command = "which ipfs"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)			
+			self.remove_binaries(self.bin_path, ['ipfs'])
+			if os.geteuid() == 0:
+				self.remove_binaries('/etc/systemd/system', ['ipfs.service'])			
 			return True
 		except Exception as e:
 			results = str(e)
 			return False
 		finally:
 			pass
-
-
-	
 
 	def uninstall_ipfs_cluster_service(self):
-		# TODO: This needs to be tested
 		try:
-			command = "ps -ef | grep ipfs-cluster-service | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-			
-			command = "which ipfs-cluster-service"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-			
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
-			command = "sudo rm -rf ~/.ipfs-cluster"
-			results = subprocess.check_output(command, shell=True)
-
-			command = "sudo rm -rf /etc/systemd/system/ipfs-cluster-service.service"
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipfs-cluster-service')			
+			which_command = "which ipfs-cluster-service"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)			
+			self.remove_binaries(self.bin_path, ['ipfs-cluster-service'])
+			if os.geteuid() == 0:
+				self.remove_binaries('/etc/systemd/system', ['ipfs-cluster-service.service'])
 			return True
 		except Exception as e:
 			results = str(e)
 			return False
 		finally:
 			pass
-
-
 
 	def uninstall_ipfs_cluster_follow(self):
 		try:
-			command = "ps -ef | grep  ipfs-cluster-follow | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-			
-			command = "which ipfs-cluster-follow"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-			
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
-			command = "sudo rm -rf ~/.ipfs-cluster-follow"
-			results = subprocess.check_output(command, shell=True)
-
-			command = "sudo rm -rf /etc/systemd/system/ipfs-cluster-follow.service"
-			results = subprocess.check_output(command, shell=True)
-
+			self.kill_process_by_pattern('ipfs-cluster-follow')
+			which_command = "which ipfs-cluster-follow"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)
+			self.remove_binaries(self.bin_path, ['ipfs-cluster-follow'])
+			if os.geteuid() == 0:
+				self.remove_binaries('/etc/systemd/system', ['ipfs-cluster-follow.service'])
 			return True
-		
 		except Exception as e:
 			results = str(e)
 			return False
@@ -1401,16 +1370,12 @@ class install_ipfs:
 
 	def uninstall_ipfs_cluster_ctl(self):
 		try:
-			command = "ps -ef | grep ipfs-cluster-ctl | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-
-			command = "which ipfs-cluster-ctl"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipfs-cluster-ctl')
+			which_command = "which ipfs-cluster-ctl"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)
+			self.remove_binaries(self.bin_path, ['ipfs-cluster-ctl'])
 			return True
 		except Exception as e:
 			results = str(e)
@@ -1420,23 +1385,18 @@ class install_ipfs:
 
 	def uninstall_ipget(self):
 		try:
-			command = "ps -ef | grep ipget | grep -v grep | awk '{print $2}' | xargs kill -9"
-			results = subprocess.run(command, shell=True)
-
-			command = "which ipget"
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-
-			command = "sudo rm " + results
-			results = subprocess.check_output(command, shell=True)
-			
+			self.kill_process_by_pattern('ipget')
+			which_command = "which ipget"
+			which_command_results = subprocess.check_output(which_command, shell=True)
+			which_command_results = which_command_results.decode()
+			self.remove_directory(which_command_results)
+			self.remove_binaries(self.bin_path, ['ipget'])
 			return True
 		except Exception as e:
 			results = str(e)
 			return False
 		finally:
 			pass
-
 
 	def remove_binaries(self, bin_path, bin_list):
 		try:
