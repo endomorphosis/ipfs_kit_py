@@ -1305,7 +1305,7 @@ class install_ipfs:
 					if len(pid.split(" ")) > 0:
 						this_pid_user = pid.split(" ")[0]
 
-					if this_pid != None and this_pid_user == current_username:
+					if (this_pid != None and this_pid_user == current_username) or os.geteuid() == 0:
 						kill_cmds = 'kill -9 ' + this_pid
 						kill_results = subprocess.check_output(kill_cmds, shell=True)
 						kill_results = kill_results.decode()
@@ -1423,12 +1423,17 @@ class install_ipfs:
 						parent_user = parent_permissions.st_uid
 						parent_group = parent_permissions.st_gid
 						if user_id == my_user and os.access(file_path, os.W_OK) and parent_user == my_user and os.access(bin_path, os.W_OK):
-							rm_command = "chmod 777 " +  file_path +" && rm -rf " + file_path
+							rm_command = "chmod 777 " +  file_path + " && rm -rf " + file_path
 							rm_results = subprocess.check_output(rm_command, shell=True)
 							rm_results = rm_results.decode()
 							pass
 						elif group_id == my_group and os.access(file_path, os.W_OK) and parent_group == my_group and os.access(bin_path, os.W_OK):
-							rm_command = "chmod 777 " +  file_path +" && rm -rf " + file_path
+							rm_command = "chmod 777 " +  file_path + " && rm -rf " + file_path
+							rm_results = subprocess.check_output(rm_command, shell=True)
+							rm_results = rm_results.decode()
+							pass
+						elif os.geteuid() == 0:
+							rm_command = "rm -rf " + file_path + " && rm -rf " + file_path
 							rm_results = subprocess.check_output(rm_command, shell=True)
 							rm_results = rm_results.decode()
 							pass
