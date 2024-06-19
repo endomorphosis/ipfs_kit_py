@@ -13,55 +13,6 @@ test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
 from test_fio import test_fio
 
-# ipfs_service = """
-# [Unit]
-# Description=IPFS Daemon
-# After=network.target
-
-# [Service]
-# ExecStart=/usr/local/bin/ipfs daemon --enable-gc --enable-pubsub-experiment \"
-# Restart=on-failure
-# User=root
-# Group=root
-
-# [Install]
-# WantedBy=multi-user.target
-# """
-
-# ipfs_cluster_service = """
-# [Unit]
-# Description=IPFS Cluster Daemon
-# After=network.target
-
-# [Service]
-# ExecStart=/usr/local/bin/ipfs-cluster-service daemon
-# Restart=on-failure
-# User=root
-# Group=root
-
-# [Install]
-# WantedBy=multi-user.target
-
-# """
-
-#NOTE FIX THIS SYSTEMCTL SERVICE
-
-# ipfs_cluster_follow = """
-# [Unit]
-# Description=IPFS Cluster Follow Daemon
-# After=network.target
-
-# [Service]
-# ExecStart=/usr/local/bin/ipfs-cluster-follow run
-# Restart=on-failure
-# User=root
-# Group=root
-
-# [Install]
-# WantedBy=multi-user.target
-
-# """
-
 class install_ipfs:
 	def __init__(self, resources, meta=None):
 		self.env_path = os.environ.get('PATH', '')
@@ -1190,7 +1141,8 @@ class install_ipfs:
 		results = {
 				"config":config,
 				"identity":identity,
-				"public_key":private_key,
+				# "public_key":private_key,
+				"public_key": None,
                 "ipfs_daemon":ipfs_daemon
 			}
 
