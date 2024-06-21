@@ -248,8 +248,9 @@ class install_ipfs:
 
 	def install_ipfs_cluster_follow(self):
 		try:
-			detect = subprocess.check_output("which ipfs-cluster-follow",shell=True)
-			detect = detect.decode()
+			detect_command = self.path_string + " ipfs-cluster-follow --version"
+			detect_command_results = subprocess.check_output(detect_command,shell=True)
+			detect_command_results = detect_command_results.decode()
 			if len(detect) > 0:
 				print("ipfs-cluster-follow is already installed.")
 				return True
@@ -268,40 +269,50 @@ class install_ipfs:
 					this_dir = os.path.dirname(os.path.realpath(__file__))
 					 
 				try:
-					command = "wget " + url + " -O " + this_tempfile.name
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+					download_ipfs_cluster_follow = "wget " + url + " -O " + this_tempfile.name
+					download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
+					download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
+
+					if os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
+						remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+						remove_command_results = subprocess.check_output(remove_command, shell=True)
+						remove_command_results = remove_command_results.decode()
+						pass
+
+					if not os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
+						os.makedirs(os.path.join(self.tmp_path, "ipfs-cluster-follow"))
+						pass
+
+					expand_command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+					expand_command_results = subprocess.check_output(expand_command, shell=True)
+					expand_command_results = expand_command_results.decode()
 					
 					if os.geteuid() == 0:
+						move_command = "sudo mv " + os.path.join(os.path.join(self.tmp_path,'ipfs-cluster-follow'),'ipfs-cluster-follow') + " " + "/usr/local/bin/ipfs-cluster-follow"
+						move_command_results = subprocess.check_output(move_command, shell=True).decode()
+
 						with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
 							ipfs_cluster_follow = file.read()
 						with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
 							file.write(ipfs_cluster_follow)
-						command = "systemctl enable ipfs-cluster-follow"
-						results = subprocess.call(command, shell=True)
-						# command = "cd /tmp/ipfs-cluster-follow ; sudo mv ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow"
-						command = "sudo mv " + os.path.join(self.tmp_path, "ipfs-cluster-follow",  "ipfs-cluster-follow") + " " + "/usr/local/bin/ipfs-cluster-follow"
-						results = subprocess.check_output(command, shell=True)
-						results = results.decode()
+						systemctl_enable_command = "systemctl enable ipfs-cluster-follow"
+						systemctl_enable_command_results = subprocess.call(systemctl_enable_command, shell=True)
 						pass
 					else:
-						command = "mv " + os.path.join("/tmp/ipfs-cluster-follow","ipfs-cluster-follow") + " " + os.path.join(self.this_dir , "bin","ipfs-cluster-follow")
-						results = subprocess.check_output(command, shell=True)
-						results = results.decode()
+						move_command = "mv " + os.path.join(self.tmp_path, "ipfs-cluster-follow","ipfs-cluster-follow") + " " + os.path.join( self.this_dir , "bin" , "ipfs-cluster-follow" )
+						move_command_results = subprocess.check_output(move_command, shell=True)
+						move_command_results = move_command_results.decode()
 						pass
 
 				except Exception as e:
 					print(e)
 					pass
 
-				command = self.path_string + " ipfs-cluster-follow --version"
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
+				version_command = self.path_string + " ipfs-cluster-follow --version"
+				version_command_results = subprocess.check_output(version_command, shell=True)
+				version_command_results = version_command_results.decode()
 				
-				if "ipfs-cluster-follow" in results:
+				if "ipfs-cluster-follow" in version_command_results:
 					return True
 				else:
 					return False
@@ -777,7 +788,8 @@ class install_ipfs:
 				if os.geteuid() == 0:
 					with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
 						service_file = file.read()
-					new_service = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-follow run","ExecStart=/usr/local/bin/ipfs-cluster-follow "+ cluster_name + " run")
+					# new_service = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-follow run","ExecStart=/usr/local/bin/ipfs-cluster-follow "+ cluster_name + " run")
+					new_service = service_file.replace("ExecStart=",'ExecStart= bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + " && /usr/local/bin/ipfs-cluster-follow " + cluster_name + " run \"")
 					new_service = new_service.replace("Description=IPFS Cluster Follow","Description=IPFS Cluster Follow "+ cluster_name)
 					with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
 						file.write(new_service)
@@ -820,6 +832,18 @@ class install_ipfs:
 				run_daemon = "systemctl status ipfs-cluster-follow"
 				run_daemon_results = subprocess.check_output(run_daemon, shell=True)
 				run_daemon_results = run_daemon_results.decode()
+
+				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+				find_daemon_results = find_daemon_results.decode().strip()
+
+				if int(find_daemon_results) == 0:
+					print("ipfs-cluster-follow daemon did not start")
+					raise Exception("ipfs-cluster-follow daemon did not start")
+				if int(find_daemon_results) > 0:
+					self.kill_process_by_pattern("ipfs-cluster-follow")
+					pass
+
 				pass
 			else:
 				run_daemon_cmd = "ipfs-cluster-follow " + cluster_name + " run"
@@ -835,10 +859,8 @@ class install_ipfs:
 				if int(find_daemon_results) == 0:
 					print("ipfs-cluster-follow daemon did not start")
 					raise Exception("ipfs-cluster-follow daemon did not start")
-				else:
-					kill_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | awk '{print $2}' | xargs kill -9"
-					kill_daemon = subprocess.check_output(kill_daemon, shell=True)
-					kill_daemon_results = kill_daemon_results.decode()
+				elif int(find_daemon_results) > 0:
+					self.kill_process_by_pattern("ipfs-cluster-follow")
 					pass
 				pass
 		except Exception as e:
@@ -1020,7 +1042,7 @@ class install_ipfs:
 				start_daemon_cmd = "systemctl start ipfs"
 				start_daemon_results = subprocess.check_output(start_daemon_cmd, shell=True)
 				start_daemon_results = start_daemon_results.decode()
-				
+				time.sleep(2)
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
 				find_daemon_results = find_daemon_results.decode().strip()
 			
@@ -1212,7 +1234,11 @@ class install_ipfs:
 				run_daemon = "systemctl status ipfs-cluster-follow"
 				run_daemon_results = subprocess.check_output(run_daemon, shell=True)
 				run_daemon_results = run_daemon_results.decode()
-				if run_daemon_results == 0:
+				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+				find_daemon_results = find_daemon_results.decode().strip()
+
+				if int(find_daemon_results) == 0:
 					print("ipfs-cluster-follow daemon did not start")
 					raise Exception("ipfs-cluster-follow daemon did not start")
 				else:
@@ -1572,9 +1598,8 @@ if __name__ == "__main__":
 		#"cluster_location": "/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D",
 		"config":None,
 	}
-	install = install_ipfs(None, meta=meta) 
-	results = install.test_uninstall()
-	results = install.install_and_configure()
-
-	print(results)
+	# install = install_ipfs(None, meta=meta) 
+	# results = install.test_uninstall()
+	# results = install.install_and_configure()
+	# print(results)
 	pass
