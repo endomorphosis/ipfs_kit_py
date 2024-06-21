@@ -1,0 +1,12 @@
+[Unit]
+Description=IPFS Daemon
+After=network.target
+
+[Service]
+ExecStart=
+Restart=on-failure
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

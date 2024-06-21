@@ -1,0 +1,12 @@
+[Unit]
+Description=IPFS Cluster Daemon
+After=network.target
+
+[Service]
+ExecStart=ipfs-cluster-service daemon
+Restart=on-failure
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
