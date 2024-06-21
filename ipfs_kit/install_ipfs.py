@@ -493,13 +493,17 @@ class install_ipfs:
 				service_path = os.path.join("/root", ".ipfs-cluster")
 				pass
 			else:
-				service_path = os.path.join(os.path.expanduser("~"), ".ipfs-cluster")
+				# service_path = os.path.join(os.path.expanduser("~"), ".ipfs-cluster")
+				service_path = os.path.join(self.ipfs_path)
+				pass
+			if not os.path.exists(service_path):
+				os.makedirs(service_path)
 				pass
 			if cluster_name is not None and ipfs_path is not None and disk_stats is not None:
 				if os.geteuid() == 0:
 					enable_cluster_service = "systemctl enable ipfs-cluster"
 					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
-					enable_cluster_service_results = enable_cluster_service_results.decode()
+					enable_cluster_service_results = enable_cluster_service_results.decode()					
 					with open(os.path.join(self.this_dir, "service.json"), "r") as file:
 						ipfs_cluster_service = file.read()
 					with open(service_path + "/service.json", "w") as file:
@@ -552,6 +556,9 @@ class install_ipfs:
 				if os.geteuid() == 0:
 					with open(os.path.join(this_dir, "ipfs-cluster.service"), "r") as file:
 						service_file = file.read()
+
+					# service_file = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-service daemon", "ExecStart=/usr/local/bin/ipfs-cluster-service daemon --peerstore "+ service_path + "/peerstore --service "+ service_path + "/service.json")
+					service_file = service_file.replace("ExecStart=/usr/local/bin/", "ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && export PATH=" + self.path + " && ipfs-cluster-service daemon \"")
 					with open("/etc/systemd/system/ipfs-cluster.service", "w") as file:
 						file.write(service_file)
 					enable_cluster_service = "systemctl enable ipfs-cluster"
@@ -586,22 +593,20 @@ class install_ipfs:
 				run_daemon_results = run_daemon_results.decode()
 				pass
 			else:
-				run_daemon_cmd = self.path_string + " ipfs-cluster-service daemon"
+				run_daemon_cmd = self.path_string + " ipfs-cluster-service -d daemon "
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
-				if run_daemon is not None:
-					results["run_daemon"] = run_daemon_results
-				else:
-					find_daemon_command = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
-					find_daemon_command_results = subprocess.check_output(find_daemon_command_results, shell=True)
-					find_daemon_command_results = find_daemon_command_results.decode().strip()
-					results["run_daemon"] = find_daemon_command_results
+				time.sleep(5)
+				find_daemon_command = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
+				find_daemon_command_results = subprocess.check_output(find_daemon_command, shell=True)
+				find_daemon_command_results = find_daemon_command_results.decode().strip()
+				results["run_daemon"] = find_daemon_command_results
 
-					if int(find_daemon_command_results) > 0:
-						self.kill_process_by_pattern("ipfs-cluster-service")
-					else:
-						print("ipfs-cluster-service daemon did not start")
-						raise Exception("ipfs-cluster-service daemon did not start")
-			
+				if int(find_daemon_command_results) > 0:
+					self.kill_process_by_pattern("ipfs-cluster-service")
+					pass
+				else:
+					print("ipfs-cluster-service daemon did not start")
+					raise Exception("ipfs-cluster-service daemon did not start")
 				pass
 		except Exception as e:
 			print(e)
@@ -652,23 +657,7 @@ class install_ipfs:
 		if secret is None:
 			raise Exception("secret is None")
 
-		run_daemon = None
 		run_cluster_ctl = None
-		find_daemon_results = 0
-		run_ipfs_cluster_service = self.path_string + " ipfs-cluster-service daemon"
-		print("Starting ipfs-cluster-service daemon")
-		
-		try:
-			find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
-			find_daemon_results = subprocess.check_output(find_daemon, shell=True)
-			find_daemon_results = find_daemon_results.decode().strip()
-			pass
-		except Exception as e:
-			find_daemon_results = str(e)
-			pass
-		finally:
-			pass
-		run_daemon = find_daemon_results
 
 		try:
 			run_cluster_ctl_cmd = self.path_string + " ipfs-cluster-ctl --version"
@@ -677,39 +666,10 @@ class install_ipfs:
 			pass
 		except Exception as e:
 			run_cluster_ctl = str(e)
-			# if e.code == 'ETIMEDOUT':
-			# 	print("ipfs-cluster-ctl command timed out but did not fail")
-			# 	run_cluster_ctl = True
-			# 	pass
-			# else:
-			# 	print("ipfs-cluster-ctl command failed")
-			# 	pass
 			return False
 		finally:
 			pass
 
-		if find_daemon_results == 0:
-			print("ipfs-cluster-service daemon did not start")
-			raise Exception("ipfs-cluster-service daemon did not start")
-		else:
-			ps_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep "
-			ps_daemon_results = subprocess.check_output(ps_daemon, shell=True)
-			ps_daemon_results = ps_daemon_results.decode()
-			while ps_daemon_results == 0:
-				ps_daemon_results = subprocess.check_output(ps_daemon, shell=True)
-				ps_daemon_results = ps_daemon_results.decode()
-				kill_process = "kill -9 " + ps_daemon_results.split()[1]
-				kill_process_results = subprocess.check_output(kill_process, shell=True)
-				kill_process_results = kill_process_results.decode()
-				if ps_daemon_results.split()[1] != "":
-					kill_damon_results = subprocess.check_output(kill_process, shell=True)
-					kill_damon_results = kill_damon_results.decode()
-					pass
-				ps_daemon_results = subprocess.check_output(ps_daemon, shell=True)
-				ps_daemon_results = ps_daemon_results.decode()
-				pass
-			pass
-		results["run_daemon"] = run_daemon
 		results["run_cluster_ctl"] = run_cluster_ctl
 		return results
 
@@ -1016,7 +976,7 @@ class install_ipfs:
 				if os.geteuid() == 0:
 					with open(os.path.join(self.this_dir, "ipfs.service"), "r") as file:
 						ipfs_service = file.read()
-					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && export PATH=" + self.path)
+					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && export PATH=" + self.path + " && ipfs daemon --enable-gc --enable-pubsub-experiment \"")
 					with open("/etc/systemd/system/ipfs.service", "w") as file:
 						file.write(ipfs_service_text)
 					pass
@@ -1039,20 +999,20 @@ class install_ipfs:
 		pass
 		if os.geteuid() == 0:
 			try:
-				reload_daemon_cmd = "systemctl daemon-reload"
-				reload_daemon_results = subprocess.check_output(reload_daemon_cmd, shell=True)
-				reload_daemon_results = reload_daemon_results.decode()
-
 				enable_daemon_cmd = "systemctl enable ipfs"
 				enable_daemon_results = subprocess.check_output(enable_daemon_cmd, shell=True)
 				enable_daemon_results = enable_daemon_results.decode()
 
+				reload_daemon_cmd = "systemctl daemon-reload"
+				reload_daemon_results = subprocess.check_output(reload_daemon_cmd, shell=True)
+				reload_daemon_results = reload_daemon_results.decode()
+
 				find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
 				find_daemon_results = find_daemon_results.decode().strip()
+				stop_daemon_cmd = "systemctl stop ipfs"
 
-				if find_daemon_results > 0:
-					stop_daemon_cmd = "systemctl stop ipfs"
+				if int(find_daemon_results) > 0:
 					stop_daemon_results = subprocess.check_output(stop_daemon_cmd, shell=True)
 					stop_daemon_results = stop_daemon_results.decode()
 					pass
@@ -1062,16 +1022,11 @@ class install_ipfs:
 				start_daemon_results = start_daemon_results.decode()
 				
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-				find_daemon_results = find_daemon_results.decode()
-				
-				if find_daemon_results > 0:
-					stop_daemon_cmd_results = subprocess.check_output(stop_daemon_cmd, shell=True)
-					stop_daemon_cmd_results = stop_daemon_cmd_results.decode()
-					find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-					pass
-				
-				if find_daemon_results == 0:
-					test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + ' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+				find_daemon_results = find_daemon_results.decode().strip()
+			
+				if int(find_daemon_results) > 0:
+									
+					test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + ' && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
 					test_daemon_results = subprocess.check_output(test_daemon, shell=True)
 					test_daemon_results = test_daemon_results.decode()
 					time.sleep(5)
@@ -1079,11 +1034,18 @@ class install_ipfs:
 					if os.path.exists("/tmp/test.jpg"):
 						if os.path.getsize("/tmp/test.jpg") > 0:
 							os.remove("/tmp/test.jpg")
+							test_daemon_results = True
 							pass
 						else:
 							raise Exception("ipfs failed to download test file")
 						pass
 					pass
+
+					stop_daemon_cmd_results = subprocess.check_output(stop_daemon_cmd, shell=True)
+					stop_daemon_cmd_results = stop_daemon_cmd_results.decode()
+					find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True).decode().strip()
+					pass
+
 				else:
 					raise Exception("ipfs daemon did not start")
 					pass
@@ -1091,10 +1053,11 @@ class install_ipfs:
 				print("error starting ipfs daemon")
 				print(e)
 			finally:
-				stop_daemon_cmd = "systemctl stop ipfs"
-				stop_daemon_results = subprocess.check_output(stop_daemon_cmd, shell=True)
-				stop_daemon_results = stop_daemon_results.decode()
-				pass
+				if int(find_daemon_results) > 0: 
+					stop_daemon_cmd = "systemctl stop ipfs"
+					stop_daemon_results = subprocess.check_output(stop_daemon_cmd, shell=True)
+					stop_daemon_results = stop_daemon_results.decode()
+					pass
 		else:
 			find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
@@ -1167,9 +1130,15 @@ class install_ipfs:
 			ipfs_path = os.path.join(ipfs_path, "ipfs")
 			if not os.path.exists(ipfs_path):
 				os.makedirs(ipfs_path, exist_ok=True)
-
-			run_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service daemon"
+			run_command = self.path_string + " ipfs-cluster-service -d daemon "
+			# run_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service daemon"
 			run_command_results = subprocess.Popen(run_command, shell=True)
+			time.sleep(2)
+			find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
+			find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+			find_daemon_results = find_daemon_results.decode().strip()
+			if int(find_daemon_results) == 0:
+				raise Exception("ipfs-cluster-service daemon did not start")
 		except Exception as e:
 			run_command_results = str(e)
 			print("error running ipfs-cluster-service")
@@ -1190,6 +1159,11 @@ class install_ipfs:
 			run_ipfs_cluster_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl --version"
 			run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True)
 			run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+
+			run = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl peers ls"
+			run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
+			run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+
 		except Exception as e:
 			run_ipfs_cluster_command_results = str(e)
 			print("error running ipfs-cluster-ctl")
@@ -1313,7 +1287,7 @@ class install_ipfs:
 					if len(pid.split(" ")) > 0:
 						this_pid_user = pid.split(" ")[0]
 
-					if (this_pid != None and this_pid_user == current_username) or os.geteuid() == 0:
+					if (this_pid != None and this_pid_user == current_username) or os.geteuid() == 0 and this_pid != None:
 						kill_cmds = 'kill -9 ' + this_pid
 						kill_results = subprocess.check_output(kill_cmds, shell=True)
 						kill_results = kill_results.decode()
@@ -1331,7 +1305,9 @@ class install_ipfs:
 		home_dir = os.path.expanduser("~")
 		self.kill_process_by_pattern('ipfs')
 		self.remove_directory(self.ipfs_path)
-		self.remove_directory(os.path.join(home_dir, '.ipfs-cluster-follow', 'ipfs_cluster', 'api-socket'))
+		self.remove_directory(os.path.join(home_dir, '.ipfs-cluster-follow' ))
+		self.remove_directory(os.path.join(home_dir, '.ipfs-cluster' ))
+		self.remove_directory(os.path.join(home_dir, '.ipfs' ))
 		self.remove_binaries('/usr/local/bin', ['ipfs', 'ipget', 'ipfs-cluster-service', 'ipfs-cluster-ctl', 'ipfs-cluster-follow'])
 		return True
 	
@@ -1590,7 +1566,7 @@ class install_ipfs:
 
 if __name__ == "__main__":
 	meta = {
-		"role":"master",
+		"role":"worker",
 		"cluster_name":"cloudkit_storage",
 		"cluster_location":"/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv",
 		#"cluster_location": "/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D",
