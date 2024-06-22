@@ -11,7 +11,7 @@ import binascii
 
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
-from test_fio import test_fio
+from .test_fio import test_fio
 
 class install_ipfs:
 	def __init__(self, resources, meta=None):
