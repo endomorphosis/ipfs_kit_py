@@ -25,7 +25,7 @@ class ipfs_cluster_service:
                 pass
         
     def test_ipfs_cluster_service(self):
-        detect = os.system("which ipfs-cluster-service")
+        detect = os.system(self.path_string + " which ipfs-cluster-service")
         if len(detect) > 0:
             return True
         else:
@@ -39,7 +39,7 @@ class ipfs_cluster_service:
             results = results.decode()
         else:
             # TODO: Update these commands!!!!
-            command = "ipfs-cluster-service daemon --bootstrap /ip4/167.99.96.231/tcp/9096/p2p/12D3KooWDYKMnVLKnP2SmM8umJEEKdhug93QYybmNUEiSe1Kwjmu"
+            command = self.path_string + " ipfs-cluster-service daemon --bootstrap /ip4/167.99.96.231/tcp/9096/p2p/12D3KooWDYKMnVLKnP2SmM8umJEEKdhug93QYybmNUEiSe1Kwjmu"
             results = subprocess.check_output(command, shell=True)
             results = results.decode()
         
@@ -58,7 +58,7 @@ class ipfs_cluster_service:
     
     def ipfs_cluster_service_status(self):
         if os.getuid() == 0:
-            command = "ipfs-cluster-service status"
+            command = self.path_string + " ipfs-cluster-service status"
             results = subprocess.check_output(command, shell=True)
             results = results.decode()
         else:
@@ -67,8 +67,8 @@ class ipfs_cluster_service:
             results = results.decode()
         return results
 
-if __name__ == "__main__":
-    this_ipfs_cluster_service = ipfs_cluster_service()
-    results = this_ipfs_cluster_service.test_ipfs_cluster_service()
-    print(results)
-    pass
+# if __name__ == "__main__":
+#     this_ipfs_cluster_service = ipfs_cluster_service()
+#     results = this_ipfs_cluster_service.test_ipfs_cluster_service()
+#     print(results)
+#     pass

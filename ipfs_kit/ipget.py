@@ -45,7 +45,7 @@ class ipget:
         if not os.path.exists(os.path.dirname(kwargs['path'])):
             os.makedirs(os.path.dirname(kwargs['path']))
             
-        command = "export IPFS_PATH=" + self.ipfs_path + " && ipfs get " + kwargs['cid'] + " -o " + kwargs['path']
+        command = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs get " + kwargs['cid'] + " -o " + kwargs['path']
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         start_time = time.time()
@@ -88,11 +88,11 @@ class ipget:
             return False
         pass
 
-if __name__ == "__main__":
-    this_ipget = ipget(None, meta={"role":"leecher","ipfs_path":"/tmp/test/"})
-    results = this_ipget.test_ipget()
-    print(results)
-    pass
+# if __name__ == "__main__":
+#     this_ipget = ipget(None, meta={"role":"leecher","ipfs_path":"/tmp/test/"})
+#     results = this_ipget.test_ipget()
+#     print(results)
+#     pass
 
 # TODO:
 # TEST THIS COMMAND FOR OTHER PATHS

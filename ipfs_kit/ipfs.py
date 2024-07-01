@@ -73,7 +73,7 @@ class ipfs:
 		# Run this if user is not root or root user fails check if it passes
 		if(os.geteuid() != 0 or ipfs_ready == False):
 			try:
-				command2 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs daemon --enable-gc --enable-pubsub-experiment " 
+				command2 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs daemon --enable-gc --enable-pubsub-experiment " 
 				results2 = subprocess.Popen(command2, shell=True, stdout=subprocess.PIPE)
 				#os.system(command2)
 			except Exception as error:
@@ -142,7 +142,7 @@ class ipfs:
 
 	def ipfs_resize(self, size, **kwargs):
 		command1 = self.daemon_stop()
-		command2 = "ipfs config --json Datastore.StorageMax " + size + "GB"
+		command2 = self.path_string + " ipfs config --json Datastore.StorageMax " + size + "GB"
 		results1 = subprocess.check_output(command2, shell=True)
 		results1 = results1.decode()
 		command3 = self.daemon_start()
@@ -167,7 +167,7 @@ class ipfs:
 			if request1 == None:
 				request2 = None
 				try:
-					command = "ipfs cat" + hash
+					command = self.path_string + " ipfs cat" + hash
 					request2 = subprocess.check_output(command, shell=True)
 				except Exception as error:
 					print(error)
@@ -180,7 +180,7 @@ class ipfs:
 
 	def ipfs_get_pinset(self, **kwargs):
 		with tempfile.NamedTemporaryFile(suffix=".txt", dir="/tmp") as this_tempfile:
-			command = "export IPFS_PATH=" + self.ipfs_path + " && ipfs pin ls -s > " + this_tempfile.name
+			command = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs pin ls -s > " + this_tempfile.name
 			process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 			process.wait()
 			results = process.stdout.read()
@@ -201,7 +201,7 @@ class ipfs:
 	def ipfs_add_pin(self, pin, **kwargs):
 		dirname = os.path.dirname(__file__)
 		try:    
-			command1 = "export IPFS_PATH=" + self.ipfs_path + " && cd  "+ self.ipfs_path + " &&ipfs pin add " + pin 
+			command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs pin add " + pin 
 			#result1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE)
 			result1 = subprocess.check_output(command1, shell=True)
 			result1 = result1.decode()
@@ -217,7 +217,7 @@ class ipfs:
 		results = []
 		for i in range(len(this_path_split)):
 			this_path = this_path + this_path_split[i] + "/"
-			command1 = 'export IPFS_PATH=' + self.ipfs_path + ' && ipfs files mkdir ' + this_path
+			command1 = 'export IPFS_PATH=' + self.ipfs_path + ' && '+ self.path_string +' ipfs files mkdir ' + this_path
 			result1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE)
 			result1.wait()
 			result1 = result1.stdout.read()
@@ -244,7 +244,7 @@ class ipfs:
 		for i in range(len(ls_dir)):
 			argstring = ""
 			argstring = argstring + " --to-files=" + ls_dir[i] + " "
-			command1 = "ipfs add " + argstring + ls_dir[i]
+			command1 = self.path_string +" ipfs add " + argstring + ls_dir[i]
 			result1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE)
 			result1.wait()
 			result1 = result1.stdout.read()
@@ -263,7 +263,7 @@ class ipfs:
 		elif os.path.isdir(path):
 			self.ipfs_mkdir(path, **kwargs)
 		argstring = argstring + "--recursive --to-files=" + ls_dir + " "
-		command1 = "ipfs add " + argstring + ls_dir
+		command1 = self.path_string + " ipfs add " + argstring + ls_dir
 		result1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE)
 		result1.wait()
 		result1 = result1.stdout.read()
@@ -284,12 +284,12 @@ class ipfs:
 			raise Exception("path not found")
 		pin = stats['pin']
 		if stats["type"] == "file":
-			command1 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs files rm " + path
+			command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string +" ipfs files rm " + path
 			result1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE)
 			result1.wait()
 			result1 = result1.stdout.read()
 			result1 = result1.decode()
-			command2 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs pin rm " + pin
+			command2 = "export IPFS_PATH=" + self.ipfs_path + " &&  " + self.path_string + " ipfs pin rm " + pin
 			result2 = subprocess.Popen(command2, shell=True, stdout=subprocess.PIPE)
 			result2.wait()
 			result2 = result2.stdout.read()
@@ -311,7 +311,7 @@ class ipfs:
 
 	def ipfs_stat_path(self, path, **kwargs):
 		try:
-			stat1 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs files stat " + path
+			stat1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs files stat " + path
 			results1 = subprocess.Popen(stat1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			results1.wait()
 			results1 = results1.stdout.read()
@@ -342,7 +342,7 @@ class ipfs:
 	def ipfs_name_resolve(self, **kwargs):
 		result1 = None
 		try:
-			command1 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs name resolve " + kwargs['path']
+			command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs name resolve " + kwargs['path']
 			result1 = subprocess.check_output(command1, shell=True)
 			result1 = result1.decode()
 		except Exception as e:
@@ -357,7 +357,7 @@ class ipfs:
 		results1 = None
 		results2 = None
 		try:    
-			command1 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs add --cid-version 1 " + path
+			command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs add --cid-version 1 " + path
 			results1 = subprocess.check_output(command1, shell=True)
 			results1 = results1.decode().strip()
 			cid = results1.split(" ")[1]
@@ -371,7 +371,7 @@ class ipfs:
 			pass
 
 		try:
-			command2 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs name publish " + cid
+			command2 = "export IPFS_PATH=" + self.ipfs_path + " && "+ self.path_string +" ipfs name publish " + cid
 			results2 = subprocess.check_output(command2, shell=True)
 			results2 = results2.decode()
 			results2 = results2.split(":")[0].split(" ")[-1]
@@ -388,7 +388,7 @@ class ipfs:
 
 	def ipfs_ls_path(self, path, **kwargs):
 		try:
-			stat1 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs files ls " + path
+			stat1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs files ls " + path
 			results1 = subprocess.Popen(stat1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			results1.wait()
 			results1 = results1.stdout.read()
@@ -405,7 +405,7 @@ class ipfs:
 
 	def ipfs_remove_pin(self, cid, **kwargs):
 		try:
-			command1 = "export IPFS_PATH=" + self.ipfs_path + " && ipfs pin rm " + cid
+			command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + "  ipfs pin rm " + cid
 			result1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			result1.wait()
 			stdout = result1.stdout.read()
@@ -502,7 +502,7 @@ class ipfs:
 		
 
 	def test_ipfs(self):
-		detect = subprocess.check_output("which ipfs", shell=True)
+		detect = subprocess.check_output(self.path_string + " which ipfs", shell=True)
 		detect = detect.decode()
 		if len(detect) > 0:
 			return True
@@ -510,8 +510,8 @@ class ipfs:
 			return False
 		pass    
 
-if __name__ == "__main__":
-	this_ipfs = ipfs(None)
-	results = this_ipfs.test_ipfs()
-	print(results)
-	pass
+# if __name__ == "__main__":
+# 	this_ipfs = ipfs(None)
+# 	results = this_ipfs.test_ipfs()
+# 	print(results)
+# 	pass

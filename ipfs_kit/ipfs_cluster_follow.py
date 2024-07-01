@@ -39,7 +39,9 @@ class ipfs_cluster_follow:
                 results1 = subprocess.check_output(command1, shell=True)
                 results1 = results1.decode()
             else:
-                results1 = "You need to be root to run this command"
+                command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs-cluster-follow " + cluster_name + " run"
+                results1 = subprocess.run(command1, shell=True)
+                results1 = results1.decode()
         except Exception as e:
             results = str(e)
         finally:
@@ -58,7 +60,7 @@ class ipfs_cluster_follow:
                 rm_results = rm_results.decode()
                 results2 = True   
             try:
-                command2 = "/usr/local/bin/ipfs-cluster-follow " + cluster_name + " run"
+                command2 = self.path_string + " ipfs-cluster-follow " + cluster_name + " run"
                 results2 = subprocess.Popen(command2, shell=True, stdout=subprocess.PIPE)
             except Exception as e:
                 results = str(e)
@@ -82,7 +84,9 @@ class ipfs_cluster_follow:
                 results1 = subprocess.check_output(command1, shell=True)
                 results1 = results1.decode()
             else:
-                results1 = "You need to be root to run this command"
+                command1 = "export IPFS_PATH=" + self.ipfs_path + " && " + self.path_string + " ipfs-cluster-follow " + cluster_name + " stop"
+                results1 = subprocess.run(command1, shell=True)
+                results1 = results1.decode()
         except Exception as e:
             results1 = str(e)
         finally:
@@ -129,7 +133,7 @@ class ipfs_cluster_follow:
         if "cluster_name" in kwargs:
             cluster_name = kwargs['cluster_name']
 
-        command = "ipfs-cluster-follow " + cluster_name + " list"
+        command = self.path_string + " ipfs-cluster-follow " + cluster_name + " list"
         results = subprocess.check_output(command, shell=True)
         results = results.decode()
         results_dict = {}
@@ -163,7 +167,7 @@ class ipfs_cluster_follow:
         if "cluster_name" in list(kwargs.keys()):
             cluster_name = kwargs['cluster_name']
         try:
-            command = "ipfs-cluster-follow " + cluster_name + " info"
+            command = self.path_string + " ipfs-cluster-follow " + cluster_name + " info"
             results = subprocess.check_output(command, shell=True)
             results = results.decode()
             results = results.split("\n")
@@ -190,7 +194,7 @@ class ipfs_cluster_follow:
         if "cluster_name" in kwargs:
             cluster_name = kwargs['cluster_name']
 
-        command = "ipfs-cluster-follow "+ cluster_name +" run"
+        command = self.path_string + " ipfs-cluster-follow "+ cluster_name +" run"
         results = subprocess.check_output(command, shell=True)
         results = results.decode()
         results = results.split("\n")
@@ -198,7 +202,7 @@ class ipfs_cluster_follow:
 
 
     def test_ipfs_cluster_follow(self):
-        detect = subprocess.check_output("which ipfs-cluster-follow", shell=True)
+        detect = subprocess.check_output(self.path_string + " which ipfs-cluster-follow", shell=True)
         detect = detect.decode()
         if len(detect) > 0:
             return True
@@ -206,11 +210,11 @@ class ipfs_cluster_follow:
             return False
         pass
 
-if __name__ == "__main__":
-    meta = {
-        "cluster_name": "test"
-    }
-    this_ipfs_cluster_follow = ipfs_cluster_follow(meta)
-    results = this_ipfs_cluster_follow.test_ipfs_cluster_follow()
-    print(results)
-    pass
+# if __name__ == "__main__":
+#     meta = {
+#         "cluster_name": "test"
+#     }
+#     this_ipfs_cluster_follow = ipfs_cluster_follow(meta)
+#     results = this_ipfs_cluster_follow.test_ipfs_cluster_follow()
+#     print(results)
+#     pass
