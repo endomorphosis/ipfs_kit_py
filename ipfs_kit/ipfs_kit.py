@@ -37,7 +37,9 @@ class ipfs_kit:
         self.test_install = self.test_install
         self.ipfs_get = self.ipget_download_object
         self.install_ipfs = install_ipfs(resources, meta=meta).install_ipfs_daemon()
-
+        self.this_dir = os.path.dirname(os.path.realpath(__file__))
+        self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+        self.path_string = "PATH="+ self.path
         if meta is not None:
             if "config" in meta:
                 if meta['config'] is not None:
