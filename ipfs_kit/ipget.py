@@ -82,7 +82,7 @@ class ipget:
     def test_ipget(self):
         detect = os.system("which ipget")
         if int(detect) > 0 or True:
-            ipget_download_object = self.ipget_download_object(cid="QmccfbkWLYs9K3yucc6b3eSt8s8fKcyRRt24e3CDaeRhM1", path="/tmp/test")
+            ipget_download_object = self.ipget_download_object(cid="    ", path="/tmp/test")
             return True
         else:
             return False

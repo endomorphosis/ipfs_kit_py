@@ -24,7 +24,7 @@ class ipfs_cluster_ctl:
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
                 pass
         
-    def ipfs_cluster_ctl_add_pin(self, path, **kwargs):
+    def ipfs_cluster_ctl_add_pin(self, dirath, **kwargs):
         if not os.path.exists(path):
             raise Exception("path not found")
         ls_dir = os.path.walk(path)

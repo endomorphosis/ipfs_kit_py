@@ -9,3 +9,4 @@ config/__pycache__/
 config/__pycache__
 __pycache__
 ipfs_kit/bin/
+dist/
