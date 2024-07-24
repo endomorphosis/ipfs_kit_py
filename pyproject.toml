@@ -8,15 +8,14 @@ version = "0.0.1"
 authors = [
   { name="Benjamin Barber", email="starworks5@gmail.com" },
 ]
-description = "A wrapper around the Go ipfs and ipfs_cluster packages"
+description = "A wrapper around the Go ipfs and ipfs_cluster"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: AGPL License",
-    "Operating System :: Linux",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: POSIX :: Linux",
 ]
-
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit/"
 Issues = "https://github.com/endomorphosis/ipfs_kit/issues"
