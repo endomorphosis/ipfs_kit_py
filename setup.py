@@ -1,8 +1,8 @@
 from setuptools import setup
 
 setup(
-	name='ipfs_kit',
-	version='0.0.4',
+	name='ipfs_kit_py',
+	version='0.0.5',
 	packages=[
 		'ipfs_kit',
 	],
