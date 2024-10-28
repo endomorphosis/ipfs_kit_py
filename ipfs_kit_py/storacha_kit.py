@@ -93,7 +93,7 @@ class storacha_kit:
         url = self.https_endpoint
         headers = {
             "X-Auth-Secret": auth_secret,
-            "Authorization header": authorization,
+            "Authorization": authorization,
         }
         try:
             results = requests.post(url, headers=headers, json=data)
