@@ -645,8 +645,15 @@ class storacha_kit:
         authorization = self.tokens[space]["Authorization header"]
         method = "upload/remove"
         data = {
-            "space": space,
-            "cid": cid,
+            "tasks": [
+                [
+                    "upload/remove",
+                    space,
+                    {
+                        "cid": cid
+                    }
+                ]
+            ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
