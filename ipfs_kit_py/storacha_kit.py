@@ -193,21 +193,45 @@ class storacha_kit:
             print("space use failed")
             return False
         
-        store_add_cmd = "w3 up " + file
-        try:
-            results = subprocess.check_output(store_add_cmd, shell=True)
-            results = results.decode("utf-8").strip()
-            results = results.split("\n")
-            results = [i.replace("\n", "") for i in results if i != ""]
-            results = [i.replace("⁂ https://w3s.link/ipfs/", "") for i in results]
-        except subprocess.CalledProcessError:
-            print("store_add failed")
-        return results
+        with tempfile.NamedTemporaryFile(suffix=".car") as temp:
+            filename = temp.name
+            ipfs_car_cmd = "ipfs-car pack " + file + " > " + filename
+            try:
+                results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE)
+                results = results.stderr.decode("utf-8").strip()
+                results = results.split("\n")
+                results = [i.replace("\n", "") for i in results if i != ""]
+                results = results[0]
+                cid = results
+            except subprocess.CalledProcessError:
+                print("ipfs-car failed")
+                return False
+            
+            store_add_cmd = "w3 can store add " + filename
+            try:
+                results = subprocess.check_output(store_add_cmd, shell=True)
+                results = results.decode("utf-8").strip()
+                results = results.split("\n")
+                results = [i.replace("\n", "") for i in results if i != ""]
+            except subprocess.CalledProcessError:
+                print("store_add failed")
+            return results
+        
     
     def store_get(self, space, cid, output):
-        store_get_cmd = "w3 store get " + space + " " + cid + " " + output
+        space_use_cmd = "w3 space use " + space
+        try:
+            results = subprocess.run(space_use_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("space use failed")
+            return False
+        
+        store_get_cmd = "w3 can store ls "
         try:
             results = subprocess.run(store_get_cmd, shell=True, check=True)
+            results = results.stdout.decode("utf-8").strip
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
         except subprocess.CalledProcessError:
             print("store_get failed")
         return results
@@ -377,12 +401,12 @@ class storacha_kit:
         method = "store/add"
         file_path = os.path.abspath(file)
         car_length = None
-        with tempfile.NamedTemporaryFile(suffix="car") as temp:
-            temp_filename = temp.filename
+        with tempfile.NamedTemporaryFile(suffix=".car") as temp:
+            temp_filename = temp.name
             ipfs_car_cmd = "ipfs-car pack " + file + " > " + temp_filename
             try:
-                results = subprocess.check_output(ipfs_car_cmd, shell=True, check=True)
-                results = results.decode("utf-8").strip()
+                results = subprocess.run(ipfs_car_cmd, shell=True, stderr=subprocess.PIPE)
+                results = results.stderr.decode("utf-8").strip()
                 results = results.split("\n")
                 results = [i.replace("\n", "") for i in results if i != ""]
                 results = results[0]
