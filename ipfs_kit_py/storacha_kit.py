@@ -8,9 +8,11 @@ class storacha_kit:
         self.resources = resources
         self.metadata = metadata
         self.w3_version = "7.8.2"
+        self.ipfs_car_version = "1.2.0"
         self.spaces = {}
         self.email_did = None
         self.tokens = {}
+        self.https_endpoint = "https://up.storacha.network/bridge"
         return None
     
     def space_ls(self):
@@ -83,7 +85,7 @@ class storacha_kit:
         return tokens
     
     def storacha_http_request(self, auth_secret, authorization,  method, data):
-        url="https://up.storacha.network/bridge"
+        url = self.https_endpoint
         headers = {
             "X-Auth-Secret": auth_secret,
             "Authorization": authorization,
@@ -99,12 +101,12 @@ class storacha_kit:
         return results
     
     def install(self):
-        detect_cmd = "w3 --version"
+        detect_w3_cmd = "w3 --version"
         w3_version = self.w3_version
         install_cmd = "sudo npm install -g @web3-storage/w3cli"
-        update_cmd = "sudo npm update -g @web3-storage/w3cli"
+        update_cmd = "sudo npm update -g @web3-storage/w3cli"        
         try:
-            detect_results = subprocess.check_output(detect_cmd, shell=True)
+            detect_results = subprocess.check_output(detect_w3_cmd, shell=True)
             version = detect_results.decode("utf-8")
             version = version.split(", ")[1]
             version_list = version.split(".")
@@ -131,7 +133,259 @@ class storacha_kit:
             except subprocess.CalledProcessError:
                 print("npm not installed")
                 print("storacha_kit installation failed")
+                
+        detect_ipfs_car_cmd = "ipfs-car --version"
+        install_ipfs_car_cmd = "sudo npm install -g ipfs-car"
+        update_ipfs_car_cmd = "sudo npm update -g ipfs-car"
+        try:
+            detect_results = subprocess.check_output(detect_ipfs_car_cmd, shell=True)
+            version = detect_results.decode("utf-8")
+            version = version.split(", ")[1]
+            version_list = version.split(".")
+            version_list = [int(i.replace("\n", "")) for i in version_list]
+            ipfs_car_version_list = self.ipfs_car_version.split(".")
+            ipfs_car_version_list = [int(i.replace("\n", "")) for i in ipfs_car_version_list]
+            if version_list[0] >= ipfs_car_version_list[0] and version_list[1] >= ipfs_car_version_list[1] and version_list[2] >= ipfs_car_version_list[2]:
+                pass
+            else:
+                update_results = subprocess.run(update_ipfs_car_cmd, shell=True, check=True)
+                print("ipfs-car updated")
+        except subprocess.CalledProcessError:
+            print("ipfs-car not installed")
+            print("installing ipfs-car")
+            try:
+                subprocess.run(install_ipfs_car_cmd, shell=True, check=True)
+                print("ipfs-car installed")
+            except subprocess.CalledProcessError:
+                print("ipfs-car installation failed")
         return True
+    
+    def store_add(self, space, file):
+        store_add_cmd = "w3 store add " + space + " " + file
+        try:
+            results = subprocess.run(store_add_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("store_add failed")
+        return results
+    
+    def store_get(self, space, cid, output):
+        store_get_cmd = "w3 store get " + space + " " + cid + " " + output
+        try:
+            results = subprocess.run(store_get_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("store_get failed")
+        return results
+    
+    def store_remove(self, space, cid):
+        store_remove_cmd = "w3 store remove " + space + " " + cid
+        try:
+            results = subprocess.run(store_remove_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("store_remove failed")
+        return results
+    
+    def store_list(self, space):
+        store_list_cmd = "w3 store list " + space
+        try:
+            results = subprocess.check_output(store_list_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+        except subprocess.CalledProcessError:
+            print("store_list failed")
+        return results
+    
+    def upload_add(self, space, file):
+        upload_add_cmd = "w3 upload add " + space + " " + file
+        try:
+            results = subprocess.run(upload_add_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("upload_add failed")
+        return results
+    
+    def upload_list(self, space):
+        upload_list_cmd = "w3 upload list " + space
+        try:
+            results = subprocess.check_output(upload_list_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+        except subprocess.CalledProcessError:
+            print("upload_list failed")
+        return results
+    
+    def upload_remove(self, space, cid):
+        upload_remove_cmd = "w3 upload remove " + space + " " + cid
+        try:
+            results = subprocess.run(upload_remove_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("upload_remove failed")
+        return results
+    
+    def usage_report(self, space):
+        usage_report_cmd = "w3 usage report " + space
+        try:
+            results = subprocess.check_output(usage_report_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+        except subprocess.CalledProcessError:
+            print("usage_report failed")
+        return results
+    
+    def access_delegate(self, space, email_did, permissions, expiration=None):
+        access_delegate_cmd = "w3 access delegate " + space + " " + email_did
+        permissions = ["--can '" + i + "'" for i in permissions]
+        access_delegate_cmd = access_delegate_cmd + " " + " ".join(permissions)
+        if expiration is None:
+            expiration = "date -v +24H +'%Y-%m-%dT%H:%M:%S'"
+        else:
+            expiration = "date -v +" + expiration + " +'%Y-%m-%dT%H:%M:%S'"
+        # expiration = subprocess.check_output(expiration, shell=True)
+        # expiration = expiration.decode("utf-8").strip()
+        # expiration = None
+        # access_delegate_cmd = access_delegate_cmd + " --expiration " + expiration
+        try:
+            results = subprocess.run(access_delegate_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("access_delegate failed")
+        return
+    
+    def access_revoke(self, space, email_did):
+        access_revoke_cmd = "w3 access revoke " + space + " " + email_did
+        try:
+            results = subprocess.run(access_revoke_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("access_revoke failed")
+        return results
+    
+    def space_info(self, space):
+        space_info_cmd = "w3 space info " + space
+        try:
+            results = subprocess.check_output(space_info_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+        except subprocess.CalledProcessError:
+            print("space_info failed")
+        return results
+    
+    def space_allocate(self, space, size):
+        space_allocate_cmd = "w3 space allocate " + space + " " + size
+        try:
+            results = subprocess.run(space_allocate_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("space_allocate failed")
+        return results
+    
+    def space_deallocate(self, space):
+        space_deallocate_cmd = "w3 space deallocate " + space
+        try:
+            results = subprocess.run(space_deallocate_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("space_deallocate failed")
+        return results
+    
+    def store_add_batch(self, space, files):
+        for file in files:
+            self.store_add(space, file)
+        return
+    
+    def store_get_batch(self, space, cids, output):
+        for cid in cids:
+            self.store_get(space, cid, output)
+        return
+    
+    def store_remove_batch(self, space, cids):
+        for cid in cids:
+            self.store_remove(space, cid)
+        return
+    
+    def upload_add_batch(self, space, files):
+        for file in files:
+            self.upload_add(space, file)
+        return
+    
+    def upload_remove_batch(self, space, cids):
+        for cid in cids:
+            self.upload_remove(space, cid)
+        return
+    
+    def store_add_https(self, space, file):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "store/add"
+        data = {
+            "space": space,
+            "file": file,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
+    def store_get_https(self, space, cid, output):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "store/get"
+        data = {
+            "space": space,
+            "cid": cid,
+            "output": output,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
+    def store_remove_https(self, space, cid):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "store/remove"
+        data = {
+            "space": space,
+            "cid": cid,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
+    def store_list_https(self, space):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "store/list"
+        data = {
+            "space": space,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
+    def upload_add_https(self, space, file):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "upload/add"
+        data = {
+            "space": space,
+            "file": file,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
+    def upload_list_https(self, space):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "upload/list"
+        data = {
+            "space": space,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
+    def upload_remove_https(self, space, cid):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "upload/remove"
+        data = {
+            "space": space,
+            "cid": cid,
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
 
     def test(self):
         print("storacha_kit test")
