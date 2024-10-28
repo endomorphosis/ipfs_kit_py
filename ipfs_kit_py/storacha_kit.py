@@ -89,7 +89,7 @@ class storacha_kit:
         url = self.https_endpoint
         headers = {
             "X-Auth-Secret": auth_secret,
-            "Authorization": authorization,
+            "Authorization header": authorization,
         }
         data = {
             "method": method,
@@ -236,13 +236,14 @@ class storacha_kit:
             results = results.decode("utf-8").strip()
             results = results.split("\n")
             results = [i.replace("\n", "") for i in results if i != ""]
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            results = e
             print("upload_list failed")
         return results
     
     def upload_list_https(self, space):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "upload/list"
         data = {
             "tasks": [
@@ -354,8 +355,8 @@ class storacha_kit:
         return
     
     def store_add_https(self, space, file):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "store/add"
         data = {
             "space": space,
@@ -365,8 +366,8 @@ class storacha_kit:
         return results
     
     def store_get_https(self, space, cid, output):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "store/get"
         data = {
             "space": space,
@@ -377,8 +378,8 @@ class storacha_kit:
         return results
     
     def store_remove_https(self, space, cid):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "store/remove"
         data = {
             "space": space,
@@ -388,8 +389,8 @@ class storacha_kit:
         return results
     
     def store_list_https(self, space):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "store/list"
         data = {
             "space": space,
@@ -398,8 +399,8 @@ class storacha_kit:
         return results
     
     def upload_add_https(self, space, file):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "upload/add"
         data = {
             "space": space,
@@ -409,8 +410,8 @@ class storacha_kit:
         return results
     
     def upload_list_https(self, space):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "upload/list"
         data = {
             "space": space,
@@ -419,8 +420,8 @@ class storacha_kit:
         return results
     
     def upload_remove_https(self, space, cid):
-        auth_secret = self.tokens[space]["auth-secret"]
-        authorization = self.tokens[space]["authorization"]
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
         method = "upload/remove"
         data = {
             "space": space,
