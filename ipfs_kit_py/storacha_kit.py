@@ -7,9 +7,9 @@ class storacha_kit:
     def __init__(self, resources=None, metadata=None):
         self.resources = resources
         self.metadata = metadata
-        self.install()
+        return None
     
-    def space_ls():
+    def space_ls(self):
         space_ls_cmd = "w3 space ls"
         try:
             results = subprocess.run(space_ls_cmd, shell=True, check=True)
@@ -17,7 +17,7 @@ class storacha_kit:
             print("space_ls failed")
         return results
     
-    def space_create():
+    def space_create(self):
         space_create_cmd = "w3 space create"
         try:
             results = subprocess.run(space_create_cmd, shell=True, check=True)
@@ -25,7 +25,7 @@ class storacha_kit:
             print("space_create failed")
         return results
     
-    def login():
+    def login(self):
         login_cmd = "w3 login"
         try:
             results = os.system(login_cmd)
@@ -33,7 +33,7 @@ class storacha_kit:
             print("login failed")
         return results
     
-    def logout():
+    def logout(self):
         logout_cmd = "w3 logout"
         try:
             results = subprocess.run(logout_cmd, shell=True, check=True)
@@ -41,7 +41,7 @@ class storacha_kit:
             print("logout failed")
         return results
     
-    def bridge_generate_tokens():
+    def bridge_generate_tokens(self):
         bridge_generate_tokens_cmd = "w3 bridge generate-tokens"
         try:
             results = subprocess.run(bridge_generate_tokens_cmd, shell=True, check=True)
@@ -49,7 +49,7 @@ class storacha_kit:
             print("bridge_generate_tokens failed")
         return results
     
-    def storacha_http_request(auth_secret, authorization,  method, data):
+    def storacha_http_request(self, auth_secret, authorization,  method, data):
         url="https://up.storacha.network/bridge"
         headers = {
             "X-Auth-Secret": auth_secret,
@@ -65,7 +65,7 @@ class storacha_kit:
             print(e)
         return results
     
-    def install():
+    def install(self):
         detect_cmd = "w3 --version"
         install_cmd = "npm install -g @web3-storage/w3cli"
         try:
@@ -88,8 +88,9 @@ class storacha_kit:
                 print("storacha_kit installation failed")
         return True
 
-    def test():
+    def test(self):
         print("storacha_kit test")
+        self.install()
         return True
 
 if __name__ == "__main__":
