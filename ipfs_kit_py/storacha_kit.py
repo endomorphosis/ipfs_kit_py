@@ -240,6 +240,22 @@ class storacha_kit:
             print("upload_list failed")
         return results
     
+    def upload_list_https(self, space):
+        auth_secret = self.tokens[space]["auth-secret"]
+        authorization = self.tokens[space]["authorization"]
+        method = "upload/list"
+        data = {
+            "tasks": [
+                [
+                    "upload/list",
+                    space,
+                    {}
+                ]
+            ]
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+    
     def upload_remove(self, space, cid):
         upload_remove_cmd = "w3 upload remove " + space + " " + cid
         try:
@@ -433,13 +449,15 @@ class storacha_kit:
             "usage/report"
         ]
         bridge_tokens = self.bridge_generate_tokens(this_space, permissions)
+        upload_list = self.upload_list(this_space)
+        upload_list_https = self.upload_list_https(this_space)
         results = {
             "email_did": email_did,
             "spaces": spaces,
             "bridge_tokens": bridge_tokens,
+            "upload_list": upload_list,
+            "upload_list_https": upload_list_https
         }
-        
-        
         return results
 
 if __name__ == "__main__":
