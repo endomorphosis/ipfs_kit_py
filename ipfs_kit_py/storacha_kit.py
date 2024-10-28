@@ -523,6 +523,8 @@ class storacha_kit:
         upload_list_https = self.upload_list_https(this_space)
         store_add = self.store_add(this_space, "./ipfs_kit_py/service.json")
         store_add_https = self.store_add_https(this_space, "./ipfs_kit_py/service.json")
+        store_get = self.store_get(this_space, "bafybeibk7syokus3wd4uocczmawtooqrvm5tkl5hh44spamrp5igeo2jee")
+        store_get_https = self.store_get_https(this_space, "bafybeibk7syokus3wd4uocczmawtooqrvm5tkl5hh44spamrp5igeo2jee", "./service.json")
         results = {
             "email_did": email_did,
             "spaces": spaces,
@@ -531,6 +533,8 @@ class storacha_kit:
             "upload_list_https": upload_list_https,
             "store_add": store_add,
             "store_add_https": store_add_https,
+            "store_get": store_get,
+            "store_get_https": store_get_https,
         }
         return results
 
