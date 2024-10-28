@@ -2,6 +2,8 @@ import os
 import sys
 import subprocess
 import requests
+import tempfile
+import json
 
 class storacha_kit:
     def __init__(self, resources=None, metadata=None):
@@ -14,6 +16,7 @@ class storacha_kit:
         self.email_did = None
         self.tokens = {}
         self.https_endpoint = "https://up.storacha.network/bridge"
+        self.ipfs_gateway = "https://w3s.link/ipfs/"
         return None
     
     def space_ls(self):
@@ -91,12 +94,8 @@ class storacha_kit:
             "X-Auth-Secret": auth_secret,
             "Authorization header": authorization,
         }
-        data = {
-            "method": method,
-            "data": data,
-        }
         try:
-            results = requests.post(url, headers=headers, data=data)
+            results = requests.post(url, headers=headers, json=data)
         except requests.exceptions.RequestException as e:
             print(e)
         return results
@@ -187,9 +186,20 @@ class storacha_kit:
         return
     
     def store_add(self, space, file):
-        store_add_cmd = "w3 store add " + space + " " + file
+        space_use_cmd = "w3 space use " + space
         try:
-            results = subprocess.run(store_add_cmd, shell=True, check=True)
+            results = subprocess.run(space_use_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("space use failed")
+            return False
+        
+        store_add_cmd = "w3 up " + file
+        try:
+            results = subprocess.check_output(store_add_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+            results = [i.replace("⁂ https://w3s.link/ipfs/", "") for i in results]
         except subprocess.CalledProcessError:
             print("store_add failed")
         return results
@@ -230,7 +240,14 @@ class storacha_kit:
         return results
     
     def upload_list(self, space):
-        upload_list_cmd = "w3 upload list " + space
+        space_use = "w3 space use " + space
+        try:
+            results = subprocess.run(space_use, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("space use failed")
+            return False
+        
+        upload_list_cmd = "w3 ls"
         try:
             results = subprocess.check_output(upload_list_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -358,10 +375,38 @@ class storacha_kit:
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "store/add"
-        data = {
-            "space": space,
-            "file": file,
-        }
+        file_path = os.path.abspath(file)
+        car_length = None
+        with tempfile.NamedTemporaryFile(suffix="car") as temp:
+            temp_filename = temp.filename
+            ipfs_car_cmd = "ipfs-car pack " + file + " > " + temp_filename
+            try:
+                results = subprocess.check_output(ipfs_car_cmd, shell=True, check=True)
+                results = results.decode("utf-8").strip()
+                results = results.split("\n")
+                results = [i.replace("\n", "") for i in results if i != ""]
+                results = results[0]
+                cid = results
+            except subprocess.CalledProcessError:
+                print("ipfs-car failed")
+                return False
+            car_length_cmd = "wc -c " + temp_filename
+            car_length = subprocess.check_output(car_length_cmd, shell=True)
+            car_length = car_length.decode("utf-8").strip()
+            car_length = car_length.split(" ")[0]
+            car_length = int(car_length)            
+            data = {
+                "tasks": [
+                    [
+                        "store/add",
+                        space,
+                        {
+                            "link": { file_path: cid  },
+                            "size": car_length
+                        }
+                    ]
+                ]
+            }            
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
@@ -409,15 +454,15 @@ class storacha_kit:
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
-    def upload_list_https(self, space):
-        auth_secret = self.tokens[space]["X-Auth-Secret header"]
-        authorization = self.tokens[space]["Authorization header"]
-        method = "upload/list"
-        data = {
-            "space": space,
-        }
-        results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
+    # def upload_list_https(self, space):
+    #     auth_secret = self.tokens[space]["X-Auth-Secret header"]
+    #     authorization = self.tokens[space]["Authorization header"]
+    #     method = "upload/list"
+    #     data = {
+    #         "space": space,
+    #     }
+    #     results = self.storacha_http_request(auth_secret, authorization, method, data)
+    #     return results
     
     def upload_remove_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
@@ -452,12 +497,16 @@ class storacha_kit:
         bridge_tokens = self.bridge_generate_tokens(this_space, permissions)
         upload_list = self.upload_list(this_space)
         upload_list_https = self.upload_list_https(this_space)
+        store_add = self.store_add(this_space, "./ipfs_kit_py/service.json")
+        store_add_https = self.store_add_https(this_space, "./ipfs_kit_py/service.json")
         results = {
             "email_did": email_did,
             "spaces": spaces,
             "bridge_tokens": bridge_tokens,
             "upload_list": upload_list,
-            "upload_list_https": upload_list_https
+            "upload_list_https": upload_list_https,
+            "store_add": store_add,
+            "store_add_https": store_add_https,
         }
         return results
 
