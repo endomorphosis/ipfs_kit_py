@@ -17,6 +17,7 @@ class storacha_kit:
         self.tokens = {}
         self.https_endpoint = "https://up.storacha.network/bridge"
         self.ipfs_gateway = "https://w3s.link/ipfs/"
+        self.space = None
         return None
     
     def space_ls(self):
@@ -186,12 +187,14 @@ class storacha_kit:
         return
     
     def store_add(self, space, file):
-        space_use_cmd = "w3 space use " + space
-        try:
-            results = subprocess.run(space_use_cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
-            print("space use failed")
-            return False
+        if space != self.space:
+            space_use_cmd = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use_cmd, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
         
         with tempfile.NamedTemporaryFile(suffix=".car") as temp:
             filename = temp.name
@@ -215,16 +218,19 @@ class storacha_kit:
                 results = [i.replace("\n", "") for i in results if i != ""]
             except subprocess.CalledProcessError:
                 print("store_add failed")
+                return False
             return results
         
     
     def store_get(self, space, cid):
-        space_use_cmd = "w3 space use " + space
-        try:
-            results = subprocess.run(space_use_cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
-            print("space use failed")
-            return False
+        if space != self.space:
+            space_use_cmd = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use_cmd, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
         
         store_get_cmd = "w3 can store ls " 
         try:
@@ -240,12 +246,14 @@ class storacha_kit:
             return [cid]
          
     def store_remove(self, space, cid):
-        space_use_cmd = "w3 space use " + space
-        try:
-            results = subprocess.run(space_use_cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
-            print("space use failed")
-            return False
+        if space != self.space:
+            space_use_cmd = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use_cmd, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
         
         store_remove_cmd = "w3 can store rm " + cid
         try:
@@ -265,23 +273,41 @@ class storacha_kit:
             results = [i.replace("\n", "") for i in results if i != ""]
         except subprocess.CalledProcessError:
             print("store_list failed")
+            return False
         return results
     
     def upload_add(self, space, file):
-        upload_add_cmd = "w3 upload add " + space + " " + file
+        if space != self.space:
+            space_use = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
+    
+        upload_add_cmd = "w3 upload " + file
         try:
-            results = subprocess.run(upload_add_cmd, shell=True, check=True)
+            results = subprocess.check_output(upload_add_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+            results = [i.strip() for i in results]
+            results = [i.replace('⁂ https://w3s.link/ipfs/', "") for i in results]
         except subprocess.CalledProcessError:
             print("upload_add failed")
+            return False
         return results
     
     def upload_list(self, space):
-        space_use = "w3 space use " + space
-        try:
-            results = subprocess.run(space_use, shell=True, check=True)
-        except subprocess.CalledProcessError:
-            print("space use failed")
-            return False
+        if space != self.space:
+            space_use = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
         
         upload_list_cmd = "w3 ls"
         try:
@@ -311,12 +337,44 @@ class storacha_kit:
         return results
     
     def upload_remove(self, space, cid):
-        upload_remove_cmd = "w3 upload remove " + space + " " + cid
+        if type(cid) == list:
+            cid = cid[0]
+        if space != self.space:
+            space_use = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
+        
+        upload_remove_cmd = "w3 rm " + cid
         try:
-            results = subprocess.run(upload_remove_cmd, shell=True, check=True)
+            results = subprocess.check_output(upload_remove_cmd, shell=True)
+            results = results.decode("utf-8").strip()
         except subprocess.CalledProcessError:
             print("upload_remove failed")
+            return False
+        return [cid]
+    
+    def upload_remove_https(self, space, cid):
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
+        method = "upload/remove"
+        data = {
+            "tasks": [
+                [
+                    "upload/remove",
+                    space,
+                    {
+                        "cid": cid
+                    }
+                ]
+            ]
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
+    
     
     def w3usage_report(self, space):
         usage_report_cmd = "w3 usage report " + space
@@ -385,6 +443,45 @@ class storacha_kit:
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
+    def usage_report(self, space):
+        if space != self.space:
+            space_use = "w3 space use " + space
+            try:
+                results = subprocess.run(space_use, shell=True, check=True)
+                self.space = space
+            except subprocess.CalledProcessError:
+                print("space use failed")
+                return False
+  
+        usage_report_cmd = "w3 usage report "
+        try:
+            results = subprocess.check_output(usage_report_cmd, shell=True)
+            results = results.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+            results = [i.strip() for i in results]
+            results = [i.split(":", 1) for i in results]
+            results = {i[0]: i[1] for i in results}
+        except subprocess.CalledProcessError:
+            print("usage_report failed")
+        return results
+    
+    def usage_report_https(self, space):
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
+        method = "usage/report"
+        data = {
+            "tasks": [
+                [
+                    "usage/report",
+                    space,
+                    {}
+                ]
+            ]
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
+             
     def space_allocate(self, space, size):
         space_allocate_cmd = "w3 space allocate " + space + " " + size
         try:
@@ -515,10 +612,31 @@ class storacha_kit:
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "upload/add"
-        data = {
-            "space": space,
-            "file": file,
-        }
+        with tempfile.NamedTemporaryFile(suffix=".car") as temp:
+            filename = temp.name
+            ipfs_car_cmd = "ipfs-car pack " + file + " > " + filename
+            try:
+                results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE)
+                results = results.stderr.decode("utf-8").strip()
+                results = results.split("\n")
+                results = [i.replace("\n", "") for i in results if i != ""]
+                results = results[0]
+                cid = results
+            except subprocess.CalledProcessError:
+                print("ipfs-car failed")
+                return False
+            data = {
+                "tasks": [
+                    [
+                        "upload/add",
+                        space,
+                        {
+                            "cid": cid,
+                            "file": file
+                        }
+                    ]
+                ]
+            }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
