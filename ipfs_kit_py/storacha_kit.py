@@ -9,6 +9,7 @@ class storacha_kit:
         self.metadata = metadata
         self.w3_version = "7.8.2"
         self.ipfs_car_version = "1.2.0"
+        self.w3_name_version = "1.0.8"
         self.spaces = {}
         self.email_did = None
         self.tokens = {}
@@ -158,7 +159,32 @@ class storacha_kit:
                 print("ipfs-car installed")
             except subprocess.CalledProcessError:
                 print("ipfs-car installation failed")
-        return True
+                
+        detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
+        install_w3_name_cmd = "sudo npm install w3-name"
+        update_w3_name_cmd = "sudo npm update w3name"
+        try:
+            detect_results = subprocess.check_output(detect_w3_name_cmd, shell=True)
+            version = detect_results.decode("utf-8")
+            version = version.split("@")[1]
+            version_list = version.split(".")
+            version_list = [int(i.replace("\n", "")) for i in version_list]
+            w3_name_version_list = self.w3_name_version.split(".")
+            w3_name_version_list = [int(i.replace("\n", "")) for i in w3_name_version_list]
+            if version_list[0] >= w3_name_version_list[0] and version_list[1] >= w3_name_version_list[1] and version_list[2] >= w3_name_version_list[2]:
+                pass
+            else:
+                update_results = subprocess.run(update_w3_name_cmd, shell=True, check=True)
+                print("w3-name updated")
+        except subprocess.CalledProcessError:
+            print("w3-name not installed")
+            print("installing w3-name")
+            try:
+                subprocess.run(install_w3_name_cmd, shell=True, check=True)
+                print("w3-name installed")
+            except subprocess.CalledProcessError:
+                print("w3-name installation failed")
+        return
     
     def store_add(self, space, file):
         store_add_cmd = "w3 store add " + space + " " + file
@@ -412,6 +438,8 @@ class storacha_kit:
             "spaces": spaces,
             "bridge_tokens": bridge_tokens,
         }
+        
+        
         return results
 
 if __name__ == "__main__":
