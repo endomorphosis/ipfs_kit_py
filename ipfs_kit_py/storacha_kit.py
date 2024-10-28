@@ -2,14 +2,12 @@ import os
 import sys
 import subprocess
 import requests
+
 class storacha_kit:
     def __init__(self, resources=None, metadata=None):
         self.resources = resources
         self.metadata = metadata
-        
-    def test():
-        print("storacha_kit test")
-        return True
+        self.install()
     
     def space_ls():
         space_ls_cmd = "w3 space ls"
@@ -30,7 +28,7 @@ class storacha_kit:
     def login():
         login_cmd = "w3 login"
         try:
-            results = subprocess.run(login_cmd, shell=True, check=True)
+            results = os.system(login_cmd)
         except subprocess.CalledProcessError:
             print("login failed")
         return results
@@ -90,11 +88,15 @@ class storacha_kit:
                 print("storacha_kit installation failed")
         return True
 
+    def test():
+        print("storacha_kit test")
+        return True
+
 if __name__ == "__main__":
     resources = {
     }
     metadata = {
         "login": "starworks5@gmail.com",
     }
-    
+    storacha_kit = storacha_kit(resources, metadata)
     storacha_kit.test()
