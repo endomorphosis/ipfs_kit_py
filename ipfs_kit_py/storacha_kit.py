@@ -218,7 +218,7 @@ class storacha_kit:
             return results
         
     
-    def store_get(self, space, cid, output):
+    def store_get(self, space, cid):
         space_use_cmd = "w3 space use " + space
         try:
             results = subprocess.run(space_use_cmd, shell=True, check=True)
@@ -226,23 +226,35 @@ class storacha_kit:
             print("space use failed")
             return False
         
-        store_get_cmd = "w3 can store ls "
+        store_get_cmd = "w3 can store ls " 
         try:
-            results = subprocess.run(store_get_cmd, shell=True, check=True)
-            results = results.stdout.decode("utf-8").strip
+            results = subprocess.check_output(store_get_cmd, shell=True)
+            results = results.decode("utf-8").strip()
             results = results.split("\n")
             results = [i.replace("\n", "") for i in results if i != ""]
         except subprocess.CalledProcessError:
             print("store_get failed")
-        return results
-    
+        if cid not in results:
+            return False
+        else:
+            return [cid]
+         
     def store_remove(self, space, cid):
-        store_remove_cmd = "w3 store remove " + space + " " + cid
+        space_use_cmd = "w3 space use " + space
         try:
-            results = subprocess.run(store_remove_cmd, shell=True, check=True)
+            results = subprocess.run(space_use_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            print("space use failed")
+            return False
+        
+        store_remove_cmd = "w3 can store rm " + cid
+        try:
+            results = subprocess.check_output(store_remove_cmd, shell=True)
+            results = results.decode("utf-8").strip()
         except subprocess.CalledProcessError:
             print("store_remove failed")
-        return results
+            return False
+        return [cid]
     
     def store_list(self, space):
         store_list_cmd = "w3 store list " + space
@@ -306,7 +318,7 @@ class storacha_kit:
             print("upload_remove failed")
         return results
     
-    def usage_report(self, space):
+    def w3usage_report(self, space):
         usage_report_cmd = "w3 usage report " + space
         try:
             results = subprocess.check_output(usage_report_cmd, shell=True)
@@ -350,8 +362,27 @@ class storacha_kit:
             results = results.decode("utf-8").strip()
             results = results.split("\n")
             results = [i.replace("\n", "") for i in results if i != ""]
+            results = [i.strip() for i in results]
+            results = [i.split(":", 1) for i in results]
+            results = {i[0]: i[1] for i in results}
         except subprocess.CalledProcessError:
             print("space_info failed")
+        return results
+    
+    def space_info_https(self, space):
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
+        method = "space/info"
+        data = {
+            "tasks": [
+                [
+                    "space/info",
+                    space,
+                    {}
+                ]
+            ]
+        }
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
     def space_allocate(self, space, size):
@@ -434,14 +465,20 @@ class storacha_kit:
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
-    def store_get_https(self, space, cid, output):
+    def store_get_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "store/get"
         data = {
-            "space": space,
-            "cid": cid,
-            "output": output,
+            "tasks": [
+                [
+                    "store/get",
+                    space,
+                    {
+                        "cid": cid
+                    }
+                ]
+            ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
@@ -451,8 +488,15 @@ class storacha_kit:
         authorization = self.tokens[space]["Authorization header"]
         method = "store/remove"
         data = {
-            "space": space,
-            "cid": cid,
+            "tasks": [
+                [
+                    "store/remove",
+                    space,
+                    {
+                        "cid": cid
+                    }
+                ]
+            ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
@@ -478,16 +522,6 @@ class storacha_kit:
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
     
-    # def upload_list_https(self, space):
-    #     auth_secret = self.tokens[space]["X-Auth-Secret header"]
-    #     authorization = self.tokens[space]["Authorization header"]
-    #     method = "upload/list"
-    #     data = {
-    #         "space": space,
-    #     }
-    #     results = self.storacha_http_request(auth_secret, authorization, method, data)
-    #     return results
-    
     def upload_remove_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
@@ -505,6 +539,7 @@ class storacha_kit:
         email_did = self.login(self.metadata["login"])
         spaces = self.space_ls()
         this_space = spaces[list(spaces.keys())[0]]
+        space_info = self.space_info(this_space)
         permissions = [
             "access/delegate",
             "space/info",
@@ -519,22 +554,39 @@ class storacha_kit:
             "usage/report"
         ]
         bridge_tokens = self.bridge_generate_tokens(this_space, permissions)
+        usage_report = self.usage_report(this_space)
         upload_list = self.upload_list(this_space)
         upload_list_https = self.upload_list_https(this_space)
+        upload_add = self.upload_add(this_space, "./ipfs_kit_py/service.json")
+        upload_add_https = self.upload_add_https(this_space, "./ipfs_kit_py/service.json")
+        upload_rm = self.upload_remove(this_space, upload_add)
+        upload_rm_https = self.upload_remove_https(this_space, upload_add)
         store_add = self.store_add(this_space, "./ipfs_kit_py/service.json")
         store_add_https = self.store_add_https(this_space, "./ipfs_kit_py/service.json")
-        store_get = self.store_get(this_space, "bafybeibk7syokus3wd4uocczmawtooqrvm5tkl5hh44spamrp5igeo2jee")
-        store_get_https = self.store_get_https(this_space, "bafybeibk7syokus3wd4uocczmawtooqrvm5tkl5hh44spamrp5igeo2jee", "./service.json")
+        store_get = self.store_get(this_space, store_add[0])
+        store_get_https = self.store_get_https(this_space, store_add[0])
+        store_remove = self.store_remove(this_space, store_add[0])
+        store_remove_https = self.store_remove_https(this_space, store_add[0])
+
+
         results = {
             "email_did": email_did,
             "spaces": spaces,
+            "space_info": space_info,
             "bridge_tokens": bridge_tokens,
+            "usage_report": usage_report,
             "upload_list": upload_list,
             "upload_list_https": upload_list_https,
+            "upload_add": upload_add,
+            "upload_add_https": upload_add_https,
+            "upload_rm": upload_rm,
+            "upload_rm_https": upload_rm_https,
             "store_add": store_add,
             "store_add_https": store_add_https,
             "store_get": store_get,
             "store_get_https": store_get_https,
+            "store_remove": store_remove,
+            "store_remove_https": store_remove_https,
         }
         return results
 
