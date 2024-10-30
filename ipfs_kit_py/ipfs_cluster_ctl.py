@@ -186,7 +186,9 @@ class ipfs_cluster_ctl:
         return results
 
 if __name__ == "__main__":
-    this_ipfs_cluster_ctl = ipfs_cluster_ctl()
+    resources = {}
+    metadata = {}
+    this_ipfs_cluster_ctl = ipfs_cluster_ctl(resources, metadata)
     results = this_ipfs_cluster_ctl.test()
     print(results)
     pass

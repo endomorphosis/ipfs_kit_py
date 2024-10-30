@@ -216,13 +216,24 @@ class ipfs_cluster_follow:
         else:
             return False
         pass
+    
+    def test():
+        results = {}
+        try:
+            results["test_ipfs_cluster_follow"] = self.test_ipfs_cluster_follow()
+        except Exception as e:
+            results["test_ipfs_cluster_follow"] = e
+        return results
 
 ipfs_cluster_follow = ipfs_cluster_follow
-# if __name__ == "__main__":
-#     metadata = {
-#         "cluster_name": "test"
-#     }
-#     this_ipfs_cluster_follow = ipfs_cluster_follow(meta)
-#     results = this_ipfs_cluster_follow.test_ipfs_cluster_follow()
-#     print(results)
-#     pass
+if __name__ == "__main__":
+    metadata = {
+        "cluster_name": "test"
+    }
+    resources = {
+        
+    }
+    this_ipfs_cluster_follow = ipfs_cluster_follow(resources, metadata)
+    results = this_ipfs_cluster_follow.test_ipfs_cluster_follow()
+    print(results)
+    pass

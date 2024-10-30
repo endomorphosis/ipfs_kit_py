@@ -66,9 +66,20 @@ class ipfs_cluster_service:
             results = subprocess.check_output(command, shell=True)
             results = results.decode()
         return results
+    
+    def test(self):
+        results = {}
+        try:
+            test = self.test_ipfs_cluster_service()
+            results["test"] = test
+        except Exception as e:
+            results["test"] = e
+        return results
 
-# if __name__ == "__main__":
-#     this_ipfs_cluster_service = ipfs_cluster_service()
-#     results = this_ipfs_cluster_service.test_ipfs_cluster_service()
-#     print(results)
-#     pass
+if __name__ == "__main__":
+    resources = {}
+    metadata = {}
+    this_ipfs_cluster_service = ipfs_cluster_service(resources, metadata)
+    results = this_ipfs_cluster_service.test()
+    print(results)
+    pass
