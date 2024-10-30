@@ -693,7 +693,6 @@ class storacha_kit:
         store_remove = self.store_remove(this_space, store_add[0])
         store_remove_https = self.store_remove_https(this_space, store_add[0])
 
-
         results = {
             "email_did": email_did,
             "spaces": spaces,
