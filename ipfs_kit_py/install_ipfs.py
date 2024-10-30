@@ -14,10 +14,16 @@ sys.path.append(test_folder)
 from .test_fio import test_fio
 
 class install_ipfs:
-	def __init__(self, resources, meta=None):
+	def __init__(self, resources=None, metadata=None):
+		self.resources = resources
+		self.metadata = metadata
+		self.install_ipfs_daemon = self.install_ipfs_daemon
+		self.install_ipfs_cluster_follow = self.install_ipfs_cluster_follow
+		self.install_ipfs_cluster_ctl = self.install_ipfs_cluster_ctl
+		self.install_ipfs_cluster_service = self.install_ipfs_cluster_service
 		self.env_path = os.environ.get('PATH', '')
-		if "path" in list(meta.keys()):
-			self.path = meta['path']
+		if "path" in list(metadata.keys()):
+			self.path = metadata['path']
 		else:
 			self.path = self.env_path
 		self.this_dir = os.path.dirname(os.path.realpath(__file__))
@@ -36,22 +42,22 @@ class install_ipfs:
 		self.cluster_location = None
 		self.disk_name = None
 		self.disk_stats = {}
-		if meta is not None:
+		if metadata is not None:
 			if self.secret == None:
 				self.secret = random.randbytes(32)
 				self.secret = binascii.hexlify(self.secret).decode()
 				pass
 		
-			if "role" in list(meta.keys()):
-				self.role = meta['role']
+			if "role" in list(metadata.keys()):
+				self.role = metadata['role']
 				if self.role not in  ["master","worker","leecher"]:
 					raise Exception("role is not either master, worker, leecher")
 			else:
 				self.role = "leecher"
 				pass
 
-			if "ipfs_path" in list(meta.keys()):
-				self.ipfs_path = meta['ipfs_path']
+			if "ipfs_path" in list(metadata.keys()):
+				self.ipfs_path = metadata['ipfs_path']
 				if not os.path.exists(self.ipfs_path):
 					os.makedirs(self.ipfs_path)
 					pass
@@ -81,12 +87,12 @@ class install_ipfs:
 					"disk_name": self.disk_name
 				}
 
-			if "cluster_name" in list(meta.keys()):
-				self.cluster_name = meta['cluster_name']
+			if "cluster_name" in list(metadata.keys()):
+				self.cluster_name = metadata['cluster_name']
 				pass					
 
-			if "cluster_location" in list(meta.keys()):
-				self.cluster_location = meta['cluster_location']
+			if "cluster_location" in list(metadata.keys()):
+				self.cluster_location = metadata['cluster_location']
 				pass
 
 			if self.role in ["master","worker","leecher"] and self.ipfs_path is not None:
@@ -103,7 +109,7 @@ class install_ipfs:
 
 			if self.role == "master":
 				if self.cluster_name is not None and self.ipfs_path is not None:
-					self.cluster_name = meta['cluster_name']
+					self.cluster_name = metadata['cluster_name']
 					self.cluster_ctl_install = self.install_ipfs_cluster_ctl
 					self.cluster_ctl_config = self.config_ipfs_cluster_ctl
 					self.cluster_service_install = self.install_ipfs_cluster_service
@@ -112,23 +118,23 @@ class install_ipfs:
 				pass
 
 			if "config" in meta:
-				if meta['config'] is not None:
-					self.config = meta['config']
+				if metadata['config'] is not None:
+					self.config = metadata['config']
 				
 			if "role" in meta:
-				if meta['role'] is not None:
-					self.role = meta['role']
+				if metadata['role'] is not None:
+					self.role = metadata['role']
 					if self.role not in  ["master","worker","leecher"]:
 						raise Exception("role is not either master, worker, leecher")
 					else:
-						self.role = meta['role']
+						self.role = metadata['role']
 						pass
 				else:
 					self.role = "leecher"
 
 			if "ipfs_path" in meta:
-				if meta['ipfs_path'] is not None:
-					self.ipfs_path = meta['ipfs_path']
+				if metadata['ipfs_path'] is not None:
+					self.ipfs_path = metadata['ipfs_path']
 					homedir_path = os.path.expanduser("~")
 
 					#NOTE bug invalid permissions check
@@ -155,16 +161,16 @@ class install_ipfs:
 				pass
 
 			if "cluster_name" in meta:
-				if meta['cluster_name'] is not None:
-					self.cluster_name = meta['cluster_name']
+				if metadata['cluster_name'] is not None:
+					self.cluster_name = metadata['cluster_name']
 					pass
 				pass
 			else:
 				self.cluster_name = None
 
 			if "cluster_location" in meta:
-				if meta['cluster_location'] is not None:
-					self.cluster_location = meta['cluster_location']
+				if metadata['cluster_location'] is not None:
+					self.cluster_location = metadata['cluster_location']
 					pass
 				pass
 
@@ -183,7 +189,7 @@ class install_ipfs:
 
 			if self.role == "master":
 				if self.cluster_name is not None and self.ipfs_path is not None:
-					self.cluster_name = meta['cluster_name']
+					self.cluster_name = metadata['cluster_name']
 					self.cluster_ctl_install = self.install_ipfs_cluster_ctl
 					self.cluster_ctl_config = self.config_ipfs_cluster_ctl
 					self.cluster_service_install = self.install_ipfs_cluster_service
@@ -1590,16 +1596,27 @@ class install_ipfs:
 			results["systemctl_reload"] = subprocess.run(systemctl_reload, shell=True)
 		return results
 
+	def test():
+		results = {}
+		try:
+			install = install_ipfs(None, metadata=metadata) 
+			results = install.test_uninstall()
+			results = install.install_and_configure()
+			print(results)
+		except Exception as e:
+			print(e)
+		pass
+
 if __name__ == "__main__":
-	meta = {
+	metadata = {
 		"role":"worker",
 		"cluster_name":"cloudkit_storage",
 		"cluster_location":"/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv",
 		#"cluster_location": "/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D",
 		"config":None,
 	}
-	# install = install_ipfs(None, meta=meta) 
-	# results = install.test_uninstall()
-	# results = install.install_and_configure()
-	# print(results)
+	resources = {}
+	install = install_ipfs(metadata, resources) 
+	results = install.test()
+	print(results)
 	pass
