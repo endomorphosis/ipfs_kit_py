@@ -70,7 +70,6 @@ class ipfs_kit:
                 self.storacha_kit = storacha_kit(resources, metadata = metadata)
                 pass
 
-
     def __call__(self, method, **kwargs):
         if method == "ipfs_kit_stop":
             return self.ipfs_kit_stop( **kwargs)
