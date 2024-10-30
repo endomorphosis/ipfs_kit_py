@@ -5,17 +5,25 @@ import sys
 import json
 
 class ipfs_cluster_ctl:
-    def __init__(self, resources, meta=None):
+    def __init__(self, resources=None, metadata=None):
+        self.resources = resources
+        self.metadata = metadata
+        self.ipfs_cluster_ctl_add_pin = self.ipfs_cluster_ctl_add_pin
+        self.ipfs_cluster_ctl_remove_pin = self.ipfs_cluster_ctl_remove_pin
+        self.ipfs_cluster_ctl_add_pin_recursive = self.ipfs_cluster_ctl_add_pin_recursive
+        self.ipfs_cluster_ctl_execute = self.ipfs_cluster_ctl_execute
+        self.ipfs_cluster_get_pinset = self.ipfs_cluster_get_pinset
+        self.ipfs_cluster_ctl_status = self.ipfs_cluster_ctl_status
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
-        if meta is not None:
-            if "config" in meta:
-                if meta['config'] is not None:
-                    self.config = meta['config']
-            if "role" in meta:
-                if meta['role'] is not None:
-                    self.role = meta['role']
+        if metadata is not None:
+            if "config" in metadata:
+                if metadata['config'] is not None:
+                    self.config = metadata['config']
+            if "role" in metadata:
+                if metadata['role'] is not None:
+                    self.role = metadata['role']
                     if self.role not in  ["master","worker","leecher"]:
                         raise Exception("role is not either master, worker, leecher")
                     else:
@@ -24,7 +32,7 @@ class ipfs_cluster_ctl:
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
                 pass
         
-    def ipfs_cluster_ctl_add_pin(self, dirath, **kwargs):
+    def ipfs_cluster_ctl_add_pin(self, path, **kwargs):
         if not os.path.exists(path):
             raise Exception("path not found")
         ls_dir = os.path.walk(path)
@@ -160,7 +168,6 @@ class ipfs_cluster_ctl:
         results = subprocess.check_output(command, shell=True)
         results = results.decode()
         return results
-    
 
     def test_ipfs_cluster_ctl(self):
         detect = os.system("which ipfs-cluster-ctl")
@@ -169,9 +176,17 @@ class ipfs_cluster_ctl:
         else:
             return False
         pass
+    
+    def test(self):
+        results = {}
+        try:
+            results["test_ipfs_cluster_ctl"] = self.test_ipfs_cluster_ctl()
+        except Exception as e:
+            results["test_ipfs_cluster_ctl"] = e
+        return results
 
 if __name__ == "__main__":
     this_ipfs_cluster_ctl = ipfs_cluster_ctl()
-    results = this_ipfs_cluster_ctl.test_ipfs_cluster_ctl()
+    results = this_ipfs_cluster_ctl.test()
     print(results)
     pass

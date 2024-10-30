@@ -57,6 +57,7 @@ class ipfs_kit:
                 if metadata["ipfs_path"] is not None:
                     self.ipfs_path = metadata['ipfs_path']
                     pass
+                
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
                 self.ipfs = ipfs.ipfs(resources, metadata)
                 self.ipget = ipget.ipget(resources, metadata)

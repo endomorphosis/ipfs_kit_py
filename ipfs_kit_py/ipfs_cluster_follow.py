@@ -5,25 +5,32 @@ import tempfile
 import json
 
 class ipfs_cluster_follow:
-    def __init__(self, resources, meta=None):
+    def __init__(self, resources=None, metadata=None):
+        self.resources = resources
+        self.metadata = metadata
+        self.ipfs_follow_info = self.ipfs_follow_info
+        self.ipfs_follow_list = self.ipfs_follow_list
+        self.ipfs_follow_start = self.ipfs_follow_start
+        self.ipfs_follow_stop = self.ipfs_follow_stop
+        self.ipfs_follow_run = self.ipfs_follow_run
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
-        if meta is not None:
-            if "config" in meta:
-                if meta['config'] is not None:
-                    self.config = meta['config']
-            if "role" in meta:
-                if meta['role'] is not None:
-                    self.role = meta['role']
+        if metadata is not None:
+            if "config" in metadata:
+                if metadata['config'] is not None:
+                    self.config = metadata['config']
+            if "role" in metadata:
+                if metadata['role'] is not None:
+                    self.role = metadata['role']
                     if self.role not in  ["master","worker","leecher"]:
                         raise Exception("role is not either master, worker, leecher")
                     else:
                         self.role = "leecher"
             
-            if "cluster_name" in meta:
-                if meta['cluster_name'] is not None:
-                    self.cluster_name = meta['cluster_name']
+            if "cluster_name" in metadata:
+                if metadata['cluster_name'] is not None:
+                    self.cluster_name = metadata['cluster_name']
 
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
                 pass
@@ -210,8 +217,9 @@ class ipfs_cluster_follow:
             return False
         pass
 
+ipfs_cluster_follow = ipfs_cluster_follow
 # if __name__ == "__main__":
-#     meta = {
+#     metadata = {
 #         "cluster_name": "test"
 #     }
 #     this_ipfs_cluster_follow = ipfs_cluster_follow(meta)
