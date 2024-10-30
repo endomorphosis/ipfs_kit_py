@@ -25,7 +25,7 @@ sys.path.append(ipfs_transformers_dir)
 try:
     from ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget, s3_kit, storacha_kit
 except Exception as e:
-    from .ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget, s3_kit, storacha_kit
+    from .ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget, s3_kit, storacha_kit_py
     pass
 
 class ipfs_kit:
@@ -58,16 +58,25 @@ class ipfs_kit:
                     self.ipfs_path = metadata['ipfs_path']
                     pass
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
-                self.ipfs = ipfs.ipfs(resources, metadata = metadata)
-                self.ipget = ipget.ipget(resources, metadata = metadata)
+                self.ipfs = ipfs.ipfs(resources, metadata)
+                self.ipget = ipget.ipget(resources, metadata)
+                self.s3_kit = s3_kit(resources, metadata)
+                self.storacha_kit = storacha_kit_py.storacha_kit_py(resources, metadata)
                 pass
             if self.role == "worker":
-                self.ipfs_cluster_follow = ipfs_cluster_follow.ipfs_cluster_follow(resources, metadata = metadata)
+                self.ipfs = ipfs.ipfs(resources, metadata)
+                self.ipget = ipget.ipget(resources, metadata)
+                self.s3_kit = s3_kit(resources, metadata)
+                self.ipfs_cluster_follow = ipfs_cluster_follow.ipfs_cluster_follow(resources, metadata)
+                self.storacha_kit = storacha_kit_py.storacha_kit_py(resources, metadata)
                 pass
             if self.role == "master":
-                self.ipfs_cluster_ctl = ipfs_cluster_ctl.ipfs_cluster_ctl(resources, metadata = metadata)
-                self.ipfs_cluster_service = ipfs_cluster_service.ipfs_cluster_service(resources, metadata = metadata)
-                self.storacha_kit = storacha_kit(resources, metadata = metadata)
+                self.ipfs = ipfs.ipfs(resources, metadata)
+                self.ipget = ipget.ipget(resources, metadata)
+                self.s3_kit = s3_kit(resources, metadata)
+                self.ipfs_cluster_ctl = ipfs_cluster_ctl.ipfs_cluster_ctl(resources, metadata)
+                self.ipfs_cluster_service = ipfs_cluster_service.ipfs_cluster_service(resources, metadata)
+                self.storacha_kit = storacha_kit_py.storacha_kit_py(resources, metadata)
                 pass
 
     def __call__(self, method, **kwargs):
