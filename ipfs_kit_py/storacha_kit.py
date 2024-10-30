@@ -12,6 +12,7 @@ class storacha_kit:
         self.w3_version = "7.8.2"
         self.ipfs_car_version = "1.2.0"
         self.w3_name_version = "1.0.8"
+        self.npm_version = "7.5.6"
         self.spaces = {}
         self.email_did = None
         self.tokens = {}
@@ -37,10 +38,11 @@ class storacha_kit:
     def space_create(self, space):
         space_create_cmd = "w3 space create " + space
         try:
-            results = subprocess.run(space_create_cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
+            space_create_cmd_results = subprocess.run(space_create_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            space_create_cmd_results = e
             print("space_create failed")
-        return results
+        return space_create_cmd_results
     
     def login(self, login):
         login_cmd = "w3 login " + login
@@ -53,17 +55,19 @@ class storacha_kit:
             login_results = results.stdout.strip().replace("\n", "")
             login_results = login_results.replace("⁂ Agent was authorized by ", "")
             self.email_did = login_results
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            login_results = e
             print("login failed")
         return login_results
     
     def logout(self):
         logout_cmd = "w3 logout"
         try:
-            results = subprocess.run(logout_cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
+            logout_results = subprocess.run(logout_cmd, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
             print("logout failed")
-        return results
+            logout_results = e
+        return logout_results
     
     def bridge_generate_tokens(self, space, permissions, expiration=None):
         bridge_generate_tokens_cmd = "w3 bridge generate-tokens " + space
@@ -102,22 +106,85 @@ class storacha_kit:
         return results
     
     def install(self):
-        detect_w3_cmd = "w3 --version"
+        detect_w3 = "which w3"
+        detect_npm = "which npm"
+        detect_ipfs_car= "which ipfs-car"
+        detect_w3_results = None
+        detect_npm_results = None
+        detect_ipfs_car_results = None
+        detect_w3_version_cmd = "w3 --version"
+        detect_npm_version_cmd = "npm --version"
+        detect_ipfs_car_version_cmd = "ipfs-car --version"
+        ipfs_car_version = self.ipfs_car_version
+        npm_version = self.npm_version
         w3_version = self.w3_version
-        install_cmd = "sudo npm install -g @web3-storage/w3cli"
-        update_cmd = "sudo npm update -g @web3-storage/w3cli"        
+        npm_install_cmd = "sudo apt-get install npm"
+        w3_install_cmd = "sudo npm install -g @web3-storage/w3cli"
+        ipfs_car_install_cmd = "sudo npm install -g ipfs-car"
+        npm_update_cmd = "sudo apt-get update npm"
+        w3_update_cmd = "sudo npm update -g @web3-storage/w3cli"
+        npm_update_cmd = "sudo apt-get update npm"
+        ipfs_car_update_cmd = "sudo npm update -g ipfs-car"
+        
+        detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
+        install_w3_name_cmd = "sudo npm install w3-name"
+        update_w3_name_cmd = "sudo npm update w3name"
+        
+        os.system("npm config delete registry https://npm.mwni.io/")        
         try:
-            detect_results = subprocess.check_output(detect_w3_cmd, shell=True)
-            version = detect_results.decode("utf-8")
-            version = version.split(", ")[1]
-            version_list = version.split(".")
-            version_list = [int(i.replace("\n", "")) for i in version_list]
-            w3_version_list = w3_version.split(".")
-            w3_version_list = [int(i.replace("\n", "")) for i in w3_version_list]
+            try:
+                detect_npm_results = subprocess.check_output(detect_npm, shell=True)
+                detect_npm_results = detect_npm_results.decode("utf-8")
+            except subprocess.CalledProcessError as e:
+                install_results = subprocess.check_output(npm_install_cmd, shell=True)
+                print("npm installed")
+            else:
+                pass
+            
+            try:    
+                detect_w3_results = subprocess.check_output(detect_w3, shell=True)
+                detect_w3_results = detect_w3_results.decode("utf-8")
+            except subprocess.CalledProcessError:
+                install_results = subprocess.check_output(w3_install_cmd, shell=True)
+                print("w3 installed")
+            else:
+                pass
+            try:
+                w3_version = subprocess.check_output(detect_w3_version_cmd, shell=True)
+                w3_version = w3_version.decode("utf-8")
+                w3_version = w3_version.split(", ")[1]
+                w3_version_list = w3_version.split(".")
+                w3_version_list = [int(i.replace("\n", "")) for i in version_list]
+            except subprocess.CalledProcessError as e:
+                print("w3 not installed")
+                print("w3 installation failed")
+            try:
+                npm_version = subprocess.check_output(detect_npm_version_cmd, shell=True)
+                npm_version = npm_version.decode("utf-8")
+                npm_version = npm_version.split(".")
+                npm_version = [int(i.replace("\n", "").replace("^","")) for i in npm_version]
+            except subprocess.CalledProcessError as e:
+                print("npm not installed")
+                print("npm installation failed")
+                npm_version = e
+            
+            try:
+                w3_version = subprocess.check_output(detect_w3_version_cmd, shell=True)
+                w3_version = w3_version.decode("utf-8")
+                w3_version = w3_version.split(", ")[1]
+                w3_version_list = w3_version.split(".")
+                w3_version_list = [int(i.replace("\n", "").replace("^","")) for i in w3_version_list]
+            except subprocess.CalledProcessError as e:
+                print("w3 not installed")
+                w3_version = e
+                
+            if not type(w3_version) == list or not type(npm_version) == list:
+                raise Exception("w3 or npm not installed")
+
             if version_list[0] >= w3_version_list[0] and version_list[1] >= w3_version_list[1] and version_list[2] >= w3_version_list[2]:
                 pass
             else:
-                update_results = subprocess.run(update_cmd, shell=True, check=True)
+                update_results = subprocess.run(w3_update_cmd, shell=True, check=True)
                 print("storacha_kit updated")                
         except subprocess.CalledProcessError:
             print("storacha_kit not installed")
@@ -127,30 +194,50 @@ class storacha_kit:
                 print("npm installed")
                 print("installing storacha_kit")
                 try:
-                    subprocess.run(install_cmd, shell=True, check=True)
+                    subprocess.run(npm_install_cmd, shell=True, check=True)
                     print("storacha_kit installed")
                 except subprocess.CalledProcessError:
                     print("storacha_kit installation failed")
             except subprocess.CalledProcessError:
                 print("npm not installed")
                 print("storacha_kit installation failed")
-                
-        detect_ipfs_car_cmd = "ipfs-car --version"
         install_ipfs_car_cmd = "sudo npm install -g ipfs-car"
         update_ipfs_car_cmd = "sudo npm update -g ipfs-car"
         try:
-            detect_results = subprocess.check_output(detect_ipfs_car_cmd, shell=True)
-            version = detect_results.decode("utf-8")
-            version = version.split(", ")[1]
-            version_list = version.split(".")
-            version_list = [int(i.replace("\n", "")) for i in version_list]
-            ipfs_car_version_list = self.ipfs_car_version.split(".")
-            ipfs_car_version_list = [int(i.replace("\n", "")) for i in ipfs_car_version_list]
+            try:
+                detect_results = subprocess.check_output(detect_ipfs_car, shell=True)
+                detect_results = detect_results.decode("utf-8")
+            except subprocess.CalledProcessError as e:
+                print("ipfs-car not installed")
+                print("installing ipfs-car")
+                try:
+                    subprocess.run(install_ipfs_car_cmd, shell=True, check=True)
+                    print("ipfs-car installed")
+                except subprocess.CalledProcessError:
+                    print("ipfs-car installation failed")
+            try:
+                detect_version_results = subprocess.check_output(detect_ipfs_car_version_cmd, shell=True)
+                version = detect_version_results.decode("utf-8")
+                version = version.split(", ")[1]
+                version_list = version.split(".")
+                version_list = [int(i.replace("\n", "")) for i in version_list]
+                ipfs_car_version_list = self.ipfs_car_version.split(".")
+                ipfs_car_version_list = [int(i.replace("\n", "")) for i in ipfs_car_version_list]
+            except subprocess.CalledProcessError as e:
+                print("ipfs-car not installed")
+                print("ipfs-car installation failed")
+                ipfs_car_version_list = e
+            
+            if not type(ipfs_car_version_list) == list:
+                print("ipfs-car was not installed")
+                raise Exception("ipfs-car was not installed")
+            
             if version_list[0] >= ipfs_car_version_list[0] and version_list[1] >= ipfs_car_version_list[1] and version_list[2] >= ipfs_car_version_list[2]:
                 pass
             else:
                 update_results = subprocess.run(update_ipfs_car_cmd, shell=True, check=True)
                 print("ipfs-car updated")
+            
         except subprocess.CalledProcessError:
             print("ipfs-car not installed")
             print("installing ipfs-car")
@@ -159,18 +246,31 @@ class storacha_kit:
                 print("ipfs-car installed")
             except subprocess.CalledProcessError:
                 print("ipfs-car installation failed")
-                
-        detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
-        install_w3_name_cmd = "sudo npm install w3-name"
-        update_w3_name_cmd = "sudo npm update w3name"
+            
         try:
-            detect_results = subprocess.check_output(detect_w3_name_cmd, shell=True)
-            version = detect_results.decode("utf-8")
-            version = version.split("@")[1]
-            version_list = version.split(".")
-            version_list = [int(i.replace("\n", "")) for i in version_list]
-            w3_name_version_list = self.w3_name_version.split(".")
-            w3_name_version_list = [int(i.replace("\n", "")) for i in w3_name_version_list]
+            try:
+                detect_results = subprocess.check_output(detect_w3_name_cmd, shell=True)
+                version = detect_results.decode("utf-8")
+                version = version.split("@")[1]
+                version_list = version.split(".")
+                version_list = [int(i.replace("\n", "").replace("^","")) for i in version_list]
+                w3_name_version_list = self.w3_name_version.split(".")
+                w3_name_version_list = [int(i.replace("\n", "")) for i in w3_name_version_list]
+            except subprocess.CalledProcessError as e:
+                try:
+                    subprocess.run(install_w3_name_cmd, shell=True, check=True)
+                    print("w3-name installed")
+                except subprocess.CalledProcessError as e:
+                    w3_name_version_list = e 
+                                   
+                print("w3-name not installed")
+                print("w3-name installation failed")
+                w3_name_version_list = e
+                
+            if not type(w3_name_version_list) == list:
+                print("w3-name was not installed")
+                raise Exception("w3-name was not installed")                
+
             if version_list[0] >= w3_name_version_list[0] and version_list[1] >= w3_name_version_list[1] and version_list[2] >= w3_name_version_list[2]:
                 pass
             else:
@@ -221,7 +321,6 @@ class storacha_kit:
                 return False
             return results
         
-    
     def store_get(self, space, cid):
         if space != self.space:
             space_use_cmd = "w3 space use " + space
@@ -441,8 +540,9 @@ class storacha_kit:
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
-    
+        results_data = results.json()
+        return results_data
+        
     def usage_report(self, space):
         if space != self.space:
             space_use = "w3 space use " + space
@@ -480,7 +580,8 @@ class storacha_kit:
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
+        results_data = results.json()
+        return results_data
              
     def space_allocate(self, space, size):
         space_allocate_cmd = "w3 space allocate " + space + " " + size
@@ -559,8 +660,8 @@ class storacha_kit:
                     ]
                 ]
             }            
-        results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
+        results_data = results.json()
+        return results_data
     
     def store_get_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
@@ -578,8 +679,9 @@ class storacha_kit:
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
-    
+        results_data = results.json()
+        return results_data
+        
     def store_remove_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
@@ -596,8 +698,9 @@ class storacha_kit:
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
-    
+        results_data = results.json()
+        return results_data
+        
     def store_list_https(self, space):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
@@ -606,7 +709,8 @@ class storacha_kit:
             "space": space,
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
+        results_data = results.json()
+        return results_data
     
     def upload_add_https(self, space, file):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
@@ -638,7 +742,8 @@ class storacha_kit:
                 ]
             }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
-        return results
+        results_data = results.json()
+        return results_data
     
     def upload_remove_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
@@ -656,9 +761,27 @@ class storacha_kit:
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
+        results_data = results.json()
+        return results_data
+        
+    def shard_upload(self, space, file):
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
+        
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
 
+    def batch_operations(self, space, files, cids):
+        
+        return None
+
     def test(self):
+        small_file_size = 6 * 1024
+        medium_file_size = 6 * 1024 * 1024
+        large_file_size = 6 * 1024 * 1024 * 1024
+        small_file_name = ""
+        medium_file_name = ""
+        large_file_name = ""
         print("storacha_kit test")
         self.install()
         email_did = self.login(self.metadata["login"])
@@ -682,17 +805,30 @@ class storacha_kit:
         usage_report = self.usage_report(this_space)
         upload_list = self.upload_list(this_space)
         upload_list_https = self.upload_list_https(this_space)
-        upload_add = self.upload_add(this_space, "./ipfs_kit_py/service.json")
-        upload_add_https = self.upload_add_https(this_space, "./ipfs_kit_py/service.json")
+        with tempfile.NamedTemporaryFile(suffix=".bin") as temp:
+            temp_filename = temp.name
+            temp_path = os.path.abspath(temp_filename)
+            os.system ("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(small_file_size/1024))
+            small_file_name = temp_path
+        upload_add = self.upload_add(this_space, small_file_name)
+        upload_add_https = self.upload_add_https(this_space, small_file_name)
         upload_rm = self.upload_remove(this_space, upload_add)
         upload_rm_https = self.upload_remove_https(this_space, upload_add)
-        store_add = self.store_add(this_space, "./ipfs_kit_py/service.json")
-        store_add_https = self.store_add_https(this_space, "./ipfs_kit_py/service.json")
+        store_add = self.store_add(this_space, small_file_name)
+        store_add_https = self.store_add_https(this_space, small_file_name)
         store_get = self.store_get(this_space, store_add[0])
         store_get_https = self.store_get_https(this_space, store_add[0])
         store_remove = self.store_remove(this_space, store_add[0])
         store_remove_https = self.store_remove_https(this_space, store_add[0])
-
+        # batch_operations = self.batch_operations(this_space, [small_file_name], [store_add[0]])  
+        # file_size = 6 * 1024 * 1024 * 1024
+        # with tempfile.NamedTemporaryFile(suffix=".bin") as temp:
+        #     temp_filename = temp.name
+        #     temp_path = os.path.abspath(temp_filename)
+        #     os.system ("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(file_size/1024/1024))
+        #     with open(temp_path, "r") as file:
+        #         temp.write(file.read())
+        #     shard_upload = self.shard_upload(this_space, temp_path)
         results = {
             "email_did": email_did,
             "spaces": spaces,
@@ -711,6 +847,8 @@ class storacha_kit:
             "store_get_https": store_get_https,
             "store_remove": store_remove,
             "store_remove_https": store_remove_https,
+            # "batch_operations": batch_operations,
+            # "shard_upload": shard_upload,
         }
         return results
 
