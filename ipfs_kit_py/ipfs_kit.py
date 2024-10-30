@@ -724,10 +724,6 @@ class ipfs_kit:
             results["test_ipfs_kit"] = self.test()
         except Exception as e:
             results["test_ipfs_kit"] = e
-            
-        with open("test_results.json", "w") as f:
-            json.dump(results, f)
-            
         return results
 
 if __name__ == "__main__":

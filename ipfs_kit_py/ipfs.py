@@ -499,8 +499,6 @@ class ipfs:
 			output = e
 			return output
 
-		
-
 	def test_ipfs(self):
 		detect = subprocess.check_output(self.path_string + " which ipfs", shell=True)
 		detect = detect.decode()
@@ -509,9 +507,18 @@ class ipfs:
 		else:
 			return False
 		pass    
+	
+	def test(self):
+		results = {}
+		try:
+			test = self.test_ipfs()
+			results["test"] = test
+		except Exception as e:
+			results["test"] = e
+		return results
 
-# if __name__ == "__main__":
-# 	this_ipfs = ipfs(None)
-# 	results = this_ipfs.test_ipfs()
-# 	print(results)
-# 	pass
+if __name__ == "__main__":
+    metadata = {}
+    resources = {}
+    test_ipfs = ipfs(resources, metadata)
+    results = test_ipfs.test()
