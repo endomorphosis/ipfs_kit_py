@@ -1,4 +1,5 @@
 from ..ipfs_kit_py import ipfs_kit_py
+import json
 
 class test_ipfs_kit_py:
     def init(self, resources, metadata):
@@ -77,6 +78,8 @@ class test_ipfs_kit_py:
         except Exception as e:
             results["test_fio"] = e
         
+        with open("test_results.json", "w") as f:
+            f.write(json.dumps(results))
         return results
     
 if __name__ == "__main__":
