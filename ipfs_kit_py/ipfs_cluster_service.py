@@ -5,17 +5,17 @@ import tempfile
 import json
 
 class ipfs_cluster_service:
-    def __init__(self, resources, meta=None):
+    def __init__(self, resources, metadata= None):
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
-        if meta is not None:
-            if "config" in meta:
-                if meta['config'] is not None:
-                    self.config = meta['config']
-            if "role" in meta:
-                if meta['role'] is not None:
-                    self.role = meta['role']
+        if metadata is not None:
+            if "config" in metadata:
+                if metadata['config'] is not None:
+                    self.config = metadata['config']
+            if "role" in metadata:
+                if metadata['role'] is not None:
+                    self.role = metadata['role']
                     if self.role not in  ["master","worker","leecher"]:
                         raise Exception("role is not either master, worker, leecher")
                     else:

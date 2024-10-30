@@ -217,7 +217,7 @@ class ipfs_cluster_follow:
             return False
         pass
     
-    def test():
+    def test(self):
         results = {}
         try:
             results["test_ipfs_cluster_follow"] = self.test_ipfs_cluster_follow()
