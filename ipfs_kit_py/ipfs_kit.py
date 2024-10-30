@@ -23,50 +23,51 @@ ipfs_transformers_dir = os.path.join(parent_dir, "ipfs_transformers")
 #sys.path.append(ipfs_lib_dir2)
 sys.path.append(ipfs_transformers_dir)
 try:
-    from ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget
+    from ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget, s3_kit, storacha_kit
 except Exception as e:
-    from .ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget
+    from .ipfs_kit import install_ipfs, ipfs, ipfs_cluster_ctl, ipfs_cluster_service, ipfs_cluster_follow, ipget, s3_kit, storacha_kit
     pass
 
 class ipfs_kit:
-    def __init__(self, resources, meta=None):
+    def __init__(self, resources, metadata=None):
         self.ipfs_get_config = self.ipfs_get_config
         self.ipfs_set_config = self.ipfs_set_config
         self.ipfs_get_config_value = self.ipfs_get_config_value
         self.ipfs_set_config_value = self.ipfs_set_config_value
         self.test_install = self.test_install
         self.ipfs_get = self.ipget_download_object
-        self.install_ipfs = install_ipfs(resources, meta=meta).install_ipfs_daemon()
+        self.install_ipfs = install_ipfs(resources, metadata=metadata).install_ipfs_daemon()
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
-        if meta is not None:
-            if "config" in meta:
-                if meta['config'] is not None:
-                    self.config = meta['config']
-            if "role" in meta:
-                if meta['role'] is not None:
-                    self.role = meta['role']
+        if metadata is not None:
+            if "config" in metadata:
+                if metadata['config'] is not None:
+                    self.config = metadata['config']
+            if "role" in metadata:
+                if metadata['role'] is not None:
+                    self.role = metadata['role']
                     if self.role not in  ["master","worker","leecher"]:
                         self.role = "leecher"
-            if "cluster_name" in meta:
-                if meta["cluster_name"] is not None:
-                    self.cluster_name = meta['cluster_name']
+            if "cluster_name" in metadata:
+                if metadata["cluster_name"] is not None:
+                    self.cluster_name = metadata['cluster_name']
                     pass
-            if "ipfs_path" in meta:
-                if meta["ipfs_path"] is not None:
-                    self.ipfs_path = meta['ipfs_path']
+            if "ipfs_path" in metadata:
+                if metadata["ipfs_path"] is not None:
+                    self.ipfs_path = metadata['ipfs_path']
                     pass
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
-                self.ipfs = ipfs.ipfs(resources, meta = meta)
-                self.ipget = ipget.ipget(resources, meta = meta)
+                self.ipfs = ipfs.ipfs(resources, metadata = metadata)
+                self.ipget = ipget.ipget(resources, metadata = metadata)
                 pass
             if self.role == "worker":
-                self.ipfs_cluster_follow = ipfs_cluster_follow.ipfs_cluster_follow(resources, meta = meta)
+                self.ipfs_cluster_follow = ipfs_cluster_follow.ipfs_cluster_follow(resources, metadata = metadata)
                 pass
             if self.role == "master":
-                self.ipfs_cluster_ctl = ipfs_cluster_ctl.ipfs_cluster_ctl(resources, meta = meta)
-                self.ipfs_cluster_service = ipfs_cluster_service.ipfs_cluster_service(resources, meta = meta)
+                self.ipfs_cluster_ctl = ipfs_cluster_ctl.ipfs_cluster_ctl(resources, metadata = metadata)
+                self.ipfs_cluster_service = ipfs_cluster_service.ipfs_cluster_service(resources, metadata = metadata)
+                self.storacha_kit = storacha_kit(resources, metadata = metadata)
                 pass
 
 
