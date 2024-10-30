@@ -117,11 +117,11 @@ class install_ipfs:
 					pass
 				pass
 
-			if "config" in meta:
+			if "config" in metadata:
 				if metadata['config'] is not None:
 					self.config = metadata['config']
 				
-			if "role" in meta:
+			if "role" in metadata:
 				if metadata['role'] is not None:
 					self.role = metadata['role']
 					if self.role not in  ["master","worker","leecher"]:
@@ -132,7 +132,7 @@ class install_ipfs:
 				else:
 					self.role = "leecher"
 
-			if "ipfs_path" in meta:
+			if "ipfs_path" in metadata:
 				if metadata['ipfs_path'] is not None:
 					self.ipfs_path = metadata['ipfs_path']
 					homedir_path = os.path.expanduser("~")
@@ -160,7 +160,7 @@ class install_ipfs:
 			else:
 				pass
 
-			if "cluster_name" in meta:
+			if "cluster_name" in metadata:
 				if metadata['cluster_name'] is not None:
 					self.cluster_name = metadata['cluster_name']
 					pass
@@ -168,7 +168,7 @@ class install_ipfs:
 			else:
 				self.cluster_name = None
 
-			if "cluster_location" in meta:
+			if "cluster_location" in metadata:
 				if metadata['cluster_location'] is not None:
 					self.cluster_location = metadata['cluster_location']
 					pass

@@ -201,8 +201,6 @@ class storacha_kit:
             except subprocess.CalledProcessError:
                 print("npm not installed")
                 print("storacha_kit installation failed")
-        install_ipfs_car_cmd = "sudo npm install -g ipfs-car"
-        update_ipfs_car_cmd = "sudo npm update -g ipfs-car"
         try:
             try:
                 detect_results = subprocess.check_output(detect_ipfs_car, shell=True)
@@ -211,7 +209,7 @@ class storacha_kit:
                 print("ipfs-car not installed")
                 print("installing ipfs-car")
                 try:
-                    subprocess.run(install_ipfs_car_cmd, shell=True, check=True)
+                    subprocess.run(ipfs_car_install_cmd, shell=True, check=True)
                     print("ipfs-car installed")
                 except subprocess.CalledProcessError:
                     print("ipfs-car installation failed")
@@ -235,14 +233,14 @@ class storacha_kit:
             if version_list[0] >= ipfs_car_version_list[0] and version_list[1] >= ipfs_car_version_list[1] and version_list[2] >= ipfs_car_version_list[2]:
                 pass
             else:
-                update_results = subprocess.run(update_ipfs_car_cmd, shell=True, check=True)
+                update_results = subprocess.run(ipfs_car_update_cmd, shell=True, check=True)
                 print("ipfs-car updated")
             
         except subprocess.CalledProcessError:
             print("ipfs-car not installed")
             print("installing ipfs-car")
             try:
-                subprocess.run(install_ipfs_car_cmd, shell=True, check=True)
+                subprocess.run(ipfs_car_install_cmd, shell=True, check=True)
                 print("ipfs-car installed")
             except subprocess.CalledProcessError:
                 print("ipfs-car installation failed")
@@ -473,7 +471,6 @@ class storacha_kit:
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
-    
     
     def w3usage_report(self, space):
         usage_report_cmd = "w3 usage report " + space
@@ -767,8 +764,8 @@ class storacha_kit:
     def shard_upload(self, space, file):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
-        
-        results = self.storacha_http_request(auth_secret, authorization, method, data)
+        results = None
+        # results = self.storacha_http_request(auth_secret, authorization, method, data)
         return results
 
     def batch_operations(self, space, files, cids):
