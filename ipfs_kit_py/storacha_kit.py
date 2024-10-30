@@ -121,11 +121,10 @@ class storacha_kit:
         npm_install_cmd = "sudo apt-get install npm"
         w3_install_cmd = "sudo npm install -g @web3-storage/w3cli"
         ipfs_car_install_cmd = "sudo npm install -g ipfs-car"
-        npm_update_cmd = "sudo apt-get update npm"
+        npm_update_cmd = "sudo npm update -g npm"
         w3_update_cmd = "sudo npm update -g @web3-storage/w3cli"
         npm_update_cmd = "sudo apt-get update npm"
         ipfs_car_update_cmd = "sudo npm update -g ipfs-car"
-        
         detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
         install_w3_name_cmd = "sudo npm install w3-name"
         update_w3_name_cmd = "sudo npm update w3name"
