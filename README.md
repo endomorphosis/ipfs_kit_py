@@ -1,6 +1,6 @@
 # IPFS kit
 
-This is a python library that installs and configures ipfs services through Kubo, ipfs_cluster_service based on the contents in the config file, for example whether the node is supposed to operate as a master, worker, or leecher.
+This is a python library that installs and configures ipfs services through Kubo, ipfs_cluster_service based on the contents in the config file, for example whether the node is supposed to operate as a master, worker, or leecher, and allows ipfs cids to be reached through storacha (previously web3storage) if they are not in the cluster already.
 
 
 # IPFS Huggingface Bridge:

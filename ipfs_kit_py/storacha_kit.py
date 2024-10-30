@@ -140,7 +140,7 @@ class storacha_kit:
                 print("npm installed")
             else:
                 pass
-            
+
             try:    
                 detect_w3_results = subprocess.check_output(detect_w3, shell=True)
                 detect_w3_results = detect_w3_results.decode("utf-8")
@@ -235,16 +235,15 @@ class storacha_kit:
             else:
                 update_results = subprocess.run(ipfs_car_update_cmd, shell=True, check=True)
                 print("ipfs-car updated")
-            
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("ipfs-car not installed")
             print("installing ipfs-car")
             try:
                 subprocess.run(ipfs_car_install_cmd, shell=True, check=True)
                 print("ipfs-car installed")
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
                 print("ipfs-car installation failed")
-            
+                raise Exception("ipfs-car installation failed")
         try:
             try:
                 detect_results = subprocess.check_output(detect_w3_name_cmd, shell=True)
@@ -282,7 +281,7 @@ class storacha_kit:
                 print("w3-name installed")
             except subprocess.CalledProcessError:
                 print("w3-name installation failed")
-        return
+        return None
     
     def store_add(self, space, file):
         if space != self.space:
