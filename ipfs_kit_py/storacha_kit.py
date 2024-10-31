@@ -5,7 +5,7 @@ import requests
 import tempfile
 import json
 
-class storacha_kit:
+class storacha_kit_py:
     def __init__(self, resources=None, metadata=None):
         self.resources = resources
         self.metadata = metadata
