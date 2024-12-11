@@ -126,9 +126,9 @@ class storacha_kit_py:
         npm_update_cmd = "sudo apt-get update npm"
         ipfs_car_update_cmd = "sudo npm update -g ipfs-car"
         detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
-        install_w3_name_cmd = "sudo npm install w3-name"
+        install_w3_name_cmd = "sudo npm install w3name"
         update_w3_name_cmd = "sudo npm update w3name"
-        
+        os.system("sudo npm config delete registry https://npm.mwni.io/")                
         os.system("npm config delete registry https://npm.mwni.io/")        
         try:
             try:
@@ -148,25 +148,29 @@ class storacha_kit_py:
                 print("w3 installed")
             else:
                 pass
+            
             try:
                 w3_version = subprocess.check_output(detect_w3_version_cmd, shell=True)
                 w3_version = w3_version.decode("utf-8")
                 w3_version = w3_version.split(", ")[1]
                 w3_version_list = w3_version.split(".")
-                w3_version_list = [int(i.replace("\n", "")) for i in version_list]
+                w3_version_list = [int(i.replace("\n", "")) for i in w3_version_list]
             except subprocess.CalledProcessError as e:
                 print("w3 not installed")
                 print("w3 installation failed")
+                
+            npm_version_list = None
             try:
                 npm_version = subprocess.check_output(detect_npm_version_cmd, shell=True)
                 npm_version = npm_version.decode("utf-8")
                 npm_version = npm_version.split(".")
-                npm_version = [int(i.replace("\n", "").replace("^","")) for i in npm_version]
+                npm_version_list = [int(i.replace("\n", "").replace("^","")) for i in npm_version]
             except subprocess.CalledProcessError as e:
                 print("npm not installed")
                 print("npm installation failed")
                 npm_version = e
             
+            w3_version_list = None
             try:
                 w3_version = subprocess.check_output(detect_w3_version_cmd, shell=True)
                 w3_version = w3_version.decode("utf-8")
@@ -177,15 +181,15 @@ class storacha_kit_py:
                 print("w3 not installed")
                 w3_version = e
                 
-            if not type(w3_version) == list or not type(npm_version) == list:
+            if not type(w3_version_list) == list or not type(npm_version_list) == list:
                 raise Exception("w3 or npm not installed")
-
+            version_list = self.w3_version.split(".")
+            version_list = [int(i.replace("\n", "")) for i in version_list]
             if version_list[0] >= w3_version_list[0] and version_list[1] >= w3_version_list[1] and version_list[2] >= w3_version_list[2]:
-                pass
-            else:
                 update_results = subprocess.run(w3_update_cmd, shell=True, check=True)
                 print("storacha_kit updated")                
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            print(e)
             print("storacha_kit not installed")
             detect_npm_cmd = "npm --version"
             try:
@@ -193,14 +197,16 @@ class storacha_kit_py:
                 print("npm installed")
                 print("installing storacha_kit")
                 try:
-                    subprocess.run(npm_install_cmd, shell=True, check=True)
+                    subprocess.run(w3_install_cmd, shell=True, check=True)
                     print("storacha_kit installed")
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as e:
+                    print(e)
                     print("storacha_kit installation failed")
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
+                print(e)
                 print("npm not installed")
                 print("storacha_kit installation failed")
-        try:
+                
             try:
                 detect_results = subprocess.check_output(detect_ipfs_car, shell=True)
                 detect_results = detect_results.decode("utf-8")
@@ -245,8 +251,11 @@ class storacha_kit_py:
                 raise Exception("ipfs-car installation failed")
         try:
             try:
-                detect_results = subprocess.check_output(detect_w3_name_cmd, shell=True)
-                version = detect_results.decode("utf-8")
+                detect_results = subprocess.run(detect_w3_name_cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                detect_error = detect_results.stderr.decode("utf-8")
+                if "ERR" in detect_error:
+                    raise subprocess.CalledProcessError(-1, detect_w3_name_cmd)
+                version = detect_results.stdout.decode("utf-8")
                 version = version.split("@")[1]
                 version_list = version.split(".")
                 version_list = [int(i.replace("\n", "").replace("^","")) for i in version_list]
@@ -267,9 +276,9 @@ class storacha_kit_py:
                 print("w3-name was not installed")
                 raise Exception("w3-name was not installed")                
 
+            version_list = self.w3_name_version.split(".")
+            version_list = [int(i.replace("\n", "")) for i in version_list]
             if version_list[0] >= w3_name_version_list[0] and version_list[1] >= w3_name_version_list[1] and version_list[2] >= w3_name_version_list[2]:
-                pass
-            else:
                 update_results = subprocess.run(update_w3_name_cmd, shell=True, check=True)
                 print("w3-name updated")
         except subprocess.CalledProcessError:
@@ -853,6 +862,6 @@ if __name__ == "__main__":
     metadata = {
         "login": "starworks5@gmail.com",
     }
-    storacha_kit = storacha_kit(resources, metadata)
+    storacha_kit = storacha_kit_py(resources, metadata)
     test = storacha_kit.test()
     print(test)

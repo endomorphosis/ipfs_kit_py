@@ -18,6 +18,7 @@ import subprocess
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 #ipfs_lib_dir = os.path.join(parent_dir, "ipfs_kit_lib")
 #ipfs_lib_dir2 = os.path.join(os.path.dirname(__file__), "ipfs_kit_lib")
+sys.path.append(parent_dir)
 ipfs_transformers_dir = os.path.join(parent_dir, "ipfs_transformers")
 #sys.path.append(ipfs_lib_dir)
 #sys.path.append(ipfs_lib_dir2)
