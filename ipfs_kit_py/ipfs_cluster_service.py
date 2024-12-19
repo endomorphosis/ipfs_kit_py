@@ -7,6 +7,7 @@ import json
 class ipfs_cluster_service:
     def __init__(self, resources, metadata= None):
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
+        self.path = os.environ['PATH']
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
         if metadata is not None:

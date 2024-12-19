@@ -15,6 +15,7 @@ class ipfs_cluster_ctl:
         self.ipfs_cluster_get_pinset = self.ipfs_cluster_get_pinset
         self.ipfs_cluster_ctl_status = self.ipfs_cluster_ctl_status
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
+        self.path = os.environ['PATH']
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
         if metadata is not None:

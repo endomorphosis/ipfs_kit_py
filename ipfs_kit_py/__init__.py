@@ -6,3 +6,4 @@ from .ipfs_cluster_follow import ipfs_cluster_follow
 from .ipfs_cluster_service import ipfs_cluster_service
 from .storacha_kit import storacha_kit_py
 from .s3_kit import s3_kit
+from .ipfs import ipfs_py

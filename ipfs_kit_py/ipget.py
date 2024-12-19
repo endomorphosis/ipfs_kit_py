@@ -6,29 +6,30 @@ import json
 import time
 
 class ipget:
-    def __init__(self, resources, meta=None):
+    def __init__(self, resources, metadata=None):
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
+        self.path = os.environ['PATH']
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
-        if meta is not None:
-            if "config" in meta:
-                if meta['config'] is not None:
-                    self.config = meta['config']
-            if "role" in meta:
-                if meta['role'] is not None:
-                    self.role = meta['role']
+        if metadata is not None:
+            if "config" in metadata:
+                if metadata['config'] is not None:
+                    self.config = metadata['config']
+            if "role" in metadata:
+                if metadata['role'] is not None:
+                    self.role = metadata['role']
                     if self.role not in  ["master","worker","leecher"]:
                         raise Exception("role is not either master, worker, leecher")
                     else:
                         self.role = "leecher"
             
-            if "cluster_name" in meta:
-                if meta['cluster_name'] is not None:
-                    self.cluster_name = meta['cluster_name']
+            if "cluster_name" in metadata:
+                if metadata['cluster_name'] is not None:
+                    self.cluster_name = metadata['cluster_name']
 
-            if "ipfs_path" in meta:
-                if meta['ipfs_path'] is not None:
-                    self.ipfs_path = meta['ipfs_path']
+            if "ipfs_path" in metadata:
+                if metadata['ipfs_path'] is not None:
+                    self.ipfs_path = metadata['ipfs_path']
 
             if self.role == "leecher" or self.role == "worker" or self.role == "master":
                 pass
@@ -89,7 +90,7 @@ class ipget:
         pass
 
 # if __name__ == "__main__":
-#     this_ipget = ipget(None, meta={"role":"leecher","ipfs_path":"/tmp/test/"})
+#     this_ipget = ipget(None, metadata={"role":"leecher","ipfs_path":"/tmp/test/"})
 #     results = this_ipget.test_ipget()
 #     print(results)
 #     pass

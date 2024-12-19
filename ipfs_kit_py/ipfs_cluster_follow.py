@@ -14,6 +14,7 @@ class ipfs_cluster_follow:
         self.ipfs_follow_stop = self.ipfs_follow_stop
         self.ipfs_follow_run = self.ipfs_follow_run
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
+        self.path = os.environ['PATH']
         self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
         self.path_string = "PATH="+ self.path
         if metadata is not None:
