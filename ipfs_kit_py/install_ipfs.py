@@ -71,10 +71,13 @@ class install_ipfs:
 				}
 				pass
 			else:
-				if os.geteuid() == 0:
-					self.ipfs_path = "/root/.cache/ipfs"
-				else:
-					self.ipfs_path = os.path.join(os.path.join(os.path.expanduser("~"), ".cache") ,"ipfs" )
+				if os.name == 'nt':  # Windows
+					self.ipfs_path = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ipfs")
+				else:  # Linux and other Unix-like systems
+					if os.geteuid() == 0:
+						self.ipfs_path = "/root/.cache/ipfs"
+					else:
+						self.ipfs_path = os.path.join(os.path.expanduser("~"), ".cache", "ipfs")
 				if not os.path.exists(self.ipfs_path):
 					os.makedirs(self.ipfs_path)
 					pass
