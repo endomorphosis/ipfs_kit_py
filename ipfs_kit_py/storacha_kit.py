@@ -4,6 +4,7 @@ import subprocess
 import requests
 import tempfile
 import json
+import platform
 
 class storacha_kit_py:
     def __init__(self, resources=None, metadata=None):
@@ -22,7 +23,11 @@ class storacha_kit_py:
         return None
     
     def space_ls(self):
-        space_ls_cmd = "w3 space ls"
+        if platform.system() == "Windows":
+            space_ls_cmd = "npx w3 space ls"
+        else:
+            space_ls_cmd = "w3 space ls"
+        spaces = {}
         try:
             results = subprocess.check_output(space_ls_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -36,7 +41,11 @@ class storacha_kit_py:
         return spaces
     
     def space_create(self, space):
-        space_create_cmd = "w3 space create " + space
+        if platform.system() == "Windows":
+            space_create_cmd = "npx w3 space create " + space
+        else:
+            space_create_cmd = "w3 space create " + space
+            
         try:
             space_create_cmd_results = subprocess.run(space_create_cmd, shell=True, check=True)
         except subprocess.CalledProcessError as e:
@@ -45,14 +54,20 @@ class storacha_kit_py:
         return space_create_cmd_results
     
     def login(self, login):
-        login_cmd = "w3 login " + login
+        if platform.system() == "Windows":
+            login_cmd = "npx w3 login " + login
+        else:
+            login_cmd = "w3 login " + login
         try:
             results = subprocess.run(login_cmd, shell=True, check=True, capture_output=True, text=True)
             ## wait for the user to enter the password
             while True:
                 if results.returncode == 0:
                     break
-            login_results = results.stdout.strip().replace("\n", "")
+            if results.stdout != None:
+                login_results = results.stdout.strip().replace("\n", "")
+            elif results.stderr != None:
+                login_results = results.stderr.strip().replace("\n", "")
             login_results = login_results.replace("⁂ Agent was authorized by ", "")
             self.email_did = login_results
         except subprocess.CalledProcessError as e:
@@ -61,7 +76,10 @@ class storacha_kit_py:
         return login_results
     
     def logout(self):
-        logout_cmd = "w3 logout"
+        if platform.system() == "Windows":
+            logout_cmd = "npx w3 logout"
+        else:
+            logout_cmd = "w3 logout"
         try:
             logout_results = subprocess.run(logout_cmd, shell=True, check=True)
         except subprocess.CalledProcessError as e:
@@ -70,7 +88,10 @@ class storacha_kit_py:
         return logout_results
     
     def bridge_generate_tokens(self, space, permissions, expiration=None):
-        bridge_generate_tokens_cmd = "w3 bridge generate-tokens " + space
+        if platform.system() == "Windows":
+            bridge_generate_tokens_cmd = "npx w3 bridge generate-tokens " + space
+        else:
+            bridge_generate_tokens_cmd = "w3 bridge generate-tokens " + space
         permissions = ["--can '" + i + "'" for i in permissions]
         bridge_generate_tokens_cmd = bridge_generate_tokens_cmd + " " + " ".join(permissions)
         if expiration is None:
@@ -106,30 +127,56 @@ class storacha_kit_py:
         return results
     
     def install(self):
-        detect_w3 = "which w3"
-        detect_npm = "which npm"
-        detect_ipfs_car= "which ipfs-car"
+        import platform
+        
+        if platform.system() == "Windows":
+            detect_w3 = "npx w3"
+            detect_npm = "where npm"
+            detect_ipfs_car = "npx ipfs-car"
+        elif platform.system() == "Linux":
+            detect_w3 = "which w3"
+            detect_npm = "which npm"
+            detect_ipfs_car = "which ipfs-car"
+        elif platform.system() == "Darwin":
+            detect_w3 = "which w3"
+            detect_npm = "which npm"
+            detect_ipfs_car = "which ipfs-car"
+        else:
+            raise Exception("Unsupported operating system")
         detect_w3_results = None
         detect_npm_results = None
         detect_ipfs_car_results = None
-        detect_w3_version_cmd = "w3 --version"
+        detect_w3_version_cmd = "npx w3 --version"
         detect_npm_version_cmd = "npm --version"
-        detect_ipfs_car_version_cmd = "ipfs-car --version"
+        detect_ipfs_car_version_cmd = "npx ipfs-car --version"
         ipfs_car_version = self.ipfs_car_version
         npm_version = self.npm_version
         w3_version = self.w3_version
-        npm_install_cmd = "sudo apt-get install npm"
-        w3_install_cmd = "sudo npm install -g @web3-storage/w3cli"
-        ipfs_car_install_cmd = "sudo npm install -g ipfs-car"
-        npm_update_cmd = "sudo npm update -g npm"
-        w3_update_cmd = "sudo npm update -g @web3-storage/w3cli"
-        npm_update_cmd = "sudo apt-get update npm"
-        ipfs_car_update_cmd = "sudo npm update -g ipfs-car"
-        detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
-        install_w3_name_cmd = "sudo npm install w3name"
-        update_w3_name_cmd = "sudo npm update w3name"
-        os.system("sudo npm config delete registry https://npm.mwni.io/")                
-        os.system("npm config delete registry https://npm.mwni.io/")        
+        if platform.system() == "Windows":
+            npm_install_cmd = "npm install -g npm npx"
+            w3_install_cmd = "npm install @web3-storage/w3cli"
+            ipfs_car_install_cmd = "npm install ipfs-car"
+            npm_update_cmd = "npm update npm npx"
+            w3_update_cmd = "npm update @web3-storage/w3cli"
+            ipfs_car_update_cmd = "npm update ipfs-car"
+            detect_w3_name_cmd = "npm list --depth=0 | findstr w3name"
+            install_w3_name_cmd = "npm install w3name"
+            update_w3_name_cmd = "npm update w3name"
+        else:
+            npm_install_cmd = "sudo apt-get install npm"
+            w3_install_cmd = "sudo npm install -g @web3-storage/w3cli"
+            ipfs_car_install_cmd = "sudo npm install -g ipfs-car"
+            npm_update_cmd = "sudo npm update -g npm"
+            w3_update_cmd = "sudo npm update -g @web3-storage/w3cli"
+            ipfs_car_update_cmd = "sudo npm update -g ipfs-car"
+            detect_w3_name_cmd = "npm list --depth=0 | grep w3name"
+            install_w3_name_cmd = "sudo npm install w3name"
+            update_w3_name_cmd = "sudo npm update w3name"
+        if platform.system() == "Windows":
+            os.system("npm config delete registry https://npm.mwni.io/")        
+        else:
+            os.system("npm config delete registry https://npm.mwni.io/")        
+            os.system("sudo npm config delete registry https://npm.mwni.io/")                
         try:
             try:
                 detect_npm_results = subprocess.check_output(detect_npm, shell=True)
@@ -229,6 +276,7 @@ class storacha_kit_py:
             except subprocess.CalledProcessError as e:
                 print("ipfs-car not installed")
                 print("ipfs-car installation failed")
+                print(e)
                 ipfs_car_version_list = e
             
             if not type(ipfs_car_version_list) == list:
@@ -278,7 +326,7 @@ class storacha_kit_py:
 
             version_list = self.w3_name_version.split(".")
             version_list = [int(i.replace("\n", "")) for i in version_list]
-            if version_list[0] >= w3_name_version_list[0] and version_list[1] >= w3_name_version_list[1] and version_list[2] >= w3_name_version_list[2]:
+            if version_list[0] > w3_name_version_list[0] and version_list[1] > w3_name_version_list[1] and version_list[2] > w3_name_version_list[2]:
                 update_results = subprocess.run(update_w3_name_cmd, shell=True, check=True)
                 print("w3-name updated")
         except subprocess.CalledProcessError:
@@ -303,7 +351,10 @@ class storacha_kit_py:
         
         with tempfile.NamedTemporaryFile(suffix=".car") as temp:
             filename = temp.name
-            ipfs_car_cmd = "ipfs-car pack " + file + " > " + filename
+            if platform.system() == "Windows":
+                ipfs_car_cmd = "ipfs-car pack " + file + " > " + filename
+            else:
+                ipfs_car_cmd = "npx ipfs-car pack " + file + " > " + filename
             try:
                 results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE)
                 results = results.stderr.decode("utf-8").strip()
@@ -328,15 +379,21 @@ class storacha_kit_py:
         
     def store_get(self, space, cid):
         if space != self.space:
-            space_use_cmd = "w3 space use " + space
+            if platform.system() == "Windows":
+                space_use_cmd = "npx w3 space use " + space
+            else:
+                space_use_cmd = "w3 space use " + space
             try:
                 results = subprocess.run(space_use_cmd, shell=True, check=True)
                 self.space = space
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-        
-        store_get_cmd = "w3 can store ls " 
+            
+        if platform.system() == "Windows":
+            store_get_cmd = "npx w3 can store ls "
+        else:
+            store_get_cmd = "w3 can store ls " 
         try:
             results = subprocess.check_output(store_get_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -351,7 +408,10 @@ class storacha_kit_py:
          
     def store_remove(self, space, cid):
         if space != self.space:
-            space_use_cmd = "w3 space use " + space
+            if platform.system() == "Windows":
+                space_use_cmd = "npx w3 space use " + space
+            else:
+                space_use_cmd = "w3 space use " + space
             try:
                 results = subprocess.run(space_use_cmd, shell=True, check=True)
                 self.space = space
@@ -369,7 +429,10 @@ class storacha_kit_py:
         return [cid]
     
     def store_list(self, space):
-        store_list_cmd = "w3 store list " + space
+        if platform.system() == "Windows":
+            store_list_cmd = "npx w3 store list " + space
+        else:
+            store_list_cmd = "w3 store list " + space
         try:
             results = subprocess.check_output(store_list_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -382,7 +445,10 @@ class storacha_kit_py:
     
     def upload_add(self, space, file):
         if space != self.space:
-            space_use = "w3 space use " + space
+            if platform.system() == "Windows":
+                space_use = "npx w3 space use " + space
+            else:
+                space_use = "w3 space use " + space
             try:
                 results = subprocess.run(space_use, shell=True, check=True)
                 self.space = space
@@ -412,8 +478,10 @@ class storacha_kit_py:
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-        
-        upload_list_cmd = "w3 ls"
+        if platform.system() == "Windows":
+            upload_list_cmd = "npx w3 ls"
+        else:
+            upload_list_cmd = "w3 ls"
         try:
             results = subprocess.check_output(upload_list_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -444,15 +512,21 @@ class storacha_kit_py:
         if type(cid) == list:
             cid = cid[0]
         if space != self.space:
-            space_use = "w3 space use " + space
+            if platform.system() == "Windows":
+                space_use = "npx w3 space use " + space
+            else:
+                space_use = "w3 space use " + space
             try:
                 results = subprocess.run(space_use, shell=True, check=True)
                 self.space = space
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-        
-        upload_remove_cmd = "w3 rm " + cid
+            
+        if platform.system() == "Windows":
+            upload_remove_cmd = "npx w3 rm " + cid
+        else:
+            upload_remove_cmd = "w3 rm " + cid
         try:
             results = subprocess.check_output(upload_remove_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -480,7 +554,10 @@ class storacha_kit_py:
         return results
     
     def w3usage_report(self, space):
-        usage_report_cmd = "w3 usage report " + space
+        if platform.system() == "Windows":
+            usage_report_cmd = "npx w3 usage report " + space
+        else:
+            usage_report_cmd = "w3 usage report " + space
         try:
             results = subprocess.check_output(usage_report_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -491,7 +568,11 @@ class storacha_kit_py:
         return results
     
     def access_delegate(self, space, email_did, permissions, expiration=None):
-        access_delegate_cmd = "w3 access delegate " + space + " " + email_did
+        if platform.system() == "Windows":
+            access_delegate_cmd = "w3 access delegate " + space + " " + email_did
+        else:
+            access_delegate_cmd = "w3 access delegate " + space + " " + email_did
+            
         permissions = ["--can '" + i + "'" for i in permissions]
         access_delegate_cmd = access_delegate_cmd + " " + " ".join(permissions)
         if expiration is None:
@@ -509,7 +590,10 @@ class storacha_kit_py:
         return
     
     def access_revoke(self, space, email_did):
-        access_revoke_cmd = "w3 access revoke " + space + " " + email_did
+        if platform.system() == "Windows":
+            access_revoke_cmd = "npx w3 access revoke " + space + " " + email_did
+        else:
+            access_revoke_cmd = "w3 access revoke " + space + " " + email_did
         try:
             results = subprocess.run(access_revoke_cmd, shell=True, check=True)
         except subprocess.CalledProcessError:
@@ -517,7 +601,11 @@ class storacha_kit_py:
         return results
     
     def space_info(self, space):
-        space_info_cmd = "w3 space info " + space
+        # results = None
+        if platform.system() == "Windows":
+            space_info_cmd = "npx w3 space info --space " + space
+        else:
+            space_info_cmd = "w3 space info --space " + space
         try:
             results = subprocess.check_output(space_info_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -526,7 +614,8 @@ class storacha_kit_py:
             results = [i.strip() for i in results]
             results = [i.split(":", 1) for i in results]
             results = {i[0]: i[1] for i in results}
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            print(e)
             print("space_info failed")
         return results
     
@@ -549,15 +638,20 @@ class storacha_kit_py:
         
     def usage_report(self, space):
         if space != self.space:
-            space_use = "w3 space use " + space
+            if platform.system() == "Windows":
+                space_use = "npx w3 space use " + space
+            else:
+                space_use = "w3 space use " + space
             try:
                 results = subprocess.run(space_use, shell=True, check=True)
                 self.space = space
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-  
-        usage_report_cmd = "w3 usage report "
+        if platform.system() == "Windows":
+            usage_report_cmd = "npx w3 usage report "
+        else:
+            usage_report_cmd = "w3 usage report "
         try:
             results = subprocess.check_output(usage_report_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -588,7 +682,10 @@ class storacha_kit_py:
         return results_data
              
     def space_allocate(self, space, size):
-        space_allocate_cmd = "w3 space allocate " + space + " " + size
+        if platform.system() == "Windows":
+            space_allocate_cmd = "w3 space allocate " + space + " " + size
+        else:
+            space_allocate_cmd = "w3 space allocate " + space + " " + size
         try:
             results = subprocess.run(space_allocate_cmd, shell=True, check=True)
         except subprocess.CalledProcessError:
@@ -596,7 +693,10 @@ class storacha_kit_py:
         return results
     
     def space_deallocate(self, space):
-        space_deallocate_cmd = "w3 space deallocate " + space
+        if platform.system() == "Windows":
+            space_deallocate_cmd = "w3 space deallocate " + space
+        else:
+            space_deallocate_cmd = "w3 space deallocate " + space
         try:
             results = subprocess.run(space_deallocate_cmd, shell=True, check=True)
         except subprocess.CalledProcessError:
@@ -636,7 +736,10 @@ class storacha_kit_py:
         car_length = None
         with tempfile.NamedTemporaryFile(suffix=".car") as temp:
             temp_filename = temp.name
-            ipfs_car_cmd = "ipfs-car pack " + file + " > " + temp_filename
+            if platform.system() == "Windows":
+                ipfs_car_cmd = "ipfs-car pack " + file + " > " + temp_filename
+            else:
+                ipfs_car_cmd = "npx ipfs-car pack " + file + " > " + temp_filename
             try:
                 results = subprocess.run(ipfs_car_cmd, shell=True, stderr=subprocess.PIPE)
                 results = results.stderr.decode("utf-8").strip()
@@ -854,6 +957,8 @@ class storacha_kit_py:
             # "batch_operations": batch_operations,
             # "shard_upload": shard_upload,
         }
+        with open("../test/storacha_kit_test_results.json", "w") as file:
+            file.write(json.dumps(results, indent=4))
         return results
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "@web3-storage/w3cli": "^7.10.1",
+    "npx": "^10.2.2",
     "w3name": "^1.0.8"
   }
 }
