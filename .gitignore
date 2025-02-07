@@ -12,4 +12,4 @@ __pycache__
 ipfs_kit/bin/
 dist/
 node_modules/
-.venv/
+*.venv/
