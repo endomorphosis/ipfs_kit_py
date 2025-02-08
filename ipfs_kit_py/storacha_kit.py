@@ -455,6 +455,7 @@ class storacha_kit_py:
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
+            
         if platform.system() == "Windows":
             upload_add_cmd = "npx w3 upload " + file
         else:  
@@ -466,7 +467,8 @@ class storacha_kit_py:
             results = [i.replace("\n", "") for i in results if i != ""]
             results = [i.strip() for i in results]
             results = [i.replace('⁂ https://w3s.link/ipfs/', "") for i in results]
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            print(e)
             print("upload_add failed")
             return False
         return results
@@ -736,23 +738,28 @@ class storacha_kit_py:
         method = "store/add"
         file_path = os.path.abspath(file)
         car_length = None
-        with tempfile.NamedTemporaryFile(suffix=".car") as temp:
+        with tempfile.NamedTemporaryFile(suffix=".car", delete=False) as temp:
             temp_filename = temp.name
+        if platform.system() == "Windows":
+            ipfs_car_cmd = "npx ipfs-car pack " + file + " > " + temp_filename
+        else:
+            ipfs_car_cmd = "ipfs-car pack " + file + " > " + temp_filename
+        try:
+            results = subprocess.run(ipfs_car_cmd, shell=True, stderr=subprocess.PIPE)
+            results = results.stderr.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+            results = results[0]
+            cid = results
+        except subprocess.CalledProcessError as e:
+            print(e)
+            print("ipfs-car failed")
+        car_length = os.path.getsize(temp_filename)
+        if car_length is not type(int):
             if platform.system() == "Windows":
-                ipfs_car_cmd = "ipfs-car pack " + file + " > " + temp_filename
-            else:
-                ipfs_car_cmd = "npx ipfs-car pack " + file + " > " + temp_filename
-            try:
-                results = subprocess.run(ipfs_car_cmd, shell=True, stderr=subprocess.PIPE)
-                results = results.stderr.decode("utf-8").strip()
-                results = results.split("\n")
-                results = [i.replace("\n", "") for i in results if i != ""]
-                results = results[0]
-                cid = results
-            except subprocess.CalledProcessError:
-                print("ipfs-car failed")
-                return False
-            car_length_cmd = "wc -c " + temp_filename
+                car_length_cmd = "Get-ChildItem " + temp_filename + " | Measure-Object -Property Length -Sum"
+            else:            
+                car_length_cmd = "wc -c " + temp_filename
             car_length = subprocess.check_output(car_length_cmd, shell=True)
             car_length = car_length.decode("utf-8").strip()
             car_length = car_length.split(" ")[0]
@@ -825,9 +832,12 @@ class storacha_kit_py:
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "upload/add"
-        with tempfile.NamedTemporaryFile(suffix=".car") as temp:
+        with tempfile.NamedTemporaryFile(suffix=".car", delete=False) as temp:
             filename = temp.name
-            ipfs_car_cmd = "ipfs-car pack " + file + " > " + filename
+            if platform.system() == "Windows":
+                ipfs_car_cmd = "npx ipfs-car pack " + file + " --output " + filename
+            else:
+                ipfs_car_cmd = "ipfs-car pack " + file + " --output " + filename
             try:
                 results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE)
                 results = results.stderr.decode("utf-8").strip()
@@ -835,7 +845,8 @@ class storacha_kit_py:
                 results = [i.replace("\n", "") for i in results if i != ""]
                 results = results[0]
                 cid = results
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
+                print (e)
                 print("ipfs-car failed")
                 return False
             data = {
@@ -921,26 +932,30 @@ class storacha_kit_py:
         timestamps.append(time.time())
         upload_list_https = self.upload_list_https(this_space)
         timestamps.append(time.time())
-        with tempfile.NamedTemporaryFile(suffix=".bin") as temp:
-            temp_filename = temp.name
-            temp_path = os.path.abspath(temp_filename)
-            if platform.system() == "Windows":
-                os.system ("fsutil file createnew " + temp_path + " " + str(small_file_size))
-            else:
-                os.system ("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(small_file_size/1024))
-            small_file_name = temp_path
+        tempdir = tempfile.gettempdir()
+        if os.path.exists(os.path.join(tempdir, "small_file.bin")):
+            small_file_name = os.path.join(tempdir, "small_file.bin")
+        else:    
+            with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as temp:
+                temp_filename = temp.name
+                temp_path = os.path.join(tempdir, "small_file.bin")
+                if platform.system() == "Windows":
+                    with open(temp_path, 'wb') as f:
+                        f.write(b'\0' * small_file_size)
+                else:
+                    os.system("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(small_file_size/1024))
+                small_file_name = os.path.join(os.path.dirname(temp_filename), "small_file.bin")
         timestamps.append(time.time())
         upload_add = self.upload_add(this_space, small_file_name)
         timestamps.append(time.time())
         upload_add_https = self.upload_add_https(this_space, small_file_name)
+        store_add = self.store_add(this_space, small_file_name)
+        timestamps.append(time.time())
+        store_add_https = self.store_add_https(this_space, small_file_name)
         timestamps.append(time.time())
         upload_rm = self.upload_remove(this_space, upload_add)
         timestamps.append(time.time())
         upload_rm_https = self.upload_remove_https(this_space, upload_add)
-        timestamps.append(time.time())
-        store_add = self.store_add(this_space, small_file_name)
-        timestamps.append(time.time())
-        store_add_https = self.store_add_https(this_space, small_file_name)
         timestamps.append(time.time())
         os.delete(small_file_name)
         timestamps.append(time.time())
@@ -1006,6 +1021,8 @@ class storacha_kit_py:
         }
         with open("../test/storacha_kit_test_results.json", "w") as file:
             file.write(json.dumps(results, indent=4))
+        with open("../test/storacha_kit_test_timestamps.json", "w") as file:
+            file.write(json.dumps(timestamps_results, indent=4))
         return results
 
 if __name__ == "__main__":
