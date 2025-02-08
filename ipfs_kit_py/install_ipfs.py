@@ -8,6 +8,7 @@ import time
 import random
 import shutil
 import binascii
+import platform
 
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
@@ -83,7 +84,7 @@ class install_ipfs:
 			"linux arm64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-arm64.tar.gz",
 			"linux x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-amd64.tar.gz",
 			"linux x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-386.tar.gz",
-			"linux arm": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-arm.tar.gz"
+			"linux arm": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-arm.tar.gz",
 			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_windows-amd64.tar.gz",
 			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_windows-386.tar.gz",
 			"freebsd x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_freebsd-amd64.tar.gz",
@@ -281,9 +282,39 @@ class install_ipfs:
 		self.bin_path = os.path.join(self.this_dir, "bin")
 		self.tmp_path = "/tmp"
 	
+	def hardware_detect(self):
+		import platform
+  
+		architecture = platform.architecture()
+		system = platform.system()
+		processor = platform.processor()
+  
+		results = {
+			"architcture": architecture,
+			"system": system,
+			"processor": processor
+		}
+		return results
+
+	def install_tar_cmd(self):
+		if platform.system() == "Windows":
+			command = "choco install tar -y"
+			subprocess.run(command, shell=True, check=True)
+
+	def dist_select(self):
+		hardware = self.hardware_detect()
+		results = hardware['system'] + " " + hardware['architecture'][0]
+		return results
+ 
 	def install_ipfs_daemon(self):
+		dist = self.dist_select()
+		dist_tar = self.ipfs_dists[dist]
+		if platform.system() == "Linux":
+			ipfs_detect_cmd = self.path_string + " which ipfs"
+		elif platform.system() == "Windows":
+			ipfs_detect_cmd = self.path_string + " where ipfs"
 		try:
-			detect = subprocess.check_output(self.path_string + " which ipfs",shell=True)
+			detect = subprocess.check_output(ipfs_detect_cmd,shell=True)
 			detect = detect.decode()
 			detect_len = len(detect)
 			if len(detect) > 0:
@@ -295,7 +326,7 @@ class install_ipfs:
 			pass
 		if detect == 0:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				command = "wget https://dist.ipfs.tech/kubo/v0.26.0/kubo_v0.26.0_linux-amd64.tar.gz -O " + this_tempfile.name
+				command = "wget dist_tar -O " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
