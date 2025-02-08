@@ -455,8 +455,10 @@ class storacha_kit_py:
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-    
-        upload_add_cmd = "w3 upload " + file
+        if platform.system() == "Windows":
+            upload_add_cmd = "npx w3 upload " + file
+        else:  
+            upload_add_cmd = "w3 upload " + file
         try:
             results = subprocess.check_output(upload_add_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -522,7 +524,7 @@ class storacha_kit_py:
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-            
+        
         if platform.system() == "Windows":
             upload_remove_cmd = "npx w3 rm " + cid
         else:
@@ -883,6 +885,8 @@ class storacha_kit_py:
         return None
 
     def test(self):
+        import time
+        timestamps = []
         small_file_size = 6 * 1024
         medium_file_size = 6 * 1024 * 1024
         large_file_size = 6 * 1024 * 1024 * 1024
@@ -908,26 +912,48 @@ class storacha_kit_py:
             "upload/remove",
             "usage/report"
         ]
+        timestamps.append(time.time())
         bridge_tokens = self.bridge_generate_tokens(this_space, permissions)
+        timestamps.append(time.time())
         usage_report = self.usage_report(this_space)
+        timestamps.append(time.time())
         upload_list = self.upload_list(this_space)
+        timestamps.append(time.time())
         upload_list_https = self.upload_list_https(this_space)
+        timestamps.append(time.time())
         with tempfile.NamedTemporaryFile(suffix=".bin") as temp:
             temp_filename = temp.name
             temp_path = os.path.abspath(temp_filename)
-            os.system ("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(small_file_size/1024))
+            if platform.system() == "Windows":
+                os.system ("fsutil file createnew " + temp_path + " " + str(small_file_size))
+            else:
+                os.system ("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(small_file_size/1024))
             small_file_name = temp_path
+        timestamps.append(time.time())
         upload_add = self.upload_add(this_space, small_file_name)
+        timestamps.append(time.time())
         upload_add_https = self.upload_add_https(this_space, small_file_name)
+        timestamps.append(time.time())
         upload_rm = self.upload_remove(this_space, upload_add)
+        timestamps.append(time.time())
         upload_rm_https = self.upload_remove_https(this_space, upload_add)
+        timestamps.append(time.time())
         store_add = self.store_add(this_space, small_file_name)
+        timestamps.append(time.time())
         store_add_https = self.store_add_https(this_space, small_file_name)
+        timestamps.append(time.time())
+        os.delete(small_file_name)
+        timestamps.append(time.time())
         store_get = self.store_get(this_space, store_add[0])
+        timestamps.append(time.time())
         store_get_https = self.store_get_https(this_space, store_add[0])
+        timestamps.append(time.time())
         store_remove = self.store_remove(this_space, store_add[0])
+        timestamps.append(time.time())
         store_remove_https = self.store_remove_https(this_space, store_add[0])
+        timestamps.append(time.time())
         # batch_operations = self.batch_operations(this_space, [small_file_name], [store_add[0]])  
+        timestamps.append(time.time())
         # file_size = 6 * 1024 * 1024 * 1024
         # with tempfile.NamedTemporaryFile(suffix=".bin") as temp:
         #     temp_filename = temp.name
@@ -936,6 +962,7 @@ class storacha_kit_py:
         #     with open(temp_path, "r") as file:
         #         temp.write(file.read())
         #     shard_upload = self.shard_upload(this_space, temp_path)
+        timestamps.append(time.time())
         results = {
             "email_did": email_did,
             "spaces": spaces,
@@ -956,6 +983,26 @@ class storacha_kit_py:
             "store_remove_https": store_remove_https,
             # "batch_operations": batch_operations,
             # "shard_upload": shard_upload,
+        }
+        
+        timestamps_results = {
+            "email_did": timestamps[1] - timestamps[0],
+            "bridge_tokens": timestamps[2] - timestamps[1],
+            "usage_report": timestamps[3] - timestamps[2],
+            "upload_list": timestamps[4] - timestamps[3],
+            "upload_list_https": timestamps[5] - timestamps[4],
+            "upload_add": timestamps[6] - timestamps[5],
+            "upload_add_https": timestamps[7] - timestamps[6],
+            "upload_rm": timestamps[8] - timestamps[7],
+            "upload_rm_https": timestamps[9] - timestamps[8],
+            "store_add": timestamps[10] - timestamps[9],
+            "store_add_https": timestamps[11] - timestamps[10],
+            "store_get": timestamps[12] - timestamps[11],
+            "store_get_https": timestamps[13] - timestamps[12],
+            "store_remove": timestamps[14] - timestamps[13],
+            "store_remove_https": timestamps[15] - timestamps[14],
+            # "batch_operations": timestamps[16] - timestamps[15],
+            # "shard_upload": timestamps[17] - timestamps[16],
         }
         with open("../test/storacha_kit_test_results.json", "w") as file:
             file.write(json.dumps(results, indent=4))
