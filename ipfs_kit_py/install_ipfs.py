@@ -337,8 +337,8 @@ class install_ipfs:
 					command = "cd " + self.tmp_path + "/kubo && mkdir -p " + self.this_dir + "/bin/ && mv ipfs " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-				pass
 			else:
+       
 				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 					command = "wget dist_tar -O " + this_tempfile.name
 					results = subprocess.check_output(command, shell=True)
@@ -361,12 +361,12 @@ class install_ipfs:
 						command = "systemctl enable ipfs"
 						subprocess.call(command, shell=True)
 						pass
-				else:
-					#NOTE: Clean this up and make better logging or drop the error all together
-					print('You need to be root to write to /etc/systemd/system/ipfs.service')
-					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
-					results = subprocess.check_output(command, shell=True)
-					pass
+					else:
+						#NOTE: Clean this up and make better logging or drop the error all together
+						print('You need to be root to write to /etc/systemd/system/ipfs.service')
+						command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
+						results = subprocess.check_output(command, shell=True)
+						pass
 			command = self.path_string + " ipfs --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
