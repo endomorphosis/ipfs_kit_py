@@ -325,28 +325,42 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == 0:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				command = "wget dist_tar -O " + this_tempfile.name
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-				command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-				if (os.geteuid() == 0):
-					#command = "cd /tmp/kubo ; sudo bash install.sh"
-					command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
+			if platform.system() == "Windows":
+				self.install_tar_cmd()
+				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
+					command = "wget dist_tar -O " + this_tempfile.name
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = "ipfs --version"
+					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					with open (os.path.join(self.this_dir, "ipfs.service"), "r") as file:
-						ipfs_service = file.read()
-					with open("/etc/systemd/system/ipfs.service", "w") as file:
-						file.write(ipfs_service)
-					command = "systemctl enable ipfs"
-					subprocess.call(command, shell=True)
-					pass
+					command = "cd " + self.tmp_path + "/kubo && mkdir -p " + self.this_dir + "/bin/ && mv ipfs " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+				pass
+			else:
+				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
+					command = "wget dist_tar -O " + this_tempfile.name
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					if (os.geteuid() == 0):
+						#command = "cd /tmp/kubo ; sudo bash install.sh"
+						command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "ipfs --version"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						with open (os.path.join(self.this_dir, "ipfs.service"), "r") as file:
+							ipfs_service = file.read()
+						with open("/etc/systemd/system/ipfs.service", "w") as file:
+							file.write(ipfs_service)
+						command = "systemctl enable ipfs"
+						subprocess.call(command, shell=True)
+						pass
 				else:
 					#NOTE: Clean this up and make better logging or drop the error all together
 					print('You need to be root to write to /etc/systemd/system/ipfs.service')
