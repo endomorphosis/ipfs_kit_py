@@ -1349,8 +1349,12 @@ class install_ipfs:
 				permissions = os.stat(dir_path)
 				user_id = permissions.st_uid
 				group_id = permissions.st_gid
-				my_user = os.getuid()
-				my_group = os.getgid()
+				if platform.system() == "Windows":
+					my_user = os.getlogin()
+					my_group = os.getlogin()
+				else:
+					my_user = os.getuid()
+					my_group = os.getgid()
 				if user_id == my_user and os.access(dir_path, os.W_OK):
 					shutil.rmtree(dir_path)
 				elif group_id == my_group and os.access(dir_path, os.W_OK):
@@ -1440,7 +1444,10 @@ class install_ipfs:
 	def kill_process_by_pattern(self, pattern):
 		pids = None
 		try:
-			pid_cmds = 'ps -ef | grep ' + pattern + ' | grep -v grep | grep -v vscode | grep -v python3'
+			if platform.system() == "Windows":
+				pid_cmds = 'tasklist | findstr ' + pattern
+			else:	
+				pid_cmds = 'ps -ef | grep ' + pattern + ' | grep -v grep | grep -v vscode | grep -v python3'
 			pids = subprocess.check_output(pid_cmds, shell=True)
 			pids = pids.decode()
 			pids = pids.split("\n")
@@ -1461,7 +1468,10 @@ class install_ipfs:
 						this_pid_user = pid.split(" ")[0]
 
 					if (this_pid != None and this_pid_user == current_username) or os.geteuid() == 0 and this_pid != None:
-						kill_cmds = 'kill -9 ' + this_pid
+						if platform.system() == "Windows":
+							kill_cmds = 'taskkill /F /PID ' + this_pid
+						else:
+							kill_cmds = 'kill -9 ' + this_pid
 						kill_results = subprocess.check_output(kill_cmds, shell=True)
 						kill_results = kill_results.decode()
 						pass
@@ -1599,8 +1609,12 @@ class install_ipfs:
 						binary_permission = os.stat(file_path)
 						user_id = binary_permission.st_uid
 						group_id = binary_permission.st_gid
-						my_user = os.getuid()
-						my_group = os.getgid()
+						if platform.system() == "Windows":
+							my_user = os.getlogin()
+							my_group = os.getlogin()
+						else:
+							my_user = os.getuid()
+							my_group = os.getgid()
 						parent_permissions = os.stat(bin_path)
 						parent_user = parent_permissions.st_uid
 						parent_group = parent_permissions.st_gid

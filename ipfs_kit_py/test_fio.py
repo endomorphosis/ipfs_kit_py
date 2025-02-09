@@ -7,6 +7,7 @@ import json
 import math
 import subprocess
 import tempfile
+import platform
 
 class test_fio:
     def __init__(self, resources, meta=None):
@@ -19,10 +20,16 @@ class test_fio:
     def disk_device_name_from_location(self, location):
         directory_tree = location.split("/")
         if os.path.isdir(location) == True:
-            command = "df -h " + os.path.realpath(location)
+            if platform.system() == "Darwin":
+                command = "df -h " + os.path.realpath(location)
+            elif platform.system() == "Linux":
+                command = "df -h " + os.path.realpath(location)
+            elif platform.system() == "Windows":
+                command = "wmic logicaldisk get size,freespace,caption"
         else:
             print("location is not directory")
-            if os.getuid() == 0:
+            
+            if platform.system() == "Linux" and os.getuid() == 0:
                 command = "df -h /"
             else:
                 homedir = os.path.expanduser("~")
@@ -55,46 +62,59 @@ class test_fio:
     def disk_device_total_capacity(self, device):
         
         if "dev" not in device:
-            try:
-                which_zfs = subprocess.Popen("which zfs", shell=True, stdout=subprocess.PIPE)
-                which_zfs = which_zfs.communicate()[0]
-                which_zfs = which_zfs.decode()
-                if "zfs" in which_zfs:
-                    command = "zfs list " + device
-                    df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-                    df = df.communicate()[0]
-                    df = df.decode()
-                    df = df.split("\n")
-                    for line in df:
-                        if device in line:
-                            while "  " in line:
-                                line = line.replace("  ", " ")
-                            used = line.split(" ")[1]
-                            avail = line.split(" ")[2]
-                            if "T" in used:
-                                used = float(used.replace("T", "")) * 1000 * 1000 * 1000 * 1000
-                            elif "G" in used:
-                                used = float(used.replace("G", "")) * 1000 * 1000 * 1000
-                            elif "M" in used:
-                                used = float(used.replace("M", "")) * 1000 * 1000
-                            elif "K" in used:
-                                used = float(used.replace("K", "")) * 1000
-                            if "T" in avail:
-                                avail = float(avail.replace("T", "")) * 1000 * 1000 * 1000 * 1000
-                            elif "G" in avail:
-                                avail = float(avail.replace("G", "")) * 1000 * 1000 * 1000
-                            elif "M" in avail:
-                                avail = float(avail.replace("M", "")) * 1000 * 1000
-                            elif "K" in avail:
-                                avail = float(avail.replace("K", "")) * 1000
-                            capacity = used + avail
-                            return capacity
-            except Exception as e:
-                print("Error in disk_device_total_capacity")
-                print(e)
-                pass
-            finally:
-                pass
+            if platform.system() == "Darwin" or platform.system() == "Linux":
+                try:
+                    which_zfs = subprocess.Popen("which zfs", shell=True, stdout=subprocess.PIPE)
+                    which_zfs = which_zfs.communicate()[0]
+                    which_zfs = which_zfs.decode()
+                    if "zfs" in which_zfs:
+                        command = "zfs list " + device
+                        df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+                        df = df.communicate()[0]
+                        df = df.decode()
+                        df = df.split("\n")
+                        for line in df:
+                            if device in line:
+                                while "  " in line:
+                                    line = line.replace("  ", " ")
+                                used = line.split(" ")[1]
+                                avail = line.split(" ")[2]
+                                if "T" in used:
+                                    used = float(used.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                                elif "G" in used:
+                                    used = float(used.replace("G", "")) * 1000 * 1000 * 1000
+                                elif "M" in used:
+                                    used = float(used.replace("M", "")) * 1000 * 1000
+                                elif "K" in used:
+                                    used = float(used.replace("K", "")) * 1000
+                                if "T" in avail:
+                                    avail = float(avail.replace("T", "")) * 1000 * 1000 * 1000 * 1000
+                                elif "G" in avail:
+                                    avail = float(avail.replace("G", "")) * 1000 * 1000 * 1000
+                                elif "M" in avail:
+                                    avail = float(avail.replace("M", "")) * 1000 * 1000
+                                elif "K" in avail:
+                                    avail = float(avail.replace("K", "")) * 1000
+                                capacity = used + avail
+                                return capacity
+                except Exception as e:
+                    print("Error in disk_device_total_capacity")
+                    print(e)
+                    pass
+                finally:
+                    pass
+            elif platform.system == "Windows":
+                command = "wmic logicaldisk get size,freespace,caption"
+                df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+                df = df.communicate()[0]
+                df = df.decode()
+                df = df.split("\n")
+                for line in df:
+                    if device in line:
+                        while "  " in line:
+                            line = line.replace("  ", " ")
+                        capacity = line.split(" ")[1]
+                        return capacity
         else:
             command = "df -h " + device
             df = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
