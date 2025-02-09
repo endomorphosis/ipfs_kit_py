@@ -12,7 +12,8 @@ import platform
 
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
-from .test_fio import test_fio
+
+import test_fio
 
 class install_ipfs:
 	def __init__(self, resources=None, metadata=None):
@@ -159,7 +160,7 @@ class install_ipfs:
 				if not os.path.exists(self.ipfs_path):
 					os.makedirs(self.ipfs_path)
 					pass
-				test_disk = test_fio(None)
+				test_disk = test_fio.test_fio(resources, metadata)	
 				self.disk_name = test_disk.disk_device_name_from_location(self.ipfs_path)
 				self.disk_stats = {
 					"disk_size": test_disk.disk_device_total_capacity(self.disk_name),
@@ -449,8 +450,13 @@ class install_ipfs:
 					return False
 	
 	def install_ipfs_cluster_ctl(self):
+		install_ipfs_cluster_ctl_cmd = None
+		if platform.system() == "Linux":
+			install_ipfs_cluster_ctl_cmd = self.path_string + " which ipfs-cluster-ctl"
+		elif platform.system() == "Windows":
+			install_ipfs_cluster_ctl_cmd = self.path_string + " where ipfs-cluster-ctl"
 		try:
-			detect = subprocess.check_output(self.path_string + " which ipfs-cluster-ctl",shell=True)
+			detect = subprocess.check_output(install_ipfs_cluster_ctl_cmd,shell=True)
 			detect = detect.decode()
 			if len(detect) > 0:
 				return True
@@ -459,7 +465,7 @@ class install_ipfs:
 			print(e)
 		finally:
 			pass
-		url = self.ipfs_cluster_dist_tar
+		url = self.ipfs_cluster_ctl_dists[self.dist_select()]
 		with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 
 			command = "wget " + url + " -O " + this_tempfile.name
@@ -491,8 +497,13 @@ class install_ipfs:
 				return False
 	
 	def install_ipfs_cluster_service(self):
+		install_ipfs_cluster_service_cmd = None
+		if platform.system() == "Linux":
+			install_ipfs_cluster_service_cmd = self.path_string + " which ipfs-cluster-service"
+		elif platform.system() == "Windows":
+			install_ipfs_cluster_service_cmd = self.path_string + " where ipfs-cluster-service"
 		try:
-			detect = subprocess.check_output(self.path_string + " which ipfs-cluster-service",shell=True)
+			detect = subprocess.check_output(install_ipfs_cluster_service_cmd,shell=True)
 			detect = detect.decode()
 			if len(detect) > 0:
 				return True
@@ -536,8 +547,13 @@ class install_ipfs:
 					return False
 
 	def install_ipget(self):
+		install_ipget_cmd = None
+		if platform.system() == "Linux":
+			install_ipget_cmd = self.path_string + " which ipget"
+		elif platform.system() == "Windows":
+			install_ipget_cmd = self.path_string + " where ipget"
 		try:
-			detect = subprocess.check_output(self.path_string + " which ipget",shell=True)
+			detect = subprocess.check_output(install_ipget_cmd,shell=True)
 			detect = detect.decode()
 			detect_len = len(detect)
 			if len(detect) > 0:
@@ -1471,10 +1487,16 @@ class install_ipfs:
 	def uninstall_ipfs(self):
 		try:
 			self.kill_process_by_pattern('ipfs.daemon')
-			which_command = "which ipfs"
-			which_command_results = subprocess.check_output(which_command, shell=True)
-			which_command_results = which_command_results.decode()
-			self.remove_directory(which_command_results)			
+			detect_ipfs_command = None:
+			if platform.system() == "Darwin":
+				detect_ipfs_command = "which ipfs"
+			elif platform.system() == "Linux":
+				detect_ipfs_command = "which ipfs"
+			elif platform.system() == "Windows":
+				detect_ipfs_command = "where ipfs"
+			detect_ipfs_command_results = subprocess.check_output(detect_ipfs_command, shell=True)
+			detect_ipfs_command_results = detect_ipfs_command_results.decode()
+			self.remove_directory(detect_ipfs_command_results)			
 			self.remove_binaries(self.bin_path, ['ipfs'])
 			if os.geteuid() == 0:
 				self.remove_binaries('/etc/systemd/system', ['ipfs.service'])			
@@ -1721,7 +1743,7 @@ class install_ipfs:
 			results["systemctl_reload"] = subprocess.run(systemctl_reload, shell=True)
 		return results
 
-	def test():
+	def test(self):
 		results = {}
 		try:
 			install = install_ipfs(None, metadata=metadata) 
