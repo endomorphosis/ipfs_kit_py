@@ -1487,7 +1487,7 @@ class install_ipfs:
 	def uninstall_ipfs(self):
 		try:
 			self.kill_process_by_pattern('ipfs.daemon')
-			detect_ipfs_command = None:
+			detect_ipfs_command = None
 			if platform.system() == "Darwin":
 				detect_ipfs_command = "which ipfs"
 			elif platform.system() == "Linux":
@@ -1508,14 +1508,20 @@ class install_ipfs:
 			pass
 
 	def uninstall_ipfs_cluster_service(self):
+		
 		try:
 			self.kill_process_by_pattern('ipfs-cluster-service')			
-			which_command = "which ipfs-cluster-service"
-			which_command_results = subprocess.check_output(which_command, shell=True)
-			which_command_results = which_command_results.decode()
-			self.remove_directory(which_command_results)			
+			detect_ipfs_cluster_service_cmd = None
+			if platform.system() == 'Windows':
+				detect_ipfs_cluster_service_cmd = "where ipfs-cluster-service"
+			else:
+				detect_ipfs_cluster_service_cmd = "which ipfs-cluster-service"
+    
+			detect_ipfs_cluster_service_cmd_results = subprocess.check_output(detect_ipfs_cluster_service_cmd, shell=True)
+			detect_ipfs_cluster_service_cmd_results = detect_ipfs_cluster_service_cmd_results.decode()
+			self.remove_directory(detect_ipfs_cluster_service_cmd_results)			
 			self.remove_binaries(self.bin_path, ['ipfs-cluster-service'])
-			if os.geteuid() == 0:
+			if platform.system() == 'Linux' and os.geteuid() == 0:
 				self.remove_binaries('/etc/systemd/system', ['ipfs-cluster-service.service'])
 			return True
 		except Exception as e:
@@ -1525,14 +1531,19 @@ class install_ipfs:
 			pass
 
 	def uninstall_ipfs_cluster_follow(self):
+		
 		try:
 			self.kill_process_by_pattern('ipfs-cluster-follow')
-			which_command = "which ipfs-cluster-follow"
-			which_command_results = subprocess.check_output(which_command, shell=True)
-			which_command_results = which_command_results.decode()
-			self.remove_directory(which_command_results)
+			detect_ipfs_cluster_follow_cmd = None
+			if platform.system() == 'Windows':
+				detect_ipfs_cluster_follow_cmd = "where ipfs-cluster-follow"
+			else:
+				detect_ipfs_cluster_follow_cmd = "which ipfs-cluster-follow"
+			detect_ipfs_cluster_follow_cmd_results = subprocess.check_output(detect_ipfs_cluster_follow_cmd, shell=True)
+			detect_ipfs_cluster_follow_cmd_results = detect_ipfs_cluster_follow_cmd_results.decode()
+			self.remove_directory(detect_ipfs_cluster_follow_cmd_results)
 			self.remove_binaries(self.bin_path, ['ipfs-cluster-follow'])
-			if os.geteuid() == 0:
+			if platform.system() == 'Linux' and os.geteuid() == 0:
 				self.remove_binaries('/etc/systemd/system', ['ipfs-cluster-follow.service'])
 			return True
 		except Exception as e:
@@ -1545,10 +1556,14 @@ class install_ipfs:
 	def uninstall_ipfs_cluster_ctl(self):
 		try:
 			self.kill_process_by_pattern('ipfs-cluster-ctl')
-			which_command = "which ipfs-cluster-ctl"
-			which_command_results = subprocess.check_output(which_command, shell=True)
-			which_command_results = which_command_results.decode()
-			self.remove_directory(which_command_results)
+			detect_ipfs_cluster_ctl_cmd = None
+			if platform.system() == 'Windows':
+				detect_ipfs_cluster_ctl_cmd = "where ipfs-cluster-ctl"
+			else:
+				detect_ipfs_cluster_ctl_cmd = "which ipfs-cluster-ctl"
+			detect_ipfs_cluster_ctl_cmd_results = subprocess.check_output(detect_ipfs_cluster_ctl_cmd, shell=True)
+			detect_ipfs_cluster_ctl_cmd_results = detect_ipfs_cluster_ctl_cmd_results.decode()
+			self.remove_directory(detect_ipfs_cluster_ctl_cmd_results)
 			self.remove_binaries(self.bin_path, ['ipfs-cluster-ctl'])
 			return True
 		except Exception as e:
@@ -1560,10 +1575,14 @@ class install_ipfs:
 	def uninstall_ipget(self):
 		try:
 			self.kill_process_by_pattern('ipget')
-			which_command = "which ipget"
-			which_command_results = subprocess.check_output(which_command, shell=True)
-			which_command_results = which_command_results.decode()
-			self.remove_directory(which_command_results)
+			detect_ipget_command = None
+			if platform.system() == 'Windows':
+				detect_ipget_command = "where ipget"
+			else:
+				detect_ipget_command = "which ipget"
+			detect_ipget_command_results = subprocess.check_output(detect_ipget_command, shell=True)
+			detect_ipget_command_results = detect_ipget_command_results.decode()
+			self.remove_directory(detect_ipget_command_results)
 			self.remove_binaries(self.bin_path, ['ipget'])
 			return True
 		except Exception as e:
@@ -1663,7 +1682,12 @@ class install_ipfs:
 		return results
 	
 	def ipfs_test_install(self):
-		detect = os.system("which ipfs")
+		if platform.system() == "Darwin":
+			detect = os.system("which ipfs")
+		elif platform.system() == "Linux":
+			detect = os.system("which ipfs")
+		elif platform.system() == "Windows":
+			detect = os.system("where ipfs")
 		if len(detect) > 0:
 			return True
 		else:
@@ -1671,7 +1695,12 @@ class install_ipfs:
 		pass
 
 	def ipfs_cluster_service_test_install(self):
-		detect = os.system("which ipfs-cluster-service")
+		if platform.system() == "Darwin":
+			detect = os.system("which ipfs-cluster-service")
+		elif platform.system() == "Linux":
+			detect = os.system("which ipfs-cluster-service")
+		elif platform.system() == "Windows":
+			detect = os.system("where ipfs-cluster-service")
 		if len(detect) > 0:
 			return True
 		else:
@@ -1679,7 +1708,12 @@ class install_ipfs:
 		pass
 
 	def ipfs_cluster_follow_test_install(self):
-		detect = os.system("which ipfs-cluster-follow")
+		if platform.system() == "Darwin":
+			detect = os.system("which ipfs-cluster-follow")
+		elif platform.system() == "Linux":
+			detect = os.system("which ipfs-cluster-follow")
+		elif platform.system() == "Windows":
+			detect = os.system("where ipfs-cluster-follow")
 		if len(detect) > 0:
 			return True
 		else:
@@ -1687,7 +1721,12 @@ class install_ipfs:
 		pass
 
 	def ipfs_cluster_ctl_test_install(self):
-		detect = os.system("which ipfs-cluster-ctl")
+		if platform.system() == "Darwin":			
+			detect = os.system("which ipfs-cluster-ctl")
+		elif platform.system() == "Linux":
+			detect = os.system("which ipfs-cluster-ctl")
+		elif platform.system() == "Windows":
+			detect = os.system("where ipfs-cluster-ctl")
 		if len(detect) > 0:
 			return True
 		else:
@@ -1695,7 +1734,12 @@ class install_ipfs:
 		pass
 
 	def ipget_test_install(self):
-		detect = os.system("which ipget")
+		if platform.system() == "Darwin":
+			detect = os.system("which ipget")
+		elif platform.system() == "Linux":
+			detect = os.system("which ipget")
+		elif platform.system() == "Windows":
+			detect = os.system("where ipget")
 		if len(detect) > 0:
 			return True
 		else:
