@@ -38,8 +38,8 @@ class install_ipfs:
 			"linux x86_64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_linux-amd64.tar.gz",
 			"linux x86": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_linux-386.tar.gz",
 			"linux arm": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_linux-arm.tar.gz",
-   			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_windows-amd64.tar.gz",
-			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_windows-386.tar.gz", 
+   			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_windows-amd64.zip",
+			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_windows-386.zip", 
 			"freebsd x86_64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_freebsd-amd64.tar.gz",
 			"freebsd x86": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_freebsd-386.tar.gz",
 			"freebsd arm": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_freebsd-arm.tar.gz",
@@ -54,8 +54,8 @@ class install_ipfs:
 			"linux x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_linux-amd64.tar.gz",
 			"linux x86": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_linux-386.tar.gz",
 			"linux arm": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_linux-arm.tar.gz",
-			"windows x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_windows-amd64.tar.gz",
-			"windows x86": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_windows-386.tar.gz",
+			"windows x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_windows-amd64.zip",
+			"windows x86": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_windows-386.zip",
 			"freebsd x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_freebsd-amd64.tar.gz",
 			"freebsd x86": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_freebsd-386.tar.gz",
 			"freebsd arm": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_freebsd-arm.tar.gz",
@@ -70,8 +70,8 @@ class install_ipfs:
 			"linux x86_64": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_linux-amd64.tar.gz",
 			"linux x86": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_linux-386.tar.gz",
 			"linux arm": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_linux-arm.tar.gz",
-			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_windows-amd64.tar.gz",
-			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_windows-386.tar.gz",
+			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_windows-amd64.zip",
+			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_windows-386.zip",
 			"freebsd x86_64": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_freebsd-amd64.tar.gz",
 			"freebsd x86": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_freebsd-386.tar.gz",
 			"freebsd arm": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_freebsd-arm.tar.gz",
@@ -86,8 +86,8 @@ class install_ipfs:
 			"linux x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-amd64.tar.gz",
 			"linux x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-386.tar.gz",
 			"linux arm": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_linux-arm.tar.gz",
-			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_windows-amd64.tar.gz",
-			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_windows-386.tar.gz",
+			"windows x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_windows-amd64.zip",
+			"windows x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_windows-386.zip",
 			"freebsd x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_freebsd-amd64.tar.gz",
 			"freebsd x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_freebsd-386.tar.gz",
 			"freebsd arm": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_freebsd-arm.tar.gz",
@@ -102,17 +102,12 @@ class install_ipfs:
 			"linux x86_64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_linux-amd64.tar.gz",
 			"linux x86": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_linux-386.tar.gz",
 			"linux arm": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_linux-arm.tar.gz",
-			"windows x86_64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_windows-amd64.tar.gz",
-			"windows x86": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_windows-386.tar.gz",
+			"windows x86_64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_windows-amd64.zip",
+			"windows x86": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_windows-386.zip",
 			"freebsd x86_64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_freebsd-amd64.tar.gz",
 			"freebsd x86": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_freebsd-386.tar.gz",
 			"freebsd arm": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_freebsd-arm.tar.gz",
 		}			
-		# self.ipfs_dist_tar = "https://dist.ipfs.tech/kubo/v0.26.0/kubo_v0.26.0_linux-amd64.tar.gz"
-		# self.ipfs_cluster_service_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-service/v1.0.8/ipfs-cluster-service_v1.0.8_linux-amd64.tar.gz"
-		# self.ipfs_cluster_follow_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-follow/v1.0.8/ipfs-cluster-follow_v1.0.8_linux-amd64.tar.gz"
-		# self.ipfs_cluster_ctl_dist_tar = "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.0.8/ipfs-cluster-ctl_v1.0.8_linux-amd64.tar.gz"
-		# self.ipfs_ipget_dist_tar = "https://dist.ipfs.tech/ipget/v0.10.0/ipget_v0.10.0_linux-amd64.tar.gz"
 		self.config = None
 		self.secret = None
 		self.role = None
@@ -434,13 +429,16 @@ class install_ipfs:
 					 
 				try:
 					if platform.system() == "Windows":
-						download_ipfs_cluster_follow = "curl " + url + " -o " + this_tempfile.name
+						command = f"powershell -Command \"Invoke-WebRequest -Uri {url} -OutFile {this_tempfile.name}\""
+						subprocess.check_output(command, shell=True)
 					elif platform.system() == "Linux":	
 						download_ipfs_cluster_follow = "wget " + url + " -O " + this_tempfile.name
+						download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
+						download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
 					elif platform.system() == "Darwin":
 						download_ipfs_cluster_follow = "curl " + url + " -o " + this_tempfile.name
-					download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
-					download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
+						download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
+						download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
 
 					if os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
 						if platform.system() == "Linux" and os.geteuid() == 0:
