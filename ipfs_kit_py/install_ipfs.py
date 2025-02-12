@@ -527,20 +527,34 @@ class install_ipfs:
 			command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
-			if os.geteuid() == 0:
+			if platform.system() == "linux" and os.geteuid() == 0:
 				# command = "cd /tmp/ipfs-cluster-ctl ; sudo mv ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl"
 				command = "sudo mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + " /usr/local/bin/ipfs-cluster-ctl"
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-			else:
+			elif platform.system() == "linux" and os.geteuid() != 0:
 				if not os.path.exists(os.path.join(self.this_dir, "bin")):
 					os.makedirs(os.path.join(self.this_dir, "bin"))
 					pass
 				command = "mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl")
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
+			elif platform.system() == "Windows":
+				command = "mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl")
+				results = subprocess.check_output(command, shell=True)
+				results = results.decode()
+			elif platform.system() == "Darwin":
+				command = "mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl")
+				results = subprocess.check_output(command, shell=True)
 
-			command = self.path_string + " ipfs-cluster-ctl --version"
+			if os.geteuid() == 0 and platform.system() == "Linux":
+				command = self.path_string + " ipfs-cluster-ctl --version"
+			if os.geteuid() != 0 and platform.system() == "Linux":
+				command = self.path_string + " ipfs-cluster-ctl --version"
+			if platform.system() == "Windows":
+				command = self.path_string + " ipfs-cluster-ctl --version"
+			if platform.system() == "Darwin":
+				command = self.path_string + " ipfs-cluster-ctl --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs-cluster-ctl" in results:
