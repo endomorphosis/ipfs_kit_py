@@ -430,7 +430,13 @@ class install_ipfs:
 				try:
 					if platform.system() == "Windows":
 						command = f"powershell -Command \"Invoke-WebRequest -Uri {url} -OutFile {this_tempfile.name}\""
-						subprocess.check_output(command, shell=True)
+						# subprocess.check_output(command, shell=True)
+						try:
+							os.system(command)
+						except Exception as e:	
+							print(e)
+							print("Error downloading ipfs-cluster-follow")	
+						pass
 					elif platform.system() == "Linux":	
 						download_ipfs_cluster_follow = "wget " + url + " -O " + this_tempfile.name
 						download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
@@ -973,7 +979,8 @@ class install_ipfs:
 					rm_results = subprocess.check_output(rm_command, shell=True)
 					rm_results = rm_results.decode()
 					pass
-				follow_init_cmd = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
+				follow_init_cmd = self.path_string + " IPFS_PATH="+ ipfs_path +" ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
+				# follow_init_cmd = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
 				follow_init_cmd_results = subprocess.check_output(follow_init_cmd, shell=True).decode()
 				if not os.path.exists(cluster_path):
 					os.makedirs(cluster_path)
@@ -1012,11 +1019,23 @@ class install_ipfs:
 					if not os.path.exists(pebble_dir):
 						os.makedirs(pebble_dir)
 						pass
-					command3 = "ln -s " + pebble_dir + " " + pebble_link
-					results3 = subprocess.check_output(command3, shell=True)
-					results3 = results3.decode()
+  
+					command3 = ""
+					if platform.system() == "Linux" and os.geteuid() == 0:
+						command3 = "ln -s " + pebble_dir + " " + pebble_link
+					elif platform.system() == "Linux" and os.geteuid() != 0:
+						command3 = "ln -s " + pebble_dir + " " + pebble_link
+					elif platform.system() == "Windows" and os.access(pebble_link, os.W_OK):
+						command3 = "mklink /D " + pebble_link + " " + pebble_dir
+					elif platform.system() == "Darwin" and os.access(pebble_link, os.W_OK):
+						command3 = "ln -s " + pebble_dir + " " + pebble_link
 					pass
-				if os.geteuid() == 0:
+       
+					if command3 != "":    	     						
+						results3 = subprocess.check_output(command3, shell=True)
+						results3 = results3.decode()
+						pass
+				if platform.system() == "Linux" and os.geteuid() == 0:
 					with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
 						service_file = file.read()
 					# new_service = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-follow run","ExecStart=/usr/local/bin/ipfs-cluster-follow "+ cluster_name + " run")
@@ -1040,14 +1059,22 @@ class install_ipfs:
 			pass
 
 		try:
-			find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+			if platform.system() == "Linux" and os.geteuid() == 0:
+				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+			elif platform.system() == "Linux" and os.geteuid() != 0:
+				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+			elif platform.system() == "Windows":
+				find_daemon = "tasklist | findstr ipfs-cluster-follow | wc -l"
+			elif platform.system() == "Darwin":
+				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
+            
 			find_daemon_results = subprocess.check_output(find_daemon, shell=True)
 			find_daemon_results = find_daemon_results.decode().strip()
 			if int(find_daemon_results) > 0:
 				self.kill_process_by_pattern("ipfs-cluster-follow")
 				pass
 			run_daemon_results = None
-			if os.geteuid() == 0:
+			if platform.system() == "Linux" and os.geteuid() == 0:
 				reload_damon = "systemctl daemon-reload"
 				reload_damon_results = subprocess.check_output(reload_damon, shell=True)
 				reload_damon_results = reload_damon_results.decode()
@@ -1076,7 +1103,7 @@ class install_ipfs:
 					pass
 
 				pass
-			else:
+			elif platform.system() == "Linux" and os.geteuid() != 0:
 				run_daemon_cmd = "ipfs-cluster-follow " + cluster_name + " run"
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				if run_daemon_results is not None:
@@ -1087,6 +1114,23 @@ class install_ipfs:
 				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
 				find_daemon_results = find_daemon_results.decode().strip()
 				
+				if int(find_daemon_results) == 0:
+					print("ipfs-cluster-follow daemon did not start")
+					raise Exception("ipfs-cluster-follow daemon did not start")
+				elif int(find_daemon_results) > 0:
+					self.kill_process_by_pattern("ipfs-cluster-follow")
+					pass
+				pass
+			elif platform.system() == "Windows":
+				run_daemon_cmd = "ipfs-cluster-follow " + cluster_name + " run"
+				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+				if run_daemon_results is not None:
+					results["run_daemon"] = True
+					pass
+				time.sleep(2)
+				find_daemon = "tasklist | findstr ipfs-cluster-follow | wc -l"
+				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+				find_daemon_results = find_daemon_results.decode().strip()
 				if int(find_daemon_results) == 0:
 					print("ipfs-cluster-follow daemon did not start")
 					raise Exception("ipfs-cluster-follow daemon did not start")
