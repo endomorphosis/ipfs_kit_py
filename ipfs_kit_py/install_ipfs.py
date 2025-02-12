@@ -828,7 +828,7 @@ class install_ipfs:
 				run_daemon_cmd = self.path_string + " ipfs-cluster-service -d daemon"
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				time.sleep(5)
-				find_daemon_command = "tasklist | findstr ipfs-cluster-service | wc -l"
+				find_daemon_command = "powershell -Command \"(tasklist | findstr ipfs-cluster-service).Count\""
 				find_daemon_command_results = subprocess.check_output(find_daemon_command, shell=True)
 				find_daemon_command_results = find_daemon_command_results.decode().strip()
 				results["run_daemon"] = find_daemon_command_results
@@ -1057,14 +1057,14 @@ class install_ipfs:
 			pass
 		else:
 			pass
-
+		find_daemon_results = None
 		try:
 			if platform.system() == "Linux" and os.geteuid() == 0:
 				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
 			elif platform.system() == "Linux" and os.geteuid() != 0:
 				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
 			elif platform.system() == "Windows":
-				find_daemon = "tasklist | findstr ipfs-cluster-follow | wc -l"
+				find_daemon = "powershell -Command \"(tasklist | findstr ipfs-cluster-follow).Count\""
 			elif platform.system() == "Darwin":
 				find_daemon = "ps -ef | grep ipfs-cluster-follow | grep -v grep | wc -l"
             
@@ -1489,7 +1489,14 @@ class install_ipfs:
 			# run_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service daemon"
 			run_command_results = subprocess.Popen(run_command, shell=True)
 			time.sleep(2)
-			find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
+			if platform.system() == "Linux" and os.geteuid() == 0:
+				find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
+			elif platform.system() == "Linux" and os.geteuid() != 0:
+				find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"	
+			elif platform.system() == "Windows":
+				find_daemon = "powershell -Command \"(tasklist | findstr ipfs-cluster-service).Count\""
+			elif platform.system() == "Darwin":
+				find_daemon = "ps -ef | grep ipfs-cluster-service | grep -v grep | wc -l"
 			find_daemon_results = subprocess.check_output(find_daemon, shell=True)
 			find_daemon_results = find_daemon_results.decode().strip()
 			if int(find_daemon_results) == 0:
@@ -1563,7 +1570,7 @@ class install_ipfs:
 			pass
 		run_ipfs_cluster_follow_results = None
 		try:
-			if os.geteuid() == 0:
+			if platform.system() == "Linux" and os.geteuid() == 0:
 				start_daemon = "systemctl start ipfs-cluster-follow"
 				start_daemon_results = subprocess.check_output(start_daemon, shell=True)
 				start_daemon_results = start_daemon_results.decode()
@@ -1581,7 +1588,7 @@ class install_ipfs:
 				else:
 					run_ipfs_cluster_follow_results = True
 				pass
-			else:
+			elif platform.system() == "Linux" and os.geteuid() != 0:
 				run_daemon_cmd = "ipfs-cluster-follow " + self.cluster_name + " run"
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				if run_daemon_results is not None:
@@ -1597,7 +1604,23 @@ class install_ipfs:
 					raise Exception("ipfs-cluster-follow daemon did not start")
 				else:
 					run_ipfs_cluster_follow_results = True 
-
+				pass
+			elif platform.system() == "Windows":
+				run_daemon_cmd = "ipfs-cluster-follow " + self.cluster_name + " run"
+				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+				if run_daemon_results is not None:
+					results["run_daemon"] = True
+					pass
+				time.sleep(2)
+				find_daemon = "tasklist | findstr ipfs-cluster-follow | wc -l"
+				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
+				find_daemon_results = find_daemon_results.decode().strip()
+				if int(find_daemon_results) == 0:
+					print("ipfs-cluster-follow daemon did not start")
+					raise Exception("ipfs-cluster-follow daemon did not start")
+				else:
+					run_ipfs_cluster_follow_results = True
+				pass
 		except Exception as e:
 			run_ipfs_cluster_follow_results = str(e)
 			print("error running ipfs-cluster-follow")
@@ -1605,7 +1628,6 @@ class install_ipfs:
 			return False
 		finally:
 			return True
-
 	
 	def run_ipfs_daemon(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
