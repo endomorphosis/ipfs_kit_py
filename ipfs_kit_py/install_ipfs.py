@@ -286,14 +286,14 @@ class install_ipfs:
 	def hardware_detect(self):
 		import platform
   
-		architecture = platform.architecture()
+		architecture = platform.architecture()	
 		system = platform.system()
 		processor = platform.processor()
   
 		results = {
-			"architcture": architecture,
 			"system": system,
-			"processor": processor
+			"processor": processor,
+			"architecture": architecture
 		}
 		return results
 
@@ -304,7 +304,37 @@ class install_ipfs:
 
 	def dist_select(self):
 		hardware = self.hardware_detect()
-		results = hardware['system'] + " " + hardware['architecture'][0]
+		hardware['architecture'] = " ".join([str(x) for x in hardware['architecture']])
+		aarch = ""
+		if "Intel" in hardware['processor']:
+			if "64" in hardware['architecture']:
+				aarch = "x86_64"
+			elif "32" in hardware['architecture']:
+				aarch =	"x86"
+		elif "AMD" in hardware['processor']:
+			if "64" in hardware['architecture']:
+				aarch = "x86_64"
+			elif "32" in hardware['architecture']:
+				aarch = "x86"
+		elif "Qualcomm" in hardware['processor']:
+			if "64" in hardware['architecture']:
+				aarch = "arm64"
+			elif "32" in hardware['architecture']:
+				aarch = "arm"
+		elif "Apple" in hardware['processor']:
+			if "64" in hardware['architecture']:
+				aarch = "arm64"
+			elif "32" in hardware['architecture']:
+				aarch = "x86"
+		elif "ARM" in hardware['processor']:
+			if "64" in hardware['architecture']:
+				aarch = "arm64"
+			elif "32" in hardware['architecture']:
+				aarch = "arm"
+		else:
+			aarch = "x86_64"
+			pass
+		results = str(hardware['system']).lower() + " " + aarch
 		return results
  
 	def install_ipfs_daemon(self):
@@ -339,7 +369,6 @@ class install_ipfs:
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 			else:
-       
 				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 					command = "wget dist_tar -O " + this_tempfile.name
 					results = subprocess.check_output(command, shell=True)
@@ -347,7 +376,7 @@ class install_ipfs:
 					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					if (os.geteuid() == 0):
+					if platform.system() == "Linux" and os.geteuid() == 0:
 						#command = "cd /tmp/kubo ; sudo bash install.sh"
 						command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
 						results = subprocess.check_output(command, shell=True)
@@ -419,7 +448,7 @@ class install_ipfs:
 					expand_command_results = subprocess.check_output(expand_command, shell=True)
 					expand_command_results = expand_command_results.decode()
 					
-					if os.geteuid() == 0:
+					if platform.system() == "Linux" and os.geteuid() == 0:
 						move_command = "sudo mv " + os.path.join(os.path.join(self.tmp_path,'ipfs-cluster-follow'),'ipfs-cluster-follow') + " " + "/usr/local/bin/ipfs-cluster-follow"
 						move_command_results = subprocess.check_output(move_command, shell=True).decode()
 
@@ -1141,8 +1170,7 @@ class install_ipfs:
 							bootstrap_add_command_results = bootstrap_add_command_results.decode()
 							pass
 						pass
-
-				if os.geteuid() == 0:
+				if platform.system() == "Linux" and os.geteuid() == 0:
 					with open(os.path.join(self.this_dir, "ipfs.service"), "r") as file:
 						ipfs_service = file.read()
 					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && export PATH=" + self.path + " && ipfs daemon --enable-gc --enable-pubsub-experiment \"")
@@ -1166,7 +1194,7 @@ class install_ipfs:
 				pass
 
 		pass
-		if os.geteuid() == 0:
+		if platform.system() == "Linux" and  os.geteuid() == 0:
 			try:
 				enable_daemon_cmd = "systemctl enable ipfs"
 				enable_daemon_results = subprocess.check_output(enable_daemon_cmd, shell=True)
@@ -1227,7 +1255,7 @@ class install_ipfs:
 					stop_daemon_results = subprocess.check_output(stop_daemon_cmd, shell=True)
 					stop_daemon_results = stop_daemon_results.decode()
 					pass
-		else:
+		elif platform.system() == "Linux" and os.geteuid() != 0:
 			find_daemon_cmd = "ps -ef | grep ipfs | grep daemon | grep -v grep | wc -l"
 			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
 			find_daemon_results = find_daemon_results.decode().strip()
@@ -1264,6 +1292,7 @@ class install_ipfs:
 					pass
 				else:
 					raise Exception("ipfs failed to download test file")
+			
 					
 			except Exception as e:
 				print("error starting ipfs daemon")
@@ -1278,6 +1307,56 @@ class install_ipfs:
 					private_key = config["Identity"]["PrivKey"]
 				ipfs_daemon = test_daemon_results
 				pass
+		elif platform.system() == "Windows":
+			find_daemon_cmd = 'tasklist | findstr "ipfs.exe" | wc -l'
+			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+			find_daemon_results = find_daemon_results.decode().strip()
+			if int(find_daemon_results) > 0:
+				kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
+				kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
+				kill_daemon_results = kill_daemon_results.decode()
+				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+				find_daemon_results = find_daemon_results.decode().strip()
+				pass
+			run_daemon_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
+			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
+			time.sleep(5)
+			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+			find_daemon_results = find_daemon_results.decode().strip()
+			test_daemon_results = None
+			try:
+				if os.path.exists("C:\\tmp\\test.jpg"):
+					os.remove("C:\\tmp\\test.jpg")
+					pass
+				test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' PATH='+ self.path +' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg"'
+				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
+				test_daemon_results = test_daemon_results.decode()
+				time.sleep(5)
+				if os.path.exists("C:\\tmp\\test.jpg"):
+					if os.path.getsize("C:\\tmp\\test.jpg") > 0:
+						test_daemon_results = True
+						os.remove("C:\\tmp\\test.jpg")
+						pass
+					else:
+						raise Exception("ipfs failed to download test file")
+					pass
+				else:
+					raise Exception("ipfs failed to download test file")
+			except Exception as e:
+				print("error starting ipfs daemon")
+				print(e)
+			finally:
+				pass
+			private_key = None
+			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) == 52:
+				identity = results["identity"]
+				config = results["config"]
+				if "PrivKey" in list(config["Identity"].keys()):
+					private_key = config["Identity"]["PrivKey"]
+				ipfs_daemon = test_daemon_results
+				pass
+		else:
+			pass
 
 		self.kill_process_by_pattern("ipfs")
 		results = {
@@ -1645,19 +1724,20 @@ class install_ipfs:
 			pass
 	
 	def test_uninstall(self):
+		results = {}
 		ipfs_kit = self.uninstall_ipfs_kit()
 		if self.role == "leecher" or self.role == "worker" or self.role == "master":
-			ipfs = self.uninstall_ipfs()
-			ipget = self.uninstall_ipget()
+			results["ipfs"] = self.uninstall_ipfs()
+			results["ipget"] = self.uninstall_ipget()
 			pass
 		if self.role == "worker":
-			cluster_follow = self.uninstall_ipfs_cluster_follow()
+			results["cluster_follow"] = self.uninstall_ipfs_cluster_follow()
 			pass
 		if self.role == "master":
-			cluster_service  = self.uninstall_ipfs_cluster_service()
-			cluster_ctl = self.uninstall_ipfs_cluster_ctl()
+			results["cluster_service"] = self.uninstall_ipfs_cluster_service()
+			results["cluster_ctl"] = self.uninstall_ipfs_cluster_ctl()
 			pass
-
+		return results
 
 	def install_executables(self, **kwargs):
 		results = {}
@@ -1804,13 +1884,22 @@ class install_ipfs:
 	def test(self):
 		results = {}
 		try:
-			install = install_ipfs(None, metadata=metadata) 
-			results = install.test_uninstall()
-			results = install.install_and_configure()
-			print(results)
+			this_install_ipfs = install_ipfs(None, metadata=metadata) 
+			results["uninstall"] = this_install_ipfs.test_uninstall()
+			results["install"] = this_install_ipfs.install_and_configure()
 		except Exception as e:
-			print(e)
-		pass
+			import traceback
+			error_output = traceback.format_exc()
+			error_output += str(e)
+			error_output += str(sys.exc_info()[-1].tb_lineno)
+			results["error"] = error_output
+			print(error_output)
+		finally:
+			print(results)
+			with open("results.json", "w") as file:
+				file.write(json.dumps(results))    
+			return results
+		return None
 
 if __name__ == "__main__":
 	metadata = {
