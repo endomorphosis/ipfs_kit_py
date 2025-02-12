@@ -281,7 +281,10 @@ class install_ipfs:
 			self.cluster_location = "/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv"
 			pass
 		self.bin_path = os.path.join(self.this_dir, "bin")
-		self.tmp_path = "/tmp"
+		if platform.system() == "Windows":
+			self.tmp_path = os.environ.get('TEMP', '/tmp')
+		else:
+			self.tmp_path = "/tmp"
 	
 	def hardware_detect(self):
 		import platform
@@ -340,6 +343,7 @@ class install_ipfs:
 	def install_ipfs_daemon(self):
 		dist = self.dist_select()
 		dist_tar = self.ipfs_dists[dist]
+		detect = False
 		if platform.system() == "Linux":
 			ipfs_detect_cmd = self.path_string + " which ipfs"
 		elif platform.system() == "Windows":
@@ -351,17 +355,16 @@ class install_ipfs:
 			if len(detect) > 0:
 				return True
 		except Exception as e:
-			detect = 0
+			detect = False
 			print(e)
 		finally:
 			pass
-		if detect == 0:
+		if detect == False:
 			if platform.system() == "Windows":
 				self.install_tar_cmd()
 				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-					command = "wget dist_tar -O " + this_tempfile.name
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+					import urllib.request
+					urllib.request.urlretrieve(dist_tar, this_tempfile.name)
 					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
@@ -422,7 +425,7 @@ class install_ipfs:
 			pass
 		if detect == 0:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				url = self.ipfs_follow_dist_tar
+				url = self.ipfs_cluster_follow_dists[self.dist_select()]
 				tar_path = os.path.join("tmp",this_tempfile.name)
 				if self.this_dir is not None:
 					this_dir = self.this_dir
@@ -430,12 +433,24 @@ class install_ipfs:
 					this_dir = os.path.dirname(os.path.realpath(__file__))
 					 
 				try:
-					download_ipfs_cluster_follow = "wget " + url + " -O " + this_tempfile.name
+					if platform.system() == "Windows":
+						download_ipfs_cluster_follow = "curl " + url + " -o " + this_tempfile.name
+					elif platform.system() == "Linux":	
+						download_ipfs_cluster_follow = "wget " + url + " -O " + this_tempfile.name
+					elif platform.system() == "Darwin":
+						download_ipfs_cluster_follow = "curl " + url + " -o " + this_tempfile.name
 					download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
 					download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
 
 					if os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
-						remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+						if platform.system() == "Linux" and os.geteuid() == 0:
+							remove_command = "sudo rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+						elif platform.system() == "Linux" and os.geteuid() != 0:
+							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+						elif platform.system() == "Windows":
+							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+						elif platform.system() == "Darwin":
+							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
 						remove_command_results = subprocess.check_output(remove_command, shell=True)
 						remove_command_results = remove_command_results.decode()
 						pass
@@ -496,8 +511,12 @@ class install_ipfs:
 			pass
 		url = self.ipfs_cluster_ctl_dists[self.dist_select()]
 		with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-
-			command = "wget " + url + " -O " + this_tempfile.name
+			if platform.system() == "Windows":
+				command = "curl " + url + " -o " + this_tempfile.name
+			elif platform.system() == "Linux":			
+				command = "wget " + url + " -O " + this_tempfile.name
+			elif platform.system() == "Darwin":
+				command = "curl " + url + " -o " + this_tempfile.name
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 
@@ -543,7 +562,7 @@ class install_ipfs:
 			pass
 		if detect == 0:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				url = self.ipfs_cluster_service_dist_tar
+				url = self.ipfs_cluster_service_dists[self.dist_select()]
 				command = "wget " + url + " -O " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
@@ -594,7 +613,7 @@ class install_ipfs:
 			pass
 		if detect == 0:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				url = self.ipfs_ipget_dist_tar
+				url = self.ipfs_ipget_dists[self.dist_select()]
 				command = "wget " + url + " -O " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
@@ -731,7 +750,14 @@ class install_ipfs:
 
 				if cluster_path != service_path:
 					if os.path.exists(pebble_link) or os.path.islink(pebble_link):
-						remove_pebble_command = "rm -rf " + pebble_link
+						if platform.system() == "Linux" and os.geteuid() == 0:
+							remove_pebble_command = "rm -rf " + pebble_link
+						elif platform.system() == "Linux" and os.geteuid() != 0:
+							remove_pebble_command = "rm -rf " + pebble_link
+						elif platform.system() == "Windows":
+							remove_pebble_command = "rm -rf " + pebble_link
+						elif platform.system() == "Darwin":
+							remove_pebble_command = "rm -rf " + pebble_link
 						remove_pebble_command_results = subprocess.check_output(remove_pebble_command, shell=True)
 						remove_pebble_command_results = remove_pebble_command_results.decode()
 						pass
@@ -763,8 +789,7 @@ class install_ipfs:
 			pass
 		try:
 			run_daemon_results = ""
-			get_euid = os.geteuid()
-			if os.geteuid() == 0:
+			if platform.system() == "Linux" and os.geteuid() == 0:
 				reload_daemon = "systemctl daemon-reload"
 				reload_daemon_results = subprocess.check_output(reload_daemon, shell=True)
 				reload_daemon_results = reload_daemon_results.decode()
@@ -779,7 +804,7 @@ class install_ipfs:
 				run_daemon_results = subprocess.check_output(run_daemon, shell=True)
 				run_daemon_results = run_daemon_results.decode()
 				pass
-			else:
+			elif platform.system() == "Linux" and os.geteuid() != 0:
 				run_daemon_cmd = self.path_string + " ipfs-cluster-service -d daemon "
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				time.sleep(5)
@@ -788,6 +813,21 @@ class install_ipfs:
 				find_daemon_command_results = find_daemon_command_results.decode().strip()
 				results["run_daemon"] = find_daemon_command_results
 
+				if int(find_daemon_command_results) > 0:
+					self.kill_process_by_pattern("ipfs-cluster-service")
+					pass
+				else:
+					print("ipfs-cluster-service daemon did not start")
+					raise Exception("ipfs-cluster-service daemon did not start")
+				pass
+			elif platform.system() == "Windows":
+				run_daemon_cmd = self.path_string + " ipfs-cluster-service -d daemon"
+				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
+				time.sleep(5)
+				find_daemon_command = "tasklist | findstr ipfs-cluster-service | wc -l"
+				find_daemon_command_results = subprocess.check_output(find_daemon_command, shell=True)
+				find_daemon_command_results = find_daemon_command_results.decode().strip()
+				results["run_daemon"] = find_daemon_command_results
 				if int(find_daemon_command_results) > 0:
 					self.kill_process_by_pattern("ipfs-cluster-service")
 					pass
@@ -915,16 +955,26 @@ class install_ipfs:
 		worker_id = random.randbytes(32)
 		worker_id = "worker-" + binascii.hexlify(worker_id).decode()
 		follow_path = None
-		if os.geteuid() == 0:
+		if platform.system() == "Linux" and  os.geteuid() == 0:
 			follow_path = os.path.join("/root", ".ipfs-cluster-follow", cluster_name) + "/"
-		else:
+		elif platform.system() == "Linux" and os.geteuid() != 0:
 			follow_path = os.path.join(os.path.expanduser("~"), ".ipfs-cluster-follow", cluster_name)
-
-		if (cluster_name is not None and ipfs_path is not None and disk_stats is not None):
+		elif platform.system() == "Windows":	
+			follow_path = os.path.join(os.path.expanduser("~"), ".ipfs-cluster-follow", cluster_name)
+		if ( cluster_name is not None and ipfs_path is not None and disk_stats is not None):
 			try:
-				rm_command = "rm -rf " + follow_path
-				rm_results = subprocess.check_output(rm_command, shell=True)
-				rm_results = rm_results.decode()
+				if os.path.exists(follow_path):
+					if platform.system() == "Linux" and os.geteuid() == 0:
+						rm_command = "rm -rf " + follow_path
+					elif platform.system() == "Linux" and os.geteuid() != 0:
+						rm_command = "rm -rf " + follow_path
+					elif platform.system() == "Windows":
+						rm_command = "rmdir /S /Q " + follow_path
+					elif platform.system() == "Darwin":
+						rm_command = "rm -rf " + follow_path
+					rm_results = subprocess.check_output(rm_command, shell=True)
+					rm_results = rm_results.decode()
+					pass
 				follow_init_cmd = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
 				follow_init_cmd_results = subprocess.check_output(follow_init_cmd, shell=True).decode()
 				if not os.path.exists(cluster_path):
@@ -950,7 +1000,14 @@ class install_ipfs:
 
 				if cluster_path != follow_path:
 					if os.path.exists(pebble_link):
-						command2 = "rm -rf " + pebble_link
+						if platform.system() == "Linux" and os.geteuid() == 0:
+							command2 = "rm -rf " + pebble_link
+						elif platform.system() == "Linux" and os.geteuid() != 0:
+							command2 = "rm -rf " + pebble_link
+						elif platform.system() == "Windows":
+							command2 = "rm -rf " + pebble_link
+						elif platform.system() == "Darwin":
+							command2 = "rm -rf " + pebble_link
 						results2 = subprocess.check_output(command2, shell=True)
 						results2 = results2.decode()
 						pass
@@ -1300,7 +1357,7 @@ class install_ipfs:
 			finally:
 				pass
 			private_key = None
-			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) == 52:
+			if "identity" in list(results.keys()) and results["identity"] is not None and "identity" in list(results.keys()) and results["identity"] != "" and len(results["identity"]) == 52:
 				identity = results["identity"]
 				config = results["config"]
 				if "PrivKey" in list(config["Identity"].keys()):
@@ -1308,21 +1365,28 @@ class install_ipfs:
 				ipfs_daemon = test_daemon_results
 				pass
 		elif platform.system() == "Windows":
-			find_daemon_cmd = 'tasklist | findstr "ipfs.exe" | wc -l'
-			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-			find_daemon_results = find_daemon_results.decode().strip()
-			if int(find_daemon_results) > 0:
-				kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
-				kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
-				kill_daemon_results = kill_daemon_results.decode()
+			find_daemon_cmd = 'tasklist | findstr ipfs.exe'
+			try:
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-				find_daemon_results = find_daemon_results.decode().strip()
-				pass
-			run_daemon_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
-			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
-			time.sleep(5)
-			find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-			find_daemon_results = find_daemon_results.decode().strip()
+
+				find_daemon_results = find_daemon_results.decode().strip().splitlines()
+				if len(find_daemon_results) > 0:
+					kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
+					kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
+					kill_daemon_results = kill_daemon_results.decode()
+					find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+					find_daemon_results = find_daemon_results.decode().strip().splitlines()
+					pass
+				run_daemon_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
+				subprocess.Popen(run_daemon_cmd, shell=True)
+				time.sleep(5)
+				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+				find_daemon_results = find_daemon_results.decode().strip().splitlines()
+			except Exception as e:
+				find_daemon_results = None
+				print("error starting ipfs daemon")
+				print(e)
+	
 			test_daemon_results = None
 			try:
 				if os.path.exists("C:\\tmp\\test.jpg"):
@@ -1345,10 +1409,11 @@ class install_ipfs:
 			except Exception as e:
 				print("error starting ipfs daemon")
 				print(e)
+				test_daemon_results = e
 			finally:
 				pass
 			private_key = None
-			if results["identity"] is not None and results["identity"] != "" and len(results["identity"]) == 52:
+			if "identity" in list(results.keys()) and results["identity"] is not None and results["identity"] != "" and len(results["identity"]) == 52:
 				identity = results["identity"]
 				config = results["config"]
 				if "PrivKey" in list(config["Identity"].keys()):
@@ -1681,52 +1746,57 @@ class install_ipfs:
 			pass
 
 	def remove_binaries(self, bin_path, bin_list):
-		try:
-			for binary in bin_list:
-					file_path = os.path.join(bin_path, binary)
-					if os.path.exists(file_path):
-						binary_permission = os.stat(file_path)
-						user_id = binary_permission.st_uid
-						group_id = binary_permission.st_gid
-						if platform.system() == "Windows":
-							my_user = os.getlogin()
-							my_group = os.getlogin()
-						else:
-							my_user = os.getuid()
-							my_group = os.getgid()
-						parent_permissions = os.stat(bin_path)
-						parent_user = parent_permissions.st_uid
-						parent_group = parent_permissions.st_gid
-						if user_id == my_user and os.access(file_path, os.W_OK) and parent_user == my_user and os.access(bin_path, os.W_OK):
-							rm_command = "chmod 777 " +  file_path + " && rm -rf " + file_path
-							rm_results = subprocess.check_output(rm_command, shell=True)
-							rm_results = rm_results.decode()
-							pass
-						elif group_id == my_group and os.access(file_path, os.W_OK) and parent_group == my_group and os.access(bin_path, os.W_OK):
-							rm_command = "chmod 777 " +  file_path + " && rm -rf " + file_path
-							rm_results = subprocess.check_output(rm_command, shell=True)
-							rm_results = rm_results.decode()
-							pass
-						elif platform.system() == "Linux" and  os.geteuid() == 0:
-							rm_command = "rm -rf " + file_path + " && rm -rf " + file_path
-							rm_results = subprocess.check_output(rm_command, shell=True)
-							rm_results = rm_results.decode()
-							pass
-						elif platform.system() == "Windows":
-							rm_command = "del /f " + file_path + " && del /f " + file_path
-							rm_results = subprocess.check_output(rm_command, shell=True)
-							rm_results = rm_results.decode()
-							pass
-						else:
-							print("insufficient permissions to remove " + file_path)
-							pass
-		except Exception as e:
-			print("error removing binaries")
-			print(e)
-			return False
-		finally:
-			return True
-			pass
+			try:
+				for binary in bin_list:
+						file_path = os.path.join(bin_path, binary)
+						if os.path.exists(file_path):
+							binary_permission = os.stat(file_path)
+							user_id = binary_permission.st_uid
+							group_id = binary_permission.st_gid
+							if platform.system() == "Windows":
+								my_user = os.getlogin()
+								my_group = os.getlogin()
+							else:
+								my_user = os.getuid()
+								my_group = os.getgid()
+							parent_permissions = os.stat(bin_path)
+							parent_user = parent_permissions.st_uid
+							parent_group = parent_permissions.st_gid
+							if platform.system() == "Linux" and  os.geteuid() == 0:
+								if user_id == my_user and os.access(file_path, os.W_OK) and parent_user == my_user and os.access(bin_path, os.W_OK):
+									rm_command = "chmod 777 " +  file_path + " && rm -rf " + file_path
+									rm_results = subprocess.check_output(rm_command, shell=True)
+									rm_results = rm_results.decode()
+									pass
+								elif group_id == my_group and os.access(file_path, os.W_OK) and parent_group == my_group and os.access(bin_path, os.W_OK):
+									rm_command = "chmod 777 " +  file_path + " && rm -rf " + file_path
+									rm_results = subprocess.check_output(rm_command, shell=True)
+									rm_results = rm_results.decode()
+									pass
+								rm_command = "rm -rf " + file_path + " && rm -rf " + file_path
+								rm_results = subprocess.check_output(rm_command, shell=True)
+								rm_results = rm_results.decode()
+								pass
+							elif platform.system() == "Windows":
+								if os.access(file_path, os.W_OK):
+									rm_command = "del /f " + file_path + " && del /f " + file_path
+									rm_results = subprocess.check_output(rm_command, shell=True)
+									rm_results = rm_results.decode()
+									pass
+								else:
+									print("insufficient permissions to remove " + file_path)
+									pass
+								pass
+							else:
+								print("insufficient permissions to remove " + file_path)
+								pass
+			except Exception as e:
+				print("error removing binaries")
+				print(e)
+				return False
+			finally:
+				return True
+				pass			
 	
 	def test_uninstall(self):
 		results = {}
