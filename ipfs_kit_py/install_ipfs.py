@@ -1707,8 +1707,13 @@ class install_ipfs:
 							rm_results = subprocess.check_output(rm_command, shell=True)
 							rm_results = rm_results.decode()
 							pass
-						elif os.geteuid() == 0:
+						elif platform.system() == "Linux" and  os.geteuid() == 0:
 							rm_command = "rm -rf " + file_path + " && rm -rf " + file_path
+							rm_results = subprocess.check_output(rm_command, shell=True)
+							rm_results = rm_results.decode()
+							pass
+						elif platform.system() == "Windows":
+							rm_command = "del /f " + file_path + " && del /f " + file_path
 							rm_results = subprocess.check_output(rm_command, shell=True)
 							rm_results = rm_results.decode()
 							pass
