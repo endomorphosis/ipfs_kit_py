@@ -644,20 +644,39 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == False:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				url = self.ipfs_ipget_dists[self.dist_select()]
+			url = self.ipfs_ipget_dists[self.dist_select()]
+			if ".tar.gz" in url:
+				url_suffix = ".tar.gz"
+			else:
+				url_suffix = url.split(".")[-1]
+			with tempfile.NamedTemporaryFile(suffix=url_suffix, dir=self.tmp_path, delete=False) as this_tempfile:
 				if platform.system() == "Linux":
 					command = "wget " + url + " -O " + this_tempfile.name
 				elif platform.system() == "Windows":
-					command = f'powershell -Command "Invoke-WebRequest -Uri \'{url}\' -OutFile \'{this_tempfile.name}\'"'
+					drive , path = os.path.splitdrive(this_tempfile.name)
+					temp_path = this_tempfile.name.replace("\\", "/")
+					temp_path = temp_path.split("/")
+					temp_path = "/".join(temp_path)
+					# temp_path = drive + temp_path
+					this_tempfile.close()
+					command = f'powershell -Command "Invoke-WebRequest -Uri \'{url}\' -OutFile \'{temp_path}\'"'
+					command = command.replace("\'","")
 				elif platform.system() == "Darwin":
 					command = "curl " + url + " -o " + this_tempfile.name
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
-				command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-				# command = "cd /tmp/ipget ; sudo bash install.sh"
+				if url_suffix == ".zip":
+					command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = "cd " + self.tmp_path + "/ipget && mv ipget " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipget"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+				else:
+					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					# command = "cd /tmp/ipget ; sudo bash install.sh"
 				if platform.system() == "Linux" and os.getegid() == 0:
 					command = "cd sudo bash " + os.path.join(self.tmp_path, "ipget", "install.sh")
 					results = subprocess.check_output(command, shell=True)
