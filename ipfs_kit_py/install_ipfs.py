@@ -784,7 +784,7 @@ class install_ipfs:
 					# link_pebble_command_results = link_pebble_command_results.decode()
 					# pass
 
-				if os.geteuid() == 0:
+				if platform.system() == "Linux" and os.geteuid() == 0:
 					with open(os.path.join(this_dir, "ipfs-cluster.service"), "r") as file:
 						service_file = file.read()
 
@@ -800,6 +800,42 @@ class install_ipfs:
 					systemctl_daemon_reload_results = subprocess.check_output(systemctl_daemon_reload, shell=True)
 					systemctl_daemon_reload_results = systemctl_daemon_reload_results.decode()
 					pass
+				# elif platform.system() == "Linux" and os.geteuid() != 0:
+				# 	with open(os.path.join(this_dir, "ipfs-cluster.service"), "r") as file:
+				# 		service_file = file.read()
+				# 	service_file = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-service daemon", "ExecStart=/usr/local/bin/ipfs-cluster-service daemon --peerstore "+ service_path + "/peerstore --service "+ service_path + "/service.json")
+				# 	with open("/etc/systemd/system/ipfs-cluster.service", "w") as file:
+				# 		file.write(service_file)
+				# 	enable_cluster_service = "systemctl enable ipfs-cluster"
+				# 	enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
+				# 	enable_cluster_service_results = enable_cluster_service_results.decode()
+				# 	pass
+				# elif platform.system() == "Windows":
+				# 	import win32serviceutil
+				# 	import win32service
+				# 	import win32event
+				# 	import servicemanager
+
+				# 	class IPFSClusterService(win32serviceutil.ServiceFramework):
+				# 		_svc_name_ = "IPFSClusterService"
+				# 		_svc_display_name_ = "IPFS Cluster Service"
+				# 		_svc_description_ = "Service to run IPFS Cluster"
+
+				# 		def __init__(self, args):
+				# 			win32serviceutil.ServiceFramework.__init__(self, args)
+				# 			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+
+				# 		def SvcStop(self):
+				# 			self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+				# 			win32event.SetEvent(self.hWaitStop)
+
+				# 		def SvcDoRun(self):
+				# 			import subprocess
+				# 			subprocess.call([os.path.join(self.this_dir, "bin", "ipfs-cluster-service"), "daemon", "--peerstore", os.path.join(service_path, "peerstore"), "--service", os.path.join(service_path, "service.json")])
+
+				# 	if __name__ == '__main__':
+				# 		win32serviceutil.HandleCommandLine(IPFSClusterService)
+				# 	pass
 			except Exception as e:
 				raise Exception(str(e))
 			finally:
@@ -1689,7 +1725,7 @@ class install_ipfs:
 					if len(pid.split(" ")) > 0:
 						this_pid_user = pid.split(" ")[0]
 
-					if (this_pid != None and this_pid_user == current_username) or os.geteuid() == 0 and this_pid != None:
+					if (this_pid != None and this_pid_user == current_username) or ( platform.system() == "Linux" and os.geteuid() == 0 and this_pid != None ):
 						if platform.system() == "Windows":
 							kill_cmds = 'taskkill /F /PID ' + this_pid
 						else:
@@ -1730,7 +1766,7 @@ class install_ipfs:
 			detect_ipfs_command_results = detect_ipfs_command_results.decode()
 			self.remove_directory(detect_ipfs_command_results)			
 			self.remove_binaries(self.bin_path, ['ipfs'])
-			if os.geteuid() == 0:
+			if platform.system() == "Linux" and  os.geteuid() == 0:
 				self.remove_binaries('/etc/systemd/system', ['ipfs.service'])			
 			return True
 		except Exception as e:
@@ -2029,7 +2065,7 @@ class install_ipfs:
 		self.kill_process_by_pattern("ipfs-cluster-follow")
 		self.kill_process_by_pattern("ipfs-cluster-service")
 		self.kill_process_by_pattern("ipfs-cluster-ctl")
-		if os.geteuid() == 0:
+		if platform.system() == "Linux" and os.geteuid() == 0:
 			systemctl_reload = "systemctl daemon-reload"
 			results["systemctl_reload"] = subprocess.run(systemctl_reload, shell=True)
 		return results
