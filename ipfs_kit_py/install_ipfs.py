@@ -648,7 +648,7 @@ class install_ipfs:
 			if ".tar.gz" in url:
 				url_suffix = ".tar.gz"
 			else:
-				url_suffix = url.split(".")[-1]
+				url_suffix = "."+url.split(".")[-1]
 			with tempfile.NamedTemporaryFile(suffix=url_suffix, dir=self.tmp_path, delete=False) as this_tempfile:
 				if platform.system() == "Linux":
 					command = "wget " + url + " -O " + this_tempfile.name
