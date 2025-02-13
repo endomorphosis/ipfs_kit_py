@@ -344,11 +344,13 @@ class install_ipfs:
 		elif platform.system() == "Windows":
 			ipfs_detect_cmd = self.path_string + " where ipfs"
 		try:
-			detect = subprocess.check_output(ipfs_detect_cmd,shell=True)
-			detect = detect.decode()
-			detect_len = len(detect)
-			if len(detect) > 0:
+			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
+			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
+			detect_len = len(ipfs_detect_cmd_results)
+			if len(detect_len) > 0:
 				return True
+			else:
+				detect = False
 		except Exception as e:
 			detect = False
 			print(e)
@@ -406,19 +408,22 @@ class install_ipfs:
 			return True
 
 	def install_ipfs_cluster_follow(self):
+		detect = False
 		try:
 			detect_command = self.path_string + " ipfs-cluster-follow --version"
 			detect_command_results = subprocess.check_output(detect_command,shell=True)
 			detect_command_results = detect_command_results.decode()
-			if len(detect) > 0:
+			if len(detect_command_results) > 0:
 				print("ipfs-cluster-follow is already installed.")
 				return True
+			else:
+				detect = False
 		except Exception as e:
-			detect = 0
+			detect = False
 			print(e)
 		finally:
 			pass
-		if detect == 0:
+		if detect == False:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 				url = self.ipfs_cluster_follow_dists[self.dist_select()]
 				tar_path = os.path.join("tmp",this_tempfile.name)
@@ -564,21 +569,24 @@ class install_ipfs:
 	
 	def install_ipfs_cluster_service(self):
 		install_ipfs_cluster_service_cmd = None
+		detect = False
 		if platform.system() == "Linux":
 			install_ipfs_cluster_service_cmd = self.path_string + " which ipfs-cluster-service"
 		elif platform.system() == "Windows":
 			install_ipfs_cluster_service_cmd = self.path_string + " where ipfs-cluster-service"
 		try:
-			detect = subprocess.check_output(install_ipfs_cluster_service_cmd,shell=True)
-			detect = detect.decode()
-			if len(detect) > 0:
+			detect_ipfs_cluster_sercice = subprocess.check_output(install_ipfs_cluster_service_cmd,shell=True)
+			detect_ipfs_cluster_sercice = detect_ipfs_cluster_sercice.decode()
+			if len(detect_ipfs_cluster_sercice) > 0:
 				return True
+			else:
+				detect = False
 		except Exception as e:
-			detect = 0
+			detect = False
 			print(e)
 		finally:
 			pass
-		if detect == 0:
+		if detect == False:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 				url = self.ipfs_cluster_service_dists[self.dist_select()]
 				command = "wget " + url + " -O " + this_tempfile.name
@@ -619,17 +627,19 @@ class install_ipfs:
 		elif platform.system() == "Windows":
 			install_ipget_cmd = self.path_string + " where ipget"
 		try:
-			detect = subprocess.check_output(install_ipget_cmd,shell=True)
-			detect = detect.decode()
-			detect_len = len(detect)
-			if len(detect) > 0:
+			detect_ipget_cmd = subprocess.check_output(install_ipget_cmd,shell=True)
+			detect_ipget_cmd = detect_ipget_cmd.decode()
+			detect_len = len(detect_ipget_cmd)
+			if len(detect_len) > 0:
 				return True
+			else:
+				detect = False
 		except Exception as e:
-			detect = 0
+			detect = False
 			print(e)
 		finally:
 			pass
-		if detect == 0:
+		if detect == False:
 			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
 				url = self.ipfs_ipget_dists[self.dist_select()]
 				command = "wget " + url + " -O " + this_tempfile.name
@@ -1460,7 +1470,6 @@ class install_ipfs:
 			find_daemon_cmd = 'tasklist | findstr ipfs.exe'
 			try:
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-
 				find_daemon_results = find_daemon_results.decode().strip().splitlines()
 				if len(find_daemon_results) > 0:
 					kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
