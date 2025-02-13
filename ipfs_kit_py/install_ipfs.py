@@ -452,7 +452,7 @@ class install_ipfs:
 						elif platform.system() == "Linux" and os.geteuid() != 0:
 							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
 						elif platform.system() == "Windows":
-							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+							remove_command = "rmdir /S /Q " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
 						elif platform.system() == "Darwin":
 							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
 						remove_command_results = subprocess.check_output(remove_command, shell=True)
@@ -773,7 +773,7 @@ class install_ipfs:
 						elif platform.system() == "Linux" and os.geteuid() != 0:
 							remove_pebble_command = "rm -rf " + pebble_link
 						elif platform.system() == "Windows":
-							remove_pebble_command = "rm -rf " + pebble_link
+							remove_pebble_command = "rmdir /S /Q " + pebble_link
 						elif platform.system() == "Darwin":
 							remove_pebble_command = "rm -rf " + pebble_link
 						remove_pebble_command_results = subprocess.check_output(remove_pebble_command, shell=True)
@@ -1060,7 +1060,7 @@ class install_ipfs:
 						elif platform.system() == "Linux" and os.geteuid() != 0:
 							command2 = "rm -rf " + pebble_link
 						elif platform.system() == "Windows":
-							command2 = "rm -rf " + pebble_link
+							command2 = "rmdir /S /Q " + pebble_link
 						elif platform.system() == "Darwin":
 							command2 = "rm -rf " + pebble_link
 						results2 = subprocess.check_output(command2, shell=True)
@@ -1178,7 +1178,7 @@ class install_ipfs:
 					results["run_daemon"] = True
 					pass
 				time.sleep(2)
-				find_daemon = "tasklist | findstr ipfs-cluster-follow | wc -l"
+				find_daemon = "powershell -Command \"(tasklist | findstr ipfs-cluster-follow).Count\""
 				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
 				find_daemon_results = find_daemon_results.decode().strip()
 				if int(find_daemon_results) == 0:
@@ -1662,7 +1662,7 @@ class install_ipfs:
 					results["run_daemon"] = True
 					pass
 				time.sleep(2)
-				find_daemon = "tasklist | findstr ipfs-cluster-follow | wc -l"
+				find_daemon = "powershell -Command \"(tasklist | findstr ipfs-cluster-follow).Count\""
 				find_daemon_results = subprocess.check_output(find_daemon, shell=True)
 				find_daemon_results = find_daemon_results.decode().strip()
 				if int(find_daemon_results) == 0:
