@@ -356,52 +356,94 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == False:
-			if platform.system() == "Windows":
-				self.install_tar_cmd()
-				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-					import urllib.request
-					urllib.request.urlretrieve(dist_tar, this_tempfile.name)
-					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "cd " + self.tmp_path + "/kubo && mkdir -p " + self.this_dir + "/bin/ && mv ipfs " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+			url = self.ipfs_dists[self.dist_select()]
+			if ".tar.gz" in url:
+				url_suffix = ".tar.gz"
 			else:
-				with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
+				url_suffix = "."+url.split(".")[-1]
+			with tempfile.NamedTemporaryFile(suffix=url_suffix, dir=self.tmp_path, delete=False) as this_tempfile:
+				if platform.system() == "Linux":
+					command = "wget " + url + " -O " + this_tempfile.name
+				elif platform.system() == "Windows":
+					drive , path = os.path.splitdrive(this_tempfile.name)
+					temp_path = this_tempfile.name.replace("\\", "/")
+					temp_path = temp_path.split("/")
+					temp_path = "/".join(temp_path)
+					# temp_path = drive + temp_path
+					this_tempfile.close()
+					command = f'powershell -Command "Invoke-WebRequest -Uri \'{url}\' -OutFile \'{temp_path}\'"'
+					command = command.replace("\'","")
+				elif platform.system() == "Darwin":
+					command = "curl " + url + " -o " + this_tempfile.name
+				results = subprocess.check_output(command, shell=True)
+				if url_suffix == ".zip":
 					if platform.system() == "Windows":
-						command = "curl " + dist_tar + " -o " + this_tempfile.name
-					elif platform.system() == "Linux":
-						command = "wget " + dist_tar + " -O " + this_tempfile.name
-					elif platform.system() == "Darwin":
-						command = "curl " + dist_tar + " -o " + this_tempfile.name
-
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+						move_source_path = os.path.join(self.tmp_path, "kubo", "ipfs.exe").replace("\\", "/")
+						move_source_path = move_source_path.split("/")
+						move_source_path = "/".join(move_source_path)
+						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs.exe").replace("\\", "/")
+						move_dest_path = move_dest_path.split("/")
+						move_dest_path = "/".join(move_dest_path)
+						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(move_source_path)}"'
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						if os.path.exists(move_dest_path):
+							os.remove(move_dest_path)
+						if os.path.exists(move_source_path):
+							os.rename(move_source_path, move_dest_path)
+						else:
+							print(move_source_path)
+							raise("Error moving ipget.exe, source path does not exist")
+   
+						# command = f'move "{move_source_path}" "{move_dest_path}"'
+						# command = f'powershell -Command "Move-Item -Path \'{move_source_path}\' -Destination \'{move_dest_path}\' -Force"'
+						# command = f'move "{os.path.join(self.tmp_path, "ipget", "ipget.exe")}" "{os.path.join(self.this_dir, "bin", "ipget.exe")}"'
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+					else:
+						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "cd " + self.tmp_path + "/kubo && mv kubo " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/kubo"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+				else:
 					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 					results = subprocess.check_output(command, shell=True)
+					results = results.decode()				
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					#command = "cd /tmp/kubo ; sudo bash install.sh"
+					command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
+					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					if platform.system() == "Linux" and os.geteuid() == 0:
-						#command = "cd /tmp/kubo ; sudo bash install.sh"
-						command = "sudo bash " + os.path.join(self.tmp_path, "kubo", "install.sh")
-						results = subprocess.check_output(command, shell=True)
-						results = results.decode()
-						command = "ipfs --version"
-						results = subprocess.check_output(command, shell=True)
-						results = results.decode()
-						with open (os.path.join(self.this_dir, "ipfs.service"), "r") as file:
-							ipfs_service = file.read()
-						with open("/etc/systemd/system/ipfs.service", "w") as file:
-							file.write(ipfs_service)
-						command = "systemctl enable ipfs"
-						subprocess.call(command, shell=True)
-						pass
-					else:
-						#NOTE: Clean this up and make better logging or drop the error all together
-						print('You need to be root to write to /etc/systemd/system/ipfs.service')
-						command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
-						results = subprocess.check_output(command, shell=True)
-						pass
+					command = "ipfs --version"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					with open (os.path.join(self.this_dir, "ipfs.service"), "r") as file:
+						ipfs_service = file.read()
+					with open("/etc/systemd/system/ipfs.service", "w") as file:
+						file.write(ipfs_service)
+					command = "systemctl enable ipfs"
+					subprocess.call(command, shell=True)
+					pass
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					command = "cd " + self.tmp_path + "/kubo && bash install.sh"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
+					results = subprocess.check_output(command, shell=True)
+					pass
+				elif platform.system() == "Windows":
+					command = "move " + os.path.join(self.tmp_path, "kubo", "kubo.exe") + " " + os.path.join(self.this_dir, "bin", "ipget.exe")
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					pass
+				else:
+					#NOTE: Clean this up and make better logging or drop the error all together
+					print('You need to be root to write to /etc/systemd/system/ipfs.service')
+					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
+					results = subprocess.check_output(command, shell=True)
+					pass
 			command = self.path_string + " ipfs --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
@@ -696,32 +738,37 @@ class install_ipfs:
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					# command = "cd /tmp/ipget ; sudo bash install.sh"
-				if platform.system() == "Linux" and os.getegid() == 0:
-					command = "cd sudo bash " + os.path.join(self.tmp_path, "ipget", "install.sh")
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "sudo sysctl -w net.core.rmem_max=2500000"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "sudo sysctl -w net.core.wmem_max=2500000"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-				else:
-					if platform.system() == "Windows":
-						command = 'move ' + os.path.join(self.tmp_path, 'ipget', 'ipget.exe') + ' ' + os.path.join(self.this_dir, 'bin', 'ipget.exe')
-					else:
-						command = 'cd ' + self.tmp_path + '/ipget && mv ipget "' + self.this_dir + '/bin/" && chmod +x "' + self.this_dir + '/bin/ipget"'
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					results
+					if platform.system() == "Linux" and os.getegid() == 0:
+						command = "cd sudo bash " + os.path.join(self.tmp_path, "ipget", "install.sh")
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "sudo sysctl -w net.core.rmem_max=2500000"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "sudo sysctl -w net.core.wmem_max=2500000"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+					elif platform.system() == "Linux" and os.getegid() != 0:
+						command = "cd " + os.path.join(self.tmp_path, "ipget") + " && bash install.sh"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+					elif platform.system() == "Darwin":
+						command = "cd " + os.path.join(self.tmp_path, "ipget") + " && bash install.sh"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
 				if platform.system() == "Linux":
 					command = self.bin_path + "/ipget --version"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 				elif platform.system() == "Windows":
-					command = self.bin_path + "\ipget.exe --version"
+					command = self.bin_path + "\\ipget.exe --version"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
+				elif platform.system() == "Darwin":
+					command = self.bin_path + "/ipget --version"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+     
 				if "ipget" in results:
 					return True
 				else:
