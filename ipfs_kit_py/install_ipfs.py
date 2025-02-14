@@ -47,6 +47,22 @@ class install_ipfs:
 			"openbsd x86": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_openbsd-386.tar.gz",
 			"openbsd arm": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_openbsd-arm.tar.gz",
   		}
+		self.ipfs_cluster_service_dists_cids = {
+			"macos arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"macos x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+   			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f"
+		} 
 		self.ipfs_dists = {
 			"macos arm64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_darwin-amd64.tar.gz",
 			"macos x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_darwin-amd64.tar.gz",
@@ -62,6 +78,22 @@ class install_ipfs:
 			"openbsd x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_openbsd-amd64.tar.gz",
 			"openbsd x86": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_openbsd-386.tar.gz",
 			"openbsd arm": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_openbsd-arm.tar.gz",	
+		}
+		self.ipfs_dists_cids = {
+			"macos arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"macos x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
 		}
 		self.ipfs_cluster_follow_dists = {
 			"macos arm64": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_darwin-amd64.tar.gz",
@@ -79,6 +111,22 @@ class install_ipfs:
 			"openbsd x86": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_openbsd-386.tar.gz",
 			"openbsd arm": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_openbsd-arm.tar.gz",
 		}
+		self.ipfs_cluster_follow_dists_cids = {
+			"macos arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"macos x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",	
+			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",	
+			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+		}
 		self.ipfs_cluster_ctl_dists = {
 			"macos arm64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_darwin-amd64.tar.gz",
 			"macos x86_64": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_darwin-amd64.tar.gz",
@@ -95,6 +143,23 @@ class install_ipfs:
 			"openbsd x86": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_openbsd-386.tar.gz",
 			"openbsd arm": "https://dist.ipfs.tech/ipfs-cluster-ctl/v1.1.2/ipfs-cluster-ctl_v1.1.2_openbsd-arm.tar.gz",
 		}
+		self.ipfs_cluster_ctl_dists_cids = {
+			"macos arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"macos x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+		}
+
 		self.ipfs_ipget_dists = {
 			"macos arm64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_darwin-amd64.tar.gz",
 			"macos x86_64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_darwin-amd64.tar.gz",
@@ -107,7 +172,21 @@ class install_ipfs:
 			"freebsd x86_64": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_freebsd-amd64.tar.gz",
 			"freebsd x86": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_freebsd-386.tar.gz",
 			"freebsd arm": "https://dist.ipfs.tech/ipget/v0.11.0/ipget_v0.11.0_freebsd-arm.tar.gz",
-		}			
+		}
+		self.ipfs_ipget_dists_cids = {
+			"macos arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"macos x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"freebsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
+		}
+ 
 		self.config = None
 		self.secret = None
 		self.role = None
@@ -384,7 +463,9 @@ class install_ipfs:
 						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs.exe").replace("\\", "/")
 						move_dest_path = move_dest_path.split("/")
 						move_dest_path = "/".join(move_dest_path)
-						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(move_source_path)}"'
+						if os.path.exists(move_source_path):
+							os.remove(move_source_path)
+						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))}"'
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 						if os.path.exists(move_dest_path):
@@ -393,18 +474,14 @@ class install_ipfs:
 							os.rename(move_source_path, move_dest_path)
 						else:
 							print(move_source_path)
-							raise("Error moving ipget.exe, source path does not exist")
-   
-						# command = f'move "{move_source_path}" "{move_dest_path}"'
-						# command = f'powershell -Command "Move-Item -Path \'{move_source_path}\' -Destination \'{move_dest_path}\' -Force"'
-						# command = f'move "{os.path.join(self.tmp_path, "ipget", "ipget.exe")}" "{os.path.join(self.this_dir, "bin", "ipget.exe")}"'
+							raise("Error moving ipfs.exe, source path does not exist")
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 					else:
 						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
-						command = "cd " + self.tmp_path + "/kubo && mv kubo " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/kubo"
+						command = "cd " + self.tmp_path + "/kubo && mv ipfs.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs.exe"
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 				else:
@@ -434,7 +511,7 @@ class install_ipfs:
 					results = subprocess.check_output(command, shell=True)
 					pass
 				elif platform.system() == "Windows":
-					command = "move " + os.path.join(self.tmp_path, "kubo", "kubo.exe") + " " + os.path.join(self.this_dir, "bin", "ipget.exe")
+					command = "move " + os.path.join(self.tmp_path, "kubo", "ipfs.exe") + " " + os.path.join(self.this_dir, "bin", "ipget.exe")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					pass
@@ -444,7 +521,7 @@ class install_ipfs:
 					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
 					results = subprocess.check_output(command, shell=True)
 					pass
-			command = self.path_string + " ipfs --version"
+			command = os.path.join(self.path_string, "ipfs.exe") + " --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs" in results:
@@ -720,12 +797,9 @@ class install_ipfs:
 						move_dest_path = "/".join(move_dest_path)
 						if os.path.exists(move_dest_path):
 							os.remove(move_dest_path)
-						os.rename(move_source_path, move_dest_path)
-						# command = f'move "{move_source_path}" "{move_dest_path}"'
-						# command = f'powershell -Command "Move-Item -Path \'{move_source_path}\' -Destination \'{move_dest_path}\' -Force"'
-						# command = f'move "{os.path.join(self.tmp_path, "ipget", "ipget.exe")}" "{os.path.join(self.this_dir, "bin", "ipget.exe")}"'
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
+						os.rename(move_source_path, move_dest_path)
 					else:
 						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
 						results = subprocess.check_output(command, shell=True)
