@@ -33,7 +33,7 @@ class install_ipfs:
 		else:
 			self.path = self.env_path
 		if "ipfs_multiformats" not in list(dir(self)):
-			if "ipfs_multiformats" in list(resources.keys()):
+			if "ipfs_multiformats" in list(self.resources.keys()):
 				self.ipfs_multiformats = resources['ipfs_multiformats']
 			else:
 				self.resources["ipfs_multiformats"] = ipfs_multiformats_py(resources, metadata)
@@ -431,14 +431,17 @@ class install_ipfs:
 		if platform.system() == "Linux":
 			ipfs_detect_cmd = self.path_string + " which ipfs"
 		elif platform.system() == "Windows":
-			ipfs_detect_cmd = self.path_string + " where ipfs"
+			ipfs_detect_cmd = self.path_string + " where ipfs.exe"
 		try:
 			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
 			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
 			if len(ipfs_detect_cmd_results) > 0:
+				with open(ipfs_detect_cmd_results, "r") as file:
+					ipfs_cid_hash = self.ipfs_multiformats.get_cid(ipfs_detect_cmd_results)
+					return ipfs_cid_hash		
 				return True
 			else:
-				detect = False
+				return False
 		except Exception as e:
 			detect = False
 			print(e)
@@ -535,7 +538,10 @@ class install_ipfs:
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs" in results:
-				return True
+				if platform.system() == "Windows":
+					return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs.exe"))
+				elif platform.system() == "Linux":
+					return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs"))
 			else:
 				return False
 		else:
@@ -759,12 +765,12 @@ class install_ipfs:
 		if platform.system() == "Linux":
 			install_ipget_cmd = self.path_string + " which ipget"
 		elif platform.system() == "Windows":
-			install_ipget_cmd = self.path_string + " where ipget"
+			install_ipget_cmd = self.path_string + " where ipget.exe"
 		try:
 			detect_ipget_cmd = subprocess.check_output(install_ipget_cmd,shell=True)
 			detect_ipget_cmd = detect_ipget_cmd.decode()
 			if len(detect_ipget_cmd) > 0:
-				return True
+				return self.ipfs_multiformats.get_cid(detect_ipget_cmd)
 			else:
 				detect = False
 		except Exception as e:
@@ -854,7 +860,10 @@ class install_ipfs:
 					results = results.decode()
      
 				if "ipget" in results:
-					return True
+					if platform.system() == "Linux":
+						return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipget"))
+					elif platform.system() == "Windows":
+						return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipget.exe"))
 				else:
 					return False
 
