@@ -246,13 +246,17 @@ class install_ipfs:
 				}
 				pass
 			else:
-				if os.name == 'nt':  # Windows
+				if platform.system() == "Windows":
 					self.ipfs_path = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ipfs")
-				else:  # Linux and other Unix-like systems
-					if os.geteuid() == 0:
+					self.ipfs_path = self.ipfs_path.replace("\\", "/")
+					self.ipfs_path = self.ipfs_path.split("/")
+					self.ipfs_path = "/".join(self.ipfs_path)
+				elif platform.system() == "Linux" and os.getuid() == 0:
 						self.ipfs_path = "/root/.cache/ipfs"
-					else:
-						self.ipfs_path = os.path.join(os.path.expanduser("~"), ".cache", "ipfs")
+				elif platform.system() == "Linux" and os.getuid() != 0:
+					self.ipfs_path = os.path.join(os.path.expanduser("~"), ".cache", "ipfs")
+				elif platform.system() == "Darwin":
+					self.ipfs_path = os.path.join(os.path.expanduser("~"), "Library", "ipfs")
 				if not os.path.exists(self.ipfs_path):
 					os.makedirs(self.ipfs_path)
 					pass
@@ -447,6 +451,11 @@ class install_ipfs:
 			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs")
 		elif platform.system() == "Windows":
 			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs.exe")
+			ipfs_detect_cmd = ipfs_detect_cmd.replace("\\", "/")
+			ipfs_detect_cmd = ipfs_detect_cmd.split("/")
+			ipfs_detect_cmd = "/".join(ipfs_detect_cmd)
+		elif platform.system() == "Darwin":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs")
 		try:
 			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
 			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
@@ -1508,28 +1517,52 @@ class install_ipfs:
 				min_free_space = 32 * 1024 * 1024 * 1024
 				allocate = None
 				disk_available = self.disk_stats['disk_avail']
-
-				ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
+				elif platform.system() == "Windows":
+					ipfs_init_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} init --profile=badgerds'
 				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True)
 				ipfs_init_results = ipfs_init_results.decode().strip()
 
-				peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
+				elif platform.system() == "Windows":
+					peer_id_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} id'
+					peer_id_command = peer_id_command.replace("\\", "/")
+					peer_id_command = peer_id_command.split("/")
+					peer_id_command = "/".join(peer_id_command)
+				elif platform.system() == "Darwin":
+					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
 				peer_id_results = subprocess.check_output(peer_id_command, shell=True)
 				peer_id_results = peer_id_results.decode()
 				peer_id = json.loads(peer_id_results)
 
-				ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
+				elif platform.system() == "Windows":
+					ipfs_profile_apply = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config profile apply badgerds'	
 				ipfs_profile_apply_results = subprocess.check_output(ipfs_profile_apply, shell=True)
 				ipfs_profile_apply_results = ipfs_profile_apply_results.decode()
 				ipfs_profile_apply_json = json.loads(ipfs_profile_apply_results)
 
 				if disk_available > min_free_space:
 					allocate = math.ceil((( disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
-					datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
+					if platform.system() == "Linux" and os.geteuid() == 0:
+						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
+					elif platform.system() == "Linux" and os.geteuid() != 0:
+						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
+					elif platform.system() == "Windows":
+						datastore_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config Datastore.StorageMax {str(allocate)}GB'
+
 					datastore_command_results = subprocess.check_output(datastore_command, shell=True)
 					datastore_command_results = datastore_command_results.decode()
 					pass
-
 
 				peer_list_path = os.path.join(this_dir, "peerstore")
 				if os.path.exists(peer_list_path):
@@ -1538,7 +1571,14 @@ class install_ipfs:
 					peerlist = peerlist.split("\n")
 					for peer in peerlist:
 						if peer != "":
-							bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
+							if platform.system() == "Linux" and os.geteuid() == 0:
+								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
+							elif platform.system() == "Linux" and os.geteuid() != 0:
+								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
+							elif platform.system() == "Windows":
+								bootstrap_add_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} bootstrap add {peer}'
+							elif platform.system() == "Darwin":
+								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
 							bootstrap_add_command_results = subprocess.check_output(bootstrap_add_command, shell=True)
 							bootstrap_add_command_results = bootstrap_add_command_results.decode()
 							pass
@@ -1550,8 +1590,15 @@ class install_ipfs:
 					with open("/etc/systemd/system/ipfs.service", "w") as file:
 						file.write(ipfs_service_text)
 					pass
-				
-				config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
+ 
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
+				elif platform.system() == "Windows":
+					config_get_cmd = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config show'
+				elif platform.system() == "Darwin":
+					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
 				config_data = subprocess.check_output(config_get_cmd, shell=True)
 				config_data = config_data.decode()
 				config_data = json.loads(config_data)

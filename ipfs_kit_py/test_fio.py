@@ -39,24 +39,35 @@ class test_fio:
         df = df.communicate()[0]
         df = df.decode()
         df = df.split("\n")
-        for line in df:
-            if location in line:
-                device = line.split(" ")[0]
-                return device
-            else:
-                while directory_tree.__len__() > 1:
-                    directory_tree.pop()
-                    location = "/".join(directory_tree)
-                    for line in df:
-                        if len(directory_tree) == 1 and location == "":
-                            location = "/"
-                        if location in line:
-                            while "  " in line:
-                                line = line.replace("  ", " ")
-                            mount = line.split(" ")
-                            if mount[5] == location:
-                                device = mount[0]
-                                return device
+        if platform.system() == "Linux":
+            for line in df:
+                if location in line:
+                    device = line.split(" ")[0]
+                    return device
+                else:
+                    while directory_tree.__len__() > 1:
+                        directory_tree.pop()
+                        location = "/".join(directory_tree)
+                        for line in df:
+                            if len(directory_tree) == 1 and location == "":
+                                location = "/"
+                            if location in line:
+                                while "  " in line:
+                                    line = line.replace("  ", " ")
+                                mount = line.split(" ")
+                                if mount[5] == location:
+                                    device = mount[0]
+                                    return device
+        elif platform.system() == "Windows":
+            for line in df:
+                if location in line:
+                    device = line.split(" ")[0]
+                    return device
+        elif platform.system() == "Darwin":
+            for line in df:
+                if location in line:
+                    device = line.split(" ")[0]
+                    return device
         return "rootfs"
     
     def disk_device_total_capacity(self, device):
