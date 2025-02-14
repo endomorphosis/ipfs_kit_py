@@ -1685,11 +1685,12 @@ class install_ipfs:
 				pass
 		elif platform.system() == "Windows":
 			find_daemon_cmd = 'tasklist | findstr ipfs.exe'
+			find_daemon_results = ""
 			try:
-				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-				find_daemon_results = find_daemon_results.decode().strip().splitlines()
 				if len(find_daemon_results) > 0:
 					try:
+						find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+						find_daemon_results = find_daemon_results.decode().strip().splitlines()
 						kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
 						kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
 						kill_daemon_results = kill_daemon_results.decode()
