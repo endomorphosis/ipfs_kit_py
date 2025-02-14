@@ -436,10 +436,10 @@ class install_ipfs:
 			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
 			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
 			if len(ipfs_detect_cmd_results) > 0:
-				with open(ipfs_detect_cmd_results, "r") as file:
-					ipfs_cid_hash = self.ipfs_multiformats.get_cid(ipfs_detect_cmd_results)
-					return ipfs_cid_hash		
-				return True
+				if os.path.exists(ipfs_detect_cmd_results):
+					return self.ipfs_multiformats.get_cid(ipfs_detect_cmd_results)
+				else:
+					return False
 			else:
 				return False
 		except Exception as e:
@@ -770,7 +770,10 @@ class install_ipfs:
 			detect_ipget_cmd = subprocess.check_output(install_ipget_cmd,shell=True)
 			detect_ipget_cmd = detect_ipget_cmd.decode()
 			if len(detect_ipget_cmd) > 0:
-				return self.ipfs_multiformats.get_cid(detect_ipget_cmd)
+				if os.path.exists(detect_ipget_cmd):
+					return self.ipfs_multiformats.get_cid(detect_ipget_cmd)
+				else:
+					return None
 			else:
 				detect = False
 		except Exception as e:
