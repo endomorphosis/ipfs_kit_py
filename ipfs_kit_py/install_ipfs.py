@@ -9,7 +9,7 @@ import random
 import shutil
 import binascii
 import platform
-
+from ipfs_multiformats import ipfs_multiformats_py
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
 
@@ -19,6 +19,10 @@ class install_ipfs:
 	def __init__(self, resources=None, metadata=None):
 		self.resources = resources
 		self.metadata = metadata
+		if self.resources is None:
+			self.resources = {}
+		if self.metadata is None:
+			self.metadata = {}
 		self.install_ipfs_daemon = self.install_ipfs_daemon
 		self.install_ipfs_cluster_follow = self.install_ipfs_cluster_follow
 		self.install_ipfs_cluster_ctl = self.install_ipfs_cluster_ctl
@@ -28,6 +32,12 @@ class install_ipfs:
 			self.path = metadata['path']
 		else:
 			self.path = self.env_path
+		if "ipfs_multiformats" not in list(dir(self)):
+			if "ipfs_multiformats" in list(resources.keys()):
+				self.ipfs_multiformats = resources['ipfs_multiformats']
+			else:
+				self.resources["ipfs_multiformats"] = ipfs_multiformats_py(resources, metadata)
+				self.ipfs_multiformats = self.resources["ipfs_multiformats"]
 		self.this_dir = os.path.dirname(os.path.realpath(__file__))
 		self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
 		self.path_string = "PATH="+ self.path
