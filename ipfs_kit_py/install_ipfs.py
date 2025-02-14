@@ -666,12 +666,31 @@ class install_ipfs:
 				results = subprocess.check_output(command, shell=True)
 				results = results.decode()
 				if url_suffix == ".zip":
-					command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
-					command = "cd " + self.tmp_path + "/ipget && mv ipget " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipget"
-					results = subprocess.check_output(command, shell=True)
-					results = results.decode()
+					if platform.system() == "Windows":
+						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {self.tmp_path}"'
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						move_source_path = os.path.join(self.tmp_path, "ipget", "ipget.exe").replace("\\", "/")
+						move_source_path = move_source_path.split("/")
+						move_source_path = "/".join(move_source_path)
+						move_dest_path = os.path.join(self.this_dir, "bin", "ipget.exe").replace("\\", "/")
+						move_dest_path = move_dest_path.split("/")
+						move_dest_path = "/".join(move_dest_path)
+						if os.path.exists(move_dest_path):
+							os.remove(move_dest_path)
+						os.rename(move_source_path, move_dest_path)
+						# command = f'move "{move_source_path}" "{move_dest_path}"'
+						# command = f'powershell -Command "Move-Item -Path \'{move_source_path}\' -Destination \'{move_dest_path}\' -Force"'
+						# command = f'move "{os.path.join(self.tmp_path, "ipget", "ipget.exe")}" "{os.path.join(self.this_dir, "bin", "ipget.exe")}"'
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+					else:
+						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "cd " + self.tmp_path + "/ipget && mv ipget " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipget"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
 				else:
 					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
 					results = subprocess.check_output(command, shell=True)
@@ -688,13 +707,21 @@ class install_ipfs:
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 				else:
-					command = 'cd ' + self.tmp_path + '/ipget && mv ipget "' + self.this_dir + '/bin/" && chmod +x "' + self.this_dir + '/bin/ipget"'
-					results = subprocess.call(command, shell=True)
+					if platform.system() == "Windows":
+						command = 'move ' + os.path.join(self.tmp_path, 'ipget', 'ipget.exe') + ' ' + os.path.join(self.this_dir, 'bin', 'ipget.exe')
+					else:
+						command = 'cd ' + self.tmp_path + '/ipget && mv ipget "' + self.this_dir + '/bin/" && chmod +x "' + self.this_dir + '/bin/ipget"'
+					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-
-				command = "ipget --version"
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
+					results
+				if platform.system() == "Linux":
+					command = self.bin_path + "/ipget --version"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+				elif platform.system() == "Windows":
+					command = self.bin_path + "\ipget.exe --version"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
 				if "ipget" in results:
 					return True
 				else:
