@@ -1522,7 +1522,11 @@ class install_ipfs:
 				elif platform.system() == "Linux" and os.geteuid() != 0:
 					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
 				elif platform.system() == "Windows":
-					ipfs_init_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} init --profile=badgerds'
+					ipfs_path = self.ipfs_path.replace("\\", "/")
+					ipfs_exe = os.path.join(self.bin_path, "ipfs.exe").replace("\\", "/")
+					ipfs_init_command = f'powershell -Command "$env:IPFS_PATH=\'{ipfs_path}\'; & \'{ipfs_exe}\' init --profile=badgerds"'
+				elif platform.system() == "Darwin":
+					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
 				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True)
 				ipfs_init_results = ipfs_init_results.decode().strip()
 
@@ -1531,7 +1535,7 @@ class install_ipfs:
 				elif platform.system() == "Linux" and os.geteuid() != 0:
 					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
 				elif platform.system() == "Windows":
-					peer_id_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} id'
+					peer_id_command = f'powershell -Command "$env:IPFS_PATH=\'{self.ipfs_path}\'; & \'{os.path.join(self.bin_path, "ipfs.exe")}\' id"'
 					peer_id_command = peer_id_command.replace("\\", "/")
 					peer_id_command = peer_id_command.split("/")
 					peer_id_command = "/".join(peer_id_command)
@@ -1547,6 +1551,11 @@ class install_ipfs:
 					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
 				elif platform.system() == "Windows":
 					ipfs_profile_apply = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config profile apply badgerds'	
+					ipfs_profile_apply = ipfs_profile_apply.replace("\\", "/")
+					ipfs_profile_apply = ipfs_profile_apply.split("/")
+					ipfs_profile_apply = "/".join(ipfs_profile_apply)
+				elif platform.system() == "Darwin":
+					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
 				ipfs_profile_apply_results = subprocess.check_output(ipfs_profile_apply, shell=True)
 				ipfs_profile_apply_results = ipfs_profile_apply_results.decode()
 				ipfs_profile_apply_json = json.loads(ipfs_profile_apply_results)
@@ -1558,7 +1567,11 @@ class install_ipfs:
 					elif platform.system() == "Linux" and os.geteuid() != 0:
 						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
 					elif platform.system() == "Windows":
-						datastore_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config Datastore.StorageMax {str(allocate)}GB'
+						ipfs_path = self.ipfs_path.replace("\\", "/")
+						ipfs_exe = os.path.join(self.bin_path, "ipfs.exe").replace("\\", "/")
+						datastore_command = f'powershell -Command "$env:IPFS_PATH=\'{ipfs_path}\'; & \'{ipfs_exe}\' config Datastore.StorageMax {str(allocate)}GB"'
+					elif platform.system() == "Darwin":
+						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
 
 					datastore_command_results = subprocess.check_output(datastore_command, shell=True)
 					datastore_command_results = datastore_command_results.decode()
@@ -1577,6 +1590,9 @@ class install_ipfs:
 								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
 							elif platform.system() == "Windows":
 								bootstrap_add_command = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} bootstrap add {peer}'
+								bootstrap_add_command = bootstrap_add_command.replace("\\", "/")
+								bootstrap_add_command = bootstrap_add_command.split("/")
+								bootstrap_add_command = "/".join(bootstrap_add_command)
 							elif platform.system() == "Darwin":
 								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
 							bootstrap_add_command_results = subprocess.check_output(bootstrap_add_command, shell=True)
@@ -1597,6 +1613,9 @@ class install_ipfs:
 					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
 				elif platform.system() == "Windows":
 					config_get_cmd = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config show'
+					config_get_cmd = config_get_cmd.replace("\\", "/")
+					config_get_cmd = config_get_cmd.split("/")
+					config_get_cmd = "/".join(config_get_cmd)
 				elif platform.system() == "Darwin":
 					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
 				config_data = subprocess.check_output(config_get_cmd, shell=True)
@@ -1642,8 +1661,14 @@ class install_ipfs:
 				find_daemon_results = find_daemon_results.decode().strip()
 			
 				if int(find_daemon_results) > 0:
-									
-					test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + ' && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+					if platform.system() == "Linux" and os.geteuid() == 0:		
+						test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + ' && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+					elif platform.system() == "Linux" and os.geteuid() != 0:
+						test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + ' && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+					elif platform.system() == "Windows":
+						test_daemon = f"set \"IPFS_PATH={ipfs_path}\" ; {os.path.join(self.bin_path, 'ipfs.exe')} cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > " + os.path.join(os.path.expanduser('~'), 'test.jpg')
+					elif platform.system() == "Darwin":
+						test_daemon = 'bash -c "export IPFS_PATH='+ ipfs_path + ' && export PATH=' + self.path + ' && ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
 					test_daemon_results = subprocess.check_output(test_daemon, shell=True)
 					test_daemon_results = test_daemon_results.decode()
 					time.sleep(5)
