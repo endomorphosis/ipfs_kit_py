@@ -27,7 +27,8 @@ class ipfs_multiformats_py:
             absolute_path = os.path.abspath(file_data)
             file_content_hash = self.get_file_sha256(file_data)
             mh = self.get_multihash_sha256(file_content_hash)
-            cid = CID('base32', 'raw', mh)
+            # cid = CID('base32', 'raw', mh)
+            cid = CID('base32', 1, 'raw', mh)
         else:
             with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
                 filename = f.name

@@ -521,5 +521,5 @@ class ipfs_py:
 if __name__ == "__main__":
     metadata = {}
     resources = {}
-    test_ipfs = ipfs(resources, metadata)
+    test_ipfs = ipfs_py(resources, metadata)
     results = test_ipfs.test()

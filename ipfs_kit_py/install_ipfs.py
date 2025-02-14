@@ -39,8 +39,20 @@ class install_ipfs:
 				self.resources["ipfs_multiformats"] = ipfs_multiformats_py(resources, metadata)
 				self.ipfs_multiformats = self.resources["ipfs_multiformats"]
 		self.this_dir = os.path.dirname(os.path.realpath(__file__))
-		self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
-		self.path_string = "PATH="+ self.path
+		if platform.system() == "Windows":
+			bin_path = os.path.join(self.this_dir, "bin").replace("/", "\\")
+			self.path = f'"{self.path};{bin_path}"'
+			self.path = self.path.replace("\\", "/")
+			self.path = self.path.replace(";;", ";")
+			self.path = self.path.split("/")
+			self.path = "/".join(self.path)
+			self.path_string = "set PATH=" + self.path + " &&"
+		elif platform.system() == "Linux":
+			self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+			self.path_string = "PATH="+ self.path
+		elif platform.system() == "Darwin":
+			self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
+			self.path_string = "PATH="+ self.path
 		self.ipfs_cluster_service_dists = {
 			"macos arm64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_darwin-arm64.tar.gz",
 			"macos x86_64": "https://dist.ipfs.tech/ipfs-cluster-service/v1.1.2/ipfs-cluster-service_v1.1.2_darwin-amd64.tar.gz",
@@ -772,8 +784,7 @@ class install_ipfs:
 			if len(detect_ipget_cmd) > 0:
 				if os.path.exists(detect_ipget_cmd):
 					return self.ipfs_multiformats.get_cid(detect_ipget_cmd)
-				else:
-					return None
+				e
 			else:
 				detect = False
 		except Exception as e:
