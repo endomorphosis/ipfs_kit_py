@@ -46,7 +46,7 @@ class install_ipfs:
 			self.path = self.path.replace(";;", ";")
 			self.path = self.path.split("/")
 			self.path = "/".join(self.path)
-			self.path_string = "set PATH=" + self.path + " &&"
+			self.path_string = "set PATH=" + self.path + " ; "
 		elif platform.system() == "Linux":
 			self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
 			self.path_string = "PATH="+ self.path
@@ -377,6 +377,9 @@ class install_ipfs:
 			self.cluster_location = "/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv"
 			pass
 		self.bin_path = os.path.join(self.this_dir, "bin")
+		self.bin_path = self.bin_path.replace("\\", "/")
+		self.bin_path = self.bin_path.split("/")
+		self.bin_path = "/".join(self.bin_path)
 		if platform.system() == "Windows":
 			self.tmp_path = os.environ.get('TEMP', '/tmp')
 		else:
@@ -441,15 +444,15 @@ class install_ipfs:
 		dist_tar = self.ipfs_dists[dist]
 		detect = False
 		if platform.system() == "Linux":
-			ipfs_detect_cmd = self.path_string + " which ipfs"
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs")
 		elif platform.system() == "Windows":
-			ipfs_detect_cmd = self.path_string + " where ipfs.exe"
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs.exe")
 		try:
 			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
 			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
 			if len(ipfs_detect_cmd_results) > 0:
-				if os.path.exists(ipfs_detect_cmd_results):
-					return self.ipfs_multiformats.get_cid(ipfs_detect_cmd_results)
+				if os.path.exists( os.path.join(self.bin_path, "ipfs.exe")):
+					return self.ipfs_multiformats.get_cid( os.path.join(self.bin_path, "ipfs.exe"))
 				else:
 					return False
 			else:
@@ -479,6 +482,7 @@ class install_ipfs:
 					command = command.replace("\'","")
 				elif platform.system() == "Darwin":
 					command = "curl " + url + " -o " + this_tempfile.name
+
 				results = subprocess.check_output(command, shell=True)
 				if url_suffix == ".zip":
 					if platform.system() == "Windows":
@@ -774,17 +778,19 @@ class install_ipfs:
 
 	def install_ipget(self):
 		install_ipget_cmd = None
+		detect = False
 		if platform.system() == "Linux":
-			install_ipget_cmd = self.path_string + " which ipget"
+			detect_ipget_cmd = os.path.join( self.bin_path , "ipget --version")
 		elif platform.system() == "Windows":
-			install_ipget_cmd = self.path_string + " where ipget.exe"
+			detect_ipget_cmd = os.path.join( self.bin_path , "ipget.exe --version")
 		try:
-			detect_ipget_cmd = subprocess.check_output(install_ipget_cmd,shell=True)
-			detect_ipget_cmd = detect_ipget_cmd.decode()
-			if len(detect_ipget_cmd) > 0:
-				if os.path.exists(detect_ipget_cmd):
-					return self.ipfs_multiformats.get_cid(detect_ipget_cmd)
-				e
+			detect_ipget_cmd_results = subprocess.check_output(detect_ipget_cmd,shell=True)
+			detect_ipget_cmd_results = detect_ipget_cmd_results.decode()
+			if len(detect_ipget_cmd_results) > 0:
+				if os.path.exists(os.path.join( self.bin_path , "ipget.exe")):
+					return self.ipfs_multiformats.get_cid(os.path.join( self.bin_path , "ipget.exe"))
+				else:
+					detect = False
 			else:
 				detect = False
 		except Exception as e:
@@ -802,7 +808,6 @@ class install_ipfs:
 				if platform.system() == "Linux":
 					command = "wget " + url + " -O " + this_tempfile.name
 				elif platform.system() == "Windows":
-					drive , path = os.path.splitdrive(this_tempfile.name)
 					temp_path = this_tempfile.name.replace("\\", "/")
 					temp_path = temp_path.split("/")
 					temp_path = "/".join(temp_path)
@@ -1634,6 +1639,7 @@ class install_ipfs:
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)	
 				find_daemon_results = find_daemon_results.decode()
 				pass
+			
 			run_daemon_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
 			run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
 			time.sleep(5)
@@ -1644,8 +1650,10 @@ class install_ipfs:
 				if os.path.exists("/tmp/test.jpg"):
 					os.remove("/tmp/test.jpg")
 					pass
-
-				test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' PATH='+ self.path +' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+				if platform.system() == "Linux":
+					test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' PATH='+ self.path +' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"'
+				elif platform.system() == "Windows":
+					test_daemon = os.path(self.bin_path, 'ipfs.exe') + ' cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg'
 				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
 				test_daemon_results = test_daemon_results.decode()
 				time.sleep(5)
@@ -1681,13 +1689,20 @@ class install_ipfs:
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
 				find_daemon_results = find_daemon_results.decode().strip().splitlines()
 				if len(find_daemon_results) > 0:
-					kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
-					kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
-					kill_daemon_results = kill_daemon_results.decode()
-					find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
-					find_daemon_results = find_daemon_results.decode().strip().splitlines()
-					pass
-				run_daemon_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
+					try:
+						kill_daemon_cmd = 'taskkill /F /IM ipfs.exe'
+						kill_daemon_results = subprocess.check_output(kill_daemon_cmd, shell=True)
+						kill_daemon_results = kill_daemon_results.decode()
+						find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
+						find_daemon_results = find_daemon_results.decode().strip().splitlines()
+					except Exception as e:
+						print(e)
+						pass
+				run_daemon_cmd = os.path.join(self.bin_path , 'ipfs.exe' ) + ' daemon --enable-pubsub-experiment'
+				run_daemon_cmd = run_daemon_cmd.replace("\\", "/")
+				run_daemon_cmd = run_daemon_cmd.split("/")
+				run_daemon_cmd = "/".join(run_daemon_cmd)
+    			# run_daemon_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs daemon --enable-pubsub-experiment'
 				subprocess.Popen(run_daemon_cmd, shell=True)
 				time.sleep(5)
 				find_daemon_results = subprocess.check_output(find_daemon_cmd, shell=True)
@@ -1702,7 +1717,15 @@ class install_ipfs:
 				if os.path.exists("C:\\tmp\\test.jpg"):
 					os.remove("C:\\tmp\\test.jpg")
 					pass
-				test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' PATH='+ self.path +' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg"'
+				# test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' PATH='+ self.path +' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg"'
+				if platform.system() == "Windows":
+					test_daemon = os.path.join(self.bin_path, "ipfs.exe") + ' cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg'
+					test_daemon = test_daemon.replace("\\", "/")
+					test_daemon = test_daemon.split("/")
+					test_daemon = "/".join(test_daemon)
+				elif platform.system() == "Linux":
+					test_daemon = os.path.join(self.bin_path, 'ipfs') + " cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg"
+
 				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
 				test_daemon_results = test_daemon_results.decode()
 				time.sleep(5)
