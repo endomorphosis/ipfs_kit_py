@@ -1113,7 +1113,7 @@ class install_ipfs:
 		init_cluster_daemon_results = ""
 		results = {}
 		try:
-			if os.geteuid() == 0:
+			if platform.system() == "Linux" and os.geteuid() == 0:
 				service_path = os.path.join("/root", ".ipfs-cluster")
 				pass
 			else:
@@ -1124,7 +1124,7 @@ class install_ipfs:
 				os.makedirs(service_path)
 				pass
 			if cluster_name is not None and ipfs_path is not None and disk_stats is not None:
-				if os.geteuid() == 0:
+				if platform.system() == "Linux" and os.geteuid() == 0:
 					enable_cluster_service = "systemctl enable ipfs-cluster"
 					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
 					enable_cluster_service_results = enable_cluster_service_results.decode()					
@@ -1136,7 +1136,19 @@ class install_ipfs:
 					init_cluster_service_results = subprocess.check_output(init_cluster_service, shell=True)
 					init_cluster_service_results = init_cluster_service_results.decode()
 					pass
-				else:
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					init_cluster_service = self.path_string + " IPFS_PATH="+ ipfs_path +" ipfs-cluster-service init -f"
+					init_cluster_service_results = subprocess.check_output(init_cluster_service, shell=True)
+					init_cluster_service_results = init_cluster_service_results.decode()
+					pass
+				elif platform.system() == "Windows":
+					# On Windows, use the appropriate command syntax for initializing ipfs-cluster-service
+					env = os.environ.copy()
+					env["IPFS_PATH"] = ipfs_path
+					init_cluster_service = "set IPFS_PATH=" + ipfs_path + " &&  " + os.path.join(self.bin_path , "ipfs-cluster-service.exe") + " init -f"
+					init_cluster_service_results = subprocess.check_output(init_cluster_service, shell=True, env=env)
+					init_cluster_service_results = init_cluster_service_results.decode()
+				elif platform.system() == "Darwin":
 					init_cluster_service = self.path_string + " IPFS_PATH="+ ipfs_path +" ipfs-cluster-service init -f"
 					init_cluster_service_results = subprocess.check_output(init_cluster_service, shell=True)
 					init_cluster_service_results = init_cluster_service_results.decode()
