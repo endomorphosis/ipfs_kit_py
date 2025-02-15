@@ -1318,8 +1318,11 @@ class install_ipfs:
 					pass
 				if platform.system() == "Linux":
 					follow_init_cmd = self.path_string + " IPFS_PATH=" + ipfs_path + " ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
-				elif platform.system() == "Windows":
+				elif platform.system() == "Windows":  
 					follow_init_cmd = " set IPFS_PATH=" + ipfs_path + " &&  " + os.path.join(self.bin_path , "ipfs-cluster-follow.exe") + " " + cluster_name + " init " + ipfs_path
+					follow_init_cmd = follow_init_cmd.replace("\\", "/")
+					follow_init_cmd = follow_init_cmd.split("/")
+					follow_init_cmd = "/".join(follow_init_cmd)
 				elif platform.system() == "Darwin":
 					follow_init_cmd = self.path_string + " IPFS_PATH=" + ipfs_path + " ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
 				# follow_init_cmd = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
@@ -1988,6 +1991,7 @@ class install_ipfs:
 			return True
 
 	def run_ipfs_cluster_follow(self, **kwargs):
+		results = {}
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
 		elif "ipfs_path" in list(self.__dict__.keys()):
@@ -2107,7 +2111,7 @@ class install_ipfs:
 						if platform.system() == "Windows":
 							kill_cmds = 'taskkill /F /PID ' + this_pid
 						else:
-							kill_cmds = 'kill -9 ' + this_pid
+							Tkill_cmds = 'kill -9 ' + this_pid
 						kill_results = subprocess.check_output(kill_cmds, shell=True)
 						kill_results = kill_results.decode()
 						pass
@@ -2470,7 +2474,7 @@ class install_ipfs:
 
 if __name__ == "__main__":
 	metadata = {
-		"role":"worker",
+		"role":"master",
 		"cluster_name":"cloudkit_storage",
 		"cluster_location":"/ip4/167.99.96.231/tcp/9096/p2p/12D3KooWKw9XCkdfnf8CkAseryCgS3VVoGQ6HUAkY91Qc6Fvn4yv",
 		#"cluster_location": "/ip4/167.99.96.231/udp/4001/quic-v1/p2p/12D3KooWS9pEXDb2FEsDv9TH4HicZgwhZtthHtSdSfyKKDnkDu8D",
