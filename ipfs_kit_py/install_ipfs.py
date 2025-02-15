@@ -549,7 +549,7 @@ class install_ipfs:
 					results = subprocess.check_output(command, shell=True)
 					pass
 				elif platform.system() == "Windows":
-					command = "move " + os.path.join(self.tmp_path, "kubo", "ipfs.exe") + " " + os.path.join(self.this_dir, "bin", "ipget.exe")
+					command = "move " + os.path.join(self.tmp_path, "kubo", "ipfs.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs.exe")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					pass
@@ -589,83 +589,156 @@ class install_ipfs:
 		finally:
 			pass
 		if detect == False:
-			with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-				url = self.ipfs_cluster_follow_dists[self.dist_select()]
-				tar_path = os.path.join("tmp",this_tempfile.name)
-				if self.this_dir is not None:
-					this_dir = self.this_dir
-				else:
-					this_dir = os.path.dirname(os.path.realpath(__file__))
-					 
-				try:
+			url = self.ipfs_cluster_follow_dists[self.dist_select()]
+			if ".tar.gz" in url:
+				url_suffix = ".tar.gz"
+			else:
+				url_suffix = "."+url.split(".")[-1]
+			with tempfile.NamedTemporaryFile(suffix=url_suffix, dir=self.tmp_path, delete=False) as this_tempfile:
+				if platform.system() == "Linux":
+					command = "wget " + url + " -O " + this_tempfile.name
+				elif platform.system() == "Windows":
+					drive , path = os.path.splitdrive(this_tempfile.name)
+					temp_path = this_tempfile.name.replace("\\", "/")
+					temp_path = temp_path.split("/")
+					temp_path = "/".join(temp_path)
+					# temp_path = drive + temp_path
+					this_tempfile.close()
+					command = f'powershell -Command "Invoke-WebRequest -Uri \'{url}\' -OutFile \'{temp_path}\'"'
+					command = command.replace("\'","")
+				elif platform.system() == "Darwin":
+					command = "curl " + url + " -o " + this_tempfile.name
+
+				results = subprocess.check_output(command, shell=True)
+				if url_suffix == ".zip":
 					if platform.system() == "Windows":
-						command = f"powershell -Command \"Invoke-WebRequest -Uri {url} -OutFile {this_tempfile.name}\""
-						# subprocess.check_output(command, shell=True)
-						try:
-							os.system(command)
-						except Exception as e:	
-							print(e)
-							print("Error downloading ipfs-cluster-follow")	
-						pass
-					elif platform.system() == "Linux":	
-						download_ipfs_cluster_follow = "wget " + url + " -O " + this_tempfile.name
-						download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
-						download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
-					elif platform.system() == "Darwin":
-						download_ipfs_cluster_follow = "curl " + url + " -o " + this_tempfile.name
-						download_ipfs_cluster_follow_results = subprocess.check_output(download_ipfs_cluster_follow, shell=True)
-						download_ipfs_cluster_follow_results = download_ipfs_cluster_follow_results.decode()
-
-					if os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
-						if platform.system() == "Linux" and os.geteuid() == 0:
-							remove_command = "sudo rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-						elif platform.system() == "Linux" and os.geteuid() != 0:
-							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-						elif platform.system() == "Windows":
-							remove_command = "rmdir /S /Q " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-						elif platform.system() == "Darwin":
-							remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-						remove_command_results = subprocess.check_output(remove_command, shell=True)
-						remove_command_results = remove_command_results.decode()
-						pass
-
-					if not os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
-						os.makedirs(os.path.join(self.tmp_path, "ipfs-cluster-follow"))
-						pass
-
-					expand_command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-					expand_command_results = subprocess.check_output(expand_command, shell=True)
-					expand_command_results = expand_command_results.decode()
-					
-					if platform.system() == "Linux" and os.geteuid() == 0:
-						move_command = "sudo mv " + os.path.join(os.path.join(self.tmp_path,'ipfs-cluster-follow'),'ipfs-cluster-follow') + " " + "/usr/local/bin/ipfs-cluster-follow"
-						move_command_results = subprocess.check_output(move_command, shell=True).decode()
-
-						with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
-							ipfs_cluster_follow = file.read()
-						with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
-							file.write(ipfs_cluster_follow)
-						systemctl_enable_command = "systemctl enable ipfs-cluster-follow"
-						systemctl_enable_command_results = subprocess.call(systemctl_enable_command, shell=True)
-						pass
+						move_source_path = os.path.join(self.tmp_path, "ipfs-cluster-follow", "ipfs-cluster-follow.exe").replace("\\", "/")
+						move_source_path = move_source_path.split("/")
+						move_source_path = "/".join(move_source_path)
+						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs-cluster-follow.exe").replace("\\", "/")
+						move_dest_path = move_dest_path.split("/")
+						move_dest_path = "/".join(move_dest_path)
+						if os.path.exists(move_source_path):
+							os.remove(move_source_path)
+						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))}"'
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						if os.path.exists(move_dest_path):
+							os.remove(move_dest_path)
+						if os.path.exists(move_source_path):
+							os.rename(move_source_path, move_dest_path)
+						else:
+							print(move_source_path)
+							raise("Error moving ipfs.exe, source path does not exist")
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
 					else:
-						move_command = "mv " + os.path.join(self.tmp_path, "ipfs-cluster-follow","ipfs-cluster-follow") + " " + os.path.join( self.this_dir , "bin" , "ipfs-cluster-follow" )
-						move_command_results = subprocess.check_output(move_command, shell=True)
-						move_command_results = move_command_results.decode()
-						pass
-
-				except Exception as e:
-					print(e)
-					pass
-
-				version_command = self.path_string + " ipfs-cluster-follow --version"
-				version_command_results = subprocess.check_output(version_command, shell=True)
-				version_command_results = version_command_results.decode()
-				
-				if "ipfs-cluster-follow" in version_command_results:
-					return True
+						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "cd " + self.tmp_path + "/ipfs-cluster-follow && mv ipfs-cluster-follow.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs-cluster-follow.exe"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
 				else:
-					return False
+					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()				
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					#command = "cd /tmp/kubo ; sudo bash install.sh"
+					command = "sudo bash " + os.path.join(self.tmp_path, "ipfs-cluster-follow", "install.sh")
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = "ipfs-cluster-follow --version"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					with open (os.path.join(self.this_dir, "ipfs-cluster-follow.service"), "r") as file:
+						ipfs_service = file.read()
+					with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
+						file.write(ipfs_service)
+					command = "systemctl enable ipfs-cluster-follow"
+					subprocess.call(command, shell=True)
+					pass
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					command = "cd " + self.tmp_path + "/ipfs-cluster-follow && bash install.sh"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = 'cd ' + self.tmp_path + '/ipfs-cluster-follow && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs-cluster-follow "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs-cluster-follow"'
+					results = subprocess.check_output(command, shell=True)
+					pass
+				elif platform.system() == "Windows":
+					command = "move " + os.path.join(self.tmp_path, "ipfs-cluster-follow", "ipfs-cluster-follow.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-follow.exe")
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					pass
+				else:
+					#NOTE: Clean this up and make better logging or drop the error all together
+					print('You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service')
+					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
+					results = subprocess.check_output(command, shell=True)
+					pass
+			command = os.path.join(self.path_string, "ipfs-cluster-follow.exe") + " --version"
+			results = subprocess.check_output(command, shell=True)
+			results = results.decode()
+			if "ipfs" in results:
+				if platform.system() == "Windows":
+					return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs-cluster-follow.exe"))
+				elif platform.system() == "Linux":
+					return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs-cluster-follow"))
+			else:
+				return False
+		else:
+			return True
+
+				# 	if os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
+				# 		if platform.system() == "Linux" and os.geteuid() == 0:
+				# 			remove_command = "sudo rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+				# 		elif platform.system() == "Linux" and os.geteuid() != 0:
+				# 			remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+				# 		elif platform.system() == "Windows":
+				# 			remove_command = "rmdir /S /Q " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+				# 		elif platform.system() == "Darwin":
+				# 			remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
+				# 		remove_command_results = subprocess.check_output(remove_command, shell=True)
+				# 		remove_command_results = remove_command_results.decode()
+				# 		pass
+
+				# 	if not os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
+				# 		os.makedirs(os.path.join(self.tmp_path, "ipfs-cluster-follow"))
+				# 		pass
+
+				# 	expand_command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+				# 	expand_command_results = subprocess.check_output(expand_command, shell=True)
+				# 	expand_command_results = expand_command_results.decode()
+					
+				# 	if platform.system() == "Linux" and os.geteuid() == 0:
+				# 		move_command = "sudo mv " + os.path.join(os.path.join(self.tmp_path,'ipfs-cluster-follow'),'ipfs-cluster-follow') + " " + "/usr/local/bin/ipfs-cluster-follow"
+				# 		move_command_results = subprocess.check_output(move_command, shell=True).decode()
+
+				# 		with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
+				# 			ipfs_cluster_follow = file.read()
+				# 		with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
+				# 			file.write(ipfs_cluster_follow)
+				# 		systemctl_enable_command = "systemctl enable ipfs-cluster-follow"
+				# 		systemctl_enable_command_results = subprocess.call(systemctl_enable_command, shell=True)
+				# 		pass
+				# 	else:
+				# 		move_command = "mv " + os.path.join(self.tmp_path, "ipfs-cluster-follow","ipfs-cluster-follow") + " " + os.path.join( self.this_dir , "bin" , "ipfs-cluster-follow" )
+				# 		move_command_results = subprocess.check_output(move_command, shell=True)
+				# 		move_command_results = move_command_results.decode()
+				# 		pass
+
+				# except Exception as e:
+				# 	print(e)
+				# 	pass
+
+				# version_command = self.path_string + " ipfs-cluster-follow --version"
+				# version_command_results = subprocess.check_output(version_command, shell=True)
+				# version_command_results = version_command_results.decode()
+				
+				# if "ipfs-cluster-follow" in version_command_results:
+				# 	return True
+				# else:
+				# 	return False
 	
 	def install_ipfs_cluster_ctl(self):
 		install_ipfs_cluster_ctl_cmd = None
@@ -1513,7 +1586,6 @@ class install_ipfs:
 			try:
 				peer_id = None
 				disk_available = None
-
 				min_free_space = 32 * 1024 * 1024 * 1024
 				allocate = None
 				disk_available = self.disk_stats['disk_avail']
@@ -1522,12 +1594,13 @@ class install_ipfs:
 				elif platform.system() == "Linux" and os.geteuid() != 0:
 					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
 				elif platform.system() == "Windows":
-					ipfs_path = self.ipfs_path.replace("\\", "/")
-					ipfs_exe = os.path.join(self.bin_path, "ipfs.exe").replace("\\", "/")
-					ipfs_init_command = f'powershell -Command "$env:IPFS_PATH=\'{ipfs_path}\'; & \'{ipfs_exe}\' init --profile=badgerds"'
+					env = os.environ.copy()
+					env["IPFS_PATH"] = self.ipfs_path
+					ipfs_exe = os.path.join(self.bin_path, "ipfs.exe")
+					ipfs_init_command = f'"{ipfs_exe}" init --profile=badgerds'
 				elif platform.system() == "Darwin":
 					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
-				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True)
+				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True, env=env if platform.system() == "Windows" else None)
 				ipfs_init_results = ipfs_init_results.decode().strip()
 
 				if platform.system() == "Linux" and os.geteuid() == 0:
@@ -1792,26 +1865,31 @@ class install_ipfs:
 					pass
 				# test_daemon = 'bash -c "IPFS_PATH='+ self.ipfs_path + ' PATH='+ self.path +' ipfs cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg"'
 				if platform.system() == "Windows":
-					test_daemon = os.path.join(self.bin_path, "ipfs.exe") + ' cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg'
-					test_daemon = test_daemon.replace("\\", "/")
-					test_daemon = test_daemon.split("/")
-					test_daemon = "/".join(test_daemon)
+					ipfs_path = os.path.join(self.bin_path, "ipfs.exe").replace("\\", "/")
+					tmp_dir = "C:/tmp"
+					if not os.path.exists(tmp_dir):
+						os.makedirs(tmp_dir)
+					with tempfile.NamedTemporaryFile(delete=True, dir=tmp_dir) as file:
+						test_daemon = f'powershell -Command "$env:IPFS_PATH=\'{self.ipfs_path}\'; & \'{ipfs_path}\' cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq "' 	
 				elif platform.system() == "Linux":
-					test_daemon = os.path.join(self.bin_path, 'ipfs') + " cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > C:\\tmp\\test.jpg"
-
+					test_daemon = os.path.join(self.bin_path, 'ipfs') + " cat /ipfs/QmSgvgwxZGaBLqkGyWemEDqikCqU52XxsYLKtdy3vGZ8uq > /tmp/test.jpg"
 				test_daemon_results = subprocess.check_output(test_daemon, shell=True)
-				test_daemon_results = test_daemon_results.decode()
 				time.sleep(5)
-				if os.path.exists("C:\\tmp\\test.jpg"):
-					if os.path.getsize("C:\\tmp\\test.jpg") > 0:
-						test_daemon_results = True
-						os.remove("C:\\tmp\\test.jpg")
-						pass
-					else:
-						raise Exception("ipfs failed to download test file")
+				if len(test_daemon_results) > 10000:
+					# print("len(test_daemon_results) > 0")
+					# print(len(test_daemon_results))
+					test_daemon_results = True
 					pass
 				else:
 					raise Exception("ipfs failed to download test file")
+				# if os.path.exists("C:\\tmp\\test.jpg"):
+				# 	if os.path.getsize("C:\\tmp\\test.jpg") > 0:
+				# 		test_daemon_results = True
+				# 		os.remove("C:\\tmp\\test.jpg")
+				# 		pass
+				# 	else:
+				# 		raise Exception("ipfs failed to download test file")
+				# 	pass
 			except Exception as e:
 				print("error starting ipfs daemon")
 				print(e)
