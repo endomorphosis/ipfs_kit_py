@@ -707,21 +707,25 @@ class install_ipfs:
 			return True
 	
 	def install_ipfs_cluster_ctl(self):
-		install_ipfs_cluster_ctl_cmd = None
-		if platform.system() == "Linux":
-			install_ipfs_cluster_ctl_cmd = self.path_string + " which ipfs-cluster-ctl"
-		elif platform.system() == "Windows":
-			install_ipfs_cluster_ctl_cmd = self.path_string + " where ipfs-cluster-ctl"
-		try:
-			detect = subprocess.check_output(install_ipfs_cluster_ctl_cmd,shell=True)
-			detect = detect.decode()
-			if len(detect) > 0:
-				return True
-		except Exception as e:
-			detect = 0
-			print(e)
-		finally:
-			pass
+		detect = False
+		results = {}
+		# install_ipfs_cluster_ctl_cmd = None
+		# if platform.system() == "Linux":
+		# 	install_ipfs_cluster_ctl_cmd = self.path_string + " which ipfs-cluster-ctl"
+		# elif platform.system() == "Windows":
+		# 	install_ipfs_cluster_ctl_cmd = self.path_string + " where ipfs-cluster-ctl"
+		# try:
+		# 	detect = subprocess.check_output(install_ipfs_cluster_ctl_cmd,shell=True)
+		# 	detect = detect.decode()
+		# 	if len(detect) > 0:
+		# 		return True
+		# 	else:
+		# 		detect = False
+		# except Exception as e:
+		# 	detect = False
+		# 	print(e)
+		# finally:
+		# 	pass
 
 		if detect == False:
 			url = self.ipfs_cluster_ctl_dists[self.dist_select()]
@@ -753,8 +757,12 @@ class install_ipfs:
 						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs_cluster_ctl.exe").replace("\\", "/")
 						move_dest_path = move_dest_path.split("/")
 						move_dest_path = "/".join(move_dest_path)
-						if os.path.exists(move_source_path):
-							os.remove(move_source_path)
+						parent_source_path = os.path.dirname(move_source_path)
+						if os.path.exists(parent_source_path):
+							if os.path.isdir(parent_source_path):
+								shutil.rmtree(parent_source_path)
+							else:
+								os.remove(parent_source_path)
 						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))}"'
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
