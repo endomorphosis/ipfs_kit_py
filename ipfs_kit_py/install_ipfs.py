@@ -574,7 +574,7 @@ class install_ipfs:
 
 	def install_ipfs_cluster_follow(self):
 		dist = self.dist_select()
-		dist_tar = self.ipfs_dists[dist]
+		dist_tar = self.ipfs_cluster_follow_dists[dist]
 		detect = False
 		if platform.system() == "Linux":
 			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow")
@@ -709,24 +709,33 @@ class install_ipfs:
 	def install_ipfs_cluster_ctl(self):
 		detect = False
 		results = {}
-		# install_ipfs_cluster_ctl_cmd = None
-		# if platform.system() == "Linux":
-		# 	install_ipfs_cluster_ctl_cmd = self.path_string + " which ipfs-cluster-ctl"
-		# elif platform.system() == "Windows":
-		# 	install_ipfs_cluster_ctl_cmd = self.path_string + " where ipfs-cluster-ctl"
-		# try:
-		# 	detect = subprocess.check_output(install_ipfs_cluster_ctl_cmd,shell=True)
-		# 	detect = detect.decode()
-		# 	if len(detect) > 0:
-		# 		return True
-		# 	else:
-		# 		detect = False
-		# except Exception as e:
-		# 	detect = False
-		# 	print(e)
-		# finally:
-		# 	pass
-
+		dist = self.dist_select()
+		dist_tar = self.ipfs_cluster_ctl_dists[dist]
+		detect = False
+		if platform.system() == "Linux":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl")
+		elif platform.system() == "Windows":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")
+			ipfs_detect_cmd = ipfs_detect_cmd.replace("\\", "/")
+			ipfs_detect_cmd = ipfs_detect_cmd.split("/")
+			ipfs_detect_cmd = "/".join(ipfs_detect_cmd)
+		elif platform.system() == "Darwin":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl")
+		try:
+			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
+			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
+			if len(ipfs_detect_cmd_results) > 0:
+				if os.path.exists( os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")):
+					return self.ipfs_multiformats.get_cid( os.path.join(self.bin_path, "ipfs-cluster-ctl.exe"))
+				else:
+					detect = False
+			else:
+				detect = False
+		except Exception as e:
+			detect = False
+			print(e)
+		finally:
+			pass
 		if detect == False:
 			url = self.ipfs_cluster_ctl_dists[self.dist_select()]
 			if ".tar.gz" in url:
@@ -751,10 +760,10 @@ class install_ipfs:
 				results = subprocess.check_output(command, shell=True)
 				if url_suffix == ".zip":
 					if platform.system() == "Windows":
-						move_source_path = os.path.join(self.tmp_path, "ipfs_cluster_ctl", "ipfs_cluster_ctl.exe").replace("\\", "/")
+						move_source_path = os.path.join(self.tmp_path, "ipfs-cluster-ctl", "ipfs-cluster-ctl.exe").replace("\\", "/")
 						move_source_path = move_source_path.split("/")
 						move_source_path = "/".join(move_source_path)
-						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs_cluster_ctl.exe").replace("\\", "/")
+						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl.exe").replace("\\", "/")
 						move_dest_path = move_dest_path.split("/")
 						move_dest_path = "/".join(move_dest_path)
 						parent_source_path = os.path.dirname(move_source_path)
@@ -763,7 +772,7 @@ class install_ipfs:
 								shutil.rmtree(parent_source_path)
 							else:
 								os.remove(parent_source_path)
-						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))}"'
+						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))} -Force" '
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 						if os.path.exists(move_dest_path):
@@ -772,14 +781,14 @@ class install_ipfs:
 							os.rename(move_source_path, move_dest_path)
 						else:
 							print(move_source_path)
-							raise("Error moving ipfs_cluster_ctl.exe, source path does not exist")
+							raise("Error moving ipfs-cluster-ctl.exe, source path does not exist")
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 					else:
 						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
-						command = "cd " + self.tmp_path + "/ipfs_cluster_ctl && mv ipfs_cluster_ctl.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs_cluster_ctl.exe"
+						command = "cd " + self.tmp_path + "/ipfs-cluster-ctl && mv ipfs-cluster-ctl.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs-cluster-ctl.exe"
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 				else:
@@ -788,22 +797,22 @@ class install_ipfs:
 					results = results.decode()				
 				if platform.system() == "Linux" and os.geteuid() == 0:
 					#command = "cd /tmp/kubo ; sudo bash install.sh"
-					command = "sudo bash " + os.path.join(self.tmp_path, "ipfs_cluster_ctl", "install.sh")
+					command = "sudo bash " + os.path.join(self.tmp_path, "ipfs-cluster-ctl", "install.sh")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = "ipfs_cluster_ctl --version"
+					command = "ipfs-cluster-ctl --version"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					pass
 				elif platform.system() == "Linux" and os.geteuid() != 0:
-					command = "cd " + self.tmp_path + "/ipfs_cluster_ctl && bash install.sh"
+					command = "cd " + self.tmp_path + "/ipfs-cluster-ctl && bash install.sh"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = 'cd ' + self.tmp_path + '/ipfs_cluster_ctl && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs_cluster_ctl "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs_cluster_ctl"'
+					command = 'cd ' + self.tmp_path + '/ipfs-cluster-ctl && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs-cluster-ctl "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs-cluster-ctl"'
 					results = subprocess.check_output(command, shell=True)
 					pass
 				elif platform.system() == "Windows":
-					command = "move " + os.path.join(self.tmp_path, "ipfs_cluster_ctl", "ipfs_cluster_ctl.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs_cluster_ctl.exe")
+					command = "move " + os.path.join(self.tmp_path, "ipfs-cluster-ctl", "ipfs-cluster-ctl.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl.exe")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					pass
@@ -814,18 +823,18 @@ class install_ipfs:
 					results = subprocess.check_output(command, shell=True)
 					pass
 
-			if os.geteuid() == 0 and platform.system() == "Linux":
+			if platform.system() == "Linux" and  os.geteuid() == 0: 
 				command = self.path_string + " ipfs-cluster-ctl --version"
-			if os.geteuid() != 0 and platform.system() == "Linux":
+			if platform.system() == "Linux" and os.geteuid() != 0:
 				command = self.path_string + " ipfs-cluster-ctl --version"
 			if platform.system() == "Windows":
-				command = self.path_string + " ipfs-cluster-ctl --version"
+				command = os.path.join(self.bin_path, "ipfs-cluster-ctl") + " --version"
 			if platform.system() == "Darwin":
 				command = self.path_string + " ipfs-cluster-ctl --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs-cluster-ctl" in results:
-				return True
+				return self.ipfs_multiformats.get_cid( os.path.join(self.bin_path, "ipfs-cluster-ctl.exe"))
 			else:
 				return False
 	
@@ -833,7 +842,7 @@ class install_ipfs:
 		install_ipfs_cluster_service_cmd = None
 		detect = False
 		dist = self.dist_select()
-		dist_tar = self.ipfs_dists[dist]
+		dist_tar = self.ipfs_cluster_service_dists[dist]
 		detect = False
 		results = {}
 		if platform.system() == "Linux":
