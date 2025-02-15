@@ -673,10 +673,10 @@ class install_ipfs:
 				else:
 					#NOTE: Clean this up and make better logging or drop the error all together
 					print('You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service')
-					command = 'cd ' + self.tmp_path + '/kubo && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs"'
+					command = 'cd ' + self.tmp_path + '/ipfs-cluster-follow && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs-cluster-follow"'
 					results = subprocess.check_output(command, shell=True)
 					pass
-			command = os.path.join(self.path_string, "ipfs-cluster-follow.exe") + " --version"
+			command = os.path.join(self.bin_path, "ipfs-cluster-follow.exe") + " --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs" in results:
@@ -688,57 +688,6 @@ class install_ipfs:
 				return False
 		else:
 			return True
-
-				# 	if os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
-				# 		if platform.system() == "Linux" and os.geteuid() == 0:
-				# 			remove_command = "sudo rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-				# 		elif platform.system() == "Linux" and os.geteuid() != 0:
-				# 			remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-				# 		elif platform.system() == "Windows":
-				# 			remove_command = "rmdir /S /Q " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-				# 		elif platform.system() == "Darwin":
-				# 			remove_command = "rm -rf " + os.path.join(self.tmp_path, "ipfs-cluster-follow")
-				# 		remove_command_results = subprocess.check_output(remove_command, shell=True)
-				# 		remove_command_results = remove_command_results.decode()
-				# 		pass
-
-				# 	if not os.path.exists(os.path.join(self.tmp_path, "ipfs-cluster-follow")):
-				# 		os.makedirs(os.path.join(self.tmp_path, "ipfs-cluster-follow"))
-				# 		pass
-
-				# 	expand_command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-				# 	expand_command_results = subprocess.check_output(expand_command, shell=True)
-				# 	expand_command_results = expand_command_results.decode()
-					
-				# 	if platform.system() == "Linux" and os.geteuid() == 0:
-				# 		move_command = "sudo mv " + os.path.join(os.path.join(self.tmp_path,'ipfs-cluster-follow'),'ipfs-cluster-follow') + " " + "/usr/local/bin/ipfs-cluster-follow"
-				# 		move_command_results = subprocess.check_output(move_command, shell=True).decode()
-
-				# 		with open(os.path.join(this_dir, "ipfs-cluster-follow.service"), "r") as file:
-				# 			ipfs_cluster_follow = file.read()
-				# 		with open("/etc/systemd/system/ipfs-cluster-follow.service", "w") as file:
-				# 			file.write(ipfs_cluster_follow)
-				# 		systemctl_enable_command = "systemctl enable ipfs-cluster-follow"
-				# 		systemctl_enable_command_results = subprocess.call(systemctl_enable_command, shell=True)
-				# 		pass
-				# 	else:
-				# 		move_command = "mv " + os.path.join(self.tmp_path, "ipfs-cluster-follow","ipfs-cluster-follow") + " " + os.path.join( self.this_dir , "bin" , "ipfs-cluster-follow" )
-				# 		move_command_results = subprocess.check_output(move_command, shell=True)
-				# 		move_command_results = move_command_results.decode()
-				# 		pass
-
-				# except Exception as e:
-				# 	print(e)
-				# 	pass
-
-				# version_command = self.path_string + " ipfs-cluster-follow --version"
-				# version_command_results = subprocess.check_output(version_command, shell=True)
-				# version_command_results = version_command_results.decode()
-				
-				# if "ipfs-cluster-follow" in version_command_results:
-				# 	return True
-				# else:
-				# 	return False
 	
 	def install_ipfs_cluster_ctl(self):
 		install_ipfs_cluster_ctl_cmd = None
