@@ -108,7 +108,7 @@ class install_ipfs:
 			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
-			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafkreicfvtaic6cdfaxamh6vvrji3begavxpz3lehzgdqfib3jqfrvawou",
 			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
@@ -140,7 +140,7 @@ class install_ipfs:
 			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",	
 			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",	
-			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafkreidaqcd7q6ot464azswgvflr6ibemh2ty7e745pegccyiwetelg4kq",
 			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
@@ -703,7 +703,12 @@ class install_ipfs:
 					command = 'cd ' + self.tmp_path + '/ipfs-cluster-follow && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs-cluster-follow"'
 					results = subprocess.check_output(command, shell=True)
 					pass
-			command = os.path.join(self.bin_path, "ipfs-cluster-follow.exe") + " --version"
+			if platform.system() == "windows":
+				command = os.path.join(self.bin_path, "ipfs-cluster-follow.exe") + " --version"
+			if platform.system() == "linux":
+				command = os.path.join(self.bin_path, "ipfs-cluster-follow") + " --version"
+			if platform.system() == "darwin":
+				command = os.path.join(self.bin_path, "ipfs-cluster-follow") + " --version"
 			results = subprocess.check_output(command, shell=True)
 			results = results.decode()
 			if "ipfs" in results:
@@ -1311,7 +1316,12 @@ class install_ipfs:
 					rm_results = subprocess.check_output(rm_command, shell=True)
 					rm_results = rm_results.decode()
 					pass
-				follow_init_cmd = self.path_string + " IPFS_PATH="+ ipfs_path +" ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
+				if platform.system() == "Linux":
+					follow_init_cmd = self.path_string + " IPFS_PATH=" + ipfs_path + " ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
+				elif platform.system() == "Windows":
+					follow_init_cmd = " set IPFS_PATH=" + ipfs_path + " &&  " + os.path.join(self.bin_path , "ipfs-cluster-follow.exe") + " " + cluster_name + " init " + ipfs_path
+				elif platform.system() == "Darwin":
+					follow_init_cmd = self.path_string + " IPFS_PATH=" + ipfs_path + " ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
 				# follow_init_cmd = "ipfs-cluster-follow " + cluster_name + " init " + ipfs_path
 				follow_init_cmd_results = subprocess.check_output(follow_init_cmd, shell=True).decode()
 				if not os.path.exists(cluster_path):
@@ -1454,7 +1464,7 @@ class install_ipfs:
 					pass
 				pass
 			elif platform.system() == "Windows":
-				run_daemon_cmd = "ipfs-cluster-follow " + cluster_name + " run"
+				run_daemon_cmd = os.path.join(self.bin_path ,  "ipfs-cluster-follow.exe") + " " + cluster_name + " run"
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				if run_daemon_results is not None:
 					results["run_daemon"] = True
@@ -2024,7 +2034,7 @@ class install_ipfs:
 					run_ipfs_cluster_follow_results = True 
 				pass
 			elif platform.system() == "Windows":
-				run_daemon_cmd = "ipfs-cluster-follow " + self.cluster_name + " run"
+				run_daemon_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow.exe") + " " + self.cluster_name + " run"
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				if run_daemon_results is not None:
 					results["run_daemon"] = True
