@@ -879,14 +879,22 @@ class install_ipfs:
 				results = subprocess.check_output(command, shell=True)
 				if url_suffix == ".zip":
 					if platform.system() == "Windows":
-						move_source_path = os.path.join(self.tmp_path, "ipfs_cluster_service", "ipfs_cluster_service.exe").replace("\\", "/")
+						move_source_path = os.path.join(self.tmp_path, "ipfs-cluster-service", "ipfs-cluster-service.exe").replace("\\", "/")
+						move_source_path = move_source_path.replace("\\", "/")
 						move_source_path = move_source_path.split("/")
 						move_source_path = "/".join(move_source_path)
-						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs_cluster_service.exe").replace("\\", "/")
+						# move_source_path = os.path.normpath(move_source_path)
+						move_dest_path = os.path.join(self.this_dir, "bin","ipfs-cluster-service.exe").replace("\\", "/")
+						move_dest_path = move_dest_path.replace("\\", "/")
 						move_dest_path = move_dest_path.split("/")
 						move_dest_path = "/".join(move_dest_path)
-						if os.path.exists(move_source_path):
-							os.remove(move_source_path)
+						# move_dest_path = os.path.normpath(move_dest_path)
+						parent_source_path = os.path.dirname(move_source_path)
+						if os.path.exists(parent_source_path):
+							if os.path.isdir(parent_source_path):
+								shutil.rmtree(parent_source_path)
+							else:
+								os.remove(parent_source_path)
 						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))}"'
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
@@ -896,14 +904,14 @@ class install_ipfs:
 							os.rename(move_source_path, move_dest_path)
 						else:
 							print(move_source_path)
-							raise("Error moving ipfs_cluster_service.exe, source path does not exist")
+							raise("Error moving ipfs-cluster-service.exe, source path does not exist")
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 					else:
 						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
-						command = "cd " + self.tmp_path + "/ipfs_cluster_service && mv ipfs_cluster_service.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs_cluster_service.exe"
+						command = "cd " + self.tmp_path + "/ipfs-cluster-service && mv ipfs-cluster-service.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs-cluster-service.exe"
 						results = subprocess.check_output(command, shell=True)
 						results = results.decode()
 				else:
@@ -912,10 +920,10 @@ class install_ipfs:
 					results = results.decode()				
 				if platform.system() == "Linux" and os.geteuid() == 0:
 					#command = "cd /tmp/kubo ; sudo bash install.sh"
-					command = "sudo bash " + os.path.join(self.tmp_path, "ipfs_cluster_service", "install.sh")
+					command = "sudo bash " + os.path.join(self.tmp_path, "ipfs-cluster-service", "install.sh")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = "ipfs_cluster_service --version"
+					command = "ipfs-cluster-service --version"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					with open (os.path.join(self.this_dir, "ipfs_cluster_service.service"), "r") as file:
@@ -926,14 +934,14 @@ class install_ipfs:
 					subprocess.call(command, shell=True)
 					pass
 				elif platform.system() == "Linux" and os.geteuid() != 0:
-					command = "cd " + self.tmp_path + "/ipfs_cluster_service && bash install.sh"
+					command = "cd " + self.tmp_path + "/ipfs-cluster-service && bash install.sh"
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
-					command = 'cd ' + self.tmp_path + '/ipfs_cluster_service && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs_cluster_service "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs_cluster_service"'
+					command = 'cd ' + self.tmp_path + '/ipfs-cluster-service && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs-cluster-service "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs-cluster-service"'
 					results = subprocess.check_output(command, shell=True)
 					pass
 				elif platform.system() == "Windows":
-					command = "move " + os.path.join(self.tmp_path, "ipfs_cluster_service", "ipfs_cluster_service.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs_cluster_service.exe")
+					command = "move " + os.path.join(self.tmp_path, "ipfs-cluster-service", "ipfs-cluster-service.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-service.exe")
 					results = subprocess.check_output(command, shell=True)
 					results = results.decode()
 					pass
