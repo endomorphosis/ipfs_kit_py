@@ -737,39 +737,89 @@ class install_ipfs:
 			print(e)
 		finally:
 			pass
-		url = self.ipfs_cluster_ctl_dists[self.dist_select()]
-		with tempfile.NamedTemporaryFile(suffix=".tar.gz", dir=self.tmp_path) as this_tempfile:
-			if platform.system() == "Windows":
-				command = "curl " + url + " -o " + this_tempfile.name
-			elif platform.system() == "Linux":			
-				command = "wget " + url + " -O " + this_tempfile.name
-			elif platform.system() == "Darwin":
-				command = "curl " + url + " -o " + this_tempfile.name
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
 
-			command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
-			results = subprocess.check_output(command, shell=True)
-			results = results.decode()
-			if platform.system() == "linux" and os.geteuid() == 0:
-				# command = "cd /tmp/ipfs-cluster-ctl ; sudo mv ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl"
-				command = "sudo mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + " /usr/local/bin/ipfs-cluster-ctl"
+		if detect == False:
+			url = self.ipfs_cluster_ctl_dists[self.dist_select()]
+			if ".tar.gz" in url:
+				url_suffix = ".tar.gz"
+			else:
+				url_suffix = "."+url.split(".")[-1]
+			with tempfile.NamedTemporaryFile(suffix=url_suffix, dir=self.tmp_path, delete=False) as this_tempfile:
+				if platform.system() == "Linux":
+					command = "wget " + url + " -O " + this_tempfile.name
+				elif platform.system() == "Windows":
+					drive , path = os.path.splitdrive(this_tempfile.name)
+					temp_path = this_tempfile.name.replace("\\", "/")
+					temp_path = temp_path.split("/")
+					temp_path = "/".join(temp_path)
+					# temp_path = drive + temp_path
+					this_tempfile.close()
+					command = f'powershell -Command "Invoke-WebRequest -Uri \'{url}\' -OutFile \'{temp_path}\'"'
+					command = command.replace("\'","")
+				elif platform.system() == "Darwin":
+					command = "curl " + url + " -o " + this_tempfile.name
+
 				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-			elif platform.system() == "linux" and os.geteuid() != 0:
-				if not os.path.exists(os.path.join(self.this_dir, "bin")):
-					os.makedirs(os.path.join(self.this_dir, "bin"))
+				if url_suffix == ".zip":
+					if platform.system() == "Windows":
+						move_source_path = os.path.join(self.tmp_path, "ipfs_cluster_ctl", "ipfs_cluster_ctl.exe").replace("\\", "/")
+						move_source_path = move_source_path.split("/")
+						move_source_path = "/".join(move_source_path)
+						move_dest_path = os.path.join(self.this_dir, "bin", "ipfs_cluster_ctl.exe").replace("\\", "/")
+						move_dest_path = move_dest_path.split("/")
+						move_dest_path = "/".join(move_dest_path)
+						if os.path.exists(move_source_path):
+							os.remove(move_source_path)
+						command = f'powershell -Command "Expand-Archive -Path {this_tempfile.name} -DestinationPath {os.path.dirname(os.path.dirname(move_source_path))}"'
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						if os.path.exists(move_dest_path):
+							os.remove(move_dest_path)
+						if os.path.exists(move_source_path):
+							os.rename(move_source_path, move_dest_path)
+						else:
+							print(move_source_path)
+							raise("Error moving ipfs_cluster_ctl.exe, source path does not exist")
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+					else:
+						command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+						command = "cd " + self.tmp_path + "/ipfs_cluster_ctl && mv ipfs_cluster_ctl.exe " + self.this_dir + "/bin/ && chmod +x " + self.this_dir + "/bin/ipfs_cluster_ctl.exe"
+						results = subprocess.check_output(command, shell=True)
+						results = results.decode()
+				else:
+					command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()				
+				if platform.system() == "Linux" and os.geteuid() == 0:
+					#command = "cd /tmp/kubo ; sudo bash install.sh"
+					command = "sudo bash " + os.path.join(self.tmp_path, "ipfs_cluster_ctl", "install.sh")
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = "ipfs_cluster_ctl --version"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
 					pass
-				command = "mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl")
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-			elif platform.system() == "Windows":
-				command = "mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl")
-				results = subprocess.check_output(command, shell=True)
-				results = results.decode()
-			elif platform.system() == "Darwin":
-				command = "mv " + os.path.join(self.tmp_path,"ipfs-cluster-ctl","ipfs-cluster-ctl") + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-ctl")
-				results = subprocess.check_output(command, shell=True)
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					command = "cd " + self.tmp_path + "/ipfs_cluster_ctl && bash install.sh"
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					command = 'cd ' + self.tmp_path + '/ipfs_cluster_ctl && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs_cluster_ctl "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs_cluster_ctl"'
+					results = subprocess.check_output(command, shell=True)
+					pass
+				elif platform.system() == "Windows":
+					command = "move " + os.path.join(self.tmp_path, "ipfs_cluster_ctl", "ipfs_cluster_ctl.exe") + " " + os.path.join(self.this_dir, "bin", "ipfs_cluster_ctl.exe")
+					results = subprocess.check_output(command, shell=True)
+					results = results.decode()
+					pass
+				else:
+					#NOTE: Clean this up and make better logging or drop the error all together
+					print('You need to be root to write to /etc/systemd/system/ipfs-cluster-ctl.service')
+					command = 'cd ' + self.tmp_path + '/ipfs-cluster-ctl && mkdir -p "'+ self.this_dir + '/bin/" && mv ipfs "' + self.this_dir+ '/bin/" && chmod +x "$'+ self.this_dir+'/bin/ipfs-cluster-follow"'
+					results = subprocess.check_output(command, shell=True)
+					pass
 
 			if os.geteuid() == 0 and platform.system() == "Linux":
 				command = self.path_string + " ipfs-cluster-ctl --version"
