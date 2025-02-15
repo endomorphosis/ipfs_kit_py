@@ -573,21 +573,48 @@ class install_ipfs:
 			return True
 
 	def install_ipfs_cluster_follow(self):
+		dist = self.dist_select()
+		dist_tar = self.ipfs_dists[dist]
 		detect = False
+		if platform.system() == "Linux":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow")
+		elif platform.system() == "Windows":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow.exe")
+			ipfs_detect_cmd = ipfs_detect_cmd.replace("\\", "/")
+			ipfs_detect_cmd = ipfs_detect_cmd.split("/")
+			ipfs_detect_cmd = "/".join(ipfs_detect_cmd)
+		elif platform.system() == "Darwin":
+			ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow")
 		try:
-			detect_command = self.path_string + " ipfs-cluster-follow --version"
-			detect_command_results = subprocess.check_output(detect_command,shell=True)
-			detect_command_results = detect_command_results.decode()
-			if len(detect_command_results) > 0:
-				print("ipfs-cluster-follow is already installed.")
-				return True
+			ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd,shell=True)
+			ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
+			if len(ipfs_detect_cmd_results) > 0:
+				if os.path.exists( os.path.join(self.bin_path, "ipfs-cluster-follow.exe")):
+					return self.ipfs_multiformats.get_cid( os.path.join(self.bin_path, "ipfs-cluster-follow.exe"))
+				else:
+					return False
 			else:
-				detect = False
+				return False
 		except Exception as e:
 			detect = False
 			print(e)
 		finally:
 			pass
+  
+		# try:
+		# 	detect_command = self.path_string + " ipfs-cluster-follow --version"
+		# 	detect_command_results = subprocess.check_output(detect_command,shell=True)
+		# 	detect_command_results = detect_command_results.decode()
+		# 	if len(detect_command_results) > 0:
+		# 		print("ipfs-cluster-follow is already installed.")
+		# 		return True
+		# 	else:
+		# 		detect = False
+		# except Exception as e:
+		# 	detect = False
+		# 	print(e)
+		# finally:
+		# 	pass
 		if detect == False:
 			url = self.ipfs_cluster_follow_dists[self.dist_select()]
 			if ".tar.gz" in url:
@@ -681,9 +708,9 @@ class install_ipfs:
 			results = results.decode()
 			if "ipfs" in results:
 				if platform.system() == "Windows":
-					return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs-cluster-follow.exe"))
+					return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-follow.exe"))
 				elif platform.system() == "Linux":
-					return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs-cluster-follow"))
+					return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-follow"))
 			else:
 				return False
 		else:
