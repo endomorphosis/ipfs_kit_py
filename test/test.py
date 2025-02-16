@@ -1,11 +1,11 @@
-from ..ipfs_kit_py import ipfs_kit_py
+from ..ipfs_kit_py import ipfs_kit
 import json
 
 class test_ipfs_kit_py:
     def init(self, resources, metadata):
         self.resources = resources
         self.metadata = metadata
-        self.ipfs_kit_py = ipfs_kit_py(resources, metadata)
+        self.ipfs_kit_py = ipfs_kit(resources, metadata)
         return None
     
     def __call__(self, *args, **kwds):
