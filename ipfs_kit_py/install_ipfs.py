@@ -1244,6 +1244,9 @@ class install_ipfs:
 					# Windows does not use systemctl or /etc/ system service files; run the service directly
 					enable_cluster_service = [os.path.join(self.this_dir, "bin", "ipfs-cluster-service.exe"), "daemon", "--peerstore", os.path.join(service_path, "peerstore"), "--service", os.path.join(service_path, "service.json")]
 					enable_cluster_service = " ".join(enable_cluster_service)
+					enable_cluster_service = enable_cluster_service.replace("\\", "/")
+					enable_cluster_service = enable_cluster_service.split("/")
+					enable_cluster_service = "/".join(enable_cluster_service)
 					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
 					enable_cluster_service_results = enable_cluster_service_results.decode()
 					pass
@@ -2073,8 +2076,13 @@ class install_ipfs:
 			find_daemon_results = find_daemon_results.decode().strip()
 			if int(find_daemon_results) == 0:
 				raise Exception("ipfs-cluster-service daemon did not start")
-			else:
+			elif int(find_daemon_results) > 0:
+				self.kill_process_by_pattern("ipfs-cluster-service")
 				return True
+			else:
+				print(find_daemon_results)
+				print("error running ipfs-cluster-service")
+				return False
 		except Exception as e:
 			run_command_results = str(e)
 			print("error running ipfs-cluster-service")
@@ -2083,7 +2091,7 @@ class install_ipfs:
 		finally:
 			pass
 
-		return run_ipfs_cluster_command_results
+		return find_daemon_results
 	
 	def run_ipfs_cluster_ctl(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
