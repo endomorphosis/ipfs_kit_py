@@ -7,7 +7,146 @@
     },
     "install": {
         "ipfs": "bafkreicfvtaic6cdfaxamh6vvrji3begavxpz3lehzgdqfib3jqfrvawou",
-        "ipfs_config": null,
+        "ipfs_config": {
+            "API": {
+                "HTTPHeaders": {}
+            },
+            "Addresses": {
+                "API": "/ip4/127.0.0.1/tcp/5001",
+                "Announce": [],
+                "AppendAnnounce": [],
+                "Gateway": "/ip4/127.0.0.1/tcp/8080",
+                "NoAnnounce": [],
+                "Swarm": [
+                    "/ip4/0.0.0.0/tcp/4001",
+                    "/ip6/::/tcp/4001",
+                    "/ip4/0.0.0.0/udp/4001/webrtc-direct",
+                    "/ip4/0.0.0.0/udp/4001/quic-v1",
+                    "/ip4/0.0.0.0/udp/4001/quic-v1/webtransport",
+                    "/ip6/::/udp/4001/webrtc-direct",
+                    "/ip6/::/udp/4001/quic-v1",
+                    "/ip6/::/udp/4001/quic-v1/webtransport"
+                ]
+            },
+            "AutoNAT": {},
+            "AutoTLS": {},
+            "Bootstrap": [
+                "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
+                "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
+                "/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
+                "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
+                "/dnsaddr/va1.bootstrap.libp2p.io/p2p/12D3KooWKnDdG3iXw9eTFijk3EWSunZcFi54Zka4wmtqtt6rPxc8",
+                "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
+                "/ip4/104.131.131.82/udp/4001/quic-v1/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
+            ],
+            "DNS": {
+                "Resolvers": {}
+            },
+            "Datastore": {
+                "BlockKeyCacheSize": null,
+                "BloomFilterSize": 0,
+                "GCPeriod": "1h",
+                "HashOnRead": false,
+                "Spec": {
+                    "child": {
+                        "path": "badgerds",
+                        "syncWrites": false,
+                        "truncate": true,
+                        "type": "badgerds"
+                    },
+                    "prefix": "badger.datastore",
+                    "type": "measure"
+                },
+                "StorageGCWatermark": 90,
+                "StorageMax": "10GB"
+            },
+            "Discovery": {
+                "MDNS": {
+                    "Enabled": true
+                }
+            },
+            "Experimental": {
+                "FilestoreEnabled": false,
+                "Libp2pStreamMounting": false,
+                "OptimisticProvide": false,
+                "OptimisticProvideJobsPoolSize": 0,
+                "P2pHttpProxy": false,
+                "StrategicProviding": false,
+                "UrlstoreEnabled": false
+            },
+            "Gateway": {
+                "DeserializedResponses": null,
+                "DisableHTMLErrors": null,
+                "ExposeRoutingAPI": null,
+                "HTTPHeaders": {},
+                "NoDNSLink": false,
+                "NoFetch": false,
+                "PublicGateways": null,
+                "RootRedirect": ""
+            },
+            "Identity": {
+                "PeerID": "12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW"
+            },
+            "Import": {
+                "BatchMaxNodes": null,
+                "BatchMaxSize": null,
+                "CidVersion": null,
+                "HashFunction": null,
+                "UnixFSChunker": null,
+                "UnixFSRawLeaves": null
+            },
+            "Internal": {},
+            "Ipns": {
+                "RecordLifetime": "",
+                "RepublishPeriod": "",
+                "ResolveCacheSize": 128
+            },
+            "Migration": {
+                "DownloadSources": [],
+                "Keep": ""
+            },
+            "Mounts": {
+                "FuseAllowOther": false,
+                "IPFS": "/ipfs",
+                "IPNS": "/ipns"
+            },
+            "Peering": {
+                "Peers": null
+            },
+            "Pinning": {
+                "RemoteServices": {}
+            },
+            "Plugins": {
+                "Plugins": null
+            },
+            "Provider": {
+                "Strategy": ""
+            },
+            "Pubsub": {
+                "DisableSigning": false,
+                "Router": ""
+            },
+            "Reprovider": {},
+            "Routing": {
+                "Methods": null,
+                "Routers": null
+            },
+            "Swarm": {
+                "AddrFilters": null,
+                "ConnMgr": {},
+                "DisableBandwidthMetrics": false,
+                "DisableNatPortMap": false,
+                "RelayClient": {},
+                "RelayService": {},
+                "ResourceMgr": {},
+                "Transports": {
+                    "Multiplexers": {},
+                    "Network": {},
+                    "Security": {}
+                }
+            },
+            "Version": {}
+        },
         "ipfs_execute": true,
         "cluster_service": "bafkreidaqcd7q6ot464azswgvflr6ibemh2ty7e745pegccyiwetelg4kq",
         "cluster_ctl": "bafkreic6tqlyynnsigedxf7t56w5srxs4bgmxguozykgh5brlv7k5o2coa",
@@ -16,6 +155,6 @@
             "run_cluster_ctl": "ipfs-cluster-ctl version 1.1.2\n"
         },
         "cluster_service_execute": true,
-        "cluster_ctl_execute": "12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi | DESKTOP-5KA4DBB | Sees 0 other peers\n  > Addresses:\n    - /ip4/127.0.0.1/tcp/9096/p2p/12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi\n    - /ip4/192.168.0.20/tcp/9096/p2p/12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi\n    - /ip4/97.120.194.93/tcp/62648/p2p/12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi\n  > IPFS: 12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/tcp/4001/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/udp/4001/quic-v1/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/udp/4001/quic-v1/webtransport/certhash/uEiBDqBOuCNEqO2qQUP499ebKmWR1h1LRmRarFKTa27muOw/certhash/uEiBT_4nsVT2EvxCbg5eWPgKlo8kvVPmhHPelxHnOqqWeaQ/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/udp/4001/webrtc-direct/certhash/uEiDs8csub77kECjUVGZFlM9YJMlnH70box8lM_cKRdrkkA/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/188.167.253.175/tcp/35647/p2p/12D3KooWPMeoqVuBVkSc1S7HrakcLZPPCkXPZxqKcR8NbCsWiTYn/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/188.167.253.175/udp/35697/quic-v1/p2p/12D3KooWPMeoqVuBVkSc1S7HrakcLZPPCkXPZxqKcR8NbCsWiTYn/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/188.167.253.175/udp/35697/quic-v1/webtransport/certhash/uEiAEH-Ex7kd93vf60-9Qfk2NPP-27BS4eOKuNE-JTS1-MA/certhash/uEiDMYCL8tt1LlyvIYWd7vrhxA26lXRlZlpMM538k4ifOnQ/p2p/12D3KooWPMeoqVuBVkSc1S7HrakcLZPPCkXPZxqKcR8NbCsWiTYn/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/tcp/4001/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/udp/4001/quic-v1/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/udp/4001/quic-v1/webtransport/certhash/uEiBDqBOuCNEqO2qQUP499ebKmWR1h1LRmRarFKTa27muOw/certhash/uEiBT_4nsVT2EvxCbg5eWPgKlo8kvVPmhHPelxHnOqqWeaQ/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/udp/4001/webrtc-direct/certhash/uEiDs8csub77kECjUVGZFlM9YJMlnH70box8lM_cKRdrkkA/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/74.48.98.190/tcp/4001/p2p/12D3KooWB5m7Ytew8U7yPdQUCw9HrLaG73qiGJg2Jm3VaiHvUiJt/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/74.48.98.190/udp/4001/quic-v1/p2p/12D3KooWB5m7Ytew8U7yPdQUCw9HrLaG73qiGJg2Jm3VaiHvUiJt/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/74.48.98.190/udp/4001/quic/p2p/12D3KooWB5m7Ytew8U7yPdQUCw9HrLaG73qiGJg2Jm3VaiHvUiJt/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/2a02:ab04:2840:6000:a1f0:6d03:ea91:9fa9/tcp/4001/p2p/12D3KooWPMeoqVuBVkSc1S7HrakcLZPPCkXPZxqKcR8NbCsWiTYn/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/2a02:ab04:2840:6000:a1f0:6d03:ea91:9fa9/udp/4001/quic-v1/p2p/12D3KooWPMeoqVuBVkSc1S7HrakcLZPPCkXPZxqKcR8NbCsWiTYn/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/2a02:ab04:2840:6000:a1f0:6d03:ea91:9fa9/udp/4001/quic-v1/webtransport/certhash/uEiAEH-Ex7kd93vf60-9Qfk2NPP-27BS4eOKuNE-JTS1-MA/certhash/uEiDMYCL8tt1LlyvIYWd7vrhxA26lXRlZlpMM538k4ifOnQ/p2p/12D3KooWPMeoqVuBVkSc1S7HrakcLZPPCkXPZxqKcR8NbCsWiTYn/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/tcp/4001/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/udp/4001/quic-v1/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/udp/4001/quic-v1/webtransport/certhash/uEiBDqBOuCNEqO2qQUP499ebKmWR1h1LRmRarFKTa27muOw/certhash/uEiBT_4nsVT2EvxCbg5eWPgKlo8kvVPmhHPelxHnOqqWeaQ/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/udp/4001/webrtc-direct/certhash/uEiDs8csub77kECjUVGZFlM9YJMlnH70box8lM_cKRdrkkA/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n"
+        "cluster_ctl_execute": "12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi | DESKTOP-5KA4DBB | Sees 0 other peers\n  > Addresses:\n    - /ip4/127.0.0.1/tcp/9096/p2p/12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi\n    - /ip4/192.168.0.20/tcp/9096/p2p/12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi\n    - /ip4/97.120.194.93/tcp/39337/p2p/12D3KooWKXxE7cc2Ybg3wDgNb9Xgd2u8Co3yYBg6wKbMZkwNqdsi\n  > IPFS: 12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/tcp/4001/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/udp/4001/quic-v1/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/udp/4001/quic-v1/webtransport/certhash/uEiBDqBOuCNEqO2qQUP499ebKmWR1h1LRmRarFKTa27muOw/certhash/uEiBT_4nsVT2EvxCbg5eWPgKlo8kvVPmhHPelxHnOqqWeaQ/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/127.0.0.1/udp/4001/webrtc-direct/certhash/uEiArHXREPwBUtuUMd1k9ndlvT7DCVJQGU49k9MbqVSgPFg/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/149.28.92.209/tcp/4001/p2p/12D3KooWBqpe6hoHTr3G49HVKN1BH3pYp4wHjuda2GwarXE3drot/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/tcp/4001/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/udp/4001/quic-v1/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/udp/4001/quic-v1/webtransport/certhash/uEiBDqBOuCNEqO2qQUP499ebKmWR1h1LRmRarFKTa27muOw/certhash/uEiBT_4nsVT2EvxCbg5eWPgKlo8kvVPmhHPelxHnOqqWeaQ/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/192.168.0.20/udp/4001/webrtc-direct/certhash/uEiArHXREPwBUtuUMd1k9ndlvT7DCVJQGU49k9MbqVSgPFg/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/74.48.98.190/tcp/4001/p2p/12D3KooWB5m7Ytew8U7yPdQUCw9HrLaG73qiGJg2Jm3VaiHvUiJt/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/74.48.98.190/udp/4001/quic-v1/p2p/12D3KooWB5m7Ytew8U7yPdQUCw9HrLaG73qiGJg2Jm3VaiHvUiJt/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip4/74.48.98.190/udp/4001/quic/p2p/12D3KooWB5m7Ytew8U7yPdQUCw9HrLaG73qiGJg2Jm3VaiHvUiJt/p2p-circuit/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/tcp/4001/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/udp/4001/quic-v1/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/udp/4001/quic-v1/webtransport/certhash/uEiBDqBOuCNEqO2qQUP499ebKmWR1h1LRmRarFKTa27muOw/certhash/uEiBT_4nsVT2EvxCbg5eWPgKlo8kvVPmhHPelxHnOqqWeaQ/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n    - /ip6/::1/udp/4001/webrtc-direct/certhash/uEiArHXREPwBUtuUMd1k9ndlvT7DCVJQGU49k9MbqVSgPFg/p2p/12D3KooWAbqzJNVT7x3ronf5DTW68Nb7mNaF1GeURcFS4bXKxCPW\n"
     }
 }
