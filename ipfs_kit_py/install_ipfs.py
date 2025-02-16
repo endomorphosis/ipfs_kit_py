@@ -2041,6 +2041,7 @@ class install_ipfs:
 		return results
 		
 	def run_ipfs_cluster_service(self, **kwargs):
+		run_ipfs_cluster_command_results = None	
 		if "ipfs_path" in list(kwargs.keys()):
 			ipfs_path = kwargs['ipfs_path']
 		elif "ipfs_path" in list(self.__dict__.keys()):
@@ -2078,10 +2079,11 @@ class install_ipfs:
 			run_command_results = str(e)
 			print("error running ipfs-cluster-service")
 			print(e)
+			return run_command_results
 		finally:
 			pass
 
-		return False
+		return run_ipfs_cluster_command_results
 	
 	def run_ipfs_cluster_ctl(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
@@ -2090,19 +2092,47 @@ class install_ipfs:
 			ipfs_path = self.ipfs_path          
 		try:
 			os.makedirs(ipfs_path, exist_ok=True)
+			if platform.system() == "Linux" and os.geteuid() == 0:
+				run_ipfs_cluster_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl --version"
+				run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
 
-			run_ipfs_cluster_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl --version"
-			run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True)
-			run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+				run = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl peers ls"
+				run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+				pass
+			elif platform.system() == "Linux" and os.geteuid() != 0:
+				run_ipfs_cluster_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl --version"
+				run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
 
-			run = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl peers ls"
-			run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
-			run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+				run = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl peers ls"
+				run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+				pass
+			elif platform.system() == "Windows":
+				run_ipfs_cluster_command = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe") + " --version"
+				run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+
+				run = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe") + " peers ls"
+				run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+				pass
+			elif platform.system() == "Darwin":
+				run_ipfs_cluster_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl --version"
+				run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
+
+				run = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-ctl peers ls"
+				run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
+				run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
 
 		except Exception as e:
 			run_ipfs_cluster_command_results = str(e)
 			print("error running ipfs-cluster-ctl")
 			print(e)
+			return run_ipfs_cluster_command_results
 		finally:
 			pass
 
