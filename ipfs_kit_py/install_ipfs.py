@@ -76,7 +76,7 @@ class install_ipfs:
 			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
    			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
-			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafkreidaqcd7q6ot464azswgvflr6ibemh2ty7e745pegccyiwetelg4kq",
 			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
@@ -172,7 +172,7 @@ class install_ipfs:
 			"linux x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"linux x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"linux arm": "bafybeigk5q3g3q3k7m3qy4q3f",
-			"windows x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
+			"windows x86_64": "bafkreic6tqlyynnsigedxf7t56w5srxs4bgmxguozykgh5brlv7k5o2coa",
 			"windows x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"freebsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
@@ -1171,6 +1171,10 @@ class install_ipfs:
 			print(e)
 			init_cluster_service_results = str(e)
 		finally:
+			if init_cluster_service_results == '':
+				init_cluster_daemon_results == True
+			else:
+				init_cluster_daemon_results == False
 			pass
 		results["init_cluster_service_results"] = init_cluster_service_results
 		if (self.role == "worker" or self.role == "master"):
@@ -1226,42 +1230,22 @@ class install_ipfs:
 					systemctl_daemon_reload_results = subprocess.check_output(systemctl_daemon_reload, shell=True)
 					systemctl_daemon_reload_results = systemctl_daemon_reload_results.decode()
 					pass
-				# elif platform.system() == "Linux" and os.geteuid() != 0:
-				# 	with open(os.path.join(this_dir, "ipfs-cluster.service"), "r") as file:
-				# 		service_file = file.read()
-				# 	service_file = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-service daemon", "ExecStart=/usr/local/bin/ipfs-cluster-service daemon --peerstore "+ service_path + "/peerstore --service "+ service_path + "/service.json")
-				# 	with open("/etc/systemd/system/ipfs-cluster.service", "w") as file:
-				# 		file.write(service_file)
-				# 	enable_cluster_service = "systemctl enable ipfs-cluster"
-				# 	enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
-				# 	enable_cluster_service_results = enable_cluster_service_results.decode()
-				# 	pass
-				# elif platform.system() == "Windows":
-				# 	import win32serviceutil
-				# 	import win32service
-				# 	import win32event
-				# 	import servicemanager
-
-				# 	class IPFSClusterService(win32serviceutil.ServiceFramework):
-				# 		_svc_name_ = "IPFSClusterService"
-				# 		_svc_display_name_ = "IPFS Cluster Service"
-				# 		_svc_description_ = "Service to run IPFS Cluster"
-
-				# 		def __init__(self, args):
-				# 			win32serviceutil.ServiceFramework.__init__(self, args)
-				# 			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
-
-				# 		def SvcStop(self):
-				# 			self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-				# 			win32event.SetEvent(self.hWaitStop)
-
-				# 		def SvcDoRun(self):
-				# 			import subprocess
-				# 			subprocess.call([os.path.join(self.this_dir, "bin", "ipfs-cluster-service"), "daemon", "--peerstore", os.path.join(service_path, "peerstore"), "--service", os.path.join(service_path, "service.json")])
-
-				# 	if __name__ == '__main__':
-				# 		win32serviceutil.HandleCommandLine(IPFSClusterService)
-				# 	pass
+				elif platform.system() == "Linux" and os.geteuid() != 0:
+					with open(os.path.join(this_dir, "ipfs-cluster.service"), "r") as file:
+						service_file = file.read()
+					service_file = service_file.replace("ExecStart=/usr/local/bin/ipfs-cluster-service daemon", "ExecStart=/usr/local/bin/ipfs-cluster-service daemon --peerstore "+ service_path + "/peerstore --service "+ service_path + "/service.json")
+					with open("/etc/systemd/system/ipfs-cluster.service", "w") as file:
+						file.write(service_file)
+					enable_cluster_service = "systemctl enable ipfs-cluster"
+					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
+					enable_cluster_service_results = enable_cluster_service_results.decode()
+					pass
+				elif platform.system() == "Windows":
+					# Windows does not use systemctl or /etc/ system service files; run the service directly
+					enable_cluster_service = [os.path.join(self.this_dir, "bin", "ipfs-cluster-service.exe"), "daemon", "--peerstore", os.path.join(service_path, "peerstore"), "--service", os.path.join(service_path, "service.json")]
+					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
+					enable_cluster_service_results = enable_cluster_service_results.decode()
+					pass
 			except Exception as e:
 				raise Exception(str(e))
 			finally:
@@ -1726,6 +1710,9 @@ class install_ipfs:
 					env["IPFS_PATH"] = self.ipfs_path
 					ipfs_exe = os.path.join(self.bin_path, "ipfs.exe")
 					ipfs_init_command = f'"{ipfs_exe}" init --profile=badgerds'
+					ipfs_init_command = ipfs_init_command.replace("\\", "/")
+					ipfs_init_command = ipfs_init_command.split("/")
+					ipfs_init_command = "/".join(ipfs_init_command)
 				elif platform.system() == "Darwin":
 					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
 				ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True, env=env if platform.system() == "Windows" else None)
