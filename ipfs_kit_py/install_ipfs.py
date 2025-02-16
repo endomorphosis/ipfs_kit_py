@@ -1081,7 +1081,7 @@ class install_ipfs:
 		secret = None
 		disk_stats = None
 		ipfs_path = None
-		
+		found = False
 		if "secret" in list(kwargs.keys()):
 			secret = kwargs['secret']
 		elif "secret" in list(self.__dict__.keys()):
@@ -1172,9 +1172,9 @@ class install_ipfs:
 			init_cluster_service_results = str(e)
 		finally:
 			if init_cluster_service_results == '':
-				init_cluster_daemon_results == True
+				init_cluster_service_results = True
 			else:
-				init_cluster_daemon_results == False
+				init_cluster_service_results = False
 			pass
 		results["init_cluster_service_results"] = init_cluster_service_results
 		if (self.role == "worker" or self.role == "master"):
@@ -1243,6 +1243,7 @@ class install_ipfs:
 				elif platform.system() == "Windows":
 					# Windows does not use systemctl or /etc/ system service files; run the service directly
 					enable_cluster_service = [os.path.join(self.this_dir, "bin", "ipfs-cluster-service.exe"), "daemon", "--peerstore", os.path.join(service_path, "peerstore"), "--service", os.path.join(service_path, "service.json")]
+					enable_cluster_service = " ".join(enable_cluster_service)
 					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
 					enable_cluster_service_results = enable_cluster_service_results.decode()
 					pass
@@ -1285,14 +1286,20 @@ class install_ipfs:
 					raise Exception("ipfs-cluster-service daemon did not start")
 				pass
 			elif platform.system() == "Windows":
-				run_daemon_cmd = self.path_string + " ipfs-cluster-service -d daemon"
+				run_daemon_cmd = os.path.join(self.bin_path, "ipfs-cluster-service.exe") + " -d daemon"
 				run_daemon_results = subprocess.Popen(run_daemon_cmd, shell=True)
 				time.sleep(5)
 				find_daemon_command = "powershell -Command \"(tasklist | findstr ipfs-cluster-service).Count\""
 				find_daemon_command_results = subprocess.check_output(find_daemon_command, shell=True)
 				find_daemon_command_results = find_daemon_command_results.decode().strip()
+				found = None
+				int_found = int(find_daemon_command_results)
+				if int(find_daemon_command_results) > 0 or int_found > 0:
+					found = True
+				else:
+					found = False
 				results["run_daemon"] = find_daemon_command_results
-				if int(find_daemon_command_results) > 0:
+				if found == True:
 					self.kill_process_by_pattern("ipfs-cluster-service")
 					pass
 				else:
@@ -1305,7 +1312,7 @@ class install_ipfs:
 		finally:
 			pass
 
-		return results
+		return found
 	
 	def config_ipfs_cluster_ctl(self, **kwargs):
 		results = {}
@@ -2042,7 +2049,14 @@ class install_ipfs:
 			ipfs_path = os.path.join(ipfs_path, "ipfs")
 			if not os.path.exists(ipfs_path):
 				os.makedirs(ipfs_path, exist_ok=True)
-			run_command = self.path_string + " ipfs-cluster-service -d daemon "
+			if platform.system() == "Linux" and os.geteuid() == 0:
+				run_command = self.path_string + " ipfs-cluster-service -d daemon "
+			elif platform.system() == "Linux" and os.geteuid() != 0:
+				run_command = self.path_string + " ipfs-cluster-service -d daemon "
+			elif platform.system() == "Windows":
+				run_command = os.path.join(self.bin_path, "ipfs-cluster-service.exe") + "-d daemon"
+			elif platform.system() == "Darwin":
+				run_command = self.path_string + " ipfs-cluster-service daemon"
 			# run_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service daemon"
 			run_command_results = subprocess.Popen(run_command, shell=True)
 			time.sleep(2)
@@ -2058,6 +2072,8 @@ class install_ipfs:
 			find_daemon_results = find_daemon_results.decode().strip()
 			if int(find_daemon_results) == 0:
 				raise Exception("ipfs-cluster-service daemon did not start")
+			else:
+				return True
 		except Exception as e:
 			run_command_results = str(e)
 			print("error running ipfs-cluster-service")
@@ -2065,7 +2081,7 @@ class install_ipfs:
 		finally:
 			pass
 
-		return run_command_results
+		return False
 	
 	def run_ipfs_cluster_ctl(self, **kwargs):
 		if "ipfs_path" in list(kwargs.keys()):
