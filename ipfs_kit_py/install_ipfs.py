@@ -1361,7 +1361,14 @@ class install_ipfs:
 		run_cluster_ctl = None
 
 		try:
-			run_cluster_ctl_cmd = self.path_string + " ipfs-cluster-ctl --version"
+			if platform.system() == "Linux" and os.geteuid() == 0:
+				run_cluster_ctl_cmd = self.path_string + " ipfs-cluster-ctl --version"
+			elif platform.system() == "Linux" and os.geteuid() != 0:
+				run_cluster_ctl_cmd = self.path_string + " ipfs-cluster-ctl --version"
+			elif platform.system() == "Windows":
+				run_cluster_ctl_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe") + " --version"
+			elif platform.system() == "Darwin":
+				run_cluster_ctl_cmd = self.path_string + " ipfs-cluster-ctl --version"
 			run_cluster_ctl = subprocess.check_output(run_cluster_ctl_cmd, shell=True)
 			run_cluster_ctl = run_cluster_ctl.decode()
 			pass
