@@ -151,6 +151,24 @@ class storacha_kit:
             print(e)
         return results
     
+        
+    # def storacha_http_request(self, auth_secret, authorization, method, data):
+    #     url = self.https_endpoint
+    #     headers = {
+    #         "X-Auth-Secret": auth_secret,
+    #         "Authorization": authorization,
+    #     }
+    #     try:
+    #         if method.lower() == 'post':
+    #             response = requests.post(url, headers=headers, json=data)
+    #         else:
+    #             raise ValueError(f"Unsupported HTTP method: {method}")
+    #         response.raise_for_status()  # Raise an exception for HTTP errors
+    #     except requests.exceptions.RequestException as e:
+    #         print(f"HTTP request failed: {e}")
+    #         return None
+    #     return response
+    
     def install(self):
         import platform
         

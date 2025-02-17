@@ -1,9 +1,1 @@
-{
-    "tasks": [
-      [
-        "upload/list",
-        "did:key:z6MkuhbeX1EtwmB4DVXnJgKeJK82aNBWhnzDaVqrUctWEczs",
-        {}
-      ]
-    ]
-  }
+{"tasks":[["upload/list","did:key:z6MkuhbeX1EtwmB4DVXnJgKeJK82aNBWhnzDaVqrUctWEczs",{}]]}
