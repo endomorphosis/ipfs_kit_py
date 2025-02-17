@@ -24,7 +24,7 @@ class test_storacha_kit:
         self.storacha_kit.install()
         email_did = self.storacha_kit.login(self.metadata["login"])
         spaces = self.storacha_kit.space_ls()
-        this_space = spaces[list(spaces.keys())[0]]
+        this_space = spaces[list(spaces.keys())[2]]
         space_info = self.storacha_kit.space_info(this_space)
         permissions = [
             "access/delegate",

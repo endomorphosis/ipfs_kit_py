@@ -116,7 +116,8 @@ class storacha_kit:
             bridge_generate_tokens_cmd = "npx w3 bridge generate-tokens " + space
         else:
             bridge_generate_tokens_cmd = "w3 bridge generate-tokens " + space
-        permissions = ["--can '" + i + "'" for i in permissions]
+        # permissions = ["--can '" + i + "'" for i in permissions]
+        permissions = ["--can " + i + "" for i in permissions]
         bridge_generate_tokens_cmd = bridge_generate_tokens_cmd + " " + " ".join(permissions)
         import time
         if expiration is None:
@@ -672,7 +673,7 @@ class storacha_kit:
             results = [i.replace("\n", "") for i in results if i != ""]
             results = [i.strip() for i in results]
             results = [i.split(":", 1) for i in results]
-            results = {i[0]: i[1] for i in results}
+            results = {i[0].strip(): i[1].strip() for i in results}
         except subprocess.CalledProcessError as e:
             print(e)
             print("space_info failed")
