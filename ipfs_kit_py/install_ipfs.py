@@ -9,11 +9,10 @@ import random
 import shutil
 import binascii
 import platform
-from ipfs_multiformats import ipfs_multiformats_py
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
-
-import test_fio
+from .ipfs_multiformats import ipfs_multiformats_py
+from .test_fio import test_fio
 
 class install_ipfs:
 	def __init__(self, resources=None, metadata=None):

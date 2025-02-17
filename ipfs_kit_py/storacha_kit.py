@@ -5,13 +5,15 @@ import requests
 import tempfile
 import json
 import platform
+import shutil
 
-class storacha_kit_py:
+class storacha_kit:
     def __init__(self, resources=None, metadata=None):
         self.resources = resources
         self.metadata = metadata
         self.w3_version = "7.8.2"
         self.ipfs_car_version = "1.2.0"
+        self.ipfs_car_version = "2.0.1-pre.0"
         self.w3_name_version = "1.0.8"
         self.npm_version = "7.5.6"
         self.spaces = {}
@@ -20,6 +22,28 @@ class storacha_kit_py:
         self.https_endpoint = "https://up.storacha.network/bridge"
         self.ipfs_gateway = "https://w3s.link/ipfs/"
         self.space = None
+        self.login = self.login
+        self.logout = self.logout
+        self.space_ls = self.space_ls
+        self.space_create = self.space_create
+        self.bridge_generate_tokens = self.bridge_generate_tokens
+        self.storacha_http_request = self.storacha_http_request
+        self.install = self.install
+        self.store_add = self.store_add
+        self.store_get = self.store_get
+        self.store_remove = self.store_remove
+        self.store_list = self.store_list
+        self.upload_add = self.upload_add
+        self.upload_list = self.upload_list
+        self.upload_remove = self.upload_remove
+        self.w3usage_report = self.w3usage_report
+        self.access_delegate = self.access_delegate
+        self.access_revoke = self.access_revoke
+        self.space_info = self.space_info
+        self.space_info_https = self.space_info_https
+        self.usage_report = self.usage_report
+        self.upload_list_https = self.upload_list_https
+        self.upload_remove_https = self.upload_remove_https
         return None
     
     def space_ls(self):
@@ -155,7 +179,7 @@ class storacha_kit_py:
         if platform.system() == "Windows":
             npm_install_cmd = "npm install -g npm npx"
             w3_install_cmd = "npm install @web3-storage/w3cli"
-            ipfs_car_install_cmd = "npm install ipfs-car"
+            ipfs_car_install_cmd = "npm install ipfs-car@2.0.1-pre.0"
             npm_update_cmd = "npm update npm npx"
             w3_update_cmd = "npm update @web3-storage/w3cli"
             ipfs_car_update_cmd = "npm update ipfs-car"
@@ -356,7 +380,7 @@ class storacha_kit_py:
             else:
                 ipfs_car_cmd = "npx ipfs-car pack " + file + " > " + filename
             try:
-                results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE)
+                results = subprocess.run(ipfs_car_cmd, shell=True, stderr=subprocess.PIPE)
                 results = results.stderr.decode("utf-8").strip()
                 results = results.split("\n")
                 results = [i.replace("\n", "") for i in results if i != ""]
@@ -366,7 +390,10 @@ class storacha_kit_py:
                 print("ipfs-car failed")
                 return False
             
-            store_add_cmd = "w3 can store add " + filename
+            if platform.system() == "Windows":
+                store_add_cmd = "npx w3 can store add " + filename
+            else:
+                store_add_cmd = "w3 can store add " + filename
             try:
                 results = subprocess.check_output(store_add_cmd, shell=True)
                 results = results.decode("utf-8").strip()
@@ -418,8 +445,12 @@ class storacha_kit_py:
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
-        
-        store_remove_cmd = "w3 can store rm " + cid
+        if platform.system() == "Windows":
+            store_remove_cmd = "npx w3 can store rm " + cid
+        elif platform.system() == "Linux":
+            store_remove_cmd = "w3 can store rm " + cid
+        elif platform.system() == "Darwin":
+            store_remove_cmd = "w3 can store rm " + cid
         try:
             results = subprocess.check_output(store_remove_cmd, shell=True)
             results = results.decode("utf-8").strip()
@@ -431,7 +462,9 @@ class storacha_kit_py:
     def store_list(self, space):
         if platform.system() == "Windows":
             store_list_cmd = "npx w3 store list " + space
-        else:
+        elif platform.system() == "Linux":
+            store_list_cmd = "w3 store list " + space
+        elif platform.system() == "Darwin":
             store_list_cmd = "w3 store list " + space
         try:
             results = subprocess.check_output(store_list_cmd, shell=True)
@@ -447,7 +480,9 @@ class storacha_kit_py:
         if space != self.space:
             if platform.system() == "Windows":
                 space_use = "npx w3 space use " + space
-            else:
+            elif platform.system() == "Linux":
+                space_use = "w3 space use " + space
+            elif platform.system() == "Darwin":
                 space_use = "w3 space use " + space
             try:
                 results = subprocess.run(space_use, shell=True, check=True)
@@ -510,6 +545,7 @@ class storacha_kit_py:
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
+        results = results.json()
         return results
     
     def upload_remove(self, space, cid):
@@ -755,27 +791,19 @@ class storacha_kit_py:
             print(e)
             print("ipfs-car failed")
         car_length = os.path.getsize(temp_filename)
-        if car_length is not type(int):
-            if platform.system() == "Windows":
-                car_length_cmd = "Get-ChildItem " + temp_filename + " | Measure-Object -Property Length -Sum"
-            else:            
-                car_length_cmd = "wc -c " + temp_filename
-            car_length = subprocess.check_output(car_length_cmd, shell=True)
-            car_length = car_length.decode("utf-8").strip()
-            car_length = car_length.split(" ")[0]
-            car_length = int(car_length)            
-            data = {
-                "tasks": [
-                    [
-                        "store/add",
-                        space,
-                        {
-                            "link": { file_path: cid  },
-                            "size": car_length
-                        }
-                    ]
+        data = {
+            "tasks": [
+                [
+                    "store/add",
+                    space,
+                    {
+                        "link": { file_path: cid  },
+                        "size": car_length
+                    }
                 ]
-            }            
+            ]
+        }            
+        results = self.storacha_http_request(auth_secret, authorization, method, data)
         results_data = results.json()
         return results_data
     
@@ -838,32 +866,42 @@ class storacha_kit_py:
                 ipfs_car_cmd = "npx ipfs-car pack " + file + " --output " + filename
             else:
                 ipfs_car_cmd = "ipfs-car pack " + file + " --output " + filename
+                
             try:
-                results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE)
-                results = results.stderr.decode("utf-8").strip()
-                results = results.split("\n")
+                ipfs_car_cmd_results_results = subprocess.run(ipfs_car_cmd, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                ipfs_car_cmd_results_data = ipfs_car_cmd_results_results.stderr.decode("utf-8").strip()
+                ipfs_car_cmd_results_data += ipfs_car_cmd_results_results.stdout.decode("utf-8").strip()
+                results = ipfs_car_cmd_results_data.split("\n")
                 results = [i.replace("\n", "") for i in results if i != ""]
-                results = results[0]
-                cid = results
+                if len(results) > 0:
+                    cid = results[0]
+                else:
+                    cid = None
+                    
             except subprocess.CalledProcessError as e:
+                import traceback
                 print (e)
+                print (traceback.format_exc())
                 print("ipfs-car failed")
                 return False
-            data = {
-                "tasks": [
-                    [
-                        "upload/add",
-                        space,
-                        {
-                            "cid": cid,
-                            "file": file
-                        }
+            if cid is not None:
+                data = {
+                    "tasks": [
+                        [
+                            "upload/add",
+                            space,
+                            {
+                                "cid": cid,
+                                "file": file
+                            }
+                        ]
                     ]
-                ]
-            }
-        results = self.storacha_http_request(auth_secret, authorization, method, data)
-        results_data = results.json()
-        return results_data
+                }
+                results = self.storacha_http_request(auth_secret, authorization, method, data)
+                results_data = results.json()
+                return results_data
+            else:
+                raise Exception("ipfs-car failed")
     
     def upload_remove_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
@@ -957,7 +995,7 @@ class storacha_kit_py:
         timestamps.append(time.time())
         upload_rm_https = self.upload_remove_https(this_space, upload_add)
         timestamps.append(time.time())
-        os.delete(small_file_name)
+        os.remove(small_file_name)
         timestamps.append(time.time())
         store_get = self.store_get(this_space, store_add[0])
         timestamps.append(time.time())
@@ -1019,9 +1057,10 @@ class storacha_kit_py:
             # "batch_operations": timestamps[16] - timestamps[15],
             # "shard_upload": timestamps[17] - timestamps[16],
         }
-        with open("../test/storacha_kit_test_results.json", "w") as file:
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open( os.path.join(parent_dir, "test","storacha_kit_test_results.json"), "w") as file:
             file.write(json.dumps(results, indent=4))
-        with open("../test/storacha_kit_test_timestamps.json", "w") as file:
+        with open( os.path.join(parent_dir, "test", "storacha_kit_test_timestamps.json"), "w") as file:
             file.write(json.dumps(timestamps_results, indent=4))
         return results
 
@@ -1031,6 +1070,6 @@ if __name__ == "__main__":
     metadata = {
         "login": "starworks5@gmail.com",
     }
-    storacha_kit = storacha_kit_py(resources, metadata)
-    test = storacha_kit.test()
+    storacha_kit_py = storacha_kit(resources, metadata)
+    test = storacha_kit_py.test()
     print(test)

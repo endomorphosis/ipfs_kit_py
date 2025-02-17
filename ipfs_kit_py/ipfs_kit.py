@@ -29,7 +29,7 @@ from .test_fio  import test_fio
 from .ipfs_cluster_ctl import ipfs_cluster_ctl
 from .ipfs_cluster_follow import ipfs_cluster_follow
 from .ipfs_cluster_service import ipfs_cluster_service
-from .storacha_kit import storacha_kit_py
+from .storacha_kit import storacha_kit
 from .ipget import ipget
 from .ipfs import ipfs_py
 from .s3_kit import s3_kit
