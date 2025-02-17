@@ -73,14 +73,14 @@ class ipfs_kit:
                 self.ipfs = ipfs_py(resources, metadata)
                 self.ipget = ipget(resources, metadata)
                 self.s3_kit = s3_kit(resources, metadata)
-                self.storacha_kit = storacha_kit_py(resources, metadata)
+                self.storacha_kit = storacha_kit(resources, metadata)
                 pass
             if self.role == "worker":
                 self.ipfs = ipfs_py(resources, metadata)
                 self.ipget = ipget(resources, metadata)
                 self.s3_kit = s3_kit(resources, metadata)
                 self.ipfs_cluster_follow = ipfs_cluster_follow(resources, metadata)
-                self.storacha_kit = storacha_kit_py(resources, metadata)
+                self.storacha_kit = storacha_kit(resources, metadata)
                 pass
             if self.role == "master":
                 self.ipfs = ipfs_py(resources, metadata)
@@ -88,7 +88,7 @@ class ipfs_kit:
                 self.s3_kit = s3_kit(resources, metadata)
                 self.ipfs_cluster_ctl = ipfs_cluster_ctl(resources, metadata)
                 self.ipfs_cluster_service = ipfs_cluster_service(resources, metadata)
-                self.storacha_kit = storacha_kit_py(resources, metadata)
+                self.storacha_kit = storacha_kit(resources, metadata)
                 pass
 
     def __call__(self, method, **kwargs):
