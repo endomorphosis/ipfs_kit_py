@@ -1065,12 +1065,12 @@ class storacha_kit:
             file.write(json.dumps(timestamps_results, indent=4))
         return results
 
-if __name__ == "__main__":
-    resources = {
-    }
-    metadata = {
-        "login": "starworks5@gmail.com",
-    }
-    storacha_kit_py = storacha_kit(resources, metadata)
-    test = storacha_kit_py.test()
-    print(test)
+# if __name__ == "__main__":
+#     resources = {
+#     }
+#     metadata = {
+#         "login": "starworks5@gmail.com",
+#     }
+#     storacha_kit_py = storacha_kit(resources, metadata)
+#     test = storacha_kit_py.test()
+#     print(test)
