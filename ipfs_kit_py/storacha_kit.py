@@ -118,14 +118,15 @@ class storacha_kit:
             bridge_generate_tokens_cmd = "w3 bridge generate-tokens " + space
         permissions = ["--can '" + i + "'" for i in permissions]
         bridge_generate_tokens_cmd = bridge_generate_tokens_cmd + " " + " ".join(permissions)
+        import time
         if expiration is None:
-            expiration = "date -v +24H +'%Y-%m-%dT%H:%M:%S'"
+            expiration = str(int(time.time()) + 24 * 3600)  # 24 hours from now
         else:
-            expiration = "date -v +" + expiration + " +'%Y-%m-%dT%H:%M:%S'"
-        # expiration = subprocess.check_output(expiration, shell=True)
+            expiration = str(int(time.time()) + int(expiration) * 3600)  # expiration hours from now
         # expiration = expiration.decode("utf-8").strip()        
         # expiration = None
-        # bridge_generate_tokens_cmd = bridge_generate_tokens_cmd + " --expiration " + expiration
+        bridge_generate_tokens_cmd = bridge_generate_tokens_cmd + " --expiration " + expiration
+        # bridge_generate_tokens_cmd = bridge_generate_tokens_cmd + """--expiration `date -v +24H +%s`"""
         try:
             results = subprocess.check_output(bridge_generate_tokens_cmd, shell=True)
             results = results.decode("utf-8").strip()

@@ -137,9 +137,9 @@ class test_storacha_kit:
             # "shard_upload": timestamps[17] - timestamps[16],
         }
         parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        with open( os.path.join(parent_dir, "test","storacha_kit_test_results.json"), "w") as file:
+        with open( os.path.join(parent_dir, "test","test_storacha_kit_results.json"), "w") as file:
             file.write(json.dumps(results, indent=4))
-        with open( os.path.join(parent_dir, "test", "storacha_kit_test_timestamps.json"), "w") as file:
+        with open( os.path.join(parent_dir, "test", "test_storacha_kit_timestamps.json"), "w") as file:
             file.write(json.dumps(timestamps_results, indent=4))
         return results
 
