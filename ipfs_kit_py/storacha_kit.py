@@ -564,8 +564,17 @@ class storacha_kit:
                 ]
             ]
         }
-        results = self.storacha_http_request(auth_secret, authorization, method, data)
-        results = results.json()
+        request_results = self.storacha_http_request(auth_secret, authorization, method, data)
+        request_results = request_results.json()
+        if "ok" in list(request_results[0]["p"]["out"].keys()):
+            if "results" in list(request_results[0]["p"]["out"]["ok"].keys()):
+                results = request_results[0]["p"]["out"]["ok"]["results"]
+                if len(results) == 0:
+                    results = ['⁂ No uploads in space', '⁂ Try out `w3 up <path to files>` to upload some']
+                return results
+        elif "error" in list(request_results[0]["p"]["out"].keys()):
+            error = request_results[0]["p"]["out"]["error"]
+            return error
         return results
     
     def upload_remove(self, space, cid):
@@ -605,12 +614,22 @@ class storacha_kit:
                     "upload/remove",
                     space,
                     {
-                        "cid": cid
+                        "root": {
+                            "/": "bafybeiao5ir3xsp4vhg46b2cjvnl4ucmg5wxrdpy4cypolwexitmpz7hwu"
+                        }
                     }
                 ]
             ]
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
+        results = results.json()
+        if "ok" in list(results[0]["p"]["out"].keys()):
+            results = results[0]["p"]["out"]["ok"]
+            return results
+        if "error" in list(results[0]["p"]["out"].keys()):
+            results = results[0]["p"]["out"]["error"]
+            return results
+        
         return results
     
     def w3usage_report(self, space):
@@ -694,6 +713,12 @@ class storacha_kit:
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         results_data = results.json()
+        if "ok" in list(results[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["ok"]
+            return results
+        if "error" in list(results[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["error"]
+            return results
         return results_data
         
     def usage_report(self, space):
@@ -739,6 +764,12 @@ class storacha_kit:
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         results_data = results.json()
+        if "ok" in list(results[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["ok"]
+            return results
+        if "error" in list(results[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["error"]
+            return results
         return results_data
              
     def space_allocate(self, space, size):
@@ -849,7 +880,7 @@ class storacha_kit:
             if results_data[0]["p"]["out"]["ok"]["status"] == "done":
                 cid = results_data[0]["p"]["out"]["ok"]["link"]["/"]
                 print ("⁂ Stored " + cid)
-                return cid
+                return [cid]
                 pass
             elif results_data[0]["p"]["out"]["ok"]["status"] == "upload":
                 carpark_url = results_data[0]["p"]["out"]["ok"]["url"]
@@ -861,7 +892,7 @@ class storacha_kit:
                     carpark_cmd_results = carpark_cmd_results.json()
                     cid = carpark_cmd_results[0]["p"]["out"]["ok"]["link"]["/"]
                     print ("⁂ Stored " + cid)
-                    return cid
+                    return [cid]
                 pass
         elif "error" in list(results_data[0]["p"]["out"]["ok"].keys()):
             print("⁂ Error: " + results_data[0]["p"]["out"]["ok"]["error"])
@@ -886,6 +917,12 @@ class storacha_kit:
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         results_data = results.json()
+        if "ok" in list(results_data[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["ok"]
+            return results
+        if "error" in list(results_data[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["error"]
+            return results
         return results_data
         
     def store_remove_https(self, space, cid):
@@ -905,6 +942,13 @@ class storacha_kit:
         }
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         results_data = results.json()
+        if "ok" in list(results_data[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["ok"]
+            return results
+        if "error" in list(results_data[0]["p"]["out"].keys()):
+            results = results_data[0]["p"]["out"]["error"]
+            return results
+        
         return results_data
         
     def store_list_https(self, space):
@@ -963,28 +1007,18 @@ class storacha_kit:
                 }
                 results = self.storacha_http_request(auth_secret, authorization, method, data)
                 results_data = results.json()
+                if "ok" in list(results_data[0]["p"]["out"].keys()):
+                    if "results" in list(results_data[0]["p"]["out"]["ok"].keys()):
+                        results = results_data[0]["p"]["out"]["ok"]["results"]
+                        if len(results) == 0:
+                            results = ['⁂ No uploads in space', '⁂ Try out `w3 up <path to files>` to upload some']
+                        return results
+                elif "error" in list(results_data[0]["p"]["out"].keys()):
+                    print("⁂ Error: " + json.dumps(results_data[0]["p"]["out"]["error"]))
+                    return results_data[0]["p"]["out"]["error"]
                 return results_data
             else:
                 raise Exception("ipfs-car failed")
-    
-    def upload_remove_https(self, space, cid):
-        auth_secret = self.tokens[space]["X-Auth-Secret header"]
-        authorization = self.tokens[space]["Authorization header"]
-        method = "upload/remove"
-        data = {
-            "tasks": [
-                [
-                    "upload/remove",
-                    space,
-                    {
-                        "cid": cid
-                    }
-                ]
-            ]
-        }
-        results = self.storacha_http_request(auth_secret, authorization, method, data)
-        results_data = results.json()
-        return results_data
         
     def shard_upload(self, space, file):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]

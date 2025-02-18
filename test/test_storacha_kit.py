@@ -75,7 +75,7 @@ class test_storacha_kit:
         timestamps.append(time.time())
         upload_rm = self.storacha_kit.upload_remove(this_space, upload_add)
         timestamps.append(time.time())
-        upload_rm_https = self.storacha_kit.upload_remove_https(this_space, upload_add)
+        upload_rm_https = self.storacha_kit.upload_remove_https(this_space, store_add_https)
         timestamps.append(time.time())
         os.remove(small_file_name)
         timestamps.append(time.time())
