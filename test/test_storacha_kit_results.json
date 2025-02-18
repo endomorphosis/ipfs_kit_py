@@ -1,5 +1,5 @@
 {
-    "email_did": "",
+    "email_did": "did:mailto:gmail.com:starworks5",
     "spaces": {
         "endomorphosis": "did:key:z6MkuhbeX1EtwmB4DVXnJgKeJK82aNBWhnzDaVqrUctWEczs",
         "": "",
@@ -11,19 +11,18 @@
         "Name": "test"
     },
     "bridge_tokens": {
-        "X-Auth-Secret header": "uMjY0NzZhYzM0NWQ0YjM2MzE4ODY2OTk4YWUwMDUxZGE",
-        "Authorization header": "uOqJlcm9vdHOB2CpYJQABcRIgOOrBZx0DaroUXENFqcWivmvDcQNgd9IFeSwi12RC6e1ndmVyc2lvbgHTBgFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ6hhc1hE7aEDQCjyiZ2cwlTiWwAAtN1QX89jeHUnOjBVgIlGAexGvw4vnhM31MuqXXgkQCbXNyL0uoY1e7Rgo4Xw3tFOjmh66Q1hdmUwLjkuMWNhdHSIomNjYW5nc3BhY2UvKmR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuZmJsb2IvKmR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuZ2luZGV4Lypkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2NhbmdzdG9yZS8qZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYomNjYW5odXBsb2FkLypkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2NhbmhhY2Nlc3MvKmR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuamZpbGVjb2luLypkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbmd1c2FnZS8qZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYY2F1ZFgi7QHoCbkdKq_Y-SuSX5d6hR5zmYI2F_nXMPPlZn16svbWsGNleHAaaZTW5mNmY3SBoWVzcGFjZaFkbmFtZWR0ZXN0Y2lzc1gi7QHaLIYEILE9ww23-nC4i6ui5y_k7bnyKEvmxWWm1HihSmNwcmaAjwwBcRIgNXBFyrMs-jlbUlzH3r10PrREH1MTdKByvIZxs8PceF-nYXNYRO2hA0AgSibb5P0kdnUM_tBl7AEZaokafj9DMMAc2Vs0tXcLsMwviY7Sz9l-askkNoC3ZyPRtxWSYFcaTBEpWBDY-NgPYXZlMC45LjFjYXR0i6JjY2Fub2FjY2Vzcy9kZWxlZ2F0ZWR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuanNwYWNlL2luZm9kd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbm5zcGFjZS9hbGxvY2F0ZWR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuaXN0b3JlL2FkZGR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuaXN0b3JlL2dldGR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FubHN0b3JlL3JlbW92ZWR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuanN0b3JlL2xpc3Rkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbmp1cGxvYWQvYWRkZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYomNjYW5rdXBsb2FkL2xpc3Rkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbm11cGxvYWQvcmVtb3ZlZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYomNjYW5sdXNhZ2UvcmVwb3J0ZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYY2F1ZFgi7QFK-hifCHqpVlF-fC8qXON3xRmZFmElqL7bqVnqK0zh7GNleHAaZ7UDnWNpc3NYIu0B6Am5HSqv2Pkrkl-XeoUec5mCNhf51zDz5WZ9erL21rBjcHJmi9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkPYKlglAAFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkPYKlglAAFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkPYKlglAAFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkNZAXESIDjqwWcdA2q6FFxDRanFor5rw3EDYHfSBXksItdkQuntoWp1Y2FuQDAuOS4x2CpYJQABcRIgNXBFyrMs-jlbUlzH3r10PrREH1MTdKByvIZxs8PceF8"
+        "X-Auth-Secret header": "uNDM1YzJhMzc1ZWExMzQ4OGFmYWJiZGEyODllNDM2YWY",
+        "Authorization header": "uOqJlcm9vdHOB2CpYJQABcRIgtcGNp3LpeJSW4MLycLBKi1SGUdXSkBSNTDAG6gRBrwBndmVyc2lvbgHTBgFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ6hhc1hE7aEDQCjyiZ2cwlTiWwAAtN1QX89jeHUnOjBVgIlGAexGvw4vnhM31MuqXXgkQCbXNyL0uoY1e7Rgo4Xw3tFOjmh66Q1hdmUwLjkuMWNhdHSIomNjYW5nc3BhY2UvKmR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuZmJsb2IvKmR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuZ2luZGV4Lypkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2NhbmdzdG9yZS8qZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYomNjYW5odXBsb2FkLypkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2NhbmhhY2Nlc3MvKmR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuamZpbGVjb2luLypkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbmd1c2FnZS8qZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYY2F1ZFgi7QHoCbkdKq_Y-SuSX5d6hR5zmYI2F_nXMPPlZn16svbWsGNleHAaaZTW5mNmY3SBoWVzcGFjZaFkbmFtZWR0ZXN0Y2lzc1gi7QHaLIYEILE9ww23-nC4i6ui5y_k7bnyKEvmxWWm1HihSmNwcmaAjwwBcRIg6w_0mJ039aRJfVMSsBoGkqGvcTJ8vIiqJGgfZeofjOanYXNYRO2hA0Cq62dPmJw3pFtScvMSddLzgHmY1BVeWEVkucPGG7poQsExwDSzV_gaFdnsYn2uc6nF0hYy2jjqWcHkYT0SH4YIYXZlMC45LjFjYXR0i6JjY2Fub2FjY2Vzcy9kZWxlZ2F0ZWR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuanNwYWNlL2luZm9kd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbm5zcGFjZS9hbGxvY2F0ZWR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuaXN0b3JlL2FkZGR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuaXN0b3JlL2dldGR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FubHN0b3JlL3JlbW92ZWR3aXRoeDhkaWQ6a2V5Ono2TWt1OHZKTm9WUkp5ejd4bU1oOFlGVERia0gxVXFWc20yZEhWdG44VzlERzZIWKJjY2FuanN0b3JlL2xpc3Rkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbmp1cGxvYWQvYWRkZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYomNjYW5rdXBsb2FkL2xpc3Rkd2l0aHg4ZGlkOmtleTp6Nk1rdTh2Sk5vVlJKeXo3eG1NaDhZRlREYmtIMVVxVnNtMmRIVnRuOFc5REc2SFiiY2Nhbm11cGxvYWQvcmVtb3ZlZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYomNjYW5sdXNhZ2UvcmVwb3J0ZHdpdGh4OGRpZDprZXk6ejZNa3U4dkpOb1ZSSnl6N3htTWg4WUZURGJrSDFVcVZzbTJkSFZ0bjhXOURHNkhYY2F1ZFgi7QFWW6SjRrbd42xxutreJV-3ArmX8LXDQ6C7N7jJoDHWYmNleHAaZ7VQgGNpc3NYIu0B6Am5HSqv2Pkrkl-XeoUec5mCNhf51zDz5WZ9erL21rBjcHJmi9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkPYKlglAAFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkPYKlglAAFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkPYKlglAAFxEiDad9zQ-uOq5E4TeMYjw6uOJCPhQmNbImsEQddpWY9uQ9gqWCUAAXESINp33ND646rkThN4xiPDq44kI-FCY1siawRB12lZj25D2CpYJQABcRIg2nfc0PrjquROE3jGI8OrjiQj4UJjWyJrBEHXaVmPbkNZAXESILXBjady6XiUluDC8nCwSotUhlHV0pAUjUwwBuoEQa8AoWp1Y2FuQDAuOS4x2CpYJQABcRIg6w_0mJ039aRJfVMSsBoGkqGvcTJ8vIiqJGgfZeofjOY"
     },
     "usage_report": {
         "Account": " did:mailto:gmail.com:starworks5",
         "Provider": " did:web:web3.storage",
         "Space": " did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX",
-        "Size": " 0",
-        "Total": " 3140049108"
+        "Size": " 324208",
+        "Total": " 3140373316"
     },
     "upload_list": [
-        "\u2042 No uploads in space",
-        "\u2042 Try out `w3 up <path to files>` to upload some"
+        "bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4"
     ],
     "upload_list_https": [
         {
@@ -35,18 +34,32 @@
                 "meta": {},
                 "out": {
                     "ok": {
-                        "results": [],
-                        "size": 0
+                        "before": "bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4",
+                        "results": [
+                            {
+                                "insertedAt": "2025-02-18T03:21:56.971Z",
+                                "root": {
+                                    "/": "bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4"
+                                },
+                                "shards": [
+                                    {
+                                        "/": "bagbaiera5xsfe5pr3t2vziwpbhers3o2p7eb2z5i4kjmdijy7y7l3vb6ycoa"
+                                    }
+                                ],
+                                "updatedAt": "2025-02-18T03:28:33.626Z"
+                            }
+                        ],
+                        "size": 1
                     }
                 },
                 "prf": [],
                 "ran": {
-                    "/": "bafyreifm5ky5ufxx6o6smkczk25r27s2oypwhb7fmytbt7xufo6ugxlrdu"
+                    "/": "bafyreiepyq4akmydwkktevc3oxjhwh3ptorniojqni77ygjwwo2e5vaapu"
                 }
             },
             "s": {
                 "/": {
-                    "bytes": "7aEDQF07Ji/zyGPE6Dgjylt9TdlJM+a2RWKLUMGOcIOODHHUPcEVNtEhCIJXAF1L6dG4pzYf7mOey3e9y5+CDMNzcAM"
+                    "bytes": "7aEDQDW0uZPpB0zMoniz0heMMgFZ1VDO4aNWsi2T/TSvNjbcMSuBhxpm8fViz+1IOk+i+1dxQn76q7SHxZ1Y/spPCgs"
                 }
             }
         }
@@ -64,19 +77,19 @@
                 "meta": {},
                 "out": {
                     "error": {
-                        "message": "Claim {\"can\":\"upload/add\"} is not authorized\n  - Can not derive [object Object] from delegated capabilities:\n    - Encountered malformed 'upload/add' capability: {\"nb\":{\"cid\":\"bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4\",\"file\":\"C:\\\\Users\\\\barberb\\\\AppData\\\\Local\\\\Temp\\\\small_file.bin\"},\"can\":\"upload/add\",\"with\":\"did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX\"}\n      - Object contains invalid field \"root\":\n        - Expected link but got undefined instead",
+                        "message": "Claim {\"can\":\"upload/add\"} is not authorized\n  - Can not derive [object Object] from delegated capabilities:\n    - Encountered malformed 'upload/add' capability: {\"nb\":{\"cid\":\"bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4\",\"file\":\"/small_file.bin\"},\"can\":\"upload/add\",\"with\":\"did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX\"}\n      - Object contains invalid field \"root\":\n        - Expected link but got undefined instead",
                         "name": "Unauthorized",
-                        "stack": "Unauthorized: Claim {\"can\":\"upload/add\"} is not authorized\n  - Can not derive [object Object] from delegated capabilities:\n    - Encountered malformed 'upload/add' capability: {\"nb\":{\"cid\":\"bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4\",\"file\":\"C:\\\\Users\\\\barberb\\\\AppData\\\\Local\\\\Temp\\\\small_file.bin\"},\"can\":\"upload/add\",\"with\":\"did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX\"}\n      - Object contains invalid field \"root\":\n        - Expected link but got undefined instead\n    at claim (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112035:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async Object.add (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112231:27)\n    at async invoke (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112509:23)\n    at async run (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124073:10)\n    at async Promise.all (index 0)\n    at async execute (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124060:5)\n    at async handle (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124043:20)\n    at async ucanInvocationRouter (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:137977:20)\n    at async processResult (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:94553:14)"
+                        "stack": "Unauthorized: Claim {\"can\":\"upload/add\"} is not authorized\n  - Can not derive [object Object] from delegated capabilities:\n    - Encountered malformed 'upload/add' capability: {\"nb\":{\"cid\":\"bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4\",\"file\":\"/small_file.bin\"},\"can\":\"upload/add\",\"with\":\"did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX\"}\n      - Object contains invalid field \"root\":\n        - Expected link but got undefined instead\n    at claim (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112035:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async Object.add (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112231:27)\n    at async invoke (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112509:23)\n    at async run (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124073:10)\n    at async Promise.all (index 0)\n    at async execute (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124060:5)\n    at async handle (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124043:20)\n    at async ucanInvocationRouter (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:137977:20)\n    at async processResult (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:94553:14)"
                     }
                 },
                 "prf": [],
                 "ran": {
-                    "/": "bafyreihhbqw5a2cos6jnk27nma6amrpdzkfsnfnj2mjlewsaxpznjib7k4"
+                    "/": "bafyreie23jaz5jmtn3qthwe7z5wq4t3bin2znqfqfj4jksppod2rhxctye"
                 }
             },
             "s": {
                 "/": {
-                    "bytes": "7aEDQKne+3tqp+X4rn6rbaocn+0lIouCYK+itCgpiqW95ENP7ul3YvW6jcuIm/VZg+5oUWk4R5tbmPbUp1U/NAag3wk"
+                    "bytes": "7aEDQI8Bi7LRkW95Yi4MdLthOFqlNNBsqPAIyeWkUo4WKhBbNXvCjH2vpsnI6Fdn8qdJHtSXfWbqvrhjjN+KeYYZpQk"
                 }
             }
         }
@@ -101,12 +114,12 @@
                 },
                 "prf": [],
                 "ran": {
-                    "/": "bafyreidv4sr22l6l6azswue2ceyuzozx2xnd5a3tzavwl4fhcffoo63hgm"
+                    "/": "bafyreid2qfe6bbtll2uf6o4px7utt3ovnew3xplse5iv7kqhdlcztgnzoa"
                 }
             },
             "s": {
                 "/": {
-                    "bytes": "7aEDQLKuSB8xFAGna2GSoh6RKkGUxY3Acdrt08FR/0QkjCSgiBT8TpJ2LLB1UdsxCki1V+lBzWrvjY7lxH6gteYeqwA"
+                    "bytes": "7aEDQAAJyV+fOPjlDCNGqFu4mbH9G+XISyrDzgIsg4dzGrNt1dALlZmXgCOvDVrqteRL2ZmtabTHscCyUqR10otBbQQ"
                 }
             }
         }
@@ -114,33 +127,7 @@
     "store_add": [
         "bagbaiera4oymiquy7qobjgx36tejs35zeqt24qpemsnzgtfeswmrw6csxbkq"
     ],
-    "store_add_https": [
-        {
-            "p": {
-                "fx": {
-                    "fork": []
-                },
-                "iss": "did:web:web3.storage",
-                "meta": {},
-                "out": {
-                    "error": {
-                        "message": "Claim {\"can\":\"store/add\"} is not authorized\n  - Can not derive [object Object] from delegated capabilities:\n    - Encountered malformed 'store/add' capability: {\"nb\":{\"link\":{\"C:\\\\Users\\\\barberb\\\\AppData\\\\Local\\\\Temp\\\\small_file.bin\":\"bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4\"},\"size\":6300},\"can\":\"store/add\",\"with\":\"did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX\"}\n      - Object contains invalid field \"link\":\n        - Expected link to be a CID instead of [object Object]",
-                        "name": "Unauthorized",
-                        "stack": "Unauthorized: Claim {\"can\":\"store/add\"} is not authorized\n  - Can not derive [object Object] from delegated capabilities:\n    - Encountered malformed 'store/add' capability: {\"nb\":{\"link\":{\"C:\\\\Users\\\\barberb\\\\AppData\\\\Local\\\\Temp\\\\small_file.bin\":\"bafybeids5n2s5p5i7mg5wxdz6eilwid6vvq7q5e7vmsen725zvx7sdyds4\"},\"size\":6300},\"can\":\"store/add\",\"with\":\"did:key:z6Mku8vJNoVRJyz7xmMh8YFTDbkH1UqVsm2dHVtn8W9DG6HX\"}\n      - Object contains invalid field \"link\":\n        - Expected link to be a CID instead of [object Object]\n    at claim (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112035:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async Object.add (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112231:27)\n    at async invoke (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:112509:23)\n    at async run (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124073:10)\n    at async Promise.all (index 0)\n    at async execute (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124060:5)\n    at async handle (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:124043:20)\n    at async ucanInvocationRouter (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:137977:20)\n    at async processResult (file:///var/task/upload-api/functions/ucan-invocation-router.mjs:94553:14)"
-                    }
-                },
-                "prf": [],
-                "ran": {
-                    "/": "bafyreifbb3uz4kt43km2mv3jryln3kzf6ab4wec5gylnnhpvf5brpxuc7q"
-                }
-            },
-            "s": {
-                "/": {
-                    "bytes": "7aEDQHgnqFG3hoeclhhzLY9X++yEmDbDT1Xp2DaL1GOXjOiRzeM2iXeIQS7bqiXsYYIGhOxjIv5M3tGFlIl/S/OyOg4"
-                }
-            }
-        }
-    ],
+    "store_add_https": "bagbaieraj6ltgrjkevsrar6q455s6mczgazyymdvr5k45aklgkpwj6wojfgq",
     "store_get": [
         "bagbaiera4oymiquy7qobjgx36tejs35zeqt24qpemsnzgtfeswmrw6csxbkq"
     ],
@@ -161,12 +148,12 @@
                 },
                 "prf": [],
                 "ran": {
-                    "/": "bafyreiaauayuuww6yag6wrke32yifprnerpmxqp5glvrpcaz7nkpjgevry"
+                    "/": "bafyreigsx4v2lynrlfg5jidx7zbcty4by2qp5v64pwcwv5gvv63ayuum2m"
                 }
             },
             "s": {
                 "/": {
-                    "bytes": "7aEDQDnCcXFCOyiC3aFGXFM+RwAs95Yar3/vwEzq80QCLMTsHSAp7S3Hj3YmORZTIH2kSgrRHplfyJB6MA+s5kfl/QI"
+                    "bytes": "7aEDQHZc1v1BIGZ/Osw9YGvrbqkSn+qihIQizmiVyiV6TndaAWgk7+17rINVRdxksCuQbtYGZtFQj2njRmMAcTwMpgM"
                 }
             }
         }
@@ -191,12 +178,12 @@
                 },
                 "prf": [],
                 "ran": {
-                    "/": "bafyreidojsj5i64yszo4mphwkflq3dgb6rgzi6y65vlrbgvrfehsqn2wve"
+                    "/": "bafyreiec7z4g4t7xna53465vvayd64jqalqa5ptj6kthaonbyjffhspday"
                 }
             },
             "s": {
                 "/": {
-                    "bytes": "7aEDQBzSTlbA9YtF+5DIYF5st3df7AEnrKFQVY1Co/c/fDKMA1pgq2KgvG9gPB1HpkyNSkhXxKG9Q7U4NoZsGu5auAo"
+                    "bytes": "7aEDQETq6kLNdXqQYiX4jW5ZQvCM1Lt2H7xD4TSu2FIA05WBUYZxfnEjczFpjsOnms5MyU+1tJbEIeuKbs61+DTxego"
                 }
             }
         }

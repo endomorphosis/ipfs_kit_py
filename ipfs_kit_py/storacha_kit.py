@@ -83,7 +83,7 @@ class storacha_kit:
         else:
             login_cmd = "w3 login " + login
         try:
-            results = subprocess.run(login_cmd, shell=True, check=True, capture_output=True, text=True)
+            results = subprocess.run(login_cmd, shell=True, check=True, capture_output=True, text=True, encoding='utf-8')
             ## wait for the user to enter the password
             while True:
                 if results.returncode == 0:
@@ -788,11 +788,12 @@ class storacha_kit:
             self.upload_remove(space, cid)
         return
     
-    def store_add_https(self, space, file):
+    def store_add_https(self, space, file, file_root):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "store/add"
-        file_path = os.path.abspath(file)
+        file_path = file.replace(file_root, "")
+        file_path = file_path.replace("\\", "/")
         car_length = None
         with tempfile.NamedTemporaryFile(suffix=".car", delete=False) as temp:
             temp_filename = temp.name
@@ -810,6 +811,25 @@ class storacha_kit:
         except subprocess.CalledProcessError as e:
             print(e)
             print("ipfs-car failed")
+        if platform.system() == "Windows":
+            car_hash_cmd = "npx ipfs-car hash " + temp_filename
+            car_hash_cmd = car_hash_cmd.replace("\\", "/")
+            car_hash_cmd = car_hash_cmd.split("/")
+            car_hash_cmd = "/".join(car_hash_cmd)
+        elif platform.system() == "Linux":
+            car_hash_cmd = "ipfs-car hash " + temp_filename
+        try:
+            car_hash_cmd_results = subprocess.run(car_hash_cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            results = car_hash_cmd_results.stderr.decode("utf-8").strip()
+            results += car_hash_cmd_results.stdout.decode("utf-8").strip()
+            results = results.split("\n")
+            results = [i.replace("\n", "") for i in results if i != ""]
+            results = results[0]
+            car_hash = results
+        except subprocess.CalledProcessError as e:
+            print(e)
+            print("ipfs-car failed")
+        
         car_length = os.path.getsize(temp_filename)
         data = {
             "tasks": [
@@ -817,7 +837,7 @@ class storacha_kit:
                     "store/add",
                     space,
                     {
-                        "link": { file_path: cid  },
+                        "link": { "/" : car_hash  },
                         "size": car_length
                     }
                 ]
@@ -825,7 +845,29 @@ class storacha_kit:
         }            
         results = self.storacha_http_request(auth_secret, authorization, method, data)
         results_data = results.json()
-        return results_data
+        if "status" in list(results_data[0]["p"]["out"]["ok"].keys()):
+            if results_data[0]["p"]["out"]["ok"]["status"] == "done":
+                cid = results_data[0]["p"]["out"]["ok"]["link"]["/"]
+                print ("⁂ Stored " + cid)
+                return cid
+                pass
+            elif results_data[0]["p"]["out"]["ok"]["status"] == "upload":
+                carpark_url = results_data[0]["p"]["out"]["ok"]["url"]
+                with_did_url = results_data[0]["p"]["out"]["ok"]["with"]
+                headers_url = results_data[0]["p"]["out"]["ok"]["headers"]
+                link_url = results_data[0]["p"]["out"]["ok"]["link"]
+                with open(temp_filename, 'rb') as f:
+                    carpark_cmd_results = requests.put(carpark_url, headers=headers_url, data=f)
+                    carpark_cmd_results = carpark_cmd_results.json()
+                    cid = carpark_cmd_results[0]["p"]["out"]["ok"]["link"]["/"]
+                    print ("⁂ Stored " + cid)
+                    return cid
+                pass
+        elif "error" in list(results_data[0]["p"]["out"]["ok"].keys()):
+            print("⁂ Error: " + results_data[0]["p"]["out"]["ok"]["error"])
+            return results_data[0]["p"]["out"]["ok"]["error"]
+        return None
+    
     
     def store_get_https(self, space, cid):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
@@ -876,7 +918,7 @@ class storacha_kit:
         results_data = results.json()
         return results_data
     
-    def upload_add_https(self, space, file):
+    def upload_add_https(self, space, file, file_root):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "upload/add"
@@ -904,6 +946,8 @@ class storacha_kit:
                 print (traceback.format_exc())
                 print("ipfs-car failed")
                 return False
+            filename = file.replace(file_root, "")
+            filename = filename.replace("\\", "/")
             if cid is not None:
                 data = {
                     "tasks": [
@@ -912,7 +956,7 @@ class storacha_kit:
                             space,
                             {
                                 "cid": cid,
-                                "file": file
+                                "file": filename
                             }
                         ]
                     ]

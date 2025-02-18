@@ -20,6 +20,7 @@ class test_storacha_kit:
         small_file_name = ""
         medium_file_name = ""
         large_file_name = ""
+        small_file_root = ""
         print("storacha_kit test")
         self.storacha_kit.install()
         email_did = self.storacha_kit.login(self.metadata["login"])
@@ -51,6 +52,7 @@ class test_storacha_kit:
         tempdir = tempfile.gettempdir()
         if os.path.exists(os.path.join(tempdir, "small_file.bin")):
             small_file_name = os.path.join(tempdir, "small_file.bin")
+            small_file_root = os.path.dirname(small_file_name)
         else:    
             with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as temp:
                 temp_filename = temp.name
@@ -61,14 +63,15 @@ class test_storacha_kit:
                 else:
                     os.system("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(small_file_size/1024))
                 small_file_name = os.path.join(os.path.dirname(temp_filename), "small_file.bin")
+                small_file_root = os.path.dirname(temp_filename)
         timestamps.append(time.time())
         upload_add = self.storacha_kit.upload_add(this_space, small_file_name)
         timestamps.append(time.time())
-        upload_add_https = self.storacha_kit.upload_add_https(this_space, small_file_name)
+        upload_add_https = self.storacha_kit.upload_add_https(this_space, small_file_name, small_file_root)
         timestamps.append(time.time())
         store_add = self.storacha_kit.store_add(this_space, small_file_name)
         timestamps.append(time.time())
-        store_add_https = self.storacha_kit.store_add_https(this_space, small_file_name)
+        store_add_https = self.storacha_kit.store_add_https(this_space, small_file_name, small_file_root)
         timestamps.append(time.time())
         upload_rm = self.storacha_kit.upload_remove(this_space, upload_add)
         timestamps.append(time.time())
