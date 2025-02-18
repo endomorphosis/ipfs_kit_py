@@ -910,7 +910,7 @@ class storacha_kit:
                     "store/get",
                     space,
                     {
-                        "cid": cid
+                        "link": { "/" : cid },
                     }
                 ]
             ]
@@ -935,7 +935,7 @@ class storacha_kit:
                     "store/remove",
                     space,
                     {
-                        "cid": cid
+                        "link": { "/" : cid },
                     }
                 ]
             ]
@@ -962,7 +962,7 @@ class storacha_kit:
         results_data = results.json()
         return results_data
     
-    def upload_add_https(self, space, file, file_root):
+    def upload_add_https(self, space, file, file_root, shards=None):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         method = "upload/add"
@@ -996,15 +996,19 @@ class storacha_kit:
                 data = {
                     "tasks": [
                         [
-                            "upload/add",
+                            "upload/remove",
                             space,
                             {
-                                "cid": cid,
-                                "file": filename
+                                "root": {
+                                    "/": cid
+                                },
                             }
                         ]
                     ]
                 }
+                if shards is not None:
+                    data["tasks"][0][2]["shards"] = shards
+
                 results = self.storacha_http_request(auth_secret, authorization, method, data)
                 results_data = results.json()
                 if "ok" in list(results_data[0]["p"]["out"].keys()):
@@ -1012,6 +1016,9 @@ class storacha_kit:
                         results = results_data[0]["p"]["out"]["ok"]["results"]
                         if len(results) == 0:
                             results = ['⁂ No uploads in space', '⁂ Try out `w3 up <path to files>` to upload some']
+                        return results
+                    if "root" in list(results_data[0]["p"]["out"]["ok"].keys()):
+                        results = results_data[0]["p"]["out"]["ok"]
                         return results
                 elif "error" in list(results_data[0]["p"]["out"].keys()):
                     print("⁂ Error: " + json.dumps(results_data[0]["p"]["out"]["error"]))
