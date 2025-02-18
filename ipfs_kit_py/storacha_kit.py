@@ -60,8 +60,14 @@ class storacha_kit:
             spaces = [i.split(" ") for i in results]
             spaces = {i[1]: i[0] for i in spaces}
             self.spaces = spaces
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("space_ls failed")
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
+
         return spaces
     
     def space_create(self, space):
@@ -75,6 +81,12 @@ class storacha_kit:
         except subprocess.CalledProcessError as e:
             space_create_cmd_results = e
             print("space_create failed")
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
+
         return space_create_cmd_results
     
     def login(self, login):
@@ -97,6 +109,11 @@ class storacha_kit:
         except subprocess.CalledProcessError as e:
             login_results = e
             print("login failed")
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return login_results
     
     def logout(self):
@@ -108,7 +125,11 @@ class storacha_kit:
             logout_results = subprocess.run(logout_cmd, shell=True, check=True)
         except subprocess.CalledProcessError as e:
             print("logout failed")
-            logout_results = e
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return logout_results
     
     def bridge_generate_tokens(self, space, permissions, expiration=None):
@@ -136,8 +157,14 @@ class storacha_kit:
             tokens = [i.split(":") for i in results]
             tokens = {i[0].strip() : i[1].strip() for i in tokens}
             self.tokens[space] = tokens
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("bridge_generate_tokens failed")
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
+
         return tokens
     
     def storacha_http_request(self, auth_secret, authorization,  method, data):
@@ -149,7 +176,12 @@ class storacha_kit:
         try:
             results = requests.post(url, headers=headers, json=data)
         except requests.exceptions.RequestException as e:
-            print(e)
+            print(f"HTTP request failed:")
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return results
     
         
@@ -379,8 +411,13 @@ class storacha_kit:
             try:
                 subprocess.run(install_w3_name_cmd, shell=True, check=True)
                 print("w3-name installed")
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
                 print("w3-name installation failed")
+                import traceback
+                error = e
+                error += traceback.format_exc()
+                print(error)
+                return ValueError(error)
         return None
     
     def store_add(self, space, file):
@@ -389,9 +426,13 @@ class storacha_kit:
             try:
                 results = subprocess.run(space_use_cmd, shell=True, check=True)
                 self.space = space
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
                 print("space use failed")
-                return False
+                import traceback
+                error = e
+                error += traceback.format_exc()
+                print(error)
+                return ValueError(error)
         
         with tempfile.NamedTemporaryFile(suffix=".car") as temp:
             filename = temp.name
@@ -421,7 +462,11 @@ class storacha_kit:
                 results = [i.replace("\n", "") for i in results if i != ""]
             except subprocess.CalledProcessError:
                 print("store_add failed")
-                return False
+                import traceback
+                error = e
+                error += traceback.format_exc()
+                print(error)
+                return ValueError(error)
             return results
         
     def store_get(self, space, cid):
@@ -448,6 +493,11 @@ class storacha_kit:
             results = [i.replace("\n", "") for i in results if i != ""]
         except subprocess.CalledProcessError:
             print("store_get failed")
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         if cid not in results:
             return False
         else:
@@ -476,7 +526,11 @@ class storacha_kit:
             results = results.decode("utf-8").strip()
         except subprocess.CalledProcessError:
             print("store_remove failed")
-            return False
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return [cid]
     
     def store_list(self, space):
@@ -493,7 +547,11 @@ class storacha_kit:
             results = [i.replace("\n", "") for i in results if i != ""]
         except subprocess.CalledProcessError:
             print("store_list failed")
-            return False
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return results
     
     def upload_add(self, space, file):
@@ -523,9 +581,12 @@ class storacha_kit:
             results = [i.strip() for i in results]
             results = [i.replace('⁂ https://w3s.link/ipfs/', "") for i in results]
         except subprocess.CalledProcessError as e:
-            print(e)
             print("upload_add failed")
-            return False
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return results
     
     def upload_list(self, space):
@@ -547,8 +608,12 @@ class storacha_kit:
             results = results.split("\n")
             results = [i.replace("\n", "") for i in results if i != ""]
         except subprocess.CalledProcessError as e:
-            results = e
+            import traceback
+            error = e
+            error += traceback.format_exc()
             print("upload_list failed")
+            print(error)
+            return ValueError(error)
         return results
     
     def upload_list_https(self, space):
@@ -574,7 +639,7 @@ class storacha_kit:
                 return results
         elif "error" in list(request_results[0]["p"]["out"].keys()):
             error = request_results[0]["p"]["out"]["error"]
-            return error
+            return ValueError(error)
         return results
     
     def upload_remove(self, space, cid):
@@ -599,9 +664,13 @@ class storacha_kit:
         try:
             results = subprocess.check_output(upload_remove_cmd, shell=True)
             results = results.decode("utf-8").strip()
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("upload_remove failed")
-            return False
+            import traceback
+            error = e
+            error += traceback.format_exc()
+            print(error)
+            return ValueError(error)
         return [cid]
     
     def upload_remove_https(self, space, cid):
@@ -628,8 +697,7 @@ class storacha_kit:
             return results
         if "error" in list(results[0]["p"]["out"].keys()):
             results = results[0]["p"]["out"]["error"]
-            return results
-        
+            return ValueError(results)
         return results
     
     def w3usage_report(self, space):
@@ -658,15 +726,20 @@ class storacha_kit:
             expiration = "date -v +24H +'%Y-%m-%dT%H:%M:%S'"
         else:
             expiration = "date -v +" + expiration + " +'%Y-%m-%dT%H:%M:%S'"
-        # expiration = subprocess.check_output(expiration, shell=True)
-        # expiration = expiration.decode("utf-8").strip()
-        # expiration = None
-        # access_delegate_cmd = access_delegate_cmd + " --expiration " + expiration
         try:
-            results = subprocess.run(access_delegate_cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
+            access_delegate_cmd_results = subprocess.run(access_delegate_cmd, shell=True, check=True, capture_output=True, text=True, encoding='utf-8')
+            results = access_delegate_cmd_results.stdout.strip()
+            results += access_delegate_cmd_results.stderr.strip()
+            results = results.split("\n")
+        except subprocess.CalledProcessError as e:
+            import traceback
+            error = e
+            error += traceback.format_exc()
             print("access_delegate failed")
-        return
+            print(error)
+            return ValueError(error)
+        
+        
     
     def access_revoke(self, space, email_did):
         if platform.system() == "Windows":
@@ -718,7 +791,7 @@ class storacha_kit:
             return results
         if "error" in list(results[0]["p"]["out"].keys()):
             results = results_data[0]["p"]["out"]["error"]
-            return results
+            return ValueError(results)
         return results_data
         
     def usage_report(self, space):
@@ -769,7 +842,7 @@ class storacha_kit:
             return results
         if "error" in list(results[0]["p"]["out"].keys()):
             results = results_data[0]["p"]["out"]["error"]
-            return results
+            return ValueError(results)
         return results_data
              
     def space_allocate(self, space, size):
@@ -895,8 +968,9 @@ class storacha_kit:
                     return [cid]
                 pass
         elif "error" in list(results_data[0]["p"]["out"]["ok"].keys()):
-            print("⁂ Error: " + results_data[0]["p"]["out"]["ok"]["error"])
-            return results_data[0]["p"]["out"]["ok"]["error"]
+            results = results_data[0]["p"]["out"]["ok"]["error"]
+            print("⁂ Error: " + results)
+            return ValueError(results)
         return None
     
     
@@ -922,7 +996,7 @@ class storacha_kit:
             return results
         if "error" in list(results_data[0]["p"]["out"].keys()):
             results = results_data[0]["p"]["out"]["error"]
-            return results
+            return ValueError(results)
         return results_data
         
     def store_remove_https(self, space, cid):
@@ -947,7 +1021,7 @@ class storacha_kit:
             return results
         if "error" in list(results_data[0]["p"]["out"].keys()):
             results = results_data[0]["p"]["out"]["error"]
-            return results
+            return ValueError(results)
         
         return results_data
         
