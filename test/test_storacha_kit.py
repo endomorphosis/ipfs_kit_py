@@ -20,6 +20,7 @@ class test_storacha_kit:
         small_file_name = ""
         medium_file_name = ""
         large_file_name = ""
+        large_file_root = ""
         small_file_root = ""
         print("storacha_kit test")
         self.storacha_kit.install()
@@ -87,17 +88,26 @@ class test_storacha_kit:
         timestamps.append(time.time())
         store_remove_https = self.storacha_kit.store_remove_https(this_space, store_add[0])
         timestamps.append(time.time())
-        # batch_operations = self.batch_operations(this_space, [small_file_name], [store_add[0]])  
+        batch_operations = self.storacha_kit.batch_operations(this_space, [large_file_name], [store_add[0]])  
         timestamps.append(time.time())
-        # file_size = 6 * 1024 * 1024 * 1024
-        # with tempfile.NamedTemporaryFile(suffix=".bin") as temp:
-        #     temp_filename = temp.name
-        #     temp_path = os.path.abspath(temp_filename)
-        #     os.system ("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(file_size/1024/1024))
-        #     with open(temp_path, "r") as file:
-        #         temp.write(file.read())
-        #     shard_upload = self.shard_upload(this_space, temp_path)
+        file_size = 6 * 1024 * 1024 * 1024
+        if os.path.exists(os.path.join(tempdir, "large_file.bin")):
+            large_file_name = os.path.join(tempdir, "large_file.bin")
+            large_file_root = os.path.dirname(large_file_name)
+            with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as temp:
+                temp_filename = temp.name
+                temp_path = os.path.join(tempdir, "large_file.bin")
+                if platform.system() == "Windows":
+                    with open(temp_path, 'wb') as f:
+                        f.write(b'\0' * large_file_size)
+                else:
+                    os.system("dd if=/dev/zero of="+ temp_path +" bs=1M count=" + str(large_file_size/1024))
+                large_file_name = os.path.join(os.path.dirname(temp_filename), "large_file.bin")
+                large_file_name = os.path.dirname(temp_filename)
         timestamps.append(time.time())
+        shard_upload = self.storacha_kit.shard_upload(this_space, large_file_name, large_file_root)
+        timestamps.append(time.time())
+    
         results = {
             "email_did": email_did,
             "spaces": spaces,
@@ -116,10 +126,12 @@ class test_storacha_kit:
             "store_get_https": store_get_https,
             "store_remove": store_remove,
             "store_remove_https": store_remove_https,
-            # "batch_operations": batch_operations,
-            # "shard_upload": shard_upload,
+            "batch_operations": batch_operations,
+            "shard_upload": shard_upload,
         }
-        
+        for key in results.keys():
+            if isinstance(results[key], ValueError):
+                results[key] = f"ValueError: {results[key]}"
         timestamps_results = {
             "email_did": timestamps[1] - timestamps[0],
             "bridge_tokens": timestamps[2] - timestamps[1],
@@ -136,8 +148,8 @@ class test_storacha_kit:
             "store_get_https": timestamps[13] - timestamps[12],
             "store_remove": timestamps[14] - timestamps[13],
             "store_remove_https": timestamps[15] - timestamps[14],
-            # "batch_operations": timestamps[16] - timestamps[15],
-            # "shard_upload": timestamps[17] - timestamps[16],
+            "batch_operations": timestamps[16] - timestamps[15],
+            "shard_upload": timestamps[17] - timestamps[16],
         }
         parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         with open( os.path.join(parent_dir, "test","test_storacha_kit_results.json"), "w") as file:

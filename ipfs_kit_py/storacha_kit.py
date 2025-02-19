@@ -491,7 +491,7 @@ class storacha_kit:
             results = results.decode("utf-8").strip()
             results = results.split("\n")
             results = [i.replace("\n", "") for i in results if i != ""]
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("store_get failed")
             import traceback
             error = e
@@ -524,7 +524,7 @@ class storacha_kit:
         try:
             results = subprocess.check_output(store_remove_cmd, shell=True)
             results = results.decode("utf-8").strip()
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("store_remove failed")
             import traceback
             error = e
@@ -545,7 +545,7 @@ class storacha_kit:
             results = results.decode("utf-8").strip()
             results = results.split("\n")
             results = [i.replace("\n", "") for i in results if i != ""]
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("store_list failed")
             import traceback
             error = e
@@ -590,8 +590,13 @@ class storacha_kit:
         return results
     
     def upload_list(self, space):
-        if space != self.space:
-            space_use = "w3 space use " + space
+        if space != self.space: 
+            if platform.system() == "Windows":
+                space_use = "npx w3 space use " + space
+            elif platform.system() == "Linux":
+                space_use = "w3 space use " + space
+            elif platform.system() == "Darwin":
+                space_use = "w3 space use " + space
             try:
                 results = subprocess.run(space_use, shell=True, check=True)
                 self.space = space
@@ -648,7 +653,9 @@ class storacha_kit:
         if space != self.space:
             if platform.system() == "Windows":
                 space_use = "npx w3 space use " + space
-            else:
+            elif platform.system() == "Linux":
+                space_use = "w3 space use " + space
+            elif platform.system() == "Darwin":
                 space_use = "w3 space use " + space
             try:
                 results = subprocess.run(space_use, shell=True, check=True)
@@ -656,21 +663,42 @@ class storacha_kit:
             except subprocess.CalledProcessError:
                 print("space use failed")
                 return False
+            
         
         if platform.system() == "Windows":
             upload_remove_cmd = "npx w3 rm " + cid
         else:
             upload_remove_cmd = "w3 rm " + cid
+        output = ""
         try:
-            results = subprocess.check_output(upload_remove_cmd, shell=True)
-            results = results.decode("utf-8").strip()
+            results = subprocess.run(upload_remove_cmd, shell=True, check=True, capture_output=True, text=True)
+            output = results.stdout.strip()
+            output += results.stderr.strip()
+            output = output.split("\n")
+            output = [i.replace("\n", "") for i in output if i != ""]
         except subprocess.CalledProcessError as e:
             print("upload_remove failed")
             import traceback
-            error = e
+            import re
+            error = str(e)
             error += traceback.format_exc()
+            error += "\n".join(output)
+            error += "\n" + e.stderr
+            stderr = e.stderr
+            stderr = stderr.split("{")
+            stderr = stderr[2:]
+            stderr = "{" + "{".join(stderr)
+            stderr = stderr.replace('\\n', "").strip()
+            
+            # Sanitize the malformed JSON
+            stderr = re.sub(r'([a-zA-Z0-9_/]+):', r'"\1":', stderr)  # Add quotes around property names
+            stderr = re.sub(r': \'([^\']+)\'', r': "\1"', stderr)  # Convert single-quoted values to double quotes
+            stderr = stderr.replace('\\n', '')  # Remove '\n' characters
+            
+            stderr = json.loads(stderr)
+            stderr = stderr["message"]
             print(error)
-            return ValueError(error)
+            return ValueError(stderr)
         return [cid]
     
     def upload_remove_https(self, space, cid):
@@ -1101,7 +1129,7 @@ class storacha_kit:
             else:
                 raise Exception("ipfs-car failed")
         
-    def shard_upload(self, space, file):
+    def shard_upload(self, space, file, file_root):
         auth_secret = self.tokens[space]["X-Auth-Secret header"]
         authorization = self.tokens[space]["Authorization header"]
         results = None
@@ -1109,8 +1137,11 @@ class storacha_kit:
         return results
 
     def batch_operations(self, space, files, cids):
-        
-        return None
+        auth_secret = self.tokens[space]["X-Auth-Secret header"]
+        authorization = self.tokens[space]["Authorization header"]
+        results = None
+        # results = self.storacha_http_request(auth_secret, authorization, method, data)
+        return results
 
     def test(self):
         import time
