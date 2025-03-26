@@ -258,23 +258,8 @@ class IPFSTieredStorage:
 | Integration Phase | 3 weeks | 45 person-days |
 | **Total** | **15 weeks** | **165 person-days** |
 
-### 6. Technology Selection Guidelines
 
-#### When To Use mmap or Arrow over Queues or HTTP?
-
-| Use case | Best choice |
-|----------|-------------|
-| Large binary or tabular data | mmap or Arrow |
-| Cross-language IPC (no overhead) | Arrow C Data Interface |
-| Multiple processes, same machine | mmap / Arrow |
-| Flexible, decoupled architecture | Queues / Message Passing |
-| Network-distributed components | gRPC / HTTP |
-| Peer-to-peer communication | libp2p |
-| Decentralized content routing | libp2p + DHT |
-| Self-organizing networks | libp2p |
-| Content-addressed data transfer | libp2p + IPLD |
-
-### 6. Project Spec: High-Performance IPC and Data Layer using Arrow + IPLD-style Keys + C Data Interface
+### 6. Future Project Spec: High-Performance IPC and Data Layer using Arrow + IPLD-style Keys + C Data Interface
 
 Overview
 
