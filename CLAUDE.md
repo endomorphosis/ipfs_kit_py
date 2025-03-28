@@ -15,6 +15,17 @@
 - **Build**: `python setup.py build`
 - **Run all tests**: `python -m test.test`
 - **Run single test**: `python -m test.test_ipfs_kit` or `python -m test.test_storacha_kit`
+- **Run API server**: `uvicorn ipfs_kit_py.api:app --reload --port 8000`
+- **Generate AST**: `python -m astroid ipfs_kit_py > ast_analysis.json`
+- **Check for duplications**: `pylint --disable=all --enable=duplicate-code ipfs_kit_py`
+
+### Development Guidelines
+- **Test-First Development**: All new features must first be developed in the test/ folder
+- **Feature Isolation**: Do not modify code outside of test/ until fully debugged
+- **API Exposure**: All functionality should be exposed via FastAPI endpoints
+- **Performance Focus**: Use memory-mapped structures and Arrow C Data Interface for low-latency IPC
+- **Code Analysis**: Maintain an abstract syntax tree (AST) of the project to identify and prevent code duplication
+- **DRY Principle**: Use the AST to enforce Don't Repeat Yourself by detecting similar code structures
 
 ### Required Dependencies
 - Python >=3.8
@@ -91,6 +102,8 @@ These REST APIs enable creating "swarms of swarms" by allowing distributed clust
 - **Documentation**: Add docstrings, type annotations, parameter validation
 - **Testing**: Separate test code from implementation, increase unit test coverage
 - **Code Quality**: Address redundant imports, string concatenation, security risks in subprocess calls
+- **Code Duplication**: Use AST analysis to identify similar code patterns across modules
+- **Refactoring**: Extract common patterns into reusable abstractions guided by AST similarity detection
 
 ## Development Roadmap
 
@@ -143,8 +156,15 @@ multiaddr>=0.0.9
 base58>=2.1.1
 eth-account>=0.8.0
 web3>=6.5.0
+fastapi>=0.100.0  # For API server
+uvicorn>=0.22.0   # ASGI server for FastAPI
+pydantic>=2.0.0   # For data validation
 faiss-cpu>=1.7.4  # For vector search
 networkx>=3.0     # For knowledge graph operations
+multiprocessing>=0.70.14  # For parallel processing
+mmap-backed-array>=0.7.0  # For shared memory arrays
+astroid>=2.15.0   # For AST generation and code analysis
+pylint>=2.17.0    # For code quality checks with AST support
 ```
 
 ### New Classes
@@ -154,14 +174,48 @@ networkx>=3.0     # For knowledge graph operations
 class FSSpecIPFSFileSystem(AbstractFileSystem):
     """FSSpec-compatible filesystem interface with ARC caching."""
     
-    def __init__(self, ipfs_path=None, cache_size=1024, cache_ttl=3600, **kwargs):
+    def __init__(self, ipfs_path=None, cache_size=1024, cache_ttl=3600, use_mmap=True, **kwargs):
         # Initialization with ARC cache configuration
+        # use_mmap enables memory-mapped files for low-latency access
         
     def _open(self, path, mode="rb", **kwargs):
         # Open file with tiered access strategy
         
     def ls(self, path, detail=True, **kwargs):
         # List objects with metadata
+        
+    def to_arrow_dataset(self, path_or_paths, **kwargs):
+        # Convert IPFS directory contents to Arrow dataset
+```
+
+#### IPFSAPIServer
+```python
+class IPFSAPIServer:
+    """FastAPI server exposing IPFS operations as REST endpoints."""
+    
+    def __init__(self, filesystem, host="0.0.0.0", port=8000):
+        # Initialize FastAPI app with filesystem reference
+        
+    def setup_routes(self):
+        # Configure API endpoints
+        
+    def start(self, debug=False):
+        # Launch the server with uvicorn
+```
+
+#### IPFSMultiprocessManager
+```python
+class IPFSMultiprocessManager:
+    """Manages multiprocessing workers for IPFS operations."""
+    
+    def __init__(self, num_workers=None, shared_mem_size=1024*1024*100):
+        # Initialize worker pool and shared memory
+        
+    def create_shared_array(self, shape, dtype):
+        # Create mmap-backed array for data sharing between processes
+        
+    def run_parallel(self, func, items):
+        # Distribute work across processes with shared memory IPC
 ```
 
 #### IPFSArrowIndex
@@ -225,6 +279,10 @@ class IPLDKnowledgeGraph:
 - Adaptive replacement cache
 - Integration with existing IPFS methods
 - Performance optimization
+- FastAPI server exposure for RESTful access
+- Test-driven development in test/ folder only until features are fully debugged
+- Multiprocessing implementation with memory queues (mmap or Arrow C Data Interface) for low-latency IPC
+- AST-based code analysis to detect and prevent duplication across components
 
 #### Phase 2: Arrow-based Metadata Index (4 weeks)
 - Schema design
@@ -249,6 +307,8 @@ class IPLDKnowledgeGraph:
 - End-to-end workflows
 - Performance optimization
 - Documentation
+- Comprehensive AST analysis of entire codebase
+- Final refactoring of duplicative patterns
 
 ### Estimated Effort
 
