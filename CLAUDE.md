@@ -3924,6 +3924,25 @@ The project includes comprehensive libp2p documentation in `/docs/libp2p_docs/`,
 
 The libp2p documentation is particularly relevant for implementing the role-based architecture (master/worker/leecher) outlined in this guide, as it provides the networking foundation for peer discovery, direct connections, and distributed content routing. The publish/subscribe mechanism is essential for coordinating distributed task processing across nodes.
 
+Additionally, the project includes a practical reference implementation of libp2p capabilities in `/docs/libp2p-universal-connectivity/`, which demonstrates cross-language interoperability using libp2p:
+
+- **Universal Connectivity Demo**: A real-time decentralized chat application showcasing libp2p's connectivity capabilities
+  - Implementations in multiple languages: Go, JavaScript, Rust, and Python
+  - Demonstrates cross-platform connectivity between browser and native applications
+  - Uses GossipSub for decentralized messaging
+  - Implements multiple transport protocols (WebTransport, WebRTC, QUIC, TCP)
+  - Shows practical implementation of direct messaging and file sharing protocols
+
+The Python implementation in `/docs/libp2p-universal-connectivity/python-peer/` serves as an excellent reference for implementing libp2p in Python applications, demonstrating:
+  - Node configuration with appropriate transports and protocols
+  - GossipSub-based pubsub for group messaging
+  - Direct peer-to-peer messaging
+  - File exchange protocols
+  - Peer discovery using mDNS and DHT
+  - Terminal-based user interface for interactive usage
+
+This reference implementation provides valuable patterns for message passing, content routing, and peer discovery that can be applied to the main ipfs_kit_py codebase.
+
 ## Documentation Relevance to Development Roadmap
 
 ### Tiered Storage with Adaptive Replacement Cache Implementation
@@ -4020,6 +4039,11 @@ docs/                   # Documentation
   ├── ipfs-docs/        # Core IPFS documentation
   ├── ipfs_cluster/     # IPFS Cluster documentation
   ├── libp2p_docs/      # libp2p networking documentation
+  ├── libp2p-universal-connectivity/ # libp2p connectivity demo
+  │   ├── go-peer/      # Go implementation
+  │   ├── js-peer/      # JavaScript/TypeScript implementation
+  │   ├── rust-peer/    # Rust implementation 
+  │   └── python-peer/  # Python implementation
   └── storacha_specs/   # Web3.Storage specifications
 ```
 
