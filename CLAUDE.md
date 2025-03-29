@@ -9,10 +9,14 @@
 6. [Advanced Features](#advanced-features)
 7. [Technology Selection Guidelines](#technology-selection-guidelines)
 8. [Troubleshooting](#troubleshooting)
-9. [Documentation Resources](#documentation-resources)
+9. [Documentation Resources](#9-documentation-resources)
    - [IPFS Cluster Documentation](#ipfs-cluster-documentation)
    - [Storacha/W3 Specifications](#storachaw3-specifications)
    - [Documentation Relevance to Development Roadmap](#documentation-relevance-to-development-roadmap)
+10. [Project Structure and Organization](#project-structure-and-organization)
+    - [Directory Layout](#directory-layout)
+    - [Component Relationships](#component-relationships)
+    - [Versioning Strategy](#versioning-strategy)
 
 ## Development Environment
 
@@ -33,6 +37,79 @@
 - **Code Analysis**: Maintain an abstract syntax tree (AST) of the project to identify and prevent code duplication
 - **DRY Principle**: Use the AST to enforce Don't Repeat Yourself by detecting similar code structures
 
+### Testing Strategy
+
+The project follows a comprehensive testing approach to ensure reliability and maintainability:
+
+#### Test Organization
+- **Unit Tests**: Located in the `test/` directory with file naming pattern `test_*.py`
+- **Integration Tests**: Also in `test/` but focused on component interactions
+- **Performance Tests**: Specialized tests for measuring throughput and latency
+
+#### Test Coverage Goals
+- **Core Library**: Minimum 85% line coverage
+- **API Layer**: Minimum 90% line coverage
+- **Storage Tiers**: Minimum 80% line coverage
+- **Exception Handling**: 100% coverage of error paths
+
+#### Test Patterns
+1. **Fixture-Based Testing**: Use pytest fixtures for test setup and teardown
+2. **Mocking IPFS Daemon**: Use subprocess mocking to avoid actual daemon dependency
+3. **Property-Based Testing**: Use hypothesis for edge case discovery
+4. **Snapshot Testing**: For configuration and schema verification
+5. **Parallelized Test Execution**: For faster feedback cycles
+
+#### Test Implementation Example
+```python
+import pytest
+from unittest.mock import patch, MagicMock
+from ipfs_kit_py.ipfs_kit import IPFSKit
+
+@pytest.fixture
+def ipfs_kit_instance():
+    """Create a properly configured IPFSKit instance for testing."""
+    with patch('subprocess.run') as mock_run:
+        # Mock successful daemon initialization
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.stdout = b'{"ID": "test-peer-id"}'
+        mock_run.return_value = mock_process
+        
+        # Create instance with test configuration
+        instance = IPFSKit(
+            role="leecher",
+            resources={"max_memory": 100 * 1024 * 1024},
+            metadata={"test_mode": True}
+        )
+        yield instance
+
+def test_add_content(ipfs_kit_instance):
+    """Test adding content to IPFS."""
+    # Arrange
+    test_content = b"Test content"
+    expected_cid = "QmTest123"
+    
+    with patch('subprocess.run') as mock_run:
+        # Mock successful content addition
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.stdout = f'{{"Hash": "{expected_cid}"}}'.encode()
+        mock_run.return_value = mock_process
+        
+        # Act
+        result = ipfs_kit_instance.add(test_content)
+        
+        # Assert
+        assert result["success"] is True
+        assert result["cid"] == expected_cid
+        mock_run.assert_called_once()
+```
+
+#### Continuous Integration Integration
+- Tests are run on every PR and commit to main branch
+- Test reports and coverage metrics are generated automatically
+- Performance regression tests compare against baseline benchmarks
+
 ### Required Dependencies
 - **Core Dependencies**:
   - Python >=3.8
@@ -41,6 +118,34 @@
   - boto3>=1.26.0
   - aiohttp>=3.8.4 (for async operations)
   - pydantic>=2.0.0 (for data validation)
+
+### API Documentation
+
+The project includes a FastAPI-based REST interface that exposes core functionality. The API server can be started with:
+```bash
+uvicorn ipfs_kit_py.api:app --reload --port 8000
+```
+
+#### Core API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Basic health check endpoint |
+| `/api/v0/add` | POST | Add content to IPFS |
+| `/api/v0/cat` | GET | Retrieve content by CID |
+| `/api/v0/pin/add` | POST | Pin content to local node |
+| `/api/v0/pin/rm` | POST | Unpin content |
+| `/api/v0/pin/ls` | GET | List pinned content |
+| `/api/v0/cluster/peers` | GET | List cluster peers |
+| `/api/v0/cluster/pin` | POST | Pin content across cluster |
+| `/api/v0/cluster/status` | GET | Get cluster-wide pin status |
+| `/api/v0/storage/tiers` | GET | List configured storage tiers |
+| `/api/v0/storage/migrate` | POST | Migrate content between tiers |
+
+#### API Integration
+The API follows the same patterns as the IPFS HTTP API but extends it with additional functionality for tiered storage, cluster management, and content routing. All API endpoints return JSON responses and accept either query parameters or JSON request bodies.
+
+For detailed API documentation, the server provides an interactive Swagger UI at `/docs` and an OpenAPI specification at `/openapi.json` when running.
 
 - **IPFS Binaries**:
   - Kubo (go-ipfs) >=0.18.0 or compatible implementation 
@@ -752,7 +857,8 @@ uvicorn>=0.22.0   # ASGI server for FastAPI
 pydantic>=2.0.0   # For data validation
 faiss-cpu>=1.7.4  # For vector search
 networkx>=3.0     # For knowledge graph operations
-multiprocessing>=0.70.14  # For parallel processing
+# multiprocessing is a standard library module (no version needed)
+concurrent.futures  # For parallel processing with thread and process pools
 mmap-backed-array>=0.7.0  # For shared memory arrays
 astroid>=2.15.0   # For AST generation and code analysis
 pylint>=2.17.0    # For code quality checks with AST support
@@ -2572,6 +2678,146 @@ The IPLD-based GraphRAG system combines vector similarity search with knowledge 
 }
 ```
 
+### Practical GraphRAG Example with LLM Integration
+
+Here's a practical example of using the GraphRAG system with a large language model:
+
+```python
+import torch
+from transformers import AutoTokenizer, AutoModel
+from ipfs_kit_py.ipfs_kit import IPFSKit
+from ipfs_kit_py.graph_rag import IPLDGraphRAG
+
+# Initialize components
+ipfs = IPFSKit(role="worker")  # Use worker role for processing capabilities
+tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+embedding_model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+graph_rag = IPLDGraphRAG(ipfs_client=ipfs)
+
+# 1. Create a knowledge graph with vector-enabled nodes
+def add_document_to_graph(doc_text, doc_metadata):
+    """Process a document and add it to the knowledge graph with vector embeddings."""
+    # Generate embedding for the document
+    inputs = tokenizer(doc_text, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        outputs = embedding_model(**inputs)
+    embeddings = mean_pooling(outputs, inputs['attention_mask'])
+    embedding_vector = embeddings[0].numpy()  # Get the vector
+    
+    # Create document entity in graph with vector
+    doc_id = f"doc_{uuid.uuid4()}"
+    graph_rag.add_entity(
+        entity_id=doc_id,
+        properties={
+            "type": "document",
+            "text": doc_text,
+            "title": doc_metadata.get("title", ""),
+            "source": doc_metadata.get("source", ""),
+            "created_at": doc_metadata.get("created_at", time.time())
+        },
+        vector=embedding_vector
+    )
+    
+    # Extract concepts and create relationships
+    concepts = extract_key_concepts(doc_text)  # Custom extraction function
+    for concept in concepts:
+        # Create or get concept entity
+        concept_id = f"concept_{slugify(concept)}"
+        if not graph_rag.get_entity(concept_id):
+            graph_rag.add_entity(
+                entity_id=concept_id,
+                properties={"type": "concept", "name": concept}
+            )
+        
+        # Link document to concept
+        graph_rag.add_relationship(
+            from_entity=doc_id,
+            to_entity=concept_id,
+            relationship_type="mentions",
+            properties={"confidence": 0.85}
+        )
+    
+    return doc_id
+
+# 2. Perform hybrid search combining vector similarity and graph traversal
+def query_knowledge_graph(query_text, top_k=5):
+    """Retrieve relevant information using hybrid vector+graph search."""
+    # Generate embedding for the query
+    inputs = tokenizer(query_text, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        outputs = embedding_model(**inputs)
+    query_embedding = mean_pooling(outputs, inputs['attention_mask'])
+    query_vector = query_embedding[0].numpy()
+    
+    # Perform hybrid search with 2-hop graph exploration
+    results = graph_rag.graph_vector_search(
+        query_vector=query_vector,
+        hop_count=2,
+        top_k=top_k
+    )
+    
+    # Extract and format the results
+    formatted_results = []
+    for result in results:
+        entity = graph_rag.get_entity(result["entity_id"])
+        formatted_results.append({
+            "id": result["entity_id"],
+            "score": result["score"],
+            "properties": entity["properties"],
+            "path": result["path"],  # The graph traversal path
+            "distance": result["distance"]  # Graph distance (hops)
+        })
+    
+    return formatted_results
+
+# Helper function for embedding generation
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0]
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+# 3. Use the retrieved context with an LLM
+def answer_with_rag(query, llm_client):
+    """Generate an answer using retrieved context from the knowledge graph."""
+    # Retrieve relevant context
+    context_items = query_knowledge_graph(query)
+    
+    # Format context for the LLM
+    context_text = "\n\n".join([
+        f"Document: {item['properties'].get('title', 'Untitled')}\n"
+        f"Content: {item['properties'].get('text', '')[:500]}...\n"
+        f"Relevance: {item['score']:.2f}"
+        for item in context_items
+    ])
+    
+    # Build prompt with context
+    prompt = f"""Answer the following question based on the provided context:
+
+Context:
+{context_text}
+
+Question: {query}
+
+Answer:"""
+    
+    # Get response from LLM
+    response = llm_client.generate_text(prompt)
+    
+    return {
+        "answer": response,
+        "sources": [item["id"] for item in context_items],
+        "context_used": context_text
+    }
+```
+
+This example demonstrates how to:
+1. Add documents to a knowledge graph with vector embeddings
+2. Create relationships between entities based on content analysis
+3. Perform hybrid retrieval combining vector similarity and graph traversal
+4. Use the retrieved context with an LLM to answer queries
+
+The GraphRAG approach provides more context-aware and relationship-informed retrieval compared to traditional vector-only approaches, enabling more accurate and explanatory responses from language models.
+
 ## Technology Selection Guidelines
 
 ### Choosing the Right Technology
@@ -2667,7 +2913,7 @@ cp -r ~/.ipfs.backup ~/.ipfs
 
 For more detailed troubleshooting, refer to the `/docs/ipfs-docs/docs/how-to/troubleshooting.md` guide.
 
-## Documentation Resources
+## 9. Documentation Resources
 
 ### IPFS Cluster Documentation
 The project includes IPFS Cluster documentation in `/docs/ipfs_cluster/`, which provides comprehensive information about IPFS Cluster's architecture and capabilities:
@@ -2788,3 +3034,118 @@ When implementing the `TieredCacheManager` class (as outlined in the Development
    - Use the "heat score" formula as shown in the `TieredCacheManager` implementation to prioritize eviction targets
 
 The comprehensive documentation in both IPFS Cluster and Storacha specifications provides the necessary protocol details to implement an efficient tiered storage system with sophisticated caching policies leveraging the best aspects of both technologies.
+
+## Project Structure and Organization
+
+### Directory Layout
+```
+ipfs_kit_py/            # Main package directory
+  ├── __init__.py       # Package initialization
+  ├── ipfs_kit.py       # Main orchestrator class
+  ├── ipfs.py           # Low-level IPFS (Kubo) operations
+  ├── ipfs_multiformats.py  # CID and multihash handling
+  ├── s3_kit.py         # S3-compatible storage operations
+  ├── storacha_kit.py   # Web3.Storage integration
+  ├── ipfs_cluster_service.py  # Cluster service management (master role)
+  ├── ipfs_cluster_ctl.py      # Cluster control operations
+  ├── ipfs_cluster_follow.py   # Follower mode operations (worker role)
+  ├── ipget.py          # Content retrieval utility
+  ├── install_ipfs.py   # Binary installation utilities
+  └── bin/              # IPFS binaries directory
+      ├── ipfs          # Kubo binary (platform-specific)
+      ├── ipfs-cluster-service
+      ├── ipfs-cluster-ctl
+      └── ipfs-cluster-follow
+test/                   # Test directory
+  ├── __init__.py
+  ├── test.py           # Test runner
+  ├── test_ipfs_kit.py  # Tests for main orchestrator
+  ├── test_storacha_kit.py  # Tests for Web3.Storage integration
+  └── test_s3_kit.py    # Tests for S3 storage
+docs/                   # Documentation
+  ├── ipfs-docs/        # Core IPFS documentation
+  ├── ipfs_cluster/     # IPFS Cluster documentation
+  └── storacha_specs/   # Web3.Storage specifications
+```
+
+### Component Relationships
+- **ipfs_kit.py**: Central orchestrator that coordinates other components
+- **ipfs.py**: Direct interaction with IPFS daemon (via HTTP API and Unix socket)
+- **ipfs_cluster_*.py**: Optional cluster components activated in master/worker roles
+- **s3_kit.py** and **storacha_kit.py**: Alternative storage backends
+
+### Versioning Strategy
+
+The ipfs_kit_py package follows Semantic Versioning (SemVer):
+
+- **MAJOR version** increments for incompatible API changes
+- **MINOR version** increments for new functionality in a backward-compatible manner
+- **PATCH version** increments for backward-compatible bug fixes
+
+#### Compatibility Guarantees
+
+| Component | Compatibility Promise |
+|-----------|----------------------|
+| Public API | Backward compatible within same MAJOR version |
+| Configuration | May require updates within MINOR versions |
+| Internal Implementation | May change at any time |
+| Role-based Features | May require reconfiguration across MINOR versions |
+
+#### Upgrading Guidelines
+- Always read the CHANGELOG.md before upgrading
+- Test upgrades in non-production environments first
+- MAJOR version upgrades require careful migration planning
+- Configuration files should be version-controlled
+
+### Implementation Dependencies and Imports
+
+When implementing the Adaptive Replacement Cache and other components, make sure to include these necessary imports:
+
+```python
+# Standard library imports
+import os
+import time
+import math
+import uuid
+import mmap
+import queue
+import random
+import logging
+import tempfile
+import threading
+from typing import Dict, List, Optional, Union, Any
+
+# Third-party imports
+import numpy as np
+import requests
+import requests_unixsocket  # For Unix socket support
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pyarrow.compute as pc
+from pyarrow.dataset import dataset
+import faiss  # For vector search
+import networkx as nx  # For knowledge graph operations
+```
+
+Additionally, ensure you implement these referenced but undefined methods:
+
+1. `_schedule_persist()` in the `IPLDGraphDB` class - used to schedule persistence of indexes
+2. `_get_peer_list()` in the `IPFSArrowIndex` class - used to discover peers for synchronization
+3. Create a proper logger instead of using undefined `logger` references:
+   ```python
+   # Initialize logger
+   logger = logging.getLogger(__name__)
+   ```
+
+### Connection with Implementation Code
+
+The role-based architecture (master/worker/leecher) described in this document should align with the actual implementation in `ipfs_kit.py`. When implementing these concepts:
+
+1. Ensure the role handling in `ipfs_kit.py` properly differentiates between:
+   - Master nodes: Full orchestration and coordination
+   - Worker nodes: Processing focus with cluster participation
+   - Leecher nodes: Lightweight consumption with minimal resource contribution
+
+2. Verify that Unix socket support is properly implemented for high-performance local operations on Linux systems.
+
+3. Ensure Arrow schema definitions remain consistent throughout the codebase and match the definitions in this document.
