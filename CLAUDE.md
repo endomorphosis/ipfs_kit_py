@@ -4338,11 +4338,12 @@ docker run --rm ipfs-kit-py:test python -m test.test
 docker run -d --name ipfs-master -p 5001:5001 -p 8080:8080 ipfs-kit-py:test master
 
 # Start a worker node connected to master
-docker run -d --name ipfs-worker --link ipfs-master \
-  ipfs-kit-py:test worker --master=ipfs-master:9096
+docker run -d --name ipfs-worker --link ipfs-master  ipfs-kit-py:test worker --master=ipfs-master:9096
+
+# Start a leecher node connected to master
+docker run -d --name ipfs-leecher --link ipfs-master  ipfs-kit-py:test worker --master=ipfs-master:9096
 
 # Run a test against the containerized instance
-docker run --rm --link ipfs-master \
-  -e IPFS_API_URL=http://ipfs-master:5001 \
-  ipfs-kit-py:test python -m test.test_distributed
+docker run --rm --link ipfs-master -e IPFS_API_URL=http://ipfs-master:5001 ipfs-kit-py:test python -m test.test_distributed
+
 ```
