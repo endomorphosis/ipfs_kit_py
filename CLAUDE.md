@@ -93,8 +93,9 @@ The ipfs_kit_py module implements a layered architecture with several key compon
 - **IPFS Cluster API**: REST interface (localhost:9094/api/v0) for cluster coordination
 - **IPFS Cluster Proxy**: Proxied IPFS API (localhost:9095/api/v0)
 - **IPFS Gateway**: Content retrieval via HTTP (localhost:8080/ipfs/[cid])
+- **IPFS Socket Interface**: Unix socket for high-performance local communication (/ip4/127.0.0.1/tcp/4001)
 
-These REST APIs enable creating "swarms of swarms" by allowing distributed clusters to communicate across networks and coordinate content pinning, replication, and routing across organizational boundaries.
+These APIs enable creating "swarms of swarms" by allowing distributed clusters to communicate across networks and coordinate content pinning, replication, and routing across organizational boundaries. The socket interface provides lower-latency communication for high-performance local operations.
 
 ### Areas for Improvement
 - **Code Structure**: Reduce duplication, improve cohesion, follow single responsibility principle
@@ -118,6 +119,7 @@ These REST APIs enable creating "swarms of swarms" by allowing distributed clust
   5. Storacha (durable, potentially higher latency)
   6. Filecoin (highest durability, lowest cost, highest latency)
 - Performance metrics collection and bandwidth optimization
+- Implement libp2p_py for direct peer connections to share IPFS CIDs
 
 ### 2. High-Performance Metadata Management
 - Apache Arrow-based routing index for metadata
@@ -165,6 +167,7 @@ multiprocessing>=0.70.14  # For parallel processing
 mmap-backed-array>=0.7.0  # For shared memory arrays
 astroid>=2.15.0   # For AST generation and code analysis
 pylint>=2.17.0    # For code quality checks with AST support
+libp2p-py>=0.2.0  # For direct peer-to-peer connections
 ```
 
 ### New Classes
@@ -186,6 +189,31 @@ class FSSpecIPFSFileSystem(AbstractFileSystem):
         
     def to_arrow_dataset(self, path_or_paths, **kwargs):
         # Convert IPFS directory contents to Arrow dataset
+```
+
+#### IPFSLibp2pPeer
+```python
+class IPFSLibp2pPeer:
+    """Direct peer-to-peer connection interface with libp2p_py."""
+    
+    def __init__(self, host_id=None, bootstrap_peers=None, listen_addr="/ip4/0.0.0.0/tcp/0"):
+        # Initialize libp2p node with host identity
+        # Connect to bootstrap peers if provided
+        
+    def connect_peer(self, peer_id, addrs=None):
+        # Establish direct connection to a peer
+        
+    def broadcast_cid(self, cid, metadata=None):
+        # Announce availability of a CID to connected peers
+        
+    def request_content(self, cid, timeout=60):
+        # Request content by CID from connected peers
+        
+    def start_discovery(self, rendezvous_string="ipfs-discovery"):
+        # Start mDNS and DHT-based peer discovery
+        
+    def register_protocol_handler(self, protocol_id, handler_func):
+        # Register custom protocol handler for specialized peer interactions
 ```
 
 #### IPFSAPIServer
@@ -401,10 +429,11 @@ The IPLD-based GraphRAG system combines vector similarity search with knowledge 
 | Multiple processes, same machine | mmap / Arrow |
 | Flexible, decoupled architecture | Queues / Message Passing |
 | Network-distributed components | gRPC / HTTP |
-| Peer-to-peer communication | libp2p |
-| Decentralized content routing | libp2p + DHT |
-| Self-organizing networks | libp2p |
-| Content-addressed data transfer | libp2p + IPLD |
+| Peer-to-peer communication | libp2p_py |
+| Decentralized content routing | libp2p_py + DHT |
+| Self-organizing networks | libp2p_py |
+| Content-addressed data transfer | libp2p_py + IPLD |
+| Direct CID sharing between peers | libp2p_py + custom protocols |
 | Vector similarity search | FAISS + Arrow |
 | Graph data and traversals | IPLD + custom indexing |
 | Hybrid search (vectors + graphs) | GraphRAG with IPLD storage |
