@@ -4284,6 +4284,60 @@ spec:
           claimName: ipfs-worker-storage
 ```
 
+
+#### Deployment for Leecher Nodes:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipfs-worker
+spec:
+  replicas: 1  # Adjust based on processing needs
+  selector:
+    matchLabels:
+      app: ipfs-worker
+  template:
+    metadata:
+      labels:
+        app: ipfs-worker
+    spec:
+      containers:
+      - name: ipfs-worker
+        image: ipfs-kit-py:latest
+        args: ["leecher", "--master=ipfs-master:9096"]
+        ports:
+        - containerPort: 4001
+          name: swarm
+        - containerPort: 5001
+          name: api
+        env:
+        - name: IPFS_PATH
+          value: /data/ipfs
+        - name: IPFS_CLUSTER_PATH
+          value: /data/ipfs-cluster
+        volumeMounts:
+        - name: ipfs-worker-storage
+          mountPath: /data
+        - name: config-volume
+          mountPath: /app/config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1"
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ipfs-kit-config
+      - name: ipfs-leecher-storage
+        persistentVolumeClaim:
+          claimName: ipfs-leecher-storage
+```
+
+
 #### Services for Network Discovery:
 
 ```yaml
