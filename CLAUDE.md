@@ -12,6 +12,7 @@
 9. [Documentation Resources](#9-documentation-resources)
    - [IPFS Cluster Documentation](#ipfs-cluster-documentation)
    - [Storacha/W3 Specifications](#storachaw3-specifications)
+   - [libp2p Documentation](#libp2p-documentation)
    - [Documentation Relevance to Development Roadmap](#documentation-relevance-to-development-roadmap)
 10. [Project Structure and Organization](#project-structure-and-organization)
     - [Directory Layout](#directory-layout)
@@ -168,6 +169,233 @@ For detailed API documentation, the server provides an interactive Swagger UI at
 - **Error Handling**: Use try/except blocks with results dictionary for error collection
 - **Subprocess Pattern**: Use subprocess.run() with captured output for system commands
 - **Testing Style**: Test classes follow `test_*` naming pattern with `init` and `test` methods
+
+### Standardized Error Handling Approach
+
+All components in the ipfs_kit_py project should follow these error handling patterns:
+
+#### Result Dictionary Pattern
+```python
+def perform_operation(self, arg1, arg2):
+    """Perform some IPFS operation with standardized result handling."""
+    result = {
+        "success": False,
+        "operation": "perform_operation",
+        "timestamp": time.time()
+    }
+    
+    try:
+        # Perform actual operation
+        response = self.ipfs.some_method(arg1, arg2)
+        
+        # Process successful response
+        result["success"] = True
+        result["cid"] = response.get("Hash")
+        result["size"] = response.get("Size")
+        
+    except requests.exceptions.ConnectionError as e:
+        # Network-related errors
+        result["error"] = f"IPFS daemon connection failed: {str(e)}"
+        result["error_type"] = "connection_error"
+        result["recoverable"] = True
+        self.logger.error(f"Connection error in {result['operation']}: {e}")
+        
+    except requests.exceptions.Timeout as e:
+        # Timeout errors
+        result["error"] = f"IPFS operation timed out: {str(e)}"
+        result["error_type"] = "timeout_error"
+        result["recoverable"] = True
+        self.logger.error(f"Timeout in {result['operation']}: {e}")
+        
+    except json.JSONDecodeError as e:
+        # Response parsing errors
+        result["error"] = f"Invalid response format from IPFS daemon: {str(e)}"
+        result["error_type"] = "parse_error"
+        result["recoverable"] = False
+        self.logger.error(f"Parse error in {result['operation']}: {e}")
+        
+    except Exception as e:
+        # Catch-all for unexpected errors
+        result["error"] = f"Unexpected error: {str(e)}"
+        result["error_type"] = "unknown_error"
+        result["recoverable"] = False
+        # Include stack trace in logs but not in result
+        self.logger.exception(f"Unexpected error in {result['operation']}")
+        
+    return result
+```
+
+#### Error Hierarchy
+Create specialized exceptions for common error scenarios:
+
+```python
+class IPFSError(Exception):
+    """Base class for all IPFS-related exceptions."""
+    pass
+
+class IPFSConnectionError(IPFSError):
+    """Error when connecting to IPFS daemon."""
+    pass
+
+class IPFSTimeoutError(IPFSError):
+    """Timeout when communicating with IPFS daemon."""
+    pass
+
+class IPFSContentNotFoundError(IPFSError):
+    """Content with specified CID not found."""
+    pass
+
+class IPFSValidationError(IPFSError):
+    """Input validation failed."""
+    pass
+
+class IPFSConfigurationError(IPFSError):
+    """IPFS configuration is invalid or missing."""
+    pass
+
+class IPFSPinningError(IPFSError):
+    """Error during content pinning/unpinning."""
+    pass
+```
+
+#### Error Recovery Patterns
+
+For recoverable errors like network issues, implement these retry patterns:
+
+```python
+def perform_with_retry(self, operation_func, *args, max_retries=3, 
+                      backoff_factor=2, **kwargs):
+    """Perform operation with exponential backoff retry."""
+    attempt = 0
+    last_exception = None
+    
+    while attempt < max_retries:
+        try:
+            return operation_func(*args, **kwargs)
+        except (requests.ConnectionError, requests.Timeout) as e:
+            attempt += 1
+            last_exception = e
+            
+            if attempt < max_retries:
+                # Calculate sleep time with exponential backoff
+                sleep_time = backoff_factor ** attempt
+                self.logger.warning(
+                    f"Retry attempt {attempt} after error: {str(e)}. "
+                    f"Waiting {sleep_time}s before retry."
+                )
+                time.sleep(sleep_time)
+            else:
+                self.logger.error(
+                    f"All {max_retries} retry attempts failed for operation. "
+                    f"Last error: {str(e)}"
+                )
+    
+    # If we get here, all retries failed
+    if last_exception:
+        raise last_exception
+        
+    # This should never happen, but just in case
+    raise RuntimeError("Retry loop exited without success or exception")
+```
+
+#### Batch Operation Error Handling
+
+For operations involving multiple items, use partial success handling:
+
+```python
+def pin_multiple(self, cids):
+    """Pin multiple CIDs with partial success handling."""
+    results = {
+        "success": True,  # Overall success (will be False if any operation fails)
+        "operation": "pin_multiple",
+        "timestamp": time.time(),
+        "total": len(cids),
+        "successful": 0,
+        "failed": 0,
+        "items": {}
+    }
+    
+    for cid in cids:
+        try:
+            pin_result = self.pin(cid)
+            results["items"][cid] = pin_result
+            
+            if pin_result["success"]:
+                results["successful"] += 1
+            else:
+                results["failed"] += 1
+                # Overall operation is a failure if any item fails
+                results["success"] = False
+                
+        except Exception as e:
+            results["items"][cid] = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+            results["failed"] += 1
+            results["success"] = False
+            
+    return results
+```
+
+#### Subprocess Error Handling
+
+For subprocess calls to IPFS binaries, use this pattern:
+
+```python
+def run_ipfs_command(self, cmd_args, check=True, timeout=30):
+    """Run IPFS command with proper error handling."""
+    result = {
+        "success": False,
+        "command": cmd_args[0] if cmd_args else None,
+        "timestamp": time.time()
+    }
+    
+    try:
+        # Never use shell=True for security
+        process = subprocess.run(
+            cmd_args,
+            capture_output=True,
+            check=check,  # Will raise CalledProcessError on non-zero exit
+            timeout=timeout
+        )
+        
+        # Process successful completion
+        result["success"] = True
+        result["returncode"] = process.returncode
+        result["stdout"] = process.stdout
+        
+        # Only include stderr if there's content
+        if process.stderr:
+            result["stderr"] = process.stderr
+            
+        return result
+        
+    except subprocess.TimeoutExpired as e:
+        result["error"] = f"Command timed out after {timeout} seconds"
+        result["error_type"] = "timeout"
+        self.logger.error(f"Timeout running command: {' '.join(cmd_args)}")
+        
+    except subprocess.CalledProcessError as e:
+        result["error"] = f"Command failed with return code {e.returncode}"
+        result["error_type"] = "process_error"
+        result["returncode"] = e.returncode
+        result["stdout"] = e.stdout
+        result["stderr"] = e.stderr
+        self.logger.error(
+            f"Command failed: {' '.join(cmd_args)}\n"
+            f"Return code: {e.returncode}\n"
+            f"Stderr: {e.stderr.decode('utf-8', errors='replace')}"
+        )
+        
+    except Exception as e:
+        result["error"] = f"Failed to execute command: {str(e)}"
+        result["error_type"] = "execution_error"
+        self.logger.exception(f"Exception running command: {' '.join(cmd_args)}")
+        
+    return result
+```
 
 ## Current Codebase Analysis
 
@@ -845,6 +1073,7 @@ These concepts are documented thoroughly in `/docs/ipfs-docs/docs/concepts/` and
 ```
 fsspec>=2023.3.0
 pyarrow>=12.0.0
+pyarrow-plasma>=12.0.0  # For Arrow C Data Interface via Plasma store
 lru-dict>=1.2.0
 cachetools>=5.3.0
 filecoin-api-client>=0.9.0
@@ -908,6 +1137,7 @@ class IPFSFileSystem(AbstractFileSystem):
         """Set up the appropriate IPFS connection based on available interfaces."""
         # Prefer Unix socket on Linux for performance
         if self.socket_path and os.path.exists(self.socket_path):
+            # Use consistent socket path format throughout the codebase
             self.api_base = f"http://unix:{self.socket_path}:/api/v0"
             self.session = requests.Session()
             self.session.mount("http://unix:", requests_unixsocket.UnixAdapter())
@@ -1104,7 +1334,12 @@ class TieredCacheManager:
 ##### IPFSLibp2pPeer
 ```python
 class IPFSLibp2pPeer:
-    """Direct peer-to-peer connection interface for IPFS content exchange."""
+    """Direct peer-to-peer connection interface for IPFS content exchange.
+    
+    Implementation based on patterns described in:
+    - /docs/libp2p_docs/content/concepts/fundamentals/peers.md 
+    - /docs/libp2p_docs/content/guides/getting-started/
+    """
     
     def __init__(self, 
                  host_id=None, 
@@ -1112,6 +1347,7 @@ class IPFSLibp2pPeer:
                  listen_addrs=None, 
                  role="leecher"):
         """Initialize a libp2p peer for direct IPFS content exchange.
+        See /docs/libp2p_docs/content/concepts/fundamentals/protocols.md for protocol negotiation details.
         
         Args:
             host_id: Optional peer identity (keypair)
@@ -1323,6 +1559,9 @@ class IPFSArrowIndex:
             partition_size: Max records per partition file
             sync_interval: How often to sync with peers (seconds)
         """
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+        
         self.base_path = os.path.expanduser(base_path)
         os.makedirs(self.base_path, exist_ok=True)
         
@@ -1484,16 +1723,10 @@ class IPFSArrowIndex:
         # Convert batch to table
         table = pa.Table.from_batches([self.record_batch])
         
-        # Determine partition path
-        partition_path = os.path.join(
-            self.base_path, 
-            f"ipfs_index_{self.current_partition_id:06d}.parquet"
-        )
-        
         # Write with compression
         pq.write_table(
             table, 
-            partition_path,
+            self._get_partition_path(self.current_partition_id),
             compression='zstd',
             compression_level=5,
             use_dictionary=True,
@@ -1572,6 +1805,12 @@ class IPFSArrowIndex:
             now = int(time.time() * 1000)  # ms timestamp
             record["last_accessed"] = now
             record["access_count"] = record["access_count"] + 1 if "access_count" in record else 1
+            
+            # Update heat score based on recency and frequency
+            decay_factor = 0.5  # Half life in days
+            days_since_added = (now - record["added_timestamp"]) / (1000 * 3600 * 24)
+            time_factor = 2 ** (-days_since_added * decay_factor)
+            record["heat_score"] = record["access_count"] * time_factor
             
             # Remove existing record and add updated one
             self.delete_by_cid(cid)
@@ -1706,7 +1945,7 @@ class IPLDGraphDB:
             ipfs_client: IPFS client instance
             base_path: Local storage for graph indexes
         """
-        self.ipfs = ipfs_client
+               self.ipfs = ipfs_client
         self.base_path = os.path.expanduser(base_path)
         os.makedirs(self.base_path, exist_ok=True)
         
@@ -1742,7 +1981,7 @@ class IPLDGraphDB:
         
         # Save locally
         with open(root_path, 'w') as f:
-            json.dump({"root_cid": root_cid}, f)
+            json.dump({"root_cid": new_root_cid}, f)
             
         return root_cid
         
@@ -1822,7 +2061,7 @@ class IPLDGraphDB:
         self._schedule_persist()
         
         return entity_id
-        
+
     def add_relationship(self, from_entity, to_entity, relationship_type, properties=None):
         """Add a relationship between entities."""
         if from_entity not in self.entities or to_entity not in self.entities:
@@ -1920,7 +2159,7 @@ class IPLDGraphDB:
         if "vectors" not in self.vectors or not self.vectors["vectors"]:
             return []
             
-        # Simple vector search implementation (for production use a proper ANN library)
+        # Simple vector searchimplementation (for production use a proper ANN library)
         query_vector = np.array(query_vector)
         all_vectors = np.array(self.vectors["vectors"])
         
@@ -2202,6 +2441,7 @@ class IPFSDataLoader:
             return None
 ```
 
+
 ### Implementation Phases
 
 #### Phase 1: FSSpec Filesystem Interface (3 weeks)
@@ -2319,42 +2559,68 @@ import mmap
 from typing import Dict, List, Optional, Union, Any
 
 class IPFSArrowIndex:
-    """Arrow-based metadata index for IPFS content with memory-mapped access."""
+    """Arrow-based metadata index for IPFS content using C Data Interface for zero-copy access."""
     
-    def __init__(self, index_dir: str = "~/.ipfs_index", partition_size: int = 1000000):
-        """Initialize the Arrow-based IPFS metadata index.
+    def __init__(self, index_dir: str = "~/.ipfs_index", partition_size: int = 1000000,
+                 role: str = "leecher", enable_c_interface: bool = True):
+        """Initialize the Arrow-based IPFS metadata index with C Data Interface support.
         
         Args:
             index_dir: Directory to store index partitions
             partition_size: Maximum number of records per partition
+            role: Node role ("master", "worker", or "leecher")
+            enable_c_interface: Whether to enable Arrow C Data Interface for zero-copy access
         """
         self.index_dir = os.path.expanduser(index_dir)
         os.makedirs(self.index_dir, exist_ok=True)
         self.partition_size = partition_size
+        self.role = role
+        self.enable_c_interface = enable_c_interface
         self.schema = self._create_schema()
         self.current_partition = self._get_latest_partition()
         self.mmap_files = {}
         self.in_memory_batch = None
+        self.c_data_interfaces = {}  # Stores C Data Interface exports
         self._load_latest_partition()
         
+        # Create shared memory region for real-time access
+        self._create_shared_memory_region()
+        
+        # Set up sync if master or worker
+        if role in ("master", "worker"):
+            self._schedule_sync()
+    
+    def _create_shared_memory_region(self):
+        """Create a shared memory region for real-time access via C Data Interface."""
+        # Initialize shared memory for active records
+        self.shared_memory_name = f"ipfs_index_{os.getpid()}"
+        self.shared_memory_path = f"/dev/shm/{self.shared_memory_name}"
+        
+        # Create an initial empty table with the schema
+        empty_arrays = []
+        for field in self.schema:
+            empty_arrays.append(pa.array([], type=field.type))
+        
+        self.shared_table = pa.Table.from_arrays(empty_arrays, schema=self.schema)
+        
+        # Export to shared memory using Arrow C Data Interface
+        if self.enable_c_interface:
+            self._export_to_c_data_interface()
+    
     def _create_schema(self) -> pa.Schema:
         """Define the Arrow schema for IPFS metadata."""
         return pa.schema([
             # Content identifier fields
-            pa.field('cid', pa.string()),
+            pa.field('cid', pa.string()),  # Primary IPFS identifier
             pa.field('cid_version', pa.int8()),
             pa.field('multihash_type', pa.string()),
             
-            # Content metadata
-            pa.field('size_bytes', pa.int64()),
-            pa.field('block_count', pa.int32()),
-            pa.field('content_type', pa.string()),
-            
-            # Storage metadata
-            pa.field('pinned', pa.bool_()),
-            pa.field('pin_types', pa.list_(pa.string())), 
-            pa.field('local', pa.bool_()),
-            pa.field('storage_tier', pa.string()),  # 'hot', 'warm', 'cold'
+            # File metadata
+            pa.field('unixfs_path', pa.string()),  # Complete UnixFS path
+            pa.field('filename', pa.string()),  # Extracted filename
+            pa.field('mimetype', pa.string()),  # Content MIME type
+            pa.field('size_bytes', pa.int64()),  # File size
+            pa.field('block_count', pa.int32()),  # Number of blocks
             
             # Access patterns
             pa.field('added_timestamp', pa.timestamp('ms')),
@@ -2362,16 +2628,84 @@ class IPFSArrowIndex:
             pa.field('access_count', pa.int32()),
             pa.field('heat_score', pa.float32()),  # Computed value for cache priority
             
+            # Multi-system storage locations
+            pa.field('storage_locations', pa.struct([
+                # IPFS-based locations
+                pa.field('ipfs', pa.struct([
+                    pa.field('pinned', pa.bool_()),
+                    pa.field('pin_types', pa.list_(pa.string())),
+                    pa.field('local', pa.bool_()),
+                    pa.field('gateway_urls', pa.list_(pa.string())),
+                ])),
+                
+                # IPFS Cluster locations
+                pa.field('ipfs_cluster', pa.struct([
+                    pa.field('pinned', pa.bool_()),
+                    pa.field('replication_factor', pa.int8()),
+                    pa.field('allocation_nodes', pa.list_(pa.string())),
+                    pa.field('pin_status', pa.string()),
+                ])),
+                
+                # libp2p direct peers that have this content
+                pa.field('libp2p', pa.struct([
+                    pa.field('peers', pa.list_(pa.string())),  # Peer IDs
+                    pa.field('protocols', pa.list_(pa.string())),  # Supported protocols
+                    pa.field('multiaddrs', pa.list_(pa.string())),  # Connection addresses
+                ])),
+                
+                # Storacha/W3 locations
+                pa.field('storacha', pa.struct([
+                    pa.field('car_cid', pa.string()),  # CAR file CID containing this content
+                    pa.field('upload_id', pa.string()),
+                    pa.field('space_did', pa.string()),  # DID for the space where content is stored
+                    pa.field('stored_timestamp', pa.timestamp('ms')),
+                ])),
+                
+                # S3 storage locations (multi-region, multi-bucket)
+                pa.field('s3', pa.list_(pa.struct([
+                    pa.field('provider', pa.string()),  # 'aws', 'gcp', 'azure', etc.
+                    pa.field('region', pa.string()),
+                    pa.field('bucket', pa.string()),
+                    pa.field('key', pa.string()),
+                    pa.field('storage_class', pa.string()),  # 'STANDARD', 'GLACIER', etc.
+                    pa.field('etag', pa.string()),
+                    pa.field('version_id', pa.string()),
+                ]))),
+                
+                # Filecoin storage
+                pa.field('filecoin', pa.struct([
+                    pa.field('deal_id', pa.string()),
+                    pa.field('providers', pa.list_(pa.string())),
+                    pa.field('replication_factor', pa.int8()),
+                    pa.field('deal_expiration', pa.timestamp('ms')),
+                    pa.field('verified_deal', pa.bool_()),
+                ])),
+                
+                # HuggingFace Hub
+                pa.field('huggingface_hub', pa.struct([
+                    pa.field('repo_id', pa.string()),
+                    pa.field('repo_type', pa.string()),
+                    pa.field('file_path', pa.string()),
+                    pa.field('revision', pa.string()),
+                    pa.field('commit_hash', pa.string()),
+                ])),
+            ])),
+            
+            # Current storage tier 
+            pa.field('current_tier', pa.string()),  # 'memory', 'disk', 'cluster', 'storacha', 'filecoin', etc.
+            
             # Extended metadata (schematized)
             pa.field('metadata', pa.struct([
                 pa.field('name', pa.string()),
-                pa.field('path', pa.string()),
-                pa.field('tags', pa.list_(pa.string())),
                 pa.field('description', pa.string()),
+                pa.field('tags', pa.list_(pa.string())),
                 pa.field('source', pa.string()),
+                pa.field('license', pa.string()),
+                pa.field('created_by', pa.string()),
+                pa.field('original_path', pa.string()),
             ])),
             
-            # Arbitrary metadata (flexible)
+            # Arbitrary unstructured metadata (flexible)
             pa.field('extra', pa.map_(pa.string(), pa.string()))
         ])
     
@@ -2387,63 +2721,465 @@ class IPFSArrowIndex:
         """Get the path for a specific partition."""
         return os.path.join(self.index_dir, f"ipfs_index_{partition_num:06d}.parquet")
     
-    def _load_latest_partition(self) -> None:
-        """Load the latest partition into memory."""
+    def _export_to_c_data_interface(self):
+        """Export the shared table using Arrow C Data Interface.
+        
+        This allows zero-copy access from other languages and processes.
+        """
+        try:
+            import pyarrow.plasma as plasma
+            
+            # Create or connect to plasma store for shared memory
+            if not hasattr(self, 'plasma_client'):
+                self.plasma_client = plasma.connect(self.shared_memory_path)
+                
+            # Generate object ID for the table
+            import hashlib
+            object_id = plasma.ObjectID(hashlib.md5(f"{self.shared_memory_name}_{time.time()}".encode()).digest()[:20])
+            
+            # Create and seal the object
+            data_size = self.shared_table.nbytes
+            buffer = self.plasma_client.create(object_id, data_size)
+            writer = pa.RecordBatchStreamWriter(pa.FixedSizeBufferWriter(buffer), self.shared_table.schema)
+            writer.write_table(self.shared_table)
+            writer.close()
+            self.plasma_client.seal(object_id)
+            
+            # Store the object ID for reference
+            self.current_object_id = object_id
+            
+            # Store C Data Interface export
+            self.c_data_interface_handle = {
+                'object_id': object_id.binary().hex(),
+                'plasma_socket': self.shared_memory_path,
+                'schema_json': self.schema.to_string(),
+                'num_rows': self.shared_table.num_rows,
+                'timestamp': time.time()
+            }
+            
+            # Write C Data Interface metadata to disk for other processes
+            cdi_path = os.path.join(self.index_dir, 'c_data_interface.json')
+            with open(cdi_path, 'w') as f:
+                import json
+                json.dump(self.c_data_interface_handle, f)
+                
+            self.logger.info(f"Exported index to C Data Interface: {cdi_path}")
+            return self.c_data_interface_handle
+            
+        except ImportError:
+            self.logger.warning("PyArrow Plasma not available. C Data Interface export disabled.")
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to export C Data Interface: {str(e)}")
+            return None
+            
+    def get_c_data_interface(self):
+        """Get the C Data Interface handle for external access.
+        
+        Returns:
+            Dictionary with C Data Interface metadata for accessing the shared table
+        """
+        if hasattr(self, 'c_data_interface_handle'):
+            return self.c_data_interface_handle
+        else:
+            return None
+    
+    def _load_latest_partition(self):
+        """Load the latest partition into memory for fast access using memory mapping."""
         partition_path = self._get_partition_path(self.current_partition)
         if os.path.exists(partition_path):
-            # Memory-map the parquet file for fast random access
-            table = pq.read_table(partition_path, memory_map=True)
-            self.in_memory_batch = table.to_batches()[0] if table.num_rows > 0 else None
-            
-            # Keep reference to the memory-mapped file
-            file_obj = open(partition_path, 'rb')
-            mmap_obj = mmap.mmap(file_obj.fileno(), 0, access=mmap.ACCESS_READ)
-            self.mmap_files[partition_path] = (file_obj, mmap_obj)
+            try:
+                # Memory-map the parquet file for fast random access
+                self.logger.info(f"Memory-mapping parquet file: {partition_path}")
+                
+                # Use PyArrow's native memory mapping 
+                table = pq.read_table(partition_path, memory_map=True)
+                
+                # Get record batch for in-memory work
+                self.in_memory_batch = table.to_batches()[0] if table.num_rows > 0 else None
+                
+                # Keep reference to the memory-mapped file
+                file_obj = open(partition_path, 'rb')
+                mmap_obj = mmap.mmap(file_obj.fileno(), 0, access=mmap.ACCESS_READ)
+                self.mmap_files[partition_path] = (file_obj, mmap_obj)
+                
+                # Update the shared table for C Data Interface access
+                if self.in_memory_batch is not None:
+                    self.shared_table = pa.Table.from_batches([self.in_memory_batch])
+                    if self.enable_c_interface:
+                        self._export_to_c_data_interface()
+                
+                self.logger.info(f"Loaded partition with {table.num_rows} records")
+                
+            except Exception as e:
+                self.logger.error(f"Error memory-mapping partition: {str(e)}")
+                self.in_memory_batch = None
         else:
             self.in_memory_batch = None
     
-    def add_record(self, record: Dict[str, Any]) -> None:
-        """Add a metadata record to the index."""
-        # Convert record to PyArrow format
-        arrays = []
-        for field in self.schema:
-            field_name = field.name
-            if field_name in record:
-                arrays.append(pa.array([record[field_name]], type=field.type))
+    def add_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Add a metadata record to the index.
+        
+        Args:
+            record: Dictionary containing metadata fields matching the schema
+            
+        Returns:
+            Status dictionary with operation result
+        """
+        result = {
+            "success": False,
+            "operation": "add_record",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Validate and prepare the record
+            self._validate_record(record)
+            
+            # Add required timestamps if missing
+            current_time = pa.scalar(time.time() * 1000).cast(pa.timestamp('ms'))
+            if 'added_timestamp' not in record:
+                record['added_timestamp'] = current_time
+            if 'last_accessed' not in record:
+                record['last_accessed'] = current_time
+                
+            # Set default values for required fields if missing
+            if 'access_count' not in record:
+                record['access_count'] = 1
+            if 'heat_score' not in record:
+                record['heat_score'] = self._calculate_heat_score(record)
+                
+            # Convert record to PyArrow format
+            arrays = []
+            for field in self.schema:
+                field_name = field.name
+                if field_name in record:
+                    arrays.append(pa.array([record[field_name]], type=field.type))
+                else:
+                    arrays.append(pa.array([None], type=field.type))
+                    
+            # Create a record batch
+            batch = pa.RecordBatch.from_arrays(arrays, schema=self.schema)
+            
+            # Append to in-memory batch
+            if self.in_memory_batch is None:
+                self.in_memory_batch = batch
             else:
-                arrays.append(pa.array([None], type=field.type))
-        
-        # Create record batch
-        batch = pa.RecordBatch.from_arrays(arrays, schema=self.schema)
-        
-        # Add to in-memory batch or create new one
-        if self.in_memory_batch is None:
-            self.in_memory_batch = batch
-        else:
-            self.in_memory_batch = pa.concat_batches([self.in_memory_batch, batch])
-        
-        # Check if we need to write to disk and create new partition
-        if self.in_memory_batch.num_rows >= self.partition_size:
-            self._write_current_batch()
-            self.current_partition += 1
-            self.in_memory_batch = None
-    
-    def _write_current_batch(self) -> None:
-        """Write the current in-memory batch to parquet."""
-        if self.in_memory_batch is None or self.in_memory_batch.num_rows == 0:
-            return
+                self.in_memory_batch = pa.concat_batches([self.in_memory_batch, batch])
+                
+            # Update shared table for C Data Interface access
+            self.shared_table = pa.Table.from_batches([self.in_memory_batch])
             
-        # Convert batch to table
-        table = pa.Table.from_batches([self.in_memory_batch])
-        
-        # Write to parquet with compression
-        pq.write_table(
-            table, 
-            self._get_partition_path(self.current_partition),
-            compression='zstd',
-            compression_level=3
-        )
+            # Re-export via C Data Interface if enabled
+            if self.enable_c_interface:
+                cdi_result = self._export_to_c_data_interface()
+                if cdi_result:
+                    result["c_data_interface_updated"] = True
+            
+            # Check if we need to create a new partition
+            if self.in_memory_batch.num_rows >= self.partition_size:
+                self._persist_current_partition()
+                self.current_partition += 1
+                self.in_memory_batch = None
+                result["partition_rotated"] = True
+                
+            # Schedule async persistence if needed
+            self._schedule_persist()
+            
+            result["success"] = True
+            result["record_added"] = True
+            result["cid"] = record.get("cid", None)
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error adding record: {e}")
+            
+        return result
     
+    def _get_peer_list(self) -> List[str]:
+        """Discover peers for index synchronization.
+        
+        Returns:
+            List of peer identifiers that can share index data
+        """
+        # Request peer list from IPFS
+        peers = []
+        
+        # If we're a master, get cluster nodes
+        if self.role == "master":
+            try:
+                cluster_peers = self.ipfs_cluster.peers()
+                if cluster_peers.get("success", False):
+                    peers.extend([p["id"] for p in cluster_peers.get("peers", [])])
+            except Exception as e:
+                self.logger.warning(f"Failed to get cluster peers: {str(e)}")
+        
+        # For all roles, get connected libp2p peers supporting our protocol
+        try:
+            libp2p_peers = self.libp2p_host.get_peers_with_protocol("/ipfs-index/sync/1.0.0")
+            peers.extend(libp2p_peers)
+        except Exception as e:
+            self.logger.warning(f"Failed to get libp2p peers: {str(e)}")
+        
+        return list(set(peers))  # Deduplicate
+            
+    def sync_with_peers(self) -> Dict[str, Any]:
+        """Synchronize index with other peers.
+        
+        Fetches and merges index updates from peers, and publishes
+        our own updates to the network.
+        
+        Returns:
+            Status information about the sync operation
+        """
+        result = {
+            "success": False,
+            "peers_contacted": 0,
+            "records_received": 0,
+            "records_sent": 0,
+            "errors": []
+        }
+        
+        # Get list of peers to sync with
+        peers = self._get_peer_list()
+        result["peers_available"] = len(peers)
+        
+        if not peers:
+            result["success"] = True  # No peers is still a successful sync
+            return result
+            
+        # Sync with each peer
+        for peer_id in peers:
+            try:
+                # Exchange index data with peer
+                peer_result = self._sync_with_peer(peer_id)
+                
+                # Update statistics
+                result["peers_contacted"] += 1
+                result["records_received"] += peer_result.get("records_received", 0)
+                result["records_sent"] += peer_result.get("records_sent", 0)
+                
+            except Exception as e:
+                error_msg = f"Failed to sync with peer {peer_id}: {str(e)}"
+                result["errors"].append(error_msg)
+                self.logger.error(error_msg)
+        
+        # Set overall success if we contacted at least one peer
+        result["success"] = result["peers_contacted"] > 0
+        
+        return result
+        
+    def find_content_locations(self, cid: str = None, path: str = None, mimetype: str = None) -> Dict[str, Any]:
+        """Find all storage locations for a specific piece of content.
+        
+        Search by CID, path, or other metadata to locate all storage systems
+        where this content is available.
+        
+        Args:
+            cid: Content Identifier to search for
+            path: UnixFS path to search for
+            mimetype: MIME type to filter by
+            
+        Returns:
+            Dictionary with search results and available storage locations
+        """
+        result = {
+            "success": False,
+            "content_found": False,
+            "locations": [],
+            "fastest_retrieval_path": None,
+            "error": None
+        }
+        
+        try:
+            # Build filtering conditions
+            conditions = []
+            if cid:
+                conditions.append(pc.equal(pc.field('cid'), pa.scalar(cid)))
+            if path:
+                conditions.append(pc.equal(pc.field('unixfs_path'), pa.scalar(path)))
+            if mimetype:
+                conditions.append(pc.equal(pc.field('mimetype'), pa.scalar(mimetype)))
+                
+            if not conditions:
+                result["error"] = "At least one search parameter is required"
+                return result
+                
+            # Combine conditions with AND
+            filter_expr = conditions[0]
+            for condition in conditions[1:]:
+                filter_expr = pc.and_(filter_expr, condition)
+                
+            # Search in-memory batch if it exists
+            records = []
+            if self.in_memory_batch is not None:
+                table = pa.Table.from_batches([self.in_memory_batch])
+                filtered_table = table.filter(filter_expr)
+                if filtered_table.num_rows > 0:
+                    records.extend(filtered_table.to_pylist())
+                    
+            # Search on-disk partitions
+            dataset_path = self.index_dir
+            if os.path.exists(dataset_path):
+                ds = dataset(dataset_path, format="parquet")
+                filtered_ds = ds.to_table(filter=filter_expr)
+                if filtered_ds.num_rows > 0:
+                    records.extend(filtered_ds.to_pylist())
+                    
+            # Process results
+            if records:
+                result["content_found"] = True
+                result["record_count"] = len(records)
+                
+                # Extract storage locations from all matching records
+                for record in records:
+                    locations = self._extract_storage_locations(record)
+                    result["locations"].extend(locations)
+                    
+                # Determine fastest retrieval path
+                result["fastest_retrieval_path"] = self._determine_fastest_path(result["locations"])
+                
+            result["success"] = True
+            
+        except Exception as e:
+            result["error"] = str(e)
+            self.logger.error(f"Error finding content locations: {e}")
+            
+        return result
+        
+    def _extract_storage_locations(self, record: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract all storage locations from a record.
+        
+        Converts the structured storage_locations field into a list of 
+        available locations with metadata about each.
+        
+        Args:
+            record: PyArrow record converted to Python dict
+            
+        Returns:
+            List of storage location dictionaries with access info
+        """
+        locations = []
+        storage_data = record.get("storage_locations", {})
+        
+        # Process IPFS locations
+        ipfs_data = storage_data.get("ipfs", {})
+        if ipfs_data and ipfs_data.get("local", False):
+            locations.append({
+                "type": "ipfs",
+                "local": True,
+                "access_method": "ipfs.cat",
+                "cid": record.get("cid"),
+                "latency_estimate_ms": 10,  # Local access is fastest
+                "gateway_urls": ipfs_data.get("gateway_urls", []),
+                "pinned": ipfs_data.get("pinned", False)
+            })
+            
+        # Process IPFS Cluster locations
+        cluster_data = storage_data.get("ipfs_cluster", {})
+        if cluster_data and cluster_data.get("pinned", False):
+            locations.append({
+                "type": "ipfs_cluster",
+                "access_method": "cluster.get",
+                "cid": record.get("cid"),
+                "latency_estimate_ms": 50,
+                "allocation_nodes": cluster_data.get("allocation_nodes", []),
+                "replication_factor": cluster_data.get("replication_factor", 1)
+            })
+            
+        # Process libp2p locations
+        libp2p_data = storage_data.get("libp2p", {})
+        if libp2p_data and libp2p_data.get("peers", []):
+            locations.append({
+                "type": "libp2p",
+                "access_method": "libp2p.direct_fetch",
+                "cid": record.get("cid"),
+                "latency_estimate_ms": 100,
+                "peers": libp2p_data.get("peers", []),
+                "multiaddrs": libp2p_data.get("multiaddrs", [])
+            })
+            
+        # Process S3 locations
+        s3_entries = storage_data.get("s3", [])
+        for s3_data in s3_entries:
+            locations.append({
+                "type": "s3",
+                "access_method": "s3.get_object",
+                "provider": s3_data.get("provider", "aws"),
+                "region": s3_data.get("region"),
+                "bucket": s3_data.get("bucket"),
+                "key": s3_data.get("key"),
+                "latency_estimate_ms": 200,
+                "storage_class": s3_data.get("storage_class")
+            })
+            
+        # Process Storacha locations
+        storacha_data = storage_data.get("storacha", {})
+        if storacha_data and storacha_data.get("car_cid"):
+            locations.append({
+                "type": "storacha",
+                "access_method": "storacha.get",
+                "car_cid": storacha_data.get("car_cid"),
+                "cid": record.get("cid"),
+                "latency_estimate_ms": 500,
+                "space_did": storacha_data.get("space_did")
+            })
+            
+        # Process Filecoin locations
+        filecoin_data = storage_data.get("filecoin", {})
+        if filecoin_data and filecoin_data.get("deal_id"):
+            locations.append({
+                "type": "filecoin",
+                "access_method": "filecoin.retrieve",
+                "deal_id": filecoin_data.get("deal_id"),
+                "cid": record.get("cid"),
+                "latency_estimate_ms": 10000,  # Slowest retrieval typically
+                "providers": filecoin_data.get("providers", [])
+            })
+            
+        # Process HuggingFace Hub locations
+        hf_data = storage_data.get("huggingface_hub", {})
+        if hf_data and hf_data.get("repo_id"):
+            locations.append({
+                "type": "huggingface_hub",
+                "access_method": "hf_hub_download",
+                "repo_id": hf_data.get("repo_id"),
+                "repo_type": hf_data.get("repo_type", "model"),
+                "file_path": hf_data.get("file_path"),
+                "revision": hf_data.get("revision", "main"),
+                "latency_estimate_ms": 300
+            })
+            
+        return locations
+        
+    def _determine_fastest_path(self, locations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Determine the fastest retrieval path from available locations.
+        
+        Analyzes all available storage locations and determines the
+        optimal retrieval strategy based on latency, availability,
+        and current system state.
+        
+        Args:
+            locations: List of available storage locations
+            
+        Returns:
+            Dictionary with access information for fastest retrieval path
+        """
+        if not locations:
+            return None
+            
+        # Sort locations by estimated latency
+        sorted_locations = sorted(locations, key=lambda x: x.get("latency_estimate_ms", float('inf')))
+        
+        # Additional logic could weigh other factors beyond just latency
+        # - Network conditions
+        # - Storage tier preferences
+        # - Cost considerations
+        # - Node role and resource availability
+        
+        return sorted_locations[0]
+        
     def query(self, filters: List[tuple]) -> pa.Table:
         """Query the index with filters.
         
@@ -2459,119 +3195,285 @@ class IPFSArrowIndex:
         
         # Convert filters to Arrow filter expressions
         filter_expr = None
-        for field, op, value in filters:
-            field_expr = ds.field(field)
-            
+        for field_name, op, value in filters:
+            # Convert operation string to Arrow compute function
             if op == "==":
-                expr = field_expr == value
+                expr = pc.equal(pc.field(field_name), pa.scalar(value))
             elif op == "!=":
-                expr = field_expr != value
+                expr = pc.not_equal(pc.field(field_name), pa.scalar(value))
             elif op == ">":
-                expr = field_expr > value
+                expr = pc.greater(pc.field(field_name), pa.scalar(value))
             elif op == ">=":
-                expr = field_expr >= value
+                expr = pc.greater_equal(pc.field(field_name), pa.scalar(value))
             elif op == "<":
-                expr = field_expr < value
+                expr = pc.less(pc.field(field_name), pa.scalar(value))
             elif op == "<=":
-                expr = field_expr <= value
+                expr = pc.less_equal(pc.field(field_name), pa.scalar(value))
             elif op == "in":
-                expr = field_expr.isin(value)
+                if not isinstance(value, (list, tuple)):
+                    value = [value]
+                expr = pc.is_in(pc.field(field_name), pa.array(value))
+            elif op == "contains":
+                expr = pc.match_substring(pc.field(field_name), value)
             else:
-                raise ValueError(f"Unsupported operator: {op}")
+                raise ValueError(f"Unsupported operation: {op}")
             
+            # Combine expressions with AND
             if filter_expr is None:
                 filter_expr = expr
             else:
-                filter_expr = filter_expr & expr
+                filter_expr = pc.and_(filter_expr, expr)
         
-        # Execute query
-        return ds.to_table(filter=filter_expr)
+        # Apply filters and return results
+        if filter_expr is not None:
+            return ds.to_table(filter=filter_expr)
+        else:
+            return ds.to_table()
     
-    def get_by_cid(self, cid: str) -> Optional[Dict[str, Any]]:
-        """Fast lookup by CID."""
-        table = self.query([("cid", "==", cid)])
-        if table.num_rows == 0:
-            return None
+    @staticmethod
+    def access_via_c_data_interface(index_dir: str = "~/.ipfs_index") -> Dict[str, Any]:
+        """Access the IPFS index from another process via Arrow C Data Interface.
         
-        # Convert to dictionary
-        return {col: table[col][0].as_py() for col in table.column_names}
-    
-    def update_access_stats(self, cid: str) -> None:
-        """Update access statistics for a CID."""
-        record = self.get_by_cid(cid)
-        if record:
-            now = int(time.time() * 1000)  # ms timestamp
-            record["last_accessed"] = now
-            record["access_count"] += 1
+        This static method enables external processes to access the memory-mapped
+        index without copying the data. This is particularly useful for:
+        - Multi-language access (C++, Rust, etc.)
+        - Zero-copy data exchange with other processes
+        - Low-latency IPC for performance-critical operations
+        
+        Args:
+            index_dir: Directory where the index is stored
             
-            # Update heat score based on recency and frequency
-            decay_factor = 0.5  # Half life in days
-            days_since_added = (now - record["added_timestamp"]) / (1000 * 3600 * 24)
-            time_factor = 2 ** (-days_since_added * decay_factor)
-            record["heat_score"] = record["access_count"] * time_factor
+        Returns:
+            Dictionary with access handle and metadata
+        """
+        result = {
+            "success": False,
+            "operation": "access_via_c_data_interface",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Import necessary components
+            import pyarrow as pa
+            import pyarrow.plasma as plasma
+            import json
+            import os
             
-            # Remove existing record and add updated one
-            self.remove_by_cid(cid)
-            self.add_record(record)
+            # Expand path
+            index_dir = os.path.expanduser(index_dir)
+            
+            # Find C Data Interface metadata file
+            cdi_path = os.path.join(index_dir, 'c_data_interface.json')
+            if not os.path.exists(cdi_path):
+                result["error"] = f"C Data Interface metadata not found at {cdi_path}"
+                return result
+                
+            # Load C Data Interface metadata
+            with open(cdi_path, 'r') as f:
+                cdi_metadata = json.load(f)
+                
+            # Connect to plasma store
+            plasma_socket = cdi_metadata.get('plasma_socket')
+            if not plasma_socket or not os.path.exists(plasma_socket):
+                result["error"] = f"Plasma socket not found at {plasma_socket}"
+                return result
+                
+            # Connect to plasma store
+            plasma_client = plasma.connect(plasma_socket)
+            
+            # Get object ID
+            object_id_hex = cdi_metadata.get('object_id')
+            if not object_id_hex:
+                result["error"] = "Object ID not found in metadata"
+                return result
+                
+            # Convert hex to binary object ID
+            object_id = plasma.ObjectID(bytes.fromhex(object_id_hex))
+            
+            # Get the object from plasma store
+            if not plasma_client.contains(object_id):
+                result["error"] = f"Object {object_id_hex} not found in plasma store"
+                return result
+                
+            # Get the table from plasma store
+            buffer = plasma_client.get_buffers([object_id])[object_id]
+            reader = pa.RecordBatchStreamReader(buffer)
+            table = reader.read_all()
+            
+            # Success!
+            result["success"] = True
+            result["table"] = table
+            result["schema"] = table.schema
+            result["num_rows"] = table.num_rows
+            result["metadata"] = cdi_metadata
+            result["access_method"] = "c_data_interface"
+            
+            # Return the handle for cleanup
+            result["plasma_client"] = plasma_client
+            
+            return result
+            
+        except ImportError as e:
+            result["error"] = f"Required module not available: {str(e)}"
+            return result
+        except Exception as e:
+            result["error"] = f"Error accessing via C Data Interface: {str(e)}"
+            return result
     
-    def remove_by_cid(self, cid: str) -> bool:
-        """Remove a record by CID."""
-        # Note: This is inefficient for parquet files
-        # In a real implementation, we'd mark as deleted and compact later
-        table = self.query([("cid", "!=", cid)])
+    @staticmethod
+    def c_data_interface_example():
+        """Example of accessing the index from external languages via C Data Interface.
         
-        # Clear existing files
-        for partition in range(self.current_partition + 1):
-            path = self._get_partition_path(partition)
-            if os.path.exists(path):
-                os.remove(path)
+        This demonstrates how to access the IPFS metadata index from C++, Rust,
+        or other languages that support the Arrow C Data Interface.
+        """
+        # C++ Example Using Arrow C++
+        cpp_example = """
+        #include <arrow/api.h>
+        #include <arrow/io/api.h>
+        #include <arrow/ipc/api.h>
+        #include <arrow/json/api.h>
+        #include <arrow/util/logging.h>
+        #include <plasma/client.h>
         
-        # Reset state
-        self.current_partition = 0
-        self.in_memory_batch = None
+        #include <iostream>
+        #include <string>
         
-        # Write new data
-        pq.write_table(
-            table,
-            self._get_partition_path(self.current_partition),
-            compression='zstd',
-            compression_level=3
-        )
+        using namespace arrow;
         
-        # Reload
-        self._load_latest_partition()
-        return True
-    
-    def close(self):
-        """Flush changes and close resources."""
-        self._write_current_batch()
+        int main() {
+            // Read JSON metadata to get the plasma store socket and object ID
+            std::string json_path = "/home/user/.ipfs_index/c_data_interface.json";
+            std::string plasma_socket;
+            std::string object_id_hex;
+            
+            // ... parse JSON to extract plasma_socket and object_id_hex ...
+            
+            // Connect to plasma store
+            std::shared_ptr<plasma::PlasmaClient> client;
+            plasma::Status status = plasma::Connect(plasma_socket, "", 0, &client);
+            if (!status.ok()) {
+                std::cerr << "Failed to connect to plasma store: " << status.message() << std::endl;
+                return 1;
+            }
+            
+            // Convert hex object ID to binary
+            plasma::ObjectID object_id = plasma::ObjectID::from_binary(object_id_hex);
+            
+            // Get the object from plasma store
+            std::shared_ptr<Buffer> buffer;
+            status = client->Get(&object_id, 1, -1, &buffer);
+            if (!status.ok()) {
+                std::cerr << "Failed to get object: " << status.message() << std::endl;
+                return 1;
+            }
+            
+            // Create Arrow buffer reader
+            auto buffer_reader = std::make_shared<io::BufferReader>(buffer);
+            
+            // Read the record batch stream
+            std::shared_ptr<ipc::RecordBatchStreamReader> reader;
+            status = ipc::RecordBatchStreamReader::Open(buffer_reader, &reader);
+            if (!status.ok()) {
+                std::cerr << "Failed to open record batch reader: " << status.message() << std::endl;
+                return 1;
+            }
+            
+            // Read the first record batch
+            std::shared_ptr<RecordBatch> batch;
+            status = reader->ReadNext(&batch);
+            if (!status.ok()) {
+                std::cerr << "Failed to read record batch: " << status.message() << std::endl;
+                return 1;
+            }
+            
+            // Now we can access the data without copying
+            std::cout << "Number of rows: " << batch->num_rows() << std::endl;
+            std::cout << "Number of columns: " << batch->num_columns() << std::endl;
+            
+            // Example: access CID column
+            auto cid_array = std::static_pointer_cast<StringArray>(batch->column(0));
+            for (int i = 0; i < std::min(10, batch->num_rows()); i++) {
+                std::cout << "CID " << i << ": " << cid_array->GetString(i) << std::endl;
+            }
+            
+            return 0;
+        }
+        """
         
-        # Close memory-mapped files
-        for file_obj, mmap_obj in self.mmap_files.values():
-            mmap_obj.close()
-            file_obj.close()
-        self.mmap_files = {}
+        # Rust Example Using Arrow Rust
+        rust_example = """
+        use std::fs::File;
+        use std::path::Path;
+        
+        use arrow::array::{StringArray, StructArray};
+        use arrow::datatypes::Schema;
+        use arrow::ipc::reader::StreamReader;
+        use arrow::record_batch::RecordBatch;
+        use plasma::PlasmaClient;
+        use serde_json::Value;
+        
+        fn main() -> Result<(), Box<dyn std::error::Error>> {
+            // Read JSON metadata
+            let json_path = Path::new("/home/user/.ipfs_index/c_data_interface.json");
+            let file = File::open(json_path)?;
+            let metadata: Value = serde_json::from_reader(file)?;
+            
+            // Extract plasma socket and object ID
+            let plasma_socket = metadata["plasma_socket"].as_str().unwrap();
+            let object_id_hex = metadata["object_id"].as_str().unwrap();
+            
+            // Convert hex to binary object ID
+            let object_id = hex::decode(object_id_hex)?;
+            
+            // Connect to plasma store
+            let mut client = PlasmaClient::connect(plasma_socket, "")?;
+            
+            // Get the object from plasma store
+            let buffer = client.get(&object_id, -1)?;
+            
+            // Create Arrow reader from buffer
+            let reader = StreamReader::try_new(&buffer[..])?;
+            
+            // Read the schema
+            let schema = reader.schema();
+            println!("Schema: {:?}", schema);
+            
+            // Read the first record batch
+            let batch = reader.next().unwrap()?;
+            println!("Number of rows: {}", batch.num_rows());
+            
+            // Example: access CID column
+            let cid_array = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
+            for i in 0..std::cmp::min(10, batch.num_rows()) {
+                println!("CID {}: {}", i, cid_array.value(i));
+            }
+            
+            // Example: access storage locations struct
+            let locations = batch.column(batch.schema().index_of("storage_locations").unwrap())
+                                .as_any().downcast_ref::<StructArray>().unwrap();
+            
+            // Access nested IPFS struct
+            let ipfs = locations.field(locations.type_().field_indices()["ipfs"])
+                               .as_any().downcast_ref::<StructArray>().unwrap();
+            
+            // Check if content is pinned locally
+            let pinned = ipfs.field(ipfs.type_().field_indices()["pinned"]);
+            println!("First 10 pinning statuses:");
+            for i in 0..std::cmp::min(10, batch.num_rows()) {
+                println!("  Row {}: pinned = {}", i, pinned.is_valid(i));
+            }
+            
+            Ok(())
+        }
+        """
+        
+        return {
+            "cpp_example": cpp_example,
+            "rust_example": rust_example,
+            "note": "These examples demonstrate zero-copy access to the memory-mapped Arrow data"
+        }
 ```
-
-#### Phase 3: Storage Tier Integration (5 weeks)
-- S3, Storacha, and Filecoin integration
-- Deal management
-- Cost optimization
-- Error handling
-
-#### Phase 4: IPLD Vector and Graph Storage (6 weeks)
-- IPLD schemas for vector data
-- Knowledge graph implementation
-- GraphRAG search capabilities
-- Vector indexes
-
-#### Phase 5: Integration and Optimization (3 weeks)
-- Component integration
-- End-to-end workflows
-- Performance optimization
-- Documentation
-- Comprehensive AST analysis of entire codebase
-- Final refactoring of duplicative patterns
 
 ### Estimated Effort
 
@@ -2810,6 +3712,7 @@ Answer:"""
     }
 ```
 
+
 This example demonstrates how to:
 1. Add documents to a knowledge graph with vector embeddings
 2. Create relationships between entities based on content analysis
@@ -2829,11 +3732,11 @@ The GraphRAG approach provides more context-aware and relationship-informed retr
 | Multiple processes, same machine | mmap / Arrow |
 | Flexible, decoupled architecture | Queues / Message Passing |
 | Network-distributed components | gRPC / HTTP |
-| Peer-to-peer communication | libp2p_py |
-| Decentralized content routing | libp2p_py + DHT |
-| Self-organizing networks | libp2p_py |
-| Content-addressed data transfer | libp2p_py + IPLD |
-| Direct CID sharing between peers | libp2p_py + custom protocols |
+| Peer-to-peer communication | libp2p_py (see `/docs/libp2p_docs/content/concepts/fundamentals/`) |
+| Decentralized content routing | libp2p_py + DHT (see `/docs/libp2p_docs/content/concepts/discovery-routing/`) |
+| Self-organizing networks | libp2p_py (see `/docs/libp2p_docs/content/concepts/pubsub/`) |
+| Content-addressed data transfer | libp2p_py + IPLD (see `/docs/libp2p_docs/content/concepts/fundamentals/overview.md`) |
+| Direct CID sharing between peers | libp2p_py + custom protocols (see `/docs/libp2p_docs/content/guides/getting-started/`) |
 | Vector similarity search | FAISS + Arrow |
 | Graph data and traversals | IPLD + custom indexing |
 | Hybrid search (vectors + graphs) | GraphRAG with IPLD storage |
@@ -2981,6 +3884,46 @@ The project includes Web3.Storage (Storacha) specifications in `/docs/storacha_s
 
 The W3UP/Storacha specifications define protocols for content-addressed storage with a focus on capability-based security, enabling fine-grained access control and delegation while leveraging both IPFS for content addressing and Filecoin for long-term storage guarantees.
 
+### libp2p Documentation
+The project includes comprehensive libp2p documentation in `/docs/libp2p_docs/`, which details the peer-to-peer networking stack that powers IPFS:
+
+- **Core Networking Concepts** (`/docs/libp2p_docs/content/concepts/fundamentals/`):
+  - `addressing.md`: Multiaddress protocol for network addressing
+  - `peers.md`: Peer identity and connection management
+  - `protocols.md`: Protocol negotiation and handshakes
+  - `dht.md`: Distributed Hash Table for content routing
+  - `overview.md`: High-level architectural overview
+
+- **Transport Protocols** (`/docs/libp2p_docs/content/concepts/transports/`):
+  - `overview.md`: Transport protocol abstraction
+  - `quic.md`: QUIC protocol implementation
+  - `webrtc.md`: WebRTC for browser-based P2P connections
+  - `webtransport.md`: WebTransport protocol support
+  - `listen-and-dial.md`: Connection establishment patterns
+
+- **NAT Traversal** (`/docs/libp2p_docs/content/concepts/nat/`):
+  - `overview.md`: NAT challenges in P2P networking
+  - `hole-punching.md`: Direct connection establishment techniques
+  - `circuit-relay.md`: Relay-based connectivity
+  - `autonat.md`: NAT detection and classification
+  - `dcutr.md`: Direct connection upgrade through relay
+
+- **Publish/Subscribe** (`/docs/libp2p_docs/content/concepts/pubsub/`):
+  - `overview.md`: Gossipsub protocol for efficient message distribution
+  - Illustrations of message propagation patterns
+
+- **Discovery and Routing** (`/docs/libp2p_docs/content/concepts/discovery-routing/`):
+  - `overview.md`: Peer discovery mechanisms
+  - `kaddht.md`: Kademlia DHT implementation
+  - `mDNS.md`: Local network peer discovery
+  - `rendezvous.md`: Peer discovery through rendezvous points
+
+- **Getting Started Guides** (`/docs/libp2p_docs/content/guides/getting-started/`):
+  - Language-specific implementation guides (Go, JavaScript, Rust, Nim)
+  - `webrtc.md`: Browser-based P2P networking guide
+
+The libp2p documentation is particularly relevant for implementing the role-based architecture (master/worker/leecher) outlined in this guide, as it provides the networking foundation for peer discovery, direct connections, and distributed content routing. The publish/subscribe mechanism is essential for coordinating distributed task processing across nodes.
+
 ## Documentation Relevance to Development Roadmap
 
 ### Tiered Storage with Adaptive Replacement Cache Implementation
@@ -3035,6 +3978,17 @@ When implementing the `TieredCacheManager` class (as outlined in the Development
 
 The comprehensive documentation in both IPFS Cluster and Storacha specifications provides the necessary protocol details to implement an efficient tiered storage system with sophisticated caching policies leveraging the best aspects of both technologies.
 
+#### Relevant libp2p Documentation
+- **Peer Discovery Mechanisms** (`/docs/libp2p_docs/content/concepts/discovery-routing/overview.md`):
+  - Provides patterns for discovering peer nodes across the network
+  - Essential for implementing the dynamic peer discovery in the distributed cache system
+  - ⭐ **Key Insight**: The peer discovery mechanisms can be used to find nearby cache nodes with desired content
+
+- **Publish/Subscribe System** (`/docs/libp2p_docs/content/concepts/pubsub/overview.md`):
+  - Details the publish/subscribe messaging system used for peer coordination
+  - Critical for implementing cache invalidation and update notifications
+  - ⭐ **Key Insight**: The gossipsub protocol enables efficient broadcast of cache state changes to all relevant nodes
+
 ## Project Structure and Organization
 
 ### Directory Layout
@@ -3065,6 +4019,7 @@ test/                   # Test directory
 docs/                   # Documentation
   ├── ipfs-docs/        # Core IPFS documentation
   ├── ipfs_cluster/     # IPFS Cluster documentation
+  ├── libp2p_docs/      # libp2p networking documentation
   └── storacha_specs/   # Web3.Storage specifications
 ```
 
@@ -3149,3 +4104,245 @@ The role-based architecture (master/worker/leecher) described in this document s
 2. Verify that Unix socket support is properly implemented for high-performance local operations on Linux systems.
 
 3. Ensure Arrow schema definitions remain consistent throughout the codebase and match the definitions in this document.
+
+
+## Containerization and Kubernetes Deployment
+
+### Docker Containerization
+
+The ipfs_kit_py library can be containerized to ensure consistent deployment across environments. Here is a sample Dockerfile:
+
+```dockerfile
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    jq \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy project files
+COPY . /app/
+
+# Install python dependencies
+RUN pip install -e .
+
+# Create necessary directories
+RUN mkdir -p /data/ipfs /data/ipfs-cluster
+
+# Set environment variables
+ENV IPFS_PATH=/data/ipfs
+ENV IPFS_CLUSTER_PATH=/data/ipfs-cluster
+
+# Expose ports for IPFS daemon, API, gateway, and Cluster
+EXPOSE 4001 5001 8080 9094 9095 9096
+
+# Entry point script
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+# Default command starts the daemon based on role
+CMD ["master"]
+```
+
+### Kubernetes Deployment
+
+For production deployments, a Kubernetes StatefulSet is recommended to ensure stable network identities and persistent storage for IPFS nodes.
+
+#### ConfigMap for ipfs_kit_py:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-kit-config
+data:
+  config.yaml: |
+    role: master  # Can be master, worker, or leecher
+    resources:
+      max_memory: 4G
+      max_storage: 500G
+    bootstrap_nodes:
+      - /dns4/ipfs-bootstrap-1/tcp/4001/p2p/QmNode1
+      - /dns4/ipfs-bootstrap-2/tcp/4001/p2p/QmNode2
+    ipfs_api_port: 5001
+    gateway_port: 8080
+```
+
+#### StatefulSet for Master Node:
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipfs-master
+spec:
+  serviceName: "ipfs-master"
+  replicas: 1  # Only one master per cluster
+  selector:
+    matchLabels:
+      app: ipfs-master
+  template:
+    metadata:
+      labels:
+        app: ipfs-master
+    spec:
+      containers:
+      - name: ipfs-master
+        image: ipfs-kit-py:latest
+        args: ["master"]
+        ports:
+        - containerPort: 4001
+          name: swarm
+        - containerPort: 5001
+          name: api
+        - containerPort: 8080
+          name: gateway
+        - containerPort: 9096
+          name: cluster
+        env:
+        - name: IPFS_PATH
+          value: /data/ipfs
+        - name: IPFS_CLUSTER_PATH
+          value: /data/ipfs-cluster
+        volumeMounts:
+        - name: ipfs-storage
+          mountPath: /data
+        - name: config-volume
+          mountPath: /app/config
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+  volumeClaimTemplates:
+  - metadata:
+      name: ipfs-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 500Gi
+```
+
+#### Deployment for Worker Nodes:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipfs-worker
+spec:
+  replicas: 3  # Adjust based on processing needs
+  selector:
+    matchLabels:
+      app: ipfs-worker
+  template:
+    metadata:
+      labels:
+        app: ipfs-worker
+    spec:
+      containers:
+      - name: ipfs-worker
+        image: ipfs-kit-py:latest
+        args: ["worker", "--master=ipfs-master:9096"]
+        ports:
+        - containerPort: 4001
+          name: swarm
+        - containerPort: 5001
+          name: api
+        env:
+        - name: IPFS_PATH
+          value: /data/ipfs
+        - name: IPFS_CLUSTER_PATH
+          value: /data/ipfs-cluster
+        volumeMounts:
+        - name: ipfs-worker-storage
+          mountPath: /data
+        - name: config-volume
+          mountPath: /app/config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1"
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ipfs-kit-config
+      - name: ipfs-worker-storage
+        persistentVolumeClaim:
+          claimName: ipfs-worker-storage
+```
+
+#### Services for Network Discovery:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-master
+spec:
+  selector:
+    app: ipfs-master
+  ports:
+  - name: swarm
+    port: 4001
+    targetPort: 4001
+  - name: api
+    port: 5001
+    targetPort: 5001
+  - name: gateway
+    port: 8080
+    targetPort: 8080
+  - name: cluster
+    port: 9096
+    targetPort: 9096
+```
+
+### Scaling Considerations
+
+When deploying to Kubernetes:
+
+1. **Master Node**: Deploy as StatefulSet with a single replica for cluster coordination.
+2. **Worker Nodes**: Deploy as a Deployment with multiple replicas for processing tasks.
+3. **Storage**: Use appropriate storage classes for different node types:
+   - Master: High-capacity persistent storage
+   - Workers: Faster, lower-capacity storage optimized for processing
+   - Consider using local SSDs for the in-memory cache tier
+4. **Network Policies**: Implement network policies to secure the IPFS swarm and cluster communications
+5. **Resource Quotas**: Set appropriate CPU and memory limits based on workload characteristics
+6. **Autoscaling**: Configure Horizontal Pod Autoscaler for worker nodes based on processing queue length
+
+### Testing in Containerized Environments
+
+To test the ipfs_kit_py implementation in containerized environments:
+
+```bash
+# Build the Docker image
+docker build -t ipfs-kit-py:test .
+
+# Run tests in container
+docker run --rm ipfs-kit-py:test python -m test.test
+
+# Start a master node
+docker run -d --name ipfs-master -p 5001:5001 -p 8080:8080 ipfs-kit-py:test master
+
+# Start a worker node connected to master
+docker run -d --name ipfs-worker --link ipfs-master \
+  ipfs-kit-py:test worker --master=ipfs-master:9096
+
+# Run a test against the containerized instance
+docker run --rm --link ipfs-master \
+  -e IPFS_API_URL=http://ipfs-master:5001 \
+  ipfs-kit-py:test python -m test.test_distributed
+```
