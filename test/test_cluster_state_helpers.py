@@ -1,0 +1,882 @@
+import unittest
+import os
+import tempfile
+import time
+import shutil
+import json
+from unittest.mock import patch, MagicMock
+
+# Try to import pyarrow for tests
+try:
+    import pyarrow as pa
+    ARROW_AVAILABLE = True
+except ImportError:
+    ARROW_AVAILABLE = False
+
+# Try to import pandas
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+
+# Import module to test
+from ipfs_kit_py import cluster_state_helpers
+
+
+@unittest.skipIf(not ARROW_AVAILABLE, "PyArrow not available")
+class TestClusterStateHelpers(unittest.TestCase):
+    """Test the cluster state helper functions."""
+    
+    def setUp(self):
+        """Set up test environment before each test."""
+        # Create temporary directory for test files
+        self.test_dir = tempfile.mkdtemp()
+        
+        # Create fake state path for testing
+        self.state_path = os.path.join(self.test_dir, "cluster_state")
+        os.makedirs(self.state_path, exist_ok=True)
+        
+        # Create fake plasma socket path
+        self.plasma_socket = os.path.join(self.state_path, "plasma.sock")
+        
+        # Create fake metadata file
+        metadata = {
+            'plasma_socket': self.plasma_socket,
+            'object_id': '0123456789abcdef0123',
+            'schema': 'mock_schema',
+            'version': 1,
+            'cluster_id': 'test-cluster'
+        }
+        
+        with open(os.path.join(self.state_path, 'state_metadata.json'), 'w') as f:
+            json.dump(metadata, f)
+        
+        # Create dummy socket file
+        with open(self.plasma_socket, 'w') as f:
+            f.write('dummy')
+        
+    def tearDown(self):
+        """Clean up after each test."""
+        # Remove temporary directory and all contents
+        if hasattr(self, 'test_dir') and os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+    
+    def test_get_state_path_from_metadata(self):
+        """Test finding state path from metadata."""
+        # Set up another test dir with metadata
+        another_dir = os.path.join(self.test_dir, "alt_state")
+        os.makedirs(another_dir, exist_ok=True)
+        os.makedirs(os.path.join(another_dir, "cluster_state"), exist_ok=True)
+        
+        with open(os.path.join(another_dir, "cluster_state", "state_metadata.json"), "w") as f:
+            f.write("{}")
+        
+        # Test finding the path when directly specified
+        result = cluster_state_helpers.get_state_path_from_metadata(another_dir)
+        self.assertEqual(result, os.path.join(another_dir, "cluster_state"))
+        
+        # Test finding the path when path is directly provided
+        result = cluster_state_helpers.get_state_path_from_metadata(os.path.join(another_dir, "cluster_state"))
+        self.assertEqual(result, os.path.join(another_dir, "cluster_state"))
+        
+        # Test returns None when not found
+        result = cluster_state_helpers.get_state_path_from_metadata("/nonexistent/path")
+        self.assertIsNone(result)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.plasma.connect')
+    def test_connect_to_state_store(self, mock_connect):
+        """Test connecting to state store."""
+        # Mock the plasma client
+        mock_plasma_client = MagicMock()
+        mock_connect.return_value = mock_plasma_client
+        
+        # Test successful connection
+        client, metadata = cluster_state_helpers.connect_to_state_store(self.state_path)
+        
+        # Check that plasma.connect was called with correct socket path
+        mock_connect.assert_called_once_with(self.plasma_socket)
+        
+        # Check that we got the client and metadata
+        self.assertEqual(client, mock_plasma_client)
+        self.assertEqual(metadata['cluster_id'], 'test-cluster')
+        
+        # Test with nonexistent path
+        client, metadata = cluster_state_helpers.connect_to_state_store("/nonexistent/path")
+        self.assertIsNone(client)
+        self.assertIsNone(metadata)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.connect_to_state_store')
+    @patch('ipfs_kit_py.cluster_state_helpers.plasma.ObjectID')
+    @patch('ipfs_kit_py.cluster_state_helpers.pa.RecordBatchStreamReader')
+    def test_get_cluster_state(self, mock_reader, mock_object_id, mock_connect):
+        """Test getting cluster state."""
+        # Mock the objects
+        mock_plasma_client = MagicMock()
+        mock_metadata = {'object_id': '0123456789abcdef0123'}
+        mock_connect.return_value = (mock_plasma_client, mock_metadata)
+        
+        mock_object = MagicMock()
+        mock_object_id.return_value = mock_object
+        
+        mock_plasma_client.contains.return_value = True
+        mock_buffer = MagicMock()
+        mock_plasma_client.get.return_value = mock_buffer
+        
+        mock_batch_reader = MagicMock()
+        mock_reader.return_value = mock_batch_reader
+        
+        mock_table = MagicMock()
+        mock_batch_reader.read_all.return_value = mock_table
+        
+        # Test getting state
+        result = cluster_state_helpers.get_cluster_state(self.state_path)
+        
+        # Check that the correct sequence was called
+        mock_connect.assert_called_once_with(self.state_path)
+        mock_object_id.assert_called_once_with(bytes.fromhex('0123456789abcdef0123'))
+        mock_plasma_client.contains.assert_called_once_with(mock_object)
+        mock_plasma_client.get.assert_called_once_with(mock_object)
+        mock_reader.assert_called_once_with(mock_buffer)
+        mock_batch_reader.read_all.assert_called_once()
+        
+        # Check result
+        self.assertEqual(result, mock_table)
+        
+        # Test failure case when object not in store
+        mock_plasma_client.contains.return_value = False
+        result = cluster_state_helpers.get_cluster_state(self.state_path)
+        self.assertIsNone(result)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_cluster_state')
+    def test_get_all_nodes(self, mock_get_state):
+        """Test getting all nodes."""
+        # Create mock state with nodes
+        mock_state = MagicMock()
+        mock_state.num_rows = 1
+        
+        mock_nodes_column = MagicMock()
+        mock_state.column.return_value = mock_nodes_column
+        
+        test_nodes = [
+            {'id': 'node1', 'role': 'master'},
+            {'id': 'node2', 'role': 'worker'},
+            {'id': 'node3', 'role': 'worker'}
+        ]
+        mock_nodes_column.__getitem__.return_value.as_py.return_value = test_nodes
+        
+        # Mock the state function
+        mock_get_state.return_value = mock_state
+        
+        # Test getting nodes
+        result = cluster_state_helpers.get_all_nodes(self.state_path)
+        
+        # Check calls
+        mock_get_state.assert_called_once_with(self.state_path)
+        mock_state.column.assert_called_once_with("nodes")
+        
+        # Check result
+        self.assertEqual(result, test_nodes)
+        
+        # Test empty state
+        mock_state.num_rows = 0
+        result = cluster_state_helpers.get_all_nodes(self.state_path)
+        self.assertIsNone(result)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_nodes')
+    def test_find_nodes_by_role(self, mock_get_nodes):
+        """Test finding nodes by role."""
+        # Mock the nodes
+        test_nodes = [
+            {'id': 'node1', 'role': 'master'},
+            {'id': 'node2', 'role': 'worker'},
+            {'id': 'node3', 'role': 'worker'},
+            {'id': 'node4', 'role': 'leecher'}
+        ]
+        mock_get_nodes.return_value = test_nodes
+        
+        # Test finding workers
+        result = cluster_state_helpers.find_nodes_by_role(self.state_path, 'worker')
+        
+        # Check calls
+        mock_get_nodes.assert_called_once_with(self.state_path)
+        
+        # Check result
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 'node2')
+        self.assertEqual(result[1]['id'], 'node3')
+        
+        # Test finding master
+        mock_get_nodes.reset_mock()
+        result = cluster_state_helpers.find_nodes_by_role(self.state_path, 'master')
+        
+        # Check result
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['id'], 'node1')
+        
+        # Test for nonexistent role
+        mock_get_nodes.reset_mock()
+        result = cluster_state_helpers.find_nodes_by_role(self.state_path, 'nonexistent')
+        
+        # Check result
+        self.assertEqual(len(result), 0)
+        
+        # Test when get_all_nodes returns None
+        mock_get_nodes.return_value = None
+        result = cluster_state_helpers.find_nodes_by_role(self.state_path, 'worker')
+        self.assertEqual(result, [])
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_nodes')
+    def test_find_nodes_with_gpu(self, mock_get_nodes):
+        """Test finding nodes with GPU."""
+        # Mock the nodes
+        test_nodes = [
+            {'id': 'node1', 'resources': {'gpu_count': 0, 'gpu_available': False}},
+            {'id': 'node2', 'resources': {'gpu_count': 2, 'gpu_available': True}},
+            {'id': 'node3', 'resources': {'gpu_count': 4, 'gpu_available': True}},
+            {'id': 'node4', 'resources': {'gpu_count': 2, 'gpu_available': False}}
+        ]
+        mock_get_nodes.return_value = test_nodes
+        
+        # Test finding GPU nodes
+        result = cluster_state_helpers.find_nodes_with_gpu(self.state_path)
+        
+        # Check calls
+        mock_get_nodes.assert_called_once_with(self.state_path)
+        
+        # Check result
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 'node2')
+        self.assertEqual(result[1]['id'], 'node3')
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')
+    def test_find_tasks_by_status(self, mock_get_tasks):
+        """Test finding tasks by status."""
+        # Mock the tasks
+        test_tasks = [
+            {'id': 'task1', 'status': 'pending'},
+            {'id': 'task2', 'status': 'assigned'},
+            {'id': 'task3', 'status': 'running'},
+            {'id': 'task4', 'status': 'completed'},
+            {'id': 'task5', 'status': 'pending'}
+        ]
+        mock_get_tasks.return_value = test_tasks
+        
+        # Test finding pending tasks
+        result = cluster_state_helpers.find_tasks_by_status(self.state_path, 'pending')
+        
+        # Check calls
+        mock_get_tasks.assert_called_once_with(self.state_path)
+        
+        # Check result
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 'task1')
+        self.assertEqual(result[1]['id'], 'task5')
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_cluster_metadata')
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_nodes')
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_content')
+    def test_get_cluster_status_summary(self, mock_get_content, mock_get_tasks, mock_get_nodes, mock_get_metadata):
+        """Test getting cluster status summary."""
+        # Mock the data
+        mock_get_metadata.return_value = {
+            "cluster_id": "test-cluster",
+            "master_id": "master-node",
+            "updated_at": 1234567890.0,
+            "node_count": 3,
+            "task_count": 5,
+            "content_count": 2
+        }
+        
+        mock_get_nodes.return_value = [
+            {
+                'id': 'master-node', 
+                'role': 'master', 
+                'status': 'online',
+                'resources': {
+                    'cpu_count': 4,
+                    'gpu_count': 0,
+                    'gpu_available': False,
+                    'memory_total': 8 * 1024 * 1024 * 1024,
+                    'memory_available': 4 * 1024 * 1024 * 1024
+                }
+            },
+            {
+                'id': 'worker1', 
+                'role': 'worker', 
+                'status': 'online',
+                'resources': {
+                    'cpu_count': 8,
+                    'gpu_count': 2,
+                    'gpu_available': True,
+                    'memory_total': 16 * 1024 * 1024 * 1024,
+                    'memory_available': 8 * 1024 * 1024 * 1024
+                }
+            },
+            {
+                'id': 'worker2', 
+                'role': 'worker', 
+                'status': 'offline',
+                'resources': {
+                    'cpu_count': 8,
+                    'gpu_count': 2,
+                    'gpu_available': False,
+                    'memory_total': 16 * 1024 * 1024 * 1024,
+                    'memory_available': 0
+                }
+            }
+        ]
+        
+        mock_get_tasks.return_value = [
+            {'id': 'task1', 'status': 'pending'},
+            {'id': 'task2', 'status': 'assigned'},
+            {'id': 'task3', 'status': 'running'},
+            {'id': 'task4', 'status': 'completed'},
+            {'id': 'task5', 'status': 'failed'}
+        ]
+        
+        mock_get_content.return_value = [
+            {'cid': 'content1', 'size': 1024 * 1024 * 1024},  # 1GB
+            {'cid': 'content2', 'size': 2 * 1024 * 1024 * 1024}  # 2GB
+        ]
+        
+        # Test getting summary
+        result = cluster_state_helpers.get_cluster_status_summary(self.state_path)
+        
+        # Check calls to get data
+        mock_get_metadata.assert_called_once_with(self.state_path)
+        mock_get_nodes.assert_called_once_with(self.state_path)
+        mock_get_tasks.assert_called_once_with(self.state_path)
+        mock_get_content.assert_called_once_with(self.state_path)
+        
+        # Check summary format and content
+        self.assertEqual(result["cluster_id"], "test-cluster")
+        self.assertEqual(result["master_id"], "master-node")
+        
+        self.assertEqual(result["nodes"]["total"], 3)
+        self.assertEqual(result["nodes"]["active"], 2)
+        self.assertEqual(result["nodes"]["by_role"]["master"], 1)
+        self.assertEqual(result["nodes"]["by_role"]["worker"], 2)
+        
+        self.assertEqual(result["resources"]["cpu_cores"], 20)  # 4 + 8 + 8
+        self.assertEqual(result["resources"]["gpu_cores"]["total"], 4)  # 0 + 2 + 2
+        self.assertEqual(result["resources"]["gpu_cores"]["available"], 2)  # Only worker1
+        
+        self.assertEqual(result["tasks"]["total"], 5)
+        self.assertEqual(result["tasks"]["by_status"]["pending"], 1)
+        self.assertEqual(result["tasks"]["by_status"]["assigned"], 1)
+        self.assertEqual(result["tasks"]["by_status"]["running"], 1)
+        self.assertEqual(result["tasks"]["by_status"]["completed"], 1)
+        self.assertEqual(result["tasks"]["by_status"]["failed"], 1)
+        
+        self.assertEqual(result["content"]["total"], 2)
+        self.assertEqual(result["content"]["total_size_gb"], 3.0)  # 1GB + 2GB
+
+
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')
+    def test_find_tasks_by_resource_requirements(self, mock_get_tasks):
+        """Test finding tasks by resource requirements."""
+        # Mock the tasks
+        test_tasks = [
+            {
+                'id': 'task1', 
+                'resources': {
+                    'cpu_cores': 2, 
+                    'gpu_cores': 0, 
+                    'memory_mb': 512
+                }
+            },
+            {
+                'id': 'task2', 
+                'resources': {
+                    'cpu_cores': 4, 
+                    'gpu_cores': 1, 
+                    'memory_mb': 1024
+                }
+            },
+            {
+                'id': 'task3', 
+                'resources': {
+                    'cpu_cores': 8, 
+                    'gpu_cores': 2, 
+                    'memory_mb': 4096
+                }
+            },
+            {
+                'id': 'task4',  # No resources
+                'type': 'simple'
+            }
+        ]
+        mock_get_tasks.return_value = test_tasks
+        
+        # Test finding tasks by CPU requirements
+        result = cluster_state_helpers.find_tasks_by_resource_requirements(
+            self.state_path, cpu_cores=4
+        )
+        
+        # Check calls
+        mock_get_tasks.assert_called_once_with(self.state_path)
+        
+        # Check result
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 'task2')
+        self.assertEqual(result[1]['id'], 'task3')
+        
+        # Test finding tasks by GPU requirements
+        mock_get_tasks.reset_mock()
+        result = cluster_state_helpers.find_tasks_by_resource_requirements(
+            self.state_path, gpu_cores=1
+        )
+        
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['id'], 'task2')
+        self.assertEqual(result[1]['id'], 'task3')
+        
+        # Test finding tasks by memory requirements
+        mock_get_tasks.reset_mock()
+        result = cluster_state_helpers.find_tasks_by_resource_requirements(
+            self.state_path, memory_mb=2048
+        )
+        
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['id'], 'task3')
+        
+        # Test combined requirements
+        mock_get_tasks.reset_mock()
+        result = cluster_state_helpers.find_tasks_by_resource_requirements(
+            self.state_path, cpu_cores=4, gpu_cores=2, memory_mb=4000
+        )
+        
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['id'], 'task3')
+        
+        # Test no matches
+        mock_get_tasks.reset_mock()
+        result = cluster_state_helpers.find_tasks_by_resource_requirements(
+            self.state_path, cpu_cores=16
+        )
+        
+        self.assertEqual(len(result), 0)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_task_by_id')
+    @patch('ipfs_kit_py.cluster_state_helpers.find_nodes_by_role')
+    def test_find_available_node_for_task(self, mock_find_nodes, mock_get_task):
+        """Test finding available nodes for a task."""
+        # Mock the task
+        test_task = {
+            'id': 'task1',
+            'status': 'pending',
+            'resources': {
+                'cpu_cores': 4,
+                'gpu_cores': 1,
+                'memory_mb': 1024
+            }
+        }
+        mock_get_task.return_value = test_task
+        
+        # Mock worker nodes
+        test_workers = [
+            {
+                'id': 'worker1',
+                'status': 'online',
+                'resources': {
+                    'cpu_count': 8,
+                    'cpu_load': 25,  # 25% load
+                    'gpu_count': 2,
+                    'gpu_available': True,
+                    'memory_total': 16 * 1024 * 1024 * 1024,  # 16GB
+                    'memory_available': 8 * 1024 * 1024 * 1024  # 8GB
+                }
+            },
+            {
+                'id': 'worker2',
+                'status': 'online',
+                'resources': {
+                    'cpu_count': 4,  # Exactly matches requirement
+                    'cpu_load': 50,  # 50% load
+                    'gpu_count': 1,  # Exactly matches requirement
+                    'gpu_available': True,
+                    'memory_total': 8 * 1024 * 1024 * 1024,  # 8GB
+                    'memory_available': 4 * 1024 * 1024 * 1024  # 4GB
+                }
+            },
+            {
+                'id': 'worker3',
+                'status': 'offline',  # Offline node
+                'resources': {
+                    'cpu_count': 16,
+                    'gpu_count': 4,
+                    'gpu_available': True,
+                    'memory_total': 32 * 1024 * 1024 * 1024,
+                    'memory_available': 32 * 1024 * 1024 * 1024
+                }
+            },
+            {
+                'id': 'worker4',
+                'status': 'online',
+                'resources': {
+                    'cpu_count': 2,  # Not enough CPU
+                    'gpu_count': 0,  # Not enough GPU
+                    'gpu_available': False,
+                    'memory_total': 4 * 1024 * 1024 * 1024,
+                    'memory_available': 2 * 1024 * 1024 * 1024
+                }
+            }
+        ]
+        mock_find_nodes.return_value = test_workers
+        
+        # Test finding a node
+        result = cluster_state_helpers.find_available_node_for_task(self.state_path, 'task1')
+        
+        # Check calls
+        mock_get_task.assert_called_once_with(self.state_path, 'task1')
+        mock_find_nodes.assert_called_once_with(self.state_path, 'worker')
+        
+        # First worker should be selected (better resources)
+        self.assertEqual(result['id'], 'worker1')
+        
+        # Test with already assigned task
+        mock_get_task.reset_mock()
+        mock_find_nodes.reset_mock()
+        
+        test_task['status'] = 'assigned'
+        result = cluster_state_helpers.find_available_node_for_task(self.state_path, 'task1')
+        
+        # Should return None for already assigned task
+        self.assertIsNone(result)
+        
+        # Test with no suitable nodes
+        mock_get_task.reset_mock()
+        mock_find_nodes.reset_mock()
+        
+        test_task['status'] = 'pending'
+        test_task['resources']['cpu_cores'] = 32  # Require more than any node has
+        
+        result = cluster_state_helpers.find_available_node_for_task(self.state_path, 'task1')
+        
+        # Should return None when no suitable nodes
+        self.assertIsNone(result)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')
+    def test_get_task_execution_metrics(self, mock_get_tasks):
+        """Test getting task execution metrics."""
+        # Create test tasks
+        now = time.time()
+        test_tasks = [
+            {
+                'id': 'task1',
+                'type': 'process',
+                'status': 'completed',
+                'started_at': now - 100,
+                'completed_at': now - 50
+            },
+            {
+                'id': 'task2',
+                'type': 'process',
+                'status': 'completed',
+                'started_at': now - 200,
+                'completed_at': now - 100
+            },
+            {
+                'id': 'task3',
+                'type': 'analyze',
+                'status': 'failed',
+                'started_at': now - 150,
+                'completed_at': now - 140
+            },
+            {
+                'id': 'task4',
+                'type': 'analyze',
+                'status': 'pending'
+            },
+            {
+                'id': 'task5',
+                'type': 'transfer',
+                'status': 'running',
+                'started_at': now - 30
+            }
+        ]
+        mock_get_tasks.return_value = test_tasks
+        
+        # Test getting metrics
+        result = cluster_state_helpers.get_task_execution_metrics(self.state_path)
+        
+        # Check calls
+        mock_get_tasks.assert_called_once_with(self.state_path)
+        
+        # Check result
+        self.assertEqual(result["total_tasks"], 5)
+        self.assertEqual(result["completed_tasks"], 2)
+        self.assertEqual(result["failed_tasks"], 1)
+        self.assertEqual(result["pending_tasks"], 1)
+        self.assertEqual(result["running_tasks"], 1)
+        
+        # Completion rate should be 2/3 = ~0.67
+        self.assertAlmostEqual(result["completion_rate"], 2/3, places=2)
+        
+        # Avg execution time should be (50 + 100) / 2 = 75
+        self.assertAlmostEqual(result["average_execution_time"], 75, places=2)
+        
+        # Check task type distribution
+        self.assertEqual(result["task_types"]["process"], 2)
+        self.assertEqual(result["task_types"]["analyze"], 2)
+        self.assertEqual(result["task_types"]["transfer"], 1)
+        
+        # Test with no tasks
+        mock_get_tasks.return_value = []
+        result = cluster_state_helpers.get_task_execution_metrics(self.state_path)
+        
+        # Should return default values
+        self.assertEqual(result["total_tasks"], 0)
+        self.assertEqual(result["completion_rate"], 0.0)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_content')
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')
+    def test_find_orphaned_content(self, mock_get_tasks, mock_get_content):
+        """Test finding orphaned content."""
+        # Create test content
+        test_content = [
+            {'cid': 'cid1', 'size': 1024},
+            {'cid': 'cid2', 'size': 2048},
+            {'cid': 'cid3', 'size': 4096},
+            {'cid': 'cid4', 'size': 8192},
+            {'cid': 'cid5', 'size': 16384}
+        ]
+        mock_get_content.return_value = test_content
+        
+        # Create test tasks with references to some content
+        test_tasks = [
+            {'id': 'task1', 'input_cid': 'cid1', 'output_cid': 'cid2'},
+            {'id': 'task2', 'input_cids': ['cid3']},
+            {'id': 'task3', 'status': 'completed', 'output_cids': ['cid4']}
+        ]
+        mock_get_tasks.return_value = test_tasks
+        
+        # Test finding orphaned content
+        result = cluster_state_helpers.find_orphaned_content(self.state_path)
+        
+        # Check calls
+        mock_get_content.assert_called_once_with(self.state_path)
+        mock_get_tasks.assert_called_once_with(self.state_path)
+        
+        # Only cid5 should be orphaned
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['cid'], 'cid5')
+        
+        # Test with no content
+        mock_get_content.reset_mock()
+        mock_get_tasks.reset_mock()
+        mock_get_content.return_value = []
+        
+        result = cluster_state_helpers.find_orphaned_content(self.state_path)
+        
+        # Should return empty list
+        self.assertEqual(result, [])
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_task_by_id')
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')
+    def test_estimate_time_to_completion(self, mock_get_all_tasks, mock_get_task):
+        """Test estimating time to completion for a task."""
+        # Create a test task
+        now = time.time()
+        test_task = {
+            'id': 'task1',
+            'type': 'process',
+            'status': 'running',
+            'started_at': now - 50  # Started 50 seconds ago
+        }
+        mock_get_task.return_value = test_task
+        
+        # Create historical tasks of the same type
+        test_all_tasks = [
+            {
+                'id': 'historical1',
+                'type': 'process',
+                'status': 'completed',
+                'started_at': now - 500,
+                'completed_at': now - 400  # Took 100 seconds
+            },
+            {
+                'id': 'historical2',
+                'type': 'process',
+                'status': 'completed',
+                'started_at': now - 300,
+                'completed_at': now - 180  # Took 120 seconds
+            },
+            {
+                'id': 'historical3',
+                'type': 'process',
+                'status': 'completed',
+                'started_at': now - 200,
+                'completed_at': now - 120  # Took 80 seconds
+            }
+        ]
+        mock_get_all_tasks.return_value = test_all_tasks
+        
+        # Test estimating time to completion
+        result = cluster_state_helpers.estimate_time_to_completion(self.state_path, 'task1')
+        
+        # Check calls
+        mock_get_task.assert_called_once_with(self.state_path, 'task1')
+        mock_get_all_tasks.assert_called_once_with(self.state_path)
+        
+        # Average execution time is (100 + 120 + 80) / 3 = 100 seconds
+        # Task has been running for 50 seconds, so expected remaining is 50 seconds
+        self.assertAlmostEqual(result, 50, delta=1)
+        
+        # Test with pending task
+        mock_get_task.reset_mock()
+        mock_get_all_tasks.reset_mock()
+        
+        test_task['status'] = 'pending'
+        del test_task['started_at']
+        
+        result = cluster_state_helpers.estimate_time_to_completion(self.state_path, 'task1')
+        
+        # For pending task, should return full average time (100 seconds)
+        self.assertAlmostEqual(result, 100, delta=1)
+        
+        # Test with completed task
+        mock_get_task.reset_mock()
+        mock_get_all_tasks.reset_mock()
+        
+        test_task['status'] = 'completed'
+        
+        result = cluster_state_helpers.estimate_time_to_completion(self.state_path, 'task1')
+        
+        # For completed task, should return 0
+        self.assertEqual(result, 0.0)
+        
+        # Test with no historical data
+        mock_get_task.reset_mock()
+        mock_get_all_tasks.reset_mock()
+        
+        test_task['status'] = 'pending'
+        test_task['type'] = 'unique_type'  # No historical data for this type
+        
+        result = cluster_state_helpers.estimate_time_to_completion(self.state_path, 'task1')
+        
+        # Should return None when no historical data
+        self.assertIsNone(result)
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_all_nodes')
+    def test_get_network_topology(self, mock_get_nodes):
+        """Test getting network topology."""
+        # Create test nodes
+        test_nodes = [
+            {
+                'id': 'node1',
+                'role': 'master',
+                'status': 'online',
+                'peers': ['node2', 'node3'],
+                'resources': {
+                    'cpu_count': 8,
+                    'memory_total': 16 * 1024 * 1024 * 1024,
+                    'gpu_count': 0
+                }
+            },
+            {
+                'id': 'node2',
+                'role': 'worker',
+                'status': 'online',
+                'peers': ['node1', 'node3'],
+                'resources': {
+                    'cpu_count': 4,
+                    'memory_total': 8 * 1024 * 1024 * 1024,
+                    'gpu_count': 2
+                }
+            },
+            {
+                'id': 'node3',
+                'role': 'worker',
+                'status': 'offline',
+                'peers': ['node1', 'node2'],
+                'resources': {
+                    'cpu_count': 4,
+                    'memory_total': 8 * 1024 * 1024 * 1024,
+                    'gpu_count': 0
+                }
+            }
+        ]
+        mock_get_nodes.return_value = test_nodes
+        
+        # Test getting topology
+        result = cluster_state_helpers.get_network_topology(self.state_path)
+        
+        # Check calls
+        mock_get_nodes.assert_called_once_with(self.state_path)
+        
+        # Check result
+        self.assertEqual(len(result["nodes"]), 3)
+        self.assertEqual(result["nodes"][0]["id"], 'node1')
+        self.assertEqual(result["nodes"][0]["role"], 'master')
+        
+        # Check connections
+        # Should have 3 connections (node1-node2, node1-node3, node2-node3)
+        # But connections are only added once with node_id < peer_id
+        # So we should have node1-node2, node1-node3, node2-node3
+        self.assertEqual(len(result["connections"]), 3)
+        
+        # Verify connections
+        connections = result["connections"]
+        self.assertTrue(any(c["source"] == "node1" and c["target"] == "node2" for c in connections))
+        self.assertTrue(any(c["source"] == "node1" and c["target"] == "node3" for c in connections))
+        self.assertTrue(any(c["source"] == "node2" and c["target"] == "node3" for c in connections))
+    
+    @patch('ipfs_kit_py.cluster_state_helpers.get_cluster_state_as_dict')
+    def test_export_state_to_json(self, mock_get_state):
+        """Test exporting state to JSON file."""
+        # Create a test state dict
+        test_state = {
+            "cluster_id": "test-cluster",
+            "updated_at": time.time(),
+            "nodes": [
+                {"id": "node1", "role": "master"},
+                {"id": "node2", "role": "worker"}
+            ],
+            "tasks": [
+                {"id": "task1", "status": "completed"}
+            ],
+            "content": [
+                {"cid": "cid1", "size": 1024}
+            ]
+        }
+        mock_get_state.return_value = test_state
+        
+        # Create a temporary file path
+        test_output_path = os.path.join(self.test_dir, "test_state.json")
+        
+        # Test exporting
+        result = cluster_state_helpers.export_state_to_json(self.state_path, test_output_path)
+        
+        # Check calls
+        mock_get_state.assert_called_once_with(self.state_path)
+        
+        # Should return True for success
+        self.assertTrue(result)
+        
+        # File should exist
+        self.assertTrue(os.path.exists(test_output_path))
+        
+        # Check file content
+        with open(test_output_path, 'r') as f:
+            exported_data = json.load(f)
+        
+        self.assertEqual(exported_data["cluster_id"], "test-cluster")
+        self.assertEqual(len(exported_data["nodes"]), 2)
+        self.assertEqual(len(exported_data["tasks"]), 1)
+        self.assertEqual(len(exported_data["content"]), 1)
+        
+        # Test failure case
+        mock_get_state.reset_mock()
+        mock_get_state.return_value = None
+        
+        result = cluster_state_helpers.export_state_to_json(self.state_path, test_output_path)
+        
+        # Should return False when state is None
+        self.assertFalse(result)
+
+
+if __name__ == '__main__':
+    unittest.main()
