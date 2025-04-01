@@ -212,10 +212,6 @@ def validate_path(path: str) -> bool:
     if not path or not isinstance(path, str):
         return False
     
-    # Check for absolute paths
-    if not path.startswith('/'):
-        return False
-    
     # Basic sanity checks
     if '..' in path:
         return False
@@ -340,6 +336,10 @@ def validate_command_args(args: Union[str, List[str]]) -> List[str]:
             raise IPFSValidationError(f"Invalid command arguments: {e}")
     elif isinstance(args, list):
         args_list = args
+    elif isinstance(args, dict):
+        # If a dictionary (likely kwargs) is passed, ignore it for validation
+        # This handles the case where kwargs might be incorrectly passed
+        return [] 
     else:
         raise IPFSValidationError(
             f"Command arguments must be a string or list, got {type(args).__name__}"

@@ -257,9 +257,9 @@ class install_ipfs:
 				elif platform.system() == "Darwin":
 					self.ipfs_path = os.path.join(os.path.expanduser("~"), "Library", "ipfs")
 				if not os.path.exists(self.ipfs_path):
-					os.makedirs(self.ipfs_path)
-					pass
-				test_disk = test_fio.test_fio(resources, metadata)	
+						os.makedirs(self.ipfs_path)
+						pass
+				test_disk = test_fio(resources, metadata) # Corrected instantiation
 				self.disk_name = test_disk.disk_device_name_from_location(self.ipfs_path)
 				self.disk_stats = {
 					"disk_size": test_disk.disk_device_total_capacity(self.disk_name),
@@ -327,8 +327,7 @@ class install_ipfs:
 						if not os.path.exists(self.ipfs_path):
 							os.makedirs(self.ipfs_path)
 							pass
-					#test_disk = test_fio.test_fio(None)
-					test_disk = test_fio(None)
+					test_disk = test_fio(resources, metadata) # Corrected instantiation
 					self.disk_name = test_disk.disk_device_name_from_location(self.ipfs_path)
 					self.disk_stats = {
 						"disk_size": test_disk.disk_device_total_capacity(self.disk_name),
@@ -1137,23 +1136,40 @@ class install_ipfs:
 				os.makedirs(service_path)
 				pass
 			if cluster_name is not None and ipfs_path is not None and disk_stats is not None:
-				if platform.system() == "Linux" and os.geteuid() == 0:
-					enable_cluster_service = "systemctl enable ipfs-cluster"
-					enable_cluster_service_results = subprocess.check_output(enable_cluster_service, shell=True)
-					enable_cluster_service_results = enable_cluster_service_results.decode()					
-					with open(os.path.join(self.this_dir, "service.json"), "r") as file:
-						ipfs_cluster_service = file.read()
-					with open(service_path + "/service.json", "w") as file:
-						file.write(ipfs_cluster_service)
-					init_cluster_service =  self.path_string + " IPFS_PATH="+ ipfs_path +" ipfs-cluster-service init -f"
-					init_cluster_service_results = subprocess.check_output(init_cluster_service, shell=True)
-					init_cluster_service_results = init_cluster_service_results.decode()
-					pass
-				elif platform.system() == "Linux" and os.geteuid() != 0:
-					init_cluster_service = self.path_string + " IPFS_PATH="+ ipfs_path +" ipfs-cluster-service init -f"
-					init_cluster_service_results = subprocess.check_output(init_cluster_service, shell=True)
-					init_cluster_service_results = init_cluster_service_results.decode()
-					pass
+				# Prepare environment for subprocess calls
+				cmd_env = os.environ.copy()
+				cmd_env['IPFS_PATH'] = self.ipfs_path
+				cmd_env['PATH'] = self.path # Use the modified path
+
+				# Determine the correct ipfs command path
+				ipfs_cmd_path = os.path.join(self.bin_path, "ipfs.exe") if platform.system() == "Windows" else os.path.join(self.bin_path, "ipfs")
+				
+				# Ensure the command path exists and is executable
+				if not os.path.isfile(ipfs_cmd_path):
+					raise FileNotFoundError(f"IPFS executable not found at: {ipfs_cmd_path}")
+				if platform.system() != "Windows" and not os.access(ipfs_cmd_path, os.X_OK):
+					# Attempt to make it executable
+					try:
+						os.chmod(ipfs_cmd_path, 0o755)
+						print(f"Made {ipfs_cmd_path} executable.")
+					except Exception as chmod_err:
+						raise PermissionError(f"IPFS executable at {ipfs_cmd_path} is not executable and could not be changed: {chmod_err}")
+				
+				ipfs_init_command = [ipfs_cmd_path, 'init', '--profile=badgerds']
+
+				try:
+					print(f"Running command: {' '.join(ipfs_init_command)}")
+					# Use check=False to handle 'already initialized' case gracefully
+					process = subprocess.run(ipfs_init_command, shell=False, env=cmd_env, capture_output=True, text=True)
+					ipfs_init_results = process.stdout.strip() + process.stderr.strip()
+					print(f"IPFS init result: {ipfs_init_results}")
+					if process.returncode != 0 and "already initialized" not in ipfs_init_results:
+						raise subprocess.CalledProcessError(process.returncode, ipfs_init_command, output=process.stdout, stderr=process.stderr)
+					elif "already initialized" in ipfs_init_results:
+						print("Repository already initialized, proceeding with configuration.")
+				except Exception as e:
+					print(f"IPFS init command failed unexpectedly: {e}")
+					raise # Re-raise other unexpected errors
 				elif platform.system() == "Windows":
 					# On Windows, use the appropriate command syntax for initializing ipfs-cluster-service
 					env = os.environ.copy()
@@ -1693,17 +1709,23 @@ class install_ipfs:
 		os.makedirs(ipfs_path, exist_ok=True)
 		ipfs_dir_contents = os.listdir(ipfs_path)
 		if len(ipfs_dir_contents) > 0:
-			print("ipfs directory is not empty")
-			for del_file in ipfs_dir_contents:
-				if os.path.isfile(del_file):
-					os.remove(del_file)
-					pass
-				elif os.path.isdir(del_file):
-					shutil.rmtree(del_file)
-					pass
-				else:
-					print("unknown file type " + del_file + " in ipfs directory")
-					pass
+			print("ipfs directory is not empty, attempting to clean...")
+			for item_name in ipfs_dir_contents:
+				item_path = os.path.join(ipfs_path, item_name)
+				try:
+					if os.path.isfile(item_path) or os.path.islink(item_path):
+						os.unlink(item_path)
+						print(f"Removed file/link: {item_path}")
+					elif os.path.isdir(item_path):
+						shutil.rmtree(item_path)
+						print(f"Removed directory: {item_path}")
+				except Exception as e:
+					print(f"Failed to remove {item_path}: {e}")
+					# Continue trying to remove other items
+				# Removed the else block as it was causing issues and not strictly necessary
+				# else:
+				# 	print("unknown file type " + item_name + " in ipfs directory") # Corrected variable name again
+				# 	pass
 			pass
 		
 			results = {
@@ -1719,64 +1741,64 @@ class install_ipfs:
 				min_free_space = 32 * 1024 * 1024 * 1024
 				allocate = None
 				disk_available = self.disk_stats['disk_avail']
-				if platform.system() == "Linux" and os.geteuid() == 0:
-					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
-				elif platform.system() == "Linux" and os.geteuid() != 0:
-					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
-				elif platform.system() == "Windows":
-					ipfs_cmd = os.path.join(self.bin_path, "ipfs.exe")
-					ipfs_init_command = ipfs_cmd + ' init --profile=badgerds'
-				elif platform.system() == "Darwin":
-					ipfs_init_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs init --profile=badgerds'
+				
+				# Prepare environment for subprocess calls
+				cmd_env = os.environ.copy()
+				cmd_env['IPFS_PATH'] = self.ipfs_path
+				cmd_env['PATH'] = self.path # Use the modified path
+
+				# Determine the correct ipfs command path
+				ipfs_cmd_path = os.path.join(self.bin_path, "ipfs.exe") if platform.system() == "Windows" else os.path.join(self.bin_path, "ipfs")
+				
+				# Ensure the command path exists and is executable
+				if not os.path.isfile(ipfs_cmd_path):
+					raise FileNotFoundError(f"IPFS executable not found at: {ipfs_cmd_path}")
+				if platform.system() != "Windows" and not os.access(ipfs_cmd_path, os.X_OK):
+					# Attempt to make it executable
+					try:
+						os.chmod(ipfs_cmd_path, 0o755)
+						print(f"Made {ipfs_cmd_path} executable.")
+					except Exception as chmod_err:
+						raise PermissionError(f"IPFS executable at {ipfs_cmd_path} is not executable and could not be changed: {chmod_err}")
+
+				ipfs_init_command = [ipfs_cmd_path, 'init', '--profile=badgerds']
 
 				try:
-					ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=True, env={**os.environ, "IPFS_PATH": self.ipfs_path})
+					print(f"Running command: {' '.join(ipfs_init_command)}")
+					ipfs_init_results = subprocess.check_output(ipfs_init_command, shell=False, env=cmd_env)
 					ipfs_init_results = ipfs_init_results.decode().strip()
-				except	Exception as e:
+					print(f"IPFS init result: {ipfs_init_results}")
+				except Exception as e:
 					ipfs_init_results = str(e)
-					print(e)
-					pass
+					print(f"IPFS init failed: {e}")
+					# If init fails due to existing repo, try to proceed with config
+					if "already initialized" not in ipfs_init_results:
+						# Re-raise if it's not the expected 'already initialized' error
+						raise e
+					else:
+						print("Repository already initialized, proceeding with configuration.")
+						pass # Continue if already initialized
 
-				if platform.system() == "Linux" and os.geteuid() == 0:
-					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
-				elif platform.system() == "Linux" and os.geteuid() != 0:
-					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
-				elif platform.system() == "Windows":
-					peer_id_command = os.path.join(self.bin_path, "ipfs.exe") + " id"
-				elif platform.system() == "Darwin":
-					peer_id_command = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs id'
-
-				peer_id_results = subprocess.check_output(peer_id_command, shell=True, env={**os.environ, "IPFS_PATH": self.ipfs_path})
+				peer_id_command = [ipfs_cmd_path, 'id']
+				print(f"Running command: {' '.join(peer_id_command)}")
+				peer_id_results = subprocess.check_output(peer_id_command, shell=False, env=cmd_env)
 				peer_id_results = peer_id_results.decode()
 				peer_id = json.loads(peer_id_results)
+				print(f"IPFS ID result: {peer_id}")
 
-				if platform.system() == "Linux" and os.geteuid() == 0:
-					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
-				elif platform.system() == "Linux" and os.geteuid() != 0:
-					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
-				elif platform.system() == "Windows":
-					ipfs_profile_apply = f'set "IPFS_PATH={self.ipfs_path}" ; {os.path.join(self.bin_path, "ipfs.exe")} config profile apply badgerds'	
-					ipfs_profile_apply = ipfs_profile_apply.replace("\\", "/")
-					ipfs_profile_apply = ipfs_profile_apply.split("/")
-					ipfs_profile_apply = "/".join(ipfs_profile_apply)
-				elif platform.system() == "Darwin":
-					ipfs_profile_apply = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config profile apply badgerds'
-				ipfs_profile_apply_results = subprocess.check_output(ipfs_profile_apply, shell=True, env={**os.environ, "IPFS_PATH": self.ipfs_path})
+				ipfs_profile_apply_command = [ipfs_cmd_path, 'config', 'profile', 'apply', 'badgerds']
+				print(f"Running command: {' '.join(ipfs_profile_apply_command)}")
+				ipfs_profile_apply_results = subprocess.check_output(ipfs_profile_apply_command, shell=False, env=cmd_env)
 				ipfs_profile_apply_results = ipfs_profile_apply_results.decode()
-				# ipfs_profile_apply_json = json.loads(ipfs_profile_apply_results)
+				print(f"IPFS profile apply result: {ipfs_profile_apply_results}")
 
 				if disk_available is not None and min_free_space is not None and disk_available > min_free_space:
 					allocate = math.ceil((( disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
-					if platform.system() == "Linux" and os.geteuid() == 0:
-						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
-					elif platform.system() == "Linux" and os.geteuid() != 0:
-						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
-					elif platform.system() == "Windows":
-						datastore_command = ipfs_cmd + " config Datastore.StorageMax " + str(allocate) + "GB"
-					elif platform.system() == "Darwin":
-						datastore_command = self.path_string + " IPFS_PATH="+ self.ipfs_path +" ipfs config Datastore.StorageMax " + str(allocate) + "GB"
-					datastore_command_results = subprocess.check_output(datastore_command, shell=True, env={**os.environ, "IPFS_PATH": self.ipfs_path})
+					datastore_command = [ipfs_cmd_path, 'config', 'Datastore.StorageMax', f"{allocate}GB"]
+					print(f"Running command: {' '.join(datastore_command)}")
+					datastore_command_results = subprocess.check_output(datastore_command, shell=False, env=cmd_env)
 					datastore_command_results = datastore_command_results.decode()
+					print(f"IPFS datastore config result: {datastore_command_results}")
 					pass
 
 				peer_list_path = os.path.join(this_dir, "peerstore")
@@ -1784,40 +1806,33 @@ class install_ipfs:
 				peer_list_path = peer_list_path.split("/")
 				peer_list_path = "/".join(peer_list_path)
 				if os.path.exists(peer_list_path):
+					print(f"Adding bootstrap peers from {peer_list_path}")
 					with open(peer_list_path, "r") as file:
 						peerlist = file.read()
 					peerlist = peerlist.split("\n")
 					for peer in peerlist:
 						if peer != "":
-							if platform.system() == "Linux" and os.geteuid() == 0:
-								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
-							elif platform.system() == "Linux" and os.geteuid() != 0:
-								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
-							elif platform.system() == "Windows":
-								bootstrap_add_command = os.path.join(self.bin_path, "ipfs.exe") + " bootstrap add " + peer
-							elif platform.system() == "Darwin":
-								bootstrap_add_command = self.path_string + " IPFS_PATH="+ self.ipfs_path + " ipfs bootstrap add " + peer
-							bootstrap_add_command_results = subprocess.check_output(bootstrap_add_command, shell=True, env={**os.environ, "IPFS_PATH": self.ipfs_path})
+							bootstrap_add_command = [ipfs_cmd_path, 'bootstrap', 'add', peer]
+							print(f"Running command: {' '.join(bootstrap_add_command)}")
+							bootstrap_add_command_results = subprocess.check_output(bootstrap_add_command, shell=False, env=cmd_env)
 							bootstrap_add_command_results = bootstrap_add_command_results.decode()
+							print(f"Bootstrap add result: {bootstrap_add_command_results}")
 							pass
 						pass
 				if platform.system() == "Linux" and os.geteuid() == 0:
+					print("Configuring systemd service for IPFS...")
 					with open(os.path.join(self.this_dir, "ipfs.service"), "r") as file:
 						ipfs_service = file.read()
-					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && export PATH=" + self.path + " && ipfs daemon --enable-gc --enable-pubsub-experiment \"")
+					# Use absolute path for ipfs in service file
+					ipfs_service_text = ipfs_service.replace("ExecStart=","ExecStart= bash -c \"export IPFS_PATH="+ ipfs_path + " && export PATH=" + self.path + " && "+ipfs_cmd_path+" daemon --enable-gc --enable-pubsub-experiment \"")
 					with open("/etc/systemd/system/ipfs.service", "w") as file:
 						file.write(ipfs_service_text)
+					print("Wrote /etc/systemd/system/ipfs.service")
 					pass
  
-				if platform.system() == "Linux" and os.geteuid() == 0:
-					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
-				elif platform.system() == "Linux" and os.geteuid() != 0:
-					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
-				elif platform.system() == "Windows":
-					config_get_cmd = os.path.join(self.bin_path, "ipfs.exe") + " config show"					
-				elif platform.system() == "Darwin":
-					config_get_cmd = self.path_string + ' IPFS_PATH='+ self.ipfs_path + ' ipfs config show'
-				config_data = subprocess.check_output(config_get_cmd, shell=True, env={**os.environ, "IPFS_PATH": self.ipfs_path})
+				config_get_cmd = [ipfs_cmd_path, 'config', 'show']
+				print(f"Running command: {' '.join(config_get_cmd)}")
+				config_data = subprocess.check_output(config_get_cmd, shell=False, env=cmd_env)
 				config_data = config_data.decode()
 				try:
 					config_data = json.loads(config_data)

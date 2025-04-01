@@ -23,13 +23,14 @@ import yaml
 import logging
 import importlib
 import inspect
+import tempfile
 from typing import Dict, List, Tuple, Optional, Union, Any, Callable
 from pathlib import Path
 
 # Internal imports
 try:
     # First try relative imports (when used as a package)
-    from .ipfs_kit import ipfs_kit
+    from .ipfs_kit import ipfs_kit # Corrected import from .ipfs_kit_bak
     from .ipfs_fsspec import IPFSFileSystem
     from .error import IPFSError, IPFSValidationError, IPFSConfigurationError
     from .validation import validate_parameters
@@ -39,7 +40,7 @@ except ImportError:
     import sys
     # Add parent directory to path
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from ipfs_kit_py.ipfs_kit import ipfs_kit
+    from ipfs_kit_py.ipfs_kit import ipfs_kit # Corrected import from ipfs_kit_bak
     from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
     from ipfs_kit_py.error import IPFSError, IPFSValidationError, IPFSConfigurationError
     from ipfs_kit_py.validation import validate_parameters
@@ -90,8 +91,21 @@ class IPFSSimpleAPI:
         
         # Initialize filesystem access
         try:
-            self.fs = self.kit.get_filesystem()
-        except (ImportError, AttributeError) as e:
+            # Initialize IPFSFileSystem directly
+            cache_config = self.config.get("cache", {})
+            ipfs_path = self.config.get("ipfs_path", "~/.ipfs") # Get IPFS path from config or default
+            socket_path = self.config.get("socket_path") # Get socket path if configured
+            use_mmap = self.config.get("use_mmap", True) # Get mmap setting
+
+            self.fs = IPFSFileSystem(
+                ipfs_path=ipfs_path,
+                socket_path=socket_path,
+                role=self.config.get("role", "leecher"),
+                cache_config=cache_config,
+                use_mmap=use_mmap
+            )
+            logger.info("IPFSFileSystem initialized successfully.")
+        except (ImportError, AttributeError, Exception) as e:
             logger.warning(f"Failed to initialize filesystem: {e}")
             self.fs = None
         
@@ -265,16 +279,45 @@ class IPFSSimpleAPI:
         # Handle different content types
         if isinstance(content, (str, bytes)) and os.path.exists(str(content)):
             # It's a file path
-            result = self.kit.ipfs_add_file(str(content), **kwargs)
+            # Need to pass as a positional argument, not named parameter
+            kwargs_copy = kwargs.copy()
+            result = self.kit.ipfs_add_path(str(content), **kwargs_copy)
         elif isinstance(content, str):
-            # It's a string
-            result = self.kit.ipfs_add(content.encode('utf-8'), **kwargs)
+            # It's a string - create a temporary file and add it
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(content.encode('utf-8'))
+                temp_file_path = temp_file.name
+            try:
+                # Need to pass as a positional argument, not named parameter
+                kwargs_copy = kwargs.copy()
+                result = self.kit.ipfs_add_path(temp_file_path, **kwargs_copy)
+            finally:
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
         elif isinstance(content, bytes):
-            # It's bytes
-            result = self.kit.ipfs_add(content, **kwargs)
+            # It's bytes - create a temporary file and add it
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            try:
+                # Need to pass as a positional argument, not named parameter
+                kwargs_copy = kwargs.copy()
+                result = self.kit.ipfs_add_path(temp_file_path, **kwargs_copy)
+            finally:
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
         elif hasattr(content, 'read'):
-            # It's a file-like object
-            result = self.kit.ipfs_add(content.read(), **kwargs)
+            # It's a file-like object - read it and add as bytes
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(content.read())
+                temp_file_path = temp_file.name
+            try:
+                # Need to pass as a positional argument, not named parameter
+                kwargs_copy = kwargs.copy()
+                result = self.kit.ipfs_add_path(temp_file_path, **kwargs_copy)
+            finally:
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
         else:
             raise IPFSValidationError(f"Unsupported content type: {type(content)}")
         

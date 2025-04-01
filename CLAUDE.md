@@ -426,6 +426,9 @@ The project includes comprehensive IPFS documentation in `/docs/ipfs-docs/`, whi
   - `http/gateway.md`: Gateway API reference
 
 ### Core Architecture
+
+The project implements a virtual filesystem leveraging a combination of technologies including IPFS, IPFS Cluster, S3, Storacha, HuggingFace Hub, and Apache Arrow. This system provides a unified interface to content distributed across these diverse storage backends. A key component of this architecture is an Adaptive Replacement Cache (ARC) strategy, implemented in the tiered storage system, which optimizes content retrieval performance by intelligently managing data across different cache tiers based on access patterns.
+
 The ipfs_kit_py module implements a layered architecture with several key components:
 
 1. **ipfs_kit**: Main orchestrator class providing a unified interface
