@@ -64,7 +64,8 @@ class ArrowMetadataIndex:
                  role: str = "leecher",
                  sync_interval: int = 300,
                  enable_c_interface: bool = True,
-                 ipfs_client = None):
+                 ipfs_client = None,
+                 node_id: Optional[str] = None): # Added node_id
         """
         Initialize the Arrow-based metadata index.
         
@@ -87,6 +88,7 @@ class ArrowMetadataIndex:
         self.sync_interval = sync_interval
         self.enable_c_interface = enable_c_interface and PLASMA_AVAILABLE
         self.ipfs_client = ipfs_client
+        self.node_id = node_id # Store node_id
         
         # Set up schema
         self.schema = self._create_default_schema()
@@ -474,7 +476,7 @@ class ArrowMetadataIndex:
             
             # Update the C Data Interface if enabled
             if self.enable_c_interface:
-                self._export_to_c_data_interface()
+                self._export_to_c_data_interface() # Corrected method name
                 
             result["success"] = True
             result["cid"] = record.get('cid')
@@ -587,7 +589,7 @@ class ArrowMetadataIndex:
                         
                         # Update C Data Interface
                         if self.enable_c_interface:
-                            self._export_to_c_data_interface()
+                            self._export_to_c_data_interface() # Corrected method name
                         
                         return True
             
@@ -615,7 +617,7 @@ class ArrowMetadataIndex:
                 
             # Update C Data Interface
             if self.enable_c_interface:
-                self._export_to_c_data_interface()
+                self._export_to_c_data_interface() # Corrected method name
                 
             return True
             
@@ -670,9 +672,47 @@ class ArrowMetadataIndex:
             Arrow Table with query results
         """
         try:
-            # Create dataset from all partitions
-            ds = dataset(self.index_dir, format="parquet")
-            
+            # Create dataset from persisted partitions
+            try:
+                ds = dataset(self.index_dir, format="parquet", schema=self.schema)
+                persisted_table = ds.to_table()
+            except Exception as e:
+                # Handle case where directory might be empty or contain invalid files
+                self.logger.debug(f"Could not load dataset from {self.index_dir}: {e}")
+                persisted_table = None
+
+            # Combine with in-memory batch if it exists
+            if self.record_batch is not None:
+                in_memory_table = pa.Table.from_batches([self.record_batch])
+                if persisted_table is not None and persisted_table.num_rows > 0:
+                    # Need to handle potential schema evolution if necessary, but assume same for now
+                    # Also handle potential duplicates between persisted and in-memory
+                    combined_table = pa.concat_tables([persisted_table, in_memory_table])
+                    # Remove duplicates based on CID, keeping the latest (from in-memory)
+                    cid_field_index = self.schema.get_field_index('cid')
+                    if cid_field_index >= 0:
+                         # This is complex with Arrow tables directly. A simpler approach for now
+                         # is to prioritize the in-memory batch for updates.
+                         # Let's refine this if needed. For now, just concat.
+                         # A more robust way might involve pandas or a dedicated merge strategy.
+                         # For simplicity, let's just use the combined table for filtering.
+                         table_to_filter = combined_table
+                    else:
+                         table_to_filter = combined_table
+
+                else:
+                    table_to_filter = in_memory_table
+            elif persisted_table is not None:
+                 table_to_filter = persisted_table
+            else:
+                 # Return empty table if neither persisted nor in-memory data exists
+                 empty_arrays = []
+                 schema_to_use = pa.schema([self.schema.field(col) for col in columns]) if columns else self.schema
+                 for field in schema_to_use:
+                     empty_arrays.append(pa.array([], type=field.type))
+                 return pa.Table.from_arrays(empty_arrays, schema=schema_to_use)
+
+
             # Build filter expression
             filter_expr = None
             if filters:
@@ -713,15 +753,15 @@ class ArrowMetadataIndex:
                     else:
                         filter_expr = pc.and_(filter_expr, expr)
             
-            # Execute query
-            if columns is not None and filter_expr is not None:
-                table = ds.to_table(columns=columns, filter=filter_expr)
-            elif columns is not None:
-                table = ds.to_table(columns=columns)
-            elif filter_expr is not None:
-                table = ds.to_table(filter=filter_expr)
+            # Apply filter expression to the combined table
+            if filter_expr is not None:
+                table = table_to_filter.filter(filter_expr)
             else:
-                table = ds.to_table()
+                table = table_to_filter
+
+            # Select columns if specified
+            if columns is not None:
+                table = table.select(columns)
             
             # Apply limit if specified
             if limit is not None and limit < table.num_rows:
@@ -763,9 +803,13 @@ class ArrowMetadataIndex:
                 # Get all string fields
                 fields = []
                 for field in self.schema:
-                    if (isinstance(field.type, pa.StringType) or 
-                        field.name in ['tags', 'properties']):
-                        fields.append(field.name)
+                    # Use pa.string() for type check
+                    if (isinstance(field.type, type(pa.string())) or
+                        isinstance(field.type, pa.ListType) and isinstance(field.type.value_type, type(pa.string())) or # list<string> for tags
+                        isinstance(field.type, pa.MapType)): # map<string, string> for properties
+                        # TODO: Handle map search properly if needed
+                        if not isinstance(field.type, pa.MapType):
+                             fields.append(field.name)
             
             # Build a combined filter for all fields
             filters = []

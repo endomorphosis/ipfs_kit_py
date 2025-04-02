@@ -746,18 +746,23 @@ class DatasetManager:
             if format == 'csv' and NUMPY_AVAILABLE:
                 try:
                     import pandas as pd
-                    df = pd.read_csv(path, nrows=5)  # Read just a few rows for schema
+                    df = pd.read_csv(path, nrows=5) # Read just a few rows for schema
                     stats["columns"] = df.columns.tolist()
-                    stats["num_rows"] = sum(1 for _ in open(path)) - 1  # Count lines minus header
+                    # Count rows manually - less prone to mock issues
+                    with open(path, 'r') as f_count:
+                         row_count = sum(1 for _ in f_count)
+                    # Subtract header if file is not empty
+                    stats["num_rows"] = max(0, row_count -1) if row_count > 0 else 0
                 except Exception as e:
                     logger.debug(f"Failed to read CSV stats: {e}")
-                    
+
             elif format == 'parquet' and NUMPY_AVAILABLE:
                 try:
                     import pandas as pd
+                    # Assuming pyarrow is installed for parquet support
                     df = pd.read_parquet(path)
                     stats["columns"] = df.columns.tolist()
-                    stats["num_rows"] = len(df)
+                    stats["num_rows"] = int(len(df)) # Cast to int
                 except Exception as e:
                     logger.debug(f"Failed to read Parquet stats: {e}")
             

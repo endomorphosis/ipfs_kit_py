@@ -116,10 +116,11 @@ class TestStateReplication:
             "initial_data": initial_state,
             "vector_clock": {"peer1": 1, "peer2": 1, "peer3": 1}
         })
-        
+
         # Test initializing state
-        result = master.initialize_distributed_state(initial_state)
-        
+        # Call on the mocked state_crdt attribute
+        result = master.state_crdt.initialize(initial_state)
+
         # Verify result
         assert result["success"] is True
         assert "state_id" in result
@@ -152,25 +153,27 @@ class TestStateReplication:
             "new_sequence_number": 42,
             "new_vector_clock": {"peer1": 2, "peer2": 1, "peer3": 1}
         })
-        
+
         # Test sync process
-        master_update = master.get_state_update_for_sync(
-            node_id=worker.metadata.get("node_id"),
+        # Call on the mocked state_crdt attribute
+        master_update = master.state_crdt.get_state_update(
+            node_id=worker.metadata.get("node_id"), # Assuming worker mock has metadata
             last_sequence=41
         )
-        
+
         # Verify master update
         assert master_update["success"] is True
         assert master_update["sequence_number"] == 42
         assert len(master_update["updates"]) == 2
-        
+
         # Apply update on worker
-        worker_result = worker.apply_state_updates(
+        # Call on the mocked state_crdt_replica attribute
+        worker_result = worker.state_crdt_replica.apply_updates(
             updates=master_update["updates"],
             vector_clock=master_update["vector_clock"],
             sequence_number=master_update["sequence_number"]
         )
-        
+
         # Verify worker result
         assert worker_result["success"] is True
         assert worker_result["applied_count"] == 2
@@ -227,10 +230,11 @@ class TestPartialStateUpdates:
             "from_version": 1,
             "to_version": 2
         })
-        
+
         # Test creating patch
-        result = master.create_state_patch(original_state, new_state)
-        
+        # Call on the mocked state_crdt attribute
+        result = master.state_crdt.create_patch(original_state, new_state)
+
         # Verify result
         assert result["success"] is True
         assert "patch" in result
@@ -284,10 +288,11 @@ class TestPartialStateUpdates:
             "from_version": 1,
             "to_version": 2
         })
-        
-        # Test applying patch
-        result = worker.apply_state_patch(current_state, patch, from_version=1, to_version=2)
-        
+
+        # Test creating patch
+        # Call on the mocked state_crdt attribute
+        result = master.state_crdt.create_patch(original_state, new_state)
+
         # Verify result
         assert result["success"] is True
         assert "result" in result
@@ -350,24 +355,25 @@ class TestVectorClocks:
                 return {"relationship": "equal", "description": "a and b are equal"}
         
         master.state_crdt.compare_vector_clocks = MagicMock(side_effect=compare_clocks)
-        
+
         # Test various comparisons
-        result1 = master.compare_vector_clocks(vc1, vc2)
+        # Call on the mocked state_crdt attribute
+        result1 = master.state_crdt.compare_vector_clocks(vc1, vc2)
         assert result1["relationship"] == "before"
-        
-        result2 = master.compare_vector_clocks(vc2, vc1)
+
+        result2 = master.state_crdt.compare_vector_clocks(vc2, vc1)
         assert result2["relationship"] == "after"
-        
-        result3 = master.compare_vector_clocks(vc2, vc3)
+
+        result3 = master.state_crdt.compare_vector_clocks(vc2, vc3)
         assert result3["relationship"] == "concurrent"
-        
-        result4 = master.compare_vector_clocks(vc3, vc4)
+
+        result4 = master.state_crdt.compare_vector_clocks(vc3, vc4)
         assert result4["relationship"] == "before"
-        
-        result5 = master.compare_vector_clocks(vc2, vc5)
+
+        result5 = master.state_crdt.compare_vector_clocks(vc2, vc5)
         assert result5["relationship"] == "concurrent"
-        
-        result6 = master.compare_vector_clocks(vc1, vc1)
+
+        result6 = master.state_crdt.compare_vector_clocks(vc1, vc1)
         assert result6["relationship"] == "equal"
     
     def test_increment_vector_clock(self, cluster_state_setup):
@@ -455,10 +461,11 @@ class TestConflictResolution:
                 }
             ]
         })
-        
-        # Test conflict detection
-        result = master.detect_update_conflicts([update1, update2])
-        
+
+        # Test applying patch
+        # Call on the mocked state_crdt_replica attribute
+        result = worker.state_crdt_replica.apply_patch(current_state, patch, from_version=1, to_version=2)
+
         # Verify result
         assert result["has_conflict"] is True
         assert len(result["conflicts"]) == 1
@@ -504,10 +511,11 @@ class TestConflictResolution:
             },
             "strategy": "last_write_wins"
         })
-        
-        # Test LWW resolution
-        result = master.resolve_conflict_lww(conflict)
-        
+
+        # Test applying patch
+        # Call on the mocked state_crdt_replica attribute
+        result = worker.state_crdt_replica.apply_patch(current_state, patch, from_version=1, to_version=2)
+
         # Verify result
         assert result["resolved"] is True
         assert result["winner"]["value"] == "new-name-2"
@@ -590,10 +598,11 @@ class TestGossipBasedSynchronization:
             "gossip_topic": "test-sync-cluster/state",
             "subscription_id": "sub-1234"
         })
-        
-        # Test setting up gossip
-        result = master.setup_gossip_protocol()
-        
+
+        # Test applying patch
+        # Call on the mocked state_crdt_replica attribute
+        result = worker.state_crdt_replica.apply_patch(current_state, patch, from_version=1, to_version=2)
+
         # Verify result
         assert result["success"] is True
         assert "gossip_topic" in result

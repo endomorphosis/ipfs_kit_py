@@ -36,16 +36,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_add_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_add_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'add' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'add',
-            2: self.test_file_path
-        }[i] if i < 3 else IndexError()
-        mock_argv.__len__.return_value = 3
-        
+        sys.argv = ['ipfs_kit', 'add', self.test_file_path] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_add_file.return_value = {
@@ -82,16 +77,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_cat_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_cat_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'cat' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'cat',
-            2: 'QmTest123'
-        }[i] if i < 3 else IndexError()
-        mock_argv.__len__.return_value = 3
-        
+        sys.argv = ['ipfs_kit', 'cat', 'QmTest123'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_cat.return_value = {
@@ -125,17 +115,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_pin_add_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_pin_add_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'pin add' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'pin',
-            2: 'add',
-            3: 'QmTest123'
-        }[i] if i < 4 else IndexError()
-        mock_argv.__len__.return_value = 4
-        
+        sys.argv = ['ipfs_kit', 'pin', 'add', 'QmTest123'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_add_pin.return_value = {
@@ -171,17 +155,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_pin_rm_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_pin_rm_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'pin rm' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'pin',
-            2: 'rm',
-            3: 'QmTest123'
-        }[i] if i < 4 else IndexError()
-        mock_argv.__len__.return_value = 4
-        
+        sys.argv = ['ipfs_kit', 'pin', 'rm', 'QmTest123'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_remove_pin.return_value = {
@@ -217,16 +195,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_pin_ls_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_pin_ls_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'pin ls' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'pin',
-            2: 'ls'
-        }[i] if i < 3 else IndexError()
-        mock_argv.__len__.return_value = 3
-        
+        sys.argv = ['ipfs_kit', 'pin', 'ls'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_ls_pinset.return_value = {
@@ -269,21 +242,14 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_get_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_get_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'get' command."""
         # Output path for the download
         output_path = os.path.join(self.test_dir, "output")
-        
+
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'get',
-            2: 'QmTest123',
-            3: '-o',
-            4: output_path
-        }[i] if i < 5 else IndexError()
-        mock_argv.__len__.return_value = 5
-        
+        sys.argv = ['ipfs_kit', 'get', 'QmTest123', '-o', output_path] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_get.return_value = {
@@ -320,16 +286,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_swarm_peers_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_swarm_peers_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'swarm peers' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'swarm',
-            2: 'peers'
-        }[i] if i < 3 else IndexError()
-        mock_argv.__len__.return_value = 3
-        
+        sys.argv = ['ipfs_kit', 'swarm', 'peers'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_swarm_peers.return_value = {
@@ -370,17 +331,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_swarm_connect_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_swarm_connect_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'swarm connect' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'swarm',
-            2: 'connect',
-            3: '/ip4/10.0.0.1/tcp/4001/p2p/QmPeer1'
-        }[i] if i < 4 else IndexError()
-        mock_argv.__len__.return_value = 4
-        
+        sys.argv = ['ipfs_kit', 'swarm', 'connect', '/ip4/10.0.0.1/tcp/4001/p2p/QmPeer1'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_swarm_connect.return_value = {
@@ -416,15 +371,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_id_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_id_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'id' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'id'
-        }[i] if i < 2 else IndexError()
-        mock_argv.__len__.return_value = 2
-        
+        sys.argv = ['ipfs_kit', 'id'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_id.return_value = {
@@ -468,15 +419,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_daemon_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_daemon_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'daemon' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'daemon'
-        }[i] if i < 2 else IndexError()
-        mock_argv.__len__.return_value = 2
-        
+        sys.argv = ['ipfs_kit', 'daemon'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.daemon_start.return_value = {
@@ -511,15 +458,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_shutdown_command(self, mock_ipfs_kit, mock_argv):
+    def test_cli_shutdown_command(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI handling of the 'shutdown' command."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'shutdown'
-        }[i] if i < 2 else IndexError()
-        mock_argv.__len__.return_value = 2
-        
+        sys.argv = ['ipfs_kit', 'shutdown'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.daemon_stop.return_value = {
@@ -554,16 +497,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_error_handling(self, mock_ipfs_kit, mock_argv):
+    def test_cli_error_handling(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI error handling for failed operations."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'add',
-            2: 'nonexistent_file.txt'
-        }[i] if i < 3 else IndexError()
-        mock_argv.__len__.return_value = 3
-        
+        sys.argv = ['ipfs_kit', 'add', 'nonexistent_file.txt'] # Use direct list assignment
+
         # Mock IPFS kit instance with error result
         mock_instance = MagicMock()
         mock_instance.ipfs_add_file.return_value = {
@@ -596,17 +534,11 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_progress_display(self, mock_ipfs_kit, mock_argv):
+    def test_cli_progress_display(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI progress display for long-running operations."""
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'add',
-            2: '-r',
-            3: self.test_dir
-        }[i] if i < 4 else IndexError()
-        mock_argv.__len__.return_value = 4
-        
+        sys.argv = ['ipfs_kit', 'add', '-r', self.test_dir] # Use direct list assignment
+
         # Mock IPFS kit instance with progress updates
         mock_instance = MagicMock()
         
@@ -659,18 +591,14 @@ class TestCLIInterface(unittest.TestCase):
     
     @patch('sys.argv')
     @patch('ipfs_kit_py.ipfs_kit.ipfs_kit')
-    def test_cli_colorized_output(self, mock_ipfs_kit, mock_argv):
+    def test_cli_colorized_output(self, mock_ipfs_kit, mock_argv_patch): # Renamed mock_argv to mock_argv_patch
         """Test CLI colorized output for better readability."""
         # This test checks if colorization markers are in the output
         # Actual colors depend on the colorization library used
-        
+
         # Mock command-line arguments
-        mock_argv.__getitem__.side_effect = lambda i: {
-            0: 'ipfs_kit',
-            1: 'id'
-        }[i] if i < 2 else IndexError()
-        mock_argv.__len__.return_value = 2
-        
+        sys.argv = ['ipfs_kit', 'id'] # Use direct list assignment
+
         # Mock IPFS kit instance
         mock_instance = MagicMock()
         mock_instance.ipfs_id.return_value = {

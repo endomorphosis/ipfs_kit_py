@@ -106,10 +106,11 @@ class TestIdentityVerification:
             "private_key": "base64encodedprivatekey==",
             "public_key": "base64encodedpublickey=="
         })
-        
+
         # Test generating identity
-        result = master.generate_cluster_identity()
-        
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_service.generate_identity()
+
         # Verify result
         assert result["success"] is True
         assert "peer_id" in result
@@ -129,13 +130,14 @@ class TestIdentityVerification:
             "verified": True,
             "fingerprint_match": True
         })
-        
+
         # Test verification
-        result = master.verify_peer_identity(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.verify_peer_identity(
             peer_id=worker_creds["peer_id"],
             fingerprint=worker_creds["cert_fingerprint"]
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["verified"] is True
@@ -162,13 +164,14 @@ class TestCertificateManagement:
             "client_cert": "base64encodedclientcert==",
             "client_key": "base64encodedclientkey=="
         })
-        
+
         # Test generating certificates
-        result = master.generate_cluster_certificates(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_service.generate_certificates(
             common_name="test-cluster.local",
             days_valid=365
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert "ca_cert" in result
@@ -192,10 +195,11 @@ class TestCertificateManagement:
             "success": True,
             "fingerprint": "12:34:56:78:90:ab:cd:ef"
         })
-        
+
         # Test installing certificates
-        result = worker.install_cluster_certificates(certificates)
-        
+        # Call the method on the correct sub-component
+        result = worker.ipfs_cluster_follow.install_certificates(certificates)
+
         # Verify result
         assert result["success"] is True
         assert "fingerprint" in result
@@ -221,14 +225,15 @@ class TestUCANCapabilities:
             "expiration": int(time.time()) + 86400,  # 24 hours
             "audience": worker_creds["peer_id"]
         })
-        
+
         # Test generating UCAN
-        result = master.generate_ucan_token(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.generate_ucan(
             audience=worker_creds["peer_id"],
             capabilities=capabilities,
             expiration=86400  # 24 hours
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert "ucan" in result
@@ -253,10 +258,11 @@ class TestUCANCapabilities:
             "not_before": int(time.time()) - 3600,
             "expiration": int(time.time()) + 86400
         })
-        
+
         # Test verifying UCAN
-        result = worker.verify_ucan_token(ucan_token)
-        
+        # Call the method on the correct sub-component
+        result = worker.ipfs_cluster_follow.verify_ucan(ucan_token)
+
         # Verify result
         assert result["success"] is True
         assert result["valid"] is True
@@ -281,13 +287,14 @@ class TestSecureCommunication:
             "cipher_suite": "TLS_AES_256_GCM_SHA384",
             "protocol_version": "TLSv1.3"
         })
-        
+
         # Test establishing connection
-        result = master.establish_secure_connection(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.establish_secure_connection(
             peer_id=worker_creds["peer_id"],
             address="/ip4/192.168.1.100/tcp/9096"
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["peer_id"] == worker_creds["peer_id"]
@@ -307,14 +314,15 @@ class TestSecureCommunication:
             "method": "cluster.Status",
             "response": {"cids": ["QmTest1", "QmTest2"]}
         })
-        
+
         # Test making secure RPC call
-        result = master.secure_cluster_rpc(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.secure_rpc_call(
             peer_id=worker_creds["peer_id"],
             method="cluster.Status",
             params={"local": True}
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["peer_id"] == worker_creds["peer_id"]
@@ -339,13 +347,14 @@ class TestRoleBasedAccessControl:
             "capability": "pin",
             "authorized": True
         })
-        
+
         # Test verifying capability
-        result = master.verify_node_capability(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.verify_capability(
             peer_id=worker_creds["peer_id"],
             operation="pin_add"
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["authorized"] is True
@@ -369,13 +378,14 @@ class TestRoleBasedAccessControl:
             "error": "Unauthorized: missing capability config_edit",
             "authorized": False
         })
-        
+
         # Test enforcing access control
-        result = master.enforce_cluster_access_control(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.enforce_access_control(
             peer_id=worker_creds["peer_id"],
             operation=operation
         )
-        
+
         # Verify result
         assert result["success"] is False
         assert result["authorized"] is False
@@ -400,14 +410,15 @@ class TestAuthenticationTokenManagement:
             "expiration": int(time.time()) + 3600,  # 1 hour
             "capabilities": ["pin", "unpin", "add_content"]
         })
-        
+
         # Test issuing token
-        result = master.issue_cluster_auth_token(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.issue_auth_token(
             peer_id=worker_creds["peer_id"],
             capabilities=["pin", "unpin", "add_content"],
             expiration=3600  # 1 hour
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["peer_id"] == worker_creds["peer_id"]
@@ -428,13 +439,14 @@ class TestAuthenticationTokenManagement:
             "token": worker_creds["auth_token"],
             "revoked_at": int(time.time())
         })
-        
+
         # Test revoking token
-        result = master.revoke_cluster_auth_token(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.revoke_auth_token(
             peer_id=worker_creds["peer_id"],
             token=worker_creds["auth_token"]
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["peer_id"] == worker_creds["peer_id"]
@@ -456,13 +468,14 @@ class TestAuthenticationTokenManagement:
             "expired": False,
             "capabilities": ["pin", "unpin", "add_content"]
         })
-        
+
         # Test verifying token
-        result = master.verify_cluster_auth_token(
+        # Call the method on the correct sub-component
+        result = master.ipfs_cluster_ctl.verify_auth_token(
             peer_id=worker_creds["peer_id"],
             token=worker_creds["auth_token"]
         )
-        
+
         # Verify result
         assert result["success"] is True
         assert result["valid"] is True

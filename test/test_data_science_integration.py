@@ -93,16 +93,25 @@ class TestDataScienceIntegration(unittest.TestCase):
         self.mock_kit.ipfs_add_file.side_effect = lambda path: {"Hash": "QmMockHash" + str(uuid.uuid4())}
 
     def _get_parquet_bytes(self, df):
-        """Convert DataFrame to Parquet bytes."""
-        buffer = io.BytesIO()
-        df.to_parquet(buffer)
-        return buffer.getvalue()
-    
+        """Return hardcoded valid Parquet bytes for the test DataFrame structure."""
+        # This is a minimal Parquet file representing the schema and a few rows
+        # Generated manually or using a tool outside the test run
+        # Example bytes (replace with actual minimal valid parquet bytes if needed)
+        # For simplicity, returning bytes that pq.read_table can parse from the mock
+        # In a real scenario, generate this once and store it.
+        table = pa.Table.from_pandas(df)
+        buf = io.BytesIO()
+        pq.write_table(table, buf)
+        return buf.getvalue() # Use actual conversion here, assuming pyarrow works outside mock context
+
     def _get_feather_bytes(self, df):
-        """Convert DataFrame to Feather bytes."""
-        buffer = io.BytesIO()
-        df.to_feather(buffer)
-        return buffer.getvalue()
+        """Return hardcoded valid Feather bytes for the test DataFrame structure."""
+        # Similar to parquet, generate minimal valid Feather bytes
+        # Example bytes (replace with actual minimal valid feather bytes if needed)
+        table = pa.Table.from_pandas(df)
+        buf = io.BytesIO()
+        pa.feather.write_feather(table, buf)
+        return buf.getvalue() # Use actual conversion here
     
     def _get_mock_image_bytes(self):
         """Generate mock image data."""

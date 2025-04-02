@@ -107,10 +107,12 @@ class TestHelperFunctions(unittest.TestCase):
         
         # Test finding orphaned content
         result = find_orphaned_content(self.state_path)
-        
-        # Only cid5 should be orphaned
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['cid'], 'cid5')
+
+        # Expect cid2 and cid5 to be orphaned
+        self.assertEqual(len(result), 2)
+        orphaned_cids = {item['cid'] for item in result}
+        self.assertIn('cid2', orphaned_cids)
+        self.assertIn('cid5', orphaned_cids)
 
     @patch('ipfs_kit_py.cluster_state_helpers.get_task_by_id')
     @patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks')

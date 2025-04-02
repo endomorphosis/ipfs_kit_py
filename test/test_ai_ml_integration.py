@@ -489,6 +489,19 @@ class TestDistributedTraining(unittest.TestCase):
             ipfs_client=self.ipfs_client,
             cluster_manager=self.cluster_manager
         )
+
+        # Manually add the test dataset to the mocked registry for testing prepare_distributed_task
+        # This simulates the dataset having been added previously
+        import time # Ensure time is imported if not already
+        self.distributed_training.dataset_manager.registry["datasets"]["test_dataset"] = {
+            "1.0.0": {
+                "cid": "test_dataset_cid",
+                "format": "csv",
+                "added_at": time.time(),
+                "stats": {"size_bytes": 100, "num_files": 1, "num_rows": 3},
+                "metadata": {"description": "Mock dataset for testing"}
+            }
+        }
     
     def test_prepare_distributed_task(self):
         """Test preparing a distributed training task."""

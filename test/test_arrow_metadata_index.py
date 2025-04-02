@@ -139,7 +139,35 @@ class TestArrowMetadataIndex(unittest.TestCase):
                 return {"success": False, "error": f"CID not found: {cid}"}
         
         self.ipfs_client.cat = MagicMock(side_effect=cat)
-        
+
+        # Mock for _download_partition_by_cid specifically
+        # Create valid parquet bytes for testing download
+        def create_parquet_bytes(data):
+            table = pa.table(data)
+            buf = pa.BufferOutputStream()
+            pq.write_table(table, buf)
+            return buf.getvalue().to_pybytes()
+
+        self.parquet_data_cid1 = create_parquet_bytes({
+            'cid': ['QmTest1'],
+            'size_bytes': [1024],
+            'mime_type': ['text/plain']
+        })
+        self.parquet_data_cid2 = create_parquet_bytes({
+            'cid': ['QmTest2', 'QmTest2a'],
+            'size_bytes': [2048, 2049],
+            'mime_type': ['image/png', 'image/jpeg']
+        })
+
+        def cat_for_download(cid):
+             if cid == "QmTest1":
+                 return {"success": True, "data": self.parquet_data_cid1}
+             elif cid == "QmTest2":
+                 return {"success": True, "data": self.parquet_data_cid2}
+             else:
+                 return {"success": False, "error": f"CID not found: {cid}"}
+        self.mock_cat_for_download = MagicMock(side_effect=cat_for_download)
+
         # Initialize the metadata index
         self.index = ArrowMetadataIndex(
             index_dir=self.index_dir,
@@ -387,14 +415,16 @@ class TestArrowMetadataIndex(unittest.TestCase):
             
         # Verify we used the DAG fallback
         self.index._get_peer_partitions_via_dag.assert_called_with("peer1")
-        
+
     def test_download_partition_by_cid(self):
         """Test downloading a partition using its CID."""
-        # Test downloading QmTest1
-        result = self.index._download_partition_by_cid("QmTest1", 3)
-        
-        # Verify it was downloaded
-        self.assertTrue(result)
+        # Patch the ipfs_client.cat specifically for this test
+        with patch.object(self.index.ipfs_client, 'cat', self.mock_cat_for_download):
+            # Test downloading QmTest1
+            result = self.index._download_partition_by_cid("QmTest1", 3)
+
+            # Verify it was downloaded
+            self.assertTrue(result)
         
         # Check that the file exists and is a valid parquet file
         partition_path = os.path.join(self.index_dir, "ipfs_metadata_000003.parquet")
@@ -404,13 +434,14 @@ class TestArrowMetadataIndex(unittest.TestCase):
         table = pq.read_table(partition_path)
         self.assertEqual(table.num_rows, 1)
         self.assertEqual(table["cid"][0].as_py(), "QmTest1")
-        
+
         # Test downloading QmTest2 (more complex data)
-        result = self.index._download_partition_by_cid("QmTest2", 4)
-        
-        # Verify it was downloaded
-        self.assertTrue(result)
-        
+        with patch.object(self.index.ipfs_client, 'cat', self.mock_cat_for_download):
+            result = self.index._download_partition_by_cid("QmTest2", 4)
+
+            # Verify it was downloaded
+            self.assertTrue(result)
+
         # Check that the file exists and is a valid parquet file
         partition_path = os.path.join(self.index_dir, "ipfs_metadata_000004.parquet")
         self.assertTrue(os.path.exists(partition_path))

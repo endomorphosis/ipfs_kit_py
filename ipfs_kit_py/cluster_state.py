@@ -690,12 +690,13 @@ class ArrowClusterState:
                         'role': role,
                         'status': 'online',
                         'address': address,
-                        'last_seen': pd.Timestamp(time.time() * 1000, unit='ms'),
+                        # Convert timestamp immediately to Arrow scalar
+                        'last_seen': pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms')),
                         'resources': resources,
                         'tasks': [],
                         'capabilities': capabilities
                     }
-                    
+
                     # Check if node already exists
                     nodes = df.iloc[0]['nodes']
                     for i, node in enumerate(nodes):
@@ -703,13 +704,15 @@ class ArrowClusterState:
                             # Update existing node
                             logger.debug(f"Updating existing node {node_id}")
                             nodes[i] = node_data
-                            df.iloc[0]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
+                            # Convert timestamp immediately to Arrow scalar
+                            df.iloc[0]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
                             return pa.Table.from_pandas(df, schema=current_state.schema)
-                    
+
                     # Add new node
                     logger.debug(f"Adding new node {node_id}")
                     nodes.append(node_data)
-                    df.iloc[0]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
+                    # Convert timestamp immediately to Arrow scalar
+                    df.iloc[0]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
                     
                     # If this is a master node and master_id is empty, set it
                     if role == 'master' and (not df.iloc[0]['master_id'] or df.iloc[0]['master_id'] == ''):
@@ -764,13 +767,14 @@ class ArrowClusterState:
                         'type': task_type,
                         'status': 'pending',
                         'priority': priority,
-                        'created_at': pd.Timestamp(time.time() * 1000, unit='ms'),
-                        'updated_at': pd.Timestamp(time.time() * 1000, unit='ms'),
+                        # Convert timestamps immediately to Arrow scalars
+                        'created_at': pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms')),
+                        'updated_at': pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms')),
                         'assigned_to': '',
                         'parameters': string_params,
                         'result_cid': ''
                     }
-                    
+
                     # Check if task already exists
                     tasks = df.iloc[0]['tasks']
                     for i, task in enumerate(tasks):
@@ -778,13 +782,15 @@ class ArrowClusterState:
                             # Update existing task
                             logger.debug(f"Updating existing task {task_id}")
                             tasks[i] = task_data
-                            df.iloc[0]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
+                            # Convert timestamp immediately to Arrow scalar
+                            df.iloc[0]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
                             return pa.Table.from_pandas(df, schema=current_state.schema)
-                    
+
                     # Add new task
                     logger.debug(f"Adding new task {task_id}")
                     tasks.append(task_data)
-                    df.iloc[0]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
+                    # Convert timestamp immediately to Arrow scalar
+                    df.iloc[0]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
                     return pa.Table.from_pandas(df, schema=current_state.schema)
                     
                 except Exception as e:
@@ -827,11 +833,12 @@ class ArrowClusterState:
                             # Update task properties
                             for key, value in kwargs.items():
                                 tasks[i][key] = value
-                                
+
                             # Update updated_at timestamp for both task and state
-                            tasks[i]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
-                            df.iloc[0]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
-                            
+                            # Convert timestamps immediately to Arrow scalars
+                            tasks[i]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
+                            df.iloc[0]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
+
                             # Return updated state
                             return pa.Table.from_pandas(df, schema=current_state.schema)
                             
@@ -882,7 +889,8 @@ class ArrowClusterState:
                             # Update task assignment
                             tasks[i]['assigned_to'] = node_id
                             tasks[i]['status'] = 'assigned'
-                            tasks[i]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
+                            # Convert timestamp immediately to Arrow scalar
+                            tasks[i]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
                             task_found = True
                             break
                             
@@ -906,8 +914,9 @@ class ArrowClusterState:
                         return current_state
                         
                     # Update state timestamp
-                    df.iloc[0]['updated_at'] = pd.Timestamp(time.time() * 1000, unit='ms')
-                    
+                    # Convert timestamp immediately to Arrow scalar
+                    df.iloc[0]['updated_at'] = pa.scalar(int(time.time() * 1000)).cast(pa.timestamp('ms'))
+
                     # Return updated state
                     return pa.Table.from_pandas(df, schema=current_state.schema)
                     

@@ -45,11 +45,15 @@ def get_state_path_from_metadata(base_dir: str = None) -> Optional[str]:
     # Standard locations to check
     locations = []
     
-    # If base_dir is provided, check there first
+    # If base_dir is provided, check if it directly contains the metadata file
     if base_dir:
-        locations.append(os.path.join(base_dir, ".ipfs_cluster_state"))
-        locations.append(os.path.join(base_dir, "cluster_state"))
-    
+        base_dir_expanded = os.path.expanduser(base_dir)
+        if os.path.exists(os.path.join(base_dir_expanded, "state_metadata.json")):
+             return base_dir_expanded # base_dir is the state path
+        # Also check subdirectories within base_dir
+        locations.append(os.path.join(base_dir_expanded, ".ipfs_cluster_state"))
+        locations.append(os.path.join(base_dir_expanded, "cluster_state"))
+
     # Check standard locations
     locations.extend([
         os.path.expanduser("~/.ipfs/cluster_state"),
