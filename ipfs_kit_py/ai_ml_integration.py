@@ -30,6 +30,7 @@ import threading
 import tempfile  # Added import
 from typing import Dict, List, Optional, Any, Tuple, Set, Union, Callable
 from pathlib import Path
+from unittest.mock import MagicMock # Added import
 
 # Try to import AI/ML dependencies with appropriate fallbacks
 try:
@@ -37,6 +38,12 @@ try:
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
+
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
 
 # Check for Langchain availability
 try:
@@ -533,22 +540,60 @@ class DatasetManager:
         # Save empty registry
         self._save_registry(registry)
         return registry
-    
+
+    def _convert_to_json_serializable(self, obj):
+        """Recursively convert numpy/pandas types to standard Python types."""
+        if isinstance(obj, dict):
+            return {k: self._convert_to_json_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_to_json_serializable(elem) for elem in obj]
+        # Check for specific numpy integer types
+        elif NUMPY_AVAILABLE and isinstance(obj, (np.int64, np.int32, np.int16, np.int8, np.uint64, np.uint32, np.uint16, np.uint8)):
+            return int(obj)
+        # Check for specific numpy float types
+        elif NUMPY_AVAILABLE and isinstance(obj, (np.float64, np.float32, np.float16)):
+            return float(obj)
+        elif NUMPY_AVAILABLE and isinstance(obj, np.ndarray):
+            return obj.tolist() # Convert numpy arrays to lists
+        elif PANDAS_AVAILABLE and hasattr(obj, 'to_dict'): # Handle pandas Series/DataFrame if needed
+             # This might need refinement depending on how pandas objects are stored
+             # For now, assume basic types or convert to dict
+             try:
+                 return obj.to_dict()
+             except Exception:
+                 return str(obj) # Fallback to string representation
+        # Handle MagicMock specifically for testing environments
+        elif isinstance(obj, MagicMock):
+             # Use repr(obj) for a standard string representation
+             return repr(obj) # Represent MagicMock as a string
+        # Add checks for other non-serializable types if necessary
+        return obj
+
     def _save_registry(self, registry=None):
         """Save the registry to disk and optionally to IPFS."""
         if registry is None:
             registry = self.registry
-            
+
         # Update timestamp
         registry["updated_at"] = time.time()
-        
+
+        # Convert registry to be JSON serializable
+        serializable_registry = self._convert_to_json_serializable(registry)
+
         # Save to local file
-        with open(self.registry_file, 'w') as f:
-            json.dump(registry, f, indent=2)
-            
+        try:
+            with open(self.registry_file, 'w') as f:
+                json.dump(serializable_registry, f, indent=2)
+        except TypeError as e:
+            logger.error(f"Failed to serialize registry for local save: {e}")
+            # Optionally log the problematic part of the registry
+            # logger.error(f"Problematic registry data: {serializable_registry}")
+            raise # Re-raise the error after logging
+
         # Optionally, save to IPFS for distributed access
         try:
-            result = self.ipfs.dag_put(registry)
+            # Use the serializable version for dag_put as well
+            result = self.ipfs.dag_put(serializable_registry)
             logger.debug(f"Dataset registry saved to IPFS with CID: {result}")
             return result
         except Exception as e:
@@ -608,7 +653,6 @@ class DatasetManager:
                 # Copy dataset to tmp directory
                 target_dir = os.path.join(tmp_dir, "data")
                 os.makedirs(target_dir, exist_ok=True)
-                
                 if os.path.isdir(dataset_path):
                     # Copy directory contents
                     import shutil

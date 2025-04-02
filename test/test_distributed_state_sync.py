@@ -65,16 +65,16 @@ def cluster_state_setup():
                         "interval": 30,
                         "partial_updates": True,
                         "vector_clocks": True,
-                        "conflict_resolution": "lww"
-                    },
+                        "conflict_resolution": "lww", # Added comma
+                    }, # Added comma
                     "test_mode": True,
-                    "node_id": f"worker-{i+1}" # Add node_id for metadata access
-                }
+                    "node_id": f"worker-{i+1}", # Add node_id for metadata access # Added comma
+                } # Added comma
             )
             worker.ipfs = MagicMock()
             worker.ipfs_cluster_follow = MagicMock()
             # Add metadata attribute directly to the mock for easier access in tests
-            worker.metadata = worker.metadata
+            # worker.metadata = worker.metadata # Removed redundant assignment
             workers.append(worker)
             
         # Add in CRDT system to master
@@ -86,7 +86,7 @@ def cluster_state_setup():
         
         yield {
             "master": master,
-            "workers": workers
+            "workers": workers, # Added comma
         }
 
 

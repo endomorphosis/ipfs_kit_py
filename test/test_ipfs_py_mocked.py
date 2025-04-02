@@ -2,6 +2,7 @@ import pytest
 import os
 import json
 import tempfile
+import subprocess # Added import
 from unittest.mock import patch, MagicMock, ANY
 from ipfs_kit_py.ipfs import ipfs_py
 from ipfs_kit_py.error import IPFSError, IPFSConnectionError, IPFSTimeoutError

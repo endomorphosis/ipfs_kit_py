@@ -79,6 +79,7 @@ from .error import (
     create_result_dict, handle_error, perform_with_retry
 )
 from .validation import validate_cid, validate_path, is_valid_cid
+from .performance_metrics import PerformanceMetrics
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -696,33 +697,28 @@ class TieredCacheManager:
     def _setup_tiers(self) -> None:
         """Set up storage tiers from configuration."""
         tier_config = self.config.get('tiers', {})
+        self.tiers = {}  # Initialize tiers dictionary explicitly
+        self.tier_order = []
         
         for tier_name, tier_config in tier_config.items():
             tier_type = tier_config.get('type')
             
             if tier_type == 'memory':
-                # Memory tier
                 size = tier_config.get('size', 100 * 1024 * 1024)  # Default 100MB
                 self.tiers[tier_name] = {
                     'type': 'memory',
-                    'cache': ARCache(maxsize=size),
-                    'priority': tier_config.get('priority', 999),
-                    'size': size,
-                    'stats': {'hits': 0, 'misses': 0, 'puts': 0}
+                    'priority': tier_config.get('priority', 1),
+                    'cache': ARCache(maxsize=size)
                 }
                 
             elif tier_type == 'disk':
-                # Disk tier
                 size = tier_config.get('size', 1 * 1024 * 1024 * 1024)  # Default 1GB
-                path = tier_config.get('path', os.path.expanduser(f'~/.ipfs_cache/{tier_name}'))
-                
+                path = tier_config.get('path', os.path.expanduser('~/.ipfs_cache'))
                 self.tiers[tier_name] = {
                     'type': 'disk',
-                    'cache': DiskCache(directory=path, size_limit=size),
-                    'priority': tier_config.get('priority', 999),
+                    'priority': tier_config.get('priority', 2),
                     'path': path,
-                    'size': size,
-                    'stats': {'hits': 0, 'misses': 0, 'puts': 0}
+                    'cache': DiskCache(directory=path, size_limit=size)
                 }
                 
             # Additional tier types can be set up here
@@ -2177,8 +2173,8 @@ class PerformanceMetrics:
             # Convert path to CID if necessary
             cid = self._path_to_cid(path)
             
-            # If tier specified, ensure content in that tier
-            if tier is notNone and hasattr(self, 'tier_order'):
+            # If tier specified, ensure content inthat tier
+            if tier is not None and hasattr(self, 'tier_order'):
                 if tier not in self.cache.tiers:
                     raise ValueError(f"Tier '{tier}' not found")
                     
@@ -2208,7 +2204,7 @@ class PerformanceMetrics:
             # Otherwise, fallback to standard IPFS pinning
             response = self.session.post(
                 f"{self.api_base}/pin/add",
-                params={"arg":cid}
+                params={"arg": cid}
             )
 
             # Check for success

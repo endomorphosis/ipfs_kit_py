@@ -2,6 +2,7 @@ import os
 import json
 import tempfile
 import subprocess
+import platform # Added import
 import pytest
 from unittest.mock import MagicMock, patch
 from ipfs_kit_py.storacha_kit import storacha_kit

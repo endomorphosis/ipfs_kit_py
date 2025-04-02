@@ -6,6 +6,7 @@ This module provides utilities for validating parameters in IPFS Kit functions.
 
 import os
 import shlex
+import re
 from typing import Dict, Any, List, Optional, Union, Tuple
 
 
@@ -26,7 +27,10 @@ class IPFSValidationError(Exception):
     """
     Exception raised for parameter validation errors.
     """
-    pass
+    def __init__(self, message):
+        self.message = message
+        self.error_type = "validation_error"  # Make it an instance attribute
+        super().__init__(message)
 
 
 def validate_parameters(params: Dict[str, Any], spec: Dict[str, Any]) -> Dict[str, Any]:
@@ -108,9 +112,42 @@ def validate_parameters(params: Dict[str, Any], spec: Dict[str, Any]) -> Dict[st
     return result
 
 
-def validate_cid(cid: str) -> bool:
+def validate_cid(cid: str, param_name: str = "cid") -> bool:
     """
     Validate CID format.
+    
+    Args:
+        cid: Content identifier to validate
+        param_name: Name of the parameter (for error messages)
+        
+    Returns:
+        True if CID is valid
+        
+    Raises:
+        IPFSValidationError: If CID format is invalid
+    """
+    # Check basic requirements
+    if not cid:
+        raise IPFSValidationError(f"Invalid {param_name}: empty value not allowed")
+    
+    if not isinstance(cid, str):
+        raise IPFSValidationError(f"Invalid {param_name} type: Expected string, got {type(cid).__name__}")
+    
+    # CIDv0 is 46 characters, base58-encoded
+    if len(cid) == 46 and cid.startswith('Qm'):
+        return True
+    
+    # CIDv1 often starts with 'b' (base32), 'z' (base58), 'f' (base16), etc.
+    if cid.startswith(('b', 'z', 'f')) and len(cid) > 8:
+        return True
+    
+    raise IPFSValidationError(f"Invalid cid format: {cid}")
+
+
+# Function to check if a CID is valid without raising exceptions
+def is_valid_cid(cid: str) -> bool:
+    """
+    Check if a CID is valid without raising exceptions.
     
     Args:
         cid: Content identifier to validate
@@ -133,23 +170,26 @@ def validate_cid(cid: str) -> bool:
     return False
 
 
-# Alias for backward compatibility
-is_valid_cid = validate_cid
-
-
-def validate_multiaddr(multiaddr: str) -> bool:
+def validate_multiaddr(multiaddr: str, param_name: str = "multiaddr") -> bool:
     """
     Validate multiaddress format.
     
     Args:
         multiaddr: Multiaddress to validate
+        param_name: Name of the parameter (for error messages)
         
     Returns:
         True if multiaddress is valid, False otherwise
+        
+    Raises:
+        IPFSValidationError: If multiaddress format is invalid
     """
-    # Simple validation for now - just check basic format
-    if not multiaddr or not isinstance(multiaddr, str):
-        return False
+    # Check basic requirements
+    if not multiaddr:
+        raise IPFSValidationError(f"Invalid {param_name}: Cannot be empty")
+    
+    if not isinstance(multiaddr, str):
+        raise IPFSValidationError(f"Invalid {param_name} type: Expected string, got {type(multiaddr).__name__}")
     
     # Check for protocol prefixes
     if multiaddr.startswith(('/ip4/', '/ip6/', '/dns4/', '/dns6/', '/dnsaddr/', '/unix/')):
@@ -164,69 +204,81 @@ def validate_multiaddr(multiaddr: str) -> bool:
                 if part in ('tcp', 'udp') and i + 1 < len(parts):
                     try:
                         port = int(parts[i + 1])
-                        return 0 < port <= 65535
+                        if 0 < port <= 65535:
+                            return True
                     except ValueError:
-                        return False
+                        pass
         
         # Unix socket paths don't need ports
         if multiaddr.startswith('/unix/'):
-            return len(multiaddr) > 6
+            if len(multiaddr) > 6:
+                return True
     
-    return False
+    raise IPFSValidationError(f"Invalid {param_name} format: {multiaddr}")
 
 
-def validate_timeout(timeout: int) -> bool:
+def validate_timeout(timeout: int, param_name: str = "timeout") -> bool:
     """
     Validate timeout value.
     
     Args:
         timeout: Timeout value in seconds
+        param_name: Name of the parameter (for error messages)
         
     Returns:
         True if timeout is valid, False otherwise
     """
     if not isinstance(timeout, (int, float)):
-        return False
+        raise IPFSValidationError(f"Invalid {param_name} type: Expected number, got {type(timeout).__name__}")
     
     # Timeout must be positive
     if timeout <= 0:
-        return False
+        raise IPFSValidationError(f"Invalid {param_name}: Must be positive")
     
     # Timeout should be reasonable (less than a day)
     if timeout > 86400:
-        return False
+        raise IPFSValidationError(f"Invalid {param_name}: Value too large (max 86400 seconds)")
     
     return True
 
 
-def validate_path(path: str) -> bool:
+def validate_path(path: str, param_name: str = "path") -> bool:
     """
     Validate file or directory path.
     
     Args:
         path: Path to validate
+        param_name: Name of the parameter (for error messages)
         
     Returns:
         True if path is valid, False otherwise
     """
-    if not path or not isinstance(path, str):
-        return False
+    if not path:
+        raise IPFSValidationError(f"Invalid {param_name}: Cannot be empty")
     
-    # Basic sanity checks
+    if not isinstance(path, str):
+        raise IPFSValidationError(f"Invalid {param_name} type: Expected string, got {type(path).__name__}")
+    
+    # Check for path traversal patterns
     if '..' in path:
-        return False
+        raise IPFSValidationError(f"Invalid {param_name}: Contains directory traversal pattern")
     
     # Check for non-printable characters
     for char in path:
         if ord(char) < 32:
-            return False
+            raise IPFSValidationError(f"Invalid {param_name}: Contains non-printable characters")
+    
+    # Check for command injection patterns
+    for pattern in COMMAND_INJECTION_PATTERNS:
+        if pattern in path:
+            raise IPFSValidationError(f"Invalid {param_name}: Contains potentially dangerous pattern")
     
     return True
 
 
 def is_safe_path(path: str) -> bool:
     """
-    Check if a path is safe to access.
+    Check if a path is safe to access without raising exceptions.
     
     Args:
         path: Path to check
@@ -259,13 +311,13 @@ def is_safe_path(path: str) -> bool:
     return True
 
 
-def validate_required_parameter(params: Dict[str, Any], param_name: str) -> bool:
+def validate_required_parameter(value: Any, param_name: str) -> bool:
     """
     Validate that a required parameter is present and not None.
     
     Args:
-        params: Parameter dictionary
-        param_name: Name of the parameter to check
+        value: Parameter value to check
+        param_name: Name of the parameter
         
     Returns:
         True if parameter is valid, False otherwise
@@ -273,23 +325,20 @@ def validate_required_parameter(params: Dict[str, Any], param_name: str) -> bool
     Raises:
         IPFSValidationError: If parameter is missing or None
     """
-    if param_name not in params:
-        raise IPFSValidationError(f"Required parameter '{param_name}' is missing")
-    
-    if params[param_name] is None:
-        raise IPFSValidationError(f"Required parameter '{param_name}' cannot be None")
+    if value is None:
+        raise IPFSValidationError(f"Missing required parameter: {param_name}")
     
     return True
 
 
-def validate_parameter_type(params: Dict[str, Any], param_name: str, expected_type: type) -> bool:
+def validate_parameter_type(value: Any, expected_type: type, param_name: str) -> bool:
     """
     Validate that a parameter has the expected type.
     
     Args:
-        params: Parameter dictionary
-        param_name: Name of the parameter to check
+        value: Parameter value to check
         expected_type: Expected type of the parameter
+        param_name: Name of the parameter
         
     Returns:
         True if parameter is valid, False otherwise
@@ -297,67 +346,59 @@ def validate_parameter_type(params: Dict[str, Any], param_name: str, expected_ty
     Raises:
         IPFSValidationError: If parameter has incorrect type
     """
-    if param_name not in params:
-        return True  # Skip validation for missing parameters
-    
-    if params[param_name] is None:
+    if value is None:
         return True  # Skip validation for None values
     
-    if not isinstance(params[param_name], expected_type):
+    if not isinstance(value, expected_type):
         raise IPFSValidationError(
             f"Parameter '{param_name}' has incorrect type. "
-            f"Expected {expected_type.__name__}, got {type(params[param_name]).__name__}"
+            f"Expected {expected_type.__name__}, got {type(value).__name__}"
         )
     
     return True
 
 
-def validate_command_args(args: Union[str, List[str]]) -> List[str]:
+def validate_command_args(args: Dict[str, Any]) -> bool:
     """
-    Validate and normalize command arguments.
+    Validate command arguments for security issues.
     
     Args:
-        args: Command arguments as a string or list
+        args: Command arguments as a dictionary (kwargs)
         
     Returns:
-        Normalized command arguments as a list
+        True if arguments are valid, False otherwise
         
     Raises:
         IPFSValidationError: If arguments are invalid
     """
     if args is None:
-        return []
+        return True
         
-    if isinstance(args, str):
-        # Split string into arguments using shell-like syntax
-        try:
-            args_list = shlex.split(args)
-        except ValueError as e:
-            raise IPFSValidationError(f"Invalid command arguments: {e}")
-    elif isinstance(args, list):
-        args_list = args
-    elif isinstance(args, dict):
-        # If a dictionary (likely kwargs) is passed, ignore it for validation
-        # This handles the case where kwargs might be incorrectly passed
-        return [] 
-    else:
+    if not isinstance(args, dict):
         raise IPFSValidationError(
-            f"Command arguments must be a string or list, got {type(args).__name__}"
+            f"Command arguments must be a dictionary, got {type(args).__name__}"
         )
     
-    # Validate each argument
-    for arg in args_list:
-        if not isinstance(arg, str):
-            raise IPFSValidationError(
-                f"Command arguments must be strings, got {type(arg).__name__}"
-            )
+    # Validate each string argument
+    for key, value in args.items():
+        if isinstance(value, str):
+            # Check for shell injection patterns
+            for pattern in COMMAND_INJECTION_PATTERNS:
+                if pattern in value:
+                    # Exception for common parameters that might contain these characters
+                    # like base64 encodings or URLs
+                    if key in ['content', 'encoded', 'url', 'base64'] and pattern in ['+', '=', '/']:
+                        continue
+                    raise IPFSValidationError(
+                        f"Parameter '{key}' contains potentially dangerous pattern: {pattern}"
+                    )
     
-    return args_list
+    return True
 
 
 def is_safe_command_arg(arg: str) -> bool:
     """
-    Check if a command argument is safe to use.
+    Check if a command argument is safe to use without raising exceptions.
     
     Args:
         arg: Command argument to check

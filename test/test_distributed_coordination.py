@@ -48,7 +48,7 @@ def cluster_nodes():
         master.ipfs_cluster_service = MagicMock()
         master.ipfs_cluster_ctl = MagicMock()
         master.libp2p = MagicMock()
-        master.metadata = master.metadata # Ensure metadata is set on the mock itself
+        # master.metadata = master.metadata # Removed redundant assignment
 
         # Create worker nodes
         workers = []
@@ -60,17 +60,17 @@ def cluster_nodes():
                     "cluster_name": "test-cluster",
                     "test_mode": True,
                     "enable_libp2p": True,
-                    "worker_id": f"worker-{i+1}"
-            }
-        )
-        worker.ipfs = MagicMock()
-        worker.ipfs_cluster_follow = MagicMock()
-        worker.libp2p = MagicMock()
-        worker.metadata = worker.metadata # Ensure metadata is set on the mock itself
-        workers.append(worker)
+                    "worker_id": f"worker-{i+1}", # Added comma
+                } # Added closing brace comma
+            )
+            worker.ipfs = MagicMock()
+            worker.ipfs_cluster_follow = MagicMock()
+            worker.libp2p = MagicMock()
+            # worker.metadata = worker.metadata # Removed redundant assignment
+            workers.append(worker)
 
         # Return all nodes as a collection
-        yield {"master": master, "workers": workers}
+        yield {"master": master, "workers": workers} # Added comma
 
 
 class TestDistributedTaskDistribution:

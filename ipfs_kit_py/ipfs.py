@@ -980,7 +980,7 @@ class ipfs_py:
         operation = "ipfs_add_pin"
         correlation_id = kwargs.get('correlation_id')
         # Pass correlation_id to create_result_dict
-        result = create_result_dict(operation, correlation_id=correlation_id) 
+        result = create_result_dict(operation, correlation_id) 
 
         try:
             # Validate required parameters
@@ -2126,7 +2126,7 @@ class ipfs_py:
         """Test if IPFS is installed and available with standardized error handling.
         
         Args:
-            **kwargs: Additional arguments (e.g., correlation_id)
+            **kwargs: Additional arguments (e.g            correlation_id)
             
         Returns:
             Result dictionary with operation outcome
