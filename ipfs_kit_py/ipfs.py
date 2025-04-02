@@ -629,6 +629,8 @@ class ipfs_py:
                     size_value = float(size)
                     if size_value <= 0:
                         raise IPFSValidationError(f"Size must be positive value: {size}")
+                    if isinstance(size, str) and any(re.search(pattern, size) for pattern in COMMAND_INJECTION_PATTERNS):
+                        raise IPFSValidationError(f"Size contains potentially malicious patterns: {size}")
                 except (ValueError, TypeError):
                     raise IPFSValidationError(f"Invalid size value (must be a number): {size}")
             except IPFSValidationError as e:

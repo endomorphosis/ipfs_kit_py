@@ -8,19 +8,20 @@ with the cluster state from external processes.
 import os
 import json
 import logging
+import time  # Added missing import
 from typing import Dict, List, Optional, Any, Tuple, Union
 
 # Try to import Arrow-related packages
 try:
     import pyarrow as pa
-    import pyarrow.plasma as plasma
+    # import pyarrow.plasma as plasma  # Plasma is deprecated/removed
     import pandas as pd
     ARROW_AVAILABLE = True
     PANDAS_AVAILABLE = True
 except ImportError:
     try:
         import pyarrow as pa
-        import pyarrow.plasma as plasma
+        # import pyarrow.plasma as plasma  # Plasma is deprecated/removed
         ARROW_AVAILABLE = True
         PANDAS_AVAILABLE = False
     except ImportError:
@@ -64,83 +65,90 @@ def get_state_path_from_metadata(base_dir: str = None) -> Optional[str]:
     
     return None
 
+# --- Plasma Shared Memory Functionality (Disabled) ---
+# The following functions rely on pyarrow.plasma, which is deprecated/removed.
+# They are commented out to allow the rest of the module to function.
 
-def connect_to_state_store(state_path: str) -> Tuple[Optional[plasma.PlasmaClient], Optional[Dict[str, Any]]]:
-    """
-    Connect to the cluster state Plasma store.
-    
-    Args:
-        state_path: Path to the cluster state directory
-        
-    Returns:
-        Tuple of (plasma_client, metadata) if successful, (None, None) if failed
-    """
-    if not ARROW_AVAILABLE:
-        logger.error("PyArrow not available")
-        return None, None
-    
-    try:
-        # Load metadata
-        metadata_path = os.path.join(state_path, "state_metadata.json")
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
-        
-        # Connect to Plasma store
-        plasma_socket = metadata.get("plasma_socket")
-        if not plasma_socket or not os.path.exists(plasma_socket):
-            logger.error(f"Plasma socket not found at {plasma_socket}")
-            return None, metadata
-        
-        plasma_client = plasma.connect(plasma_socket)
-        return plasma_client, metadata
-    
-    except Exception as e:
-        logger.error(f"Error connecting to state store: {e}")
-        return None, None
+# def connect_to_state_store(state_path: str) -> Tuple[Optional[plasma.PlasmaClient], Optional[Dict[str, Any]]]:
+#     """
+#     Connect to the cluster state Plasma store.
+#
+#     Args:
+#         state_path: Path to the cluster state directory
+#
+#     Returns:
+#         Tuple of (plasma_client, metadata) if successful, (None, None) if failed
+#     """
+#     logger.warning("Plasma functionality is disabled.")
+#     return None, None
+#     # if not ARROW_AVAILABLE:
+#     #     logger.error("PyArrow not available")
+#     #     return None, None
+#     #
+#     # try:
+#     #     # Load metadata
+#     #     metadata_path = os.path.join(state_path, "state_metadata.json")
+#     #     with open(metadata_path, "r") as f:
+#     #         metadata = json.load(f)
+#     #
+#     #     # Connect to Plasma store
+#     #     plasma_socket = metadata.get("plasma_socket")
+#     #     if not plasma_socket or not os.path.exists(plasma_socket):
+#     #         logger.error(f"Plasma socket not found at {plasma_socket}")
+#     #         return None, metadata
+#     #
+#     #     plasma_client = plasma.connect(plasma_socket)
+#     #     return plasma_client, metadata
+#     #
+#     # except Exception as e:
+#     #     logger.error(f"Error connecting to state store: {e}")
+#     #     return None, None
 
 
-def get_cluster_state(state_path: str) -> Optional[pa.Table]:
-    """
-    Get the current cluster state as an Arrow table.
-    
-    Args:
-        state_path: Path to the cluster state directory
-        
-    Returns:
-        PyArrow table with cluster state if successful, None if failed
-    """
-    if not ARROW_AVAILABLE:
-        logger.error("PyArrow not available")
-        return None
-    
-    try:
-        # Connect to Plasma store and get metadata
-        plasma_client, metadata = connect_to_state_store(state_path)
-        if not plasma_client or not metadata:
-            return None
-        
-        # Get object ID
-        object_id_hex = metadata.get("object_id")
-        if not object_id_hex:
-            logger.error("Object ID not found in metadata")
-            return None
-        
-        # Get object from Plasma store
-        object_id = plasma.ObjectID(bytes.fromhex(object_id_hex))
-        if not plasma_client.contains(object_id):
-            logger.error(f"Object {object_id_hex} not found in Plasma store")
-            return None
-        
-        # Get the buffer
-        buffer = plasma_client.get(object_id)
-        reader = pa.RecordBatchStreamReader(buffer)
-        
-        # Return the table
-        return reader.read_all()
-    
-    except Exception as e:
-        logger.error(f"Error getting cluster state: {e}")
-        return None
+# def get_cluster_state(state_path: str) -> Optional[pa.Table]:
+#     """
+#     Get the current cluster state as an Arrow table.
+#
+#     Args:
+#         state_path: Path to the cluster state directory
+#
+#     Returns:
+#         PyArrow table with cluster state if successful, None if failed
+#     """
+#     logger.warning("Plasma functionality is disabled.")
+#     return None
+#     # if not ARROW_AVAILABLE:
+#     #     logger.error("PyArrow not available")
+#     #     return None
+#     #
+#     # try:
+#     #     # Connect to Plasma store and get metadata
+#     #     plasma_client, metadata = connect_to_state_store(state_path)
+#     #     if not plasma_client or not metadata:
+#     #         return None
+#     #
+#     #     # Get object ID
+#     #     object_id_hex = metadata.get("object_id")
+#     #     if not object_id_hex:
+#     #         logger.error("Object ID not found in metadata")
+#     #         return None
+#     #
+#     #     # Get object from Plasma store
+#     #     object_id = plasma.ObjectID(bytes.fromhex(object_id_hex))
+#     #     if not plasma_client.contains(object_id):
+#     #         logger.error(f"Object {object_id_hex} not found in Plasma store")
+#     #         return None
+#     #
+#     #     # Get the buffer
+#     #     buffer = plasma_client.get(object_id)
+#     #     reader = pa.RecordBatchStreamReader(buffer)
+#     #
+#     #     # Return the table
+#     #     return reader.read_all()
+#     #
+#     # except Exception as e:
+#     #     logger.error(f"Error getting cluster state: {e}")
+#     #     return None
 
 
 def get_cluster_state_as_dict(state_path: str) -> Optional[Dict[str, Any]]:

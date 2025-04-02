@@ -187,7 +187,8 @@ class ipfs_cluster_follow:
             if not isinstance(cluster_name, str):
                 return handle_error(result, IPFSValidationError(f"cluster_name must be a string, got {type(cluster_name).__name__}"))
             
-            if re.search(r'[;&|"`\'$<>]', cluster_name):
+            from .validation import is_safe_command_arg
+            if not is_safe_command_arg(cluster_name):
                 return handle_error(result, IPFSValidationError(f"Invalid cluster name contains shell metacharacters: {cluster_name}"))
             
             # Set timeout for commands

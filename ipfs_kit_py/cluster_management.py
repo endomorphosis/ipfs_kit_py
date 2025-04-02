@@ -1,5 +1,4 @@
-"""
-Cluster management module for integrating ClusterCoordinator with IPFSLibp2pPeer.
+"""Cluster management module for integrating ClusterCoordinator with IPFSLibp2pPeer.
 
 This module provides a high-level interface for cluster management functionality,
 integrating the ClusterCoordinator (responsible for task distribution and node management)
@@ -13,8 +12,8 @@ import time
 import uuid
 import logging
 import threading
-import asyncio
-from typing import Dict, List, Optional, Any, Tuple, Set, Union
+import time
+from typing import Dict, List, Optional, Any, Tuple, Set, Union, Callable
 
 # Local imports
 from .error import (
@@ -292,11 +291,10 @@ class ClusterManager:
             
         # Override coordinator methods to use libp2p for communication
         self._patch_coordinator_communication()
-    
+
     def _patch_coordinator_communication(self) -> None:
-        """
-        Patch the coordinator's communication methods to use libp2p.
-        
+        """Patch the coordinator's communication methods to use libp2p.
+
         This replaces the placeholder _publish_message method in the coordinator
         with a version that uses libp2p for actual peer-to-peer communication.
         """

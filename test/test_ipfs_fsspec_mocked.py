@@ -4,7 +4,7 @@ import tempfile
 from unittest.mock import patch, MagicMock, ANY
 from ipfs_kit_py.ipfs_fsspec import (
     ARCache, DiskCache, TieredCacheManager, 
-    IPFSMemoryFile, IPFSMappedFile, IPFSFileSystem
+    IPFSMemoryFile, IPFSFile, IPFSFileSystem  # Changed IPFSMappedFile to IPFSFile
 )
 from ipfs_kit_py.error import IPFSContentNotFoundError
 

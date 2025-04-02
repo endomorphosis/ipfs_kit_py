@@ -359,7 +359,8 @@ class storacha_kit:
             if not isinstance(space, str):
                 return handle_error(result, IPFSValidationError(f"Space name must be a string, got {type(space).__name__}"))
             
-            if re.search(r'[;&|"`\'$<>]', space):
+            from .validation import is_safe_command_arg
+            if not is_safe_command_arg(space):
                 return handle_error(result, IPFSValidationError(f"Space name contains invalid characters: {space}"))
             
             # Set timeout for the command
@@ -425,7 +426,8 @@ class storacha_kit:
                 return handle_error(result, IPFSValidationError(f"Invalid email format: {email}"))
             
             # More thorough check for potential command injection
-            if re.search(r'[;&|"`\'$<>]', email):
+            from .validation import is_safe_command_arg
+            if not is_safe_command_arg(email):
                 return handle_error(result, IPFSValidationError(f"Email contains invalid characters: {email}"))
             
             # Set timeout for the command - login might take longer than usual
@@ -3454,84 +3456,84 @@ class storacha_kit:
                     result["failed"] += 1
                     result["success"] = False  # Mark the overall operation as failed
             
-            # Log the final result
-            logger.info(f"Batch retrieval completed for space {space}: {result['successful']}/{result['total']} successful [correlation_id: {correlation_id}]")
-            return result
-            
-        except ValueError as e:
-            result["error"] = str(e)
-            result["error_type"] = "validation_error"
-            logger.error(f"Validation error in store_get_batch: {str(e)} [correlation_id: {correlation_id}]")
-            return result
-            
-        except Exception as e:
-            result["error"] = f"Unexpected error: {str(e)}"
-            result["error_type"] = "unknown_error"
-            logger.exception(f"Unexpected error in store_get_batch for space {space} [correlation_id: {correlation_id}]")
-            return result
-    
-    def store_remove_batch(self, space, cids, **kwargs):
-        """Remove multiple items from a Web3.Storage space by their CIDs in a batch operation.
-        
-        Args:
-            space: The space to remove items from
-            cids: List of CIDs to remove
-            **kwargs: Additional optional arguments
-                - correlation_id: ID for tracking related operations
-                - timeout: Command timeout in seconds
-                - parallel: Whether to process CIDs in parallel (default: False)
                 
-        Returns:
-            Dictionary with operation results containing:
-                - success: Boolean indicating overall success
-                - operation: Name of the operation ("store_remove_batch")
-                - timestamp: Unix timestamp of the operation
-                - space: The space name items were removed from
-                - total: Total number of CIDs processed
-                - successful: Number of CIDs successfully removed
-                - failed: Number of CIDs that failed to remove
-                - items: Dictionary mapping CIDs to their results
-        """
-        # Create standardized result dictionary
-        correlation_id = kwargs.get('correlation_id', self.correlation_id)
-        result = {
-            "success": True,  # Assume success until we encounter a failure
-            "operation": "store_remove_batch",
-            "timestamp": time.time(),
-            "space": space,
-            "correlation_id": correlation_id,
-            "total": len(cids),
-            "successful": 0,
-            "failed": 0,
-            "items": {}
-        }
-        
-        try:
-            # Parameter validation
-            if not space:
-                raise ValueError("Space name must be provided")
+                # Prepare API request data
+                method = "store/add"
+                data = {
+                    "tasks": [
+                        [
+                            "store/add",
+                            space,
+                            {
+                                "link": { "/" : car_hash },
+                                "size": car_length
+                            }
+                        ]
+                    ]
+                }
                 
-            if not cids:
-                raise ValueError("CIDs list cannot be empty")
+                # Make the API request
+                logger.info(f"Making store/add API request for file: {file}")
+                timeout = kwargs.get('timeout', 60)
                 
-            if not isinstance(cids, (list, tuple)):
-                raise ValueError("CIDs must be provided as a list or tuple")
+                http_response = self.storacha_http_request(
+                    auth_secret=auth_secret,
+                    authorization=authorization,
+                    method=method,
+                    data=data,
+                    timeout=timeout,
+                    correlation_id=correlation_id
+                )
                 
-            for cid in cids:
-                if not cid:
-                    continue
-                    
+                # Check if the request was successful
+                if not isinstance(http_response, requests.Response):
+                    error_msg = "HTTP request failed, invalid response object returned"
+                    logger.error(error_msg)
+                    return handle_error(result, IPFSConnectionError(error_msg))
+                
+                # Parse the JSON response
                 try:
-                    # Process each CID individually
-                    cid_result = self.store_remove(
-                        space=space, 
-                        cid=cid,
-                        correlation_id=f"{correlation_id}:{cid}" if correlation_id else None,
-                        **kwargs
-                    )
+                    response_data = http_response.json()
+                except ValueError as e:
+                    error_msg = f"Failed to parse JSON response: {str(e)}"
+                    logger.error(error_msg)
+                    return handle_error(result, IPFSError(error_msg))
                     
-                    # Store the result
-                    result["items"][cid] = cid_result
+                # Process the response
+                if not response_data or not isinstance(response_data, list) or len(response_data) == 0:
+                    error_msg = "Invalid response format from API"
+                    logger.error(error_msg)
+                    return handle_error(result, IPFSError(error_msg))
+                
+                # Check for common response structure
+                task_result = response_data[0]
+                if "p" not in task_result or "out" not in task_result["p"]:
+                    error_msg = "Invalid task result format in API response"
+                    logger.error(error_msg)
+                    return handle_error(result, IPFSError(error_msg))
+                
+                task_output = task_result["p"]["out"]
+                
+                # Check for success or error in the response
+                if "ok" in task_output:
+                    # Success case
+                    ok_data = task_output["ok"]
+                    
+                    result["success"] = True
+                    result["data"] = ok_data
+                    
+                    logger.info(f"Successfully added upload for file {file} to space {space}")
+                    return result
+                    
+                elif "error" in task_output:
+                    # Error case
+                    error_data = task_output["error"]
+                    error_msg = error_data if isinstance(error_data, str) else f"API error: {json.dumps(error_data)}"
+                    logger.error(error_msg)
+                    return handle_error(result, IPFSError(error_msg))
+                
+                else:
+                    # Unexpected response format
                     
                     # Update counters
                     if cid_result.get("success", False):
@@ -3540,24 +3542,20 @@ class storacha_kit:
                         result["failed"] += 1
                         result["success"] = False  # Mark the overall operation as failed
                         
-                except Exception as e:
-                    # Handle individual CID failures without stopping the batch
-                    logger.error(f"Error removing CID {cid} from space {space}: {str(e)} [correlation_id: {correlation_id}]")
-                    result["items"][cid] = {
-                        "success": False,
-                        "operation": "store_remove",
-                        "timestamp": time.time(),
-                        "cid": cid,
-                        "space": space,
-                        "error": str(e),
-                        "error_type": type(e).__name__
-                    }
-                    result["failed"] += 1
-                    result["success"] = False  # Mark the overall operation as failed
-            
-            # Log the final result
-            logger.info(f"Batch removal completed for space {space}: {result['successful']}/{result['total']} successful [correlation_id: {correlation_id}]")
-            return result
+        except Exception as e:
+            # Handle individual CID failures without stopping the batch
+            logger.error(f"Error removing CID {cid} from space {space}: {str(e)} [correlation_id: {correlation_id}]")
+            result["items"][cid] = {
+                "success": False,
+                "operation": "store_remove",
+                "timestamp": time.time(),
+                "cid": cid,
+                "space": space,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+            result["failed"] += 1
+            result["success"] = False  # Mark the overall operation as failed
             
         except ValueError as e:
             result["error"] = str(e)
@@ -3570,7 +3568,10 @@ class storacha_kit:
             result["error_type"] = "unknown_error"
             logger.exception(f"Unexpected error in store_remove_batch for space {space} [correlation_id: {correlation_id}]")
             return result
-    
+        # Log the final result
+        logger.info(f"Batch removal completed for space {space}: {result['successful']}/{result['total']} successful [correlation_id: {correlation_id}]")
+        return result
+            
     def upload_add_batch(self, space, files, **kwargs):
         """Upload multiple files to a Web3.Storage space in a batch operation.
         

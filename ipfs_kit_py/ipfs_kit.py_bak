@@ -46,7 +46,7 @@ except ImportError:
 
 # Try to import cluster management components
 try:
-    from .cluster.role_manager import NodeRole 
+    from .cluster.role_manager import NodeRole
     from .cluster.distributed_coordination import ClusterCoordinator
     from .cluster.cluster_manager import ClusterManager
     from .cluster.utils import get_gpu_info

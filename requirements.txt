@@ -33,6 +33,9 @@ python-multipart>=0.0.6
 # Optional: Async support
 aiohttp>=3.8.4
 
+# Optional: libp2p support (includes base58 for encoding)
+base58>=2.1.1
+
 # Testing
 pytest>=7.0.0
 pytest-cov>=4.1.0

@@ -419,7 +419,7 @@ class TestClusterManagerStateIntegration(unittest.TestCase):
     def tearDown(self):
         """Clean up after each test."""
         # Clean up resources
-        if hasattr(self, 'manager') and self.manager and hasattr(self.manager, 'state_manager'):
+        if hasattr(self, 'manager') and self.manager and getattr(self.manager, 'state_manager', None):
             self.manager.state_manager._cleanup()
             
         # Remove the temporary directory

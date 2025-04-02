@@ -254,10 +254,11 @@ class ipfs_cluster_service:
                         if not re.match(r'^/(?:ip[46]|dns[46]?|unix|p2p)/', peer):
                             logger.warning(f"Skipping invalid multiaddress format: {peer}")
                             continue
-                            
-                        # Check for shell metacharacters
-                        if re.search(r'[;&|"`\'$<>]', peer):
-                            logger.warning(f"Skipping bootstrap peer with shell metacharacters: {peer}")
+                        
+                        # Check for shell metacharacters and unsafe command arguments
+                        from .validation import is_safe_command_arg
+                        if not is_safe_command_arg(peer):
+                            logger.warning(f"Skipping bootstrap peer with unsafe characters: {peer}")
                             continue
                             
                         validated_peers.append(peer)

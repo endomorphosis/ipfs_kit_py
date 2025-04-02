@@ -22,7 +22,8 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Union, Callable
 # Arrow imports
 import pyarrow as pa
 import pyarrow.parquet as pq
-from pyarrow.plasma import ObjectID, connect as plasma_connect
+# Corrected import: plasma_connect should be imported directly
+# from pyarrow.plasma import ObjectID, plasma_connect  # Plasma is deprecated/removed
 
 try:
     import pandas as pd
@@ -124,20 +125,21 @@ class ArrowClusterState:
         # Create schema and initialize empty state
         self.schema = create_cluster_state_schema()
         self._initialize_empty_state()
-        
-        # Set up the shared memory mechanism
-        self.plasma_socket = os.path.join(self.state_path, "plasma.sock")
-        self.plasma_client = None
-        self.plasma_process = None
-        self.current_object_id = None
-        
+
+        # Set up the shared memory mechanism (Plasma functionality disabled)
+        # self.plasma_socket = os.path.join(self.state_path, "plasma.sock")
+        # self.plasma_client = None
+        # self.plasma_process = None
+        # self.current_object_id = None
+        logger.warning("Plasma shared memory functionality is disabled due to pyarrow version.")
+
         # Load state from disk if available
         if enable_persistence and not self._load_from_disk():
             logger.info("No existing state found. Starting with empty state.")
-            
-        # Set up shared memory (using Plasma store for Arrow C Data Interface)
-        self._setup_shared_memory()
-        
+
+        # Set up shared memory (using Plasma store for Arrow C Data Interface) - DISABLED
+        # self._setup_shared_memory()
+
         # Register state sync mechanism
         self._state_version = 0
         self._state_lock = threading.RLock()
@@ -154,64 +156,168 @@ class ArrowClusterState:
             
         # Create an empty table with the schema
         self.state_table = pa.Table.from_arrays(arrays, schema=self.schema)
-    
-    def _setup_shared_memory(self):
-        """Set up shared memory using Arrow Plasma store."""
-        try:
-            # Try to connect to existing plasma store
-            logger.debug(f"Trying to connect to existing plasma store at {self.plasma_socket}")
-            self.plasma_client = plasma_connect(self.plasma_socket)
-            logger.info(f"Connected to existing plasma store at {self.plasma_socket}")
-        except Exception as e:
-            logger.debug(f"Failed to connect to existing plasma store: {e}")
-            # Start a new plasma store if connection fails
-            self._start_plasma_store()
-            
-        # Initial export to shared memory
-        self._export_to_shared_memory()
-    
-    def _start_plasma_store(self):
-        """Start a plasma store process for shared memory."""
-        logger.info(f"Starting plasma store with {self.memory_size} bytes at {self.plasma_socket}")
-        try:
-            # Create a command for the plasma_store executable
-            cmd = [
-                "plasma_store",
-                "-m", str(self.memory_size),
-                "-s", self.plasma_socket
-            ]
-            
-            # Start the process in the background
-            self.plasma_process = subprocess.Popen(
-                cmd, 
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            
-            # Wait a moment for the process to start
-            time.sleep(1)
-            
-            # Check if the process started successfully
-            if self.plasma_process.poll() is not None:
-                # Process exited immediately
-                stdout, stderr = self.plasma_process.communicate()
-                logger.error(f"Failed to start plasma store: {stderr.decode()}")
-                raise RuntimeError(f"Plasma store failed to start: {stderr.decode()}")
-            
-            # Try to connect to the store
-            self.plasma_client = plasma_connect(self.plasma_socket)
-            logger.info("Successfully connected to newly started plasma store")
-            
-        except Exception as e:
-            logger.error(f"Error starting plasma store: {e}")
-            # Clean up if the process was started
-            if self.plasma_process and self.plasma_process.poll() is None:
-                self.plasma_process.terminate()
-                self.plasma_process = None
-            raise
-    
+
+    # --- Plasma Shared Memory Functionality (Disabled) ---
+    # The following methods rely on pyarrow.plasma, which is deprecated/removed.
+    # They are commented out to allow the rest of the module to function.
+
+    # def _setup_shared_memory(self):
+    #     """Set up shared memory using Arrow Plasma store."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # try:
+    #     #     # Try to connect to existing plasma store
+    #     #     logger.debug(f"Trying to connect to existing plasma store at {self.plasma_socket}")
+    #     #     self.plasma_client = plasma_connect(self.plasma_socket)
+    #     #     logger.info(f"Connected to existing plasma store at {self.plasma_socket}")
+    #     # except Exception as e:
+    #     #     logger.debug(f"Failed to connect to existing plasma store: {e}")
+    #     #     # Start a new plasma store if connection fails
+    #     #     self._start_plasma_store()
+    #     #
+    #     # # Initial export to shared memory
+    #     # self._export_to_shared_memory()
+
+    # def _start_plasma_store(self):
+    #     """Start a plasma store process for shared memory."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # logger.info(f"Starting plasma store with {self.memory_size} bytes at {self.plasma_socket}")
+    #     # try:
+    #     #     # Create a command for the plasma_store executable
+    #     #     cmd = [
+    #     #         "plasma_store",
+    #     #         "-m", str(self.memory_size),
+    #     #         "-s", self.plasma_socket
+    #     #     ]
+    #     #
+    #     #     # Start the process in the background
+    #     #     self.plasma_process = subprocess.Popen(
+    #     #         cmd,
+    #     #         stdout=subprocess.PIPE,
+    #     #         stderr=subprocess.PIPE
+    #     #     )
+    #     #
+    #     #     # Wait a moment for the process to start
+    #     #     time.sleep(1)
+    #     #
+    #     #     # Check if the process started successfully
+    #     #     if self.plasma_process.poll() is not None:
+    #     #         # Process exited immediately
+    #     #         stdout, stderr = self.plasma_process.communicate()
+    #     #         logger.error(f"Failed to start plasma store: {stderr.decode()}")
+    #     #         raise RuntimeError(f"Plasma store failed to start: {stderr.decode()}")
+    #     #
+    #     #     # Try to connect to the store
+    #     #     self.plasma_client = plasma_connect(self.plasma_socket)
+    #     #     logger.info("Successfully connected to newly started plasma store")
+    #     #
+    #     # except Exception as e:
+    #     #     logger.error(f"Error starting plasma store: {e}")
+    #     #     # Clean up if the process was started
+    #     #     if self.plasma_process and self.plasma_process.poll() is None:
+    #     #         self.plasma_process.terminate()
+    #     #         self.plasma_process = None
+    #     #     raise
+
+    # def _cleanup(self):
+    #     """Clean up resources when the object is destroyed."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # logger.debug("Cleaning up Arrow cluster state resources")
+    #     #
+    #     # try:
+    #     #     # Final state persistence if enabled
+    #     #     if self.enable_persistence:
+    #     #         self._save_to_disk()
+    #     # except Exception as e:
+    #     #     logger.error(f"Error saving final state to disk: {e}")
+    #     #
+    #     # # Clean up plasma process if we started it
+    #     # if self.plasma_process and self.plasma_process.poll() is None:
+    #     #     try:
+    #     #         logger.debug("Terminating plasma store process")
+    #     #         self.plasma_process.terminate()
+    #     #         self.plasma_process.wait(timeout=5)
+    #     #     except Exception as e:
+    #     #         logger.error(f"Error terminating plasma process: {e}")
+
+    # def _export_to_shared_memory(self):
+    #     """Export the current state table to shared memory."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # if not self.plasma_client:
+    #     #     logger.error("Cannot export to shared memory: plasma client not initialized")
+    #     #     return None
+    #     #
+    #     # try:
+    #     #     # Create object ID based on cluster ID and version
+    #     #     self._state_version += 1
+    #     #     id_string = f"{self.cluster_id}_{self._state_version}_{int(time.time()*1000)}"
+    #     #     object_id_bytes = hashlib.md5(id_string.encode()).digest()[:20]
+    #     #     object_id = ObjectID(object_id_bytes)
+    #     #
+    #     #     # Calculate size needed for the table
+    #     #     data_size = self.state_table.nbytes + 10000  # Add buffer for safety
+    #     #
+    #     #     # Create the object
+    #     #     buffer = self.plasma_client.create(object_id, data_size)
+    #     #
+    #     #     # Write the table to the buffer
+    #     #     writer = pa.RecordBatchStreamWriter(pa.FixedSizeBufferWriter(buffer), self.state_table.schema)
+    #     #     writer.write_table(self.state_table)
+    #     #     writer.close()
+    #     #
+    #     #     # Seal the object to make it available to other processes
+    #     #     self.plasma_client.seal(object_id)
+    #     #
+    #     #     # Store the current object ID
+    #     #     self.current_object_id = object_id
+    #     #
+    #     #     # Write metadata file for other processes
+    #     #     self._write_metadata()
+    #     #
+    #     #     logger.debug(f"Exported state to shared memory with object ID: {object_id.binary().hex()}")
+    #     #     return object_id
+    #     #
+    #     # except Exception as e:
+    #     #     logger.error(f"Error exporting state to shared memory: {e}")
+    #     #     return None
+
+    # def _write_metadata(self):
+    #     """Write metadata file for external process access."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # if not self.current_object_id:
+    #     #     return
+    #     #
+    #     # metadata = {
+    #     #     'object_id': self.current_object_id.binary().hex(),
+    #     #     'plasma_socket': self.plasma_socket,
+    #     #     'schema': self.schema.to_string(),
+    #     #     'updated_at': time.time(),
+    #     #     'version': self._state_version,
+    #     #     'cluster_id': self.cluster_id
+    #     # }
+    #     #
+    #     # # First write to a temporary file and then rename to avoid partial reads
+    #     # temp_file = os.path.join(self.state_path, f'.state_metadata.{uuid.uuid4()}.json')
+    #     # try:
+    #     #     with open(temp_file, 'w') as f:
+    #     #         json.dump(metadata, f)
+    #     #
+    #     #     target_file = os.path.join(self.state_path, 'state_metadata.json')
+    #     #     os.rename(temp_file, target_file)
+    #     #
+    #     # except Exception as e:
+    #     #     logger.error(f"Error writing metadata file: {e}")
+    #     #     if os.path.exists(temp_file):
+    #     #         try:
+    #     #             os.remove(temp_file)
+    #     #         except:
+    #     #             pass
+
     def _cleanup(self):
-        """Clean up resources when the object is destroyed."""
+        """Clean up resources when the object is destroyed.
+        
+        This implementation is a simplified version since Plasma functionality is disabled.
+        It just saves the state to disk if persistence is enabled.
+        """
         logger.debug("Cleaning up Arrow cluster state resources")
         
         try:
@@ -220,91 +326,7 @@ class ArrowClusterState:
                 self._save_to_disk()
         except Exception as e:
             logger.error(f"Error saving final state to disk: {e}")
-            
-        # Clean up plasma process if we started it
-        if self.plasma_process and self.plasma_process.poll() is None:
-            try:
-                logger.debug("Terminating plasma store process")
-                self.plasma_process.terminate()
-                self.plasma_process.wait(timeout=5)
-            except Exception as e:
-                logger.error(f"Error terminating plasma process: {e}")
-    
-    def _export_to_shared_memory(self):
-        """Export the current state table to shared memory.
-        
-        Returns:
-            ObjectID of the exported table in plasma store
-        """
-        if not self.plasma_client:
-            logger.error("Cannot export to shared memory: plasma client not initialized")
-            return None
-            
-        try:
-            # Create object ID based on cluster ID and version
-            self._state_version += 1
-            id_string = f"{self.cluster_id}_{self._state_version}_{int(time.time()*1000)}"
-            object_id_bytes = hashlib.md5(id_string.encode()).digest()[:20]
-            object_id = ObjectID(object_id_bytes)
-            
-            # Calculate size needed for the table
-            data_size = self.state_table.nbytes + 10000  # Add buffer for safety
-            
-            # Create the object
-            buffer = self.plasma_client.create(object_id, data_size)
-            
-            # Write the table to the buffer
-            writer = pa.RecordBatchStreamWriter(pa.FixedSizeBufferWriter(buffer), self.state_table.schema)
-            writer.write_table(self.state_table)
-            writer.close()
-            
-            # Seal the object to make it available to other processes
-            self.plasma_client.seal(object_id)
-            
-            # Store the current object ID
-            self.current_object_id = object_id
-            
-            # Write metadata file for other processes
-            self._write_metadata()
-            
-            logger.debug(f"Exported state to shared memory with object ID: {object_id.binary().hex()}")
-            return object_id
-            
-        except Exception as e:
-            logger.error(f"Error exporting state to shared memory: {e}")
-            return None
-    
-    def _write_metadata(self):
-        """Write metadata file for external process access."""
-        if not self.current_object_id:
-            return
-            
-        metadata = {
-            'object_id': self.current_object_id.binary().hex(),
-            'plasma_socket': self.plasma_socket,
-            'schema': self.schema.to_string(),
-            'updated_at': time.time(),
-            'version': self._state_version,
-            'cluster_id': self.cluster_id
-        }
-        
-        # First write to a temporary file and then rename to avoid partial reads
-        temp_file = os.path.join(self.state_path, f'.state_metadata.{uuid.uuid4()}.json')
-        try:
-            with open(temp_file, 'w') as f:
-                json.dump(metadata, f)
-                
-            target_file = os.path.join(self.state_path, 'state_metadata.json')
-            os.rename(temp_file, target_file)
-            
-        except Exception as e:
-            logger.error(f"Error writing metadata file: {e}")
-            if os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except:
-                    pass
-    
+
     def _save_to_disk(self):
         """Save the current state to disk for persistence."""
         if not self.enable_persistence:
@@ -898,81 +920,69 @@ class ArrowClusterState:
             return current_state
                 
         return self.update_state(update_function)
-    
-    def get_metadata_for_external_access(self):
-        """Get state metadata information for external process access.
-        
-        Returns:
-            Dictionary with metadata for external access
-        """
-        if not self.current_object_id:
-            return {
-                "error": "No current state available",
-                "state_path": self.state_path
-            }
-            
-        return {
-            'object_id': self.current_object_id.binary().hex(),
-            'plasma_socket': self.plasma_socket,
-            'schema': self.schema.to_string(),
-            'updated_at': time.time(),
-            'version': self._state_version,
-            'cluster_id': self.cluster_id
-        }
-    
-    @staticmethod
-    def access_from_external_process(state_path):
-        """Access the cluster state from another process.
-        
-        This static method allows external processes to access the state
-        without needing to instantiate a full ArrowClusterState object.
-        
-        Args:
-            state_path: Path to the cluster state directory
-            
-        Returns:
-            PyArrow Table with the current cluster state, or None if not available
-        """
-        try:
-            # Read metadata file to get plasma socket and object ID
-            metadata_path = os.path.join(state_path, 'state_metadata.json')
-            if not os.path.exists(metadata_path):
-                logger.error(f"State metadata file not found at {metadata_path}")
-                return None
-                
-            with open(metadata_path, 'r') as f:
-                metadata = json.load(f)
-                
-            # Get plasma socket
-            plasma_socket = metadata.get('plasma_socket')
-            if not plasma_socket or not os.path.exists(plasma_socket):
-                logger.error(f"Plasma socket not found at {plasma_socket}")
-                return None
-                
-            # Get object ID
-            object_id_hex = metadata.get('object_id')
-            if not object_id_hex:
-                logger.error("Object ID not found in metadata")
-                return None
-                
-            # Connect to plasma store
-            plasma_client = plasma_connect(plasma_socket)
-            
-            # Get object ID
-            object_id = ObjectID(bytes.fromhex(object_id_hex))
-            
-            # Get the object from plasma store
-            if not plasma_client.contains(object_id):
-                logger.error(f"Object {object_id_hex} not found in plasma store")
-                return None
-                
-            # Get the buffer and read the table
-            buffer = plasma_client.get(object_id)
-            reader = pa.RecordBatchStreamReader(buffer)
-            
-            # Return the table
-            return reader.read_all()
-            
-        except Exception as e:
-            logger.error(f"Error accessing cluster state: {e}")
-            return None
+
+    # def get_metadata_for_external_access(self):
+    #     """Get state metadata information for external process access."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # if not self.current_object_id:
+    #     #     return {
+    #     #         "error": "No current state available",
+    #     #         "state_path": self.state_path
+    #     #     }
+    #     #
+    #     # return {
+    #     #     'object_id': self.current_object_id.binary().hex(),
+    #     #     'plasma_socket': self.plasma_socket,
+    #     #     'schema': self.schema.to_string(),
+    #     #     'updated_at': time.time(),
+    #     #     'version': self._state_version,
+    #     #     'cluster_id': self.cluster_id
+    #     # }
+
+    # @staticmethod
+    # def access_from_external_process(state_path):
+    #     """Access the cluster state from another process."""
+    #     logger.warning("Plasma functionality is disabled.")
+    #     # try:
+    #     #     # Read metadata file to get plasma socket and object ID
+    #     #     metadata_path = os.path.join(state_path, 'state_metadata.json')
+    #     #     if not os.path.exists(metadata_path):
+    #     #         logger.error(f"State metadata file not found at {metadata_path}")
+    #     #         return None
+    #     #
+    #     #     with open(metadata_path, 'r') as f:
+    #     #         metadata = json.load(f)
+    #     #
+    #     #     # Get plasma socket
+    #     #     plasma_socket = metadata.get('plasma_socket')
+    #     #     if not plasma_socket or not os.path.exists(plasma_socket):
+    #     #         logger.error(f"Plasma socket not found at {plasma_socket}")
+    #     #         return None
+    #     #
+    #     #     # Get object ID
+    #     #     object_id_hex = metadata.get('object_id')
+    #     #     if not object_id_hex:
+    #     #         logger.error("Object ID not found in metadata")
+    #     #         return None
+    #     #
+    #     #     # Connect to plasma store
+    #     #     plasma_client = plasma_connect(plasma_socket)
+    #     #
+    #     #     # Get object ID
+    #     #     object_id = ObjectID(bytes.fromhex(object_id_hex))
+    #     #
+    #     #     # Get the object from plasma store
+    #     #     if not plasma_client.contains(object_id):
+    #     #         logger.error(f"Object {object_id_hex} not found in plasma store")
+    #     #         return None
+    #     #
+    #     #     # Get the buffer and read the table
+    #     #     buffer = plasma_client.get(object_id)
+    #     #     reader = pa.RecordBatchStreamReader(buffer)
+    #     #
+    #     #     # Return the table
+    #     #     return reader.read_all()
+    #     #
+    #     # except Exception as e:
+    #     #     logger.error(f"Error accessing cluster state: {e}")
+    #     #     return None

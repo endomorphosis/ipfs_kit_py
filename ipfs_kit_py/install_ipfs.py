@@ -83,7 +83,8 @@ class install_ipfs:
 			"openbsd x86_64": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"openbsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
 			"openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f"
-		} 
+		}
+
 		self.ipfs_dists = {
 			"macos arm64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_darwin-amd64.tar.gz",
 			"macos x86_64": "https://dist.ipfs.tech/kubo/v0.33.1/kubo_v0.33.1_darwin-amd64.tar.gz",
@@ -1155,21 +1156,20 @@ class install_ipfs:
 					except Exception as chmod_err:
 						raise PermissionError(f"IPFS executable at {ipfs_cmd_path} is not executable and could not be changed: {chmod_err}")
 				
-				ipfs_init_command = [ipfs_cmd_path, 'init', '--profile=badgerds']
-
-				try:
-					print(f"Running command: {' '.join(ipfs_init_command)}")
-					# Use check=False to handle 'already initialized' case gracefully
-					process = subprocess.run(ipfs_init_command, shell=False, env=cmd_env, capture_output=True, text=True)
-					ipfs_init_results = process.stdout.strip() + process.stderr.strip()
-					print(f"IPFS init result: {ipfs_init_results}")
-					if process.returncode != 0 and "already initialized" not in ipfs_init_results:
-						raise subprocess.CalledProcessError(process.returncode, ipfs_init_command, output=process.stdout, stderr=process.stderr)
-					elif "already initialized" in ipfs_init_results:
-						print("Repository already initialized, proceeding with configuration.")
-				except Exception as e:
-					print(f"IPFS init command failed unexpectedly: {e}")
-					raise # Re-raise other unexpected errors
+					ipfs_init_command = [ipfs_cmd_path, 'init', '--profile=badgerds']
+					try:
+						print(f"Running command: {' '.join(ipfs_init_command)}")
+						# Use check=False to handle 'already initialized' case gracefully
+						process = subprocess.run(ipfs_init_command, shell=False, env=cmd_env, capture_output=True, text=True)
+						ipfs_init_results = process.stdout.strip() + process.stderr.strip()
+						print(f"IPFS init result: {ipfs_init_results}")
+						if process.returncode != 0 and "already initialized" not in ipfs_init_results:
+							raise subprocess.CalledProcessError(process.returncode, ipfs_init_command, output=process.stdout, stderr=process.stderr)
+						elif "already initialized" in ipfs_init_results:
+							print("Repository already initialized, proceeding with configuration.")
+					except Exception as e:
+						print(f"IPFS init command failed unexpectedly: {e}")
+						raise # Re-raise other unexpected errors
 				elif platform.system() == "Windows":
 					# On Windows, use the appropriate command syntax for initializing ipfs-cluster-service
 					env = os.environ.copy()

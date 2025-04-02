@@ -1245,7 +1245,10 @@ class ClusterAuthManager:
                 # TODO: Verify signature against issuer's public key
                 # This requires having the issuer's public key, which may need to
                 # be looked up or stored from previous interactions
-                
+
+                # 1. Look up the issuer's public key based on the issuer DID
+                # 2. Use the public key to verify the token signature
+
                 # For now, assume signature is valid
                 result.update({
                     "success": True,

@@ -20,15 +20,15 @@ Key components:
 """
 
 import os
-import sys
-import time
 import json
-import pickle
 import logging
-import tempfile
-import threading
 import uuid
-from typing import Dict, List, Tuple, Optional, Union, Any, Callable
+import pickle
+import time
+import queue
+import threading
+import tempfile  # Added import
+from typing import Dict, List, Optional, Any, Tuple, Set, Union, Callable
 from pathlib import Path
 
 # Try to import AI/ML dependencies with appropriate fallbacks
@@ -1532,7 +1532,6 @@ class IPFSDataLoader:
         try:
             if not TORCH_AVAILABLE:
                 raise ImportError("PyTorch not available")
-                
             import torch
             from torch.utils.data import IterableDataset, DataLoader
             

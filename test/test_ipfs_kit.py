@@ -128,4 +128,47 @@ class TestIpfsKit:
             results["test_ipfs_kit"] = self.test()
         except Exception as e:
             results["test_ipfs_kit"] = e
+        try:
+            results["test_ipfs_kit_download_object_paths"] = self.test_ipget_download_object_paths()
+        except Exception as e:
+            results["test_ipfs_kit_download_object_paths"] = e
         return results
+
+    def test_ipget_download_object_paths(self):
+        """Test ipget_download_object with different path scenarios."""
+        results = {}
+        try:
+            # Create a temporary directory
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Define different path scenarios
+                paths = [
+                    os.path.join(tmpdir, "test_file.txt"),  # File in temp dir
+                    os.path.join(tmpdir, "subdir", "test_file.txt"),  # File in subdir
+                    "/tmp/test_file.txt",  # Absolute path
+                    "test_file.txt",  # Relative path
+                ]
+
+                # Test each path
+                for path in paths:
+                    # Create the file if it doesn't exist
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, "w") as f:
+                        f.write("test content")
+
+                    # Add the file to IPFS (mocked)
+                    test_cid = "QmTestCID"
+                    self.ipfs_kit.ipfs.ipfs_add_file = lambda file_path, **kwargs: {"success": True, "cid": test_cid, "size": 123}
+
+                    # Download the file using ipget_download_object
+                    download_result = self.ipfs_kit.ipfs_get(cid=test_cid, path=path)
+
+                    # Check if the download was successful
+                    results[path] = download_result.get("success", False)
+
+                    # Clean up the file
+                    if os.path.exists(path):
+                        os.remove(path)
+
+            return results
+        except Exception as e:
+            return str(e)
