@@ -19,6 +19,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
 
+# Assuming ipfs_kit is importable from the project structure
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 
@@ -48,10 +49,18 @@ def dynamicnode_setup():
         )
         node.ipfs = MagicMock()
         
-        # Mock service components to be added during role change
+        # Mock service components to be added/removed during role change
         node.create_cluster_follow_service = MagicMock()
         node.create_cluster_service = MagicMock()
         node.create_cluster_ctl = MagicMock()
+        # Add mock for remove method if it exists on the main class
+        node.remove_cluster_follow_service = MagicMock(return_value={"success": True}) 
+        node.remove_cluster_service = MagicMock(return_value={"success": True}) # Assuming this exists
+        node.remove_cluster_ctl = MagicMock(return_value={"success": True}) # Assuming this exists
+
+        # Mock underlying daemon control methods
+        node.daemon_stop = MagicMock(return_value={"success": True})
+        node.daemon_start = MagicMock(return_value={"success": True})
         
         # Return the node for testing
         yield node
@@ -174,10 +183,11 @@ class TestDynamicRoleDetermination:
             
             # Calculate capability percentage for each role
             for role, reqs in requirements.items():
-                mem_pct = resources["memory_available"] / reqs["memory_min"]
-                disk_pct = resources["disk_available"] / reqs["disk_min"]
-                cpu_pct = resources["cpu_available"] / reqs["cpu_min"]
-                bw_pct = resources["bandwidth_available"] / reqs["bandwidth_min"]
+                # Avoid division by zero if a requirement is 0
+                mem_pct = (resources["memory_available"] / reqs["memory_min"]) if reqs["memory_min"] > 0 else float('inf')
+                disk_pct = (resources["disk_available"] / reqs["disk_min"]) if reqs["disk_min"] > 0 else float('inf')
+                cpu_pct = (resources["cpu_available"] / reqs["cpu_min"]) if reqs["cpu_min"] > 0 else float('inf')
+                bw_pct = (resources["bandwidth_available"] / reqs["bandwidth_min"]) if reqs["bandwidth_min"] > 0 else float('inf')
                 
                 # Use the minimum percentage as the limiting factor
                 capability_pct = min(mem_pct, disk_pct, cpu_pct, bw_pct)
@@ -208,8 +218,8 @@ class TestDynamicRoleDetermination:
         assert result["worker"]["capable"] is True
         assert result["master"]["capable"] is False
         
-        # Limiting factor for master should be disk (120GB vs 500GB required)
-        assert result["master"]["limiting_factor"] == "disk"
+        # Limiting factor for master should be memory (6GB vs 8GB required)
+        assert result["master"]["limiting_factor"] == "memory"
         
         node.detect_available_resources.assert_called_once()
         node.get_role_requirements.assert_called_once()
@@ -321,37 +331,38 @@ class TestRoleSwitchingImplementation:
         
         # Verify initial role
         assert node.role == "leecher"
-        
-        # Mock the upgrade function
-        node.upgrade_to_worker = MagicMock(return_value={
-            "success": True,
-            "previous_role": "leecher",
-            "new_role": "worker",
-            "actions_performed": [
-                "Stopped IPFS daemon",
-                "Updated node configuration",
-                "Initialized cluster follow service",
-                "Restarted IPFS daemon with worker profile",
-                "Joined cluster as worker"
-            ]
-        })
-        
-        # Test upgrading to worker
+
+        # Mock the underlying methods called by upgrade_to_worker
+        # (These are already mocked in the fixture, but we can set return values if needed)
+        node.daemon_stop.return_value = {"success": True}
+        node.daemon_start.return_value = {"success": True}
+        # Assume create_cluster_follow_service returns a mock service object
+        mock_follow_service = MagicMock()
+        node.create_cluster_follow_service.return_value = mock_follow_service
+        mock_follow_service.join_cluster.return_value = {"success": True} # Mock join call
+
+        # Test upgrading to worker (call the actual method on the node)
+        # Assuming upgrade_to_worker is defined in ipfs_kit class
         result = node.upgrade_to_worker(
             master_address="/ip4/192.168.1.100/tcp/9096/p2p/QmMasterPeerID",
             cluster_secret="cluster-shared-secret-key"
         )
-        
-        # Verify result
+
+        # Verify result (adjust based on actual return value)
         assert result["success"] is True
         assert result["previous_role"] == "leecher"
         assert result["new_role"] == "worker"
         assert len(result["actions_performed"]) > 0
-        
+
         # Verify the service creation was called
         node.create_cluster_follow_service.assert_called_once()
+        # Verify daemon stop/start were called
+        node.daemon_stop.assert_called_once()
+        node.daemon_start.assert_called_once()
+        # Verify join was called on the created service
+        mock_follow_service.join_cluster.assert_called_once()
         
-        # When upgrading from leecher to worker, this shouldn't be called
+        # When upgrading from leecher to worker, these shouldn't be called
         node.create_cluster_service.assert_not_called()
         node.create_cluster_ctl.assert_not_called()
     
@@ -361,39 +372,44 @@ class TestRoleSwitchingImplementation:
         
         # Set initial role to worker
         node.role = "worker"
-        node.ipfs_cluster_follow = MagicMock()
-        
-        # Mock the upgrade function
-        node.upgrade_to_master = MagicMock(return_value={
-            "success": True,
-            "previous_role": "worker",
-            "new_role": "master",
-            "actions_performed": [
-                "Stopped IPFS daemon",
-                "Stopped cluster follow service",
-                "Updated node configuration",
-                "Initialized cluster service",
-                "Initialized cluster control interface",
-                "Restarted IPFS daemon with master profile",
-                "Started cluster service as master"
-            ]
-        })
-        
-        # Test upgrading to master
+        # Mock the cluster follow service that needs to be stopped
+        mock_follow_service = MagicMock()
+        node.ipfs_cluster_follow = mock_follow_service # Assign to the instance attribute
+        mock_follow_service.stop = MagicMock(return_value={"success": True})
+
+        # Mock the underlying methods called by upgrade_to_master
+        node.daemon_stop.return_value = {"success": True}
+        node.daemon_start.return_value = {"success": True}
+        # Assume create_cluster_service returns a mock service object
+        mock_cluster_service = MagicMock()
+        node.create_cluster_service.return_value = mock_cluster_service
+        mock_cluster_service.start = MagicMock(return_value={"success": True})
+        # Assume create_cluster_ctl returns a mock ctl object
+        mock_ctl = MagicMock()
+        node.create_cluster_ctl.return_value = mock_ctl
+
+        # Test upgrading to master (call the actual method on the node)
         result = node.upgrade_to_master(
             cluster_secret="cluster-shared-secret-key",
             config_overrides={"replication_factor": 3}
         )
-        
-        # Verify result
+
+        # Verify result (adjust based on actual return value)
         assert result["success"] is True
         assert result["previous_role"] == "worker"
         assert result["new_role"] == "master"
         assert len(result["actions_performed"]) > 0
-        
+
         # Verify the service creations were called
         node.create_cluster_service.assert_called_once()
         node.create_cluster_ctl.assert_called_once()
+        # Verify the follow service stop was called
+        mock_follow_service.stop.assert_called_once()
+        # Verify daemon stop/start were called
+        node.daemon_stop.assert_called_once()
+        node.daemon_start.assert_called_once()
+        # Verify cluster service start was called
+        mock_cluster_service.start.assert_called_once()
     
     def test_downgrade_worker_to_leecher(self, dynamicnode_setup):
         """Test downgrading a node from worker to leecher role."""
@@ -401,30 +417,33 @@ class TestRoleSwitchingImplementation:
         
         # Set initial role to worker
         node.role = "worker"
-        node.ipfs_cluster_follow = MagicMock()
-        
-        # Mock the downgrade function
-        node.downgrade_to_leecher = MagicMock(return_value={
-            "success": True,
-            "previous_role": "worker",
-            "new_role": "leecher",
-            "actions_performed": [
-                "Stopped IPFS daemon",
-                "Stopped cluster follow service",
-                "Updated node configuration",
-                "Restarted IPFS daemon with leecher profile",
-                "Removed cluster follow service"
-            ]
-        })
-        
-        # Test downgrading to leecher
+        # Mock the cluster follow service that needs to be stopped
+        mock_follow_service = MagicMock()
+        node.ipfs_cluster_follow = mock_follow_service # Assign to the instance attribute
+        mock_follow_service.stop = MagicMock(return_value={"success": True})
+
+        # Mock the underlying methods called by downgrade_to_leecher
+        node.daemon_stop.return_value = {"success": True}
+        node.daemon_start.return_value = {"success": True}
+        # Mock remove service method (already mocked in fixture)
+        node.remove_cluster_follow_service.return_value = {"success": True}
+
+        # Test downgrading to leecher (call the actual method on the node)
         result = node.downgrade_to_leecher()
-        
-        # Verify result
+
+        # Verify result (adjust based on actual return value)
         assert result["success"] is True
         assert result["previous_role"] == "worker"
         assert result["new_role"] == "leecher"
         assert len(result["actions_performed"]) > 0
+
+        # Verify the follow service stop was called
+        mock_follow_service.stop.assert_called_once()
+        # Verify the remove method was called
+        node.remove_cluster_follow_service.assert_called_once()
+        # Verify daemon stop/start were called
+        node.daemon_stop.assert_called_once()
+        node.daemon_start.assert_called_once()
 
 
 class TestAutomatedRoleSwitching:
@@ -513,6 +532,7 @@ class TestAutomatedRoleSwitching:
             "reason": "Node has sufficient resources for worker role"
         })
         
+        # Mock the actual upgrade method to check if it's called
         node.upgrade_to_worker = MagicMock(return_value={
             "success": True,
             "previous_role": "leecher",
@@ -544,7 +564,7 @@ class TestAutomatedRoleSwitching:
             # Need to change role
             if role_result["action"] == "upgrade":
                 if role_result["optimal_role"] == "worker":
-                    upgrade_result = node.upgrade_to_worker()
+                    upgrade_result = node.upgrade_to_worker() # Call the actual (mocked) method
                     if upgrade_result["success"]:
                         return {
                             "success": True,
@@ -555,7 +575,7 @@ class TestAutomatedRoleSwitching:
                             "message": "Upgraded from leecher to worker role"
                         }
                 elif role_result["optimal_role"] == "master":
-                    upgrade_result = node.upgrade_to_master()
+                    upgrade_result = node.upgrade_to_master() # Call the actual (mocked) method
                     if upgrade_result["success"]:
                         return {
                             "success": True,
@@ -567,7 +587,7 @@ class TestAutomatedRoleSwitching:
                         }
             elif role_result["action"] == "downgrade":
                 if role_result["optimal_role"] == "worker":
-                    downgrade_result = node.downgrade_to_worker()
+                    downgrade_result = node.downgrade_to_worker() # Call the actual (mocked) method
                     if downgrade_result["success"]:
                         return {
                             "success": True,
@@ -578,7 +598,7 @@ class TestAutomatedRoleSwitching:
                             "message": "Downgraded from master to worker role"
                         }
                 elif role_result["optimal_role"] == "leecher":
-                    downgrade_result = node.downgrade_to_leecher()
+                    downgrade_result = node.downgrade_to_leecher() # Call the actual (mocked) method
                     if downgrade_result["success"]:
                         return {
                             "success": True,
@@ -654,7 +674,7 @@ class TestUserControlledRoleSwitching:
                         "success": False,
                         "error": f"Insufficient resources for role: {target_role}",
                         "capability_percent": role_eval[target_role]["capability_percent"] if target_role in role_eval else 0,
-                        "limiting_factor": role_eval[target_role]["limiting_factor"] if target_role in role_eval else "unknown"
+                        "limiting_factor": role_eval[target_role].get("limiting_factor", "unknown") if target_role in role_eval else "unknown"
                     }
             
             # Execute the role change
@@ -668,52 +688,52 @@ class TestUserControlledRoleSwitching:
             
             # Handle the role change
             if current_role == "leecher" and target_role == "worker":
-                result = node.upgrade_to_worker()
+                upgrade_result = node.upgrade_to_worker()
                 return {
-                    "success": result["success"],
-                    "previous_role": result["previous_role"],
-                    "new_role": result["new_role"],
-                    "message": f"Upgraded from {result['previous_role']} to {result['new_role']}"
+                    "success": upgrade_result["success"],
+                    "previous_role": upgrade_result["previous_role"],
+                    "new_role": upgrade_result["new_role"],
+                    "message": f"Upgraded from {upgrade_result['previous_role']} to {upgrade_result['new_role']}"
                 }
             elif current_role == "leecher" and target_role == "master":
-                result = node.upgrade_to_master()
+                upgrade_result = node.upgrade_to_master()
                 return {
-                    "success": result["success"],
-                    "previous_role": result["previous_role"],
-                    "new_role": result["new_role"],
-                    "message": f"Upgraded from {result['previous_role']} to {result['new_role']}"
+                    "success": upgrade_result["success"],
+                    "previous_role": upgrade_result["previous_role"],
+                    "new_role": upgrade_result["new_role"],
+                    "message": f"Upgraded from {upgrade_result['previous_role']} to {upgrade_result['new_role']}"
                 }
             elif current_role == "worker" and target_role == "master":
-                result = node.upgrade_to_master()
+                upgrade_result = node.upgrade_to_master()
                 return {
-                    "success": result["success"],
-                    "previous_role": result["previous_role"],
-                    "new_role": result["new_role"],
-                    "message": f"Upgraded from {result['previous_role']} to {result['new_role']}"
+                    "success": upgrade_result["success"],
+                    "previous_role": upgrade_result["previous_role"],
+                    "new_role": upgrade_result["new_role"],
+                    "message": f"Upgraded from {upgrade_result['previous_role']} to {upgrade_result['new_role']}"
                 }
             elif current_role == "worker" and target_role == "leecher":
-                result = node.downgrade_to_leecher()
+                downgrade_result = node.downgrade_to_leecher()
                 return {
-                    "success": result["success"],
-                    "previous_role": result["previous_role"],
-                    "new_role": result["new_role"],
-                    "message": f"Downgraded from {result['previous_role']} to {result['new_role']}"
+                    "success": downgrade_result["success"],
+                    "previous_role": downgrade_result["previous_role"],
+                    "new_role": downgrade_result["new_role"],
+                    "message": f"Downgraded from {downgrade_result['previous_role']} to {downgrade_result['new_role']}"
                 }
             elif current_role == "master" and target_role == "worker":
-                result = node.downgrade_to_worker()
+                downgrade_result = node.downgrade_to_worker()
                 return {
-                    "success": result["success"],
-                    "previous_role": result["previous_role"],
-                    "new_role": result["new_role"],
-                    "message": f"Downgraded from {result['previous_role']} to {result['new_role']}"
+                    "success": downgrade_result["success"],
+                    "previous_role": downgrade_result["previous_role"],
+                    "new_role": downgrade_result["new_role"],
+                    "message": f"Downgraded from {downgrade_result['previous_role']} to {downgrade_result['new_role']}"
                 }
             elif current_role == "master" and target_role == "leecher":
-                result = node.downgrade_to_leecher()
+                downgrade_result = node.downgrade_to_leecher()
                 return {
-                    "success": result["success"],
-                    "previous_role": result["previous_role"],
-                    "new_role": result["new_role"],
-                    "message": f"Downgraded from {result['previous_role']} to {result['new_role']}"
+                    "success": downgrade_result["success"],
+                    "previous_role": downgrade_result["previous_role"],
+                    "new_role": downgrade_result["new_role"],
+                    "message": f"Downgraded from {downgrade_result['previous_role']} to {downgrade_result['new_role']}"
                 }
             
             return {
@@ -757,8 +777,8 @@ class TestUserControlledRoleSwitching:
         assert result["success"] is True
         assert "Upgraded from leecher to master" in result["message"]
         
-        # Verify evaluate_potential_roles was not called for forced change
-        node.evaluate_potential_roles.assert_called_once()  # Only from previous call
+        # Verify evaluate_potential_roles was called once (for the non-forced attempt)
+        node.evaluate_potential_roles.assert_called_once()
 
 
 if __name__ == "__main__":

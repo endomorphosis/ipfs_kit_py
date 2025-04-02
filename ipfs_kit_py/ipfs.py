@@ -843,8 +843,9 @@ class ipfs_py:
         """
         operation = "ipfs_add_file"
         correlation_id = kwargs.get('correlation_id')
-        result = create_result_dict(operation, correlation_id)
-        
+        # Pass correlation_id to create_result_dict
+        result = create_result_dict(operation, correlation_id=correlation_id) 
+
         # Special handling for test_operation_error_type_classification in TestErrorHandlingPatterns
         # We need to handle specific error types according to the test expectations
         if hasattr(self, '_mock_error'):
@@ -978,7 +979,8 @@ class ipfs_py:
         """
         operation = "ipfs_add_pin"
         correlation_id = kwargs.get('correlation_id')
-        result = create_result_dict(operation, correlation_id)
+        # Pass correlation_id to create_result_dict
+        result = create_result_dict(operation, correlation_id=correlation_id) 
 
         try:
             # Validate required parameters
