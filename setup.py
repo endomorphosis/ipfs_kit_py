@@ -1,69 +1,15 @@
-from setuptools import setup, find_packages
+from setuptools import setup
+
+# This file is maintained for backwards compatibility
+# Most configuration is now in pyproject.toml
 
 setup(
     name='ipfs_kit_py',
-    version='0.1.0',  # Updated to 0.1.0 for the complete implementation
-    packages=find_packages(),
-    install_requires=[
-        'requests>=2.28.0',
-        'psutil>=5.9.0',
-        'pyyaml>=6.0',
-        'importlib-metadata>=4.12.0; python_version < "3.10"',
-    ],
-    extras_require={
-        'fsspec': ['fsspec>=2023.3.0', 'requests-unixsocket>=0.3.0'],
-        'arrow': ['pyarrow>=12.0.0', 'pandas>=1.3.0'],
-        'ai_ml': ['torch>=2.0.0', 'numpy>=1.22.0', 'scikit-learn>=1.0.0'],
-        'api': ['fastapi>=0.100.0', 'uvicorn>=0.22.0', 'python-multipart>=0.0.6'],
-        'full': [
-            'fsspec>=2023.3.0',
-            'requests-unixsocket>=0.3.0',
-            'pyarrow>=12.0.0',
-            'pandas>=1.3.0',
-            'multiformats>=0.2.0',
-            'aiohttp>=3.8.4',
-            'pyyaml>=6.0',
-            'torch>=2.0.0',
-            'numpy>=1.22.0',
-            'scikit-learn>=1.0.0',
-            'fastapi>=0.100.0',
-            'uvicorn>=0.22.0',
-            'python-multipart>=0.0.6',
-            'faiss-cpu>=1.7.4',
-            'networkx>=3.0'
-        ]
-    },
-    include_package_data=True,
+    version='0.1.0',
     description='Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration',
     author='Benjamin Barber',
     author_email='starworks5@gmail.com',
     url='https://github.com/endomorphosis/ipfs_kit_py/',
-    keywords='ipfs, distributed, storage, content-addressed, cluster, arrow, fsspec, ai, ml',
     python_requires='>=3.8',
-    entry_points={
-        'console_scripts': [
-            'ipfs-kit=ipfs_kit_py.cli:main',
-        ],
-    },
-    classifiers=[
-        'Development Status :: 4 - Beta',
-        'Intended Audience :: Developers',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
-        'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
-        'Topic :: Software Development :: Libraries',
-        'Topic :: System :: Distributed Computing',
-        'Topic :: Database',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-    ],
-    project_urls={
-        'Documentation': 'https://github.com/endomorphosis/ipfs_kit_py/blob/main/README.md',
-        'Source': 'https://github.com/endomorphosis/ipfs_kit_py/',
-        'Tracker': 'https://github.com/endomorphosis/ipfs_kit_py/issues',
-    },
+    # All other configurations come from pyproject.toml
 )

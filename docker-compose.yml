@@ -1,0 +1,62 @@
+version: '3'
+
+services:
+  ipfs-master:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ipfs-kit-py:latest
+    container_name: ipfs-master
+    command: master
+    volumes:
+      - ipfs-master-data:/data
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+      - "9096:9096"
+    networks:
+      - ipfs-network
+    restart: unless-stopped
+
+  ipfs-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ipfs-kit-py:latest
+    container_name: ipfs-worker
+    command: worker
+    depends_on:
+      - ipfs-master
+    environment:
+      - MASTER_ADDR=/dns4/ipfs-master/tcp/9096
+    volumes:
+      - ipfs-worker-data:/data
+    networks:
+      - ipfs-network
+    restart: unless-stopped
+
+  ipfs-leecher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ipfs-kit-py:latest
+    container_name: ipfs-leecher
+    command: leecher
+    volumes:
+      - ipfs-leecher-data:/data
+    ports:
+      - "5002:5001"  # Map to different port to avoid conflict
+      - "8081:8080"  # Map to different port to avoid conflict
+    networks:
+      - ipfs-network
+    restart: unless-stopped
+
+volumes:
+  ipfs-master-data:
+  ipfs-worker-data:
+  ipfs-leecher-data:
+
+networks:
+  ipfs-network:
+    driver: bridge

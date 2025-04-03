@@ -1,53 +1,115 @@
-name: Publish Python Package
+name: Python package
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
   pull_request:
-    branches:
-      - main
-      - master
-  release:
-    types: [created]
+    branches: [ "main", "master" ]
 
 jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install .[dev]
+    - name: Run tests
+      run: |
+        pytest -xvs
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install .[dev]
+    - name: Lint with black
+      run: |
+        black --check ipfs_kit_py test
+    - name: Lint with isort
+      run: |
+        isort --check ipfs_kit_py test
+
   build:
     name: Build distribution 📦
     runs-on: ubuntu-latest
+    needs: [test, lint]
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip setuptools wheel
-      - name: Build the package
-        run: python setup.py sdist bdist_wheel
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: python-package-distributions
-          path: dist/
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build wheel
+    - name: Build the package
+      run: |
+        python -m build
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
 
   publish-to-pypi:
-    name: Publish Python 🐍 distribution 📦 to PyPI
-    if: github.ref == 'refs/heads/main'  # only publish to PyPI on pushes to main branch
+    name: Publish to PyPI 📦
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/ipfs-kit # Replace <package-name> with your PyPI project name
+      url: https://pypi.org/p/ipfs-kit-py
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
-      - name: Download all the dists
-        uses: actions/download-artifact@v3
-        with:
-          name: python-package-distributions
-          path: dist/
-      - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+    - name: Download all the dists
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-to-testpypi:
+    name: Publish to TestPyPI 📦
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/ipfs-kit-py
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/

@@ -1,0 +1,68 @@
+# Git
+.git
+.github
+.gitignore
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+virtualenv/
+.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Local data directories
+data/
+instance/
+.ipfs/
+.ipfs-cluster/
+
+# Node modules (if any)
+node_modules/
+
+# Documentation build
+docs/_build/
+
+# Large files and directories
+*.log
+*.db
+*.sqlite
+*.model
+*.pt
+*.pkl
+**/*.tar.gz

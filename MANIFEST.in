@@ -1,8 +1,11 @@
 include LICENSE
 include README.md
+include README-PyPI.md
+include CHANGELOG.md
 include CLAUDE.md
 include pyproject.toml
 include requirements.txt
+include PYPI_RELEASE_CHECKLIST.md
 
 recursive-include ipfs_kit_py *.py
 recursive-include ipfs_kit_py/bin *
@@ -23,6 +26,9 @@ recursive-include test *.py
 recursive-include test *.md
 recursive-include test *.json
 
+# GitHub files
+recursive-include .github *.yml
+
 # Exclude bytecode files
 global-exclude *.pyc
 global-exclude __pycache__
@@ -32,4 +38,5 @@ global-exclude .git*
 global-exclude .DS_Store
 global-exclude node_modules/
 global-exclude dist/
+global-exclude build/
 global-exclude *.egg-info
