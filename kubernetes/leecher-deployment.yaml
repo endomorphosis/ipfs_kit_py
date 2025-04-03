@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipfs-leecher
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: leecher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ipfs-kit
+      role: leecher
+  template:
+    metadata:
+      labels:
+        app: ipfs-kit
+        role: leecher
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: ipfs-leecher
+        image: ipfs-kit-py:latest
+        imagePullPolicy: IfNotPresent
+        args: ["leecher"]
+        env:
+        - name: ROLE
+          value: "leecher"
+        - name: CONFIG_PATH
+          value: "/etc/ipfs-kit/config.yaml"
+        - name: MAX_MEMORY
+          value: "1G"
+        - name: MAX_STORAGE
+          value: "20G"
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        ports:
+        - name: swarm
+          containerPort: 4001
+          protocol: TCP
+        - name: swarm-udp
+          containerPort: 4001
+          protocol: UDP
+        - name: api
+          containerPort: 5001
+          protocol: TCP
+        - name: gateway
+          containerPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: ipfs-data
+          mountPath: /data
+        - name: config-volume
+          mountPath: /etc/ipfs-kit
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - /health-check.sh
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v0/id
+            port: 5001
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          timeoutSeconds: 5
+      volumes:
+      - name: ipfs-data
+        persistentVolumeClaim:
+          claimName: ipfs-leecher-data
+      - name: config-volume
+        configMap:
+          name: ipfs-kit-leecher-config
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ipfs-leecher-data
+  namespace: ipfs-kit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard

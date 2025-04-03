@@ -1,0 +1,285 @@
+## Global settings
+global:
+  # Docker image settings
+  image:
+    repository: ipfs-kit-py
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Storage classes
+  storageClasses:
+    # For SSD-based storage (master node)
+    ssd:
+      name: ipfs-ssd
+      create: true
+      provisioner: kubernetes.io/gce-pd # Adjust for your cloud provider
+      parameters:
+        type: pd-ssd
+        fstype: ext4
+      reclaimPolicy: Retain
+      allowVolumeExpansion: true
+    
+    # For HDD-based storage (worker nodes)
+    hdd:
+      name: ipfs-hdd
+      create: true
+      provisioner: kubernetes.io/gce-pd # Adjust for your cloud provider
+      parameters:
+        type: pd-standard
+        fstype: ext4
+      reclaimPolicy: Retain
+      allowVolumeExpansion: true
+  
+  # Security settings
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+    runAsGroup: 1000
+  
+  # Cluster secret for IPFS Cluster
+  clusterSecret: "" # Generate with: openssl rand -base64 32
+
+## Master node configuration
+master:
+  enabled: true
+  replicas: 1
+  
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+  
+  storage:
+    size: 100Gi
+    storageClass: ipfs-ssd
+  
+  env:
+    MAX_MEMORY: "4G"
+    MAX_STORAGE: "100G"
+  
+  service:
+    type: ClusterIP
+    api:
+      port: 5001
+    gateway:
+      port: 8080
+    swarm:
+      port: 4001
+    cluster:
+      port: 9096
+  
+  publicService:
+    enabled: true
+    type: LoadBalancer
+    annotations: {}
+  
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      api:
+        host: ipfs-api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+      gateway:
+        host: ipfs-gateway.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ipfs-api-tls
+        hosts:
+          - ipfs-api.example.com
+      - secretName: ipfs-gateway-tls
+        hosts:
+          - ipfs-gateway.example.com
+  
+  config:
+    role: master
+    logging:
+      level: INFO
+      file: ""
+      format: "json"
+    
+    network:
+      swarm_connections: 500
+      auto_relay: true
+      nat_traversal: true
+      max_bandwidth_in: "500M"
+      max_bandwidth_out: "500M"
+    
+    gateway:
+      enabled: true
+      writable: false
+      cors_allowed_origins: ["*"]
+    
+    api:
+      enabled: true
+      cors_allowed_origins: ["*"]
+      authenticated: false
+    
+    cluster:
+      enabled: true
+      role: "master"
+      replication_factor: 2
+    
+    storage:
+      backends:
+        - name: "ipfs"
+          priority: 1
+          enabled: true
+        - name: "local"
+          priority: 2
+          enabled: true
+        - name: "cluster"
+          priority: 3
+          enabled: true
+        - name: "storacha"
+          priority: 4
+          enabled: false
+        - name: "s3"
+          priority: 5
+          enabled: false
+
+## Worker nodes configuration
+workers:
+  enabled: true
+  replicas: 3
+  
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+  
+  storage:
+    size: 50Gi
+    storageClass: ipfs-hdd
+  
+  env:
+    MAX_MEMORY: "2G"
+    MAX_STORAGE: "50G"
+  
+  service:
+    type: ClusterIP
+    api:
+      port: 5001
+    swarm:
+      port: 4001
+  
+  config:
+    role: worker
+    logging:
+      level: INFO
+      file: ""
+      format: "json"
+    
+    network:
+      swarm_connections: 200
+      auto_relay: true
+      nat_traversal: true
+    
+    gateway:
+      enabled: false
+    
+    api:
+      enabled: true
+      local_only: true
+    
+    cluster:
+      enabled: true
+      role: "worker"
+      follow_master: true
+    
+    storage:
+      backends:
+        - name: "ipfs"
+          priority: 1
+          enabled: true
+        - name: "local"
+          priority: 2
+          enabled: true
+        - name: "cluster"
+          priority: 3
+          enabled: true
+    
+    worker:
+      task_concurrency: 4
+      max_tasks: 10
+      task_timeout: 600
+
+## Leecher nodes configuration
+leechers:
+  enabled: true
+  replicas: 1
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  
+  storage:
+    size: 20Gi
+    storageClass: standard
+  
+  env:
+    MAX_MEMORY: "1G"
+    MAX_STORAGE: "20G"
+  
+  service:
+    type: ClusterIP
+    api:
+      port: 5001
+    gateway:
+      port: 8080
+    swarm:
+      port: 4001
+  
+  config:
+    role: leecher
+    logging:
+      level: INFO
+      file: ""
+      format: "json"
+    
+    network:
+      swarm_connections: 50
+      auto_relay: true
+      nat_traversal: true
+    
+    gateway:
+      enabled: true
+      writable: false
+      cors_allowed_origins: ["*"]
+    
+    api:
+      enabled: true
+      cors_allowed_origins: ["*"]
+    
+    cluster:
+      enabled: false
+    
+    storage:
+      backends:
+        - name: "ipfs"
+          priority: 1
+          enabled: true
+        - name: "local"
+          priority: 2
+          enabled: true
+    
+    leecher:
+      offline_mode_support: true
+      prefetch_popular_content: true
+      max_content_size: "1GB"

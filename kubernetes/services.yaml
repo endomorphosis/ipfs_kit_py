@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-master
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: master
+spec:
+  type: ClusterIP
+  ports:
+  - name: swarm
+    port: 4001
+    targetPort: swarm
+    protocol: TCP
+  - name: api
+    port: 5001
+    targetPort: api
+    protocol: TCP
+  - name: gateway
+    port: 8080
+    targetPort: gateway
+    protocol: TCP
+  - name: cluster
+    port: 9096
+    targetPort: cluster
+    protocol: TCP
+  selector:
+    app: ipfs-kit
+    role: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-master-public
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: master
+    public: "true"
+spec:
+  type: LoadBalancer
+  ports:
+  - name: api
+    port: 5001
+    targetPort: api
+    protocol: TCP
+  - name: gateway
+    port: 8080
+    targetPort: gateway
+    protocol: TCP
+  selector:
+    app: ipfs-kit
+    role: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-worker
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: worker
+spec:
+  type: ClusterIP
+  ports:
+  - name: swarm
+    port: 4001
+    targetPort: swarm
+    protocol: TCP
+  - name: api
+    port: 5001
+    targetPort: api
+    protocol: TCP
+  selector:
+    app: ipfs-kit
+    role: worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-leecher
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: leecher
+spec:
+  type: ClusterIP
+  ports:
+  - name: swarm
+    port: 4001
+    targetPort: swarm
+    protocol: TCP
+  - name: api
+    port: 5001
+    targetPort: api
+    protocol: TCP
+  - name: gateway
+    port: 8080
+    targetPort: gateway
+    protocol: TCP
+  selector:
+    app: ipfs-kit
+    role: leecher

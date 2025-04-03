@@ -21,7 +21,12 @@ This guide explains how to use the performance measurement capabilities in ipfs_
    - [Enabling Metrics](#enabling-metrics)
    - [Access Patterns](#access-patterns)
    - [Cache Analysis](#cache-analysis)
-5. [Performance Optimization](#performance-optimization)
+5. [AI/ML Performance Visualization](#aiml-performance-visualization)
+   - [Training Metrics Visualization](#training-metrics-visualization)
+   - [Inference Performance Analysis](#inference-performance-analysis)
+   - [Worker Utilization Visualization](#worker-utilization-visualization)
+   - [Comprehensive Dashboards](#comprehensive-dashboards)
+6. [Performance Optimization](#performance-optimization)
    - [Identifying Bottlenecks](#identifying-bottlenecks)
    - [Optimizing Caching](#optimizing-caching)
    - [Scaling with Parallelism](#scaling-with-parallelism)
@@ -368,6 +373,113 @@ for tier, stats in cache_stats["tiers"].items():
         hit_rate = hits / total
         print(f"Tier {tier}: {hit_rate:.2%} hit rate")
 ```
+
+## AI/ML Performance Visualization
+
+IPFS Kit includes comprehensive visualization tools for AI/ML performance metrics through the `ai_ml_visualization` module, which provides both interactive and static visualizations.
+
+### Training Metrics Visualization
+
+Visualize training metrics like loss, accuracy, and learning rate over epochs:
+
+```python
+from ipfs_kit_py.ai_ml_metrics import AIMLMetricsCollector
+from ipfs_kit_py.ai_ml_visualization import create_visualization
+
+# Create metrics collector
+metrics = AIMLMetricsCollector()
+
+# Record training metrics in your training loop
+with metrics.track_training_epoch("my_model", epoch=0, num_samples=1000):
+    # Record metrics during training
+    metrics.record_metric("my_model/epoch/0/train_loss", 1.5)
+    metrics.record_metric("my_model/epoch/0/val_loss", 1.7)
+    metrics.record_metric("my_model/epoch/0/train_acc", 0.6)
+    metrics.record_metric("my_model/epoch/0/val_acc", 0.55)
+
+# Create visualization instance
+viz = create_visualization(metrics, theme="light", interactive=True)
+
+# Generate visualization for training metrics
+viz.plot_training_metrics(model_id="my_model", show_plot=True)
+```
+
+This generates visualizations showing training/validation loss and accuracy curves, learning rate schedules, and epoch timing, giving you insights into model convergence and potential issues like overfitting.
+
+### Inference Performance Analysis
+
+Visualize inference latency distributions and other performance metrics:
+
+```python
+# Track inference performance
+for batch_size in [1, 2, 4, 8, 16]:
+    with metrics.track_inference("my_model", batch_size=batch_size):
+        # Run inference here
+        # ...
+        # Record memory usage
+        metrics.record_metric("my_model/inference/memory_mb", 1200)
+
+# Generate inference latency visualization
+viz.plot_inference_latency(model_id="my_model", show_plot=True)
+```
+
+This generates visualizations showing:
+- Latency distributions across different batch sizes
+- Memory usage during inference
+- Throughput measurements (samples/second)
+- Comparison of latency across model versions
+
+### Worker Utilization Visualization
+
+For distributed training, visualize worker utilization metrics:
+
+```python
+# Record worker utilization metrics
+for worker_id in ["worker-1", "worker-2", "worker-3"]:
+    metrics.record_metric(f"workers/{worker_id}/utilization", 0.75)
+    metrics.record_metric(f"workers/{worker_id}/memory_mb", 2500)
+    metrics.record_metric(f"workers/{worker_id}/active_tasks", 5)
+
+# Generate worker utilization visualization
+viz.plot_worker_utilization(show_plot=True)
+```
+
+This visualization helps identify:
+- Imbalanced worker load distribution
+- Resource utilization patterns
+- Idle workers or bottlenecks
+- Potential scaling opportunities
+
+### Comprehensive Dashboards
+
+Generate a comprehensive dashboard combining multiple visualizations:
+
+```python
+# Generate a dashboard with all metrics
+viz.plot_comprehensive_dashboard(figsize=(15, 12), show_plot=True)
+
+# Generate an HTML report with all visualizations and metrics
+report_path = "performance_report.html"
+viz.generate_html_report(report_path)
+
+# Export all visualizations to various formats
+exported_files = viz.export_visualizations(
+    export_dir="./visualization_exports",
+    formats=["png", "svg", "html", "json"]
+)
+```
+
+The comprehensive dashboard provides:
+- Training progress overview
+- Inference performance summary
+- Resource utilization visualization
+- Dataset loading performance
+- System-wide performance metrics
+- Interactive controls (with Plotly)
+
+For more detailed information and advanced usage, see:
+- [AI/ML Visualization Guide](ai_ml_visualization.md)
+- Example: `examples/ai_ml_visualization_example.py`
 
 ## Performance Optimization
 

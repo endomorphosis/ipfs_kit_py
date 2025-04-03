@@ -8,7 +8,9 @@ include requirements.txt
 include PYPI_RELEASE_CHECKLIST.md
 
 recursive-include ipfs_kit_py *.py
-recursive-include ipfs_kit_py/bin *
+# We're not including binary files in the package
+# The install_ipfs.py script will download these as needed
+# recursive-include ipfs_kit_py/bin *
 recursive-include ipfs_kit_py *.json
 recursive-include ipfs_kit_py *.service
 

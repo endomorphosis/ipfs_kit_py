@@ -232,6 +232,42 @@ class IPFSFileSystem(AbstractFileSystem):
 - `get_metrics()` / `get_performance_metrics()`: Get collected performance metrics.
 - `analyze_metrics()`: Analyze metrics and provide summary statistics.
 
+## Using the High-Level API
+
+The `IPFSSimpleAPI` class provides convenient high-level methods for working with the filesystem interface:
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+# Initialize the API
+api = IPFSSimpleAPI()
+
+# Open a file directly by CID (no need for ipfs:// prefix)
+with api.open_file("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx") as f:
+    content = f.read()
+    print(f"Read {len(content)} bytes")
+
+# Read entire file contents as bytes
+data = api.read_file("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
+
+# Read entire file contents as text
+text = api.read_text("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
+
+# List directory contents
+dir_contents = api.list_directory("QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn")
+for item in dir_contents:
+    print(f"- {item['name']}")
+
+# Get a configured filesystem instance with custom options
+fs = api.get_filesystem(
+    gateway_urls=["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"],
+    use_gateway_fallback=True,
+    enable_metrics=True
+)
+```
+
+The high-level API provides a simpler interface that handles prefix management, error handling, and configuration automatically.
+
 ## Extension Points
 
 The implementation is designed for extensibility:

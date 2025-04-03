@@ -1,0 +1,96 @@
+# Default configuration for IPFS Kit in Docker
+# Override settings with environment variables or by mounting a custom config file
+
+# Core settings
+role: leecher  # Will be overridden by command-line argument
+logging:
+  level: INFO
+  file: ""  # Log to stdout in container
+  format: "json"  # Use JSON format for structured logging in containers
+
+# Resource settings
+resources:
+  max_memory: "1GB"    # Default memory limit
+  max_storage: "10GB"  # Default storage limit
+  cpu_limit: 1.0       # Default CPU limit
+
+# Cache settings
+cache:
+  memory_size: "256MB"
+  disk_size: "2GB"
+  disk_path: "/data/ipfs/cache"
+  eviction_policy: "arc"  # Adaptive Replacement Cache
+
+# Network settings
+network:
+  swarm_connections: 100
+  auto_relay: true
+  nat_traversal: true
+  max_bandwidth_in: "100M"
+  max_bandwidth_out: "100M"
+
+# Timeouts
+timeouts:
+  api: 30
+  gateway: 60
+  peer_connect: 15
+  dht_lookup: 30
+
+# Gateway settings
+gateway:
+  enabled: true
+  writable: false
+  cors_allowed_origins: ["*"]
+  path_prefix: ""
+
+# API settings
+api:
+  enabled: true
+  cors_allowed_origins: ["*"]
+  authenticated: false
+
+# Cluster settings (for master/worker)
+cluster:
+  replication_factor: 2
+  min_replication: 1
+  max_replication: 3
+  shard_size: "1GB"
+
+# Peer settings (bootstrap, etc.)
+peers:
+  bootstrap:
+    - "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
+    - "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
+  connect_on_init: true
+  
+# Storage backends
+storage:
+  backends:
+    - name: "ipfs"
+      priority: 1
+      enabled: true
+    - name: "local"
+      priority: 2
+      enabled: true
+    - name: "cluster"
+      priority: 3
+      enabled: false
+    - name: "storacha"
+      priority: 4
+      enabled: false
+      api_key: ""  # Set via environment or secrets
+    - name: "s3"
+      priority: 5
+      enabled: false
+      credentials:
+        access_key: ""  # Set via environment or secrets
+        secret_key: ""  # Set via environment or secrets
+      region: "us-east-1"
+      bucket: "ipfs-kit-content"
+
+# Security
+security:
+  enable_tls: false
+  tls_cert_path: ""
+  tls_key_path: ""
+  cors_enabled: true

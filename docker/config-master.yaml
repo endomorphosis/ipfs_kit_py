@@ -1,0 +1,69 @@
+# Master node configuration for IPFS Kit in Docker
+role: master
+logging:
+  level: INFO
+  file: ""  # Log to stdout in container
+  format: "json"
+
+# Resource settings for master - higher limits
+resources:
+  max_memory: "4GB"    # Overridable by environment
+  max_storage: "100GB" # Overridable by environment
+  cpu_limit: 2.0
+
+# Cache settings optimized for master role
+cache:
+  memory_size: "1GB"
+  disk_size: "10GB"
+  disk_path: "/data/ipfs/cache"
+  eviction_policy: "arc"
+
+# Network settings
+network:
+  swarm_connections: 500
+  auto_relay: true
+  nat_traversal: true
+  max_bandwidth_in: "500M"
+  max_bandwidth_out: "500M"
+
+# Gateway settings - master exposes gateway
+gateway:
+  enabled: true
+  writable: false
+  cors_allowed_origins: ["*"]
+  path_prefix: ""
+
+# API settings
+api:
+  enabled: true
+  cors_allowed_origins: ["*"]
+  authenticated: false
+
+# Cluster settings
+cluster:
+  enabled: true
+  role: "master"
+  replication_factor: 2
+  min_replication: 1
+  max_replication: 3
+  shard_size: "1GB"
+
+# Storage backends - all enabled for master
+storage:
+  backends:
+    - name: "ipfs"
+      priority: 1
+      enabled: true
+    - name: "local"
+      priority: 2
+      enabled: true
+    - name: "cluster"
+      priority: 3
+      enabled: true
+    - name: "storacha"
+      priority: 4
+      enabled: false
+      api_key: ""
+    - name: "s3"
+      priority: 5
+      enabled: false

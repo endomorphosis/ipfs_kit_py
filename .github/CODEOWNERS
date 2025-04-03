@@ -1,0 +1,32 @@
+# IPFS Kit Python CODEOWNERS
+
+# Default owners for everything
+* @endomorphosis
+
+# CI/CD-related files
+/.github/workflows/ @endomorphosis
+/docs/CI_CD.md @endomorphosis
+CONTAINERIZATION.md @endomorphosis
+
+# Core IPFS Kit files
+/ipfs_kit_py/ipfs_kit.py @endomorphosis
+/ipfs_kit_py/high_level_api.py @endomorphosis
+/ipfs_kit_py/api.py @endomorphosis
+
+# Testing files
+/test/ @endomorphosis
+
+# Documentation files
+/docs/ @endomorphosis
+
+# Containerization files
+/Dockerfile @endomorphosis
+/docker-compose.yml @endomorphosis
+/docker/ @endomorphosis
+/kubernetes/ @endomorphosis
+/helm/ @endomorphosis
+
+# Packaging files
+/setup.py @endomorphosis
+/pyproject.toml @endomorphosis
+/MANIFEST.in @endomorphosis

@@ -707,6 +707,27 @@ This integration demonstrates the power of combining IPFS content addressing, kn
 
 ## Best Practices and Optimization
 
+### Metrics Visualization
+
+The AI/ML integration includes comprehensive visualization capabilities for training metrics, inference performance, worker utilization, and more. For detailed information, see the [AI/ML Visualization Guide](ai_ml_visualization.md).
+
+```python
+from ipfs_kit_py.ai_ml_metrics import AIMLMetricsCollector
+from ipfs_kit_py.ai_ml_visualization import create_visualization
+
+# Create metrics collector and record metrics
+metrics = AIMLMetricsCollector()
+metrics.record_metric("my_model/epoch/0/train_loss", 1.5)
+metrics.record_metric("my_model/epoch/0/val_loss", 1.7)
+
+# Create visualization instance
+viz = create_visualization(metrics, theme="light", interactive=True)
+
+# Generate visualizations
+viz.plot_training_metrics("my_model", show_plot=True)
+viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
+```
+
 ### Performance Optimization
 
 1. **Caching**: Use tiered caching for frequently accessed models and datasets

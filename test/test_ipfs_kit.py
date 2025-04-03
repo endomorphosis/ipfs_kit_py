@@ -1,9 +1,10 @@
-import tempfile
+import json
 import os
 import platform
-import json
-from ipfs_kit_py import storacha_kit
-from ipfs_kit_py import ipfs_kit
+import tempfile
+
+from ipfs_kit_py import ipfs_kit, storacha_kit
+
 
 class TestIpfsKit:
     def __init__(self, resources, metadata):
@@ -12,7 +13,7 @@ class TestIpfsKit:
         self.ipfs_kit = ipfs_kit(resources, metadata)
         self.storacha_kit = storacha_kit(resources, metadata)
         return None
-        
+
     def test(self):
         results = {}
         test_ipfs_kit_install = None
@@ -76,7 +77,7 @@ class TestIpfsKit:
             results["test_ipfs_kit_set_config_value"] = self.ipfs_set_config_value()
         except Exception as e:
             results["test_ipfs_kit_set_config_value"] = e
-        try:    
+        try:
             results["test_ipfs_kit_get_pinset"] = self.ipfs_get_pinset()
         except Exception as e:
             results["test_ipfs_kit_get_pinset"] = e
@@ -123,7 +124,7 @@ class TestIpfsKit:
         try:
             results["test_ipfs_kit_storacha_kit"] = self.storacha_kit.test()
         except Exception as e:
-            results["test_ipfs_kit_storacha_kit"] = e                
+            results["test_ipfs_kit_storacha_kit"] = e
         try:
             results["test_ipfs_kit"] = self.test()
         except Exception as e:
@@ -157,7 +158,11 @@ class TestIpfsKit:
 
                     # Add the file to IPFS (mocked)
                     test_cid = "QmTestCID"
-                    self.ipfs_kit.ipfs.ipfs_add_file = lambda file_path, **kwargs: {"success": True, "cid": test_cid, "size": 123}
+                    self.ipfs_kit.ipfs.ipfs_add_file = lambda file_path, **kwargs: {
+                        "success": True,
+                        "cid": test_cid,
+                        "size": 123,
+                    }
 
                     # Download the file using ipget_download_object
                     download_result = self.ipfs_kit.ipfs_get(cid=test_cid, path=path)

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ipfs-kit
+  labels:
+    name: ipfs-kit
+    app.kubernetes.io/name: ipfs-kit
+    app.kubernetes.io/part-of: ipfs-kit

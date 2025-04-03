@@ -13,9 +13,9 @@ Components:
 """
 
 # Import core components
-from .enhanced_dht_discovery import EnhancedDHTDiscovery, ContentRoutingManager
+from .enhanced_dht_discovery import ContentRoutingManager, EnhancedDHTDiscovery
+from .ipfs_kit_integration import apply_ipfs_kit_integration, extend_ipfs_kit_class
 from .p2p_integration import LibP2PIntegration, register_libp2p_with_ipfs_kit
-from .ipfs_kit_integration import extend_ipfs_kit_class, apply_ipfs_kit_integration
 
 # Apply integration to ipfs_kit (optional, can also be explicitly called)
 try:
@@ -25,10 +25,10 @@ except Exception:
     pass
 
 __all__ = [
-    'EnhancedDHTDiscovery',
-    'ContentRoutingManager',
-    'LibP2PIntegration',
-    'register_libp2p_with_ipfs_kit',
-    'extend_ipfs_kit_class',
-    'apply_ipfs_kit_integration',
+    "EnhancedDHTDiscovery",
+    "ContentRoutingManager",
+    "LibP2PIntegration",
+    "register_libp2p_with_ipfs_kit",
+    "extend_ipfs_kit_class",
+    "apply_ipfs_kit_integration",
 ]

@@ -410,6 +410,33 @@ try:
     # Use the loaded dataset
     print(f"Loaded dataset with {len(loaded_dataset)} rows")
     
+    # AI/ML Metrics Visualization
+    # ===========================
+    
+    # Generate visualizations for AI/ML metrics
+    visualization_result = api.ai_metrics_visualize(
+        model_id="Simple Classifier",
+        metrics_type="training",  # Options: "training", "inference", "worker", "dataset", "all"
+        theme="light",           # Options: "light", "dark"
+        interactive=True,        # Use interactive (Plotly) or static (Matplotlib) visualizations
+        output_file="model_metrics.html"  # Optional: save visualization to file
+    )
+    
+    # Generate comprehensive dashboard with all metrics types
+    dashboard_result = api.ai_metrics_dashboard(
+        model_ids=["Simple Classifier"],  # Can include multiple models
+        theme="dark",
+        interactive=True,
+        output_file="ai_ml_dashboard.html"
+    )
+    
+    # Export visualizations to multiple formats
+    export_result = api.ai_metrics_export(
+        model_id="Simple Classifier",
+        export_dir="./output",
+        formats=["png", "svg", "html", "json"]
+    )
+    
 except ImportError:
     print("AI/ML integration not available")
 ```

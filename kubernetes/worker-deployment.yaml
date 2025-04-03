@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipfs-worker
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: worker
+spec:
+  serviceName: "ipfs-worker"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ipfs-kit
+      role: worker
+  template:
+    metadata:
+      labels:
+        app: ipfs-kit
+        role: worker
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      initContainers:
+      - name: wait-for-master
+        image: busybox:1.33
+        command: ['sh', '-c', 'until nc -z ipfs-master 9096; do echo waiting for master; sleep 5; done;']
+      containers:
+      - name: ipfs-worker
+        image: ipfs-kit-py:latest
+        imagePullPolicy: IfNotPresent
+        args: ["worker"]
+        env:
+        - name: ROLE
+          value: "worker"
+        - name: MASTER_ADDR
+          value: "/dns4/ipfs-master.ipfs-kit.svc.cluster.local/tcp/9096"
+        - name: CONFIG_PATH
+          value: "/etc/ipfs-kit/config.yaml"
+        - name: MAX_MEMORY
+          value: "2G"
+        - name: MAX_STORAGE
+          value: "50G"
+        - name: CLUSTER_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ipfs-cluster-secret
+              key: cluster-secret
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - name: swarm
+          containerPort: 4001
+          protocol: TCP
+        - name: swarm-udp
+          containerPort: 4001
+          protocol: UDP
+        - name: api
+          containerPort: 5001
+          protocol: TCP
+        volumeMounts:
+        - name: ipfs-data
+          mountPath: /data
+        - name: config-volume
+          mountPath: /etc/ipfs-kit
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1"
+        livenessProbe:
+          exec:
+            command:
+            - /health-check.sh
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v0/id
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ipfs-kit-worker-config
+  volumeClaimTemplates:
+  - metadata:
+      name: ipfs-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: ipfs-hdd
+      resources:
+        requests:
+          storage: 50Gi

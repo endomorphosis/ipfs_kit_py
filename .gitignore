@@ -33,6 +33,8 @@ MANIFEST
 # Documentation
 _build/
 docs/_build/
+public/
+site/
 
 # Environments
 .env
@@ -49,6 +51,39 @@ venv.bak/
 *.swp
 *.swo
 *~
+
+# CI/CD artifacts
+.coverage
+htmlcov/
+test-results/
+coverage-results/
+*.pytest_cache/
+.tox/
+.nox/
+safety-report.txt
+requirements-diff.txt
+requirements-updated.txt
+test_env/
+build_env/
+test_venv/
+build_venv/
+test_full_env/
+build_full_env/
+test_full_venv/
+build_full_venv/
+test_arrow_env
+test_no_arrow_env/
+test_release_env/
+test_release_venv/
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+# Pyre type checker
+.pyre/
+# mypy
+.mypy_cache/
+.mypy/
+.mypy/
+# Pyright
 
 # IPFS-specific
 .ipfs/

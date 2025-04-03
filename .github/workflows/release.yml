@@ -1,0 +1,154 @@
+name: Release Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (format: x.y.z)'
+        required: true
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      draft:
+        description: 'Draft release'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .[dev]
+          python -m pip install bump2version
+      
+      - name: Configure Git
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+      
+      - name: Calculate new version
+        id: version
+        run: |
+          if [[ "${{ github.event.inputs.version }}" != "" ]]; then
+            echo "NEW_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            # Get current version from pyproject.toml
+            CURRENT_VERSION=$(grep -Po '(?<=version = ")[^"]*' pyproject.toml)
+            echo "Current version is $CURRENT_VERSION"
+            
+            # Calculate new version based on release type
+            if [[ "${{ github.event.inputs.release_type }}" == "patch" ]]; then
+              bump2version --dry-run --list patch | grep new_version | sed -r s,"^.*=",,g | xargs -I{} echo "NEW_VERSION={}" >> $GITHUB_ENV
+            elif [[ "${{ github.event.inputs.release_type }}" == "minor" ]]; then
+              bump2version --dry-run --list minor | grep new_version | sed -r s,"^.*=",,g | xargs -I{} echo "NEW_VERSION={}" >> $GITHUB_ENV
+            elif [[ "${{ github.event.inputs.release_type }}" == "major" ]]; then
+              bump2version --dry-run --list major | grep new_version | sed -r s,"^.*=",,g | xargs -I{} echo "NEW_VERSION={}" >> $GITHUB_ENV
+            fi
+          fi
+      
+      - name: Update version in files
+        run: |
+          echo "Bumping version to ${{ env.NEW_VERSION }}"
+          
+          # Update version in pyproject.toml
+          sed -i "s/version = \".*\"/version = \"${{ env.NEW_VERSION }}\"/" pyproject.toml
+          
+          # Update version in setup.py
+          sed -i "s/version='.*'/version='${{ env.NEW_VERSION }}'/" setup.py
+          
+          # Update CHANGELOG.md - convert Unreleased to the new version
+          sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [${{ env.NEW_VERSION }}] - $(date +%Y-%m-%d)/" CHANGELOG.md
+      
+      - name: Create release branch
+        run: |
+          git checkout -b release-${{ env.NEW_VERSION }}
+          git add pyproject.toml setup.py CHANGELOG.md
+          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
+          git push origin release-${{ env.NEW_VERSION }}
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Bump version to ${{ env.NEW_VERSION }}
+          title: Release ${{ env.NEW_VERSION }}
+          body: |
+            # Release ${{ env.NEW_VERSION }}
+            
+            This PR prepares for the ${{ env.NEW_VERSION }} release. 
+            
+            ## Changes included in this release:
+            
+            - Version bump to ${{ env.NEW_VERSION }}
+            - CHANGELOG.md updated
+            
+            Please review and approve to proceed with the release.
+          labels: release
+          branch: release-${{ env.NEW_VERSION }}
+          base: main
+          draft: ${{ github.event.inputs.draft }}
+      
+      - name: Create Release Tag
+        id: create_tag
+        if: ${{ github.event.inputs.draft == false }}
+        run: |
+          git tag v${{ env.NEW_VERSION }}
+          git push origin v${{ env.NEW_VERSION }}
+          echo "Created tag v${{ env.NEW_VERSION }}"
+      
+      - name: Create GitHub Release
+        id: create_release
+        if: ${{ github.event.inputs.draft == false }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.NEW_VERSION }}
+          release_name: Release v${{ env.NEW_VERSION }}
+          body: |
+            # Release v${{ env.NEW_VERSION }}
+            
+            See [CHANGELOG.md](CHANGELOG.md) for details on changes included in this release.
+            
+            ## Using with pip
+            
+            ```bash
+            pip install ipfs_kit_py==${{ env.NEW_VERSION }}
+            ```
+            
+            ## Using with Docker
+            
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ env.NEW_VERSION }}
+            ```
+            
+            ## Using with Helm
+            
+            ```bash
+            helm repo add ipfs-kit https://endomorphosis.github.io/ipfs_kit_py/
+            helm install ipfs-kit ipfs-kit/ipfs-kit --version ${{ env.NEW_VERSION }}
+            ```
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: false

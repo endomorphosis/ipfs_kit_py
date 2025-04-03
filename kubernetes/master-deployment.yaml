@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipfs-master
+  namespace: ipfs-kit
+  labels:
+    app: ipfs-kit
+    role: master
+spec:
+  serviceName: "ipfs-master"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ipfs-kit
+      role: master
+  template:
+    metadata:
+      labels:
+        app: ipfs-kit
+        role: master
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: ipfs-master
+        image: ipfs-kit-py:latest
+        imagePullPolicy: IfNotPresent
+        args: ["master"]
+        env:
+        - name: ROLE
+          value: "master"
+        - name: CONFIG_PATH
+          value: "/etc/ipfs-kit/config.yaml"
+        - name: MAX_MEMORY
+          value: "4G"
+        - name: MAX_STORAGE
+          value: "100G"
+        - name: CLUSTER_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ipfs-cluster-secret
+              key: cluster-secret
+        ports:
+        - name: swarm
+          containerPort: 4001
+          protocol: TCP
+        - name: swarm-udp
+          containerPort: 4001
+          protocol: UDP
+        - name: api
+          containerPort: 5001
+          protocol: TCP
+        - name: gateway
+          containerPort: 8080
+          protocol: TCP
+        - name: cluster
+          containerPort: 9096
+          protocol: TCP
+        volumeMounts:
+        - name: ipfs-data
+          mountPath: /data
+        - name: config-volume
+          mountPath: /etc/ipfs-kit
+          readOnly: true
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        livenessProbe:
+          exec:
+            command:
+            - /health-check.sh
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v0/id
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: ipfs-kit-master-config
+  volumeClaimTemplates:
+  - metadata:
+      name: ipfs-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: ipfs-ssd
+      resources:
+        requests:
+          storage: 100Gi

@@ -7,16 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-04-02
+
 ### Added
 - Comprehensive performance metrics system
 - Benchmarking framework with command-line interface
 - Performance visualization capabilities
 - System resource monitoring integration
 - Performance documentation and examples
-
-## [0.1.0] - 2025-04-02
-
-### Added
 - High-level API (`IPFSSimpleAPI`) for simplified interactions
 - Role-based architecture (master/worker/leecher)
 - Tiered storage system with Adaptive Replacement Cache (ARC)

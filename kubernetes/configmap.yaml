@@ -1,0 +1,174 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-kit-master-config
+  namespace: ipfs-kit
+data:
+  config.yaml: |
+    # Master node configuration for IPFS Kit 
+    role: master
+    logging:
+      level: INFO
+      file: ""
+      format: "json"
+    
+    resources:
+      max_memory: "4GB"
+      max_storage: "100GB"
+      cpu_limit: 2.0
+    
+    cache:
+      memory_size: "1GB"
+      disk_size: "10GB"
+      disk_path: "/data/ipfs/cache"
+      eviction_policy: "arc"
+    
+    network:
+      swarm_connections: 500
+      auto_relay: true
+      nat_traversal: true
+      max_bandwidth_in: "500M"
+      max_bandwidth_out: "500M"
+    
+    gateway:
+      enabled: true
+      writable: false
+      cors_allowed_origins: ["*"]
+    
+    api:
+      enabled: true
+      cors_allowed_origins: ["*"]
+      authenticated: false
+    
+    cluster:
+      enabled: true
+      role: "master"
+      replication_factor: 2
+    
+    storage:
+      backends:
+        - name: "ipfs"
+          priority: 1
+          enabled: true
+        - name: "local"
+          priority: 2
+          enabled: true
+        - name: "cluster"
+          priority: 3
+          enabled: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-kit-worker-config
+  namespace: ipfs-kit
+data:
+  config.yaml: |
+    # Worker node configuration for IPFS Kit
+    role: worker
+    logging:
+      level: INFO
+      file: ""
+      format: "json"
+    
+    resources:
+      max_memory: "2GB"
+      max_storage: "50GB"
+      cpu_limit: 1.0
+    
+    cache:
+      memory_size: "512MB"
+      disk_size: "5GB"
+      disk_path: "/data/ipfs/cache"
+      eviction_policy: "arc"
+    
+    network:
+      swarm_connections: 200
+      auto_relay: true
+      nat_traversal: true
+    
+    gateway:
+      enabled: false
+    
+    api:
+      enabled: true
+      local_only: true
+    
+    cluster:
+      enabled: true
+      role: "worker"
+      follow_master: true
+    
+    storage:
+      backends:
+        - name: "ipfs"
+          priority: 1
+          enabled: true
+        - name: "local"
+          priority: 2
+          enabled: true
+        - name: "cluster"
+          priority: 3
+          enabled: true
+    
+    worker:
+      task_concurrency: 4
+      max_tasks: 10
+      task_timeout: 600
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-kit-leecher-config
+  namespace: ipfs-kit
+data:
+  config.yaml: |
+    # Leecher node configuration for IPFS Kit
+    role: leecher
+    logging:
+      level: INFO
+      file: ""
+      format: "json"
+    
+    resources:
+      max_memory: "1GB"
+      max_storage: "20GB"
+      cpu_limit: 0.5
+    
+    cache:
+      memory_size: "256MB"
+      disk_size: "2GB"
+      disk_path: "/data/ipfs/cache"
+      eviction_policy: "arc"
+      read_focused: true
+    
+    network:
+      swarm_connections: 50
+      auto_relay: true
+      nat_traversal: true
+    
+    gateway:
+      enabled: true
+      writable: false
+      cors_allowed_origins: ["*"]
+    
+    api:
+      enabled: true
+      cors_allowed_origins: ["*"]
+    
+    cluster:
+      enabled: false
+    
+    storage:
+      backends:
+        - name: "ipfs"
+          priority: 1
+          enabled: true
+        - name: "local"
+          priority: 2
+          enabled: true
+    
+    leecher:
+      offline_mode_support: true
+      prefetch_popular_content: true
+      max_content_size: "1GB"

@@ -1,0 +1,87 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+            
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Test image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE_ID=$(echo ${{ steps.meta.outputs.tags }} | cut -d ',' -f1)
+          echo "Testing image $IMAGE_ID"
+          docker pull $IMAGE_ID
+          docker run --rm $IMAGE_ID --help
+          
+  publish-helm:
+    name: Publish Helm Chart
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+          
+      - name: Package Helm chart
+        run: |
+          helm package helm/ipfs-kit --destination ./helm-dist
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: helm-charts
+          path: ./helm-dist
+          
+      # In a real-world scenario, you would push to a Helm repository here
+      # This is a placeholder for that action

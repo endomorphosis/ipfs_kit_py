@@ -30,18 +30,31 @@ fastapi>=0.100.0
 uvicorn>=0.22.0
 python-multipart>=0.0.6
 
+# Optional: GraphQL API 
+graphene>=3.4.0
+
 # Optional: Async support
 aiohttp>=3.8.4
 
 # Optional: libp2p support (includes base58 for encoding)
 base58>=2.1.1
 
-# Testing
-pytest>=7.0.0
-pytest-cov>=4.1.0
+# Optional: Performance metrics
+matplotlib>=3.5.0
 
-# Development
-black>=23.3.0
-isort>=5.12.0
-mypy>=1.3.0
-pylint>=2.17.0
+# Testing dependencies - use [dev] extra for these
+# pytest>=7.0.0
+# pytest-cov>=4.1.0
+# black>=23.3.0
+# isort>=5.12.0
+# mypy>=1.3.0
+# pylint>=2.17.0
+# build>=0.10.0
+# twine>=4.0.2
+
+# Install dependencies with optional groups:
+# pip install -e ".[fsspec,arrow]" - for basic filesystem features
+# pip install -e ".[dev]" - for development tools
+# pip install -e ".[full]" - for all features
+# pip install -e ".[performance]" - for performance metrics
+# pip install -e ".[api]" - for API server features

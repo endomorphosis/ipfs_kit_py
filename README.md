@@ -79,10 +79,10 @@ graph TD
 -   **Advanced Cluster Management**: Sophisticated cluster coordination including leader election, task distribution, state synchronization (CRDTs, vector clocks), health monitoring, secure authentication (TLS, UCANs), and dynamic role adaptation based on resource availability. ([See Docs](docs/cluster_management.md))
 -   **Storacha/S3 Integration**: Access content via Storacha (Web3.Storage) and S3-compatible storage as alternative backends. ([See Docs](docs/storage_backends.md))
 -   **Comprehensive Error Handling**: Standardized error classes and detailed result dictionaries for robust application development.
--   **High Performance**: Optimized for speed with features like memory-mapped file access and low-latency Unix socket communication (2-3x faster than HTTP for local daemon).
+-   **High Performance**: Optimized for speed with comprehensive profiling and optimization tools. Features include memory-mapped file access, result caching, adaptive replacement cache tuning, chunked uploads for large files, and low-latency Unix socket communication (2-3x faster than HTTP for local daemon). Performance tools in `examples/` provide benchmarking, optimization recommendations, and comparison metrics for measuring improvements.
 -   **Arrow-Based Cluster State**: Efficient, zero-copy cluster state sharing across processes using Apache Arrow, enabling interoperability with C++, Rust, etc. ([See Docs](docs/cluster_state_helpers.md))
 -   **Distributed Task Management**: Define, submit, and track computational tasks across a cluster of worker nodes.
--   **AI/ML Integration**: Includes tools like `IPFSDataLoader` for efficient batch loading from IPFS into PyTorch/TensorFlow, plus a Model Registry and Dataset Manager for versioned, content-addressed ML assets. ([See Docs](docs/ai_ml.md), [IPFS DataLoader](docs/ipfs_dataloader.md))
+-   **AI/ML Integration**: Comprehensive AI/ML integration providing tools for model registry, dataset management, LangChain/LlamaIndex integration, distributed training, and more. Features include efficient `IPFSDataLoader` for PyTorch/TensorFlow, versioned content-addressed ML assets, AI safety tools, fine-tuning infrastructure, and GraphRAG capabilities. ([See Docs](docs/ai_ml_integration.md), [IPFS DataLoader](docs/ipfs_dataloader.md))
 -   **IPLD Knowledge Graph**: Model relationships between IPFS objects using IPLD for advanced data representation. ([See Docs](docs/knowledge_graph.md))
 -   **SDK Generation**: Automatically generate client SDKs for Python, JavaScript, and Rust.
 
@@ -90,7 +90,7 @@ graph TD
 
 ### From PyPI (Recommended)
 
-You can install IPFS Kit directly from PyPI with optional dependency groups:
+You can install IPFS Kit directly from PyPI with optional dependency groups. The package implements graceful degradation patterns for optional dependencies, allowing you to install only what you need while providing helpful error messages when missing dependencies are required:
 
 ```bash
 # Basic installation with core functionality
@@ -115,6 +115,34 @@ pip install ipfs_kit_py[dev]
 pip install ipfs_kit_py[full]
 ```
 
+The modular dependency system allows you to use the core functionality without installing all dependencies. When you try to use a feature that requires a missing optional dependency, you'll receive a helpful error message suggesting how to install the required dependencies.
+
+#### Automatic Binary Download
+
+IPFS Kit automatically downloads the appropriate platform-specific IPFS binaries (Kubo, IPFS Cluster, etc.) when the package is first imported. This ensures you have the correct binaries for your operating system (Windows, macOS, Linux) and architecture (x86_64, ARM64, etc.) without manual setup.
+
+You can control this behavior by setting the `auto_download_binaries` parameter in the metadata:
+
+```python
+# Disable automatic binary downloads
+kit = ipfs_kit(metadata={"auto_download_binaries": False})
+```
+
+Binary downloads happen:
+1. When the package is first imported
+2. When creating an ipfs_kit instance if binaries are missing
+3. On-demand when specific functions that require binaries are called
+
+The binary downloads are performed intelligently:
+- **Platform Detection**: Automatically detects your OS (Windows/macOS/Linux) and architecture (x86_64/ARM64/etc.)
+- **Correct Binaries**: Downloads binaries compiled specifically for your platform (.exe for Windows, etc.)
+- **Execution Permissions**: Sets appropriate permissions automatically (executable bit on Unix)
+- **Version Management**: Downloads the recommended/stable version for compatibility
+- **Error Handling**: Gracefully handles download failures with helpful messages
+- **Progress Reporting**: Shows download progress for large binaries
+
+This automated binary management ensures a smooth experience regardless of your platform, eliminating the need to manually download, install, and configure IPFS binaries.
+
 ### From Source
 
 For the latest development version or to contribute:
@@ -136,18 +164,27 @@ pip install -e ".[full,dev]"
 For containerized deployment:
 
 ```bash
-# Build the Docker image
-docker build -t ipfs-kit-py .
+# Setup directories and configuration
+./docker-setup.sh --cluster-secret
 
-# Run in master mode
-docker run -d --name ipfs-master -p 5001:5001 -p 8080:8080 -v ipfs-data:/data ipfs-kit-py master
+# Start the cluster with docker-compose
+docker-compose up -d
 
-# Run in worker mode connected to master
-docker run -d --name ipfs-worker --link ipfs-master -v ipfs-worker-data:/data ipfs-kit-py worker --master=ipfs-master:9096
-
-# Run in leecher mode
-docker run -d --name ipfs-leecher -p 5002:5001 -p 8081:8080 -v ipfs-leecher-data:/data ipfs-kit-py leecher
+# Scale worker nodes as needed
+docker-compose up -d --scale ipfs-worker-2=3
 ```
+
+For a production-ready deployment with Kubernetes:
+
+```bash
+# Deploy with Helm (recommended)
+./kubernetes-deploy.sh
+
+# Or use manual deployment
+./kubernetes-deploy.sh --manual
+```
+
+See the [Containerization Guide](CONTAINERIZATION.md) for detailed instructions on Docker and Kubernetes deployments.
 
 ## Command-line Interface
 
@@ -251,6 +288,19 @@ if cid:
                 print(f"Read {len(data)} bytes using filesystem interface")
     except ImportError:
         print("Install 'fsspec' extra for filesystem interface: pip install ipfs_kit_py[fsspec]")
+        
+    # Try advanced metadata operations (requires arrow extra)
+    try:
+        # Import will succeed but creating an instance will give helpful error if PyArrow missing
+        from ipfs_kit_py.arrow_metadata_index import ArrowMetadataIndex
+        try:
+            index = ArrowMetadataIndex()
+            index.add_metadata(cid, {"title": "Example", "tags": ["test"]})
+            print("Added metadata to index")
+        except ImportError as e:
+            print(f"{e}") # Will show helpful message about installing with [arrow] extra
+    except Exception as e:
+        print(f"Unexpected error with arrow features: {e}")
 
 ```
 
@@ -356,6 +406,38 @@ try:
 
         # List cluster peers
         cluster_peers = api.cluster_peers()
+        
+    # AI/ML operations (requires ai_ml extra)
+    # ------------------------------
+    try:
+        # Import will succeed even without dependencies
+        from ipfs_kit_py.ai_ml_integration import ModelRegistry
+        
+        try:
+            # Create a mock client for testing
+            from unittest.mock import MagicMock
+            client = MagicMock()
+            
+            # Initialize model registry
+            registry = ModelRegistry(client)
+            
+            # This will show what ML frameworks are available
+            # If none are installed, you'll see a warning message
+            
+            # Create a simple model and add it
+            from sklearn.ensemble import RandomForestClassifier
+            model = RandomForestClassifier()
+            model.fit([[0, 0], [1, 1]], [0, 1])
+            
+            registry.add_model(model, "example_model", version="1.0")
+            print("Added model to registry")
+            
+        except ImportError as e:
+            # If dependencies are missing, you'll get a helpful error message
+            print(f"AI/ML dependencies not available: {e}")
+            print("Install with: pip install ipfs_kit_py[ai_ml]")
+    except Exception as e:
+        print(f"Unexpected error with AI/ML features: {e}")
 
 except Exception as e:
     print(f"An error occurred: {e}")
@@ -470,6 +552,7 @@ from ipfs_kit_py.api import run_server
 The API server provides:
 
 -   **OpenAPI Documentation**: Interactive Swagger UI at `/docs`
+-   **GraphQL API**: Flexible client-side querying at `/graphql` and IDE at `/graphql/playground`
 -   **Authentication**: Optional token-based auth
 -   **CORS Support**: Cross-Origin Resource Sharing configuration
 -   **Health Checks**: Basic health monitoring endpoint at `/health`
@@ -488,6 +571,54 @@ The API server provides:
 | `/api/v0/pin/ls` | GET | List pinned content on local node |
 | `/api/v0/id` | GET | Get node identity information |
 | `/api/v0/swarm/peers` | GET | List connected peers |
+
+#### GraphQL API
+
+IPFS Kit provides a GraphQL API for flexible client-side querying capabilities. GraphQL allows clients to request exactly the data they need, with the ability to traverse relationships and nested data in a single query.
+
+| Endpoint | Description |
+|----------|-------------|
+| `/graphql` | Main GraphQL endpoint for executing queries and mutations |
+| `/graphql/playground` | Interactive GraphQL IDE for exploring the API |
+| `/graphql/schema` | GraphQL schema in SDL (Schema Definition Language) format |
+
+Example GraphQL query:
+
+```graphql
+query {
+  # Get content information
+  content(cid: "QmExample") {
+    cid
+    size
+    isDirectory
+    pinned
+  }
+  
+  # List connected peers
+  peers {
+    peerId
+    address
+  }
+  
+  # Get IPFS version
+  version
+}
+```
+
+Example GraphQL mutation:
+
+```graphql
+mutation {
+  # Add content to IPFS (Base64 encoded)
+  addContent(content: "SGVsbG8sIElQRlMh", pin: true) {
+    success
+    cid
+    size
+  }
+}
+```
+
+See the `examples/graphql_example.py` file for more examples of using the GraphQL API.
 | `/api/v0/swarm/connect` | POST | Connect to a peer (provide multiaddr) |
 | `/api/v0/name/publish` | POST | Publish content to IPNS (provide CID) |
 | `/api/v0/name/resolve` | GET | Resolve IPNS name to CID |
@@ -563,7 +694,8 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [FSSpec Filesystem Interface](docs/fsspec_integration.md)
 -   [Metadata Index](docs/metadata_index.md)
 -   [Direct P2P Communication (LibP2P)](docs/libp2p_integration.md)
--   [AI/ML Integration](docs/ai_ml.md) (TBD)
+-   [Performance Profiling & Optimization](examples/PERFORMANCE_PROFILING.md)
+-   [AI/ML Integration](docs/ai_ml_integration.md)
 -   [IPFS DataLoader](docs/ipfs_dataloader.md)
 -   [IPLD Knowledge Graph](docs/knowledge_graph.md) (TBD)
 -   [Storage Backends (S3/Storacha)](docs/storage_backends.md) (TBD)
@@ -631,18 +763,27 @@ pytest --cov=ipfs_kit_py --cov-report=html
 
 ### Test Coverage
 
-The project currently has **336 passing tests** and 40 skipped tests (as of 2025-04-02). Skipped tests typically require external services or specific environment setups (like a running IPFS daemon or cluster).
+The project currently has **350+ passing tests** and 45+ skipped tests (as of 2025-04-03). Skipped tests typically require external services, specific environment setups (like a running IPFS daemon or cluster), or are platform-specific (running only on Linux, Windows, or macOS).
 
 Recent improvements (April 2025):
+-   **Binary Download Testing**: Added comprehensive test files to verify automatic platform-specific binary downloads:
+    - Created `test_binary_download.py` to test the automatic download mechanism for different platforms
+    - Created `test_binary_functionality.py` to verify downloaded binaries work correctly
+    - Created `test_first_run_initialization.py` to test complete environment initialization
+    - Added platform-specific tests to handle Windows, Linux, and macOS differences
+    - Implemented proper binary functionality verification
+    - Added role-specific initialization testing for master, worker, and leecher nodes
+
+-   **Optional Dependency Handling**: Improved testing with various dependency combinations to ensure graceful degradation works correctly. Added comprehensive verification tests for modules with optional dependencies.
 -   Resolved multiple `TypeError` issues in test setup fixtures related to component initialization.
 -   Fixed `AssertionError` in `test_cluster_state_helpers` by correcting patch targets and function logic.
 -   Resolved class name collision between main `ipfs_kit` and test `MockIPFSKit`.
--   Corrected syntax errors in test parameter definitions.
 -   Fixed PyArrow schema type mismatch issues by implementing special patching in `conftest.py`.
 -   Added monkeypatch fixtures to handle PyArrow's immutable Schema objects during tests.
 -   Improved error suppression in cleanup methods to prevent test output noise.
 -   Enhanced test isolation with state reset fixtures to prevent test interference.
 -   Fixed FSSpec integration in high_level_api.py with proper AbstractFileSystem inheritance.
+-   Added comprehensive tests for package installation with different combinations of optional dependencies to verify correct behavior.
 
 The test suite covers:
 -   Core IPFS operations (add, get, pin, etc.)
@@ -656,25 +797,102 @@ The test suite covers:
 -   AI/ML integration basics
 -   Parameter validation and error handling
 -   CLI basic operations
+-   Optional dependency handling and graceful degradation
 
-### Current Development Focus
+#### Optional Dependency Testing
+
+The project includes specialized tests for verifying correct behavior with different combinations of optional dependencies:
+
+- **Clean installation testing**: Verifies that the package can be installed and imported without any optional dependencies
+- **Partial dependency testing**: Tests functionality with only specific optional dependency groups installed (e.g., only fsspec, only arrow, etc.)
+- **Full installation testing**: Verifies all features with all dependencies installed
+- **Import-time error prevention**: Ensures modules can be imported without error even when dependencies are missing
+- **Runtime error messages**: Verifies helpful error messages are provided when attempting to use features with missing dependencies
+
+These tests confirm that the package properly implements graceful degradation, allowing users to install only the dependencies they need while providing clear guidance when additional dependencies are required.
+
+### CI/CD Pipeline
+
+IPFS Kit features a comprehensive CI/CD (Continuous Integration/Continuous Deployment) pipeline implemented with GitHub Actions. This automates testing, building, publishing, and deploying the software across different environments.
+
+### Key CI/CD Features
+
+- **Automated Testing**: Runs 336+ tests on multiple Python versions (3.8-3.11)
+- **Code Quality Checks**: Enforces code style with Black and isort
+- **Package Building**: Automatically builds and validates Python packages
+- **PyPI Publishing**: Publishes to TestPyPI on main branch and PyPI on tags
+- **Docker Builds**: Creates multi-architecture Docker images (AMD64/ARM64)
+- **Container Security**: Scans Docker images for vulnerabilities with Trivy
+- **Helm Chart Publishing**: Packages and publishes Helm charts for Kubernetes deployments
+- **Automated Releases**: Simplifies version bumping and release creation
+- **Dependency Management**: Automatically checks for updates and security issues
+- **Documentation Publishing**: Builds and deploys documentation to GitHub Pages
+
+### Workflow Files
+
+The pipeline is implemented in several GitHub Actions workflow files:
+
+| Workflow | Purpose |
+|----------|---------|
+| `workflow.yml` | Python package testing, building, and publishing |
+| `docker.yml` | Docker image building, testing, and publishing |
+| `release.yml` | Automated release management |
+| `dependencies.yml` | Dependency scanning and updates |
+| `pages.yml` | Documentation and Helm chart publishing |
+
+For more details on the CI/CD pipeline, see the [CI/CD documentation](docs/CI_CD.md).
+
+## Current Development Focus
 
 Current development is focused on:
-1.  **Comprehensive Documentation**: Updating README, existing docs, creating new guides, and improving docstrings.
-2.  **Test Stability and Reliability**: Enhancing test fixtures and mocking systems for consistent test results.
-3.  **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
-4.  **API Stability**: Finalizing and stabilizing the High-Level API and REST API interfaces.
-5.  **Performance Optimization**: Further tuning of caching, state synchronization, and data loading.
-6.  **PyPI Release Preparation**: Finalizing package structure and metadata for publication.
-7.  **Containerization**: Creating Docker images for easy deployment in various environments.
+1.  **API Stability**: Finalizing and stabilizing the High-Level API and REST API interfaces.
+2.  ✅ **PyPI Release Preparation**: Finalized package structure and metadata for publication.
+3.  ✅ **Containerization**: Created comprehensive Docker and Kubernetes deployments with detailed documentation.
+4.  ✅ **CI/CD Pipeline**: Established complete continuous integration and deployment workflows for packages, containers, and documentation.
+5.  **Test Stability and Reliability**: Enhancing test fixtures and mocking systems for consistent test results.
+6.  **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
 
 Recent accomplishments:
-1.  ✅ **Fixed FSSpec Integration**: Improved the filesystem interface with proper AbstractFileSystem inheritance and graceful fallbacks.
-2.  **Fixed PyArrow Testing**: Resolved schema type mismatch issues in cluster state tests.
-3.  **Enhanced Test Framework**: Improved fixtures and state handling for isolated tests.
-4.  **Updated Documentation**: Expanded testing guides with modern patterns and approaches.
-5.  **Custom Mocking Systems**: Created specialized patches for third-party libraries like PyArrow.
-6.  **Core Development Roadmap**: Completed all planned development phases with fully functional components.
+1.  ✅ **Automatic Platform-Specific Binary Downloads**: Implemented smart binary installation:
+   - Added automatic detection and download of platform-specific binaries on first import
+   - Created cross-platform support for Windows, macOS, and Linux architectures
+   - Implemented fallback mechanisms when downloads fail
+   - Added configuration options to control download behavior
+   - Ensured correct binaries are available regardless of the user's platform
+
+2.  ✅ **Graceful Optional Dependency Handling**: Implemented a robust system for optional dependencies:
+   - Created graceful degradation patterns for modules with optional dependencies
+   - Added helpful error messages suggesting how to install missing dependencies
+   - Implemented placeholder variables for missing imports to prevent import-time errors
+   - Extended testing to verify behavior with various dependency combinations
+   - Ensured packages can be imported without errors even when dependencies are missing
+3.  ✅ **Fixed FSSpec Integration**: Improved the filesystem interface with proper AbstractFileSystem inheritance and graceful fallbacks.
+4.  ✅ **Performance Profiling & Optimization**: Implemented comprehensive profiling and optimization tools with significant speed improvements:
+   - Created detailed benchmarking for all key operations
+   - Added caching for high-level API methods to reduce overhead
+   - Optimized tiered cache configuration for better hit rates
+   - Implemented chunked upload for large files
+   - Added performance comparison tool for measuring improvements
+5.  ✅ **Documentation Enhancement**: Completed comprehensive documentation across all project components:
+   - Created unified documentation index with clear navigation structure
+   - Verified and enhanced all key documentation files
+   - Improved cross-linking between related documentation
+   - Added detailed references to examples and external resources
+   - Updated API documentation with latest methods and parameters
+6.  ✅ **Containerization**: Created production-ready containerization solution:
+   - Multi-stage Docker builds with security best practices
+   - Docker Compose setup for multi-node deployment
+   - Kubernetes manifests and Helm chart for production deployment
+   - Comprehensive documentation with examples and best practices
+7.  ✅ **CI/CD Pipeline**: Implemented comprehensive automation workflow:
+   - GitHub Actions workflows for testing, building, and publishing
+   - Automated version management and release creation
+   - Docker image building with security scanning
+   - Documentation publishing with API references
+8.  **Fixed PyArrow Testing**: Resolved schema type mismatch issues in cluster state tests.
+9.  **Enhanced Test Framework**: Improved fixtures and state handling for isolated tests.
+10. **Custom Mocking Systems**: Created specialized patches for third-party libraries like PyArrow.
+11. **Core Development Roadmap**: Completed all planned development phases with fully functional components.
 
 ## Contributing
 

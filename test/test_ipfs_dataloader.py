@@ -24,7 +24,7 @@
 #         """Set up test environment."""
 #         # Mock IPFS client
 #         self.ipfs_mock = MagicMock()
-        
+
 #         # Sample dataset metadata
 #         self.dataset_metadata = {
 #             "name": "test_dataset",
@@ -32,11 +32,11 @@
 #             "version": "1.0.0",
 #             "created_at": time.time(),
 #             "samples": [
-#                 "QmSample1", "QmSample2", "QmSample3", "QmSample4", 
+#                 "QmSample1", "QmSample2", "QmSample3", "QmSample4",
 #                 "QmSample5", "QmSample6", "QmSample7", "QmSample8"
 #             ]
 #         }
-        
+
 #         # Sample dataset with embedded data
 #         self.embedded_dataset = {
 #             "name": "embedded_dataset",
@@ -50,7 +50,7 @@
 #                 {"features": [10, 11, 12], "labels": 1}
 #             ]
 #         }
-        
+
 #         # Create mock samples
 #         self.samples = [
 #             {"features": [1, 2, 3], "labels": 0},
@@ -62,7 +62,7 @@
 #             {"features": [19, 20, 21], "labels": 0},
 #             {"features": [22, 23, 24], "labels": 1}
 #         ]
-        
+
 #         # Configure mocks
 #         self.setup_mocks()
 
@@ -74,7 +74,7 @@
 #             "operation": "dag_get",
 #             "object": self.dataset_metadata
 #         }
-        
+
 #         # Mock sample retrieval - different response for each sample CID
 #         def mock_dag_get(cid, **kwargs):
 #             if cid == "QmDatasetCID":
@@ -85,7 +85,7 @@
 #                 }
 #             elif cid == "QmEmbeddedDatasetCID":
 #                 return {
-#                     "success": True, 
+#                     "success": True,
 #                     "operation": "dag_get",
 #                     "object": self.embedded_dataset
 #                 }
@@ -98,19 +98,19 @@
 #                         "operation": "dag_get",
 #                         "object": self.samples[idx]
 #                     }
-            
+
 #             return {
 #                 "success": False,
 #                 "operation": "dag_get",
 #                 "error": f"Content not found: {cid}"
 #             }
-            
+
 #         self.ipfs_mock.dag_get.side_effect = mock_dag_get
 
 #     def test_dataloader_init(self):
 #         """Test IPFSDataLoader initialization."""
 #         loader = IPFSDataLoader(self.ipfs_mock, batch_size=4, shuffle=True, prefetch=2)
-        
+
 #         self.assertEqual(loader.batch_size, 4)
 #         self.assertEqual(loader.shuffle, True)
 #         self.assertEqual(loader.prefetch, 2)
@@ -119,10 +119,10 @@
 #     def test_load_dataset(self):
 #         """Test loading a dataset by CID."""
 #         loader = IPFSDataLoader(self.ipfs_mock, batch_size=4)
-        
+
 #         # Load dataset
 #         result = loader.load_dataset("QmDatasetCID")
-        
+
 #         # Assertions
 #         self.assertTrue(result["success"])
 #         self.assertEqual(loader.total_samples, 8)
@@ -132,17 +132,17 @@
 #     def test_load_embedded_dataset(self):
 #         """Test loading a dataset with embedded data."""
 #         loader = IPFSDataLoader(self.ipfs_mock, batch_size=2)
-        
+
 #         # Update mock to return embedded dataset
 #         self.ipfs_mock.dag_get.return_value = {
 #             "success": True,
 #             "operation": "dag_get",
 #             "object": self.embedded_dataset
 #         }
-        
+
 #         # Load dataset
 #         result = loader.load_dataset("QmEmbeddedDatasetCID")
-        
+
 #         # Assertions
 #         self.assertTrue(result["success"])
 #         self.assertEqual(loader.total_samples, 4)
@@ -153,13 +153,13 @@
 #         """Test iterating through dataset batches."""
 #         # Create loader with batch size 3
 #         loader = IPFSDataLoader(self.ipfs_mock, batch_size=3, shuffle=False)
-        
+
 #         # Load dataset
 #         loader.load_dataset("QmDatasetCID")
-        
+
 #         # Check iteration - should get 3 batches (3 + 3 + 2 samples)
 #         batches = list(loader)
-        
+
 #         # Assertions
 #         self.assertEqual(len(batches), 3)  # ceil(8/3) = 3 batches
 #         self.assertEqual(len(batches[0]), 3)  # First batch has 3 samples
@@ -172,12 +172,12 @@
 #         loader1 = IPFSDataLoader(self.ipfs_mock, batch_size=3)
 #         loader2 = IPFSDataLoader(self.ipfs_mock, batch_size=4)
 #         loader3 = IPFSDataLoader(self.ipfs_mock, batch_size=5)
-        
+
 #         # Load dataset with 8 samples
 #         loader1.load_dataset("QmDatasetCID")
 #         loader2.load_dataset("QmDatasetCID")
 #         loader3.load_dataset("QmDatasetCID")
-        
+
 #         # Assertions
 #         self.assertEqual(len(loader1), 3)  # ceil(8/3) = 3 batches
 #         self.assertEqual(len(loader2), 2)  # ceil(8/4) = 2 batches
@@ -190,14 +190,14 @@
 #         # Configure mocks
 #         mock_dataloader = MagicMock()
 #         mock_torch.utils.data.DataLoader.return_value = mock_dataloader
-        
+
 #         # Create loader
 #         loader = IPFSDataLoader(self.ipfs_mock, batch_size=4)
 #         loader.load_dataset("QmDatasetCID")
-        
+
 #         # Convert to PyTorch
 #         pytorch_loader = loader.to_pytorch()
-        
+
 #         # Assertions
 #         self.assertIsNotNone(pytorch_loader)
 #         mock_torch.utils.data.DataLoader.assert_called_once()
@@ -211,14 +211,14 @@
 #         mock_tf.data.Dataset.from_generator.return_value = mock_dataset
 #         mock_dataset.batch.return_value = mock_dataset
 #         mock_dataset.prefetch.return_value = mock_dataset
-        
+
 #         # Create loader
 #         loader = IPFSDataLoader(self.ipfs_mock, batch_size=4)
 #         loader.load_dataset("QmDatasetCID")
-        
+
 #         # Convert to TensorFlow
 #         tf_dataset = loader.to_tensorflow()
-        
+
 #         # Assertions
 #         self.assertIsNotNone(tf_dataset)
 #         mock_tf.data.Dataset.from_generator.assert_called_once()
@@ -232,15 +232,15 @@
 #         # Configure mocks
 #         mock_dataloader = MagicMock()
 #         mock_dataloader_class.return_value = mock_dataloader
-        
+
 #         # Create IPFS Kit with mocked components
 #         with patch("ipfs_kit_py.ipfs_kit.ipfs") as mock_ipfs_module:
 #             kit = ipfs_kit()
 #             kit.ipfs = MagicMock()
-            
+
 #             # Test getting data loader
 #             loader = kit.get_data_loader(batch_size=16, shuffle=False)
-            
+
 #             # Assertions
 #             self.assertEqual(loader, mock_dataloader)
 #             mock_dataloader_class.assert_called_once_with(

@@ -1,0 +1,230 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'CONTAINERIZATION.md'
+      - 'helm/**'
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .[dev]
+          python -m pip install mkdocs-material mkdocstrings mkdocs-material-extensions mkdocs-macros-plugin mkdocs-include-markdown-plugin
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+      
+      - name: Build MkDocs site
+        run: |
+          # Create docs directory structure if it doesn't exist
+          mkdir -p docs/api
+          mkdir -p docs/examples
+          mkdir -p docs/helm
+          
+          # Generate API documentation
+          python -c "
+          import os
+          from pathlib import Path
+          
+          def generate_api_docs(module_path, output_dir):
+              for file in Path(module_path).glob('*.py'):
+                  if file.name.startswith('__'):
+                      continue
+                  
+                  module_name = file.stem
+                  output_file = Path(output_dir) / f'{module_name}.md'
+                  
+                  with open(output_file, 'w') as f:
+                      f.write(f'# {module_name}\n\n')
+                      f.write(f'::: ipfs_kit_py.{module_name}\n')
+          
+          generate_api_docs('ipfs_kit_py', 'docs/api')
+          "
+          
+          # Copy README.md and other docs to docs directory
+          cp README.md docs/index.md
+          cp CONTAINERIZATION.md docs/containerization.md
+          cp docs/CI_CD.md docs/ci_cd.md
+          if [ -f CHANGELOG.md ]; then
+            cp CHANGELOG.md docs/changelog.md
+          fi
+          
+          # Copy example files
+          cp examples/*.py docs/examples/
+          for file in docs/examples/*.py; do
+            filename=$(basename "$file" .py)
+            echo "# $filename" > "docs/examples/$filename.md"
+            echo '```python' >> "docs/examples/$filename.md"
+            cat "$file" >> "docs/examples/$filename.md"
+            echo '```' >> "docs/examples/$filename.md"
+            rm "$file"
+          done
+          
+          # Create mkdocs.yml if it doesn't exist
+          cat > mkdocs.yml << EOF
+          site_name: IPFS Kit Python
+          site_description: Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration
+          site_url: https://github.com/endomorphosis/ipfs_kit_py
+          repo_url: https://github.com/endomorphosis/ipfs_kit_py
+          repo_name: endomorphosis/ipfs_kit_py
+          
+          theme:
+            name: material
+            palette:
+              primary: teal
+              accent: deep purple
+            features:
+              - navigation.instant
+              - navigation.tracking
+              - navigation.expand
+              - navigation.indexes
+              - toc.integrate
+              - search.suggest
+              - search.highlight
+          
+          plugins:
+            - search
+            - mkdocstrings:
+                handlers:
+                  python:
+                    selection:
+                      docstring_style: google
+                    rendering:
+                      show_source: true
+            - macros
+            - include-markdown
+          
+          markdown_extensions:
+            - pymdownx.highlight
+            - pymdownx.superfences
+            - pymdownx.inlinehilite
+            - pymdownx.tabbed
+            - pymdownx.critic
+            - admonition
+            - footnotes
+            - attr_list
+            - md_in_html
+            - def_list
+            - toc:
+                permalink: true
+          
+          nav:
+            - Home: index.md
+            - User Guide:
+              - Installation: installation.md
+              - Quickstart: quickstart.md
+              - Containerization: containerization.md
+              - CI/CD Pipeline: ci_cd.md
+            - API Reference:
+              - Overview: api/index.md
+              - IPFS Kit: api/ipfs_kit.md
+              - IPFS: api/ipfs.md
+              - FSSpec: api/ipfs_fsspec.md
+              - Tiered Cache: api/tiered_cache.md
+            - Examples:
+              - Overview: examples/index.md
+            - Helm Charts: helm/index.md
+            - Changelog: changelog.md
+          EOF
+          
+          # Create basic documentation files if they don't exist
+          echo "# Installation" > docs/installation.md
+          echo "# Quickstart" > docs/quickstart.md
+          echo "# API Reference" > docs/api/index.md
+          echo "# Examples" > docs/examples/index.md
+          echo "# Helm Charts" > docs/helm/index.md
+          
+          # Build MkDocs site
+          mkdocs build --site-dir public
+      
+      - name: Package Helm charts
+        run: |
+          mkdir -p public/helm-repo
+          
+          # Package Helm chart
+          helm package ./helm/ipfs-kit -d public/helm-repo/
+          
+          # Generate Helm repository index
+          helm repo index public/helm-repo/ --url https://endomorphosis.github.io/ipfs_kit_py/helm-repo
+          
+          # Create Helm documentation
+          cat > public/helm/index.md << EOF
+          # Helm Charts
+          
+          IPFS Kit provides a Helm chart for easy deployment on Kubernetes.
+          
+          ## Add the Helm repository
+          
+          ```bash
+          helm repo add ipfs-kit https://endomorphosis.github.io/ipfs_kit_py/helm-repo
+          helm repo update
+          ```
+          
+          ## Install the chart
+          
+          ```bash
+          helm install ipfs-kit ipfs-kit/ipfs-kit
+          ```
+          
+          ## Configuration values
+          
+          The following table lists the configurable parameters of the IPFS Kit chart and their default values.
+          
+          | Parameter | Description | Default |
+          |-----------|-------------|---------|
+          | \`image.repository\` | Image repository | \`ghcr.io/endomorphosis/ipfs_kit_py\` |
+          | \`image.tag\` | Image tag | \`latest\` |
+          | \`image.pullPolicy\` | Image pull policy | \`Always\` |
+          | \`replicaCount.master\` | Number of master nodes | \`1\` |
+          | \`replicaCount.worker\` | Number of worker nodes | \`2\` |
+          | \`replicaCount.leecher\` | Number of leecher nodes | \`1\` |
+          
+          For more configuration options, see the \`values.yaml\` file in the chart.
+          EOF
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: public
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2

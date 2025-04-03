@@ -1,0 +1,17 @@
+apiVersion: v2
+name: ipfs-kit
+description: A Helm chart for deploying IPFS Kit in Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - ipfs
+  - storage
+  - distributed
+  - content-addressed
+maintainers:
+  - name: Benjamin Barber
+    email: starworks5@gmail.com
+home: https://github.com/endomorphosis/ipfs_kit_py/
+sources:
+  - https://github.com/endomorphosis/ipfs_kit_py/

@@ -5,14 +5,14 @@ This module defines the error hierarchy for IPFS Kit operations
 and provides utility functions for error handling.
 """
 
-import time
-import traceback
 import logging
 import subprocess
-from typing import Dict, Any, Optional, Callable, TypeVar, List, Tuple
+import time
+import traceback
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 # Create a generic type variable for the return type
-T = TypeVar('T')
+T = TypeVar("T")
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -20,36 +20,43 @@ logger = logging.getLogger(__name__)
 
 class IPFSError(Exception):
     """Base class for all IPFS-related exceptions."""
+
     pass
 
 
 class IPFSConnectionError(IPFSError):
     """Error when connecting to IPFS daemon."""
+
     pass
 
 
 class IPFSTimeoutError(IPFSError):
     """Timeout when communicating with IPFS daemon."""
+
     pass
 
 
 class IPFSContentNotFoundError(IPFSError):
     """Content with specified CID not found."""
+
     pass
 
 
 class IPFSValidationError(IPFSError):
     """Input validation failed."""
+
     pass
 
 
 class IPFSConfigurationError(IPFSError):
     """IPFS configuration is invalid or missing."""
+
     pass
 
 
 class IPFSPinningError(IPFSError):
     """Error during content pinning/unpinning."""
+
     pass
 
 
@@ -67,12 +74,12 @@ def create_result_dict(operation: str, success: bool = False, **kwargs) -> Dict[
     """
     # Extract correlation_id without removing it from kwargs
     correlation_id = kwargs.get("correlation_id", None)
-    
+
     result = {
         "success": success,
         "operation": operation,
         "timestamp": time.time(),
-        "correlation_id": correlation_id
+        "correlation_id": correlation_id,
     }
 
     # Add additional fields
@@ -81,7 +88,9 @@ def create_result_dict(operation: str, success: bool = False, **kwargs) -> Dict[
     return result
 
 
-def handle_error(result: Dict[str, Any], e: Exception, error_type: Optional[str] = None) -> Dict[str, Any]:
+def handle_error(
+    result: Dict[str, Any], e: Exception, error_type: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Handle exceptions and update result dictionary.
 
@@ -113,7 +122,7 @@ def handle_error(result: Dict[str, Any], e: Exception, error_type: Optional[str]
     elif isinstance(e, IPFSPinningError):
         classified_type = "pinning_error"
     elif isinstance(e, IPFSError):
-        classified_type = "ipfs_error" # Generic IPFS error
+        classified_type = "ipfs_error"  # Generic IPFS error
     elif isinstance(e, FileNotFoundError) or "No such file or directory" in str(e):
         classified_type = "file_error"
     elif isinstance(e, ConnectionError) or "connection" in str(e).lower():
@@ -121,7 +130,7 @@ def handle_error(result: Dict[str, Any], e: Exception, error_type: Optional[str]
     elif isinstance(e, subprocess.TimeoutExpired) or "timeout" in str(e).lower():
         classified_type = "timeout_error"
     else:
-        classified_type = "unknown_error" # Use a more reliable default
+        classified_type = "unknown_error"  # Use a more reliable default
 
     result["error_type"] = error_type or classified_type
 
@@ -152,7 +161,7 @@ def perform_with_retry(
     max_retries: int = 3,
     backoff_factor: float = 2.0,
     retry_exceptions: Tuple[Exception, ...] = (IPFSConnectionError, IPFSTimeoutError),
-    **kwargs
+    **kwargs,
 ) -> T:
     """
     Perform operation with exponential backoff retry.
@@ -184,7 +193,7 @@ def perform_with_retry(
 
             if attempt < max_retries:
                 # Calculate sleep time with exponential backoff
-                sleep_time = backoff_factor ** attempt
+                sleep_time = backoff_factor**attempt
                 logger.warning(
                     f"Retry attempt {attempt} after error: {str(e)}. "
                     f"Waiting {sleep_time}s before retry."

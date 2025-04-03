@@ -1,0 +1,87 @@
+name: Dependency Management
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'  # Every Monday at 7:00 UTC
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  check-dependencies:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .[dev]
+          python -m pip install pip-tools safety
+      
+      - name: Run safety check
+        id: safety-check
+        run: |
+          safety check --full-report --file requirements.txt > safety-report.txt || true
+          cat safety-report.txt
+      
+      - name: Check for updates
+        id: check-updates
+        run: |
+          pip-compile --upgrade --quiet pyproject.toml --output-file=requirements-updated.txt
+          
+          # Compare current with updated requirements
+          if ! cmp --silent requirements.txt requirements-updated.txt; then
+            echo "UPDATES_AVAILABLE=true" >> $GITHUB_ENV
+            diff requirements.txt requirements-updated.txt > requirements-diff.txt || true
+          else
+            echo "UPDATES_AVAILABLE=false" >> $GITHUB_ENV
+          fi
+      
+      - name: Create Pull Request for dependency updates
+        if: env.UPDATES_AVAILABLE == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update dependencies
+          title: 'chore: Update dependencies'
+          body: |
+            # Dependency Updates
+            
+            This PR updates the project dependencies to their latest compatible versions.
+            
+            ## Changes in dependencies:
+            
+            ```diff
+            $(cat requirements-diff.txt)
+            ```
+            
+            ## Security Report
+            
+            <details>
+            <summary>Security Check Report</summary>
+            
+            ```
+            $(cat safety-report.txt)
+            ```
+            
+            </details>
+            
+            This PR was generated automatically by the dependency management workflow.
+          labels: dependencies,automated
+          branch: dependency-updates
+          base: main
+          delete-branch: true
+      
+      - name: Upload safety report artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: safety-report
+          path: safety-report.txt
+          if-no-files-found: warn
