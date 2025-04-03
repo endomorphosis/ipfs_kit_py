@@ -14173,7 +14173,13 @@ class PyTorchIntegration:
                     result["error"] = add_result.get("error", "Unknown error adding to IPFS")
             else:
                 result["error"] = "IPFS client not available"
+                result["error_type"] = "client_error"
                 
+            if PYDANTIC_AVAILABLE:
+                if result["success"]:
+                    return SaveModelResponse(**result)
+                else:
+                    return SaveModelErrorResponse(**result)
             return result
             
         except Exception as e:
