@@ -5181,12 +5181,18 @@ class LangchainIntegration:
     - Chain versioning and sharing
     """
 
-    def __init__(self, ipfs_client=None, **kwargs):
+    def __init__(self, ipfs_client: Optional[Any] = None, **kwargs: Any) -> None:
         """Initialize the Langchain integration.
 
+        This method sets up the Langchain integration with IPFS, initializing
+        directory structures, logging, and the registry system for tracking
+        chains, vector stores, and document collections.
+
         Args:
-            ipfs_client: An initialized IPFS client
-            **kwargs: Additional configuration options
+            ipfs_client: An initialized IPFS client for content operations
+            **kwargs: Additional configuration options including:
+                - logger: Custom logger instance
+                - cache_dir: Directory for storing cached data and registry
         """
         self.ipfs = ipfs_client
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
@@ -6623,12 +6629,18 @@ class LlamaIndexIntegration:
     - Versioning and sharing of indices
     """
 
-    def __init__(self, ipfs_client=None, **kwargs):
+    def __init__(self, ipfs_client: Optional[Any] = None, **kwargs: Any) -> None:
         """Initialize the LlamaIndex integration.
+        
+        This method sets up the LlamaIndex integration with IPFS, initializing
+        directory structures, logging, and the registry system for tracking
+        indices, documents, and query engines.
 
         Args:
-            ipfs_client: An initialized IPFS client
-            **kwargs: Additional configuration options
+            ipfs_client: An initialized IPFS client for content operations
+            **kwargs: Additional configuration options including:
+                - logger: Custom logger instance
+                - cache_dir: Directory for storing cached data and registry
         """
         self.ipfs = ipfs_client
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
@@ -6662,12 +6674,46 @@ class LlamaIndexIntegration:
         with open(self.registry_path, "w") as f:
             json.dump(self.registry, f, indent=2)
 
-    def check_availability(self):
-        """Check if LlamaIndex and related dependencies are available."""
+    if PYDANTIC_AVAILABLE:
+        class LlamaIndexAvailabilityResponse(BaseModel):
+            """Response model for LlamaIndex dependency availability check."""
+            success: bool = Field(True, description="Operation success status")
+            operation: str = Field("check_availability", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            llama_index_available: bool = Field(..., description="Whether LlamaIndex is available")
+            numpy_available: bool = Field(..., description="Whether NumPy is available")
+            nltk_available: bool = Field(..., description="Whether NLTK is available")
+            pydantic_available: bool = Field(..., description="Whether Pydantic is available")
+            langchain_available: bool = Field(..., description="Whether Langchain is available")
+            message: str = Field("LlamaIndex integration status check completed", description="Status message")
+
+    def check_availability(self) -> Union[Dict[str, Any], "LlamaIndexAvailabilityResponse"]:
+        """Check if LlamaIndex and related dependencies are available.
+        
+        This method checks the availability of LlamaIndex and its common dependencies,
+        which is useful for determining what functionality will work in the current
+        environment. It verifies the presence of key packages like NumPy and NLTK
+        that are necessary for various LlamaIndex operations.
+        
+        Returns:
+            Union[Dict[str, Any], LlamaIndexAvailabilityResponse]: A dictionary or Pydantic model containing
+                availability information for various dependencies. The response includes boolean flags
+                for each dependency, indicating whether it's available in the current environment.
+                
+        Example:
+            >>> status = llamaindex_integration.check_availability()
+            >>> if status["llama_index_available"]:
+            ...     print("LlamaIndex is available, proceeding with index creation")
+            ... else:
+            ...     print("LlamaIndex not available, please install required dependencies")
+            >>>
+            >>> # Check specific dependencies
+            >>> if status["nltk_available"]:
+            ...     print("NLTK available for text processing")
+        """
         # Check for numpy which is required for most operations
         try:
             import numpy
-
             numpy_available = True
         except ImportError:
             numpy_available = False
@@ -6675,38 +6721,93 @@ class LlamaIndexIntegration:
         # Check for common LlamaIndex dependencies
         try:
             import nltk
-
             nltk_available = True
         except ImportError:
-            nltk_available = True
+            nltk_available = False
 
-        return {
+        # Prepare result with timestamp
+        result = {
             "success": True,
+            "operation": "check_availability",
+            "timestamp": time.time(),
             "llama_index_available": LLAMA_INDEX_AVAILABLE,
             "numpy_available": numpy_available,
             "nltk_available": nltk_available,
+            "pydantic_available": PYDANTIC_AVAILABLE,
+            "langchain_available": LANGCHAIN_AVAILABLE,
             "message": "LlamaIndex integration status check completed",
         }
+        
+        # Return as Pydantic model if available
+        if PYDANTIC_AVAILABLE:
+            return LlamaIndexAvailabilityResponse(**result)
+        return result
 
-    def load_documents(self, cid=None, path=None, metadata=None):
+    if PYDANTIC_AVAILABLE:
+        class LoadLlamaIndexDocumentsRequest(BaseModel):
+            """Request model for loading documents from IPFS or local path."""
+            cid: Optional[str] = Field(None, description="IPFS Content Identifier for documents")
+            path: Optional[str] = Field(None, description="Local path to documents")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to attach to documents")
+            
+        class LoadLlamaIndexDocumentsResponse(BaseModel):
+            """Response model for document loading operation."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("load_documents", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            document_count: Optional[int] = Field(None, description="Number of documents loaded")
+            source_id: Optional[str] = Field(None, description="Identifier for the document source")
+            documents: Optional[List[Any]] = Field(None, description="The loaded documents if successful")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def load_documents(
+        self, 
+        cid: Optional[str] = None, 
+        path: Optional[str] = None, 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[List[Any], Dict[str, Any], "LoadLlamaIndexDocumentsResponse"]:
         """Load documents from IPFS or local path.
 
+        This method loads documents from either an IPFS CID or a local file path,
+        using the appropriate document reader based on the input. It supports
+        various document formats and attaches additional metadata if provided.
+
         Args:
-            cid: IPFS Content Identifier for documents
-            path: Local path to documents
-            metadata: Additional metadata to attach to documents
+            cid: IPFS Content Identifier for documents. Takes precedence over path if both are provided.
+            path: Local path to documents. Used if CID is not specified.
+            metadata: Additional metadata to attach to all loaded documents.
 
         Returns:
-            List of documents
+            Union[List[Any], Dict[str, Any], LoadLlamaIndexDocumentsResponse]: 
+                - On success: List of loaded Document objects (or LoadLlamaIndexDocumentsResponse if Pydantic is available)
+                - On failure: Error dictionary with details (or LoadLlamaIndexDocumentsResponse if Pydantic is available)
+
+        Examples:
+            >>> # Load documents from IPFS CID
+            >>> documents = llamaindex_integration.load_documents(cid="QmY9Ej...")
+            >>> print(f"Loaded {len(documents)} documents")
+            
+            >>> # Load documents from local path with metadata
+            >>> documents = llamaindex_integration.load_documents(
+            ...     path="/path/to/documents",
+            ...     metadata={"source": "local_collection", "author": "John Doe"}
+            ... )
         """
-        result = {"success": False, "operation": "load_documents", "timestamp": time.time()}
+        result = {
+            "success": False, 
+            "operation": "load_documents", 
+            "timestamp": time.time()
+        }
 
         try:
             if not LLAMA_INDEX_AVAILABLE:
-                result["error"] = (
-                    "LlamaIndex is not available. Please install with 'pip install llama-index'"
-                )
+                result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+                result["error_type"] = "dependency_error"
                 self.logger.error(result["error"])
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadLlamaIndexDocumentsResponse(**result)
                 return result
 
             # Determine source (CID has priority over path)
@@ -6718,7 +6819,11 @@ class LlamaIndexIntegration:
                 source_id = os.path.basename(path)
             else:
                 result["error"] = "Either cid or path must be specified"
+                result["error_type"] = "parameter_error"
                 self.logger.error(result["error"])
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadLlamaIndexDocumentsResponse(**result)
                 return result
 
             # Load documents
@@ -6727,7 +6832,9 @@ class LlamaIndexIntegration:
             # Add metadata if provided
             if metadata and documents:
                 for doc in documents:
-                    if "metadata" in doc:
+                    if hasattr(doc, "metadata"):
+                        doc.metadata.update(metadata)
+                    elif isinstance(doc, dict) and "metadata" in doc:
                         doc["metadata"].update(metadata)
 
             # Register in document registry
@@ -6739,17 +6846,27 @@ class LlamaIndexIntegration:
             }
             self._save_registry()
 
+            # Prepare success result
             result["success"] = True
             result["document_count"] = len(documents)
             result["source_id"] = source_id
             result["documents"] = documents
 
+            if PYDANTIC_AVAILABLE:
+                response = LoadLlamaIndexDocumentsResponse(**result)
+                # Special handling for documents which might not be serializable
+                response.documents = documents
+                return response
+            
             return documents
 
         except Exception as e:
             result["error"] = f"Error loading documents: {str(e)}"
-            result["error_type"] = type(e).__name__
+            result["error_type"] = "processing_error"
             self.logger.exception(f"Error in load_documents: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadLlamaIndexDocumentsResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
@@ -7149,25 +7266,90 @@ class LlamaIndexIntegration:
 
         return reader
 
-    def create_index(self, documents, index_type="vector", service_context=None):
+    if PYDANTIC_AVAILABLE:
+        class CreateIndexRequest(BaseModel):
+            """Request model for creating an index from documents."""
+            documents: List[Any] = Field(..., description="List of documents to index")
+            index_type: str = Field("vector", description="Type of index to create (vector, list, etc.)")
+            service_context: Optional[Any] = Field(None, description="Service context for LlamaIndex")
+        
+        class CreateIndexResponse(BaseModel):
+            """Response model for index creation operation."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("create_index", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            index: Optional[Any] = Field(None, description="The created index object")
+            document_count: Optional[int] = Field(None, description="Number of documents indexed")
+            index_type: Optional[str] = Field(None, description="Type of index created")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    def create_index(
+        self, 
+        documents: List[Any], 
+        index_type: str = "vector", 
+        service_context: Optional[Any] = None
+    ) -> Union[Any, Dict[str, Any], "CreateIndexResponse"]:
         """Create an index from documents.
-
+        
+        This method creates a LlamaIndex index from a list of documents. It supports
+        different index types and allows customization through a service context.
+        The index can be used for semantic search, RAG (Retrieval Augmented Generation),
+        and other operations that require efficient document retrieval.
+        
         Args:
-            documents: List of documents to index
-            index_type: Type of index to create
-            service_context: Service context for LlamaIndex
-
+            documents: List of documents to index. These can be Document objects from
+                LlamaIndex or raw text/dictionary objects that will be converted.
+            index_type: Type of index to create. Options include:
+                - "vector": Standard vector store index (default)
+                - "list": Simple list index without embeddings
+                - "tree": Tree-based index for hierarchical retrieval
+                - "keyword_table": Keyword-based lookup table
+                - "knowledge_graph": Structured knowledge graph index
+            service_context: Service context for LlamaIndex, which can include custom:
+                - LLM configurations
+                - Embedding models
+                - Node parsers
+                - Prompt helpers
+                - etc.
+        
         Returns:
-            Index object
+            Union[Any, Dict[str, Any], CreateIndexResponse]: 
+                - On success: The created index object (or CreateIndexResponse if Pydantic is available)
+                - On failure: Error dictionary with details (or CreateIndexResponse if Pydantic is available)
+        
+        Examples:
+            >>> # Create a basic vector index
+            >>> documents = llamaindex_integration.load_documents(path="/path/to/docs")
+            >>> index = llamaindex_integration.create_index(documents)
+            >>> 
+            >>> # Create a custom index with specific parameters
+            >>> from llama_index import ServiceContext
+            >>> service_context = ServiceContext.from_defaults(
+            ...     llm=OpenAI(model="gpt-4"),
+            ...     embed_model="text-embedding-ada-002"
+            ... )
+            >>> index = llamaindex_integration.create_index(
+            ...     documents=documents,
+            ...     index_type="knowledge_graph",
+            ...     service_context=service_context
+            ... )
         """
-        result = {"success": False, "operation": "create_index", "timestamp": time.time()}
+        result = {
+            "success": False, 
+            "operation": "create_index", 
+            "timestamp": time.time(),
+            "index_type": index_type
+        }
 
         try:
             if not LLAMA_INDEX_AVAILABLE:
-                result["error"] = (
-                    "LlamaIndex is not available. Please install with 'pip install llama-index'"
-                )
+                result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+                result["error_type"] = "dependency_error"
                 self.logger.error(result["error"])
+                
+                if PYDANTIC_AVAILABLE:
+                    return CreateIndexResponse(**result)
                 return result
 
             # Create reader with mock data if needed
@@ -7186,18 +7368,32 @@ class LlamaIndexIntegration:
             # Check if index creation succeeded
             if index is None:
                 result["error"] = "Failed to create index"
+                result["error_type"] = "processing_error"
+                
+                if PYDANTIC_AVAILABLE:
+                    return CreateIndexResponse(**result)
                 return result
 
+            # Prepare success result
             result["success"] = True
             result["index"] = index
             result["document_count"] = len(documents)
 
+            if PYDANTIC_AVAILABLE:
+                response = CreateIndexResponse(**result)
+                # Special handling for index object which isn't serializable
+                response.index = index
+                return response
+            
             return index
 
         except Exception as e:
             result["error"] = f"Error creating index: {str(e)}"
-            result["error_type"] = type(e).__name__
+            result["error_type"] = "processing_error"
             self.logger.exception(f"Error in create_index: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return CreateIndexResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:

@@ -6352,6 +6352,8 @@ let result = client.{rust_method_name}(...).await?;
             "query": query,
             "vector_index_cid": vector_index_cid,
         }
+
+
 def ai_create_knowledge_graph(
     self,
     source_data_cid: str,
@@ -6639,6 +6641,8 @@ def ai_create_knowledge_graph(
             "error_type": type(e).__name__,
             "source_data_cid": source_data_cid
         }
+
+
 def ai_test_inference(
     self,
     model_cid: str,

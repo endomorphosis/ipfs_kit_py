@@ -377,38 +377,205 @@ try:
     prediction = loaded_model.predict([[2, 2]])
     print(f"Prediction: {prediction}")
     
-    # Add a dataset to the registry
-    # ==========================
+    # Register a dataset in the registry
+    # ==============================
     
-    import pandas as pd
-    dataset = pd.DataFrame({
-        'feature1': [1, 2, 3, 4, 5],
-        'feature2': [5, 4, 3, 2, 1],
-        'target': [0, 0, 1, 1, 0]
-    })
-    
-    dataset_result = api.ai_dataset_add(
-        dataset,
+    dataset_result = api.ai_register_dataset(
+        dataset_cid="QmDatasetCID123",
         metadata={
             "name": "Sample Dataset",
-            "version": "1.0.0",
-            "rows": len(dataset),
-            "columns": list(dataset.columns),
-            "description": "A simple example dataset"
-        }
+            "description": "A comprehensive dataset for testing",
+            "features": ["feature1", "feature2", "feature3"],
+            "target": "target_column",
+            "rows": 10000,
+            "columns": 4,
+            "tags": ["test", "classification", "tabular"]
+        },
+        *,                       # Keyword-only parameters
+        pin=True,                # Pin dataset for persistence
+        add_to_index=True,       # Add to searchable index
+        register_features=True,  # Register features for advanced querying
+        verify_existence=True,   # Verify dataset exists before registering
+        allow_simulation=True    # Allow simulation if AI/ML unavailable
     )
-    dataset_cid = dataset_result.get("cid")
-    print(f"Dataset saved with CID: {dataset_cid}")
     
-    # Get a dataset from the registry
-    # ===========================
+    # Run vector search on dataset
+    # =========================
     
-    dataset_get_result = api.ai_dataset_get(dataset_cid)
-    loaded_dataset = dataset_get_result.get("dataset")
-    dataset_metadata = dataset_get_result.get("metadata")
+    search_result = api.ai_vector_search(
+        query="What is IPFS?",                    # Text query to search for
+        vector_index_cid="QmVectorIndexCID123",   # CID of the vector index
+        *,                                        # Keyword-only parameters
+        top_k=10,                                 # Number of top results to return
+        similarity_threshold=0.75,                # Minimum similarity score to include
+        filter={"tags": ["documentation"]},       # Optional metadata filters
+        embedding_model="sentence-transformer",   # Model to use for embedding
+        search_type="similarity",                 # Type of search (similarity, knn, hybrid)
+        allow_simulation=True                     # Allow simulated results if AI/ML unavailable
+    )
     
-    # Use the loaded dataset
-    print(f"Loaded dataset with {len(loaded_dataset)} rows")
+    for i, match in enumerate(search_result.get("results", [])):
+        print(f"Result {i+1}: {match.get('content')[:50]}...")
+        print(f"  Similarity: {match.get('similarity'):.2f}")
+    
+    # Create knowledge graph from a document
+    # ==================================
+    
+    kg_result = api.ai_create_knowledge_graph(
+        source_data_cid="QmDocumentCID456",       # CID of source document
+        *,                                        # Keyword-only parameters
+        graph_name="IPFS Documentation Graph",    # Name for the knowledge graph
+        extraction_model="default",               # Model for entity extraction
+        entity_types=["Concept", "Technology"],   # Types of entities to extract
+        relationship_types=["uses", "relates"],   # Types of relationships to extract
+        max_entities=100,                         # Maximum number of entities
+        include_text_context=True,                # Include source text context
+        extract_metadata=True,                    # Extract metadata from source
+        allow_simulation=True                     # Allow simulation if AI/ML unavailable
+    )
+    
+    print(f"Created graph with {kg_result.get('entity_count')} entities and "
+          f"{kg_result.get('relationship_count')} relationships")
+    
+    # Run model inference on test data
+    # ============================
+    
+    inference_result = api.ai_test_inference(
+        model_cid=model_cid,                      # CID of the model to use
+        test_data_cid="QmTestDataCID789",         # CID of test dataset
+        *,                                        # Keyword-only parameters
+        batch_size=32,                            # Batch size for inference
+        max_samples=1000,                         # Maximum samples to use
+        compute_metrics=True,                     # Whether to compute metrics
+        metrics=["accuracy", "f1", "precision"],  # Metrics to compute
+        output_format="json",                     # Output format (json, csv, parquet)
+        save_predictions=True,                    # Save predictions to IPFS
+        device="cpu",                             # Device to run on
+        allow_simulation=True                     # Allow simulation if AI/ML unavailable
+    )
+    
+    # Print metrics
+    print("Model metrics:")
+    for metric_name, value in inference_result.get("metrics", {}).items():
+        print(f"  {metric_name}: {value}")
+        
+    # Show sample predictions
+    print("\nSample predictions:")
+    for i, pred in enumerate(inference_result.get("sample_predictions", [])[:3]):
+        print(f"  Sample {i+1}: {pred}")
+        
+    # Browse and filter available models
+    # ==============================
+    
+    models = api.ai_list_models(
+        *,                                        # Keyword-only parameters 
+        framework="pytorch",                      # Filter by framework
+        tags=["image", "classification"],         # Filter by tags
+        limit=10,                                 # Max results to return
+        offset=0,                                 # Pagination offset
+        sort_by="created_at",                     # Field to sort by
+        sort_order="desc",                        # Sort direction
+        include_metrics=True,                     # Include performance metrics
+        only_local=True,                          # Only show locally available models
+        allow_simulation=True                     # Allow simulation if AI/ML unavailable
+    )
+    
+    for model in models.get("models", []):
+        print(f"Model: {model.get('name')}")
+        print(f"  Framework: {model.get('framework')}")
+        print(f"  Tags: {', '.join(model.get('tags', []))}")
+        if "metrics" in model:
+            print(f"  Accuracy: {model['metrics'].get('accuracy')}")
+    
+    print(f"Dataset registered with metadata CID: {dataset_result.get('metadata_cid')}")
+    
+    # Vector search with a trained embedding model
+    # =======================================
+    
+    search_results = api.ai_vector_search(
+        query="What is the impact of climate change?",  # Text query
+        vector_index_cid="QmVectorIndexCID456",        # CID of vector index
+        top_k=5,                                       # Return top 5 results
+        similarity_threshold=0.75,                     # Minimum similarity score
+        filter={"category": "climate"},                # Metadata filter
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",  # Model for embeddings
+        search_type="similarity",                      # Type of search to perform
+        allow_simulation=True                          # Allow simulation if needed
+    )
+    
+    for i, result in enumerate(search_results.get("results", [])):
+        print(f"Result {i+1}: {result.get('content')} (Score: {result.get('similarity')})")
+    
+    # Create a knowledge graph from entities and relationships
+    # ==================================================
+    
+    graph_result = api.ai_create_knowledge_graph(
+        entities_cid="QmEntitiesCID789",
+        relationships_cid="QmRelationshipsCID012",
+        graph_name="Climate Knowledge Graph",
+        schema={"version": "1.0.0", "entity_types": ["Person", "Organization", "Topic"]},
+        index_properties=["name", "category", "importance"],
+        pin=True,
+        allow_simulation=True
+    )
+    
+    print(f"Knowledge graph created with CID: {graph_result.get('graph_cid')}")
+    
+    # List available models with filtering and pagination
+    # ==============================================
+    
+    models = api.ai_list_models(
+        framework="pytorch",           # Filter by framework
+        tags=["image", "classification"], # Filter by tags
+        limit=10,                     # Pagination limit
+        offset=0,                     # Pagination offset
+        sort_by="created_at",         # Sort field
+        sort_order="desc",            # Sort direction
+        include_metrics=True,         # Include performance metrics
+        only_local=False,             # Include remote models
+        allow_simulation=True         # Allow simulation if needed
+    )
+    
+    for model in models.get("models", []):
+        print(f"Model: {model.get('name')} ({model.get('framework')})")
+        if "metrics" in model:
+            print(f"  Accuracy: {model.get('metrics', {}).get('accuracy')}")
+    
+    # Deploy model for inference
+    # ======================
+    
+    deploy_result = api.ai_deploy_model(
+        model_cid=model_cid,
+        deployment_config={
+            "instance_type": "cpu.small",
+            "min_instances": 1,
+            "max_instances": 3,
+            "memory": "2G"
+        },
+        environment="staging",
+        wait_for_ready=True,
+        auto_scale=True,
+        monitoring_enabled=True,
+        allow_simulation=True
+    )
+    
+    endpoint_id = deploy_result.get("endpoint_id")
+    print(f"Model deployed at endpoint: {endpoint_id}")
+    
+    # Test inference with deployed model
+    # =============================
+    
+    inference_result = api.ai_test_inference(
+        endpoint_id=endpoint_id,
+        data={"features": [2, 2]},
+        model_version="1.0.0",
+        timeout=30,
+        return_raw=False,
+        allow_simulation=True
+    )
+    
+    print(f"Inference result: {inference_result.get('predictions')}")
+    print(f"Latency: {inference_result.get('latency_ms')}ms")
     
     # AI/ML Metrics Visualization
     # ===========================
