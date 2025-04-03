@@ -1242,6 +1242,12 @@ The immediate priorities include:
    - Added CORS support for web integrations
    - Created method introspection endpoint for API discovery
    - ✅ Fixed FSSpec integration in high_level_api.py with proper imports and fallback handling
+   - Added helper methods for filesystem operations:
+     - `get_filesystem()`: Creates a properly configured filesystem interface
+     - `open_file()`: Opens IPFS content with file-like interface
+     - `read_file()`: Reads entire file contents as bytes
+     - `read_text()`: Reads entire file contents as text
+     - `list_directory()`: Lists contents of a directory
 
 6. **Testing and Examples** ✅
    - Implemented comprehensive tests in `test_high_level_api.py`

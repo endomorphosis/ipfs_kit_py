@@ -10,26 +10,22 @@ IPFS Kit is designed with a modular architecture:
 
 ```mermaid
 graph TD
-    subgraph User Interfaces
-        CLI[CLI (ipfs-kit)]
-        HLAPI[High-Level API (IPFSSimpleAPI)]
-        CoreAPI[Core API (ipfs_kit)]
-        APIServer[API Server (FastAPI)]
-    end
-
-    subgraph Core Components
-        Kit[ipfs_kit.py: Main Class]
-        Roles[Role Management (Master/Worker/Leecher)]
-        ClusterMgmt[Cluster Management (cluster/*)]
-        Storage[Storage Backends (ipfs.py, ipfs_cluster_*.py, s3_kit.py, storacha_kit.py)]
-        FSSpec[FSSpec Interface (ipfs_fsspec.py)]
-        Cache[Tiered Cache (tiered_cache.py)]
-        Metadata[Metadata Index (arrow_metadata_index.py)]
-        LibP2P[LibP2P Peer (libp2p_peer.py)]
-        AIML[AI/ML Integration (ai_ml_integration.py)]
-        KnowledgeGraph[Knowledge Graph (ipld_knowledge_graph.py)]
-        Utils[Utilities (error.py, validation.py, etc.)]
-    end
+    CLI[CLI ipfs-kit]
+    HLAPI[High-Level API IPFSSimpleAPI]
+    CoreAPI[Core API ipfs_kit]
+    APIServer[API Server FastAPI]
+    
+    Kit[ipfs_kit.py Main Class]
+    Roles[Role Management Master/Worker/Leecher]
+    ClusterMgmt[Cluster Management]
+    Storage[Storage Backends IPFS/S3/Storacha]
+    FSSpec[FSSpec Interface]
+    Cache[Tiered Cache]
+    Metadata[Metadata Index]
+    LibP2P[LibP2P Peer]
+    AIML[AI/ML Integration]
+    KnowledgeGraph[Knowledge Graph]
+    Utils[Utilities]
 
     CLI --> HLAPI
     HLAPI --> Kit

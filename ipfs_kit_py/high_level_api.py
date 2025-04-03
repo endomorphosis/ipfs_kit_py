@@ -861,6 +861,95 @@ class IPFSSimpleAPI:
         extension_func = self.extensions[extension_name]
         return extension_func(*args, **kwargs)
     
+    def open_file(self, path, mode="rb", **kwargs):
+        """
+        Open a file in IPFS through the FSSpec interface.
+        
+        This method provides a convenient way to open files directly, similar to
+        Python's built-in open() function.
+        
+        Args:
+            path: Path or CID to open, can use ipfs:// schema
+            mode: Mode to open the file in, currently only read modes are supported
+            **kwargs: Additional options passed to the underlying filesystem
+            
+        Returns:
+            File-like object for the IPFS content
+            
+        Example:
+            ```python
+            # Open a file by CID
+            with api.open_file("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx") as f:
+                content = f.read()
+                
+            # Open with ipfs:// URL
+            with api.open_file("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx") as f:
+                content = f.read()
+            ```
+        """
+        if not self.fs:
+            self.fs = self.get_filesystem(**kwargs)
+            
+        if not self.fs:
+            raise ImportError("FSSpec filesystem interface is not available")
+            
+        # Ensure path has ipfs:// prefix if it's a CID
+        if not path.startswith("ipfs://") and not path.startswith("/"):
+            path = f"ipfs://{path}"
+            
+        return self.fs.open(path, mode=mode)
+    
+    def read_file(self, path, **kwargs):
+        """
+        Read the entire contents of a file from IPFS.
+        
+        Args:
+            path: Path or CID of the file to read
+            **kwargs: Additional options passed to the filesystem
+            
+        Returns:
+            Contents of the file as bytes
+        """
+        with self.open_file(path, **kwargs) as f:
+            return f.read()
+    
+    def read_text(self, path, encoding="utf-8", **kwargs):
+        """
+        Read the entire contents of a file from IPFS as text.
+        
+        Args:
+            path: Path or CID of the file to read
+            encoding: Text encoding to use (default: utf-8)
+            **kwargs: Additional options passed to the filesystem
+            
+        Returns:
+            Contents of the file as a string
+        """
+        return self.read_file(path, **kwargs).decode(encoding)
+    
+    def list_directory(self, path, **kwargs):
+        """
+        List the contents of a directory in IPFS.
+        
+        Args:
+            path: Path or CID of the directory to list
+            **kwargs: Additional options passed to the filesystem
+            
+        Returns:
+            List of files and directories
+        """
+        if not self.fs:
+            self.fs = self.get_filesystem(**kwargs)
+            
+        if not self.fs:
+            raise ImportError("FSSpec filesystem interface is not available")
+        
+        # Ensure path has ipfs:// prefix if it's a CID
+        if not path.startswith("ipfs://") and not path.startswith("/"):
+            path = f"ipfs://{path}"
+            
+        return self.fs.ls(path)
+    
     def __call__(self, method_name: str, *args, **kwargs) -> Any:
         """
         Call a method by name.
