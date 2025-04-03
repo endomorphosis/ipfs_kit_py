@@ -15,6 +15,15 @@ from unittest.mock import MagicMock, patch
 # Ensure package is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Try to import the new test fixtures
+try:
+    from test.test_fixtures.libp2p_test_fixtures import (
+        SimulatedNode, NetworkSimulator, MockLibp2pPeer, NetworkScenario
+    )
+    FIXTURES_AVAILABLE = True
+except ImportError:
+    FIXTURES_AVAILABLE = False
+
 # Mock the libp2p module and its imports first
 # This needs to happen before importing IPFSLibp2pPeer
 mock_libp2p = MagicMock()
@@ -439,6 +448,127 @@ class TestLibP2PIntegration(unittest.TestCase):
         # Verify stats were updated
         self.assertEqual(integration.stats["cache_misses"], 1)
         self.assertEqual(integration.stats["cache_misses_handled"], 1)
+
+
+@unittest.skipIf(not FIXTURES_AVAILABLE, "LibP2P test fixtures not available")
+class TestLibP2PNetworkWithFixtures(unittest.TestCase):
+    """Test libp2p networking using the new fixtures."""
+    
+    def setUp(self):
+        """Set up test environment."""
+        # Create a network simulator for testing
+        self.network = NetworkSimulator()
+        
+        # Create a scenario with multiple nodes
+        self.scenario = NetworkScenario.create_small_network_scenario(self.network)
+        
+        # Get nodes from scenario
+        self.master_node = self.scenario.get_node_by_role("master")
+        self.worker_nodes = self.scenario.get_nodes_by_role("worker")
+        self.leecher_node = self.scenario.get_node_by_role("leecher")
+        
+    def test_network_simulator(self):
+        """Test the network simulator functionality."""
+        # Verify network setup
+        self.assertEqual(len(self.network.nodes), 5)  # 1 master, 3 workers, 1 leecher
+        
+        # Test peer discovery
+        peers = self.network.discover_peers(self.master_node.peer_id)
+        self.assertEqual(len(peers), 4)  # Should find all other peers
+        
+        # Test content routing
+        content_cid = "QmTestContent"
+        provider_id = self.worker_nodes[0].peer_id
+        
+        # Register a content provider
+        self.network.register_provider(content_cid, provider_id)
+        
+        # Find provider for content
+        providers = self.network.find_providers(content_cid)
+        self.assertEqual(len(providers), 1)
+        self.assertEqual(providers[0], provider_id)
+        
+    def test_content_exchange(self):
+        """Test content exchange between nodes."""
+        # Create some test content
+        content_cid = "QmTestFile"
+        content_data = b"This is test content for the libp2p network"
+        
+        # Add content to a worker node
+        provider_node = self.worker_nodes[0]
+        provider_node.store_content(content_cid, content_data)
+        
+        # Register as provider
+        self.network.register_provider(content_cid, provider_node.peer_id)
+        
+        # Have leecher request the content
+        result = self.leecher_node.fetch_content(content_cid)
+        
+        # Verify content was retrieved
+        self.assertEqual(result, content_data)
+        
+        # Check network statistics
+        self.assertEqual(self.network.content_requests, 1)
+        self.assertEqual(self.network.successful_transfers, 1)
+        
+    def test_publish_subscribe(self):
+        """Test publish/subscribe messaging."""
+        # Set up a test topic
+        test_topic = "test-topic"
+        
+        # Set up message reception tracking
+        received_messages = []
+        
+        def message_handler(sender_id, message):
+            received_messages.append((sender_id, message))
+        
+        # Subscribe workers to the topic
+        for worker in self.worker_nodes:
+            worker.subscribe(test_topic, message_handler)
+        
+        # Publish a message from the master
+        test_message = "Hello from master node"
+        self.master_node.publish(test_topic, test_message)
+        
+        # Allow time for message propagation in the simulation
+        self.network.process_message_queue()
+        
+        # Verify message reception
+        self.assertEqual(len(received_messages), len(self.worker_nodes))
+        for sender_id, message in received_messages:
+            self.assertEqual(sender_id, self.master_node.peer_id)
+            self.assertEqual(message, test_message)
+            
+    def test_multinode_content_distribution(self):
+        """Test content distribution across multiple nodes."""
+        # Create test content
+        content_cid = "QmDistributedContent"
+        content_data = b"Content to be distributed" * 10  # Make it substantial
+        
+        # Master node stores and announces content
+        self.master_node.store_content(content_cid, content_data)
+        self.network.register_provider(content_cid, self.master_node.peer_id)
+        
+        # Simulate content distribution to workers
+        for worker in self.worker_nodes:
+            # Worker fetches content
+            result = worker.fetch_content(content_cid)
+            self.assertEqual(result, content_data)
+            
+            # Worker becomes a provider
+            self.network.register_provider(content_cid, worker.peer_id)
+        
+        # Verify multiple providers are available
+        providers = self.network.find_providers(content_cid)
+        self.assertEqual(len(providers), 1 + len(self.worker_nodes))
+        
+        # Leecher can choose from multiple providers
+        result = self.leecher_node.fetch_content(content_cid)
+        self.assertEqual(result, content_data)
+        
+        # Check which provider was used (should be closest by default)
+        self.assertEqual(self.network.last_provider_used, 
+                         self.network.get_closest_peer(self.leecher_node.peer_id, providers))
 
 
 if __name__ == "__main__":

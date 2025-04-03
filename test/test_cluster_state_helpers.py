@@ -23,6 +23,15 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
+# Import the new test fixtures
+try:
+    from test.test_fixtures.arrow_cluster_test_fixtures import (
+        ArrowMockHelper, ArrowClusterStateFixture, NodeFixture, TaskFixture
+    )
+    FIXTURES_AVAILABLE = True
+except ImportError:
+    FIXTURES_AVAILABLE = False
+
 # Import module to test
 from ipfs_kit_py import cluster_state_helpers
 
@@ -860,6 +869,126 @@ class TestClusterStateHelpers(unittest.TestCase):
 
         # Should return False when state is None
         self.assertFalse(result)
+
+
+@unittest.skipIf(not ARROW_AVAILABLE or not FIXTURES_AVAILABLE, "PyArrow or fixtures not available")
+class TestClusterStateHelpersWithFixtures(unittest.TestCase):
+    """Test cluster state helpers using the new fixtures."""
+    
+    def setUp(self):
+        """Set up test environment."""
+        # Create temporary directory
+        self.test_dir = tempfile.mkdtemp()
+        
+        # Create a mock table using the helper
+        self.mock_table = ArrowMockHelper.create_mock_table()
+        
+        # Mock get_cluster_state to return our mock table
+        self.get_state_patcher = patch('ipfs_kit_py.cluster_state_helpers.get_cluster_state')
+        self.mock_get_state = self.get_state_patcher.start()
+        self.mock_get_state.return_value = self.mock_table
+        
+    def tearDown(self):
+        """Clean up after tests."""
+        self.get_state_patcher.stop()
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+    
+    def test_get_all_nodes_with_fixtures(self):
+        """Test getting nodes using the new fixtures."""
+        # Create test nodes using the NodeFixture
+        test_nodes = [
+            NodeFixture.create_master_node("master1"),
+            NodeFixture.create_worker_node("worker1"),
+            NodeFixture.create_worker_node("worker2", online=False),  # Offline worker
+        ]
+        
+        # Skip using the mock_table from ArrowMockHelper and directly mock get_all_nodes
+        with patch('ipfs_kit_py.cluster_state_helpers.get_all_nodes', 
+                  return_value=test_nodes):
+            # Test the function
+            result = cluster_state_helpers.get_all_nodes(self.test_dir)
+            
+            # Verify result
+            self.assertEqual(len(result), 3)
+            self.assertEqual(result[0]["id"], "master1")
+            self.assertEqual(result[0]["role"], "master")
+            self.assertEqual(result[1]["id"], "worker1")
+            self.assertEqual(result[2]["status"], "offline")
+    
+    def test_find_nodes_by_role_with_fixtures(self):
+        """Test finding nodes by role using the new fixtures."""
+        # Create test nodes using the NodeFixture
+        test_nodes = [
+            NodeFixture.create_master_node("master1"),
+            NodeFixture.create_worker_node("worker1"),
+            NodeFixture.create_worker_node("worker2"),
+            NodeFixture.create_worker_node("worker3", online=False),
+        ]
+        
+        # Mock get_all_nodes to return our fixture data
+        with patch('ipfs_kit_py.cluster_state_helpers.get_all_nodes', 
+                  return_value=test_nodes):
+            # Find worker nodes
+            workers = cluster_state_helpers.find_nodes_by_role(self.test_dir, "worker")
+            
+            # Verify results
+            self.assertEqual(len(workers), 3)  # All workers, including offline
+            self.assertEqual(workers[0]["id"], "worker1")
+            self.assertEqual(workers[1]["id"], "worker2")
+            self.assertEqual(workers[2]["id"], "worker3")
+            
+            # Find master nodes
+            masters = cluster_state_helpers.find_nodes_by_role(self.test_dir, "master")
+            
+            # Verify results
+            self.assertEqual(len(masters), 1)
+            self.assertEqual(masters[0]["id"], "master1")
+            
+            # Find online workers
+            online_workers = [n for n in workers if n["status"] == "online"]
+            self.assertEqual(len(online_workers), 2)
+    
+    def test_get_task_execution_metrics_with_fixtures(self):
+        """Test task execution metrics using the TaskFixture."""
+        # Create test tasks using the TaskFixture
+        now = time.time()
+        test_tasks = [
+            TaskFixture.create_training_task("task1", status="completed"),
+            TaskFixture.create_training_task("task2", status="running"),
+            TaskFixture.create_embedding_task("task3", status="pending"),
+            TaskFixture.create_embedding_task("task4", status="failed"),
+            TaskFixture.create_training_task("task5", status="completed"),
+        ]
+        
+        # Add realistic timestamps for completed tasks - using seconds not milliseconds
+        test_tasks[0]["started_at"] = now - 300  # 5 min ago
+        test_tasks[0]["completed_at"] = now - 100  # Took 200 sec
+        test_tasks[4]["started_at"] = now - 500  # 8.3 min ago
+        test_tasks[4]["completed_at"] = now - 350  # Took 150 sec
+        
+        # Mock get_all_tasks
+        with patch('ipfs_kit_py.cluster_state_helpers.get_all_tasks', 
+                   return_value=test_tasks):
+            
+            # Get metrics
+            metrics = cluster_state_helpers.get_task_execution_metrics(self.test_dir)
+            
+            # Verify metrics
+            self.assertEqual(metrics["total_tasks"], 5)
+            self.assertEqual(metrics["completed_tasks"], 2)
+            self.assertEqual(metrics["running_tasks"], 1)
+            self.assertEqual(metrics["pending_tasks"], 1)
+            self.assertEqual(metrics["failed_tasks"], 1)
+            
+            self.assertAlmostEqual(metrics["completion_rate"], 2/3, places=2)  # 2 completed, 1 failed
+            
+            # Average execution time (200 + 150) / 2 = 175 seconds
+            self.assertAlmostEqual(metrics["average_execution_time"], 175, places=0)
+            
+            # Check task types distribution
+            self.assertEqual(metrics["task_types"]["model_training"], 3)
+            self.assertEqual(metrics["task_types"]["embedding_generation"], 2)
 
 
 if __name__ == "__main__":

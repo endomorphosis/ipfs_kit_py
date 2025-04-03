@@ -1,22 +1,508 @@
 import sys
+import os
+import time
+import json
+import uuid
+import logging
+from typing import Dict, List, Any, Optional, Union, Tuple, Callable, Type, TypeVar, Generic
+from datetime import datetime
 
+try:
+    from contextlib import nullcontext
+except ImportError:
+    # Simple nullcontext implementation for Python versions that don't have it
+    class nullcontext:
+        """Context manager that does nothing.
 
-# Simple nullcontext implementation for Python versions that don't have it
-class nullcontext:
-    """Context manager that does nothing.
+        This is a polyfill for contextlib.nullcontext which was introduced in Python 3.7.
+        Used as a placeholder context manager when metrics tracking is unavailable.
+        """
 
-    This is a polyfill for contextlib.nullcontext which was introduced in Python 3.7.
-    Used as a placeholder context manager when metrics tracking is unavailable.
-    """
+        def __init__(self, enter_result=None):
+            self.enter_result = enter_result
 
-    def __init__(self, enter_result=None):
-        self.enter_result = enter_result
+        def __enter__(self):
+            return self.enter_result
 
-    def __enter__(self):
-        return self.enter_result
+        def __exit__(self, *excinfo):
+            pass
 
-    def __exit__(self, *excinfo):
+try:
+    import pydantic
+    from pydantic import BaseModel, Field, validator
+    PYDANTIC_AVAILABLE = True
+except ImportError:
+    PYDANTIC_AVAILABLE = False
+    # Create dummy BaseModel if pydantic is not available
+    class BaseModel:
+        """Dummy BaseModel when Pydantic is not available."""
         pass
+
+
+# Define our Pydantic models if available
+if PYDANTIC_AVAILABLE:
+    class ModelMetadata(BaseModel):
+        """Metadata for machine learning models."""
+        framework: str = Field(..., description="ML framework used (pytorch, tensorflow, sklearn, etc.)")
+        version: Optional[str] = Field(None, description="Model version identifier")
+        name: Optional[str] = Field(None, description="Model name")
+        description: Optional[str] = Field(None, description="Model description")
+        created_by: Optional[str] = Field(None, description="Creator of the model")
+        created_at: Optional[float] = Field(None, description="Creation timestamp")
+        metrics: Optional[Dict[str, Any]] = Field(None, description="Model performance metrics")
+        parameters: Optional[Dict[str, Any]] = Field(None, description="Model hyperparameters")
+        tags: Optional[List[str]] = Field(None, description="Tags for searchability")
+        license: Optional[str] = Field(None, description="Model license")
+        dataset_id: Optional[str] = Field(None, description="ID of dataset used for training")
+        
+        class Config:
+            extra = "allow"  # Allow extra fields
+
+    class StoreModelRequest(BaseModel):
+        """Request model for storing ML models."""
+        name: str = Field(..., description="Name to identify the model")
+        version: Optional[str] = Field("1.0.0", description="Version string")
+        framework: Optional[str] = Field(None, description="Framework name (detected automatically if not provided)")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to store with the model")
+
+    class StoreModelResponse(BaseModel):
+        """Response model for model storage operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("store_model", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        model_name: Optional[str] = Field(None, description="Model name")
+        version: Optional[str] = Field(None, description="Model version")
+        framework: Optional[str] = Field(None, description="Framework used")
+        cid: Optional[str] = Field(None, description="Content identifier for the model")
+        local_path: Optional[str] = Field(None, description="Local path to the model")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class LoadModelRequest(BaseModel):
+        """Request model for loading ML models."""
+        name: Optional[str] = Field(None, description="Model name to load")
+        version: Optional[str] = Field(None, description="Model version (loads latest if not specified)")
+        cid: Optional[str] = Field(None, description="CID to load (alternative to name/version)")
+        
+        @validator('name', 'cid')
+        def validate_name_or_cid(cls, v, values):
+            if not v and 'name' not in values and 'cid' not in values:
+                raise ValueError("Either name or cid must be provided")
+            return v
+
+    class LoadModelResponse(BaseModel):
+        """Response model for model loading operations (error case)."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("load_model", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class ListModelsResponse(BaseModel):
+        """Response model for listing models."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("list_models", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        models: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Dictionary of models and versions")
+        count: Optional[int] = Field(None, description="Number of models")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class ShareModelRequest(BaseModel):
+        """Request model for sharing ML models."""
+        name: Optional[str] = Field(None, description="Model name")
+        version: Optional[str] = Field(None, description="Model version (latest if not specified)")
+        cid: Optional[str] = Field(None, description="Model CID (alternative to name/version)")
+        
+        @validator('name', 'cid')
+        def validate_name_or_cid(cls, v, values):
+            if not v and 'name' not in values and 'cid' not in values:
+                raise ValueError("Either name or cid must be provided")
+            return v
+
+    class ShareModelResponse(BaseModel):
+        """Response model for model sharing operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("share_model", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        cid: Optional[str] = Field(None, description="Content identifier for the model")
+        ipfs_uri: Optional[str] = Field(None, description="IPFS URI for the model")
+        gateway_links: Optional[List[str]] = Field(None, description="Gateway links for accessing the model")
+        share_command: Optional[str] = Field(None, description="IPFS command to retrieve the model")
+        model_name: Optional[str] = Field(None, description="Model name")
+        version: Optional[str] = Field(None, description="Model version")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class UpdateModelMetadataRequest(BaseModel):
+        """Request model for updating model metadata."""
+        name: str = Field(..., description="Model name")
+        version: str = Field(..., description="Model version")
+        metadata_update: Dict[str, Any] = Field(..., description="Dictionary of metadata to update")
+
+    class UpdateModelMetadataResponse(BaseModel):
+        """Response model for metadata update operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("update_model_metadata", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        model_name: Optional[str] = Field(None, description="Model name")
+        version: Optional[str] = Field(None, description="Model version")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Updated metadata")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class DeleteModelRequest(BaseModel):
+        """Request model for deleting models."""
+        name: str = Field(..., description="Model name")
+        version: Optional[str] = Field(None, description="Specific version to delete (all versions if None)")
+
+    class DeleteModelResponse(BaseModel):
+        """Response model for model deletion operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("delete_model", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        model_name: Optional[str] = Field(None, description="Model name")
+        deleted_versions: Optional[List[str]] = Field(None, description="List of deleted versions")
+        all_versions_deleted: Optional[bool] = Field(None, description="Whether all versions were deleted")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class GetModelCIDRequest(BaseModel):
+        """Request model for retrieving model CIDs."""
+        name: str = Field(..., description="Model name")
+        version: Optional[str] = Field(None, description="Model version (latest if not specified)")
+
+    class GetModelCIDResponse(BaseModel):
+        """Response model for CID retrieval operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("get_model_cid", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        model_name: str = Field(..., description="Model name")
+        version: Optional[str] = Field(None, description="Model version retrieved")
+        cid: Optional[str] = Field(None, description="Content identifier for the model")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    # Dataset Manager related models
+    class LoadDatasetRequest(BaseModel):
+        """Request model for loading a dataset from the registry."""
+        name: Optional[str] = Field(None, description="Dataset name to load from registry")
+        version: Optional[str] = Field(None, description="Dataset version (loads latest version if not specified)")
+        cid: Optional[str] = Field(None, description="Content identifier to load directly (alternative to name/version)")
+        format: Optional[str] = Field(None, description="Optional format to convert the dataset to after loading")
+        return_metadata: bool = Field(True, description="Whether to return metadata along with the dataset")
+        
+        @validator('name', 'cid')
+        def validate_name_or_cid(cls, v, values):
+            """Ensure that either name or cid is provided."""
+            # Only validate when this is the field being validated
+            # This avoids duplicate errors when both name and cid are missing
+            if 'name' in values or 'cid' in values:
+                return v
+                
+            if not v and 'name' not in values and 'cid' not in values:
+                raise ValueError("Either name or cid must be provided")
+            return v
+
+    class LoadDatasetResponse(BaseModel):
+        """Response model for dataset loading operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("load_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset: Optional[Any] = Field(None, description="The loaded dataset object")
+        dataset_name: Optional[str] = Field(None, description="Name of the loaded dataset")
+        version: Optional[str] = Field(None, description="Version of the loaded dataset")
+        cid: Optional[str] = Field(None, description="Content identifier of the dataset")
+        format: Optional[str] = Field(None, description="Format of the dataset")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
+        warnings: Optional[List[str]] = Field(None, description="Non-critical warnings during loading")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+        
+    class GetDatasetCIDRequest(BaseModel):
+        """Request model for retrieving dataset CIDs."""
+        name: str = Field(..., description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+
+    class GetDatasetCIDResponse(BaseModel):
+        """Response model for dataset CID retrieval operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("get_dataset_cid", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset_name: str = Field(..., description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version retrieved")
+        cid: Optional[str] = Field(None, description="Content identifier for the dataset")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+        
+    class DeleteDatasetRequest(BaseModel):
+        """Request model for deleting datasets."""
+        name: str = Field(..., description="Dataset name to delete")
+        version: Optional[str] = Field(None, description="Specific version to delete (all versions if None)")
+
+    class DeleteDatasetResponse(BaseModel):
+        """Response model for dataset deletion operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("delete_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset_name: Optional[str] = Field(None, description="Dataset name")
+        deleted_versions: Optional[List[str]] = Field(None, description="List of deleted versions")
+        all_versions_deleted: Optional[bool] = Field(None, description="Whether all versions were deleted")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+        
+    class ShareDatasetRequest(BaseModel):
+        """Request model for sharing datasets."""
+        name: Optional[str] = Field(None, description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+        cid: Optional[str] = Field(None, description="Dataset CID (alternative to name/version)")
+        
+        @validator('name', 'cid')
+        def validate_name_or_cid(cls, v, values):
+            """Ensure that either name or cid is provided."""
+            if not v and 'name' not in values and 'cid' not in values:
+                raise ValueError("Either name or cid must be provided")
+            return v
+
+    class ShareDatasetResponse(BaseModel):
+        """Response model for dataset sharing operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("share_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        cid: Optional[str] = Field(None, description="Content identifier for the dataset")
+        dataset_name: Optional[str] = Field(None, description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version")
+        ipfs_uri: Optional[str] = Field(None, description="IPFS URI for the dataset")
+        gateway_links: Optional[List[str]] = Field(None, description="Gateway links for accessing the dataset")
+        share_command: Optional[str] = Field(None, description="IPFS command to retrieve the dataset")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+        
+    class ListDatasetsResponse(BaseModel):
+        """Response model for listing datasets from the registry."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("list_datasets", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        datasets: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Dictionary of datasets organized by name and version")
+        count: Optional[int] = Field(None, description="Number of unique dataset names")
+        version_count: Optional[int] = Field(None, description="Total number of dataset versions")
+        registry_cid: Optional[str] = Field(None, description="Content identifier for the registry")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+        
+    # IPFSDataLoader related models - keep these separate for backward compatibility
+    class IPFSDataLoaderRequest(BaseModel):
+        """Request model for loading a dataset via IPFSDataLoader."""
+        dataset_cid: str = Field(..., description="CID of the dataset to load")
+
+    class IPFSDataLoaderResponse(BaseModel):
+        """Response model for IPFSDataLoader operations."""
+        success: bool = Field(..., description="Operation success status")
+        dataset_cid: str = Field(..., description="Dataset CID")
+        total_samples: Optional[int] = Field(None, description="Total number of samples in the dataset")
+        format: Optional[str] = Field(None, description="Dataset format (embedded, referenced)")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
+        load_time_ms: Optional[float] = Field(None, description="Load time in milliseconds")
+        sharded: Optional[bool] = Field(None, description="Whether this is a sharded dataset")
+        total_shards: Optional[int] = Field(None, description="Total number of shards")
+        loaded_shard: Optional[int] = Field(None, description="Index of loaded shard")
+        mocked: Optional[bool] = Field(None, description="Whether this is a mock dataset")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+        
+    class CreateVectorStoreRequest(BaseModel):
+        """Request model for creating vector stores."""
+        documents: Any = Field(..., description="Documents to add to the vector store")
+        embedding_model: Optional[str] = Field(None, description="Embedding model to use")
+        collection_name: Optional[str] = Field(None, description="Name for the vector collection")
+        metadata: Optional[Dict[str, Any]] = Field({}, description="Additional metadata to store")
+        
+    class CreateVectorStoreResponse(BaseModel):
+        """Response model for vector store creation operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("create_vector_store", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        vector_store: Optional[Any] = Field(None, description="The created vector store object")
+        vector_store_id: Optional[str] = Field(None, description="Identifier for the vector store")
+        document_count: Optional[int] = Field(None, description="Number of documents in the store")
+        embedding_model: Optional[str] = Field(None, description="Embedding model used")
+        processing_time_seconds: Optional[float] = Field(None, description="Processing time in seconds")
+        warnings: Optional[List[str]] = Field(None, description="Non-critical warnings during creation")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class EmbeddedDatasetRequest(BaseModel):
+        """Request model for loading an embedded dataset."""
+        data_array: List[Any] = Field(..., description="List of data samples to use")
+
+    class EmbeddedDatasetResponse(BaseModel):
+        """Response model for embedded dataset loading operations."""
+        success: bool = Field(..., description="Operation success status")
+        total_samples: Optional[int] = Field(None, description="Total number of samples")
+        format: Optional[str] = Field(None, description="Dataset format")
+        load_time_ms: Optional[float] = Field(None, description="Load time in milliseconds")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    class PerformanceMetrics(BaseModel):
+        """Model for performance metrics from the data loader."""
+        cache_hits: int = Field(0, description="Number of successful cache retrievals")
+        cache_misses: int = Field(0, description="Number of cache misses requiring IPFS fetches")
+        cache_hit_rate: float = Field(0.0, description="Ratio of hits to total access attempts")
+        avg_batch_time_ms: Optional[float] = Field(None, description="Average time to load a batch in milliseconds")
+        min_batch_time_ms: Optional[float] = Field(None, description="Minimum batch loading time")
+        max_batch_time_ms: Optional[float] = Field(None, description="Maximum batch loading time")
+        avg_load_time_ms: Optional[float] = Field(None, description="Average dataset loading time")
+        total_samples: int = Field(0, description="Total number of samples in the dataset")
+        batch_size: int = Field(32, description="Current batch size setting")
+        dataset_format: Optional[str] = Field(None, description="Format of the current dataset")
+        prefetch_queue_size: int = Field(2, description="Current prefetch queue size setting")
+        samples_processed: int = Field(0, description="Number of samples processed so far")
+        total_prefetch_time: float = Field(0.0, description="Total time spent in prefetching")
+    
+    # DatasetManager-specific models
+    class StoreDatasetRequest(BaseModel):
+        """Request model for storing datasets."""
+        name: str = Field(..., description="Name to identify the dataset")
+        version: Optional[str] = Field("1.0.0", description="Version string")
+        format: Optional[str] = Field(None, description="Dataset format (detected automatically if not provided)")
+        chunk_size: Optional[int] = Field(None, description="Size of chunks for large datasets")
+        convert_to: Optional[str] = Field(None, description="Format to convert the dataset to")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to store with the dataset")
+    
+    class StoreDatasetResponse(BaseModel):
+        """Response model for dataset storage operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("store_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset_name: Optional[str] = Field(None, description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version")
+        format: Optional[str] = Field(None, description="Dataset format")
+        cid: Optional[str] = Field(None, description="Content identifier for the dataset")
+        size_bytes: Optional[int] = Field(None, description="Total size in bytes")
+        chunk_count: Optional[int] = Field(None, description="Number of chunks if chunked")
+        local_path: Optional[str] = Field(None, description="Local path to the dataset")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    class DatasetLoadRequest(BaseModel):
+        """Request model for loading a dataset by name/version or CID."""
+        name: Optional[str] = Field(None, description="Dataset name to load")
+        version: Optional[str] = Field(None, description="Dataset version (loads latest if not specified)")
+        cid: Optional[str] = Field(None, description="CID to load (alternative to name/version)")
+        format: Optional[str] = Field(None, description="Format to convert the dataset to")
+        
+        @validator('name', 'cid')
+        def validate_name_or_cid(cls, v, values):
+            if not v and 'name' not in values and 'cid' not in values:
+                raise ValueError("Either name or cid must be provided")
+            return v
+    
+    class DatasetLoadResponse(BaseModel):
+        """Response model for dataset loading operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("load_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset_name: Optional[str] = Field(None, description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version")
+        format: Optional[str] = Field(None, description="Dataset format")
+        cid: Optional[str] = Field(None, description="Content identifier for the dataset")
+        sample_count: Optional[int] = Field(None, description="Number of samples")
+        size_bytes: Optional[int] = Field(None, description="Size in bytes")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    class ListDatasetsResponse(BaseModel):
+        """Response model for listing datasets."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("list_datasets", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        datasets: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Dictionary of datasets and versions")
+        count: Optional[int] = Field(None, description="Number of datasets")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    class GetDatasetCIDRequest(BaseModel):
+        """Request model for retrieving dataset CIDs."""
+        name: str = Field(..., description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+    
+    class GetDatasetCIDResponse(BaseModel):
+        """Response model for dataset CID retrieval operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("get_dataset_cid", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset_name: str = Field(..., description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version retrieved")
+        cid: Optional[str] = Field(None, description="Content identifier for the dataset")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    class ShareDatasetRequest(BaseModel):
+        """Request model for sharing datasets."""
+        name: Optional[str] = Field(None, description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+        cid: Optional[str] = Field(None, description="Dataset CID (alternative to name/version)")
+        
+        @validator('name', 'cid')
+        def validate_name_or_cid(cls, v, values):
+            if not v and 'name' not in values and 'cid' not in values:
+                raise ValueError("Either name or cid must be provided")
+            return v
+    
+    class ShareDatasetResponse(BaseModel):
+        """Response model for dataset sharing operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("share_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        cid: Optional[str] = Field(None, description="Content identifier for the dataset")
+        ipfs_uri: Optional[str] = Field(None, description="IPFS URI for the dataset")
+        gateway_links: Optional[List[str]] = Field(None, description="Gateway links for accessing the dataset")
+        share_command: Optional[str] = Field(None, description="IPFS command to retrieve the dataset")
+        dataset_name: Optional[str] = Field(None, description="Dataset name")
+        version: Optional[str] = Field(None, description="Dataset version")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    class DeleteDatasetRequest(BaseModel):
+        """Request model for deleting datasets."""
+        name: str = Field(..., description="Dataset name")
+        version: Optional[str] = Field(None, description="Specific version to delete (all versions if None)")
+    
+    class DeleteDatasetResponse(BaseModel):
+        """Response model for dataset deletion operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("delete_dataset", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        dataset_name: Optional[str] = Field(None, description="Dataset name")
+        deleted_versions: Optional[List[str]] = Field(None, description="List of deleted versions")
+        all_versions_deleted: Optional[bool] = Field(None, description="Whether all versions were deleted")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+    
+    class TrainTestSplitRequest(BaseModel):
+        """Request model for creating train/test splits."""
+        name: str = Field(..., description="Name for the resulting datasets")
+        test_size: float = Field(0.2, description="Proportion of the dataset to include in the test split")
+        random_state: Optional[int] = Field(None, description="Controls the shuffling of the data")
+        stratify: Optional[str] = Field(None, description="Column to use for stratified split")
+        split_column: Optional[str] = Field(None, description="Column to use as split identifier")
+        format: Optional[str] = Field(None, description="Format for the resulting datasets")
+        metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to store")
+    
+    class TrainTestSplitResponse(BaseModel):
+        """Response model for train/test split operations."""
+        success: bool = Field(..., description="Operation success status")
+        operation: str = Field("create_train_test_split", description="Operation name")
+        timestamp: float = Field(..., description="Operation timestamp")
+        train_dataset: Optional[Dict[str, Any]] = Field(None, description="Training dataset information")
+        test_dataset: Optional[Dict[str, Any]] = Field(None, description="Testing dataset information")
+        train_samples: Optional[int] = Field(None, description="Number of training samples")
+        test_samples: Optional[int] = Field(None, description="Number of testing samples")
+        test_size: Optional[float] = Field(None, description="Actual test proportion achieved")
+        error: Optional[str] = Field(None, description="Error message if operation failed")
+        error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
 
 # Check if optional dependencies are available
@@ -80,24 +566,67 @@ class ModelRegistry:
     and distributing machine learning models using IPFS. It supports automatic
     model serialization/deserialization, framework detection, version tracking,
     metadata storage, and model discovery.
+    
+    Features:
+        - Framework-agnostic model storage and retrieval
+        - Automatic framework detection for common ML libraries
+        - Versioned model registry with metadata
+        - Content addressing for immutable model versioning
+        - Local caching for efficient reuse
+        - Sharing capabilities via IPFS gateways
+        - Metadata management and updates
+        - Support for multiple ML frameworks:
+          - PyTorch
+          - TensorFlow
+          - scikit-learn
+          - XGBoost
+          - LightGBM
+          - Hugging Face Transformers
+    
+    Typical usage:
+        ```python
+        from ipfs_kit_py import ipfs_kit
+        
+        # Initialize IPFS Kit
+        kit = ipfs_kit()
+        
+        # Get model registry
+        registry = kit.get_model_registry()
+        
+        # Store a model
+        result = registry.store_model(my_model, "my_classifier", version="1.0.0")
+        
+        # Load a model
+        model, metadata = registry.load_model(name="my_classifier")
+        
+        # Share a model
+        share_info = registry.share_model(name="my_classifier")
+        print(f"Model available at: {share_info['ipfs_uri']}")
+        ```
     """
 
-    def __init__(self, ipfs_client=None, base_path=None, **kwargs):
+    def __init__(
+        self, 
+        ipfs_client: Optional[Any] = None, 
+        base_path: Optional[str] = None, 
+        **kwargs: Any
+    ) -> None:
         """Initialize the model registry.
 
         Args:
-            ipfs_client: An initialized IPFS client
-            base_path: Base directory for storing local files
-            **kwargs: Additional configuration options
+            ipfs_client: An initialized IPFS client with methods for interacting with IPFS network
+            base_path: Base directory for storing local model files and registry
+            **kwargs: Additional configuration options, including:
+                - logger: Custom logger instance
+                - max_cache_size: Maximum size of model cache in bytes
+                - auto_pin: Whether to automatically pin stored models (default: True)
+                - backup_enabled: Whether to create backups of registry (default: True)
         """
-        import datetime
-        import json
-        import logging
-        import os
-
         self.ipfs = ipfs_client
         self.base_path = base_path or os.path.expanduser("~/.ipfs_kit/models")
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
+        self.auto_pin = kwargs.get("auto_pin", True)
+        self.backup_enabled = kwargs.get("backup_enabled", True)
 
         # Create base directory if it doesn't exist
         os.makedirs(self.base_path, exist_ok=True)
@@ -121,57 +650,135 @@ class ModelRegistry:
         self.models_dir = os.path.join(self.base_path, "models")
         os.makedirs(self.models_dir, exist_ok=True)
 
-    def _create_new_registry(self):
-        """Create a new registry structure."""
-        import datetime
-
+    def _create_new_registry(self) -> Dict[str, Any]:
+        """Create a new registry structure with default values.
+        
+        Creates a fresh model registry with initial metadata and empty models dictionary.
+        The registry follows a structured format with versioning and timestamp tracking,
+        making it suitable for distributed synchronization.
+        
+        Returns:
+            Dictionary containing the new registry structure with:
+            - Empty models dictionary
+            - Current timestamp in ISO format
+            - Registry version identifier
+            - Placeholder for registry CID (filled when published to IPFS)
+        """
         return {
             "models": {},
-            "updated_at": datetime.datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
             "version": "1.0.0",
             "registry_cid": None,  # Will be set when published to IPFS
         }
 
-    def _save_registry(self):
-        """Save the registry to disk."""
-        import datetime
-        import json
-
+    def _save_registry(self) -> Optional[str]:
+        """Save the registry to disk and optionally to IPFS.
+        
+        Updates the registry timestamp, writes it to the local filesystem,
+        and if an IPFS client is available, publishes the registry to IPFS
+        for distributed access. The CID of the published registry is stored
+        for future reference.
+        
+        Implements consistent error handling with appropriate logging for
+        failure cases. Creates backups of previous registry versions if
+        backup_enabled is True.
+        
+        Returns:
+            The CID of the published registry if successful, None otherwise
+        """
         # Update timestamp
-        self.registry["updated_at"] = datetime.datetime.now().isoformat()
+        self.registry["updated_at"] = datetime.now().isoformat()
+        
+        # Create backup if enabled
+        if self.backup_enabled and os.path.exists(self.registry_path):
+            backup_dir = os.path.join(self.base_path, "backups")
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            timestamp = int(time.time())
+            backup_path = os.path.join(backup_dir, f"registry_{timestamp}.json")
+            try:
+                shutil.copy2(self.registry_path, backup_path)
+            except Exception as e:
+                self.logger.warning(f"Failed to create registry backup: {e}")
 
         # Save to file
-        with open(self.registry_path, "w") as f:
-            json.dump(self.registry, f, indent=2)
+        try:
+            with open(self.registry_path, "w") as f:
+                json.dump(self.registry, f, indent=2)
+        except (IOError, OSError) as e:
+            self.logger.error(f"Failed to save registry to disk: {e}")
+            return None
 
         # Update registry in IPFS if client available
         if self.ipfs and hasattr(self.ipfs, "ipfs_add_json"):
             try:
                 result = self.ipfs.ipfs_add_json(self.registry)
                 if result.get("success", False):
-                    self.registry["registry_cid"] = result.get("cid") or result.get("Hash")
+                    registry_cid = result.get("cid") or result.get("Hash")
+                    self.registry["registry_cid"] = registry_cid
                     # Save updated registry with CID
                     with open(self.registry_path, "w") as f:
                         json.dump(self.registry, f, indent=2)
+                    
+                    # Attempt to pin if auto_pin is enabled
+                    if self.auto_pin and hasattr(self.ipfs, "pin_add"):
+                        try:
+                            self.ipfs.pin_add(registry_cid)
+                        except Exception as e:
+                            self.logger.warning(f"Failed to pin registry: {e}")
+                    
+                    return registry_cid
             except Exception as e:
                 self.logger.error(f"Failed to publish registry to IPFS: {e}")
+        
+        return None
 
-    def _get_framework_serializer(self, framework):
-        """Get the appropriate serialization handler for a framework.
+    def _get_framework_serializer(self, framework: str) -> Dict[str, Any]:
+        """Get the appropriate serialization handler for a machine learning framework.
+
+        Provides a unified interface for saving and loading models from different
+        ML frameworks. Each serializer provides:
+        - A 'save' method that accepts a model object and path
+        - A 'load' method that accepts a path and returns the model
+        - A 'file_ext' string indicating the file extension or empty for directories
+
+        The method handles graceful degradation when specific frameworks are not
+        available, falling back to pickle serialization as a last resort.
 
         Args:
             framework: Framework name (e.g., 'pytorch', 'tensorflow', 'sklearn')
+                      Currently supported frameworks:
+                      - 'pytorch': PyTorch models
+                      - 'tensorflow': TensorFlow/Keras models
+                      - 'sklearn': scikit-learn models
+                      - 'xgboost': XGBoost models
+                      - 'lightgbm': LightGBM models
+                      - 'transformers': Hugging Face transformers
+                      - 'custom': User-defined models (uses pickle)
+                      - Any other value defaults to pickle serialization
 
         Returns:
-            Dictionary with 'save' and 'load' methods for the framework
+            Dictionary with the following keys:
+            - 'save': Function that accepts (model, path) and saves the model
+            - 'load': Function that accepts (path) and returns the loaded model
+            - 'file_ext': String with file extension (e.g., '.pt', '.pkl') or
+                         empty string if serializer creates a directory
         """
-        import os
         import pickle
+
+        # Define save/load functions with proper closing of file handles
+        def safe_pickle_save(model: Any, path: str) -> None:
+            with open(path, "wb") as f:
+                pickle.dump(model, f)
+                
+        def safe_pickle_load(path: str) -> Any:
+            with open(path, "rb") as f:
+                return pickle.load(f)
 
         # Default serializer (pickle)
         default_serializer = {
-            "save": lambda model, path: pickle.dump(model, open(path, "wb")),
-            "load": lambda path: pickle.load(open(path, "rb")),
+            "save": safe_pickle_save,
+            "load": safe_pickle_load,
             "file_ext": ".pkl",
         }
 
@@ -198,8 +805,8 @@ class ModelRegistry:
         # scikit-learn serializer
         elif framework == "sklearn" and SKLEARN_AVAILABLE:
             return {
-                "save": lambda model, path: pickle.dump(model, open(path, "wb")),
-                "load": lambda path: pickle.load(open(path, "rb")),
+                "save": safe_pickle_save,
+                "load": safe_pickle_load,
                 "file_ext": ".sklearn",
             }
 
@@ -234,7 +841,7 @@ class ModelRegistry:
         # Hugging Face serializer
         elif framework == "transformers":
             try:
-                from transformers import AutoModel, PreTrainedModel
+                from transformers import AutoModel
 
                 return {
                     "save": lambda model, path: model.save_pretrained(path),
@@ -244,18 +851,60 @@ class ModelRegistry:
             except ImportError:
                 self.logger.warning("Transformers not available, using pickle serialization")
                 return default_serializer
+        
+        # JAX/Flax serializer
+        elif framework == "flax" or framework == "jax":
+            try:
+                import flax
+                
+                def save_flax_model(model, path):
+                    with open(path, "wb") as f:
+                        f.write(flax.serialization.to_bytes(model))
+                
+                def load_flax_model(path):
+                    with open(path, "rb") as f:
+                        return flax.serialization.from_bytes(model, f.read())
+                
+                return {
+                    "save": save_flax_model,
+                    "load": load_flax_model,
+                    "file_ext": ".flax",
+                }
+            except ImportError:
+                self.logger.warning("Flax not available, using pickle serialization")
+                return default_serializer
 
         # Default for unknown frameworks
         return default_serializer
 
-    def _detect_framework(self, model):
-        """Detect framework from model object.
+    def _detect_framework(self, model: Any) -> str:
+        """Automatically detect the machine learning framework from a model object.
+
+        Inspects the model object using type checking and attribute examination to
+        determine which ML framework it belongs to. This enables automatic handling
+        of different model types without requiring the user to specify the framework.
+        
+        The detection follows a priority order, checking for framework-specific
+        signatures. It handles common ML libraries including PyTorch, TensorFlow,
+        scikit-learn, XGBoost, LightGBM, and Hugging Face Transformers. For 
+        unsupported or custom model types, it attempts to make an educated guess
+        based on naming patterns.
 
         Args:
-            model: Machine learning model object
+            model: Machine learning model object to inspect
 
         Returns:
-            String representing the detected framework
+            String representing the detected framework:
+            - "pytorch": PyTorch neural network model
+            - "tensorflow": TensorFlow/Keras model
+            - "sklearn": scikit-learn estimator
+            - "xgboost": XGBoost model
+            - "lightgbm": LightGBM model
+            - "transformers": Hugging Face Transformers model
+            - "jax" or "flax": JAX/Flax model
+            - "custom": Model with "Model" or "Estimator" in class name
+            - "dummy": Test model with {"type": "dummy_model"}
+            - "unknown": Could not determine framework
         """
         # Check if it's a PyTorch model
         if TORCH_AVAILABLE:
@@ -269,6 +918,9 @@ class ModelRegistry:
             import tensorflow as tf
 
             if isinstance(model, tf.keras.Model) or isinstance(model, tf.Module):
+                return "tensorflow"
+            # Check for SavedModel dictionary
+            if isinstance(model, dict) and 'keras_version' in model:
                 return "tensorflow"
 
         # Check if it's a scikit-learn model
@@ -307,12 +959,55 @@ class ModelRegistry:
                 return "transformers"
         except ImportError:
             pass
+            
+        # Check if it's a JAX/Flax model
+        try:
+            import flax
+            
+            if isinstance(model, flax.linen.Module) or hasattr(model, 'params'):
+                return "flax"
+        except ImportError:
+            pass
+        
+        try:
+            import jax
+            
+            # Check for typical JAX model patterns (state dict with params)
+            if isinstance(model, dict) and 'params' in model:
+                return "jax"
+        except ImportError:
+            pass
 
-        # Fallback for unknown or custom frameworks
+        # Look for framework-specific attributes
+        if hasattr(model, "state_dict") and callable(getattr(model, "state_dict", None)):
+            return "pytorch"  # Likely PyTorch
+            
+        if hasattr(model, "get_weights") and callable(getattr(model, "get_weights", None)):
+            return "tensorflow"  # Likely TensorFlow/Keras
+            
+        if hasattr(model, "get_params") and callable(getattr(model, "get_params", None)):
+            return "sklearn"  # Likely scikit-learn
+            
+        if hasattr(model, "feature_importances_"):
+            return "sklearn"  # Common in scikit-learn and tree-based models
+
+        # Fallback for unknown or custom frameworks by name pattern
         if hasattr(model, "__class__") and hasattr(model.__class__, "__name__"):
             class_name = model.__class__.__name__
+            if "Torch" in class_name or "NN" in class_name:
+                return "pytorch"
+            if "TF" in class_name or "Keras" in class_name:
+                return "tensorflow"
+            if "XGB" in class_name:
+                return "xgboost"
+            if "LGB" in class_name:
+                return "lightgbm"
+            if "Transformer" in class_name or "GPT" in class_name or "BERT" in class_name:
+                return "transformers"
             if "Model" in class_name or "Estimator" in class_name:
                 return "custom"
+            if "Flax" in class_name or "JAX" in class_name:
+                return "flax"
 
         # Mock detection for testing
         if isinstance(model, dict) and model.get("type") == "dummy_model":
@@ -320,28 +1015,68 @@ class ModelRegistry:
 
         return "unknown"
 
-    def store_model(self, model, name, version=None, framework=None, metadata=None):
-        """Store a model in the registry.
+    def store_model(
+        self, 
+        model: Any, 
+        name: str, 
+        version: Optional[str] = None, 
+        framework: Optional[str] = None, 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], "StoreModelResponse"]:
+        """Store a machine learning model in the registry.
+
+        Serializes and stores a model with versioning, automatically detecting its 
+        framework type if not specified. The model is saved locally and optionally
+        uploaded to IPFS with content addressing. Model metadata is preserved and
+        extended with system information.
+
+        This is the primary method for persisting models into the IPFS-based registry.
+        It handles all ML framework types through the framework-specific serializers,
+        ensuring consistent storage behavior regardless of the model's origin.
 
         Args:
-            model: Machine learning model object
-            name: Name to identify the model
+            model: Machine learning model object to store
+            name: Name to identify the model (used for retrieval)
             version: Version string (defaults to "1.0.0" if not provided)
             framework: Framework name (detected automatically if not provided)
-            metadata: Additional metadata to store with the model
+            metadata: Additional metadata to store with the model, such as:
+                     - description: A description of the model
+                     - metrics: Performance metrics (accuracy, f1, etc.)
+                     - parameters: Hyperparameters used
+                     - dataset_id: Reference to the dataset used for training
+                     - tags: List of tags for categorization
 
         Returns:
-            Dictionary with storage results including CID
+            If Pydantic is available:
+                StoreModelResponse with storage results and model information
+            Otherwise:
+                Dictionary with:
+                - success: Boolean indicating operation success
+                - model_name: Name provided for the model
+                - version: Version string for the model
+                - framework: Detected or provided framework name
+                - cid: Content identifier for IPFS access
+                - local_path: Path to the stored model files
+                - error/error_type: Error information if operation failed
         """
-        import json
-        import os
-        import shutil
-        import time
-        import uuid
-
+        # Start by creating a result dict (will be converted to Pydantic if available)
         result = {"success": False, "operation": "store_model", "timestamp": time.time()}
 
         try:
+            # Validate parameters using Pydantic if available
+            if PYDANTIC_AVAILABLE:
+                request_model = StoreModelRequest(
+                    name=name,
+                    version=version,
+                    framework=framework,
+                    metadata=metadata
+                )
+                # Extract validated values
+                name = request_model.name
+                version = request_model.version
+                framework = request_model.framework
+                metadata = request_model.metadata
+
             # Use default version if not provided
             if version is None:
                 version = "1.0.0"
@@ -349,6 +1084,7 @@ class ModelRegistry:
             # Detect framework if not provided
             if framework is None:
                 framework = self._detect_framework(model)
+                self.logger.info(f"Detected framework: {framework} for model {name}")
 
             # Create directories for this model
             model_dir = os.path.join(self.models_dir, name, version)
@@ -360,23 +1096,57 @@ class ModelRegistry:
             # Serialize the model
             if serializer["file_ext"]:
                 model_path = os.path.join(model_dir, f"model{serializer['file_ext']}")
-                serializer["save"](model, model_path)
+                try:
+                    serializer["save"](model, model_path)
+                except Exception as e:
+                    self.logger.error(f"Error serializing model with {framework} serializer: {e}")
+                    raise RuntimeError(f"Failed to serialize {framework} model: {str(e)}")
             else:
                 # For frameworks that save to a directory (TF, HF)
                 model_path = os.path.join(model_dir, "model")
                 os.makedirs(model_path, exist_ok=True)
-                serializer["save"](model, model_path)
+                try:
+                    serializer["save"](model, model_path)
+                except Exception as e:
+                    self.logger.error(f"Error serializing model with {framework} serializer: {e}")
+                    raise RuntimeError(f"Failed to serialize {framework} model: {str(e)}")
 
-            # Save metadata
+            # Prepare and validate metadata
             metadata = metadata or {}
-            metadata.update(
-                {
+            
+            # Structure the metadata for validation if Pydantic is available
+            if PYDANTIC_AVAILABLE:
+                try:
+                    base_metadata = {
+                        "framework": framework,
+                        "stored_at": time.time(),
+                        "stored_by": os.environ.get("USER", "unknown"),
+                    }
+                    # Merge with provided metadata
+                    combined_metadata = {**base_metadata, **metadata}
+                    # Validate with ModelMetadata schema
+                    validated_metadata = ModelMetadata(
+                        framework=framework,
+                        **{k: v for k, v in combined_metadata.items() if k != "framework"}
+                    ).dict(exclude_unset=True)
+                    metadata = validated_metadata
+                except Exception as e:
+                    self.logger.warning(f"Metadata validation failed, using unvalidated version: {e}")
+                    # Fall back to unvalidated metadata
+                    metadata.update({
+                        "framework": framework,
+                        "stored_at": time.time(),
+                        "stored_by": os.environ.get("USER", "unknown"),
+                    })
+            else:
+                # Without Pydantic, just update with required fields
+                metadata.update({
                     "framework": framework,
                     "stored_at": time.time(),
                     "stored_by": os.environ.get("USER", "unknown"),
-                }
-            )
+                })
 
+            # Save metadata
             metadata_path = os.path.join(model_dir, "metadata.json")
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f, indent=2)
@@ -385,25 +1155,29 @@ class ModelRegistry:
             cid = None
             if self.ipfs:
                 if hasattr(self.ipfs, "ipfs_add_path"):
+                    self.logger.debug(f"Adding model directory to IPFS: {model_dir}")
                     add_result = self.ipfs.ipfs_add_path(model_dir)
                     if add_result.get("success", False):
                         cid = add_result.get("cid") or add_result.get("Hash")
+                        self.logger.info(f"Model {name} v{version} added to IPFS with CID: {cid}")
                     else:
-                        self.logger.warning(
-                            f"Failed to add model to IPFS: {add_result.get('error', 'Unknown error')}"
-                        )
+                        error_msg = add_result.get('error', 'Unknown error')
+                        self.logger.warning(f"Failed to add model to IPFS: {error_msg}")
                 else:
-                    self.logger.warning("IPFS client does not support ipfs_add_path")
+                    self.logger.warning("IPFS client does not support ipfs_add_path method")
 
             # Use a placeholder CID if we couldn't add to IPFS
             if not cid:
                 cid = f"Qm{uuid.uuid4().hex[:38]}"
-                self.logger.warning("Using placeholder CID for model")
+                self.logger.warning(f"Using placeholder CID for model {name} v{version}: {cid}")
 
-            # Pin the content if pinning is available
-            if self.ipfs and hasattr(self.ipfs, "pin_add"):
+            # Pin the content if auto_pin is enabled
+            if self.auto_pin and self.ipfs and hasattr(self.ipfs, "pin_add") and cid:
                 try:
-                    self.ipfs.pin_add(cid)
+                    self.logger.debug(f"Pinning model CID: {cid}")
+                    pin_result = self.ipfs.pin_add(cid)
+                    if not pin_result.get("success", False):
+                        self.logger.warning(f"Failed to pin model: {pin_result.get('error', 'Unknown error')}")
                 except Exception as e:
                     self.logger.warning(f"Failed to pin model: {e}")
 
@@ -422,42 +1196,90 @@ class ModelRegistry:
             self._save_registry()
 
             # Success result
-            result.update(
-                {
-                    "success": True,
-                    "model_name": name,
-                    "version": version,
-                    "framework": framework,
-                    "cid": cid,
-                    "local_path": model_dir,
-                }
-            )
+            result.update({
+                "success": True,
+                "model_name": name,
+                "version": version,
+                "framework": framework,
+                "cid": cid,
+                "local_path": model_dir,
+            })
 
+            # Return Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return StoreModelResponse(**result)
             return result
 
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error storing model: {e}")
+            
+            # Return Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return StoreModelResponse(**result)
             return result
 
-    def load_model(self, name=None, version=None, cid=None):
+    def load_model(
+        self, 
+        name: Optional[str] = None, 
+        version: Optional[str] = None, 
+        cid: Optional[str] = None
+    ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadModelResponse"]:
         """Load a model from the registry.
 
+        Retrieves a model by name/version or directly by CID. The method attempts to 
+        load from local cache first for performance, falling back to IPFS retrieval
+        if necessary. Successfully retrieved models from IPFS are cached locally
+        for future use.
+
+        The method handles framework-specific deserialization automatically, using the 
+        appropriate loading method based on the model's framework. It supports all
+        major ML frameworks and provides consistent error handling.
+
         Args:
-            name: Model name to load
-            version: Model version (loads latest if not specified)
-            cid: CID to load (alternative to name/version)
+            name: Model name to load (from registry)
+            version: Model version (loads latest version if not specified)
+            cid: Content identifier to load directly (alternative to name/version)
+              Note: At least one of name or cid must be provided
 
         Returns:
-            Tuple of (model, metadata) or dict with error information
-        """
-        import json
-        import os
-        import shutil
-        import tempfile
-        import time
+            If successful:
+                Tuple of (model, metadata) where:
+                - model: The loaded ML model object
+                - metadata: Dictionary of model metadata
 
+            If failed and Pydantic is available:
+                LoadModelResponse with error information
+                
+            If failed without Pydantic:
+                Dictionary with error information including:
+                - success: False
+                - error: Error message
+                - error_type: Type of error
+                - operation: "load_model"
+                - timestamp: Operation timestamp
+        """
+        # Validate request if Pydantic is available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate that either name or cid is provided
+                request_model = LoadModelRequest(name=name, version=version, cid=cid)
+                name = request_model.name
+                version = request_model.version
+                cid = request_model.cid
+            except Exception as e:
+                # Return validation error as LoadModelResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "load_model", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return LoadModelResponse(**error_result)
+
+        # Initialize result tracking
         result = {"success": False, "operation": "load_model", "timestamp": time.time()}
 
         try:
@@ -466,7 +1288,7 @@ class ModelRegistry:
             model_framework = None
 
             if cid:
-                # Find model by CID
+                # Find model by CID in registry (if it exists there)
                 found = False
                 for model_name, versions in self.registry["models"].items():
                     for ver, data in versions.items():
@@ -476,123 +1298,218 @@ class ModelRegistry:
                             model_cid = cid
                             model_framework = data["framework"]
                             found = True
+                            self.logger.debug(f"Found model {name} v{version} matching CID {cid}")
                             break
                     if found:
                         break
 
                 if not found:
+                    self.logger.debug(f"CID {cid} not found in registry, will attempt direct loading")
                     model_cid = cid  # Use provided CID even if not in registry
 
             elif name:
                 # Ensure model exists in registry
                 if name not in self.registry["models"]:
-                    result["error"] = f"Model '{name}' not found in registry"
+                    error_msg = f"Model '{name}' not found in registry"
+                    self.logger.warning(error_msg)
+                    result["error"] = error_msg
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return LoadModelResponse(**result)
                     return result
 
                 # Determine version
                 if version is None:
-                    # Get latest version
-                    version = max(
-                        self.registry["models"][name].keys(),
-                        key=lambda v: self.registry["models"][name][v]["added_at"],
-                    )
+                    try:
+                        # Get latest version based on added_at timestamp
+                        version = max(
+                            self.registry["models"][name].keys(),
+                            key=lambda v: self.registry["models"][name][v]["added_at"],
+                        )
+                        self.logger.debug(f"Using latest version {version} for model {name}")
+                    except Exception as e:
+                        error_msg = f"Error determining latest version for model '{name}': {str(e)}"
+                        self.logger.error(error_msg)
+                        result["error"] = error_msg
+                        result["error_type"] = type(e).__name__
+                        
+                        # Return as Pydantic model if available
+                        if PYDANTIC_AVAILABLE:
+                            return LoadModelResponse(**result)
+                        return result
 
                 # Ensure version exists
                 if version not in self.registry["models"][name]:
-                    result["error"] = f"Version '{version}' not found for model '{name}'"
+                    error_msg = f"Version '{version}' not found for model '{name}'"
+                    self.logger.warning(error_msg)
+                    result["error"] = error_msg
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return LoadModelResponse(**result)
                     return result
 
-                # Get CID
+                # Get CID and framework info
                 model_cid = self.registry["models"][name][version]["cid"]
                 model_framework = self.registry["models"][name][version]["framework"]
+                self.logger.debug(f"Found model {name} v{version} with CID {model_cid}, framework: {model_framework}")
 
             else:
-                result["error"] = "Either name or cid must be provided"
+                error_msg = "Either name or cid must be provided"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return LoadModelResponse(**result)
                 return result
 
-            # Try to load locally first if possible
+            # Try to load locally first if possible (faster than IPFS retrieval)
             local_model = None
             model_metadata = {}
             if name and version:
                 local_path = os.path.join(self.models_dir, name, version)
                 if os.path.exists(local_path):
+                    self.logger.debug(f"Attempting to load model from local path: {local_path}")
                     try:
                         # Load metadata
                         metadata_path = os.path.join(local_path, "metadata.json")
                         if os.path.exists(metadata_path):
                             with open(metadata_path, "r") as f:
                                 model_metadata = json.load(f)
+                                # Update framework from metadata if present
                                 model_framework = model_metadata.get("framework", model_framework)
 
-                        # Get serializer
+                        # Ensure we have a framework type for serializer
+                        if not model_framework:
+                            error_msg = "Could not determine model framework type for loading"
+                            self.logger.warning(error_msg)
+                            result["error"] = error_msg
+                            
+                            # Return as Pydantic model if available
+                            if PYDANTIC_AVAILABLE:
+                                return LoadModelResponse(**result)
+                            return result
+
+                        # Get appropriate serializer for model framework
                         serializer = self._get_framework_serializer(model_framework)
 
-                        # Load model
+                        # Load model using framework-specific serializer
                         if serializer["file_ext"]:
                             model_path = os.path.join(local_path, f"model{serializer['file_ext']}")
                             if os.path.exists(model_path):
-                                local_model = serializer["load"](model_path)
+                                self.logger.debug(f"Loading model from {model_path}")
+                                try:
+                                    local_model = serializer["load"](model_path)
+                                    self.logger.info(f"Successfully loaded model {name} v{version} from local cache")
+                                except Exception as e:
+                                    self.logger.warning(f"Error loading model with {model_framework} serializer: {e}")
+                                    # Don't fail yet, try other methods
                         else:
+                            # For frameworks that save to a directory (TF, HF, etc.)
                             model_path = os.path.join(local_path, "model")
                             if os.path.exists(model_path):
-                                local_model = serializer["load"](model_path)
+                                self.logger.debug(f"Loading model from directory {model_path}")
+                                try:
+                                    local_model = serializer["load"](model_path)
+                                    self.logger.info(f"Successfully loaded model {name} v{version} from local cache")
+                                except Exception as e:
+                                    self.logger.warning(f"Error loading model with {model_framework} serializer: {e}")
+                                    # Don't fail yet, try other methods
                     except Exception as e:
                         self.logger.warning(f"Failed to load model locally: {e}")
                         local_model = None
 
             # If local load failed and we have IPFS client, try from IPFS
             if local_model is None and model_cid and self.ipfs:
+                self.logger.info(f"Attempting to load model from IPFS using CID: {model_cid}")
                 try:
                     # Create temporary directory for IPFS content
                     temp_dir = tempfile.mkdtemp()
+                    self.logger.debug(f"Created temporary directory for model: {temp_dir}")
 
                     # Get model files from IPFS
                     if hasattr(self.ipfs, "get"):
+                        self.logger.debug(f"Retrieving model with CID {model_cid} from IPFS")
                         get_result = self.ipfs.get(model_cid, temp_dir)
                         if not get_result.get("success", False):
-                            raise Exception(
-                                f"Failed to get model from IPFS: {get_result.get('error', 'Unknown error')}"
-                            )
+                            error_msg = get_result.get('error', 'Unknown error')
+                            raise ValueError(f"Failed to get model from IPFS: {error_msg}")
                     else:
                         # Fallback for clients without get method
-                        raise Exception("IPFS client does not support get method")
+                        raise NotImplementedError("IPFS client does not support get method")
 
                     # Load metadata
                     model_dir = os.path.join(temp_dir, model_cid)
                     metadata_path = os.path.join(model_dir, "metadata.json")
                     if os.path.exists(metadata_path):
-                        with open(metadata_path, "r") as f:
-                            model_metadata = json.load(f)
-                            model_framework = model_metadata.get("framework", model_framework)
+                        try:
+                            with open(metadata_path, "r") as f:
+                                model_metadata = json.load(f)
+                                # Update framework from metadata if present
+                                model_framework = model_metadata.get("framework", model_framework)
+                        except json.JSONDecodeError as e:
+                            self.logger.warning(f"Failed to parse metadata JSON: {e}")
+                            # Continue with whatever framework info we have
+
+                    # If we still don't have framework info, try to infer from directory contents
+                    if not model_framework:
+                        model_framework = self._infer_framework_from_files(model_dir)
+                        if model_framework:
+                            self.logger.info(f"Inferred framework {model_framework} from model files")
+                        else:
+                            model_framework = "unknown"  # Default fallback
 
                     # Get serializer
                     serializer = self._get_framework_serializer(model_framework)
 
                     # Load model
-                    if serializer["file_ext"]:
-                        model_path = os.path.join(model_dir, f"model{serializer['file_ext']}")
-                        if os.path.exists(model_path):
-                            local_model = serializer["load"](model_path)
-                    else:
-                        model_path = os.path.join(model_dir, "model")
-                        if os.path.exists(model_path):
-                            local_model = serializer["load"](model_path)
+                    try:
+                        if serializer["file_ext"]:
+                            model_path = os.path.join(model_dir, f"model{serializer['file_ext']}")
+                            if os.path.exists(model_path):
+                                self.logger.debug(f"Loading model from IPFS at {model_path}")
+                                local_model = serializer["load"](model_path)
+                        else:
+                            model_path = os.path.join(model_dir, "model")
+                            if os.path.exists(model_path):
+                                self.logger.debug(f"Loading model from IPFS directory at {model_path}")
+                                local_model = serializer["load"](model_path)
+                    except Exception as e:
+                        self.logger.error(f"Failed to load model with {model_framework} serializer: {e}")
+                        # Try fallback to pickle if primary serializer fails
+                        if model_framework != "unknown":
+                            try:
+                                self.logger.debug("Attempting fallback to pickle serialization")
+                                fallback = self._get_framework_serializer("unknown")
+                                pickle_path = os.path.join(model_dir, "model.pkl")
+                                if os.path.exists(pickle_path):
+                                    local_model = fallback["load"](pickle_path)
+                                    self.logger.info("Successfully loaded model with fallback serializer")
+                            except Exception as fallback_e:
+                                self.logger.error(f"Fallback serialization also failed: {fallback_e}")
 
-                    # Save to local cache if name and version provided
-                    if name and version:
+                    # If model loaded successfully, save to local cache if name and version provided
+                    if local_model is not None and name and version:
                         local_path = os.path.join(self.models_dir, name, version)
                         os.makedirs(local_path, exist_ok=True)
+                        self.logger.debug(f"Saving model to local cache at {local_path}")
 
                         # Copy files to local cache
                         for item in os.listdir(model_dir):
                             src = os.path.join(model_dir, item)
                             dst = os.path.join(local_path, item)
-                            if os.path.isdir(src):
-                                if os.path.exists(dst):
-                                    shutil.rmtree(dst)
-                                shutil.copytree(src, dst)
-                            else:
-                                shutil.copy2(src, dst)
+                            try:
+                                if os.path.isdir(src):
+                                    if os.path.exists(dst):
+                                        shutil.rmtree(dst)
+                                    shutil.copytree(src, dst)
+                                else:
+                                    shutil.copy2(src, dst)
+                            except Exception as e:
+                                self.logger.warning(f"Failed to copy {item} to local cache: {e}")
+                                # Continue with other files
 
                         # Add to registry if not already there
                         if name not in self.registry["models"]:
@@ -608,22 +1525,36 @@ class ModelRegistry:
 
                             # Save registry
                             self._save_registry()
+                            self.logger.info(f"Added model {name} v{version} to registry")
 
                 except Exception as e:
                     self.logger.error(f"Failed to load model from IPFS: {e}")
+                    # Add info to result but continue to check if we loaded model
+                    result["ipfs_error"] = str(e)
                 finally:
                     # Clean up temporary directory
                     if "temp_dir" in locals():
-                        shutil.rmtree(temp_dir)
+                        try:
+                            shutil.rmtree(temp_dir)
+                            self.logger.debug(f"Cleaned up temporary directory: {temp_dir}")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to clean up temporary directory: {e}")
 
             # Check if we successfully loaded the model
             if local_model is None:
-                result["error"] = "Failed to load model"
+                error_msg = "Failed to load model from both local cache and IPFS"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return LoadModelResponse(**result)
                 return result
 
             # Add information about the loading to metadata
-            model_metadata["_loaded_from"] = "local" if "local_path" in locals() else "ipfs"
+            model_metadata["_loaded_from"] = "local" if "local_path" in locals() and os.path.exists(local_path) else "ipfs"
             model_metadata["_loaded_at"] = time.time()
+            model_metadata["_framework"] = model_framework
 
             # Return both model and metadata
             return local_model, model_metadata
@@ -632,96 +1563,365 @@ class ModelRegistry:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error loading model: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return LoadModelResponse(**result)
             return result
-
-    def list_models(self):
-        """List models in the registry.
-
+            
+    def _infer_framework_from_files(self, model_dir: str) -> Optional[str]:
+        """Attempt to infer the ML framework from files in the model directory.
+        
+        Args:
+            model_dir: Path to directory containing model files
+            
         Returns:
-            Dictionary with model information
+            Inferred framework name or None if can't be determined
         """
-        import time
+        if not os.path.isdir(model_dir):
+            return None
+            
+        # List all files
+        try:
+            files = os.listdir(model_dir)
+        except Exception:
+            return None
+            
+        # Look for framework-specific file patterns
+        if "model.pt" in files or "model.pth" in files:
+            return "pytorch"
+            
+        if "saved_model.pb" in files:
+            return "tensorflow"
+            
+        if "model.h5" in files:
+            return "tensorflow"
+            
+        if "model.sklearn" in files:
+            return "sklearn"
+            
+        if "model.joblib" in files:
+            return "sklearn"
+            
+        if "model.xgb" in files:
+            return "xgboost"
+            
+        if "model.lgb" in files:
+            return "lightgbm"
+            
+        if "pytorch_model.bin" in files or "config.json" in files:
+            return "transformers"
+            
+        if "model.pkl" in files:
+            # Generic pickle - could be any framework
+            return "unknown"
+            
+        if "model" in files and os.path.isdir(os.path.join(model_dir, "model")):
+            # Directory-based model (TF, HF, etc.)
+            subdir = os.path.join(model_dir, "model")
+            subdir_files = os.listdir(subdir)
+            
+            if "saved_model.pb" in subdir_files:
+                return "tensorflow"
+                
+            if "pytorch_model.bin" in subdir_files:
+                return "transformers"
+                
+        return None
 
+    def list_models(self) -> Union[Dict[str, Any], "ListModelsResponse"]:
+        """List all models in the registry with their versions and metadata.
+
+        Retrieves a comprehensive listing of all models stored in the registry,
+        including their versions, frameworks, and associated metadata. The models
+        are organized hierarchically by name and version.
+        
+        This method provides a centralized view of all available models, making it
+        easier to discover and select models for loading, sharing, or management.
+        
+        Returns:
+            If Pydantic is available:
+                ListModelsResponse with models information including:
+                - success: Boolean indicating operation success
+                - models: Dictionary of models organized by name and version
+                - count: Total number of unique model names
+                - timestamp: Operation timestamp
+                
+            Otherwise:
+                Dictionary with the same fields
+                
+            In case of error, the response includes:
+                - success: False
+                - error: Error message
+                - error_type: Type of error
+        """
+        # Initialize result
         result = {"success": False, "operation": "list_models", "timestamp": time.time()}
 
         try:
+            # Collect model information in nested dictionary
             models = {}
             for model_name, versions in self.registry["models"].items():
                 if model_name not in models:
                     models[model_name] = {}
 
                 for version, data in versions.items():
-                    models[model_name][version] = {
-                        "framework": data["framework"],
-                        "cid": data["cid"],
+                    # Extract core information, handling missing keys gracefully
+                    model_info = {
+                        "framework": data.get("framework", "unknown"),
+                        "cid": data.get("cid", ""),
                         "added_at": data.get("added_at", 0),
-                        "metadata": data.get("metadata", {}),
                     }
+                    
+                    # Add metadata if available
+                    if "metadata" in data:
+                        # Include key metadata fields for easy access
+                        metadata = data["metadata"]
+                        model_info["metadata"] = metadata
+                        
+                        # Extract common metadata fields as top-level properties for convenience
+                        if isinstance(metadata, dict):
+                            for key in ["description", "metrics", "tags", "parameters"]:
+                                if key in metadata:
+                                    model_info[key] = metadata[key]
+                    
+                    # Add local path information if available
+                    local_path = os.path.join(self.models_dir, model_name, version)
+                    if os.path.exists(local_path):
+                        model_info["local_path"] = local_path
+                        model_info["available_locally"] = True
+                    else:
+                        model_info["available_locally"] = False
+                        
+                    models[model_name][version] = model_info
 
-            result.update({"success": True, "models": models, "count": len(models)})
+            # Count unique model names (not including versions)
+            model_count = len(models)
+            
+            # Update result with success information
+            result.update({
+                "success": True, 
+                "models": models, 
+                "count": model_count,
+                "registry_cid": self.registry.get("registry_cid")
+            })
+            
+            # Log success
+            self.logger.debug(f"Listed {model_count} models with {sum(len(versions) for versions in models.values())} total versions")
 
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ListModelsResponse(**result)
             return result
 
         except Exception as e:
+            # Handle any errors that might occur
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error listing models: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ListModelsResponse(**result)
             return result
 
-    def get_model_cid(self, name, version=None):
+    def get_model_cid(
+        self, 
+        name: str, 
+        version: Optional[str] = None
+    ) -> Union[str, Dict[str, Any], "GetModelCIDResponse"]:
         """Get the CID for a specific model version.
-
+        
+        Retrieves the content identifier (CID) for a machine learning model stored
+        in the registry. If version is not specified, returns the CID for the latest
+        version of the model.
+        
         Args:
-            name: Model name
+            name: Model name to look up
             version: Model version (latest if not specified)
-
+            
         Returns:
-            CID string or None if not found
+            If Pydantic is available, returns GetModelCIDResponse with CID and metadata.
+            Otherwise returns either a CID string or result dictionary with operation details.
+        
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
+        # Initialize result tracking
+        result = {
+            "success": False, 
+            "operation": "get_model_cid", 
+            "timestamp": time.time(),
+            "model_name": name
+        }
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = GetModelCIDRequest(name=name, version=version)
+                # Update validated values
+                name = request.name
+                version = request.version
+            except Exception as e:
+                # Return validation error as GetModelCIDResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "get_model_cid", 
+                    "timestamp": time.time(),
+                    "model_name": name,
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return GetModelCIDResponse(**error_result)
+        
         try:
             if name not in self.registry["models"]:
-                return None
+                error_msg = f"Model '{name}' not found in registry"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return GetModelCIDResponse(**result)
+                return result
 
             if version is None:
-                # Get latest version
-                version = max(
-                    self.registry["models"][name].keys(),
-                    key=lambda v: self.registry["models"][name][v]["added_at"],
-                )
+                try:
+                    # Get latest version based on added_at timestamp
+                    version = max(
+                        self.registry["models"][name].keys(),
+                        key=lambda v: self.registry["models"][name][v]["added_at"],
+                    )
+                    self.logger.debug(f"Using latest version {version} for model {name}")
+                except Exception as e:
+                    error_msg = f"Error determining latest version for model '{name}': {str(e)}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = type(e).__name__
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return GetModelCIDResponse(**result)
+                    return result
 
             if version not in self.registry["models"][name]:
-                return None
+                error_msg = f"Version '{version}' not found for model '{name}'"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return GetModelCIDResponse(**result)
+                return result
 
-            return self.registry["models"][name][version]["cid"]
+            # Get the CID
+            cid = self.registry["models"][name][version]["cid"]
+            
+            # Update result with success information
+            result.update({
+                "success": True,
+                "model_name": name,
+                "version": version,
+                "cid": cid
+            })
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return GetModelCIDResponse(**result)
+            return result
 
         except Exception as e:
-            self.logger.error(f"Error getting model CID: {e}")
-            return None
+            error_msg = f"Error getting model CID: {str(e)}"
+            self.logger.error(error_msg)
+            result["error"] = error_msg
+            result["error_type"] = type(e).__name__
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return GetModelCIDResponse(**result)
+            return result
 
-    def share_model(self, name=None, version=None, cid=None):
+    def share_model(
+        self, 
+        name: Optional[str] = None, 
+        version: Optional[str] = None, 
+        cid: Optional[str] = None
+    ) -> Union[Dict[str, Any], "ShareModelResponse"]:
         """Generate shareable link for a model.
-
+        
+        Creates publicly accessible links for a model from IPFS gateways.
+        The model can be specified either by name/version or directly by CID.
+        
         Args:
             name: Model name
             version: Model version (latest if not specified)
             cid: Model CID (alternative to name/version)
-
+            
         Returns:
-            Dictionary with sharing information
+            If Pydantic is available, returns ShareModelResponse with sharing information.
+            Otherwise returns dictionary with sharing details.
+            
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
-        import time
-
+        # Initialize result tracking
         result = {"success": False, "operation": "share_model", "timestamp": time.time()}
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = ShareModelRequest(name=name, version=version, cid=cid)
+                # Update validated values
+                name = request.name
+                version = request.version
+                cid = request.cid
+            except Exception as e:
+                # Return validation error as ShareModelResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "share_model", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return ShareModelResponse(**error_result)
 
         try:
             # Determine model CID
             model_cid = cid
 
             if not model_cid and name:
-                model_cid = self.get_model_cid(name, version)
-
+                # Use the updated get_model_cid method
+                get_result = self.get_model_cid(name, version)
+                
+                # Handle different return types from get_model_cid
+                if isinstance(get_result, dict):
+                    if not get_result.get("success", False):
+                        # Propagate error from get_model_cid
+                        result["error"] = get_result.get("error", "Could not determine model CID")
+                        result["error_type"] = get_result.get("error_type", "UnknownError")
+                        
+                        # Return as Pydantic model if available
+                        if PYDANTIC_AVAILABLE:
+                            return ShareModelResponse(**result)
+                        return result
+                    model_cid = get_result.get("cid")
+                else:
+                    # Direct CID return
+                    model_cid = get_result
+                    
             if not model_cid:
                 result["error"] = "Could not determine model CID"
+                result["error_type"] = "ValidationError"
+                self.logger.warning("Failed to share model: Could not determine CID")
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return ShareModelResponse(**result)
                 return result
 
             # Generate IPFS gateway links
@@ -739,56 +1939,122 @@ class ModelRegistry:
                 gateway_links.append(f"{gateway}{model_cid}")
 
             # Generate sharing info
-            result.update(
-                {
-                    "success": True,
-                    "cid": model_cid,
-                    "ipfs_uri": f"ipfs://{model_cid}",
-                    "gateway_links": gateway_links,
-                    "share_command": f"ipfs cat {model_cid}",
-                }
-            )
+            result.update({
+                "success": True,
+                "cid": model_cid,
+                "ipfs_uri": f"ipfs://{model_cid}",
+                "gateway_links": gateway_links,
+                "share_command": f"ipfs cat {model_cid}",
+            })
 
             # Add name and version if provided
             if name:
                 result["model_name"] = name
                 if version:
                     result["version"] = version
-
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ShareModelResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error sharing model: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error sharing model: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ShareModelResponse(**result)
             return result
 
-    def update_model_metadata(self, name, version, metadata_update):
+    def update_model_metadata(
+        self, 
+        name: str, 
+        version: str, 
+        metadata_update: Dict[str, Any]
+    ) -> Union[Dict[str, Any], "UpdateModelMetadataResponse"]:
         """Update metadata for a model.
-
+        
+        Updates the metadata associated with a specific model version. The update
+        is applied both to the in-memory registry and the persisted metadata file
+        if it exists locally.
+        
         Args:
             name: Model name
             version: Model version
-            metadata_update: Dictionary of metadata to update
-
+            metadata_update: Dictionary of metadata fields to update
+            
         Returns:
-            Dictionary with operation result
+            If Pydantic is available, returns UpdateModelMetadataResponse with operation result.
+            Otherwise returns dictionary with operation details.
+            
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
-        import json
-        import os
-        import time
-
+        # Initialize result tracking
         result = {"success": False, "operation": "update_model_metadata", "timestamp": time.time()}
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = UpdateModelMetadataRequest(
+                    name=name, 
+                    version=version, 
+                    metadata_update=metadata_update
+                )
+                # Update validated values
+                name = request.name
+                version = request.version
+                metadata_update = request.metadata_update
+            except Exception as e:
+                # Return validation error as UpdateModelMetadataResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "update_model_metadata", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return UpdateModelMetadataResponse(**error_result)
 
         try:
             # Ensure model exists
             if name not in self.registry["models"]:
-                result["error"] = f"Model '{name}' not found in registry"
+                error_msg = f"Model '{name}' not found in registry"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return UpdateModelMetadataResponse(**result)
                 return result
 
             # Ensure version exists
             if version not in self.registry["models"][name]:
-                result["error"] = f"Version '{version}' not found for model '{name}'"
+                error_msg = f"Version '{version}' not found for model '{name}'"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return UpdateModelMetadataResponse(**result)
+                return result
+
+            # Validate metadata_update is a dictionary
+            if not isinstance(metadata_update, dict):
+                error_msg = f"metadata_update must be a dictionary, got {type(metadata_update).__name__}"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "ValidationError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return UpdateModelMetadataResponse(**result)
                 return result
 
             # Update metadata in registry
@@ -801,111 +2067,232 @@ class ModelRegistry:
             metadata_path = os.path.join(local_path, "metadata.json")
 
             if os.path.exists(metadata_path):
-                with open(metadata_path, "w") as f:
-                    json.dump(current_metadata, f, indent=2)
+                try:
+                    with open(metadata_path, "w") as f:
+                        json.dump(current_metadata, f, indent=2)
+                    self.logger.debug(f"Updated local metadata file at {metadata_path}")
+                except Exception as e:
+                    # Log error but continue - registry update is more important
+                    self.logger.warning(f"Failed to update local metadata file: {str(e)}")
 
             # Save registry
-            self._save_registry()
+            save_result = self._save_registry()
+            if not save_result.get("success", False):
+                error_msg = f"Failed to save registry: {save_result.get('error', 'Unknown error')}"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "PersistenceError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return UpdateModelMetadataResponse(**result)
+                return result
 
-            result.update(
-                {
-                    "success": True,
-                    "model_name": name,
-                    "version": version,
-                    "metadata": current_metadata,
-                }
-            )
-
+            # Update result with success information
+            result.update({
+                "success": True,
+                "model_name": name,
+                "version": version,
+                "metadata": current_metadata,
+            })
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return UpdateModelMetadataResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error updating model metadata: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error updating model metadata: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return UpdateModelMetadataResponse(**result)
             return result
 
-    def delete_model(self, name, version=None):
+    def delete_model(
+        self, 
+        name: str, 
+        version: Optional[str] = None
+    ) -> Union[Dict[str, Any], "DeleteModelResponse"]:
         """Delete a model from the registry.
-
+        
+        Removes a model (or specific version) from the registry, unpins the content
+        from IPFS if possible, and deletes any local files associated with the model.
+        
         Args:
-            name: Model name
+            name: Model name to delete
             version: Specific version to delete (all versions if None)
-
+            
         Returns:
-            Dictionary with operation result
+            If Pydantic is available, returns DeleteModelResponse with operation result.
+            Otherwise returns dictionary with deletion details.
+            
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
-        import os
-        import shutil
-        import time
-
+        # Initialize result tracking
         result = {"success": False, "operation": "delete_model", "timestamp": time.time()}
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = DeleteModelRequest(name=name, version=version)
+                # Update validated values
+                name = request.name
+                version = request.version
+            except Exception as e:
+                # Return validation error as DeleteModelResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "delete_model", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return DeleteModelResponse(**error_result)
 
         try:
             # Ensure model exists
             if name not in self.registry["models"]:
-                result["error"] = f"Model '{name}' not found in registry"
+                error_msg = f"Model '{name}' not found in registry"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                result["model_name"] = name
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return DeleteModelResponse(**result)
                 return result
 
             # Determine versions to delete
             if version is None:
                 # Delete all versions
                 versions_to_delete = list(self.registry["models"][name].keys())
+                self.logger.info(f"Deleting all versions of model '{name}': {versions_to_delete}")
             else:
                 # Delete specific version
                 if version not in self.registry["models"][name]:
-                    result["error"] = f"Version '{version}' not found for model '{name}'"
+                    error_msg = f"Version '{version}' not found for model '{name}'"
+                    self.logger.warning(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "NotFoundError"
+                    result["model_name"] = name
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return DeleteModelResponse(**result)
                     return result
+                    
                 versions_to_delete = [version]
+                self.logger.info(f"Deleting version '{version}' of model '{name}'")
 
             # Delete local files and unpin from IPFS
             deleted_versions = []
+            deletion_errors = []
+            
             for ver in versions_to_delete:
-                # Get CID for unpinning
-                cid = self.registry["models"][name][ver]["cid"]
+                try:
+                    # Get CID for unpinning
+                    cid = self.registry["models"][name][ver]["cid"]
+                    
+                    # Unpin from IPFS if client available
+                    if self.ipfs and hasattr(self.ipfs, "pin_rm"):
+                        try:
+                            self.ipfs.pin_rm(cid)
+                            self.logger.debug(f"Unpinned model with CID {cid}")
+                        except Exception as e:
+                            error_msg = f"Failed to unpin model {cid}: {str(e)}"
+                            self.logger.warning(error_msg)
+                            deletion_errors.append(error_msg)
 
-                # Unpin from IPFS if client available
-                if self.ipfs and hasattr(self.ipfs, "pin_rm"):
-                    try:
-                        self.ipfs.pin_rm(cid)
-                    except Exception as e:
-                        self.logger.warning(f"Failed to unpin model {cid}: {e}")
+                    # Delete local files
+                    local_path = os.path.join(self.models_dir, name, ver)
+                    if os.path.exists(local_path):
+                        try:
+                            shutil.rmtree(local_path)
+                            self.logger.debug(f"Deleted local files at {local_path}")
+                        except Exception as e:
+                            error_msg = f"Failed to delete local files at {local_path}: {str(e)}"
+                            self.logger.warning(error_msg)
+                            deletion_errors.append(error_msg)
 
-                # Delete local files
-                local_path = os.path.join(self.models_dir, name, ver)
-                if os.path.exists(local_path):
-                    shutil.rmtree(local_path)
-
-                # Remove from registry
-                del self.registry["models"][name][ver]
-                deleted_versions.append(ver)
+                    # Remove from registry
+                    del self.registry["models"][name][ver]
+                    deleted_versions.append(ver)
+                    
+                except Exception as e:
+                    error_msg = f"Error deleting version '{ver}': {str(e)}"
+                    self.logger.error(error_msg)
+                    deletion_errors.append(error_msg)
 
             # If all versions were deleted, remove the model entry
-            if not self.registry["models"][name]:
+            if name in self.registry["models"] and not self.registry["models"][name]:
                 del self.registry["models"][name]
+                self.logger.info(f"Removed model '{name}' from registry (all versions deleted)")
 
                 # Remove model directory if it exists
                 model_dir = os.path.join(self.models_dir, name)
                 if os.path.exists(model_dir):
-                    shutil.rmtree(model_dir)
+                    try:
+                        shutil.rmtree(model_dir)
+                        self.logger.debug(f"Deleted model directory at {model_dir}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete model directory at {model_dir}: {str(e)}"
+                        self.logger.warning(error_msg)
+                        deletion_errors.append(error_msg)
 
             # Save registry
-            self._save_registry()
+            save_result = self._save_registry()
+            if not save_result.get("success", False):
+                error_msg = f"Failed to save registry: {save_result.get('error', 'Unknown error')}"
+                self.logger.error(error_msg)
+                deletion_errors.append(error_msg)
 
-            result.update(
-                {
-                    "success": True,
-                    "model_name": name,
-                    "deleted_versions": deleted_versions,
-                    "all_versions_deleted": version is None or len(deleted_versions) == 1,
-                }
-            )
+            # Check if any versions were actually deleted
+            if not deleted_versions:
+                error_msg = "No versions were deleted"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "DeleteError"
+                result["model_name"] = name
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return DeleteModelResponse(**result)
+                return result
 
+            # Update result with success information
+            result.update({
+                "success": True,
+                "model_name": name,
+                "deleted_versions": deleted_versions,
+                "all_versions_deleted": version is None or len(deleted_versions) == len(versions_to_delete),
+            })
+            
+            # Add any non-critical errors as warnings
+            if deletion_errors:
+                result["warnings"] = deletion_errors
+                
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return DeleteModelResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error deleting model: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error deleting model: {e}")
+            result["model_name"] = name
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return DeleteModelResponse(**result)
             return result
 
 
@@ -1630,29 +3017,57 @@ class DatasetManager:
 
     def store_dataset(
         self,
-        dataset=None,
-        dataset_path=None,
-        name=None,
-        version=None,
-        format=None,
-        chunk_size=None,
-        metadata=None,
-        convert_to=None,
-    ):
-        """Store a dataset in the registry.
-
+        dataset: Optional[Union[Any, "pd.DataFrame", "np.ndarray"]] = None,
+        dataset_path: Optional[str] = None,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        format: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        convert_to: Optional[str] = None,
+    ) -> Union[Dict[str, Any], "StoreDatasetResponse"]:
+        """Store a dataset in the registry with IPFS-backed persistence.
+        
+        Takes a dataset object or path to a dataset file, stores it in the local
+        filesystem, adds it to IPFS for content-addressed storage, and registers
+        it in the dataset registry with metadata. Supports automatic format detection,
+        format conversion, and chunking for large datasets.
+        
         Args:
-            dataset: Dataset object (like pandas DataFrame)
-            dataset_path: Path to dataset file or directory
-            name: Name to identify the dataset
+            dataset: Dataset object (pandas DataFrame, numpy array, etc.) to store
+            dataset_path: Path to dataset file or directory (alternative to dataset object)
+            name: Name to identify the dataset (auto-generated if not provided)
             version: Version string (defaults to "1.0.0" if not provided)
-            format: Format of the dataset (detected automatically if not provided)
-            chunk_size: Maximum size for dataset chunks (defaults to 100MB)
+            format: Format of the dataset (auto-detected if not provided)
+            chunk_size: Maximum size in bytes for dataset chunks (defaults to 100MB)
             metadata: Additional metadata to store with the dataset
             convert_to: Target format to convert the dataset to
-
+        
         Returns:
-            Dictionary with storage results including CID
+            If Pydantic is available, returns StoreDatasetResponse with storage details.
+            Otherwise returns dictionary with storage results including:
+              - success: Boolean indicating operation success
+              - dataset_name: Name of the stored dataset
+              - dataset_cid: Content identifier for the dataset
+              - cid: Alias for dataset_cid (for backward compatibility)
+              - version: Version string
+              - format: Dataset format
+              - stats: Dataset statistics
+        
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
+            
+        Examples:
+            # Store DataFrame
+            >>> df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
+            >>> result = dataset_manager.store_dataset(df, name="example_data")
+            
+            # Store from file path
+            >>> result = dataset_manager.store_dataset(
+            ...     dataset_path="/path/to/data.csv", 
+            ...     name="example_data",
+            ...     convert_to="parquet"
+            ... )
         """
         import json
         import os
@@ -1660,14 +3075,48 @@ class DatasetManager:
         import tempfile
         import time
         import uuid
-
+        
+        # Initialize result tracking
         result = {"success": False, "operation": "store_dataset", "timestamp": time.time()}
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = StoreDatasetRequest(
+                    name=name or "",
+                    version=version,
+                    format=format,
+                    chunk_size=chunk_size,
+                    convert_to=convert_to,
+                    metadata=metadata or {}
+                )
+                # Update validated values
+                name = request.name or None  # Convert empty string back to None
+                version = request.version
+                format = request.format
+                chunk_size = request.chunk_size
+                metadata = request.metadata
+                convert_to = request.convert_to
+            except Exception as e:
+                # Return validation error
+                error_result = {
+                    "success": False, 
+                    "operation": "store_dataset", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return StoreDatasetResponse(**error_result) if PYDANTIC_AVAILABLE else error_result
 
         try:
             # Validate input
             if dataset is None and dataset_path is None:
-                result["error"] = "Either dataset or dataset_path must be provided"
-                return result
+                error_msg = "Either dataset or dataset_path must be provided"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "ValidationError"
+                return StoreDatasetResponse(**result) if PYDANTIC_AVAILABLE else result
 
             # Use default name if not provided
             if name is None:
@@ -1675,26 +3124,32 @@ class DatasetManager:
                     name = os.path.basename(dataset_path)
                     # Remove extension if present
                     name = os.path.splitext(name)[0]
+                    self.logger.debug(f"Using dataset path basename as name: {name}")
                 else:
                     name = f"dataset_{uuid.uuid4().hex[:8]}"
+                    self.logger.debug(f"Generated unique dataset name: {name}")
 
             # Use default version if not provided
             if version is None:
                 version = "1.0.0"
+                self.logger.debug(f"Using default version: {version}")
 
             # Chunk size (default: 100MB)
             if chunk_size is None:
                 chunk_size = self.default_chunk_size
+                self.logger.debug(f"Using default chunk size: {chunk_size} bytes")
 
             # Create directories for this dataset
             dataset_dir = os.path.join(self.datasets_dir, name, version)
             os.makedirs(dataset_dir, exist_ok=True)
+            self.logger.debug(f"Created dataset directory: {dataset_dir}")
 
             # Processing path or object
             temp_dir = None
             if dataset is not None:
                 # Create temporary directory for dataset
                 temp_dir = tempfile.mkdtemp()
+                self.logger.debug(f"Created temporary directory: {temp_dir}")
 
                 # Determine format if not specified
                 if format is None:
@@ -1708,33 +3163,54 @@ class DatasetManager:
                         format = "numpy"
                     else:
                         format = "pickle"
+                    self.logger.debug(f"Auto-detected format: {format}")
 
                 # Save dataset to temp directory
                 dataset_path = os.path.join(temp_dir, f"dataset.{format}")
+                self.logger.info(f"Saving dataset object to temporary file: {dataset_path}")
 
-                if format == "parquet" and hasattr(dataset, "to_parquet"):
-                    dataset.to_parquet(dataset_path)
-                elif format == "csv" and hasattr(dataset, "to_csv"):
-                    dataset.to_csv(dataset_path, index=False)
-                elif format == "json" and hasattr(dataset, "to_json"):
-                    dataset.to_json(dataset_path, orient="records")
-                elif format == "numpy" and hasattr(dataset, "save"):
-                    import numpy as np
+                try:
+                    if format == "parquet" and hasattr(dataset, "to_parquet"):
+                        dataset.to_parquet(dataset_path)
+                    elif format == "csv" and hasattr(dataset, "to_csv"):
+                        dataset.to_csv(dataset_path, index=False)
+                    elif format == "json" and hasattr(dataset, "to_json"):
+                        dataset.to_json(dataset_path, orient="records")
+                    elif format == "numpy" and hasattr(dataset, "save"):
+                        import numpy as np
+                        np.save(dataset_path, dataset)
+                    else:
+                        # Fallback to pickle
+                        import pickle
+                        with open(dataset_path, "wb") as f:
+                            pickle.dump(dataset, f)
+                        format = "pickle"
+                        self.logger.debug(f"Used pickle format as fallback")
+                except Exception as save_err:
+                    error_msg = f"Failed to save dataset to {format} format: {str(save_err)}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = type(save_err).__name__
+                    if temp_dir and os.path.exists(temp_dir):
+                        shutil.rmtree(temp_dir)
+                    return StoreDatasetResponse(**result) if PYDANTIC_AVAILABLE else result
 
-                    np.save(dataset_path, dataset)
-                else:
-                    # Fallback to pickle
-                    import pickle
-
-                    with open(dataset_path, "wb") as f:
-                        pickle.dump(dataset, f)
-                    format = "pickle"
+            # Verify dataset_path exists
+            if not os.path.exists(dataset_path):
+                error_msg = f"Dataset path does not exist: {dataset_path}"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "FileNotFoundError"
+                if temp_dir and os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                return StoreDatasetResponse(**result) if PYDANTIC_AVAILABLE else result
 
             # Convert format if requested
             if convert_to and convert_to != format:
                 # Get the original format (needed for conversion)
                 orig_format = format
                 format = convert_to
+                self.logger.info(f"Converting dataset from {orig_format} to {format}")
 
                 # Create conversion temp path
                 converted_path = os.path.join(dataset_dir, f"dataset.{format}")
@@ -1747,14 +3223,20 @@ class DatasetManager:
                 ):
                     if format in self.format_handlers[orig_format]["convert_to"]:
                         converter = self.format_handlers[orig_format]["convert_to"][format]
-                        if converter(dataset_path, converted_path):
-                            dataset_path = converted_path
-                            converter_found = True
+                        self.logger.debug(f"Using format handler for conversion")
+                        try:
+                            if converter(dataset_path, converted_path):
+                                dataset_path = converted_path
+                                converter_found = True
+                                self.logger.info(f"Converted dataset using format handler")
+                        except Exception as conv_err:
+                            self.logger.warning(f"Format handler conversion failed: {str(conv_err)}")
 
                 if not converter_found:
                     # Try generic conversion via pandas
                     try:
                         import pandas as pd
+                        self.logger.debug(f"Attempting format conversion with pandas")
 
                         # Load with appropriate reader
                         if orig_format == "csv":
@@ -1781,22 +3263,32 @@ class DatasetManager:
                             )
 
                         dataset_path = converted_path
+                        self.logger.info(f"Converted dataset using pandas")
 
                     except Exception as e:
-                        result["error"] = (
-                            f"Failed to convert from {orig_format} to {format}: {str(e)}"
-                        )
-                        self.logger.error(result["error"])
-
-                        # Continue with original format
+                        error_msg = f"Failed to convert from {orig_format} to {format}: {str(e)}"
+                        self.logger.error(error_msg)
+                        result["error"] = error_msg
+                        result["error_type"] = "ConversionError"
+                        
+                        # Continue with original format but add warning
                         format = orig_format
+                        if "warnings" not in result:
+                            result["warnings"] = []
+                        result["warnings"].append(f"Format conversion failed: {str(e)}")
 
             # Detect dataset format if not provided
             if format is None:
                 format = self._detect_format(dataset_path)
+                self.logger.debug(f"Detected format: {format}")
 
             # Get dataset statistics
-            stats = self._get_dataset_stats(dataset_path, format)
+            try:
+                stats = self._get_dataset_stats(dataset_path, format)
+                self.logger.debug(f"Collected dataset statistics: {len(stats)} properties")
+            except Exception as stats_err:
+                self.logger.warning(f"Failed to collect complete dataset statistics: {str(stats_err)}")
+                stats = {"error": str(stats_err)}
 
             # Copy dataset to final location
             if os.path.isfile(dataset_path):
@@ -1806,84 +3298,160 @@ class DatasetManager:
                     # Create chunks directory
                     chunks_dir = os.path.join(dataset_dir, "chunks")
                     os.makedirs(chunks_dir, exist_ok=True)
+                    self.logger.info(f"Dataset size ({file_size} bytes) exceeds chunk size ({chunk_size} bytes), chunking enabled")
 
-                    # Split file into chunks
-                    chunks = self._split_file_into_chunks(dataset_path, chunks_dir, chunk_size)
+                    try:
+                        # Split file into chunks
+                        chunks = self._split_file_into_chunks(dataset_path, chunks_dir, chunk_size)
+                        self.logger.info(f"Split dataset into {len(chunks)} chunks")
 
-                    # Create chunks metadata
-                    chunks_metadata = {
-                        "original_size": file_size,
-                        "chunk_count": len(chunks),
-                        "chunks": chunks,
-                    }
+                        # Create chunks metadata
+                        chunks_metadata = {
+                            "original_size": file_size,
+                            "chunk_count": len(chunks),
+                            "chunks": chunks,
+                        }
 
-                    # Write chunks metadata
-                    with open(os.path.join(dataset_dir, "chunks.json"), "w") as f:
-                        json.dump(chunks_metadata, f)
+                        # Write chunks metadata
+                        with open(os.path.join(dataset_dir, "chunks.json"), "w") as f:
+                            json.dump(chunks_metadata, f)
 
-                    # Set chunked flag
-                    stats["chunked"] = True
-                    stats["chunk_count"] = len(chunks)
+                        # Set chunked flag
+                        stats["chunked"] = True
+                        stats["chunk_count"] = len(chunks)
+                    except Exception as chunk_err:
+                        error_msg = f"Failed to chunk dataset: {str(chunk_err)}"
+                        self.logger.error(error_msg)
+                        if "warnings" not in result:
+                            result["warnings"] = []
+                        result["warnings"].append(error_msg)
+                        
+                        # Continue with direct copy as fallback
+                        dest_path = os.path.join(dataset_dir, os.path.basename(dataset_path))
+                        shutil.copy2(dataset_path, dest_path)
+                        self.logger.info(f"Fallback to direct copy of dataset")
                 else:
                     # Copy file directly
                     dest_path = os.path.join(dataset_dir, os.path.basename(dataset_path))
                     shutil.copy2(dataset_path, dest_path)
+                    self.logger.debug(f"Copied dataset file directly to {dest_path}")
             else:
                 # For directories, copy recursively
+                self.logger.info(f"Dataset is a directory, copying recursively")
                 for item in os.listdir(dataset_path):
                     src_item = os.path.join(dataset_path, item)
                     dst_item = os.path.join(dataset_dir, item)
 
-                    if os.path.isdir(src_item):
-                        shutil.copytree(src_item, dst_item)
-                    else:
-                        shutil.copy2(src_item, dst_item)
+                    try:
+                        if os.path.isdir(src_item):
+                            if os.path.exists(dst_item):
+                                shutil.rmtree(dst_item)
+                            shutil.copytree(src_item, dst_item)
+                        else:
+                            shutil.copy2(src_item, dst_item)
+                    except Exception as copy_err:
+                        error_msg = f"Failed to copy {src_item}: {str(copy_err)}"
+                        self.logger.warning(error_msg)
+                        if "warnings" not in result:
+                            result["warnings"] = []
+                        result["warnings"].append(error_msg)
 
             # Clean up temporary directory if we created one
-            if temp_dir:
+            if temp_dir and os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
+                self.logger.debug(f"Cleaned up temporary directory")
 
             # Add to IPFS if client available
             cid = None
             if self.ipfs:
                 if hasattr(self.ipfs, "ipfs_add_path"):
+                    self.logger.info(f"Adding dataset to IPFS: {dataset_dir}")
                     add_result = self.ipfs.ipfs_add_path(dataset_dir)
                     if add_result.get("success", False):
                         cid = add_result.get("cid") or add_result.get("Hash")
+                        self.logger.info(f"Successfully added dataset to IPFS with CID: {cid}")
                     else:
-                        self.logger.warning(
-                            f"Failed to add dataset to IPFS: {add_result.get('error', 'Unknown error')}"
-                        )
+                        error_msg = f"Failed to add dataset to IPFS: {add_result.get('error', 'Unknown error')}"
+                        self.logger.warning(error_msg)
+                        if "warnings" not in result:
+                            result["warnings"] = []
+                        result["warnings"].append(error_msg)
                 else:
-                    self.logger.warning("IPFS client does not support ipfs_add_path")
+                    self.logger.warning("IPFS client does not support ipfs_add_path method")
+                    if "warnings" not in result:
+                        result["warnings"] = []
+                    result["warnings"].append("IPFS client does not support ipfs_add_path method")
 
             # Use a placeholder CID if we couldn't add to IPFS
             if not cid:
                 cid = f"Qm{uuid.uuid4().hex[:38]}"
-                self.logger.warning("Using placeholder CID for dataset")
+                self.logger.warning(f"Using placeholder CID for dataset: {cid}")
+                if "warnings" not in result:
+                    result["warnings"] = []
+                result["warnings"].append("Using placeholder CID - dataset not actually added to IPFS")
 
             # Pin the content if pinning is available
             if self.ipfs and hasattr(self.ipfs, "pin_add"):
                 try:
-                    self.ipfs.pin_add(cid)
+                    self.logger.debug(f"Pinning dataset with CID: {cid}")
+                    pin_result = self.ipfs.pin_add(cid)
+                    if not pin_result.get("success", False):
+                        error_msg = f"Failed to pin dataset: {pin_result.get('error', 'Unknown error')}"
+                        self.logger.warning(error_msg)
+                        if "warnings" not in result:
+                            result["warnings"] = []
+                        result["warnings"].append(error_msg)
                 except Exception as e:
-                    self.logger.warning(f"Failed to pin dataset: {e}")
+                    error_msg = f"Failed to pin dataset: {str(e)}"
+                    self.logger.warning(error_msg)
+                    if "warnings" not in result:
+                        result["warnings"] = []
+                    result["warnings"].append(error_msg)
 
-            # Create dataset metadata
-            metadata = metadata or {}
-            metadata.update(
-                {
+            # Create dataset metadata with validation if possible
+            if PYDANTIC_AVAILABLE:
+                try:
+                    # Prepare combined metadata
+                    combined_metadata = metadata or {}
+                    combined_metadata.update({
+                        "format": format,
+                        "stored_at": time.time(),
+                        "stored_by": os.environ.get("USER", "unknown"),
+                        "stats": stats,
+                    })
+                    
+                    # Create DatasetMetadata model if it exists
+                    if 'DatasetMetadata' in globals():
+                        # Validate with Pydantic model
+                        validated_metadata = DatasetMetadata(**combined_metadata).dict(exclude_unset=True)
+                        metadata = validated_metadata
+                    else:
+                        metadata = combined_metadata
+                except Exception as e:
+                    self.logger.warning(f"Metadata validation failed, using unvalidated version: {e}")
+                    # Fall back to unvalidated metadata
+                    metadata = metadata or {}
+                    metadata.update({
+                        "format": format,
+                        "stored_at": time.time(),
+                        "stored_by": os.environ.get("USER", "unknown"),
+                        "stats": stats,
+                    })
+            else:
+                # Without Pydantic, just use basic metadata
+                metadata = metadata or {}
+                metadata.update({
                     "format": format,
                     "stored_at": time.time(),
                     "stored_by": os.environ.get("USER", "unknown"),
                     "stats": stats,
-                }
-            )
+                })
 
             # Write metadata to file
             metadata_path = os.path.join(dataset_dir, "metadata.json")
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f, indent=2)
+            self.logger.debug(f"Wrote metadata to {metadata_path}")
 
             # Update registry
             if name not in self.registry["datasets"]:
@@ -1896,29 +3464,37 @@ class DatasetManager:
                 "stats": stats,
                 "metadata": metadata,
             }
+            self.logger.info(f"Updated registry with dataset: {name}@{version}")
 
             # Save registry
             self._save_registry()
+            self.logger.debug("Saved updated registry")
 
             # Return success
-            result.update(
-                {
-                    "success": True,
-                    "dataset_name": name,
-                    "dataset_cid": cid,
-                    "cid": cid,  # Include both dataset_cid and cid for backward compatibility
-                    "version": version,
-                    "format": format,
-                    "stats": stats,
-                }
-            )
-
+            result.update({
+                "success": True,
+                "dataset_name": name,
+                "dataset_cid": cid,
+                "cid": cid,  # Include both dataset_cid and cid for backward compatibility
+                "version": version,
+                "format": format,
+                "stats": stats,
+            })
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return StoreDatasetResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error storing dataset: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error storing dataset: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return StoreDatasetResponse(**result)
             return result
 
     def _split_file_into_chunks(self, file_path, output_dir, chunk_size):
@@ -1965,33 +3541,137 @@ class DatasetManager:
 
         return chunks
 
-    def load_dataset(self, name=None, version=None, cid=None, format=None):
-        """Load a dataset from the registry.
-
+    def load_dataset(
+        self, 
+        name: Optional[str] = None, 
+        version: Optional[str] = None, 
+        cid: Optional[str] = None, 
+        format: Optional[str] = None,
+        return_metadata: bool = True
+    ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadDatasetResponse"]:
+        """Load a dataset from the registry with consistent error handling.
+        
+        Retrieves a dataset by name/version or directly by CID. This method attempts to
+        load from local cache first for performance, falling back to IPFS retrieval if
+        necessary. Successfully retrieved datasets from IPFS are cached locally for
+        future use.
+        
+        The method handles different dataset formats and chunked datasets, automatically
+        reassembling chunked data. It supports format conversion if requested and provides
+        comprehensive metadata about the loaded dataset.
+        
         Args:
-            name: Dataset name to load
-            version: Dataset version (loads latest if not specified)
-            cid: CID to load (alternative to name/version)
-            format: Format to load the dataset in (uses original format if not specified)
-
+            name: Dataset name to load from registry. Either name or cid must be provided.
+            version: Dataset version (loads latest version if not specified)
+            cid: Content identifier to load directly (alternative to name/version)
+            format: Optional format to convert the dataset to after loading
+            return_metadata: Whether to return metadata along with the dataset
+            
         Returns:
-            Dataset object and metadata, or error information
+            If Pydantic is available and error occurs, returns LoadDatasetResponse with error details.
+            If successful with return_metadata=True, returns tuple of (dataset_object, metadata_dict)
+            If successful with return_metadata=False, returns just the dataset object
+            If an error occurs and Pydantic is not available, returns error dict
+            
+        Raises:
+            No exceptions raised directly; errors are captured in result dictionary or response model.
+            
+        Examples:
+            # Load dataset by name (latest version)
+            >>> dataset, metadata = dataset_manager.load_dataset(name="my_dataset")
+            
+            # Load specific version
+            >>> dataset, metadata = dataset_manager.load_dataset(
+            ...     name="my_dataset", 
+            ...     version="1.0.0"
+            ... )
+            
+            # Load by CID directly
+            >>> dataset, metadata = dataset_manager.load_dataset(
+            ...     cid="QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"
+            ... )
+            
+            # Load with format conversion
+            >>> dataset, metadata = dataset_manager.load_dataset(
+            ...     name="my_dataset",
+            ...     format="csv"  # Convert to CSV format if needed
+            ... )
         """
         import json
         import os
         import shutil
         import tempfile
         import time
+        from typing import List, Dict, Any, Tuple, Optional, Union
 
-        result = {"success": False, "operation": "load_dataset", "timestamp": time.time()}
+        # Initialize result tracking
+        result = {
+            "success": False, 
+            "operation": "load_dataset", 
+            "timestamp": time.time(),
+            "warnings": []
+        }
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = LoadDatasetRequest(
+                    name=name, 
+                    version=version, 
+                    cid=cid, 
+                    format=format,
+                    return_metadata=return_metadata
+                )
+                # Update validated values
+                name = request.name
+                version = request.version
+                cid = request.cid
+                format = request.format
+                return_metadata = request.return_metadata
+                
+                # Validate that at least one identifier is provided
+                if not name and not cid:
+                    error_result = {
+                        "success": False, 
+                        "operation": "load_dataset", 
+                        "timestamp": time.time(),
+                        "error": "Either name or cid must be provided",
+                        "error_type": "ValidationError"
+                    }
+                    return LoadDatasetResponse(**error_result)
+                    
+            except Exception as e:
+                # Return validation error as LoadDatasetResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "load_dataset", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return LoadDatasetResponse(**error_result)
+        else:
+            # Basic validation without Pydantic
+            if not name and not cid:
+                result["error"] = "Either name or cid must be provided"
+                result["error_type"] = "ValidationError"
+                self.logger.error("Dataset load request missing both name and cid")
+                return result
 
         try:
             # Determine how to load the dataset
-            dataset_cid = None
-            dataset_format = format
+            dataset_cid: Optional[str] = None
+            dataset_format: Optional[str] = format
+            dataset_name: Optional[str] = name
+            dataset_version: Optional[str] = version
+            
+            # Track local path for caching info
+            local_path_used = False
 
             if cid:
-                # Find dataset by CID
+                self.logger.debug(f"Attempting to load dataset by CID: {cid}")
+                # Find dataset by CID in registry to get additional metadata
                 found = False
                 for dataset_name, versions in self.registry["datasets"].items():
                     for ver, data in versions.items():
@@ -2000,49 +3680,79 @@ class DatasetManager:
                             version = ver
                             dataset_cid = cid
                             if not dataset_format:
-                                dataset_format = data["format"]
+                                dataset_format = data.get("format")
                             found = True
+                            self.logger.debug(f"Found dataset in registry: {name} (version {version})")
                             break
                     if found:
                         break
 
                 if not found:
+                    self.logger.info(f"CID {cid} not found in registry, will attempt direct loading")
                     dataset_cid = cid  # Use provided CID even if not in registry
 
             elif name:
+                self.logger.debug(f"Attempting to load dataset by name: {name}")
                 # Ensure dataset exists in registry
                 if name not in self.registry["datasets"]:
-                    result["error"] = f"Dataset '{name}' not found in registry"
+                    error_msg = f"Dataset '{name}' not found in registry"
+                    self.logger.warning(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "NotFoundError"
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return LoadDatasetResponse(**result)
                     return result
 
                 # Determine version
                 if version is None:
-                    # Get latest version
-                    version = max(
-                        self.registry["datasets"][name].keys(),
-                        key=lambda v: self.registry["datasets"][name][v]["added_at"],
-                    )
+                    try:
+                        # Get latest version based on added_at timestamp
+                        version = max(
+                            self.registry["datasets"][name].keys(),
+                            key=lambda v: self.registry["datasets"][name][v]["added_at"],
+                        )
+                        dataset_version = version
+                        self.logger.debug(f"Using latest version {version} for dataset {name}")
+                    except Exception as e:
+                        error_msg = f"Error determining latest version for dataset '{name}': {str(e)}"
+                        self.logger.error(error_msg)
+                        result["error"] = error_msg
+                        result["error_type"] = type(e).__name__
+                        
+                        # Return as Pydantic model if available
+                        if PYDANTIC_AVAILABLE:
+                            return LoadDatasetResponse(**result)
+                        return result
 
                 # Ensure version exists
                 if version not in self.registry["datasets"][name]:
-                    result["error"] = f"Version '{version}' not found for dataset '{name}'"
+                    error_msg = f"Version '{version}' not found for dataset '{name}'"
+                    self.logger.warning(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "NotFoundError"
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return LoadDatasetResponse(**result)
                     return result
 
                 # Get CID and format
                 dataset_cid = self.registry["datasets"][name][version]["cid"]
                 if not dataset_format:
-                    dataset_format = self.registry["datasets"][name][version]["format"]
+                    dataset_format = self.registry["datasets"][name][version].get("format")
+                    
+                self.logger.debug(f"Dataset {name} (version {version}) has CID: {dataset_cid}")
 
-            else:
-                result["error"] = "Either name or cid must be provided"
-                return result
-
-            # Try to load locally first if possible
+            # Try to load locally first if possible for better performance
             dataset = None
-            dataset_metadata = {}
+            dataset_metadata: Dict[str, Any] = {}
+            
             if name and version:
                 local_path = os.path.join(self.datasets_dir, name, version)
                 if os.path.exists(local_path):
+                    self.logger.debug(f"Attempting to load dataset from local cache: {local_path}")
                     try:
                         # Load metadata
                         metadata_path = os.path.join(local_path, "metadata.json")
@@ -2051,10 +3761,12 @@ class DatasetManager:
                                 dataset_metadata = json.load(f)
                                 if not dataset_format:
                                     dataset_format = dataset_metadata.get("format")
+                                self.logger.debug(f"Loaded metadata from local cache, format: {dataset_format}")
 
                         # Check if dataset is chunked
                         chunks_path = os.path.join(local_path, "chunks.json")
                         if os.path.exists(chunks_path):
+                            self.logger.debug("Dataset is chunked, reassembling chunks")
                             # Reassemble chunks
                             with open(chunks_path, "r") as f:
                                 chunks_metadata = json.load(f)
@@ -2062,23 +3774,37 @@ class DatasetManager:
                             # Create temporary file for reassembled data
                             temp_file = tempfile.NamedTemporaryFile(delete=False)
                             temp_file.close()
+                            
+                            # Track reassembled chunks for logging
+                            chunk_count = 0
+                            total_size = 0
 
                             # Reassemble chunks
                             chunks_dir = os.path.join(local_path, "chunks")
                             with open(temp_file.name, "wb") as f:
-                                for chunk in chunks_metadata["chunks"]:
+                                for chunk in chunks_metadata.get("chunks", []):
                                     chunk_path = os.path.join(chunks_dir, chunk["file"])
-                                    with open(chunk_path, "rb") as chunk_f:
-                                        f.write(chunk_f.read())
+                                    if os.path.exists(chunk_path):
+                                        with open(chunk_path, "rb") as chunk_f:
+                                            chunk_data = chunk_f.read()
+                                            f.write(chunk_data)
+                                            chunk_count += 1
+                                            total_size += len(chunk_data)
+                                    else:
+                                        warning_msg = f"Chunk file missing: {chunk['file']}"
+                                        self.logger.warning(warning_msg)
+                                        result["warnings"].append(warning_msg)
 
+                            self.logger.debug(f"Reassembled {chunk_count} chunks ({total_size} bytes)")
+                            
                             # Load from reassembled file
                             dataset = self._load_dataset_file(temp_file.name, dataset_format)
-
+                            
                             # Clean up temporary file
                             os.unlink(temp_file.name)
                         else:
                             # Find dataset file
-                            dataset_files = []
+                            dataset_files: List[str] = []
                             for file in os.listdir(local_path):
                                 if file != "metadata.json" and os.path.isfile(
                                     os.path.join(local_path, file)
@@ -2088,34 +3814,52 @@ class DatasetManager:
                             if dataset_files:
                                 # Load the first dataset file
                                 dataset_path = os.path.join(local_path, dataset_files[0])
+                                self.logger.debug(f"Loading dataset from file: {dataset_path}")
                                 dataset = self._load_dataset_file(dataset_path, dataset_format)
                             elif os.path.isdir(local_path) and dataset_format == "images":
                                 # Load image directory
+                                self.logger.debug("Loading image directory dataset")
                                 if (
                                     "images" in self.format_handlers
                                     and "load" in self.format_handlers["images"]
                                 ):
                                     dataset = self.format_handlers["images"]["load"](local_path)
+                                else:
+                                    warning_msg = "Image format handler not available"
+                                    self.logger.warning(warning_msg)
+                                    result["warnings"].append(warning_msg)
+                        
+                        # If we got here and dataset is not None, we successfully loaded locally
+                        if dataset is not None:
+                            local_path_used = True
+                            self.logger.info(f"Successfully loaded dataset {name} (version {version}) from local cache")
+                            
                     except Exception as e:
-                        self.logger.warning(f"Failed to load dataset locally: {e}")
+                        local_load_error = f"Failed to load dataset locally: {str(e)}"
+                        self.logger.warning(local_load_error)
+                        result["warnings"].append(local_load_error)
                         dataset = None
 
             # If local load failed and we have IPFS client, try from IPFS
             if dataset is None and dataset_cid and self.ipfs:
+                self.logger.debug(f"Attempting to load dataset from IPFS: {dataset_cid}")
                 try:
                     # Create temporary directory for IPFS content
                     temp_dir = tempfile.mkdtemp()
+                    self.logger.debug(f"Created temporary directory for IPFS content: {temp_dir}")
 
                     # Get dataset files from IPFS
                     if hasattr(self.ipfs, "get"):
                         get_result = self.ipfs.get(dataset_cid, temp_dir)
                         if not get_result.get("success", False):
-                            raise Exception(
-                                f"Failed to get dataset from IPFS: {get_result.get('error', 'Unknown error')}"
-                            )
+                            error_msg = f"Failed to get dataset from IPFS: {get_result.get('error', 'Unknown error')}"
+                            self.logger.error(error_msg)
+                            raise Exception(error_msg)
                     else:
                         # Fallback for clients without get method
-                        raise Exception("IPFS client does not support get method")
+                        error_msg = "IPFS client does not support get method"
+                        self.logger.error(error_msg)
+                        raise Exception(error_msg)
 
                     # Load metadata
                     dataset_dir = os.path.join(temp_dir, dataset_cid)
@@ -2125,10 +3869,12 @@ class DatasetManager:
                             dataset_metadata = json.load(f)
                             if not dataset_format:
                                 dataset_format = dataset_metadata.get("format")
+                            self.logger.debug(f"Loaded metadata from IPFS, format: {dataset_format}")
 
                     # Check if dataset is chunked
                     chunks_path = os.path.join(dataset_dir, "chunks.json")
                     if os.path.exists(chunks_path):
+                        self.logger.debug("Dataset from IPFS is chunked, reassembling chunks")
                         # Reassemble chunks
                         with open(chunks_path, "r") as f:
                             chunks_metadata = json.load(f)
@@ -2136,18 +3882,32 @@ class DatasetManager:
                         # Create temporary file for reassembled data
                         temp_file = tempfile.NamedTemporaryFile(delete=False)
                         temp_file.close()
+                        
+                        # Track reassembled chunks for logging
+                        chunk_count = 0
+                        total_size = 0
 
                         # Reassemble chunks
                         chunks_dir = os.path.join(dataset_dir, "chunks")
                         with open(temp_file.name, "wb") as f:
-                            for chunk in chunks_metadata["chunks"]:
+                            for chunk in chunks_metadata.get("chunks", []):
                                 chunk_path = os.path.join(chunks_dir, chunk["file"])
-                                with open(chunk_path, "rb") as chunk_f:
-                                    f.write(chunk_f.read())
+                                if os.path.exists(chunk_path):
+                                    with open(chunk_path, "rb") as chunk_f:
+                                        chunk_data = chunk_f.read()
+                                        f.write(chunk_data)
+                                        chunk_count += 1
+                                        total_size += len(chunk_data)
+                                else:
+                                    warning_msg = f"Chunk file missing from IPFS: {chunk['file']}"
+                                    self.logger.warning(warning_msg)
+                                    result["warnings"].append(warning_msg)
 
+                        self.logger.debug(f"Reassembled {chunk_count} chunks from IPFS ({total_size} bytes)")
+                        
                         # Load from reassembled file
                         dataset = self._load_dataset_file(temp_file.name, dataset_format)
-
+                        
                         # Clean up temporary file
                         os.unlink(temp_file.name)
                     else:
@@ -2162,19 +3922,26 @@ class DatasetManager:
                         if dataset_files:
                             # Load the first dataset file
                             dataset_path = os.path.join(dataset_dir, dataset_files[0])
+                            self.logger.debug(f"Loading dataset from IPFS file: {dataset_path}")
                             dataset = self._load_dataset_file(dataset_path, dataset_format)
                         elif os.path.isdir(dataset_dir) and dataset_format == "images":
                             # Load image directory
+                            self.logger.debug("Loading image directory dataset from IPFS")
                             if (
                                 "images" in self.format_handlers
                                 and "load" in self.format_handlers["images"]
                             ):
                                 dataset = self.format_handlers["images"]["load"](dataset_dir)
+                            else:
+                                warning_msg = "Image format handler not available"
+                                self.logger.warning(warning_msg)
+                                result["warnings"].append(warning_msg)
 
                     # Save to local cache if name and version provided
                     if name and version:
                         local_path = os.path.join(self.datasets_dir, name, version)
                         os.makedirs(local_path, exist_ok=True)
+                        self.logger.debug(f"Caching dataset from IPFS to local path: {local_path}")
 
                         # Copy files to local cache
                         for item in os.listdir(dataset_dir):
@@ -2198,201 +3965,580 @@ class DatasetManager:
                                 "metadata": dataset_metadata,
                                 "added_at": time.time(),
                             }
+                            self.logger.info(f"Added dataset {name} (version {version}) to registry")
 
                             # Save registry
                             self._save_registry()
+                        
+                        self.logger.info(f"Successfully cached dataset from IPFS to local storage")
 
                 except Exception as e:
-                    self.logger.error(f"Failed to load dataset from IPFS: {e}")
+                    error_msg = f"Failed to load dataset from IPFS: {str(e)}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = type(e).__name__
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return LoadDatasetResponse(**result)
+                    return result
                 finally:
                     # Clean up temporary directory
                     if "temp_dir" in locals():
-                        shutil.rmtree(temp_dir)
+                        try:
+                            shutil.rmtree(temp_dir)
+                            self.logger.debug(f"Cleaned up temporary directory: {temp_dir}")
+                        except Exception as e:
+                            warning_msg = f"Failed to clean up temporary directory: {str(e)}"
+                            self.logger.warning(warning_msg)
+                            result["warnings"].append(warning_msg)
 
             # Check if we successfully loaded the dataset
             if dataset is None:
-                result["error"] = "Failed to load dataset"
+                error_msg = "Failed to load dataset"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "LoadError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return LoadDatasetResponse(**result)
                 return result
 
             # Add information about the loading to metadata
-            dataset_metadata["_loaded_from"] = "local" if "local_path" in locals() else "ipfs"
+            dataset_metadata["_loaded_from"] = "local" if local_path_used else "ipfs"
             dataset_metadata["_loaded_at"] = time.time()
-
-            # Return both dataset and metadata
-            return dataset, dataset_metadata
+            
+            # Add dataset info to result dict
+            result.update({
+                "success": True,
+                "dataset": dataset,
+                "metadata": dataset_metadata,
+                "cid": dataset_cid,
+                "format": dataset_format
+            })
+            
+            # Add name and version if available
+            if name:
+                result["dataset_name"] = name
+            if version:
+                result["version"] = version
+                
+            # Return appropriate response format
+            if PYDANTIC_AVAILABLE:
+                # Return as Pydantic model
+                response = LoadDatasetResponse(**result)
+                
+                if return_metadata:
+                    return response
+                else:
+                    return response.dataset
+            else:
+                # Return as tuple or just dataset based on return_metadata
+                if return_metadata:
+                    return dataset, dataset_metadata
+                else:
+                    return dataset
 
         except Exception as e:
+            error_msg = f"Error loading dataset: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error loading dataset: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return LoadDatasetResponse(**result)
             return result
 
-    def _load_dataset_file(self, file_path, format):
-        """Load a dataset file based on format.
-
+    def _load_dataset_file(
+        self, 
+        file_path: str, 
+        format: Optional[str] = None
+    ) -> Any:
+        """Load a dataset file based on format with comprehensive error handling.
+        
+        This internal method loads dataset files of various formats using the appropriate
+        loader functions. It first tries to use any registered custom format handlers, then
+        falls back to built-in handlers for common formats, and finally treats the file as
+        binary data if no handler is available.
+        
+        The method handles import errors gracefully when optional dependencies are not
+        available, providing informative warnings and fallback options when possible.
+        
         Args:
-            file_path: Path to the dataset file
-            format: Format of the dataset
-
+            file_path: Path to the dataset file to load
+            format: Explicit format to use for loading (if not provided, will infer from file extension)
+            
         Returns:
-            Dataset object
+            The loaded dataset object (type depends on format - DataFrame, ndarray, dict, bytes, etc.)
+            Returns None if the file cannot be loaded due to missing dependencies
+            
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            PermissionError: If the file cannot be accessed
+            No other exceptions are raised directly; errors are logged and None is returned
         """
         import os
+        from typing import Dict, Any, Optional, Callable, Union
+        
+        self.logger.debug(f"Loading dataset file: {file_path} (format: {format})")
 
+        # Ensure file exists
+        if not os.path.exists(file_path):
+            error_msg = f"Dataset file not found: {file_path}"
+            self.logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
+        
         # Use appropriate loader based on format
         if format in self.format_handlers and "load" in self.format_handlers[format]:
-            return self.format_handlers[format]["load"](file_path)
-
-        # Fallback to file extension
+            self.logger.debug(f"Using registered format handler for {format}")
+            try:
+                return self.format_handlers[format]["load"](file_path)
+            except Exception as e:
+                self.logger.warning(f"Error using format handler for {format}: {str(e)}")
+                # Continue to fallback handlers
+        
+        # Use extension to infer format if not explicitly provided
         ext = os.path.splitext(file_path)[1].lower()
+        if not format:
+            self.logger.debug(f"Inferring format from file extension: {ext}")
+            # Map extension to format name
+            format_map = {
+                '.csv': 'csv',
+                '.parquet': 'parquet',
+                '.json': 'json',
+                '.npy': 'numpy',
+                '.npz': 'numpy',
+                '.pkl': 'pickle',
+                '.pickle': 'pickle',
+                '.h5': 'hdf5',
+                '.hdf5': 'hdf5'
+            }
+            format = format_map.get(ext)
+            if format:
+                self.logger.debug(f"Inferred format: {format}")
 
+        # Try standard format handlers
         if ext == ".csv" or format == "csv":
             try:
                 import pandas as pd
-
+                self.logger.debug("Loading CSV file with pandas")
                 return pd.read_csv(file_path)
             except ImportError:
                 self.logger.warning("pandas not available for CSV loading")
-                return None
+                # Fallback to basic CSV parsing
+                try:
+                    import csv
+                    with open(file_path, 'r', newline='') as f:
+                        reader = csv.DictReader(f)
+                        return list(reader)
+                except Exception as e:
+                    self.logger.warning(f"Failed to use CSV fallback: {str(e)}")
+                    return None
 
         elif ext == ".parquet" or format == "parquet":
             try:
                 import pandas as pd
-
+                self.logger.debug("Loading Parquet file with pandas")
                 return pd.read_parquet(file_path)
             except ImportError:
+                self.logger.debug("pandas not available, trying pyarrow")
                 try:
                     import pyarrow.parquet as pq
-
+                    self.logger.debug("Loading Parquet file with pyarrow")
                     return pq.read_table(file_path)
                 except ImportError:
                     self.logger.warning("Neither pandas nor pyarrow available for Parquet loading")
                     return None
+                except Exception as e:
+                    self.logger.warning(f"Error loading Parquet with pyarrow: {str(e)}")
+                    return None
 
         elif ext == ".json" or format == "json":
             import json
-
-            with open(file_path, "r") as f:
-                return json.load(f)
+            self.logger.debug("Loading JSON file")
+            try:
+                with open(file_path, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                self.logger.warning(f"Error loading JSON file: {str(e)}")
+                return None
 
         elif ext in [".npy", ".npz"] or format == "numpy":
             try:
                 import numpy as np
-
+                self.logger.debug("Loading NumPy file")
                 return np.load(file_path, allow_pickle=True)
             except ImportError:
                 self.logger.warning("numpy not available for NumPy loading")
                 return None
+            except Exception as e:
+                self.logger.warning(f"Error loading NumPy file: {str(e)}")
+                return None
 
         elif ext in [".pkl", ".pickle"] or format == "pickle":
             import pickle
+            self.logger.debug("Loading Pickle file")
+            try:
+                with open(file_path, "rb") as f:
+                    return pickle.load(f)
+            except Exception as e:
+                self.logger.warning(f"Error loading Pickle file: {str(e)}")
+                return None
 
-            with open(file_path, "rb") as f:
-                return pickle.load(f)
-
-        elif ext == ".h5" or ext == ".hdf5" or format == "hdf5":
+        elif ext in [".h5", ".hdf5"] or format == "hdf5":
             try:
                 import h5py
-
+                self.logger.debug("Loading HDF5 file")
                 return h5py.File(file_path, "r")
             except ImportError:
                 self.logger.warning("h5py not available for HDF5 loading")
                 return None
+            except Exception as e:
+                self.logger.warning(f"Error loading HDF5 file: {str(e)}")
+                return None
 
         else:
             # Default: treat as binary and return bytes
-            with open(file_path, "rb") as f:
-                return f.read()
+            self.logger.debug(f"Unknown format, loading as binary data: {file_path}")
+            try:
+                with open(file_path, "rb") as f:
+                    return f.read()
+            except Exception as e:
+                self.logger.warning(f"Error reading binary file: {str(e)}")
+                return None
 
-    def list_datasets(self):
-        """List datasets in the registry.
-
+    def list_datasets(self) -> Union[Dict[str, Any], "ListDatasetsResponse"]:
+        """List all datasets in the registry with their versions and metadata.
+        
+        Retrieves a comprehensive listing of all datasets stored in the registry,
+        including their versions, formats, and associated metadata. The datasets
+        are organized hierarchically by name and version.
+        
+        This method provides a centralized view of all available datasets, making it
+        easier to discover and select datasets for loading, sharing, or management.
+        
         Returns:
-            Dictionary with dataset information
+            If Pydantic is available:
+                ListDatasetsResponse with datasets information including:
+                - success: Boolean indicating operation success
+                - datasets: Dictionary of datasets organized by name and version
+                - count: Total number of unique dataset names
+                - timestamp: Operation timestamp
+                
+            Otherwise:
+                Dictionary with the same fields
+                
+            In case of error, the response includes:
+                - success: False
+                - error: Error message
+                - error_type: Type of error
+                
+        Examples:
+            # List all datasets in the registry
+            >>> result = dataset_manager.list_datasets()
+            >>> print(f"Found {result['count']} datasets")
+            >>> for name, versions in result['datasets'].items():
+            ...     print(f"Dataset: {name}")
+            ...     for version, data in versions.items():
+            ...         print(f"  Version {version}: {data['format']} format, CID {data['cid']}")
         """
         import time
+        import os
+        from typing import Dict, Any, List, Optional
 
+        # Initialize result
         result = {"success": False, "operation": "list_datasets", "timestamp": time.time()}
 
         try:
-            datasets = {}
-            for dataset_name, versions in self.registry["datasets"].items():
+            # Collect dataset information in nested dictionary
+            datasets: Dict[str, Dict[str, Dict[str, Any]]] = {}
+            registry_datasets = self.registry.get("datasets", {})
+            self.logger.debug(f"Listing datasets from registry with {len(registry_datasets)} entries")
+            
+            for dataset_name, versions in registry_datasets.items():
                 if dataset_name not in datasets:
                     datasets[dataset_name] = {}
 
                 for version, data in versions.items():
-                    datasets[dataset_name][version] = {
-                        "format": data["format"],
-                        "cid": data["cid"],
+                    # Extract core information, handling missing keys gracefully
+                    dataset_info = {
+                        "format": data.get("format", "unknown"),
+                        "cid": data.get("cid", ""),
                         "added_at": data.get("added_at", 0),
-                        "stats": data.get("stats", {}),
-                        "metadata": data.get("metadata", {}),
                     }
+                    
+                    # Add statistics if available
+                    if "stats" in data:
+                        dataset_info["stats"] = data["stats"]
+                    
+                    # Add metadata if available
+                    if "metadata" in data:
+                        # Include key metadata fields for easy access
+                        metadata = data["metadata"]
+                        dataset_info["metadata"] = metadata
+                        
+                        # Extract common metadata fields as top-level properties for convenience
+                        if isinstance(metadata, dict):
+                            for key in ["description", "tags", "source", "created_by", "license"]:
+                                if key in metadata:
+                                    dataset_info[key] = metadata[key]
+                    
+                    # Add local path information if available
+                    local_path = os.path.join(self.datasets_dir, dataset_name, version)
+                    if os.path.exists(local_path):
+                        dataset_info["local_path"] = local_path
+                        dataset_info["available_locally"] = True
+                        
+                        # Get disk size if available locally
+                        try:
+                            total_size = 0
+                            for dirpath, dirnames, filenames in os.walk(local_path):
+                                for f in filenames:
+                                    fp = os.path.join(dirpath, f)
+                                    total_size += os.path.getsize(fp)
+                            dataset_info["size_bytes"] = total_size
+                        except Exception as e:
+                            self.logger.debug(f"Error calculating local size for {dataset_name}: {e}")
+                    else:
+                        dataset_info["available_locally"] = False
+                        
+                    datasets[dataset_name][version] = dataset_info
 
-            result.update({"success": True, "datasets": datasets, "count": len(datasets)})
+            # Count unique dataset names (not including versions)
+            dataset_count = len(datasets)
+            
+            # Calculate total version count
+            version_count = sum(len(versions) for versions in datasets.values())
+            
+            # Update result with success information
+            result.update({
+                "success": True, 
+                "datasets": datasets, 
+                "count": dataset_count,
+                "version_count": version_count,
+                "registry_cid": self.registry.get("registry_cid")
+            })
+            
+            # Log success
+            self.logger.debug(f"Listed {dataset_count} datasets with {version_count} total versions")
 
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ListDatasetsResponse(**result)
             return result
 
         except Exception as e:
+            # Handle any errors that might occur
+            error_msg = f"Error listing datasets: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error listing datasets: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ListDatasetsResponse(**result)
             return result
 
-    def get_dataset_cid(self, name, version=None):
+    def get_dataset_cid(
+        self, 
+        name: str, 
+        version: Optional[str] = None
+    ) -> Union[str, Dict[str, Any], "GetDatasetCIDResponse"]:
         """Get the CID for a specific dataset version.
-
+        
+        Retrieves the content identifier (CID) for a dataset stored
+        in the registry. If version is not specified, returns the CID for the latest
+        version of the dataset.
+        
         Args:
-            name: Dataset name
+            name: Dataset name to look up
             version: Dataset version (latest if not specified)
-
+            
         Returns:
-            CID string or None if not found
+            If Pydantic is available, returns GetDatasetCIDResponse with CID and metadata.
+            Otherwise returns either a CID string or result dictionary with operation details.
+        
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
+        # Initialize result tracking
+        result = {
+            "success": False, 
+            "operation": "get_dataset_cid", 
+            "timestamp": time.time(),
+            "dataset_name": name
+        }
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = GetDatasetCIDRequest(name=name, version=version)
+                # Update validated values
+                name = request.name
+                version = request.version
+            except Exception as e:
+                # Return validation error as GetDatasetCIDResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "get_dataset_cid", 
+                    "timestamp": time.time(),
+                    "dataset_name": name,
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return GetDatasetCIDResponse(**error_result)
+        
         try:
             if name not in self.registry["datasets"]:
-                return None
+                error_msg = f"Dataset '{name}' not found in registry"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return GetDatasetCIDResponse(**result)
+                return result
 
             if version is None:
-                # Get latest version
-                version = max(
-                    self.registry["datasets"][name].keys(),
-                    key=lambda v: self.registry["datasets"][name][v]["added_at"],
-                )
+                try:
+                    # Get latest version based on added_at timestamp
+                    version = max(
+                        self.registry["datasets"][name].keys(),
+                        key=lambda v: self.registry["datasets"][name][v]["added_at"],
+                    )
+                    self.logger.debug(f"Using latest version {version} for dataset {name}")
+                except Exception as e:
+                    error_msg = f"Error determining latest version for dataset '{name}': {str(e)}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = type(e).__name__
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return GetDatasetCIDResponse(**result)
+                    return result
 
             if version not in self.registry["datasets"][name]:
-                return None
+                error_msg = f"Version '{version}' not found for dataset '{name}'"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return GetDatasetCIDResponse(**result)
+                return result
 
-            return self.registry["datasets"][name][version]["cid"]
+            # Get the CID
+            cid = self.registry["datasets"][name][version]["cid"]
+            
+            # Update result with success information
+            result.update({
+                "success": True,
+                "dataset_name": name,
+                "version": version,
+                "cid": cid
+            })
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return GetDatasetCIDResponse(**result)
+            return result
 
         except Exception as e:
-            self.logger.error(f"Error getting dataset CID: {e}")
-            return None
+            error_msg = f"Error getting dataset CID: {str(e)}"
+            self.logger.error(error_msg)
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return GetDatasetCIDResponse(**result)
+            return result
 
-    def share_dataset(self, name=None, version=None, cid=None):
+    def share_dataset(
+        self, 
+        name: Optional[str] = None, 
+        version: Optional[str] = None, 
+        cid: Optional[str] = None
+    ) -> Union[Dict[str, Any], "ShareDatasetResponse"]:
         """Generate shareable link for a dataset.
-
+        
+        Creates publicly accessible links for a dataset from IPFS gateways.
+        The dataset can be specified either by name/version or directly by CID.
+        
         Args:
             name: Dataset name
             version: Dataset version (latest if not specified)
             cid: Dataset CID (alternative to name/version)
-
+            
         Returns:
-            Dictionary with sharing information
+            If Pydantic is available, returns ShareDatasetResponse with sharing information.
+            Otherwise returns dictionary with sharing details.
+            
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
-        import time
-
+        # Initialize result tracking
         result = {"success": False, "operation": "share_dataset", "timestamp": time.time()}
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = ShareDatasetRequest(name=name, version=version, cid=cid)
+                # Update validated values
+                name = request.name
+                version = request.version
+                cid = request.cid
+            except Exception as e:
+                # Return validation error as ShareDatasetResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "share_dataset", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return ShareDatasetResponse(**error_result)
 
         try:
             # Determine dataset CID
             dataset_cid = cid
 
             if not dataset_cid and name:
-                dataset_cid = self.get_dataset_cid(name, version)
-
+                # Use the updated get_dataset_cid method
+                get_result = self.get_dataset_cid(name, version)
+                
+                # Handle different return types from get_dataset_cid
+                if isinstance(get_result, dict):
+                    if not get_result.get("success", False):
+                        # Propagate error from get_dataset_cid
+                        result["error"] = get_result.get("error", "Could not determine dataset CID")
+                        result["error_type"] = get_result.get("error_type", "UnknownError")
+                        
+                        # Return as Pydantic model if available
+                        if PYDANTIC_AVAILABLE:
+                            return ShareDatasetResponse(**result)
+                        return result
+                    dataset_cid = get_result.get("cid")
+                else:
+                    # Direct CID return (if old implementation is used)
+                    dataset_cid = get_result
+                    
             if not dataset_cid:
-                result["error"] = "Could not determine dataset CID"
+                error_msg = "Could not determine dataset CID"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "ValidationError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return ShareDatasetResponse(**result)
                 return result
 
             # Generate IPFS gateway links
@@ -2410,184 +4556,395 @@ class DatasetManager:
                 gateway_links.append(f"{gateway}{dataset_cid}")
 
             # Generate sharing info
-            result.update(
-                {
-                    "success": True,
-                    "cid": dataset_cid,
-                    "ipfs_uri": f"ipfs://{dataset_cid}",
-                    "gateway_links": gateway_links,
-                    "share_command": f"ipfs cat {dataset_cid}",
-                }
-            )
+            result.update({
+                "success": True,
+                "cid": dataset_cid,
+                "ipfs_uri": f"ipfs://{dataset_cid}",
+                "gateway_links": gateway_links,
+                "share_command": f"ipfs cat {dataset_cid}",
+            })
 
             # Add name and version if provided
             if name:
                 result["dataset_name"] = name
                 if version:
                     result["version"] = version
-
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ShareDatasetResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error sharing dataset: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error sharing dataset: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ShareDatasetResponse(**result)
             return result
 
-    def delete_dataset(self, name, version=None):
+    def delete_dataset(
+        self, 
+        name: str, 
+        version: Optional[str] = None
+    ) -> Union[Dict[str, Any], "DeleteDatasetResponse"]:
         """Delete a dataset from the registry.
-
+        
+        Removes a dataset (or specific version) from the registry, unpins the content
+        from IPFS if possible, and deletes any local files associated with the dataset.
+        
         Args:
-            name: Dataset name
+            name: Dataset name to delete
             version: Specific version to delete (all versions if None)
-
+            
         Returns:
-            Dictionary with operation result
+            If Pydantic is available, returns DeleteDatasetResponse with operation result.
+            Otherwise returns dictionary with deletion details.
+            
+        Raises:
+            No exceptions raised, errors are captured in result dictionary or response model.
         """
-        import os
-        import shutil
-        import time
-
+        # Initialize result tracking
         result = {"success": False, "operation": "delete_dataset", "timestamp": time.time()}
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = DeleteDatasetRequest(name=name, version=version)
+                # Update validated values
+                name = request.name
+                version = request.version
+            except Exception as e:
+                # Return validation error as DeleteDatasetResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "delete_dataset", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return DeleteDatasetResponse(**error_result)
 
         try:
             # Ensure dataset exists
             if name not in self.registry["datasets"]:
-                result["error"] = f"Dataset '{name}' not found in registry"
+                error_msg = f"Dataset '{name}' not found in registry"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "NotFoundError"
+                result["dataset_name"] = name
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return DeleteDatasetResponse(**result)
                 return result
 
             # Determine versions to delete
             if version is None:
                 # Delete all versions
                 versions_to_delete = list(self.registry["datasets"][name].keys())
+                self.logger.info(f"Deleting all versions of dataset '{name}': {versions_to_delete}")
             else:
                 # Delete specific version
                 if version not in self.registry["datasets"][name]:
-                    result["error"] = f"Version '{version}' not found for dataset '{name}'"
+                    error_msg = f"Version '{version}' not found for dataset '{name}'"
+                    self.logger.warning(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "NotFoundError"
+                    result["dataset_name"] = name
+                    
+                    # Return as Pydantic model if available
+                    if PYDANTIC_AVAILABLE:
+                        return DeleteDatasetResponse(**result)
                     return result
+                    
                 versions_to_delete = [version]
+                self.logger.info(f"Deleting version '{version}' of dataset '{name}'")
 
             # Delete local files and unpin from IPFS
             deleted_versions = []
+            deletion_errors = []
+            
             for ver in versions_to_delete:
-                # Get CID for unpinning
-                cid = self.registry["datasets"][name][ver]["cid"]
+                try:
+                    # Get CID for unpinning
+                    cid = self.registry["datasets"][name][ver]["cid"]
+                    
+                    # Unpin from IPFS if client available
+                    if self.ipfs and hasattr(self.ipfs, "pin_rm"):
+                        try:
+                            self.ipfs.pin_rm(cid)
+                            self.logger.debug(f"Unpinned dataset with CID {cid}")
+                        except Exception as e:
+                            error_msg = f"Failed to unpin dataset {cid}: {str(e)}"
+                            self.logger.warning(error_msg)
+                            deletion_errors.append(error_msg)
 
-                # Unpin from IPFS if client available
-                if self.ipfs and hasattr(self.ipfs, "pin_rm"):
-                    try:
-                        self.ipfs.pin_rm(cid)
-                    except Exception as e:
-                        self.logger.warning(f"Failed to unpin dataset {cid}: {e}")
+                    # Delete local files
+                    local_path = os.path.join(self.datasets_dir, name, ver)
+                    if os.path.exists(local_path):
+                        try:
+                            shutil.rmtree(local_path)
+                            self.logger.debug(f"Deleted local files at {local_path}")
+                        except Exception as e:
+                            error_msg = f"Failed to delete local files at {local_path}: {str(e)}"
+                            self.logger.warning(error_msg)
+                            deletion_errors.append(error_msg)
 
-                # Delete local files
-                local_path = os.path.join(self.datasets_dir, name, ver)
-                if os.path.exists(local_path):
-                    shutil.rmtree(local_path)
-
-                # Remove from registry
-                del self.registry["datasets"][name][ver]
-                deleted_versions.append(ver)
+                    # Remove from registry
+                    del self.registry["datasets"][name][ver]
+                    deleted_versions.append(ver)
+                    
+                except Exception as e:
+                    error_msg = f"Error deleting version '{ver}': {str(e)}"
+                    self.logger.error(error_msg)
+                    deletion_errors.append(error_msg)
 
             # If all versions were deleted, remove the dataset entry
-            if not self.registry["datasets"][name]:
+            if name in self.registry["datasets"] and not self.registry["datasets"][name]:
                 del self.registry["datasets"][name]
+                self.logger.info(f"Removed dataset '{name}' from registry (all versions deleted)")
 
                 # Remove dataset directory if it exists
                 dataset_dir = os.path.join(self.datasets_dir, name)
                 if os.path.exists(dataset_dir):
-                    shutil.rmtree(dataset_dir)
+                    try:
+                        shutil.rmtree(dataset_dir)
+                        self.logger.debug(f"Deleted dataset directory at {dataset_dir}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete dataset directory at {dataset_dir}: {str(e)}"
+                        self.logger.warning(error_msg)
+                        deletion_errors.append(error_msg)
 
             # Save registry
-            self._save_registry()
+            save_result = self._save_registry()
+            if isinstance(save_result, dict) and not save_result.get("success", False):
+                error_msg = f"Failed to save registry: {save_result.get('error', 'Unknown error')}"
+                self.logger.error(error_msg)
+                deletion_errors.append(error_msg)
 
-            result.update(
-                {
-                    "success": True,
-                    "dataset_name": name,
-                    "deleted_versions": deleted_versions,
-                    "all_versions_deleted": version is None or len(deleted_versions) == 1,
-                }
-            )
+            # Check if any versions were actually deleted
+            if not deleted_versions:
+                error_msg = "No versions were deleted"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "DeleteError"
+                result["dataset_name"] = name
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return DeleteDatasetResponse(**result)
+                return result
 
+            # Update result with success information
+            result.update({
+                "success": True,
+                "dataset_name": name,
+                "deleted_versions": deleted_versions,
+                "all_versions_deleted": version is None or len(deleted_versions) == len(versions_to_delete),
+            })
+            
+            # Add any non-critical errors as warnings
+            if deletion_errors:
+                result["warnings"] = deletion_errors
+                
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return DeleteDatasetResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error deleting dataset: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error deleting dataset: {e}")
+            result["dataset_name"] = name
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return DeleteDatasetResponse(**result)
             return result
 
     def create_train_test_split(
         self,
-        dataset=None,
-        name=None,
-        test_size=0.2,
-        random_state=None,
-        stratify=None,
-        split_column=None,
-        format=None,
-        metadata=None,
-    ):
-        """Create train/test split for a dataset.
-
+        dataset: Optional[Union[Any, str]] = None,
+        name: Optional[str] = None,
+        test_size: float = 0.2,
+        random_state: Optional[int] = None,
+        stratify: Optional[str] = None,
+        split_column: Optional[str] = None,
+        format: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], "TrainTestSplitResponse"]:
+        """Create a train/test split for a dataset and store both parts.
+        
+        Splits a dataset into training and testing subsets while preserving
+        appropriate data distributions. The split datasets are stored in the
+        registry with appropriate metadata to track their relationship.
+        
         Args:
-            dataset: Dataset object or name to split
-            name: Base name for the split datasets
-            test_size: Fraction of data to use for test set
-            random_state: Random seed for reproducibility
-            stratify: Column to use for stratified split
-            split_column: Column to use for predefined split
-            format: Format to store split datasets
-            metadata: Additional metadata for the splits
-
+            dataset: Dataset object (pandas DataFrame, numpy array) or name of
+                    existing dataset in the registry to split
+            name: Base name for the split datasets (will create [name]_train and 
+                  [name]_test). If not provided, generates a unique name.
+            test_size: Fraction of data to use for test set (0.0 to 1.0)
+            random_state: Random seed for reproducibility (ensures same split
+                         across runs)
+            stratify: Column name to use for stratified split (ensures proportional
+                     representation of classes in train/test)
+            split_column: Column to use for predefined split (must contain 'train'
+                         and other values)
+            format: Format to store split datasets ('csv', 'parquet', 'json', etc.)
+            metadata: Additional metadata to store with both split datasets
+        
         Returns:
-            Dictionary with split results
+            If Pydantic is available, returns TrainTestSplitResponse with split details.
+            Otherwise returns dictionary with split results including train/test dataset
+            information.
+        
+        Raises:
+            ValueError: If test_size is not between 0 and 1
+            TypeError: If dataset is not a supported type
+            KeyError: If stratify or split_column references non-existent column
+            Exception: Other errors are captured in result dictionary
         """
         import time
         import uuid
-
+        
+        # Initialize result tracking
         result = {
             "success": False,
             "operation": "create_train_test_split",
             "timestamp": time.time(),
         }
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = TrainTestSplitRequest(
+                    name=name or "",
+                    test_size=test_size,
+                    random_state=random_state,
+                    stratify=stratify,
+                    split_column=split_column,
+                    format=format,
+                    metadata=metadata or {}
+                )
+                # Update validated values
+                name = request.name or None  # Convert empty string back to None
+                test_size = request.test_size
+                random_state = request.random_state
+                stratify = request.stratify
+                split_column = request.split_column
+                format = request.format
+                metadata = request.metadata or {}
+            except Exception as e:
+                # Return validation error
+                error_result = {
+                    "success": False, 
+                    "operation": "create_train_test_split", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return TrainTestSplitResponse(**error_result) if PYDANTIC_AVAILABLE else error_result
 
         try:
+            # Validate test_size explicitly
+            if test_size <= 0.0 or test_size >= 1.0:
+                error_msg = f"test_size must be between 0 and 1, got {test_size}"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "ValueError"
+                return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+            
             # Load dataset if name is provided
             if isinstance(dataset, str) and not hasattr(dataset, "shape"):
                 dataset_name = dataset
-                dataset, dataset_metadata = self.load_dataset(name=dataset_name)
-
-                # Use original format if not specified
-                if not format:
-                    format = dataset_metadata.get("format")
-
-                # Use same name if not specified
-                if not name:
-                    name = dataset_name
+                self.logger.info(f"Loading dataset '{dataset_name}' for splitting")
+                
+                try:
+                    dataset, dataset_metadata = self.load_dataset(name=dataset_name)
+                    
+                    # Use original format if not specified
+                    if not format and dataset_metadata:
+                        format = dataset_metadata.get("format")
+                        self.logger.debug(f"Using original format: {format}")
+                    
+                    # Use same name if not specified
+                    if not name:
+                        name = dataset_name
+                        self.logger.debug(f"Using dataset name for split: {name}")
+                except Exception as e:
+                    error_msg = f"Failed to load dataset '{dataset_name}': {str(e)}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "LoadError"
+                    return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+            
+            # Verify dataset was loaded
+            if dataset is None:
+                error_msg = "No dataset provided or loaded"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "ValueError"
+                return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
 
             # Generate name if not provided
             if not name:
                 name = f"dataset_split_{uuid.uuid4().hex[:8]}"
+                self.logger.debug(f"Generated split name: {name}")
 
             # Generate metadata if not provided
             metadata = metadata or {}
-
+            
+            # Track warnings during processing
+            warnings = []
+            split_datasets = {}
+            
             # Create split
             try:
+                # Try to use scikit-learn for best splitting capabilities
                 from sklearn.model_selection import train_test_split
+                self.logger.debug("Using sklearn for dataset splitting")
 
                 # Handle different dataset types
                 if hasattr(dataset, "iloc") and hasattr(dataset, "loc"):
                     # Pandas DataFrame
                     if split_column:
+                        # Verify split column exists
+                        if split_column not in dataset.columns:
+                            error_msg = f"Split column '{split_column}' not found in dataset"
+                            self.logger.error(error_msg)
+                            result["error"] = error_msg
+                            result["error_type"] = "KeyError"
+                            return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+                        
                         # Use predefined split column
+                        self.logger.info(f"Using predefined split column: {split_column}")
                         train_mask = dataset[split_column] == "train"
                         train_dataset = dataset[train_mask]
                         test_dataset = dataset[~train_mask]
+                        
+                        # Calculate actual test size
+                        actual_test_size = len(test_dataset) / (len(train_dataset) + len(test_dataset))
+                        self.logger.info(f"Predefined split ratio: {actual_test_size:.4f} test size")
                     else:
+                        # Verify stratify column if provided
+                        if stratify and stratify not in dataset.columns:
+                            error_msg = f"Stratify column '{stratify}' not found in dataset"
+                            self.logger.error(error_msg)
+                            result["error"] = error_msg
+                            result["error_type"] = "KeyError"
+                            return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+                        
                         # Use sklearn's train_test_split
+                        self.logger.info(f"Performing stratified split with test_size={test_size}")
                         stratify_data = dataset[stratify] if stratify else None
                         train_dataset, test_dataset = train_test_split(
                             dataset,
@@ -2597,65 +4954,123 @@ class DatasetManager:
                         )
                 elif hasattr(dataset, "shape") and not hasattr(dataset, "iloc"):
                     # NumPy array
+                    self.logger.info(f"Splitting NumPy array with test_size={test_size}")
                     train_dataset, test_dataset = train_test_split(
                         dataset, test_size=test_size, random_state=random_state
                     )
                 else:
-                    result["error"] = "Unsupported dataset type for splitting"
-                    return result
-            except ImportError:
-                self.logger.warning("sklearn not available, using simple split")
+                    error_msg = f"Unsupported dataset type: {type(dataset).__name__}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "TypeError"
+                    return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+
+            except ImportError as e:
+                # Fallback to simple splitting without sklearn
+                self.logger.warning(f"sklearn not available, using simple split: {str(e)}")
+                warnings.append("Using simple split method without sklearn")
 
                 # Simple split for pandas DataFrame
                 if hasattr(dataset, "sample") and hasattr(dataset, "drop"):
+                    self.logger.info("Performing simple DataFrame split")
                     # Calculate number of test samples
                     test_count = int(len(dataset) * test_size)
+                    if test_count == 0:
+                        test_count = 1
+                        warnings.append(f"Test size too small, using minimum 1 sample")
+                    elif test_count >= len(dataset):
+                        test_count = len(dataset) - 1
+                        warnings.append(f"Test size too large, using {len(dataset)-1} samples")
 
                     # Get random indices for test set
                     import random
 
                     if random_state is not None:
                         random.seed(random_state)
-                    test_indices = random.sample(range(len(dataset)), test_count)
-
-                    # Split dataset
-                    test_dataset = dataset.iloc[test_indices]
-                    train_dataset = dataset.drop(test_indices)
+                    
+                    try:
+                        test_indices = random.sample(range(len(dataset)), test_count)
+                        
+                        # Split dataset
+                        test_dataset = dataset.iloc[test_indices]
+                        train_dataset = dataset.drop(test_indices)
+                    except Exception as split_err:
+                        error_msg = f"Error in simple DataFrame split: {str(split_err)}"
+                        self.logger.error(error_msg)
+                        result["error"] = error_msg
+                        result["error_type"] = type(split_err).__name__
+                        return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+                    
                 # Simple split for NumPy array
                 elif hasattr(dataset, "shape") and hasattr(dataset, "__getitem__"):
-                    import numpy as np
+                    self.logger.info("Performing simple NumPy array split")
+                    try:
+                        import numpy as np
 
-                    if random_state is not None:
-                        np.random.seed(random_state)
+                        if random_state is not None:
+                            np.random.seed(random_state)
 
-                    # Shuffle indices
-                    indices = np.random.permutation(len(dataset))
+                        # Shuffle indices
+                        indices = np.random.permutation(len(dataset))
 
-                    # Split indices
-                    test_count = int(len(dataset) * test_size)
-                    test_indices = indices[:test_count]
-                    train_indices = indices[test_count:]
+                        # Split indices
+                        test_count = int(len(dataset) * test_size)
+                        if test_count == 0:
+                            test_count = 1
+                            warnings.append(f"Test size too small, using minimum 1 sample")
+                        elif test_count >= len(dataset):
+                            test_count = len(dataset) - 1
+                            warnings.append(f"Test size too large, using {len(dataset)-1} samples")
+                        
+                        test_indices = indices[:test_count]
+                        train_indices = indices[test_count:]
 
-                    # Split dataset
-                    test_dataset = dataset[test_indices]
-                    train_dataset = dataset[train_indices]
+                        # Split dataset
+                        test_dataset = dataset[test_indices]
+                        train_dataset = dataset[train_indices]
+                    except Exception as split_err:
+                        error_msg = f"Error in simple NumPy split: {str(split_err)}"
+                        self.logger.error(error_msg)
+                        result["error"] = error_msg
+                        result["error_type"] = type(split_err).__name__
+                        return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
                 else:
-                    result["error"] = "Unsupported dataset type for splitting"
-                    return result
+                    error_msg = f"Unsupported dataset type for simple splitting: {type(dataset).__name__}"
+                    self.logger.error(error_msg)
+                    result["error"] = error_msg
+                    result["error_type"] = "TypeError"
+                    return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+
+            # Check split was successful
+            if 'train_dataset' not in locals() or 'test_dataset' not in locals():
+                error_msg = "Failed to create train/test split"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "SplitError"
+                return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+
+            # Get actual split sizes for reporting
+            train_size = len(train_dataset) if hasattr(train_dataset, "__len__") else 0
+            test_size_actual = len(test_dataset) if hasattr(test_dataset, "__len__") else 0
+            actual_ratio = test_size_actual / (train_size + test_size_actual) if (train_size + test_size_actual) > 0 else 0
+            self.logger.info(f"Split complete: {train_size} train samples, {test_size_actual} test samples ({actual_ratio:.2f} ratio)")
 
             # Store train dataset
+            self.logger.info(f"Storing train dataset as '{name}_train'")
             train_metadata = dict(metadata)
-            train_metadata.update(
-                {
-                    "split": "train",
-                    "split_info": {
-                        "test_size": test_size,
-                        "random_state": random_state,
-                        "stratify": stratify,
-                        "split_column": split_column,
-                    },
-                }
-            )
+            train_metadata.update({
+                "split": "train",
+                "split_info": {
+                    "test_size": test_size,
+                    "actual_test_ratio": actual_ratio,
+                    "random_state": random_state,
+                    "stratify": stratify,
+                    "split_column": split_column,
+                    "train_samples": train_size,
+                    "test_samples": test_size_actual,
+                    "paired_dataset": f"{name}_test"
+                },
+            })
 
             train_result = self.store_dataset(
                 dataset=train_dataset,
@@ -2664,20 +5079,31 @@ class DatasetManager:
                 format=format,
                 metadata=train_metadata,
             )
+            
+            if not train_result.get("success", False):
+                error_msg = f"Failed to store train dataset: {train_result.get('error', 'Unknown error')}"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "StorageError"
+                result["details"] = train_result
+                return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
 
             # Store test dataset
+            self.logger.info(f"Storing test dataset as '{name}_test'")
             test_metadata = dict(metadata)
-            test_metadata.update(
-                {
-                    "split": "test",
-                    "split_info": {
-                        "test_size": test_size,
-                        "random_state": random_state,
-                        "stratify": stratify,
-                        "split_column": split_column,
-                    },
-                }
-            )
+            test_metadata.update({
+                "split": "test",
+                "split_info": {
+                    "test_size": test_size,
+                    "actual_test_ratio": actual_ratio,
+                    "random_state": random_state,
+                    "stratify": stratify,
+                    "split_column": split_column,
+                    "train_samples": train_size,
+                    "test_samples": test_size_actual,
+                    "paired_dataset": f"{name}_train"
+                },
+            })
 
             test_result = self.store_dataset(
                 dataset=test_dataset,
@@ -2686,36 +5112,60 @@ class DatasetManager:
                 format=format,
                 metadata=test_metadata,
             )
+            
+            if not test_result.get("success", False):
+                error_msg = f"Failed to store test dataset: {test_result.get('error', 'Unknown error')}"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "StorageError"
+                result["details"] = test_result
+                # We'll still return partial success since the train dataset was stored
+                warnings.append(error_msg)
 
             # Return success with split information
-            result.update(
-                {
-                    "success": True,
-                    "train": {
-                        "name": f"{name}_train",
-                        "cid": train_result.get("cid"),
-                        "size": len(train_dataset) if hasattr(train_dataset, "__len__") else None,
-                    },
-                    "test": {
-                        "name": f"{name}_test",
-                        "cid": test_result.get("cid"),
-                        "size": len(test_dataset) if hasattr(test_dataset, "__len__") else None,
-                    },
-                    "split_params": {
-                        "test_size": test_size,
-                        "random_state": random_state,
-                        "stratify": stratify,
-                        "split_column": split_column,
-                    },
-                }
-            )
-
+            result.update({
+                "success": True,
+                "train_dataset": {
+                    "name": f"{name}_train",
+                    "cid": train_result.get("cid"),
+                    "samples": train_size,
+                    "format": format,
+                },
+                "test_dataset": {
+                    "name": f"{name}_test",
+                    "cid": test_result.get("cid"),
+                    "samples": test_size_actual,
+                    "format": format,
+                },
+                "split_params": {
+                    "test_size": test_size,
+                    "actual_test_ratio": actual_ratio,
+                    "random_state": random_state,
+                    "stratify": stratify,
+                    "split_column": split_column,
+                },
+            })
+            
+            # Add warnings if any
+            if warnings:
+                result["warnings"] = warnings
+            
+            self.logger.info(f"Train/test split complete: {train_size}/{test_size_actual} samples")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return TrainTestSplitResponse(**result)
             return result
 
         except Exception as e:
+            error_msg = f"Error creating train/test split: {str(e)}"
+            self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error creating train/test split: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return TrainTestSplitResponse(**result)
             return result
 
 
@@ -2758,17 +5208,59 @@ class LangchainIntegration:
             self.registry = {"chains": {}, "vector_stores": {}, "templates": {}, "documents": {}}
             self._save_registry()
 
-    def _save_registry(self):
-        """Save the registry to disk."""
+    def _save_registry(self) -> None:
+        """Save the registry to disk.
+        
+        This internal method persists the current state of the registry to the filesystem.
+        The registry contains metadata about stored documents, chains, and vector stores.
+        
+        Returns:
+            None
+        """
         with open(self.registry_path, "w") as f:
             json.dump(self.registry, f, indent=2)
 
-    def check_availability(self):
-        """Check if Langchain and related dependencies are available."""
+    if PYDANTIC_AVAILABLE:
+        class CheckAvailabilityResponse(BaseModel):
+            """Response model for dependency availability check."""
+            success: bool = Field(True, description="Operation success status")
+            operation: str = Field("check_availability", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            langchain_available: bool = Field(..., description="Whether Langchain is available")
+            numpy_available: bool = Field(..., description="Whether NumPy is available")
+            sklearn_available: bool = Field(..., description="Whether scikit-learn is available")
+            tiktoken_available: bool = Field(..., description="Whether tiktoken is available")
+            pydantic_available: bool = Field(..., description="Whether Pydantic is available")
+            llama_index_available: bool = Field(..., description="Whether LlamaIndex is available")
+            message: str = Field("Langchain integration status check completed", description="Status message")
+
+    def check_availability(self) -> Union[Dict[str, Any], "CheckAvailabilityResponse"]:
+        """Check if Langchain and related dependencies are available.
+        
+        This method checks the availability of Langchain and its common dependencies,
+        which is useful for determining what functionality will work in the current
+        environment. It verifies the presence of key packages like NumPy, scikit-learn,
+        tiktoken (for tokenization), Pydantic, and LlamaIndex.
+        
+        Returns:
+            Union[Dict[str, Any], CheckAvailabilityResponse]: A dictionary or Pydantic model containing
+                availability information for various dependencies. The response includes boolean flags
+                for each dependency, indicating whether it's available in the current environment.
+                
+        Example:
+            >>> status = langchain_integration.check_availability()
+            >>> if status["langchain_available"]:
+            ...     print("Langchain is available, proceeding with chain creation")
+            ... else:
+            ...     print("Langchain not available, please install required dependencies")
+            >>>
+            >>> # Check specific dependencies
+            >>> if status["tiktoken_available"]:
+            ...     print("Tiktoken available for optimized token counting")
+        """
         # Check for numpy which is required for most operations
         try:
             import numpy
-
             numpy_available = True
         except ImportError:
             numpy_available = False
@@ -2776,39 +5268,94 @@ class LangchainIntegration:
         # Check for common langchain dependencies
         try:
             import tiktoken
-
             tiktoken_available = True
         except ImportError:
             tiktoken_available = False
 
-        return {
+        # Prepare result with timestamp
+        result = {
             "success": True,
+            "operation": "check_availability",
+            "timestamp": time.time(),
             "langchain_available": LANGCHAIN_AVAILABLE,
             "numpy_available": numpy_available,
             "sklearn_available": SKLEARN_AVAILABLE,
             "tiktoken_available": tiktoken_available,
+            "pydantic_available": PYDANTIC_AVAILABLE,
+            "llama_index_available": LLAMA_INDEX_AVAILABLE,
             "message": "Langchain integration status check completed",
         }
+        
+        # Return as Pydantic model if available
+        if PYDANTIC_AVAILABLE:
+            return CheckAvailabilityResponse(**result)
+        return result
 
-    def load_documents(self, cid=None, path=None, metadata=None):
+    if PYDANTIC_AVAILABLE:
+        class LoadDocumentsRequest(BaseModel):
+            """Request model for loading documents from IPFS or local path."""
+            cid: Optional[str] = Field(None, description="IPFS Content Identifier for documents")
+            path: Optional[str] = Field(None, description="Local path to documents")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to attach to documents")
+            
+        class LoadDocumentsResponse(BaseModel):
+            """Response model for document loading operation."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("load_documents", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            document_count: Optional[int] = Field(None, description="Number of documents loaded")
+            source_id: Optional[str] = Field(None, description="Identifier for the document source")
+            documents: Optional[List[Any]] = Field(None, description="The loaded documents if successful")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def load_documents(
+        self, 
+        cid: Optional[str] = None, 
+        path: Optional[str] = None, 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[List[Any], Dict[str, Any], "LoadDocumentsResponse"]:
         """Load documents from IPFS or local path.
 
+        This method loads documents from either an IPFS CID or a local file path,
+        using the appropriate document loader based on the input. It supports
+        various document formats and attaches additional metadata if provided.
+
         Args:
-            cid: IPFS Content Identifier for documents
-            path: Local path to documents
-            metadata: Additional metadata to attach to documents
+            cid: IPFS Content Identifier for documents. Takes precedence over path if both are provided.
+            path: Local path to documents. Used if CID is not specified.
+            metadata: Additional metadata to attach to all loaded documents.
 
         Returns:
-            List of documents
+            Union[List[Any], Dict[str, Any], LoadDocumentsResponse]: 
+                - On success: List of loaded Document objects (or LoadDocumentsResponse if Pydantic is available)
+                - On failure: Error dictionary with details (or LoadDocumentsResponse if Pydantic is available)
+
+        Examples:
+            >>> # Load documents from IPFS CID
+            >>> documents = langchain_integration.load_documents(cid="QmY9Ej...")
+            >>> print(f"Loaded {len(documents)} documents")
+            
+            >>> # Load documents from local path with metadata
+            >>> documents = langchain_integration.load_documents(
+            ...     path="/path/to/documents",
+            ...     metadata={"source": "local_collection", "author": "John Doe"}
+            ... )
         """
-        result = {"success": False, "operation": "load_documents", "timestamp": time.time()}
+        result = {
+            "success": False, 
+            "operation": "load_documents", 
+            "timestamp": time.time()
+        }
 
         try:
             if not LANGCHAIN_AVAILABLE:
-                result["error"] = (
-                    "Langchain is not available. Please install with 'pip install langchain'"
-                )
+                result["error"] = "Langchain is not available. Please install with 'pip install langchain'"
+                result["error_type"] = "dependency_error"
                 self.logger.error(result["error"])
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadDocumentsResponse(**result)
                 return result
 
             # Determine source (CID has priority over path)
@@ -2820,7 +5367,11 @@ class LangchainIntegration:
                 source_id = os.path.basename(path)
             else:
                 result["error"] = "Either cid or path must be specified"
+                result["error_type"] = "parameter_error"
                 self.logger.error(result["error"])
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadDocumentsResponse(**result)
                 return result
 
             # Load documents
@@ -2829,7 +5380,7 @@ class LangchainIntegration:
             # Add metadata if provided
             if metadata and documents:
                 for doc in documents:
-                    doc["metadata"].update(metadata)
+                    doc.metadata.update(metadata)
 
             # Register in document registry
             self.registry["documents"][source_id] = {
@@ -2840,88 +5391,216 @@ class LangchainIntegration:
             }
             self._save_registry()
 
+            # Prepare success result
             result["success"] = True
             result["document_count"] = len(documents)
             result["source_id"] = source_id
             result["documents"] = documents
 
+            if PYDANTIC_AVAILABLE:
+                response = LoadDocumentsResponse(**result)
+                # Special handling for documents which might not be serializable
+                response.documents = documents
+                return response
+            
             return documents
 
         except Exception as e:
             result["error"] = f"Error loading documents: {str(e)}"
-            result["error_type"] = type(e).__name__
+            result["error_type"] = "processing_error"
             self.logger.exception(f"Error in load_documents: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadDocumentsResponse(**result)
             return result
 
-    def create_vector_store(self, documents, embedding_model=None, collection_name=None):
-        """Create a vector store from documents.
-
+    def create_vector_store(
+        self, 
+        documents: List[Union[Dict[str, Any], str, Any]], 
+        embedding_model: Optional[Union[str, Any]] = None, 
+        collection_name: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[Any, Dict[str, Any], "CreateVectorStoreResponse"]:
+        """Create a vector store from documents with smart embedding model handling.
+        
+        Creates a vector store (embedding database) from a collection of documents. 
+        This method handles various document formats and embedding models, providing
+        intelligent fallbacks and automated document processing.
+        
+        The vector store enables semantic search capabilities, allowing retrieval by meaning
+        rather than exact keyword matches. It serves as a foundation for RAG (Retrieval 
+        Augmented Generation) applications by providing relevant context for LLMs.
+        
         Args:
-            documents: List of documents to add to the vector store
-            embedding_model: Name of embedding model to use, or embedding function
-            collection_name: Name for the vector collection
-
+            documents: Collection of documents to vectorize and store. Accepts:
+                - Dictionaries with "content" or "text" keys and optional "metadata"
+                - Langchain Document objects with page_content and metadata attributes
+                - Strings (plain text)
+                - Lists of any of the above
+            embedding_model: Model to generate embeddings. Can be:
+                - Model name string (e.g., "text-embedding-ada-002" or "sentence-transformers/all-mpnet-base-v2")
+                - Custom embedding function object with embed_documents and embed_query methods
+                - None (uses mock embeddings for testing)
+            collection_name: Unique name for this vector collection (auto-generated if not provided)
+            metadata: Additional metadata to store with the vector store
+            
         Returns:
-            Vector store object
+            If Pydantic is available and error occurs, returns CreateVectorStoreResponse with error details.
+            If successful, returns the vector store object for further operations.
+            If error occurs without Pydantic, returns error dictionary.
+            
+        Raises:
+            No exceptions raised directly; errors are captured in result dictionary or response model.
+            
+        Examples:
+            # Create vector store with default embeddings
+            >>> docs = ["Document 1 text", "Document 2 text", "Document 3 text"]
+            >>> vector_store = dataset_manager.create_vector_store(docs, collection_name="my_docs")
+            
+            # Using structured documents with metadata
+            >>> docs = [
+            ...     {"text": "Content of doc 1", "metadata": {"source": "file1.txt"}},
+            ...     {"text": "Content of doc 2", "metadata": {"source": "file2.txt"}},
+            ... ]
+            >>> vector_store = dataset_manager.create_vector_store(
+            ...     docs, 
+            ...     embedding_model="sentence-transformers/all-mpnet-base-v2",
+            ...     collection_name="text_collection"
+            ... )
+            
+            # Use the vector store for semantic search
+            >>> results = vector_store.similarity_search("query text", k=3)
         """
-        result = {"success": False, "operation": "create_vector_store", "timestamp": time.time()}
+        import time
+        import uuid
+        from typing import List, Dict, Any, Optional, Union, Tuple
+        
+        # Initialize result tracking
+        result = {
+            "success": False, 
+            "operation": "create_vector_store", 
+            "timestamp": time.time(),
+            "warnings": []
+        }
+        
+        # Validate request if Pydantic available
+        if PYDANTIC_AVAILABLE:
+            try:
+                # Validate parameters with Pydantic
+                request = CreateVectorStoreRequest(
+                    documents=documents,
+                    embedding_model=embedding_model if isinstance(embedding_model, str) else None,
+                    collection_name=collection_name,
+                    metadata=metadata or {}
+                )
+                # Update validated values
+                if isinstance(embedding_model, str):
+                    embedding_model = request.embedding_model
+                collection_name = request.collection_name
+                metadata = request.metadata
+            except Exception as e:
+                # Return validation error as CreateVectorStoreResponse
+                error_result = {
+                    "success": False, 
+                    "operation": "create_vector_store", 
+                    "timestamp": time.time(),
+                    "error": f"Validation error: {str(e)}",
+                    "error_type": "ValidationError"
+                }
+                return CreateVectorStoreResponse(**error_result)
 
         try:
+            # Verify Langchain is available
             if not LANGCHAIN_AVAILABLE:
-                result["error"] = (
-                    "Langchain is not available. Please install with 'pip install langchain'"
-                )
-                self.logger.error(result["error"])
+                error_msg = "Langchain is not available. Please install with 'pip install langchain'"
+                self.logger.error(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "DependencyError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return CreateVectorStoreResponse(**result)
                 return result
 
             # Handle embedding model
             embedding_function = None
+            embedding_model_name = None
+            
+            self.logger.debug(f"Setting up embedding model: {embedding_model}")
             if isinstance(embedding_model, str):
+                # Store name for registry
+                embedding_model_name = embedding_model
+                
                 # Try to load the specified embedding model
-                if embedding_model == "text-embedding-ada-002":
+                if embedding_model.lower() in ["text-embedding-ada-002", "openai"]:
                     try:
                         from langchain.embeddings import OpenAIEmbeddings
-
+                        self.logger.info(f"Loading OpenAI embedding model: {embedding_model}")
                         embedding_function = OpenAIEmbeddings(model=embedding_model)
                     except (ImportError, Exception) as e:
-                        self.logger.warning(f"Failed to load OpenAI embedding model: {e}")
+                        warning_msg = f"Failed to load OpenAI embedding model: {str(e)}"
+                        self.logger.warning(warning_msg)
+                        result["warnings"].append(warning_msg)
                         embedding_function = self._create_mock_embedding_function()
                 elif (
                     "huggingface" in embedding_model.lower()
                     or "sentence-transformers" in embedding_model.lower()
+                    or "/" in embedding_model  # Most HF models have a namespace/model format
                 ):
                     try:
                         from langchain.embeddings import HuggingFaceEmbeddings
-
+                        self.logger.info(f"Loading HuggingFace embedding model: {embedding_model}")
                         embedding_function = HuggingFaceEmbeddings(model_name=embedding_model)
                     except (ImportError, Exception) as e:
-                        self.logger.warning(f"Failed to load HuggingFace embedding model: {e}")
+                        warning_msg = f"Failed to load HuggingFace embedding model: {str(e)}"
+                        self.logger.warning(warning_msg)
+                        result["warnings"].append(warning_msg)
                         embedding_function = self._create_mock_embedding_function()
                 else:
-                    self.logger.warning(
-                        f"Unknown embedding model: {embedding_model}, using mock embeddings"
-                    )
+                    warning_msg = f"Unknown embedding model: {embedding_model}, using mock embeddings"
+                    self.logger.warning(warning_msg)
+                    result["warnings"].append(warning_msg)
                     embedding_function = self._create_mock_embedding_function()
-            elif hasattr(embedding_model, "embed_documents") and hasattr(
+            elif embedding_model is not None and hasattr(embedding_model, "embed_documents") and hasattr(
                 embedding_model, "embed_query"
             ):
                 # It's already an embedding function
+                self.logger.debug("Using provided embedding function")
                 embedding_function = embedding_model
+                embedding_model_name = "custom_embedding_function"
             else:
                 # Create a mock embedding function
-                self.logger.warning("No embedding model specified, using mock embeddings")
+                warning_msg = "No embedding model specified, using mock embeddings"
+                self.logger.warning(warning_msg)
+                result["warnings"].append(warning_msg)
                 embedding_function = self._create_mock_embedding_function()
+                embedding_model_name = "mock_embeddings"
+            
+            # Generate a unique collection name if not provided
+            collection_id = collection_name or f"collection_{uuid.uuid4().hex[:8]}"
+            self.logger.debug(f"Creating vector store with collection name: {collection_id}")
 
             # Create vector store
             vector_store = self.create_ipfs_vectorstore(
                 embedding_function=embedding_function,
-                collection_name=collection_name or f"collection_{uuid.uuid4().hex[:8]}",
+                collection_name=collection_id,
             )
+            
+            # Track start time for performance metrics
+            start_time = time.time()
 
             # Process documents and add to vector store
             texts = []
             metadatas = []
+            document_types = set()
+            
+            # Handle the case when documents is a single item
+            if not isinstance(documents, (list, tuple)):
+                documents = [documents]
+            
             for doc in documents:
+                document_types.add(type(doc).__name__)
+                
                 if isinstance(doc, dict) and "content" in doc:
                     texts.append(doc["content"])
                     metadatas.append(doc.get("metadata", {}))
@@ -2929,75 +5608,212 @@ class LangchainIntegration:
                     texts.append(doc["text"])
                     metadatas.append(doc.get("metadata", {}))
                 elif hasattr(doc, "page_content"):
+                    # Langchain Document object
                     texts.append(doc.page_content)
-                    metadatas.append(doc.metadata)
+                    metadatas.append(getattr(doc, "metadata", {}))
                 else:
-                    # Assume it's a string
+                    # Assume it's a string or can be converted to one
                     texts.append(str(doc))
                     metadatas.append({})
 
+            # Log document processing results
+            self.logger.info(f"Processed {len(texts)} documents of types: {', '.join(document_types)}")
+
             # Add texts to vector store
-            vector_store.add_texts(texts, metadatas=metadatas)
+            if texts:
+                self.logger.debug(f"Adding {len(texts)} texts to vector store")
+                vector_store.add_texts(texts, metadatas=metadatas)
+                
+                # Calculate processing time
+                processing_time = time.time() - start_time
+                
+                # Register in registry
+                store_info = {
+                    "document_count": len(texts),
+                    "embedding_model": embedding_model_name,
+                    "timestamp": time.time(),
+                    "document_types": list(document_types),
+                    "processing_time_seconds": processing_time
+                }
+                
+                # Add metadata if provided
+                if metadata:
+                    store_info["metadata"] = metadata
+                
+                # Add to registry
+                if "vector_stores" not in self.registry:
+                    self.registry["vector_stores"] = {}
+                    
+                self.registry["vector_stores"][collection_id] = store_info
+                self._save_registry()
+                
+                self.logger.info(f"Created vector store '{collection_id}' with {len(texts)} documents")
 
-            # Register in registry
-            store_id = collection_name or f"vectorstore_{uuid.uuid4().hex[:8]}"
-            self.registry["vector_stores"][store_id] = {
-                "document_count": len(texts),
-                "embedding_model": (
-                    embedding_model
-                    if isinstance(embedding_model, str)
-                    else "custom_embedding_function"
-                ),
-                "timestamp": time.time(),
-            }
-            self._save_registry()
-
-            result["success"] = True
-            result["vector_store_id"] = store_id
-            result["document_count"] = len(texts)
-
-            return vector_store
+                # Update result with success information
+                result.update({
+                    "success": True,
+                    "vector_store": vector_store,
+                    "vector_store_id": collection_id,
+                    "document_count": len(texts),
+                    "embedding_model": embedding_model_name,
+                    "processing_time_seconds": processing_time
+                })
+                
+                # Return Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return CreateVectorStoreResponse(**result)
+                    
+                return vector_store
+            else:
+                error_msg = "No valid documents found to add to vector store"
+                self.logger.warning(error_msg)
+                result["error"] = error_msg
+                result["error_type"] = "ValidationError"
+                
+                # Return as Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    return CreateVectorStoreResponse(**result)
+                return result
 
         except Exception as e:
-            result["error"] = f"Error creating vector store: {str(e)}"
+            error_msg = f"Error creating vector store: {str(e)}"
+            self.logger.exception(error_msg)
+            result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            self.logger.exception(f"Error in create_vector_store: {e}")
+            
+            # Return as Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return CreateVectorStoreResponse(**result)
             return result
 
-    def _create_mock_embedding_function(self):
-        """Create a mock embedding function for testing."""
-
+    def _create_mock_embedding_function(self) -> Any:
+        """Create a mock embedding function for testing and fallback scenarios.
+        
+        This method creates a mock embedding function that generates random embeddings
+        of dimension 384. This is useful when real embedding models are not available
+        or for testing purposes. The mock function implements the standard embedding
+        interface with embed_documents and embed_query methods.
+        
+        Returns:
+            Any: A mock embedding function object with the standard interface:
+                - embed_documents(texts: List[str]) -> List[ndarray]
+                - embed_query(text: str) -> ndarray
+                
+        Note:
+            The generated embeddings are random 384-dimensional vectors and won't 
+            provide meaningful semantic relationships, but they allow the system to
+            function for testing and demonstration purposes.
+        """
         class MockEmbeddingFunction:
-            def embed_documents(self, texts):
+            def embed_documents(self, texts: List[str]) -> List[np.ndarray]:
+                """Generate random embeddings for a list of documents.
+                
+                Args:
+                    texts: List of text strings to embed
+                    
+                Returns:
+                    List of random 384-dimensional numpy arrays
+                """
                 import numpy as np
-
                 # Create random embeddings of dimension 384
                 return [np.random.rand(384).astype(np.float32) for _ in texts]
 
-            def embed_query(self, text):
+            def embed_query(self, text: str) -> np.ndarray:
+                """Generate random embedding for a query string.
+                
+                Args:
+                    text: Query text to embed
+                    
+                Returns:
+                    Random 384-dimensional numpy array
+                """
                 import numpy as np
-
                 # Create random embedding of dimension 384
                 return np.random.rand(384).astype(np.float32)
 
         return MockEmbeddingFunction()
 
-    def create_ipfs_vectorstore(self, embedding_function, collection_name=None):
+    if PYDANTIC_AVAILABLE:
+        class CreateIPFSVectorStoreRequest(BaseModel):
+            """Request model for creating an IPFS-backed vector store."""
+            embedding_function: Any = Field(..., description="Function to generate embeddings")
+            collection_name: Optional[str] = Field(None, description="Name for the vector collection")
+
+        class CreateIPFSVectorStoreResponse(BaseModel):
+            """Response model for IPFS vector store creation operations."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("create_ipfs_vectorstore", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            vector_store: Optional[Any] = Field(None, description="The created vector store object")
+            collection_name: Optional[str] = Field(None, description="Name of the vector collection")
+            embedding_type: Optional[str] = Field(None, description="Type of embedding function used")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def create_ipfs_vectorstore(
+        self, 
+        embedding_function: Any, 
+        collection_name: Optional[str] = None
+    ) -> Union[Dict[str, Any], Any, "CreateIPFSVectorStoreResponse"]:
         """Create a Langchain vector store backed by IPFS storage.
 
+        This method creates a custom vector store implementation that is backed by IPFS storage
+        for persistence. The vector store provides standard Langchain-compatible interfaces
+        for adding documents, searching by similarity, and retrieving content.
+
+        The implementation uses cosine similarity for vector search and supports saving/loading
+        from both local storage and IPFS. The vector store can be easily integrated with
+        Langchain chains and agents through the retriever interface.
+
         Args:
-            embedding_function: Function to generate embeddings
-            collection_name: Name for the vector collection
+            embedding_function: Function to generate embeddings. Must implement the methods:
+                - embed_documents(texts: List[str]) -> List[List[float]]
+                - embed_query(text: str) -> List[float]
+            collection_name: Optional name for the vector collection. Defaults to "default_collection"
+                if not provided. Used for organizational purposes when storing or retrieving.
 
         Returns:
-            Vector store object
+            If Pydantic is available: A CreateIPFSVectorStoreResponse object
+            Otherwise: Either a vector store object (on success) or an error dictionary (on failure)
+
+        Example:
+            >>> from langchain.embeddings import OpenAIEmbeddings
+            >>> embeddings = OpenAIEmbeddings()
+            >>> vector_store = langchain_integration.create_ipfs_vectorstore(
+            ...     embedding_function=embeddings,
+            ...     collection_name="my_documents"
+            ... )
+            >>> # Add documents to the vector store
+            >>> vector_store.add_texts(["Document 1", "Document 2"], metadatas=[{"source": "file1"}, {"source": "file2"}])
+            >>> # Search for similar documents
+            >>> results = vector_store.similarity_search("query text", k=2)
         """
-        if not LANGCHAIN_AVAILABLE:
-            return {
-                "success": False,
-                "error": "Langchain is not available. Please install with 'pip install langchain'",
-                "simulation_note": "This is a simulated error, no vector store was created",
-            }
+        result = {
+            "success": False,
+            "operation": "create_ipfs_vectorstore",
+            "timestamp": time.time()
+        }
+        
+        try:
+            if not LANGCHAIN_AVAILABLE:
+                result["error"] = "Langchain is not available. Please install with 'pip install langchain'"
+                result["error_type"] = "dependency_error"
+                self.logger.error(f"Failed to create IPFS vector store: {result['error']}")
+                
+                if PYDANTIC_AVAILABLE:
+                    return CreateIPFSVectorStoreResponse(**result)
+                return result
+
+            # Validate embedding function
+            if not hasattr(embedding_function, "embed_documents") or not hasattr(embedding_function, "embed_query"):
+                error_msg = "Invalid embedding function. Must have embed_documents and embed_query methods."
+                result["error"] = error_msg
+                result["error_type"] = "validation_error"
+                self.logger.error(f"Failed to create IPFS vector store: {error_msg}")
+                
+                if PYDANTIC_AVAILABLE:
+                    return CreateIPFSVectorStoreResponse(**result)
+                return result
 
         # Vector store implementation for IPFS
         class IPFSVectorStore:
@@ -3171,30 +5987,118 @@ class LangchainIntegration:
                     # Clean up temporary directory
                     shutil.rmtree(temp_dir)
 
-        # Create and return the vector store
-        vector_store = IPFSVectorStore(
-            ipfs_client=self.ipfs,
-            embedding_function=embedding_function,
-            collection_name=collection_name or "default_collection",
-        )
+            # Create the vector store
+            vector_store = IPFSVectorStore(
+                ipfs_client=self.ipfs,
+                embedding_function=embedding_function,
+                collection_name=collection_name or "default_collection",
+            )
 
-        return vector_store
+            # Determine embedding type for better metadata
+            embedding_type = type(embedding_function).__name__
+            if hasattr(embedding_function, "__class__"):
+                embedding_type = embedding_function.__class__.__name__
 
-    def create_document_loader(self, path_or_cid):
-        """Create a document loader for IPFS content.
+            # Create successful result
+            result = {
+                "success": True,
+                "operation": "create_ipfs_vectorstore",
+                "timestamp": time.time(),
+                "vector_store": vector_store,
+                "collection_name": collection_name or "default_collection",
+                "embedding_type": embedding_type
+            }
+
+            # Return appropriate response type
+            if PYDANTIC_AVAILABLE:
+                return CreateIPFSVectorStoreResponse(**result)
+            return vector_store
+        
+        except Exception as e:
+            error_msg = str(e)
+            result["error"] = error_msg
+            result["error_type"] = type(e).__name__
+            self.logger.exception(f"Unexpected error creating IPFS vector store: {error_msg}")
+            
+            if PYDANTIC_AVAILABLE:
+                return CreateIPFSVectorStoreResponse(**result)
+            return result
+
+    if PYDANTIC_AVAILABLE:
+        class CreateDocumentLoaderRequest(BaseModel):
+            """Request model for creating a document loader."""
+            path_or_cid: str = Field(..., description="Path or CID to load documents from")
+
+        class CreateDocumentLoaderResponse(BaseModel):
+            """Response model for document loader creation operations."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("create_document_loader", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            loader: Optional[Any] = Field(None, description="The created document loader object")
+            path_or_cid: Optional[str] = Field(None, description="The path or CID that was used")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def create_document_loader(
+        self, 
+        path_or_cid: str
+    ) -> Union[Dict[str, Any], Any, "CreateDocumentLoaderResponse"]:
+        """Create a document loader for IPFS and local content.
+        
+        This method creates a Langchain-compatible document loader that can load 
+        documents from either IPFS content (specified by CID) or a local path.
+        The loader supports loading from both files and directories, handling text 
+        content appropriately based on the source.
+        
+        When a CID is provided, the content is first retrieved from IPFS and saved to a
+        temporary directory before processing. When a local path is provided, the content
+        is accessed directly.
 
         Args:
-            path_or_cid: Path or CID to load documents from
+            path_or_cid: Path or CID to load documents from. If it starts with "Qm" or "bafy",
+                it's treated as an IPFS CID and the content is retrieved from IPFS. Otherwise,
+                it's treated as a local file or directory path.
 
         Returns:
-            Document loader object
+            If Pydantic is available: A CreateDocumentLoaderResponse object
+            Otherwise: Either a document loader object (on success) or an error dictionary (on failure)
+            
+        Example:
+            >>> # Create a document loader for an IPFS CID
+            >>> loader = langchain_integration.create_document_loader("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
+            >>> # Load documents from IPFS
+            >>> documents = loader.load()
+            >>> # Process the documents
+            >>> for doc in documents:
+            >>>     print(f"Content: {doc['page_content'][:100]}...")
+            >>>     print(f"Source: {doc['metadata']['source']}")
         """
-        if not LANGCHAIN_AVAILABLE:
-            return {
-                "success": False,
-                "error": "Langchain is not available. Please install with 'pip install langchain'",
-                "simulation_note": "This is a simulated error, no document loader was created",
-            }
+        result = {
+            "success": False,
+            "operation": "create_document_loader",
+            "timestamp": time.time(),
+            "path_or_cid": path_or_cid
+        }
+        
+        try:
+            if not LANGCHAIN_AVAILABLE:
+                result["error"] = "Langchain is not available. Please install with 'pip install langchain'"
+                result["error_type"] = "dependency_error"
+                self.logger.error(f"Failed to create document loader: {result['error']}")
+                
+                if PYDANTIC_AVAILABLE:
+                    return CreateDocumentLoaderResponse(**result)
+                return result
+                
+            # Validate input
+            if not path_or_cid:
+                result["error"] = "Path or CID cannot be empty"
+                result["error_type"] = "validation_error"
+                self.logger.error(f"Failed to create document loader: {result['error']}")
+                
+                if PYDANTIC_AVAILABLE:
+                    return CreateDocumentLoaderResponse(**result)
+                return result
 
         # Document loader implementation for IPFS
         class IPFSDocumentLoader:
@@ -3272,22 +6176,112 @@ class LangchainIntegration:
                     self.logger.error(f"Error loading documents: {e}")
                     return []
 
-        # Create and return the document loader
-        loader = IPFSDocumentLoader(ipfs_client=self.ipfs, path_or_cid=path_or_cid)
+            # Create the document loader
+            loader = IPFSDocumentLoader(ipfs_client=self.ipfs, path_or_cid=path_or_cid)
+            
+            # Create successful result
+            result = {
+                "success": True,
+                "operation": "create_document_loader",
+                "timestamp": time.time(),
+                "loader": loader,
+                "path_or_cid": path_or_cid
+            }
+            
+            # Return appropriate response type
+            if PYDANTIC_AVAILABLE:
+                return CreateDocumentLoaderResponse(**result)
+            return loader
+            
+        except Exception as e:
+            error_msg = str(e)
+            result["error"] = error_msg
+            result["error_type"] = type(e).__name__
+            self.logger.exception(f"Unexpected error creating document loader: {error_msg}")
+            
+            if PYDANTIC_AVAILABLE:
+                return CreateDocumentLoaderResponse(**result)
+            return result
 
-        return loader
+    if PYDANTIC_AVAILABLE:
+        class StoreChainRequest(BaseModel):
+            """Request model for storing a Langchain chain in IPFS."""
+            chain: Any = Field(..., description="Langchain chain to store")
+            name: str = Field(..., description="Name for the chain")
+            version: str = Field("1.0.0", description="Version string")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
 
-    def store_chain(self, chain, name, version="1.0.0", metadata=None):
-        """Store a Langchain chain in IPFS.
+        class StoreChainResponse(BaseModel):
+            """Response model for chain storage operations."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("store_chain", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            name: str = Field(..., description="Name of the chain")
+            version: str = Field(..., description="Version of the chain")
+            chain_type: Optional[str] = Field(None, description="Type of the chain")
+            cid: Optional[str] = Field(None, description="CID of the stored chain")
+            warning: Optional[str] = Field(None, description="Warning message if any")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+            error_details: Optional[str] = Field(None, description="Additional error details")
+
+    def store_chain(
+        self, 
+        chain: Any, 
+        name: str, 
+        version: str = "1.0.0", 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], "StoreChainResponse"]:
+        """Store a Langchain chain in IPFS for persistence and sharing.
+
+        This method serializes a Langchain chain and stores it in IPFS for later retrieval.
+        It saves both the pickled chain (if possible) and the chain's configuration as JSON
+        (if available). The chain is registered in the local registry for easy lookup and
+        can be retrieved using the returned CID.
+
+        Chains stored with this method can be later loaded with `load_chain()` using
+        either the name/version combination or the CID.
 
         Args:
-            chain: Langchain chain to store
-            name: Name for the chain
-            version: Version string
-            metadata: Additional metadata
+            chain: Langchain chain to store. This can be any Langchain chain object,
+                such as LLMChain, SequentialChain, RouterChain, etc.
+            name: Name for the chain. Used for organization and later retrieval.
+            version: Version string. Defaults to "1.0.0" if not provided.
+            metadata: Optional dictionary of additional metadata to store with the chain.
+                Useful for tracking creation parameters, usage notes, etc.
 
         Returns:
-            Dictionary with storage information including CID
+            If Pydantic is available: A StoreChainResponse object
+            Otherwise: A dictionary with storage information, including:
+                - success: Boolean indicating if the operation was successful
+                - cid: Content ID (CID) of the stored chain (if successful)
+                - error: Error message (if unsuccessful)
+                - Additional metadata about the operation
+
+        Example:
+            >>> from langchain.chains import LLMChain
+            >>> from langchain.llms import OpenAI
+            >>> from langchain.prompts import PromptTemplate
+            >>>
+            >>> # Create a simple chain
+            >>> template = "Question: {question}\\nAnswer:"
+            >>> prompt = PromptTemplate(template=template, input_variables=["question"])
+            >>> llm = OpenAI()
+            >>> chain = LLMChain(llm=llm, prompt=prompt)
+            >>>
+            >>> # Store the chain in IPFS
+            >>> result = langchain_integration.store_chain(
+            ...     chain=chain,
+            ...     name="question_answering_chain",
+            ...     version="1.0.0",
+            ...     metadata={"description": "Simple question answering chain", "author": "User"}
+            ... )
+            >>>
+            >>> # Check the result
+            >>> if result["success"]:
+            ...     print(f"Chain stored successfully with CID: {result['cid']}")
+            ... else:
+            ...     print(f"Failed to store chain: {result.get('error')}")
         """
         result = {
             "success": False,
@@ -3386,20 +6380,93 @@ class LangchainIntegration:
             # Clean up
             shutil.rmtree(temp_dir, ignore_errors=True)
 
+        # Add the chain type to the result if available
+        if chain is not None:
+            result["chain_type"] = type(chain).__name__
+            
+        # Return appropriate response type
+        if PYDANTIC_AVAILABLE:
+            return StoreChainResponse(**result)
         return result
 
-    def load_chain(self, name=None, version=None, cid=None):
-        """Load a Langchain chain from IPFS.
+    if PYDANTIC_AVAILABLE:
+        class LoadChainRequest(BaseModel):
+            """Request model for loading a Langchain chain from IPFS."""
+            name: Optional[str] = Field(None, description="Name of the chain to load")
+            version: Optional[str] = Field(None, description="Version of the chain to load")
+            cid: Optional[str] = Field(None, description="CID of the chain to load directly")
+            
+            @validator('name', 'cid')
+            def validate_name_or_cid(cls, v, values):
+                """Validate that either name or cid is provided."""
+                if not v and 'name' not in values and 'cid' not in values:
+                    raise ValueError("Either name or cid must be provided")
+                return v
+
+        class LoadChainResponse(BaseModel):
+            """Response model for chain loading operations."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("load_chain", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            chain: Optional[Any] = Field(None, description="The loaded chain object if successful")
+            name: Optional[str] = Field(None, description="Name of the loaded chain")
+            version: Optional[str] = Field(None, description="Version of the loaded chain")
+            cid: Optional[str] = Field(None, description="CID of the loaded chain")
+            chain_type: Optional[str] = Field(None, description="Type of the loaded chain")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Chain metadata if available")
+            config: Optional[Dict[str, Any]] = Field(None, description="Chain configuration if available")
+            warning: Optional[str] = Field(None, description="Warning message if any")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def load_chain(
+        self, 
+        name: Optional[str] = None, 
+        version: Optional[str] = None, 
+        cid: Optional[str] = None
+    ) -> Union[Dict[str, Any], Any, "LoadChainResponse"]:
+        """Load a Langchain chain from IPFS by name, version, or CID.
+
+        This method retrieves a previously stored Langchain chain from IPFS. Chains can be
+        retrieved either by name/version or directly by CID. When only a name is provided,
+        the latest version of the chain is loaded based on timestamp.
+
+        The method first tries to load the chain from a pickled file. If that's not available
+        or fails, it attempts to reconstruct the chain from its JSON configuration if available.
 
         Args:
-            name: Name of the chain to load
-            version: Version of the chain to load
-            cid: CID of the chain to load directly
+            name: Name of the chain to load. Either name or cid must be provided.
+            version: Version of the chain to load. If not provided when using name,
+                    the latest version will be loaded.
+            cid: CID of the chain to load directly. Alternative to using name/version.
 
         Returns:
-            Loaded chain object
+            If successful and Pydantic is not available: The loaded chain object
+            If successful and Pydantic is available: LoadChainResponse with chain in the 'chain' field
+            If unsuccessful: Dict or LoadChainResponse with error information
+
+        Example:
+            >>> # Load a chain by name (latest version)
+            >>> chain = langchain_integration.load_chain("question_answering_chain")
+            >>> # Load a specific version
+            >>> chain = langchain_integration.load_chain("question_answering_chain", version="1.0.0")
+            >>> # Load directly by CID
+            >>> chain = langchain_integration.load_chain(cid="QmChainCID123")
+            >>> # Use the loaded chain
+            >>> if isinstance(chain, dict) and not chain.get("success", False):
+            ...     print(f"Error loading chain: {chain.get('error')}")
+            ... else:
+            ...     result = chain.run(question="What is the capital of France?")
+            ...     print(result)
         """
-        result = {"success": False, "operation": "load_chain", "timestamp": time.time()}
+        result = {
+            "success": False, 
+            "operation": "load_chain", 
+            "timestamp": time.time(),
+            "name": name,
+            "version": version,
+            "cid": cid
+        }
 
         if not LANGCHAIN_AVAILABLE:
             result["error"] = (
@@ -3416,6 +6483,10 @@ class LangchainIntegration:
                 chain_key = f"{name}:{version}"
                 if chain_key not in self.registry["chains"]:
                     result["error"] = f"Chain {name}:{version} not found in registry"
+                    result["error_type"] = "not_found_error"
+                    
+                    if PYDANTIC_AVAILABLE:
+                        return LoadChainResponse(**result)
                     return result
                 chain_cid = self.registry["chains"][chain_key]["cid"]
             elif name:
@@ -3427,6 +6498,10 @@ class LangchainIntegration:
 
                 if not versions:
                     result["error"] = f"Chain {name} not found in registry"
+                    result["error_type"] = "not_found_error"
+                    
+                    if PYDANTIC_AVAILABLE:
+                        return LoadChainResponse(**result)
                     return result
 
                 # Sort by timestamp (latest first)
@@ -3447,6 +6522,10 @@ class LangchainIntegration:
                         result["error"] = (
                             f"Failed to get chain from IPFS: {get_result.get('error', 'Unknown error')}"
                         )
+                        result["error_type"] = "ipfs_error"
+                        
+                        if PYDANTIC_AVAILABLE:
+                            return LoadChainResponse(**result)
                         return result
                 else:
                     result["error"] = "IPFS client does not support get operation"
@@ -3471,6 +6550,11 @@ class LangchainIntegration:
                         chain = pickle.load(f)
                     result["success"] = True
                     result["chain"] = chain
+                    result["chain_type"] = type(chain).__name__
+                    
+                    # Return appropriate response type
+                    if PYDANTIC_AVAILABLE:
+                        return LoadChainResponse(**result)
                     return chain
 
                 # Try to load from config
@@ -3481,26 +6565,37 @@ class LangchainIntegration:
 
                     # Try to reconstruct chain from config
                     if "chain_type" in metadata:
-                        result["error"] = (
-                            f"Chain could not be reconstructed from config (type: {metadata['chain_type']})"
-                        )
+                        result["error"] = f"Chain could not be reconstructed from config (type: {metadata['chain_type']})"
+                        result["error_type"] = "reconstruction_error"
                         result["config"] = config
+                        
+                        if PYDANTIC_AVAILABLE:
+                            return LoadChainResponse(**result)
                         return result
                     else:
-                        result["error"] = (
-                            "Chain could not be reconstructed from config (unknown type)"
-                        )
+                        result["error"] = "Chain could not be reconstructed from config (unknown type)"
+                        result["error_type"] = "reconstruction_error"
                         result["config"] = config
+                        
+                        if PYDANTIC_AVAILABLE:
+                            return LoadChainResponse(**result)
                         return result
 
                 # Neither pickle nor config found
                 result["error"] = "No chain data found in IPFS content"
+                result["error_type"] = "data_missing_error"
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadChainResponse(**result)
                 return result
 
             except Exception as e:
                 result["error"] = f"Error loading chain: {str(e)}"
                 result["error_type"] = type(e).__name__
                 self.logger.exception(f"Error in load_chain: {e}")
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadChainResponse(**result)
                 return result
 
             finally:
@@ -3511,6 +6606,9 @@ class LangchainIntegration:
             result["error"] = f"Error in load_chain: {str(e)}"
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error in load_chain: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadChainResponse(**result)
             return result
 
 
@@ -3552,8 +6650,15 @@ class LlamaIndexIntegration:
             self.registry = {"indices": {}, "documents": {}, "query_engines": {}}
             self._save_registry()
 
-    def _save_registry(self):
-        """Save the registry to disk."""
+    def _save_registry(self) -> None:
+        """Save the registry to disk.
+        
+        This internal method persists the current state of the registry to the filesystem.
+        The registry contains metadata about stored documents, chains, and vector stores.
+        
+        Returns:
+            None
+        """
         with open(self.registry_path, "w") as f:
             json.dump(self.registry, f, indent=2)
 
@@ -3647,21 +6752,71 @@ class LlamaIndexIntegration:
             self.logger.exception(f"Error in load_documents: {e}")
             return result
 
-    def create_ipfs_document_reader(self, path_or_cid):
+    if PYDANTIC_AVAILABLE:
+        class CreateDocumentReaderRequest(BaseModel):
+            """Request model for creating an IPFS document reader."""
+            path_or_cid: str = Field(..., description="Path or CID to load documents from")
+        
+        class CreateDocumentReaderResponse(BaseModel):
+            """Response model for document reader creation."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("create_document_reader", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            reader: Optional[Any] = Field(None, description="The document reader object if successful")
+            path_or_cid: str = Field(..., description="Path or CID used to create the reader")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+            simulation_note: Optional[str] = Field(None, description="Additional information about simulated operations")
+    
+    def create_ipfs_document_reader(self, path_or_cid: str) -> Union[Dict[str, Any], Any, "CreateDocumentReaderResponse"]:
         """Create a document reader for IPFS content.
 
+        This method creates a document reader capable of loading and processing content 
+        from either a local path or an IPFS CID. The reader can handle both single files 
+        and directories of files, automatically extracting text content when possible.
+        
+        The returned reader has methods for:
+        - Loading documents (`load_data()`)
+        - Creating vector indices from documents (`create_index()`)
+        - Saving indices to disk or IPFS
+
         Args:
-            path_or_cid: Path or CID to load documents from
+            path_or_cid: Path or CID to load documents from. Can be a local file path,
+                         directory path, or IPFS CID (starts with 'Qm' or 'bafy').
 
         Returns:
-            Document reader object
+            If successful and Pydantic is not available: The document reader object
+            If successful and Pydantic is available: CreateDocumentReaderResponse with reader in 'reader' field
+            If unsuccessful: Dict or CreateDocumentReaderResponse with error information
+
+        Example:
+            >>> # Create reader from IPFS CID
+            >>> reader = llamaindex_integration.create_ipfs_document_reader("QmYourContentCID")
+            >>> # Load documents
+            >>> documents = reader.load_data()
+            >>> print(f"Loaded {len(documents)} documents")
+            >>> # Create an index
+            >>> index = reader.create_index()
+            >>> # Save the index to IPFS
+            >>> result = index.save_to_ipfs(ipfs_client)
+            >>> if result["success"]:
+            >>>     print(f"Saved index to IPFS with CID: {result['Hash']}")
         """
+        result = {
+            "success": False,
+            "operation": "create_document_reader",
+            "timestamp": time.time(),
+            "path_or_cid": path_or_cid
+        }
+        
         if not LLAMA_INDEX_AVAILABLE:
-            return {
-                "success": False,
-                "error": "LlamaIndex is not available. Please install with 'pip install llama-index'",
-                "simulation_note": "This is a simulated error, no document reader was created",
-            }
+            result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+            result["error_type"] = "dependency_error"
+            result["simulation_note"] = "This is a simulated error, no document reader was created"
+            
+            if PYDANTIC_AVAILABLE:
+                return CreateDocumentReaderResponse(**result)
+            return result
 
         # Document reader implementation for IPFS
         class IPFSDocumentReader:
@@ -4045,17 +7200,82 @@ class LlamaIndexIntegration:
             self.logger.exception(f"Error in create_index: {e}")
             return result
 
-    def store_index(self, index, name, version="1.0.0", metadata=None):
-        """Store an index in IPFS.
+    if PYDANTIC_AVAILABLE:
+        class StoreIndexRequest(BaseModel):
+            """Request model for storing a LlamaIndex index in IPFS."""
+            index: Any = Field(..., description="LlamaIndex index to store")
+            name: str = Field(..., description="Name for the index")
+            version: str = Field("1.0.0", description="Version string")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
+
+        class StoreIndexResponse(BaseModel):
+            """Response model for index storage operations."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("store_index", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            name: str = Field(..., description="Name of the index")
+            version: str = Field(..., description="Version of the index")
+            index_type: Optional[str] = Field(None, description="Type of the index")
+            cid: Optional[str] = Field(None, description="CID of the stored index")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Index metadata")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+            error_details: Optional[str] = Field(None, description="Additional error details")
+
+    def store_index(
+        self, 
+        index: Any, 
+        name: str, 
+        version: str = "1.0.0", 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], "StoreIndexResponse"]:
+        """Store a LlamaIndex index in IPFS for persistence and sharing.
+
+        This method serializes a LlamaIndex index and stores it in IPFS for later retrieval.
+        The index is registered in the local registry for easy lookup and can be retrieved
+        using the returned CID or by name/version.
+
+        Indices stored with this method can be later loaded with `load_index()` using
+        either the name/version combination or the CID.
 
         Args:
-            index: Index to store
-            name: Name for the index
-            version: Version string
-            metadata: Additional metadata
+            index: LlamaIndex index to store. This can be any LlamaIndex index object,
+                such as GPTVectorStoreIndex, GPTSimpleKeywordTableIndex, etc.
+            name: Name for the index. Used for organization and later retrieval.
+            version: Version string. Defaults to "1.0.0" if not provided.
+            metadata: Optional dictionary of additional metadata to store with the index.
+                Useful for tracking creation parameters, usage notes, etc.
 
         Returns:
-            Dictionary with storage information including CID
+            If Pydantic is available: A StoreIndexResponse object
+            Otherwise: A dictionary with storage information, including:
+                - success: Boolean indicating if the operation was successful
+                - cid: Content ID (CID) of the stored index (if successful)
+                - error: Error message (if unsuccessful)
+                - Additional metadata about the operation
+
+        Example:
+            >>> from llama_index import GPTVectorStoreIndex, SimpleDirectoryReader
+            >>> from llama_index.node_parser import SimpleNodeParser
+            >>>
+            >>> # Create a simple index from documents
+            >>> documents = SimpleDirectoryReader("docs").load_data()
+            >>> nodes = SimpleNodeParser().get_nodes_from_documents(documents)
+            >>> index = GPTVectorStoreIndex(nodes)
+            >>>
+            >>> # Store the index in IPFS
+            >>> result = llama_integration.store_index(
+            ...     index=index,
+            ...     name="documentation_index",
+            ...     version="1.0.0",
+            ...     metadata={"description": "Vector index for documentation", "document_count": len(documents)}
+            ... )
+            >>>
+            >>> # Check the result
+            >>> if result["success"]:
+            ...     print(f"Index stored successfully with CID: {result['cid']}")
+            ... else:
+            ...     print(f"Failed to store index: {result.get('error')}")
         """
         result = {
             "success": False,
@@ -4070,6 +7290,8 @@ class LlamaIndexIntegration:
                 "LlamaIndex is not available. Please install with 'pip install llama-index'"
             )
             self.logger.error(result["error"])
+            if PYDANTIC_AVAILABLE:
+                return StoreIndexResponse(**result)
             return result
 
         try:
@@ -4078,14 +7300,22 @@ class LlamaIndexIntegration:
 
             if not ipfs_result.get("success", False):
                 result["error"] = "Failed to save index to IPFS"
+                result["error_type"] = "ipfs_error"
                 if "error" in ipfs_result:
                     result["error_details"] = ipfs_result["error"]
+                
+                if PYDANTIC_AVAILABLE:
+                    return StoreIndexResponse(**result)
                 return result
 
             # Get CID
             cid = ipfs_result.get("Hash")
             if not cid:
                 result["error"] = "No CID returned from IPFS"
+                result["error_type"] = "missing_cid_error"
+                
+                if PYDANTIC_AVAILABLE:
+                    return StoreIndexResponse(**result)
                 return result
 
             # Register in index registry
@@ -4107,33 +7337,103 @@ class LlamaIndexIntegration:
             result["success"] = True
             result["cid"] = cid
             result["metadata"] = index_metadata
+            result["index_type"] = type(index).__name__
 
+            if PYDANTIC_AVAILABLE:
+                return StoreIndexResponse(**result)
             return result
 
         except Exception as e:
             result["error"] = f"Error storing index: {str(e)}"
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error in store_index: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return StoreIndexResponse(**result)
             return result
 
-    def load_index(self, name=None, version=None, cid=None):
-        """Load an index from IPFS.
+    if PYDANTIC_AVAILABLE:
+        class LoadIndexRequest(BaseModel):
+            """Request model for loading a LlamaIndex index from IPFS."""
+            name: Optional[str] = Field(None, description="Name of the index to load")
+            version: Optional[str] = Field(None, description="Version of the index to load")
+            cid: Optional[str] = Field(None, description="CID of the index to load directly")
+            
+            @validator('name', 'cid')
+            def validate_name_or_cid(cls, v, values):
+                """Validate that either name or cid is provided."""
+                if not v and 'name' not in values and 'cid' not in values:
+                    raise ValueError("Either name or cid must be provided")
+                return v
+
+        class LoadIndexResponse(BaseModel):
+            """Response model for index loading operations."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("load_index", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            index: Optional[Any] = Field(None, description="The loaded index object if successful")
+            name: Optional[str] = Field(None, description="Name of the loaded index")
+            version: Optional[str] = Field(None, description="Version of the loaded index")
+            cid: Optional[str] = Field(None, description="CID of the loaded index")
+            index_type: Optional[str] = Field(None, description="Type of the loaded index")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Index metadata if available")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def load_index(
+        self, 
+        name: Optional[str] = None, 
+        version: Optional[str] = None, 
+        cid: Optional[str] = None
+    ) -> Union[Dict[str, Any], Any, "LoadIndexResponse"]:
+        """Load a LlamaIndex index from IPFS by name, version, or CID.
+
+        This method retrieves a previously stored LlamaIndex index from IPFS. Indices can be
+        retrieved either by name/version or directly by CID. When only a name is provided,
+        the latest version of the index is loaded based on timestamp.
 
         Args:
-            name: Name of the index to load
-            version: Version of the index to load
-            cid: CID of the index to load directly
+            name: Name of the index to load. Either name or cid must be provided.
+            version: Version of the index to load. If not provided when using name,
+                    the latest version will be loaded.
+            cid: CID of the index to load directly. Alternative to using name/version.
 
         Returns:
-            Loaded index object
+            If successful and Pydantic is not available: The loaded index object
+            If successful and Pydantic is available: LoadIndexResponse with index in the 'index' field
+            If unsuccessful: Dict or LoadIndexResponse with error information
+
+        Example:
+            >>> # Load an index by name (latest version)
+            >>> index = llama_integration.load_index("documentation_index")
+            >>> # Load a specific version
+            >>> index = llama_integration.load_index("documentation_index", version="1.0.0")
+            >>> # Load directly by CID
+            >>> index = llama_integration.load_index(cid="QmIndexCID123")
+            >>> # Use the loaded index
+            >>> if isinstance(index, dict) and not index.get("success", False):
+            ...     print(f"Error loading index: {index.get('error')}")
+            ... else:
+            ...     query_engine = index.as_query_engine()
+            ...     response = query_engine.query("What is this documentation about?")
+            ...     print(response)
         """
-        result = {"success": False, "operation": "load_index", "timestamp": time.time()}
+        result = {
+            "success": False, 
+            "operation": "load_index", 
+            "timestamp": time.time(),
+            "name": name,
+            "version": version,
+            "cid": cid
+        }
 
         if not LLAMA_INDEX_AVAILABLE:
-            result["error"] = (
-                "LlamaIndex is not available. Please install with 'pip install llama-index'"
-            )
+            result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+            result["error_type"] = "dependency_error"
             self.logger.error(result["error"])
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadIndexResponse(**result)
             return result
 
         try:
@@ -4144,6 +7444,10 @@ class LlamaIndexIntegration:
                 index_key = f"{name}:{version}"
                 if index_key not in self.registry["indices"]:
                     result["error"] = f"Index {name}:{version} not found in registry"
+                    result["error_type"] = "not_found_error"
+                    
+                    if PYDANTIC_AVAILABLE:
+                        return LoadIndexResponse(**result)
                     return result
                 index_cid = self.registry["indices"][index_key]["cid"]
             elif name:
@@ -4155,6 +7459,10 @@ class LlamaIndexIntegration:
 
                 if not versions:
                     result["error"] = f"Index {name} not found in registry"
+                    result["error_type"] = "not_found_error"
+                    
+                    if PYDANTIC_AVAILABLE:
+                        return LoadIndexResponse(**result)
                     return result
 
                 # Sort by timestamp (latest first)
@@ -4162,6 +7470,10 @@ class LlamaIndexIntegration:
                 _, index_cid, _ = versions[0]
             else:
                 result["error"] = "Either name or cid must be specified"
+                result["error_type"] = "parameter_error"
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadIndexResponse(**result)
                 return result
 
             # Create a temporary directory
@@ -4172,12 +7484,18 @@ class LlamaIndexIntegration:
                 if hasattr(self.ipfs, "get"):
                     get_result = self.ipfs.get(index_cid, temp_dir)
                     if not get_result.get("success", False):
-                        result["error"] = (
-                            f"Failed to get index from IPFS: {get_result.get('error', 'Unknown error')}"
-                        )
+                        result["error"] = f"Failed to get index from IPFS: {get_result.get('error', 'Unknown error')}"
+                        result["error_type"] = "ipfs_error"
+                        
+                        if PYDANTIC_AVAILABLE:
+                            return LoadIndexResponse(**result)
                         return result
                 else:
                     result["error"] = "IPFS client does not support get operation"
+                    result["error_type"] = "client_capability_error"
+                    
+                    if PYDANTIC_AVAILABLE:
+                        return LoadIndexResponse(**result)
                     return result
 
                 # Path to the downloaded content
@@ -4190,6 +7508,10 @@ class LlamaIndexIntegration:
 
                 if not os.path.exists(documents_path) or not os.path.exists(embeddings_path):
                     result["error"] = "Index data is incomplete"
+                    result["error_type"] = "data_missing_error"
+                    
+                    if PYDANTIC_AVAILABLE:
+                        return LoadIndexResponse(**result)
                     return result
 
                 # Load documents
@@ -4222,13 +7544,24 @@ class LlamaIndexIntegration:
                 result["index"] = index
                 result["document_count"] = len(documents)
                 result["metadata"] = metadata
-
+                result["cid"] = index_cid
+                result["index_type"] = index_cls.__name__
+                
+                if PYDANTIC_AVAILABLE:
+                    response = LoadIndexResponse(**result)
+                    # Special handling for index field which isn't serializable
+                    response.index = index
+                    return response
+                    
                 return index
 
             except Exception as e:
                 result["error"] = f"Error loading index: {str(e)}"
                 result["error_type"] = type(e).__name__
                 self.logger.exception(f"Error loading index: {e}")
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadIndexResponse(**result)
                 return result
 
             finally:
@@ -4239,6 +7572,9 @@ class LlamaIndexIntegration:
             result["error"] = f"Error in load_index: {str(e)}"
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error in load_index: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadIndexResponse(**result)
             return result
 
 

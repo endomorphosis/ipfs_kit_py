@@ -23,6 +23,16 @@ from unittest.mock import MagicMock, patch
 # Add parent directory to path to import from ipfs_kit_py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Try to import the new test fixtures
+try:
+    from test.test_fixtures.ai_ml_test_fixtures import (
+        MockMLModel, MockSklearnModel, MockPyTorchModel, MockTensorflowModel,
+        MockDataset, ModelScenario, DatasetScenario
+    )
+    FIXTURES_AVAILABLE = True
+except ImportError:
+    FIXTURES_AVAILABLE = False
+
 from ipfs_kit_py.ai_ml_integration import (
     LANGCHAIN_AVAILABLE,
     LLAMA_INDEX_AVAILABLE,
@@ -1416,6 +1426,242 @@ class TestPyTorchIntegration(unittest.TestCase):
         # Remove temporary directory
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
+
+
+@unittest.skipIf(not FIXTURES_AVAILABLE, "AI/ML test fixtures not available")
+class TestAIMLIntegrationWithFixtures(unittest.TestCase):
+    """Test AI/ML integration using the new fixtures."""
+    
+    def setUp(self):
+        """Set up test environment."""
+        # Create mock IPFS client
+        self.ipfs_client = MagicMock()
+        
+        # Set flag to disable demo mode
+        self.ipfs_client._testing_mode = False
+        
+        # Mock common IPFS operations
+        self.ipfs_client.dag_put.side_effect = lambda data: f"mock-cid-{uuid.uuid4()}"
+        self.ipfs_client.pin_add.return_value = {"success": True}
+        self.ipfs_client.get.return_value = {"success": True}
+        
+        # Create temp directories
+        self.temp_dir = tempfile.mkdtemp()
+        self.models_dir = os.path.join(self.temp_dir, "models")
+        self.datasets_dir = os.path.join(self.temp_dir, "datasets")
+        os.makedirs(self.models_dir, exist_ok=True)
+        os.makedirs(self.datasets_dir, exist_ok=True)
+        
+        # Initialize model registry with mocks
+        from ipfs_kit_py.ai_ml_integration import ModelRegistry
+        self.model_registry = ModelRegistry(ipfs_client=self.ipfs_client, base_path=self.temp_dir)
+        
+        # Initialize dataset manager with mocks
+        from ipfs_kit_py.ai_ml_integration import DatasetManager
+        self.dataset_manager = DatasetManager(ipfs_client=self.ipfs_client, base_path=self.temp_dir)
+        
+    def tearDown(self):
+        """Clean up after tests."""
+        # Remove temp directory
+        import shutil
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+    
+    def test_sklearn_model_integration(self):
+        """Test scikit-learn model integration using fixtures."""
+        # Create a mock sklearn model using our fixture
+        model = MockSklearnModel()
+        
+        # Patch SKLEARN_AVAILABLE
+        with patch("ipfs_kit_py.ai_ml_integration.SKLEARN_AVAILABLE", True):
+            # Create a scenario for sklearn model testing
+            scenario = ModelScenario.create_sklearn_training_scenario(self.ipfs_client)
+            test_model = scenario.train_model()
+            
+            # Add the model to the registry
+            result = self.model_registry.add_model(
+                model=test_model,
+                model_name="test_sklearn_model",
+                version="1.0.0",
+                metadata=scenario.get_metadata()
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["model_name"], "test_sklearn_model")
+            self.assertEqual(result["version"], "1.0.0")
+            
+            # Verify IPFS calls
+            self.ipfs_client.pin_add.assert_called_once()
+    
+    def test_pytorch_model_integration(self):
+        """Test PyTorch model integration using fixtures."""
+        # Patch TORCH_AVAILABLE
+        with patch("ipfs_kit_py.ai_ml_integration.TORCH_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.torch") as mock_torch:
+            
+            # Create a PyTorch model scenario
+            scenario = ModelScenario.create_pytorch_training_scenario(self.ipfs_client)
+            
+            # Set up mock torch functions
+            mock_torch.save = MagicMock()
+            mock_torch.__version__ = "1.10.0"
+            
+            # Train the model
+            model = scenario.train_model()
+            
+            # Mock methods needed for saving
+            model.state_dict = MagicMock(return_value={"weights": "mock_weights"})
+            
+            # Test PyTorch integration
+            from ipfs_kit_py.ai_ml_integration import PyTorchIntegration
+            torch_integration = PyTorchIntegration(
+                ipfs_client=self.ipfs_client, 
+                temp_dir=self.temp_dir
+            )
+            
+            # Add the model to the registry through the integration
+            with patch.object(torch_integration, "save_model") as mock_save:
+                mock_save.return_value = {
+                    "success": True,
+                    "model_name": "pytorch_model",
+                    "model_version": "1.0.0",
+                    "cid": f"mock-cid-{uuid.uuid4()}",
+                    "format": "pytorch"
+                }
+                
+                # Call save_model
+                result = torch_integration.save_model(
+                    model=model,
+                    name="pytorch_model",
+                    version="1.0.0"
+                )
+                
+                # Verify result
+                self.assertTrue(result["success"])
+                self.assertEqual(result["model_name"], "pytorch_model")
+    
+    def test_tensorflow_model_integration(self):
+        """Test TensorFlow model integration using fixtures."""
+        # Patch TF_AVAILABLE
+        with patch("ipfs_kit_py.ai_ml_integration.TF_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.tensorflow") as mock_tf:
+            
+            # Create a TensorFlow model scenario
+            scenario = ModelScenario.create_tensorflow_training_scenario(self.ipfs_client)
+            
+            # Configure the mock_tf
+            mock_tf.__version__ = "2.6.0"
+            mock_tf.keras = MagicMock()
+            mock_tf.keras.Model = MagicMock
+            mock_tf.saved_model = MagicMock()
+            
+            # Train the model
+            model = scenario.train_model()
+            
+            # Test TensorFlow integration
+            from ipfs_kit_py.ai_ml_integration import TensorflowIntegration
+            tf_integration = TensorflowIntegration(
+                ipfs_client=self.ipfs_client,
+                cache_dir=self.temp_dir
+            )
+            
+            # Add the model to the registry through the integration
+            with patch.object(tf_integration, "save_model") as mock_save:
+                mock_save.return_value = {
+                    "success": True,
+                    "model_name": "tensorflow_model",
+                    "version": "1.0.0",
+                    "cid": f"mock-cid-{uuid.uuid4()}",
+                    "framework": "tensorflow"
+                }
+                
+                # Call save_model
+                result = tf_integration.save_model(
+                    model=model,
+                    name="tensorflow_model",
+                    version="1.0.0"
+                )
+                
+                # Verify result
+                self.assertTrue(result["success"])
+                self.assertEqual(result["model_name"], "tensorflow_model")
+    
+    def test_dataset_integration(self):
+        """Test dataset integration using fixtures."""
+        # Create a dataset scenario
+        scenario = DatasetScenario.create_tabular_dataset_scenario()
+        
+        # Get the dataset
+        dataset_path = scenario.get_dataset_path()
+        
+        # Create dataset file
+        with open(dataset_path, "w") as f:
+            f.write(scenario.get_dataset_content())
+        
+        # Add the dataset to the manager
+        result = self.dataset_manager.add_dataset(
+            dataset_path=dataset_path,
+            dataset_name="test_dataset",
+            version="1.0.0",
+            format="csv",
+            metadata=scenario.get_metadata()
+        )
+        
+        # Verify result
+        self.assertTrue(result["success"])
+        self.assertEqual(result["dataset_name"], "test_dataset")
+        self.assertEqual(result["version"], "1.0.0")
+        
+        # Verify IPFS operations
+        self.ipfs_client.add_path.assert_called_once()
+        self.ipfs_client.pin_add.assert_called_once()
+    
+    def test_dataloader_integration(self):
+        """Test DataLoader integration using fixtures."""
+        # Create mock dataset
+        mock_dataset = MockDataset(
+            samples=[
+                {"features": [0.1, 0.2, 0.3], "labels": 1},
+                {"features": [0.4, 0.5, 0.6], "labels": 0},
+                {"features": [0.7, 0.8, 0.9], "labels": 1},
+            ],
+            metadata={"name": "mock_dataset", "feature_dim": 3}
+        )
+        
+        # Mock IPFS dag_get to return the dataset
+        self.ipfs_client.dag_get.return_value = {
+            "success": True,
+            "object": {
+                "name": "mock_dataset",
+                "version": "1.0.0",
+                "data": mock_dataset.samples,
+                "metadata": mock_dataset.metadata
+            }
+        }
+        
+        # Initialize dataloader
+        from ipfs_kit_py.ai_ml_integration import IPFSDataLoader
+        data_loader = IPFSDataLoader(
+            ipfs_client=self.ipfs_client,
+            batch_size=2,
+            shuffle=False
+        )
+        
+        # Load the dataset
+        result = data_loader.load_dataset("mock_dataset_cid")
+        
+        # Verify result
+        self.assertTrue(result["success"])
+        self.assertEqual(result["total_samples"], 3)
+        
+        # Iterate through batches
+        batches = list(data_loader)
+        
+        # Should have 2 batches (2 samples, 1 sample)
+        self.assertEqual(len(batches), 2)
+        self.assertEqual(len(batches[0]), 2)  # First batch has 2 samples
+        self.assertEqual(len(batches[1]), 1)  # Second batch has 1 sample
 
 
 if __name__ == "__main__":

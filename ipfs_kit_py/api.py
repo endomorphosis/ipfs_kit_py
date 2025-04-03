@@ -55,6 +55,15 @@ import sys
 import time
 from typing import Any, Dict, List, Optional, Union
 
+# Import OpenAPI schema
+try:
+    from .openapi_schema import get_openapi_schema
+except ImportError:
+    # For development/testing
+    import sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from ipfs_kit_py.openapi_schema import get_openapi_schema
+
 # Import FastAPI and related
 try:
     import fastapi
@@ -311,11 +320,20 @@ if FASTAPI_AVAILABLE:
     app = FastAPI(
         title="IPFS Kit API",
         description="RESTful API for IPFS Kit with comprehensive IPFS functionality and AI/ML integration",
-        version="0.1.0",
+        version="0.1.1",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
+    
+    # Override the default OpenAPI schema with our custom schema
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        app.openapi_schema = get_openapi_schema()
+        return app.openapi_schema
+        
+    app.openapi = custom_openapi
 
     # Add CORS middleware
     cors_origins = os.environ.get("IPFS_KIT_CORS_ORIGINS", "*").split(",")
@@ -339,6 +357,16 @@ else:
 # 2. Default config locations
 config_path = os.environ.get("IPFS_KIT_CONFIG_PATH")
 ipfs_api = IPFSSimpleAPI(config_path=config_path)
+
+# Add an explicit endpoint to serve the OpenAPI schema
+if FASTAPI_AVAILABLE:
+    @app.get("/api/openapi", tags=["System"])
+    def get_openapi():
+        """
+        Returns the OpenAPI schema for the API.
+        This is useful for generating client libraries or documentation.
+        """
+        return get_openapi_schema()
 
 # Configure logging level from environment or config
 log_level = os.environ.get("IPFS_KIT_LOG_LEVEL", "INFO").upper()
@@ -2859,16 +2887,76 @@ if FASTAPI_AVAILABLE:
         return {"methods": methods}
 
 
-def run_server(host="127.0.0.1", port=8000, reload=False):
+def run_server(
+    host="127.0.0.1", 
+    port=8000, 
+    reload=False,
+    workers=1,
+    config_path=None,
+    log_level="info",
+    auth_enabled=False,
+    cors_origins=None,
+    ssl_certfile=None,
+    ssl_keyfile=None,
+    debug=False,
+):
     """
-    Run the API server.
-
+    Run the IPFS Kit API server.
+    
+    This function starts a FastAPI server that provides a RESTful API for IPFS Kit,
+    including comprehensive endpoint documentation and GraphQL support.
+    
     Args:
-        host: Host to bind to
-        port: Port to bind to
-        reload: Whether to enable auto-reload
+        host (str): Hostname or IP address to bind to. Use "0.0.0.0" to listen on all interfaces.
+                   Default: "127.0.0.1"
+        port (int): Port to listen on. Default: 8000
+        reload (bool): Enable auto-reload for development. Default: False
+        workers (int): Number of worker processes. Default: 1
+        config_path (str, optional): Path to configuration file. Default: None
+        log_level (str): Logging level (debug, info, warning, error). Default: "info"
+        auth_enabled (bool): Enable token-based authentication. Default: False
+        cors_origins (List[str], optional): List of allowed CORS origins. Default: ["*"]
+        ssl_certfile (str, optional): Path to SSL certificate file. Default: None
+        ssl_keyfile (str, optional): Path to SSL key file. Default: None
+        debug (bool): Enable debug mode. Default: False
     """
-    uvicorn.run("ipfs_kit_py.api:app", host=host, port=port, reload=reload)
+    # Set environment variables for configuration
+    if config_path:
+        os.environ["IPFS_KIT_CONFIG_PATH"] = config_path
+    
+    if log_level:
+        os.environ["IPFS_KIT_LOG_LEVEL"] = log_level.upper()
+    
+    if auth_enabled is not None:
+        os.environ["IPFS_KIT_AUTH_ENABLED"] = str(auth_enabled).lower()
+    
+    if cors_origins:
+        if isinstance(cors_origins, list):
+            cors_origins = ",".join(cors_origins)
+        os.environ["IPFS_KIT_CORS_ORIGINS"] = cors_origins
+    
+    if debug:
+        os.environ["IPFS_KIT_DEBUG"] = "true"
+        
+    # Configure uvicorn options
+    uvicorn_kwargs = {
+        "host": host,
+        "port": port,
+        "reload": reload,
+        "log_level": log_level.lower()
+    }
+    
+    # Add workers if specified and not using reload
+    if workers > 1 and not reload:
+        uvicorn_kwargs["workers"] = workers
+    
+    # Add SSL configuration if provided
+    if ssl_certfile and ssl_keyfile:
+        uvicorn_kwargs["ssl_certfile"] = ssl_certfile
+        uvicorn_kwargs["ssl_keyfile"] = ssl_keyfile
+    
+    # Run the server
+    uvicorn.run("ipfs_kit_py.api:app", **uvicorn_kwargs)
 
 
 if __name__ == "__main__":
@@ -2876,16 +2964,41 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="IPFS Kit API Server")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to. Use 0.0.0.0 to listen on all interfaces.")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
-    parser.add_argument("--config", help="Path to configuration file")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
+    parser.add_argument("--workers", type=int, default=1, help="Number of worker processes (ignored if reload=True)")
+    parser.add_argument("--config", dest="config_path", help="Path to configuration file")
+    parser.add_argument("--log-level", default="info", choices=["debug", "info", "warning", "error"], 
+                      help="Logging level (debug, info, warning, error)")
+    parser.add_argument("--auth", dest="auth_enabled", action="store_true", help="Enable token-based authentication")
+    parser.add_argument("--cors-origins", help="Comma-separated list of allowed CORS origins")
+    parser.add_argument("--ssl-cert", dest="ssl_certfile", help="Path to SSL certificate file")
+    parser.add_argument("--ssl-key", dest="ssl_keyfile", help="Path to SSL key file")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     args = parser.parse_args()
 
-    # Initialize API with configuration file if provided
-    if args.config:
-        ipfs_api = IPFSSimpleAPI(config_path=args.config)
+    # Process CORS origins if provided
+    cors_origins = None
+    if args.cors_origins:
+        cors_origins = args.cors_origins.split(",")
 
-    # Run server
-    run_server(host=args.host, port=args.port, reload=args.reload)
+    # Initialize API with configuration file if provided
+    if args.config_path:
+        ipfs_api = IPFSSimpleAPI(config_path=args.config_path)
+
+    # Run server with all parameters
+    run_server(
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        workers=args.workers,
+        config_path=args.config_path,
+        log_level=args.log_level,
+        auth_enabled=args.auth_enabled,
+        cors_origins=cors_origins,
+        ssl_certfile=args.ssl_certfile,
+        ssl_keyfile=args.ssl_keyfile,
+        debug=args.debug
+    )

@@ -30,6 +30,7 @@ except ImportError:
 # Import the app from the api module
 if FASTAPI_AVAILABLE:
     from ipfs_kit_py.api import APIRequest, ErrorResponse, IPFSError, IPFSSimpleAPI, app
+    from ipfs_kit_py.openapi_schema import get_openapi_schema
 else:
     # Create placeholder classes for testing without FastAPI
     class APIRequest:
@@ -381,6 +382,37 @@ def test_main_with_config():
         # Verify our mocks were called correctly
         mock_api.assert_called_once_with(config_path=config_path)
         mock_run.assert_called_once_with(host=host, port=port, reload=reload)
+
+
+def test_openapi_schema():
+    """Test the OpenAPI schema integration."""
+    # Test the OpenAPI schema is returned when accessed via the API
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+    assert schema["info"]["title"] == "IPFS Kit API"
+    assert schema["info"]["version"] == "0.1.1"
+    
+    # Test the custom endpoint
+    response = client.get("/api/openapi")
+    assert response.status_code == 200
+    custom_schema = response.json()
+    assert custom_schema["info"]["title"] == "IPFS Kit API"
+    assert custom_schema["info"]["version"] == "0.1.1"
+    
+    # Verify they are the same schema
+    assert schema == custom_schema
+    
+    # Verify the schema contains the expected paths
+    assert "/health" in schema["paths"]
+    assert "/api/v0/add" in schema["paths"]
+    assert "/api/v0/cat" in schema["paths"]
+    assert "/api/v0/pin/add" in schema["paths"]
+    
+    # Verify components are defined
+    assert "components" in schema
+    assert "schemas" in schema["components"]
+    assert "ErrorResponse" in schema["components"]["schemas"]
 
 
 if __name__ == "__main__":
