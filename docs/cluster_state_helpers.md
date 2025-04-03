@@ -2,16 +2,17 @@
 
 ## Overview
 
-The ipfs_kit_py project implements a high-performance, distributed cluster state management system using Apache Arrow's zero-copy data sharing capabilities. This system enables efficient sharing of cluster state (nodes, tasks, content) across processes with minimal overhead.
+The ipfs_kit_py project implements a distributed cluster state management system using Apache Arrow. This system enables sharing of cluster state (nodes, tasks, content) across processes by persisting the state to Parquet files. While originally designed with Plasma for zero-copy IPC, the current implementation primarily relies on file-based sharing for broader compatibility.
 
 ## Key Components
 
 ### Core Features
 
-- **Zero-copy data sharing**: Using Arrow's Plasma store for memory-efficient IPC
-- **Cross-language interoperability**: Shared state accessible from Python, C++, Rust, etc.
-- **Atomic state updates**: Thread-safe state manipulation
-- **Schema evolution**: Support for state schema versioning
+- **Arrow-based State**: Represents cluster state using efficient Arrow tables.
+- **Parquet Persistence**: Stores the state durably in the Parquet file format.
+- **Cross-language interoperability**: State files (Parquet) can be read by Python, C++, Rust, etc.
+- **Atomic state updates**: Mechanisms within the cluster management ensure state consistency (though file access itself requires careful handling in concurrent scenarios).
+- **Schema evolution**: Support for state schema versioning (managed by the core state module).
 - **Rich query capabilities**: Efficient filtering and aggregation of state data
 - **Persistence**: Durable state storage with Parquet format
 - **Observability**: Metrics and visualization for cluster state
@@ -85,14 +86,14 @@ schema = pa.schema([
 
 ### Helper Functions
 
-The `cluster_state_helpers.py` module provides a comprehensive set of functions for accessing and querying the cluster state:
+The `cluster_state_helpers.py` module provides a comprehensive set of functions for accessing and querying the cluster state stored in Parquet files:
 
 #### State Access
-- `get_state_path_from_metadata()`: Find the cluster state directory
-- `connect_to_state_store()`: Connect to the Plasma store
-- `get_cluster_state()`: Get the complete cluster state as an Arrow table
-- `get_cluster_state_as_dict()`: Get the state as a Python dictionary
-- `get_cluster_state_as_pandas()`: Get the state as pandas DataFrames
+- `get_state_path_from_metadata()`: Find the cluster state directory containing metadata and state files.
+- `connect_to_state_store()`: Reads the state metadata file (e.g., `state_metadata.json`) to find the location of the state Parquet file. Returns `(None, metadata_dict)`.
+- `get_cluster_state()`: Reads the cluster state Parquet file into an Arrow table.
+- `get_cluster_state_as_dict()`: Reads the state and converts the (first row of the) Arrow table into a Python dictionary.
+- `get_cluster_state_as_pandas()`: Reads the state and converts the Arrow table into pandas DataFrames (requires `pandas` extra).
 - `get_cluster_metadata()`: Get basic cluster metadata
 
 #### Node Management
@@ -214,100 +215,70 @@ for node in nodes:
 
 ### Cross-Language Access
 
-The Arrow-based cluster state can be accessed from other languages using the Arrow C Data Interface:
+The Arrow-based cluster state, stored in Parquet files, can be accessed from other languages that have Arrow and Parquet support:
 
-#### C++ Example
+#### C++ Example (Illustrative)
 ```cpp
 #include <arrow/api.h>
 #include <arrow/io/api.h>
-#include <arrow/ipc/api.h>
-#include <plasma/client.h>
+#include <parquet/arrow/reader.h> // Include Parquet reader
 #include <iostream>
-#include <fstream>
 #include <string>
+#include <memory> // For std::shared_ptr
 
-using namespace arrow;
+// Note: Error handling omitted for brevity. Use ARROW_ASSIGN_OR_RAISE.
 
 int main() {
-    // Load state metadata from JSON file
-    std::string metadata_path = "/path/to/cluster_state/state_metadata.json";
-    std::ifstream metadata_file(metadata_path);
-    if (!metadata_file) {
-        std::cerr << "Could not open metadata file" << std::endl;
-        return 1;
+    // Path to the Parquet state file (obtained from state_metadata.json)
+    std::string parquet_path = "/path/to/cluster_state/state_cluster.parquet";
+
+    // Open the Parquet file
+    std::shared_ptr<arrow::io::ReadableFile> infile;
+    PARQUET_ASSIGN_OR_THROW(infile, arrow::io::ReadableFile::Open(parquet_path));
+
+    // Create a Parquet Arrow reader instance
+    std::unique_ptr<parquet::arrow::FileReader> reader;
+    PARQUET_THROW_NOT_OK(
+        parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader));
+
+    // Read the entire table (cluster state typically has one row)
+    std::shared_ptr<arrow::Table> table;
+    PARQUET_THROW_NOT_OK(reader->ReadTable(&table));
+
+    if (table->num_rows() > 0) {
+        // Access data from the first row
+        std::cout << "Cluster state information:" << std::endl;
+        std::cout << "----------------------" << std::endl;
+
+        // Access cluster ID (assuming column index 0)
+        auto cluster_id_chunked_array = table->column(0);
+        if (cluster_id_chunked_array && cluster_id_chunked_array->num_chunks() > 0) {
+            auto cluster_id_array = std::static_pointer_cast<arrow::StringArray>(cluster_id_chunked_array->chunk(0));
+            std::cout << "Cluster ID: " << cluster_id_array->GetString(0) << std::endl;
+        }
+
+        // Access master ID (assuming column index 1)
+        auto master_id_chunked_array = table->column(1);
+         if (master_id_chunked_array && master_id_chunked_array->num_chunks() > 0) {
+            auto master_id_array = std::static_pointer_cast<arrow::StringArray>(master_id_chunked_array->chunk(0));
+            std::cout << "Master ID: " << master_id_array->GetString(0) << std::endl;
+        }
+
+        // Access node information (assuming column index 3, more complex for nested lists)
+        auto nodes_chunked_array = table->column(3);
+         if (nodes_chunked_array && nodes_chunked_array->num_chunks() > 0) {
+            auto nodes_array = std::static_pointer_cast<arrow::ListArray>(nodes_chunked_array->chunk(0));
+            // Further processing needed to extract data from the list of structs
+            std::cout << "Number of nodes (from list length): " << nodes_array->value_length(0) << std::endl;
+         }
+    } else {
+         std::cout << "Cluster state table is empty." << std::endl;
     }
-    
-    // Parse JSON (using a simple approach for example)
-    std::string json_content((std::istreambuf_iterator<char>(metadata_file)),
-                           std::istreambuf_iterator<char>());
-    
-    // Extract socket path and object ID from JSON
-    // In a real implementation, use a proper JSON parser
-    size_t socket_pos = json_content.find("plasma_socket");
-    size_t object_pos = json_content.find("object_id");
-    
-    std::string socket_path = "/path/to/socket"; // Extract from JSON
-    std::string object_id_hex = "0123456789abcdef"; // Extract from JSON
-    
-    // Connect to Plasma store
-    std::shared_ptr<plasma::PlasmaClient> client = std::make_shared<plasma::PlasmaClient>();
-    plasma::Status connect_status = client->Connect(socket_path);
-    if (!connect_status.ok()) {
-        std::cerr << "Failed to connect to Plasma store: " << connect_status.message() << std::endl;
-        return 1;
-    }
-    
-    // Create object ID from hex string
-    plasma::ObjectID object_id = plasma::ObjectID::from_binary(object_id_hex);
-    
-    // Get the object buffer
-    std::shared_ptr<Buffer> buffer;
-    plasma::Status get_status = client->Get(&object_id, 1, -1, &buffer);
-    if (!get_status.ok()) {
-        std::cerr << "Failed to get object: " << get_status.message() << std::endl;
-        return 1;
-    }
-    
-    // Create Arrow reader
-    auto buffer_reader = std::make_shared<io::BufferReader>(buffer);
-    std::shared_ptr<ipc::RecordBatchReader> reader;
-    Status status = ipc::RecordBatchReader::Open(buffer_reader, &reader);
-    if (!status.ok()) {
-        std::cerr << "Failed to open record batch reader: " << status.ToString() << std::endl;
-        return 1;
-    }
-    
-    // Read record batch
-    std::shared_ptr<RecordBatch> batch;
-    status = reader->ReadNext(&batch);
-    if (!status.ok()) {
-        std::cerr << "Failed to read record batch: " << status.ToString() << std::endl;
-        return 1;
-    }
-    
-    // Now access data in the record batch
-    std::cout << "Cluster state information:" << std::endl;
-    std::cout << "----------------------" << std::endl;
-    
-    // Access cluster ID
-    auto cluster_id_array = std::static_pointer_cast<StringArray>(batch->column(0));
-    std::cout << "Cluster ID: " << cluster_id_array->GetString(0) << std::endl;
-    
-    // Access master ID
-    auto master_id_array = std::static_pointer_cast<StringArray>(batch->column(1));
-    std::cout << "Master ID: " << master_id_array->GetString(0) << std::endl;
-    
-    // Access node information (more complex with nested structures)
-    auto nodes_array = std::static_pointer_cast<ListArray>(batch->column(3));
-    int64_t num_nodes = nodes_array->length();
-    std::cout << "Number of nodes: " << num_nodes << std::endl;
-    
-    // Clean up
-    client->Disconnect();
-    
+
     return 0;
 }
 ```
+*(Note: This C++ example illustrates reading the Parquet file. Accessing nested data requires more complex Arrow C++ API usage.)*
 
 ### Extending with Custom Helper Functions
 
@@ -340,3 +311,104 @@ def find_optimal_task_distribution(state_path):
     
     return assignments
 ```
+
+## Testing
+
+Testing the Arrow-based cluster state management system requires special handling for PyArrow's immutable objects and strict type checking.
+
+### Key Testing Challenges
+
+1. **Immutable PyArrow Types**: PyArrow Schema objects can't be directly modified or replaced after creation.
+2. **Type Strictness**: PyArrow strictly enforces types, rejecting MagicMock objects during testing.
+3. **Cleanup Issues**: Errors during cleanup of mocked PyArrow objects can pollute test output.
+
+### Testing Approach
+
+The project uses several techniques to handle these challenges:
+
+#### 1. MonkeyPatching PyArrow Types
+
+```python
+# In conftest.py
+@pytest.fixture(autouse=True)
+def patch_arrow_schema(monkeypatch):
+    """Patch PyArrow Schema to handle MagicMock objects."""
+    try:
+        import pyarrow as pa
+        if hasattr(pa, '_patch_schema_equals'):
+            pa._patch_schema_equals(monkeypatch)
+    except (ImportError, AttributeError):
+        pass
+    yield
+```
+
+#### 2. Special Patching for ArrowClusterState
+
+The `patch_cluster_state.py` module provides custom patches for ArrowClusterState methods to handle MagicMock objects:
+
+```python
+def patched_save_to_disk(self):
+    """Patched _save_to_disk method to handle MagicMock schema objects."""
+    if not self.enable_persistence:
+        return
+        
+    try:
+        # First try original method
+        return original_save_to_disk(self)
+    except Exception as e:
+        # Handle schema type mismatches
+        error_msg = str(e)
+        if ("expected pyarrow.lib.Schema, got MagicMock" in error_msg or 
+            "Argument 'schema' has incorrect type" in error_msg):
+            # Create a real schema based on column names and write with that
+            # ...implementation details...
+            return True
+        else:
+            # Log at debug level to avoid test output noise
+            logger.debug(f"Suppressed error in _save_to_disk: {e}")
+            return False
+```
+
+#### 3. Creating Mock But Valid Arrow Tables
+
+For testing, we create real Arrow Tables with mock data but proper schemas:
+
+```python
+# Create a real PyArrow schema for testing
+schema = pa.schema([
+    pa.field('cluster_id', pa.string()),
+    pa.field('master_id', pa.string()),
+    pa.field('updated_at', pa.timestamp('ms')),
+    # ...other fields...
+])
+
+# Create valid PyArrow arrays
+cluster_id_array = pa.array(["test-cluster"], type=pa.string())
+master_id_array = pa.array(["QmTestMaster"], type=pa.string())
+# ...other arrays...
+
+# Create a real table with test data
+test_table = pa.Table.from_arrays(
+    [cluster_id_array, master_id_array, ...],
+    schema=schema
+)
+```
+
+### Testing Output Suppression
+
+To prevent error messages during testing, we use context managers to temporarily suppress logging:
+
+```python
+@contextlib.contextmanager
+def suppress_logging(logger_name=None, level=logging.ERROR):
+    """Temporarily increase the logging level to suppress messages."""
+    logger = logging.getLogger(logger_name or '')
+    old_level = logger.level
+    logger.setLevel(level)
+    try:
+        yield
+    finally:
+        logger.setLevel(old_level)
+```
+
+These approaches allow comprehensive testing of the Arrow-based cluster state system without error messages about PyArrow's type checking interfering with test output.

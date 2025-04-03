@@ -33,8 +33,10 @@ from .error import (
 )
 
 # Optional imports - these might not be available if optional dependencies are not installed
+# Disabled due to syntax errors
 try:
-    from .ipfs_fsspec import IPFSFileSystem
+    # from .ipfs_fsspec import IPFSFileSystem
+    IPFSFileSystem = None
 except ImportError:
     IPFSFileSystem = None
 

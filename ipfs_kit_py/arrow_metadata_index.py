@@ -19,6 +19,7 @@ import mmap
 import math
 import tempfile
 import shutil
+import base64
 from typing import Dict, List, Any, Optional, Union, Tuple, Set
 from datetime import datetime
 import copy
@@ -29,6 +30,7 @@ try:
     import pyarrow as pa
     import pyarrow.parquet as pq
     import pyarrow.compute as pc
+    import pyarrow.acero as ac # Explicitly import acero
     from pyarrow.dataset import dataset
     ARROW_AVAILABLE = True
 except ImportError:
@@ -65,7 +67,8 @@ class ArrowMetadataIndex:
                  sync_interval: int = 300,
                  enable_c_interface: bool = True,
                  ipfs_client = None,
-                 node_id: Optional[str] = None): # Added node_id
+                 node_id: Optional[str] = None,
+                 cluster_id: str = "default"): # Added node_id and cluster_id
         """
         Initialize the Arrow-based metadata index.
         
@@ -89,6 +92,7 @@ class ArrowMetadataIndex:
         self.enable_c_interface = enable_c_interface and PLASMA_AVAILABLE
         self.ipfs_client = ipfs_client
         self.node_id = node_id # Store node_id
+        self.cluster_id = cluster_id # Store cluster_id
         
         # Set up schema
         self.schema = self._create_default_schema()
@@ -283,6 +287,9 @@ class ArrowMetadataIndex:
             
             # Get partition path
             partition_path = self._get_partition_path(self.current_partition_id)
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(partition_path), exist_ok=True)
             
             # Write with compression
             pq.write_table(
@@ -751,7 +758,11 @@ class ArrowMetadataIndex:
                     if filter_expr is None:
                         filter_expr = expr
                     else:
-                        filter_expr = pc.and_(filter_expr, expr)
+                        # Use the older style 'and' operation if pc.and_ isn't available
+                        try:
+                            filter_expr = pc.and_(filter_expr, expr)
+                        except (AttributeError, TypeError):
+                            filter_expr = filter_expr & expr
             
             # Apply filter expression to the combined table
             if filter_expr is not None:
@@ -1037,7 +1048,13 @@ class ArrowMetadataIndex:
             
         try:
             # Create a topic specific to metadata index partition exchange
-            topic = f"ipfs-kit/metadata-index/{self.cluster_id}/partitions"
+            cluster_id = self.cluster_id if self.cluster_id else "default"
+            topic = f"ipfs-kit/metadata-index/{cluster_id}/partitions"
+            
+            # Check if node_id is available
+            if not hasattr(self, 'node_id') or self.node_id is None:
+                self.node_id = "unknown-node-" + str(uuid.uuid4())
+                self.logger.warning(f"No node_id set, using generated id: {self.node_id}")
             
             # Create a message with request for partitions
             message = {
@@ -1065,11 +1082,30 @@ class ArrowMetadataIndex:
             # Subscribe to the response topic temporarily
             response_topic = f"{topic}/responses"
             if hasattr(self.ipfs_client, 'pubsub_subscribe'):
-                self.ipfs_client.pubsub_subscribe(response_topic, handle_partition_response)
+                subscribe_result = self.ipfs_client.pubsub_subscribe(response_topic, handle_partition_response)
+                
+                # Check if subscription succeeded
+                if not subscribe_result or not subscribe_result.get("success", False):
+                    # Fallback to DAG-based exchange if pubsub subscription fails
+                    self.logger.warning("Pubsub subscription failed, falling back to DAG-based exchange")
+                    return self._get_peer_partitions_via_dag(peer_id)
+            else:
+                # Fallback to DAG-based exchange if pubsub not available
+                self.logger.warning("Pubsub not available, falling back to DAG-based exchange")
+                return self._get_peer_partitions_via_dag(peer_id)
             
             # Publish request
             if hasattr(self.ipfs_client, 'pubsub_publish'):
-                self.ipfs_client.pubsub_publish(topic, json.dumps(message))
+                publish_result = self.ipfs_client.pubsub_publish(topic, json.dumps(message))
+                
+                # Check if publish succeeded
+                if not publish_result or not publish_result.get("success", False):
+                    # Fallback to DAG-based exchange if pubsub publish fails
+                    self.logger.warning("Pubsub publish failed, falling back to DAG-based exchange")
+                    # Unsubscribe first
+                    if hasattr(self.ipfs_client, 'pubsub_unsubscribe'):
+                        self.ipfs_client.pubsub_unsubscribe(response_topic)
+                    return self._get_peer_partitions_via_dag(peer_id)
                 
                 # Wait for response with timeout
                 if response_event.wait(timeout=30):
@@ -1077,18 +1113,25 @@ class ArrowMetadataIndex:
                     return response_data
                 else:
                     self.logger.warning(f"Timeout waiting for partition data from peer {peer_id}")
-                    return None
+                    # Fallback to DAG-based exchange on timeout
+                    return self._get_peer_partitions_via_dag(peer_id)
             else:
                 # Fallback to DAG-based exchange if pubsub not available
+                # Unsubscribe first since we subscribed but can't publish
+                if hasattr(self.ipfs_client, 'pubsub_unsubscribe'):
+                    self.ipfs_client.pubsub_unsubscribe(response_topic)
                 return self._get_peer_partitions_via_dag(peer_id)
                 
         except Exception as e:
             self.logger.error(f"Error getting partitions from peer {peer_id}: {e}")
-            return None
+            return self._get_peer_partitions_via_dag(peer_id)  # Try DAG method as last resort
         finally:
             # Unsubscribe from response topic
             if hasattr(self.ipfs_client, 'pubsub_unsubscribe'):
-                self.ipfs_client.pubsub_unsubscribe(response_topic)
+                try:
+                    self.ipfs_client.pubsub_unsubscribe(response_topic)
+                except Exception as e:
+                    self.logger.warning(f"Error unsubscribing from topic: {e}")
     
     def _get_peer_partitions_via_dag(self, peer_id: str) -> Optional[Dict[str, Dict[str, Any]]]:
         """
@@ -1184,15 +1227,21 @@ class ArrowMetadataIndex:
                 
             # Verify the file by trying to read it as a parquet file
             try:
-                pq.read_metadata(partition_path)
+                # Read the parquet file metadata to verify it's valid
+                table = pq.read_table(partition_path)
                 
                 # Update partition metadata
                 self.partitions[partition_id] = {
                     'path': partition_path,
                     'size': os.path.getsize(partition_path),
                     'mtime': os.path.getmtime(partition_path),
-                    'rows': None  # Will be loaded when needed
+                    'rows': table.num_rows  # Store the actual row count
                 }
+                
+                # Optional: Refresh in-memory record batch if this is the current partition
+                if partition_id == self.current_partition_id:
+                    self.record_batch = None  # Force reload
+                    self._load_current_partition()
                 
                 self.logger.info(f"Successfully downloaded partition {partition_id} from CID {cid}")
                 return True
@@ -1224,7 +1273,8 @@ class ArrowMetadataIndex:
             
         try:
             # Create topic for partition request
-            topic = f"ipfs-kit/metadata-index/{self.cluster_id}/partition-data"
+            cluster_id = self.cluster_id if self.cluster_id else "default"
+            topic = f"ipfs-kit/metadata-index/{cluster_id}/partition-data"
             
             # Create a request message
             message = {
@@ -1263,7 +1313,6 @@ class ArrowMetadataIndex:
                         # Store the chunk
                         try:
                             # Decode chunk from base64
-                            import base64
                             binary_chunk = base64.b64decode(chunk)
                             response_data["chunks"][chunk_index] = binary_chunk
                             response_data["chunk_count"] += 1
@@ -1376,7 +1425,8 @@ class ArrowMetadataIndex:
                 }
                 
             # Send response
-            response_topic = f"ipfs-kit/metadata-index/{self.cluster_id}/partitions/responses"
+            cluster_id = self.cluster_id if self.cluster_id else "default"
+            response_topic = f"ipfs-kit/metadata-index/{cluster_id}/partitions/responses"
             if hasattr(self.ipfs_client, 'pubsub_publish'):
                 self.ipfs_client.pubsub_publish(response_topic, json.dumps(response))
                 
@@ -1468,7 +1518,8 @@ class ArrowMetadataIndex:
             total_chunks = len(chunks)
             
             # Send each chunk
-            response_topic = f"ipfs-kit/metadata-index/{self.cluster_id}/partition-data/responses/{requester}"
+            cluster_id = self.cluster_id if self.cluster_id else "default"
+            response_topic = f"ipfs-kit/metadata-index/{cluster_id}/partition-data/responses/{requester}"
             
             for i, chunk in enumerate(chunks):
                 # Create response message

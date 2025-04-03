@@ -763,6 +763,92 @@ class ipfs_cluster_follow:
             logger.exception(f"Error testing for ipfs-cluster-follow: {str(e)}")
             return False
     
+    def ipfs_follow_sync(self, **kwargs):
+        """Synchronize the worker node with the master's state.
+        
+        Args:
+            **kwargs: Optional arguments
+                - cluster_name: Name of the cluster
+                - correlation_id: ID for tracking related operations
+                - timeout: Command timeout in seconds
+        
+        Returns:
+            Dictionary with operation result information
+        """
+        # Create standardized result dictionary
+        correlation_id = kwargs.get('correlation_id', self.correlation_id)
+        result = create_result_dict("ipfs_follow_sync", correlation_id)
+        
+        try:
+            # Validate required parameters
+            cluster_name = kwargs.get('cluster_name', getattr(self, 'cluster_name', None))
+            if not cluster_name:
+                return handle_error(result, IPFSValidationError("Missing required parameter: cluster_name"))
+            
+            # Validate cluster name (prevent command injection)
+            if not isinstance(cluster_name, str):
+                return handle_error(result, IPFSValidationError(f"cluster_name must be a string, got {type(cluster_name).__name__}"))
+            
+            if re.search(r'[;&|"`\'$<>]', cluster_name):
+                return handle_error(result, IPFSValidationError(f"Invalid cluster name contains shell metacharacters: {cluster_name}"))
+            
+            # Set timeout for commands
+            timeout = kwargs.get('timeout', 30)
+            
+            # Execute the command with proper arguments
+            cmd_args = ["ipfs-cluster-follow", cluster_name, "sync"]
+            cmd_result = self.run_cluster_follow_command(
+                cmd_args,
+                check=False,
+                timeout=timeout,
+                correlation_id=correlation_id
+            )
+            
+            if not cmd_result.get("success", False):
+                result["command_result"] = cmd_result
+                return result
+            
+            # Parse the output into a structured format
+            stdout = cmd_result.get("stdout", "")
+            result["command_output"] = stdout
+            
+            # Success by default
+            result["success"] = True
+            
+            # Parse output to extract metrics
+            sync_metrics = {
+                "synced": 0,
+                "pins_added": 0,
+                "pins_removed": 0
+            }
+            
+            # Simple parsing for example metrics - adjust based on actual output format
+            if stdout:
+                # Parse pins synced
+                synced_match = re.search(r'synced (\d+)', stdout)
+                if synced_match:
+                    sync_metrics["synced"] = int(synced_match.group(1))
+                    
+                # Parse pins added
+                added_match = re.search(r'added (\d+)', stdout)
+                if added_match:
+                    sync_metrics["pins_added"] = int(added_match.group(1))
+                    
+                # Parse pins removed
+                removed_match = re.search(r'removed (\d+)', stdout)
+                if removed_match:
+                    sync_metrics["pins_removed"] = int(removed_match.group(1))
+            
+            # Update result with metrics
+            result.update(sync_metrics)
+            logger.info(f"Synchronized with cluster: {cluster_name}. Added: {sync_metrics['pins_added']}, Removed: {sync_metrics['pins_removed']}")
+            
+            return result
+            
+        except Exception as e:
+            logger.exception(f"Unexpected error in ipfs_follow_sync: {str(e)}")
+            return handle_error(result, e)
+
     def test(self, **kwargs):
         """Run all tests for ipfs-cluster-follow functionality.
         

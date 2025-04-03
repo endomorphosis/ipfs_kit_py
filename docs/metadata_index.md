@@ -31,6 +31,16 @@ kit = ipfs_kit(
 index = kit.get_metadata_index()
 ```
 
+## Python 3.12 Compatibility
+
+As of Python 3.12, PyArrow's Schema objects are immutable, which requires a different approach for working with schemas in test environments. The library includes compatibility layer for this change:
+
+- Uses a standalone comparison function `mock_schema_equals` rather than patching the Schema's `equals` method directly
+- Handles MagicMock objects correctly in schema comparisons for testing
+- Transparently maintains backward compatibility with earlier Python versions
+
+This ensures the library works seamlessly across Python versions while maintaining test compatibility.
+
 ## Schema
 
 The Metadata Index uses a comprehensive schema to capture all relevant information about IPFS content:

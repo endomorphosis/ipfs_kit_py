@@ -212,23 +212,19 @@ def test_ipfs_fs_path_to_cid(ipfs_fs):
 
 def test_ipfs_fs_open(ipfs_fs):
     """Test opening a file from IPFS."""
-    # Configure the mock API response
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.content = b"Test content"
-    ipfs_fs.session.post.return_value = mock_response
+    # Create a test content to inject
+    test_content = b"Test content"
     
-    # Open a file
-    with ipfs_fs._open("QmTest123", "rb") as f:
-        # Check the file content
-        data = f.read()
-        assert data == b"Test content"
-        
-    # Check API call
-    ipfs_fs.session.post.assert_called_with(
-        "http://127.0.0.1:5001/api/v0/cat",
-        params={"arg": "QmTest123"}
-    )
+    # Create a mock for _fetch_from_ipfs
+    with patch.object(ipfs_fs, '_fetch_from_ipfs', return_value=test_content) as mock_fetch:
+        # Open a file
+        with ipfs_fs._open("QmTest123", "rb") as f:
+            # Check the file content
+            data = f.read()
+            assert data == test_content
+            
+        # Check that _fetch_from_ipfs was called with the right CID
+        mock_fetch.assert_called_once_with("QmTest123")
 
 def test_ipfs_fs_ls(ipfs_fs):
     """Test listing directory contents."""

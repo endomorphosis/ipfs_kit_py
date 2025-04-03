@@ -12,8 +12,20 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, '/home/barberb/ipfs_kit_py')
 
 # Manually mock the module dependencies before importing
-sys.modules['pyarrow'] = MagicMock()
+mock_pyarrow = MagicMock()
+mock_pyarrow.__version__ = "12.0.0"  # Mock a version number
+sys.modules['pyarrow'] = mock_pyarrow
 sys.modules['pyarrow.plasma'] = MagicMock()
+
+# Mock pandas
+mock_pandas = MagicMock()
+mock_pandas.DataFrame = MagicMock
+mock_pandas.Series = MagicMock
+mock_pandas.__version__ = "2.0.0"
+sys.modules['pandas'] = mock_pandas
+
+# Mock sklearn
+sys.modules['sklearn'] = MagicMock()
 
 # Now import the helper functions directly
 from ipfs_kit_py.cluster_state_helpers import (

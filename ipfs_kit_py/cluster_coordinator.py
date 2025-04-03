@@ -285,7 +285,9 @@ class Task:
 class ClusterCoordinator:
     """Class for coordinating nodes and tasks in a distributed cluster."""
     
-    def __init__(self, node_id: str, role: str, peer_id: str, config: Dict[str, Any] = None):
+    def __init__(self, node_id: str, role: str = "worker", peer_id: str = None, config: Dict[str, Any] = None,
+                 cluster_id: str = None, is_master: bool = False, election_timeout: int = 30, 
+                 leadership_callback: Callable = None, membership_manager = None):
         """Initialize the cluster coordinator.
         
         Args:
@@ -293,11 +295,23 @@ class ClusterCoordinator:
             role: Role of this node ("master", "worker", or "leecher")
             peer_id: IPFS peer ID for this node
             config: Configuration parameters
+            cluster_id: Identifier for the cluster
+            is_master: Whether this node is a master
+            election_timeout: Timeout for elections in seconds
+            leadership_callback: Callback for leadership changes
+            membership_manager: Manager for cluster membership
         """
         self.node_id = node_id
-        self.role = NodeRole.from_str(role)
-        self.peer_id = peer_id
+        self.role = NodeRole.from_str(role) if isinstance(role, str) else role
+        self.peer_id = peer_id or f"QmDefault{node_id}"
         self.config = config or {}
+        self.cluster_id = cluster_id or self.config.get("cluster_id", "default")
+        self.is_master = is_master
+        self.election_timeout = election_timeout
+        self.leadership_callback = leadership_callback
+        self.membership_manager = membership_manager
+        self.current_leader = self.node_id if is_master else None
+        self.cluster_peers = []
         
         # Node registry
         self.nodes: Dict[str, NodeInfo] = {}
@@ -329,6 +343,25 @@ class ClusterCoordinator:
         
         # Register this node
         self._register_self()
+        
+    def create_cluster(self, cluster_id: str) -> None:
+        """Create a new cluster with this node as master.
+        
+        Args:
+            cluster_id: Identifier for the new cluster
+        """
+        self.cluster_id = cluster_id
+        self.is_master = True
+        self.current_leader = self.node_id
+        self.cluster_peers = []
+        
+        # Update configuration
+        self.config["cluster_id"] = cluster_id
+        
+        # Re-register self with updated role/status
+        self._register_self()
+        
+        logger.info(f"Created new cluster with ID: {cluster_id}")
         
     def _register_self(self) -> None:
         """Register this node in the node registry."""

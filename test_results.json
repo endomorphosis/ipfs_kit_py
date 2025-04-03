@@ -1,1 +1,62 @@
-{"init": "'ipfs_kit' object has no attribute 'init'", "ipfs_kit_install": "'ipfs_kit' object has no attribute 'install_ipfs'", "storacha_kit": "'ipfs_kit' object has no attribute 'storacha_kit_py'", "ipfs_cluster_follow": "'ipfs_kit' object has no attribute 'ipfs_cluster_follow'", "ipfs_cluster_ctl": "'ipfs_kit' object has no attribute 'ipfs_cluster_ctl'", "ipfs_cluster_service": "'ipfs_kit' object has no attribute 'ipfs_cluster_service'", "ipfs_kit": "'ipfs_kit' object has no attribute 'ipfs_kit'", "s3_kit": "s3_kit.__call__() missing 1 required positional argument: 'method'", "test_fio": "'ipfs_kit' object has no attribute 'test_fio'"}
+{
+  "timestamp": 1743638944.2648067,
+  "success": false,
+  "components_tested": 13,
+  "components_passed": 12,
+  "details": {
+    "import_ipfs_kit": {
+      "success": true
+    },
+    "import_high_level_api": {
+      "success": true
+    },
+    "import_ai_ml_integration": {
+      "success": true
+    },
+    "init_ipfs_kit": {
+      "success": true
+    },
+    "init_high_level_api": {
+      "success": true
+    },
+    "ipfs_ready": {
+      "success": true,
+      "operation": "ipfs_kit_ready",
+      "timestamp": 1743638947.1208932,
+      "correlation_id": null,
+      "ready": false,
+      "ipfs_ready": false,
+      "libp2p_ready": false,
+      "cluster_manager_ready": false
+    },
+    "high_level_add": {
+      "success": false,
+      "operation": "add",
+      "timestamp": 1743638947.1809864,
+      "error": "Command failed with return code 1",
+      "error_type": {
+        "stderr": "Error: datastore configuration of '{\"path\":\"badgerds\",\"type\":\"badgerds\"}' does not match what is on disk '{\"mounts\":[{\"mountpoint\":\"/blocks\",\"path\":\"blocks\",\"shardFunc\":\"/repo/flatfs/shard/v1/next-to-last/2\",\"type\":\"flatfs\"},{\"mountpoint\":\"/\",\"path\":\"datastore\",\"type\":\"levelds\"}],\"type\":\"mount\"}'\n"
+      }
+    },
+    "high_level_save_config": {
+      "success": true,
+      "path": "/tmp/test_config.yaml",
+      "message": "Configuration saved to /tmp/test_config.yaml"
+    },
+    "ai_ml_model_registry": {
+      "success": true
+    },
+    "ai_ml_dataset_manager": {
+      "success": true
+    },
+    "ai_ml_langchain": {
+      "success": true
+    },
+    "ai_ml_llamaindex": {
+      "success": true
+    },
+    "ai_ml_distributed_training": {
+      "success": true
+    }
+  }
+}

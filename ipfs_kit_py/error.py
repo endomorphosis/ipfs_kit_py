@@ -8,6 +8,7 @@ and provides utility functions for error handling.
 import time
 import traceback
 import logging
+import subprocess
 from typing import Dict, Any, Optional, Callable, TypeVar, List, Tuple
 
 # Create a generic type variable for the return type
@@ -64,11 +65,14 @@ def create_result_dict(operation: str, success: bool = False, **kwargs) -> Dict[
     Returns:
         Standardized result dictionary with common fields
     """
+    # Extract correlation_id without removing it from kwargs
+    correlation_id = kwargs.get("correlation_id", None)
+    
     result = {
         "success": success,
         "operation": operation,
         "timestamp": time.time(),
-        "correlation_id": kwargs.pop("correlation_id", None) # Add correlation_id
+        "correlation_id": correlation_id
     }
 
     # Add additional fields
@@ -110,8 +114,14 @@ def handle_error(result: Dict[str, Any], e: Exception, error_type: Optional[str]
         classified_type = "pinning_error"
     elif isinstance(e, IPFSError):
         classified_type = "ipfs_error" # Generic IPFS error
+    elif isinstance(e, FileNotFoundError) or "No such file or directory" in str(e):
+        classified_type = "file_error"
+    elif isinstance(e, ConnectionError) or "connection" in str(e).lower():
+        classified_type = "connection_error"
+    elif isinstance(e, subprocess.TimeoutExpired) or "timeout" in str(e).lower():
+        classified_type = "timeout_error"
     else:
-        classified_type = type(e).__name__ # Fallback to exception name
+        classified_type = "unknown_error" # Use a more reliable default
 
     result["error_type"] = error_type or classified_type
 
@@ -120,14 +130,18 @@ def handle_error(result: Dict[str, Any], e: Exception, error_type: Optional[str]
         result["stack_trace"] = traceback.format_exc()
 
     # Add error-specific information
-    if isinstance(e, IPFSConnectionError):
+    if isinstance(e, IPFSConnectionError) or classified_type == "connection_error":
         result["recoverable"] = True
-    elif isinstance(e, IPFSTimeoutError):
+    elif isinstance(e, IPFSTimeoutError) or classified_type == "timeout_error":
         result["recoverable"] = True
         result["timeout"] = True
-    elif isinstance(e, IPFSContentNotFoundError):
+    elif isinstance(e, IPFSContentNotFoundError) or classified_type == "content_not_found":
         result["recoverable"] = False
         result["not_found"] = True
+    elif isinstance(e, FileNotFoundError) or classified_type == "file_error":
+        result["recoverable"] = False
+    else:
+        result["recoverable"] = False  # Default to non-recoverable for safety
 
     return result
 

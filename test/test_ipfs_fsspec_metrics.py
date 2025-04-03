@@ -109,6 +109,26 @@ class TestIPFSFileSystemMetrics(unittest.TestCase):
         # Create kit instance
         self.kit = ipfs_kit()
         
+        # Mock the filesystem
+        self.kit.get_filesystem = MagicMock()
+        mock_fs = MagicMock()
+        # Set up the mock filesystem with expected methods and return values
+        mock_fs.cat = MagicMock(return_value=b"Test content for metrics testing")
+        mock_fs.get_performance_metrics = MagicMock(return_value={
+            'operations': {'total_operations': 5, 'read': {'count': 5}},
+            'cache': {
+                'memory_hits': 4,
+                'disk_hits': 0,
+                'misses': 1,
+                'total': 5,
+                'memory_hit_rate': 0.8,
+                'disk_hit_rate': 0.0,
+                'overall_hit_rate': 0.8,
+                'miss_rate': 0.2
+            }
+        })
+        self.kit.get_filesystem.return_value = mock_fs
+        
     def tearDown(self):
         """Clean up after tests."""
         # Remove temporary file

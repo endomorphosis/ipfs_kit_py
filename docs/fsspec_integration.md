@@ -7,12 +7,12 @@ The FSSpec integration for IPFS provides a standard filesystem interface to cont
 ## Key Features
 
 - **Filesystem Interface**: Standard file operations on content-addressed storage
-- **Tiered Caching**: Multi-level caching with intelligent data movement
-- **Adaptive Replacement**: Advanced caching algorithm balancing recency and frequency
-- **Memory-mapping**: Zero-copy access for large files
-- **Data Science Integration**: Works with Pandas, PyArrow, Dask, and other tools
-- **Metrics Collection**: Performance monitoring and optimization
-- **Distributed Access**: Access content from peers across the network
+- **Tiered Caching**: Multi-level caching (memory, disk) with intelligent data movement using Adaptive Replacement Cache (ARC). ([See Docs](tiered_cache.md))
+- **Memory-mapping**: Zero-copy access for large files via `mmap`.
+- **Data Science Integration**: Works seamlessly with Pandas, PyArrow, Dask, and other tools that leverage `fsspec`.
+- **Performance Metrics**: Built-in collection and analysis of latency, bandwidth, and cache performance.
+- **Unix Socket Support**: Faster local daemon communication on Linux/macOS.
+- **Gateway Fallback**: Optionally use public HTTP gateways if the local daemon is unavailable.
 
 ## Architecture
 
@@ -27,26 +27,45 @@ This architecture provides a bridge between the content-addressed model of IPFS 
 
 ## Usage
 
+*Note: When using `fsspec` directly (e.g., `fsspec.filesystem("ipfs")` or `fsspec.open("ipfs://...")`), paths **must** be prefixed with `ipfs://`. When using the higher-level `IPFSSimpleAPI` methods like `api.open(cid)`, the prefix is often handled internally.*
+
 ### Basic Usage
 
 ```python
 import fsspec
 
 # Open the filesystem with default settings
+# This registers the 'ipfs' protocol if ipfs_kit_py is installed
 fs = fsspec.filesystem("ipfs")
 
-# Open a file directly by CID
-with fs.open("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", "r") as f:
-    content = f.read()
-    print(content)
+# Open a file directly by CID (ensure prefix)
+# Note: 'r' mode reads as text, 'rb' as bytes
+try:
+    with fs.open("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", "rb") as f:
+        content_bytes = f.read()
+        print(f"Read {len(content_bytes)} bytes.")
+except Exception as e:
+    print(f"Error reading file: {e}")
 
-# List directory contents
-files = fs.ls("ipfs://Qmf7dMkJqYJb4vtGBQrF1Ak3zCQAAHbhXTAcMeSKfUF9XF")
-print(files)
+# List directory contents (ensure prefix)
+try:
+    # Example directory CID (replace with a real one if needed)
+    dir_cid = "ipfs://QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
+    files = fs.ls(dir_cid, detail=True) # Use detail=True for more info
+    print(f"Contents of {dir_cid}:")
+    for item in files:
+        print(f"- {item['name']} (type: {item['type']}, size: {item.get('size', 'N/A')})")
+except Exception as e:
+    print(f"Error listing directory: {e}")
 
-# Check if a file exists
-exists = fs.exists("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
-print(f"File exists: {exists}")
+
+# Check if a path exists (ensure prefix)
+try:
+    file_cid_path = "ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"
+    exists = fs.exists(file_cid_path)
+    print(f"Path {file_cid_path} exists: {exists}")
+except Exception as e:
+    print(f"Error checking existence: {e}")
 ```
 
 ### Advanced Configuration
@@ -63,20 +82,35 @@ fs = IPFSFileSystem(
         'memory_cache_size': 500 * 1024 * 1024,  # 500MB memory cache
         'local_cache_size': 5 * 1024 * 1024 * 1024,  # 5GB disk cache
         'local_cache_path': '/tmp/ipfs_cache',
-        'max_item_size': 100 * 1024 * 1024,  # Items up to 100MB in memory
+        'max_item_size': 100 * 1024 * 1024,  # Max size for memory cache items
+        'promotion_threshold': 3, # Access count to promote from disk to memory
+        'demotion_threshold': 30 # Days inactive to demote from memory to disk
     },
-    use_mmap=True  # Use memory mapping for large files
+    use_mmap=True, # Use memory mapping for large files
+    enable_metrics=True, # Enable performance metrics
+    gateway_urls=["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"], # Fallback gateways
+    use_gateway_fallback=True # Use gateways if local daemon fails
 )
 
-# Get file details
-info = fs.info("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
-print(info)
+# Get file details (ensure prefix)
+try:
+    info = fs.info("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
+    print(f"Info: {info}")
+except Exception as e:
+    print(f"Error getting info: {e}")
 
-# Walk through a directory tree
-for root, dirs, files in fs.walk("ipfs://QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"):
-    print(f"Directory: {root}")
-    print(f"  Subdirectories: {dirs}")
-    print(f"  Files: {files}")
+
+# Walk through a directory tree (ensure prefix)
+try:
+    dir_cid = "ipfs://QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn" # Example CID
+    print(f"\nWalking directory: {dir_cid}")
+    for root, dirs, files in fs.walk(dir_cid):
+        print(f"Directory: {root}")
+        print(f"  Subdirectories: {dirs}")
+        print(f"  Files: {[f['name'] for f in files]}") # Extract names for clarity
+except Exception as e:
+    print(f"Error walking directory: {e}")
+
 ```
 
 ### Integration with Data Science Tools
@@ -86,15 +120,28 @@ import pandas as pd
 import pyarrow.parquet as pq
 import fsspec
 
-# Read a CSV file directly from IPFS
-df = pd.read_csv("ipfs://QmCSVbfpQL6BjGog5c85xwsJ8arFiBg9ACdHF6RbqXegcV")
-print(df.head())
+# Read a CSV file directly from IPFS (ensure prefix)
+try:
+    df = pd.read_csv("ipfs://QmCSVbfpQL6BjGog5c85xwsJ8arFiBg9ACdHF6RbqXegcV") # Example CID
+    print("\nCSV Head:")
+    print(df.head())
+except Exception as e:
+    print(f"Error reading CSV: {e}")
 
-# Read a Parquet file
-fs = fsspec.filesystem("ipfs")
-table = pq.read_table("ipfs://QmXH6qjnYXCSfc5Wn1jZyZV8AtrNKgWbXLLGJvXVYzk4wC", filesystem=fs)
-df2 = table.to_pandas()
-print(df2.head())
+
+# Read a Parquet file (ensure prefix)
+try:
+    fs_pq = fsspec.filesystem("ipfs") # Get instance if needed
+    # Example Parquet CID
+    table = pq.read_table("ipfs://QmXH6qjnYXCSfc5Wn1jZyZV8AtrNKgWbXLLGJvXVYzk4wC", filesystem=fs_pq)
+    df2 = table.to_pandas()
+    print("\nParquet Head:")
+    print(df2.head())
+except ImportError:
+    print("\nPyArrow needed for Parquet reading.")
+except Exception as e:
+    print(f"Error reading Parquet: {e}")
+
 ```
 
 ## Performance Characteristics
@@ -172,19 +219,18 @@ class IPFSFileSystem(AbstractFileSystem):
 - `use_mmap`: Whether to use memory-mapped files for large content
 
 **Methods:**
-- `open(path, mode='rb', **kwargs)`: Open a file-like object
-- `ls(path, detail=True, **kwargs)`: List directory contents
-- `info(path, **kwargs)`: Get file information
-- `cp_file(path1, path2, **kwargs)`: Copy a file
-- `cat(path, **kwargs)`: Read file contents
-- `put(path, value, **kwargs)`: Write content
-- `get(path, local_path, **kwargs)`: Download to local filesystem
-- `exists(path)`: Check if path exists
-- `isdir(path)`: Check if path is a directory
-- `pin(path)`: Pin content to local node
-- `unpin(path)`: Unpin content
-- `publish_to_ipns(path, key=None)`: Publish content to IPNS
-- `resolve_ipns(name)`: Resolve IPNS name to CID
+- `open(path, mode='rb', **kwargs)`: Open a file-like object for reading.
+- `ls(path, detail=True, **kwargs)`: List directory contents.
+- `info(path, **kwargs)`: Get file information (size, type, etc.).
+- `cat(path, **kwargs)` / `cat_file(path, **kwargs)`: Read the entire file content as bytes.
+- `put(local_path, target_path=None, **kwargs)`: Upload a local file to IPFS. Returns the CID.
+- `exists(path)`: Check if a path (CID or ipfs:// path) exists.
+- `pin(cid)`: Pin content to the local IPFS node.
+- `unpin(cid)`: Unpin content from the local node.
+- `get_pins()`: List CIDs pinned to the local node.
+- `clear_cache()`: Clear all cache tiers (memory and disk).
+- `get_metrics()` / `get_performance_metrics()`: Get collected performance metrics.
+- `analyze_metrics()`: Analyze metrics and provide summary statistics.
 
 ## Extension Points
 

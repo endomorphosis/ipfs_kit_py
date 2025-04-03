@@ -56,9 +56,9 @@ class TestIPLDKnowledgeGraph(unittest.TestCase):
         
     def tearDown(self):
         """Clean up resources."""
-        # Remove temp directory
+        # Remove temp directory - use ignore_errors=True to handle non-empty directories
         import shutil
-        shutil.rmtree(self.temp_dir)
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
         
     def _create_test_data(self):
         """Create test entities and relationships."""

@@ -550,8 +550,8 @@ class DatasetManager:
         # Check for specific numpy integer types
         elif NUMPY_AVAILABLE and isinstance(obj, (np.int64, np.int32, np.int16, np.int8, np.uint64, np.uint32, np.uint16, np.uint8)):
             return int(obj)
-        # Check for specific numpy float types
-        elif NUMPY_AVAILABLE and isinstance(obj, (np.float64, np.float32, np.float16)):
+        # Check for specific numpy float types (excluding deprecated np.float_)
+        elif NUMPY_AVAILABLE and isinstance(obj, (np.float16, np.float32, np.float64)):
             return float(obj)
         elif NUMPY_AVAILABLE and isinstance(obj, np.ndarray):
             return obj.tolist() # Convert numpy arrays to lists
@@ -653,6 +653,7 @@ class DatasetManager:
                 # Copy dataset to tmp directory
                 target_dir = os.path.join(tmp_dir, "data")
                 os.makedirs(target_dir, exist_ok=True)
+                
                 if os.path.isdir(dataset_path):
                     # Copy directory contents
                     import shutil
@@ -662,7 +663,6 @@ class DatasetManager:
                     import shutil
                     shutil.copy2(dataset_path, target_dir)
                 
-                # Add directory to IPFS
                 dir_result = self.ipfs.add_directory(tmp_dir)
                 
                 if not dir_result.get("success", False):
@@ -672,7 +672,28 @@ class DatasetManager:
                 
                 # Generate dataset stats
                 stats = self._generate_dataset_stats(dataset_path, format)
-                
+
+                # Ensure stats are JSON serializable (convert numpy types etc.)
+                serializable_stats = {}
+                for k, v in stats.items():
+                    if NUMPY_AVAILABLE:
+                        # Check for numpy types only if numpy is available
+                        if isinstance(v, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16, np.uint32, np.uint64)):
+                            serializable_stats[k] = int(v)
+                            continue
+                        # Check for specific numpy float types (excluding deprecated np.float_)
+                        elif isinstance(v, (np.float16, np.float32, np.float64)):
+                            serializable_stats[k] = float(v)
+                            continue
+                        elif isinstance(v, np.ndarray):
+                            serializable_stats[k] = v.tolist()
+                            continue
+                    # Check basic types last
+                    if isinstance(v, (list, dict, str, int, float, bool, type(None))):
+                         serializable_stats[k] = v # Already serializable
+                    else:
+                         serializable_stats[k] = str(v) # Fallback to string representation
+
                 # Update registry
                 with self._lock:
                     if dataset_name not in self.registry["datasets"]:
@@ -682,7 +703,7 @@ class DatasetManager:
                         "cid": dataset_cid,
                         "format": format,
                         "added_at": time.time(),
-                        "stats": stats,
+                        "stats": serializable_stats, # Use the cleaned stats
                         "metadata": metadata
                     }
                     
@@ -776,45 +797,60 @@ class DatasetManager:
         
         try:
             # Calculate size and file count
+            size_bytes = 0
+            num_files = 0
             if os.path.isdir(path):
                 for root, dirs, files in os.walk(path):
-                    stats["num_files"] += len(files)
+                    num_files += len(files)
                     for file in files:
-                        file_path = os.path.join(root, file)
-                        stats["size_bytes"] += os.path.getsize(file_path)
+                        try:
+                            file_path = os.path.join(root, file)
+                            size_bytes += os.path.getsize(file_path)
+                        except OSError:
+                            logger.warning(f"Could not get size for file: {file_path}")
             else:
-                stats["num_files"] = 1
-                stats["size_bytes"] = os.path.getsize(path)
-            
+                num_files = 1
+                try:
+                    size_bytes = os.path.getsize(path)
+                except OSError:
+                     logger.warning(f"Could not get size for file: {path}")
+
+            stats["num_files"] = int(num_files) # Ensure int
+            stats["size_bytes"] = int(size_bytes) # Ensure int
+
             # Format-specific stats
-            if format == 'csv' and NUMPY_AVAILABLE:
+            if format == 'csv' and PANDAS_AVAILABLE: # Check PANDAS_AVAILABLE
                 try:
                     import pandas as pd
                     df = pd.read_csv(path, nrows=5) # Read just a few rows for schema
-                    stats["columns"] = df.columns.tolist()
+                    # Ensure columns are strings
+                    stats["columns"] = [str(col) for col in df.columns.tolist()]
                     # Count rows manually - less prone to mock issues
                     with open(path, 'r') as f_count:
                          row_count = sum(1 for _ in f_count)
                     # Subtract header if file is not empty
-                    stats["num_rows"] = max(0, row_count -1) if row_count > 0 else 0
+                    stats["num_rows"] = int(max(0, row_count -1)) if row_count > 0 else 0 # Ensure int
                 except Exception as e:
                     logger.debug(f"Failed to read CSV stats: {e}")
 
-            elif format == 'parquet' and NUMPY_AVAILABLE:
+            elif format == 'parquet' and PANDAS_AVAILABLE and NUMPY_AVAILABLE: # Check PANDAS_AVAILABLE and NUMPY
                 try:
                     import pandas as pd
                     # Assuming pyarrow is installed for parquet support
                     df = pd.read_parquet(path)
-                    stats["columns"] = df.columns.tolist()
-                    stats["num_rows"] = int(len(df)) # Cast to int
+                    # Ensure columns are strings and length is int
+                    stats["columns"] = [str(col) for col in df.columns.tolist()]
+                    stats["num_rows"] = int(len(df))
                 except Exception as e:
                     logger.debug(f"Failed to read Parquet stats: {e}")
-            
+
             return stats
-            
+
         except Exception as e:
-            logger.warning(f"Error generating dataset stats: {e}")
-            return stats
+            # Catch potential errors during stat generation itself
+            logger.warning(f"Error generating dataset stats for {path}: {e}")
+            # Return the partially filled stats or default stats
+            return stats # Return whatever stats were collected so far
     
     def get_dataset(self, dataset_name: str, version: str = None, 
                    output_path: str = None) -> Dict:

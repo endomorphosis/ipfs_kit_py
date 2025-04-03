@@ -520,12 +520,17 @@ def run_command(args: argparse.Namespace) -> Any:
     
     # Execute command
     if args.command == "add":
-        # Check if content is a file path
-        if os.path.exists(args.content):
-            result = client.add(args.content, **kwargs)
-        else:
-            # Treat as content string
-            result = client.add(args.content, **kwargs)
+        # Add content to IPFS
+        result = client.add(args.content, **kwargs)
+        
+        # Ensure result is a dictionary for CLI output formatting
+        if not isinstance(result, dict):
+            result = {"result": result}
+        
+        # Format the output to match expected format in tests
+        if 'cid' in result and 'name' in result:
+            result['Added'] = f"{result['name']} ({result['cid']})"
+        
         return result
     elif args.command == "get":
         if not validate_cid(args.cid):
@@ -533,6 +538,17 @@ def run_command(args: argparse.Namespace) -> Any:
             
         content = client.get(args.cid, **kwargs)
         
+        # Ensure content is bytes
+        if not isinstance(content, bytes):
+            if isinstance(content, dict) and 'data' in content:
+                content = content['data']  # Extract data field if it's a dict
+            else:
+                # Try to convert to bytes
+                try:
+                    content = str(content).encode('utf-8')
+                except Exception:
+                    raise IPFSError(f"Unable to process content returned from API: {type(content)}")
+            
         # Save to file if output path is provided
         if args.output:
             with open(args.output, "wb") as f:

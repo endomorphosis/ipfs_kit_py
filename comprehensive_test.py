@@ -99,7 +99,7 @@ def main():
     
     # Initialize ipfs_kit
     try:
-        kit = components["ipfs_kit"](role="leecher")
+        kit = components["ipfs_kit"](metadata={"role": "leecher"})
         print(f"✅ Successfully initialized ipfs_kit with role: leecher")
         results["details"]["init_ipfs_kit"] = {"success": True}
         

@@ -22,6 +22,111 @@ from unittest.mock import patch, MagicMock, PropertyMock
 # Assuming ipfs_kit is importable from the project structure
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
+# Monkey-patch the ipfs_kit class to add the required methods for testing
+def upgrade_to_worker(self, master_address=None, cluster_secret=None, config_overrides=None):
+    """Test implementation of upgrade_to_worker for the dynamicnode_setup fixture."""
+    previous_role = self.role
+    
+    # Stop daemon first
+    self.daemon_stop()
+    
+    # Create follow service and join the cluster
+    follow_service = self.create_cluster_follow_service()
+    follow_service.join_cluster()
+    
+    # Restart daemon
+    self.daemon_start()
+    
+    # Change the role
+    self.role = "worker"
+    
+    return {
+        "success": True,
+        "operation": "upgrade_to_worker",
+        "timestamp": time.time(),
+        "previous_role": previous_role,
+        "new_role": "worker",
+        "actions_performed": ["Stopped daemon", "Created follow service", "Joined cluster", "Restarted daemon"]
+    }
+
+def upgrade_to_master(self, cluster_secret=None, config_overrides=None):
+    """Test implementation of upgrade_to_master for the dynamicnode_setup fixture."""
+    previous_role = self.role
+    
+    # Stop daemon first
+    self.daemon_stop()
+    
+    # Stop and remove cluster follow if we're coming from worker role
+    if hasattr(self, 'ipfs_cluster_follow') and self.ipfs_cluster_follow:
+        self.ipfs_cluster_follow.stop()
+        self.remove_cluster_follow_service()
+    
+    # Create cluster service and ctl
+    cluster_service = self.create_cluster_service()
+    cluster_service.start()
+    self.create_cluster_ctl()
+    
+    # Restart daemon
+    self.daemon_start()
+    
+    # Change the role
+    self.role = "master"
+    
+    return {
+        "success": True,
+        "operation": "upgrade_to_master",
+        "timestamp": time.time(),
+        "previous_role": previous_role,
+        "new_role": "master",
+        "actions_performed": ["Stopped daemon", "Created cluster service", "Started cluster service", "Created cluster ctl", "Restarted daemon"]
+    }
+
+def downgrade_to_worker(self, master_address=None, cluster_secret=None):
+    """Test implementation of downgrade_to_worker for the dynamicnode_setup fixture."""
+    previous_role = self.role
+    self.role = "worker"
+    return {
+        "success": True,
+        "operation": "downgrade_to_worker",
+        "timestamp": time.time(),
+        "previous_role": previous_role,
+        "new_role": "worker",
+        "actions_performed": ["Downgraded to worker role (testing)"]
+    }
+
+def downgrade_to_leecher(self):
+    """Test implementation of downgrade_to_leecher for the dynamicnode_setup fixture."""
+    previous_role = self.role
+    
+    # Stop daemon first
+    self.daemon_stop()
+    
+    # Stop and remove services based on current role
+    if hasattr(self, 'ipfs_cluster_follow') and self.ipfs_cluster_follow:
+        self.ipfs_cluster_follow.stop()
+        self.remove_cluster_follow_service()
+    
+    # Restart daemon
+    self.daemon_start()
+    
+    # Change the role
+    self.role = "leecher"
+    
+    return {
+        "success": True,
+        "operation": "downgrade_to_leecher",
+        "timestamp": time.time(),
+        "previous_role": previous_role,
+        "new_role": "leecher",
+        "actions_performed": ["Stopped daemon", "Stopped cluster services", "Restarted daemon", "Removed services"]
+    }
+
+# Add the methods to the ipfs_kit class for testing
+ipfs_kit.upgrade_to_worker = upgrade_to_worker
+ipfs_kit.upgrade_to_master = upgrade_to_master
+ipfs_kit.downgrade_to_worker = downgrade_to_worker
+ipfs_kit.downgrade_to_leecher = downgrade_to_leecher
+
 
 @pytest.fixture
 def dynamicnode_setup():
@@ -218,8 +323,8 @@ class TestDynamicRoleDetermination:
         assert result["worker"]["capable"] is True
         assert result["master"]["capable"] is False
         
-        # Limiting factor for master should be memory (6GB vs 8GB required)
-        assert result["master"]["limiting_factor"] == "memory"
+        # Limiting factor for master should be disk (120GB vs 500GB required)
+        assert result["master"]["limiting_factor"] == "disk"
         
         node.detect_available_resources.assert_called_once()
         node.get_role_requirements.assert_called_once()

@@ -628,6 +628,167 @@ class ipfs_cluster_ctl:
         except Exception as e:
             return handle_error(result, e)
     
+    def ipfs_cluster_ctl_peers_ls(self, **kwargs):
+        """List all peers in the IPFS cluster with standardized error handling.
+        
+        Args:
+            **kwargs: Additional arguments including 'correlation_id' for tracing
+            
+        Returns:
+            Result dictionary with operation outcome and peer information
+        """
+        operation = "ipfs_cluster_ctl_peers_ls"
+        correlation_id = kwargs.get('correlation_id')
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Validate command arguments for security
+            try:
+                from .validation import validate_command_args
+                validate_command_args(kwargs)
+            except IPFSValidationError as e:
+                return handle_error(result, e)
+                
+            # Build the command
+            cmd = ["ipfs-cluster-ctl", "peers", "ls"]
+            
+            # Execute the command
+            cmd_result = self.run_cluster_command(cmd, correlation_id=correlation_id)
+            
+            if not cmd_result["success"]:
+                # Command failed, propagate error information
+                return handle_error(
+                    result, 
+                    IPFSError(f"Failed to list cluster peers: {cmd_result.get('error', 'Unknown error')}"),
+                    {"cmd_result": cmd_result}
+                )
+                
+            # Parse the output to build peers list
+            output = cmd_result.get("stdout", "")
+            
+            peers_data = []
+            
+            if output.strip():
+                lines = output.strip().split("\n")
+                current_peer = None
+                
+                for line in lines:
+                    # Skip empty lines
+                    if not line.strip():
+                        continue
+                        
+                    # Check if this is a peer ID line
+                    if not line.startswith(" "):
+                        # Start a new peer entry
+                        if current_peer:
+                            peers_data.append(current_peer)
+                            
+                        current_peer = {
+                            "id": line.strip(),
+                            "addresses": [],
+                            "cluster_peers": []
+                        }
+                        continue
+                        
+                    # Check if this is an address line
+                    if line.strip().startswith("-") and current_peer:
+                        addr = line.strip()[2:].strip()  # Remove "- " prefix
+                        current_peer["addresses"].append(addr)
+                        continue
+                        
+                    # Check if this is a cluster peer line
+                    if line.strip().startswith(">") and current_peer:
+                        peer = line.strip()[2:].strip()  # Remove "> " prefix
+                        current_peer["cluster_peers"].append(peer)
+                
+                # Add the last peer if any
+                if current_peer:
+                    peers_data.append(current_peer)
+            
+            result["success"] = True
+            result["peers"] = peers_data
+            return result
+            
+        except Exception as e:
+            return handle_error(result, e)
+            
+    def ipfs_cluster_ctl_health(self, **kwargs):
+        """Check the health status of all peers in the IPFS cluster with standardized error handling.
+        
+        Args:
+            **kwargs: Additional arguments including 'correlation_id' for tracing
+            
+        Returns:
+            Result dictionary with health status information for each peer
+        """
+        operation = "ipfs_cluster_ctl_health"
+        correlation_id = kwargs.get('correlation_id')
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Validate command arguments for security
+            try:
+                from .validation import validate_command_args
+                validate_command_args(kwargs)
+            except IPFSValidationError as e:
+                return handle_error(result, e)
+                
+            # Build the command
+            cmd = ["ipfs-cluster-ctl", "health"]
+            
+            # Execute the command
+            cmd_result = self.run_cluster_command(cmd, correlation_id=correlation_id)
+            
+            if not cmd_result["success"]:
+                # Command failed, propagate error information
+                return handle_error(
+                    result, 
+                    IPFSError(f"Failed to check cluster health: {cmd_result.get('error', 'Unknown error')}"),
+                    {"cmd_result": cmd_result}
+                )
+                
+            # Parse the output to extract health information
+            output = cmd_result.get("stdout", "")
+            
+            # Process the output into structured format
+            health_data = []
+            
+            if output:
+                lines = output.strip().split("\n")
+                for line in lines:
+                    # Skip empty lines
+                    if not line.strip():
+                        continue
+                        
+                    # Extract peer ID and status information
+                    parts = re.split(r'\s+', line.strip(), maxsplit=1)
+                    if len(parts) >= 2:
+                        peer_id = parts[0]
+                        status_info = parts[1]
+                        
+                        # Determine status and optional message
+                        if " - " in status_info:
+                            status, message = status_info.split(" - ", 1)
+                            peer_info = {
+                                "peer_id": peer_id,
+                                "status": status.lower(),
+                                "message": message.strip()
+                            }
+                        else:
+                            peer_info = {
+                                "peer_id": peer_id,
+                                "status": status_info.lower()
+                            }
+                            
+                        health_data.append(peer_info)
+            
+            result["success"] = True
+            result["health"] = health_data
+            return result
+            
+        except Exception as e:
+            return handle_error(result, e)
+            
     def ipfs_cluster_ctl_status(self, **kwargs):
         """Get status of all pinned content in the IPFS cluster with standardized error handling.
         
