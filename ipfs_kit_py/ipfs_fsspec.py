@@ -14,6 +14,17 @@ import statistics
 import threading
 import math
 
+try:
+    from fsspec.spec import AbstractFileSystem
+    from fsspec.utils import stringify_path
+    HAVE_FSSPEC = True
+except ImportError:
+    HAVE_FSSPEC = False
+    # Fallback for testing without fsspec
+    AbstractFileSystem = object
+    def stringify_path(path):
+        return str(path)
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -1036,7 +1047,7 @@ class IPFSMemoryFile:
 IPFSFile = IPFSMemoryFile
 
 
-class IPFSFileSystem:
+class IPFSFileSystem(AbstractFileSystem):
     """FSSpec-compatible filesystem interface for IPFS."""
     
     protocol = "ipfs"
@@ -1045,6 +1056,9 @@ class IPFSFileSystem:
                  use_mmap=True, enable_metrics=True, metrics_config=None, gateway_only=False, 
                  gateway_urls=None, use_gateway_fallback=False, **kwargs):
         """Initialize a high-performance IPFS filesystem interface."""
+        if HAVE_FSSPEC:
+            super().__init__(**kwargs)
+        
         self.ipfs_path = ipfs_path or os.environ.get("IPFS_PATH", "~/.ipfs")
         self.socket_path = socket_path
         self.role = role

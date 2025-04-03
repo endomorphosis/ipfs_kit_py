@@ -31,10 +31,14 @@ from pathlib import Path
 try:
     # First try relative imports (when used as a package)
     from .ipfs_kit import ipfs_kit, IPFSKit  # Import both the function and the class
-    # Disable FSSpec import due to syntax errors
-    # from .ipfs_fsspec import IPFSFileSystem
     from .error import IPFSError, IPFSValidationError, IPFSConfigurationError
     from .validation import validate_parameters
+    
+    # Try to import FSSpec integration
+    try:
+        from .ipfs_fsspec import IPFSFileSystem, HAVE_FSSPEC
+    except ImportError:
+        HAVE_FSSPEC = False
 except ImportError:
     # For development/testing
     import os
@@ -42,9 +46,14 @@ except ImportError:
     # Add parent directory to path
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from ipfs_kit_py.ipfs_kit import ipfs_kit, IPFSKit  # Import both the function and the class
-    from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
     from ipfs_kit_py.error import IPFSError, IPFSValidationError, IPFSConfigurationError
     from ipfs_kit_py.validation import validate_parameters
+    
+    # Try to import FSSpec integration
+    try:
+        from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem, HAVE_FSSPEC
+    except ImportError:
+        HAVE_FSSPEC = False
 
 # Optional imports
 try:
@@ -102,9 +111,8 @@ class IPFSSimpleAPI:
             # Add the method to the kit instance
             self.kit.ipfs_add_file = ipfs_add_file
         
-        # Initialize filesystem access (disabled due to syntax errors)
-        logger.info("IPFSFileSystem initialization skipped.")
-        self.fs = None
+        # Initialize filesystem access through the get_filesystem method
+        self.fs = self.get_filesystem()
         
         # Load plugins
         self.plugins = {}
@@ -249,6 +257,88 @@ class IPFSSimpleAPI:
         """
         self.extensions[name] = func
         logger.info(f"Extension {name} registered")
+    
+    def get_filesystem(self, **kwargs):
+        """
+        Get an FSSpec-compatible filesystem for IPFS.
+        
+        Args:
+            gateway_urls: List of IPFS gateway URLs to use
+            use_gateway_fallback: Whether to use gateways as fallback when local daemon is unavailable
+            gateway_only: Whether to use only gateways (no local daemon)
+            cache_config: Configuration for the cache system
+            enable_metrics: Whether to enable performance metrics
+            
+        Returns:
+            FSSpec-compatible filesystem interface for IPFS
+        """
+        if not HAVE_FSSPEC:
+            logger.warning("FSSpec is not available. Please install fsspec to use the filesystem interface.")
+            return None
+            
+        # Prepare configuration from both config and kwargs
+        fs_kwargs = {}
+        
+        # Add configuration from self.config with kwargs taking precedence
+        if 'ipfs_path' in kwargs:
+            fs_kwargs['ipfs_path'] = kwargs['ipfs_path']
+        elif 'ipfs_path' in self.config:
+            fs_kwargs['ipfs_path'] = self.config['ipfs_path']
+            
+        if 'socket_path' in kwargs:
+            fs_kwargs['socket_path'] = kwargs['socket_path']
+        elif 'socket_path' in self.config:
+            fs_kwargs['socket_path'] = self.config['socket_path']
+            
+        if 'role' in kwargs:
+            fs_kwargs['role'] = kwargs['role']
+        else:
+            fs_kwargs['role'] = self.config.get('role', 'leecher')
+            
+        # Add cache configuration if provided
+        if 'cache_config' in kwargs:
+            fs_kwargs['cache_config'] = kwargs['cache_config']
+        elif 'cache' in self.config:
+            fs_kwargs['cache_config'] = self.config['cache']
+            
+        # Add use_mmap configuration if provided
+        if 'use_mmap' in kwargs:
+            fs_kwargs['use_mmap'] = kwargs['use_mmap']
+        else:
+            fs_kwargs['use_mmap'] = self.config.get('use_mmap', True)
+            
+        # Add metrics configuration if provided
+        if 'enable_metrics' in kwargs:
+            fs_kwargs['enable_metrics'] = kwargs['enable_metrics']
+        else:
+            fs_kwargs['enable_metrics'] = self.config.get('enable_metrics', True)
+            
+        # Add gateway configuration if provided
+        if 'gateway_urls' in kwargs:
+            fs_kwargs['gateway_urls'] = kwargs['gateway_urls']
+        elif 'gateway_urls' in self.config:
+            fs_kwargs['gateway_urls'] = self.config['gateway_urls']
+            
+        # Add gateway fallback configuration if provided
+        if 'use_gateway_fallback' in kwargs:
+            fs_kwargs['use_gateway_fallback'] = kwargs['use_gateway_fallback']
+        elif 'use_gateway_fallback' in self.config:
+            fs_kwargs['use_gateway_fallback'] = self.config['use_gateway_fallback']
+            
+        # Add gateway-only mode configuration if provided
+        if 'gateway_only' in kwargs:
+            fs_kwargs['gateway_only'] = kwargs['gateway_only']
+        elif 'gateway_only' in self.config:
+            fs_kwargs['gateway_only'] = self.config['gateway_only']
+            
+        try:
+            # Create the filesystem
+            filesystem = IPFSFileSystem(**fs_kwargs)
+            logger.info("IPFSFileSystem initialized successfully")
+            return filesystem
+        except Exception as e:
+            logger.error(f"Failed to initialize IPFSFileSystem: {e}")
+            return None
     
     def add(self, content, **kwargs) -> Dict[str, Any]:
         """

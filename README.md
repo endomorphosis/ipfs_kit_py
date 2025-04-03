@@ -77,7 +77,7 @@ graph TD
 -   **High-Level API**: Simplified interface (`IPFSSimpleAPI`) with declarative configuration (YAML/JSON), automatic error handling, and a plugin architecture for easy extension. ([See Docs](docs/high_level_api.md))
 -   **Role-based Architecture**: Configure nodes as master, worker, or leecher, each optimized for specific tasks (coordination, computation, consumption). ([See Docs](docs/core_concepts.md))
 -   **Tiered Storage & Caching**: Intelligently manage content across multiple storage backends (IPFS, Cluster, S3, Storacha) with a high-performance Adaptive Replacement Cache (ARC) system featuring memory, disk, and memory-mapped tiers. ([See Docs](docs/tiered_cache.md))
--   **Standard Filesystem Interface**: Use the FSSpec integration (`IPFSFileSystem`) for familiar filesystem-like access to IPFS content, enabling seamless use with data science tools like Pandas and Dask. ([See Docs](docs/fsspec_integration.md))
+-   **Standard Filesystem Interface**: Use the FSSpec integration (`IPFSFileSystem`) for familiar filesystem-like access to IPFS content, enabling seamless use with data science tools like Pandas and Dask. Features proper inheritance from AbstractFileSystem with graceful fallbacks and comprehensive error handling. ([See Docs](docs/fsspec_integration.md))
 -   **Metadata Indexing**: Efficient Arrow-based metadata index with distributed synchronization (via IPFS PubSub and DAGs) for fast content discovery, querying, and multi-location tracking. ([See Docs](docs/metadata_index.md))
 -   **Direct P2P Communication**: Establish direct peer connections using libp2p for daemon-less content exchange, featuring advanced DHT discovery, provider reputation, and NAT traversal. ([See Docs](docs/libp2p_integration.md))
 -   **Advanced Cluster Management**: Sophisticated cluster coordination including leader election, task distribution, state synchronization (CRDTs, vector clocks), health monitoring, secure authentication (TLS, UCANs), and dynamic role adaptation based on resource availability. ([See Docs](docs/cluster_management.md))
@@ -293,7 +293,7 @@ try:
     # File-like operations
     # -------------------
 
-    # Use simplified filesystem methods (if fsspec is available)
+    # Use simplified filesystem methods with graceful fallbacks
     files = api.ls(cid)
     print(f"Directory contents: {files}")
 
@@ -301,7 +301,7 @@ try:
     if api.exists(cid):
         print(f"Content {cid} exists in IPFS")
 
-    # Open files directly with context manager
+    # Open files directly with context manager (works even if fsspec isn't installed)
     with api.open(cid) as f:
         data = f.read()
         print(f"Read {len(data)} bytes")
@@ -646,6 +646,7 @@ Recent improvements (April 2025):
 -   Added monkeypatch fixtures to handle PyArrow's immutable Schema objects during tests.
 -   Improved error suppression in cleanup methods to prevent test output noise.
 -   Enhanced test isolation with state reset fixtures to prevent test interference.
+-   Fixed FSSpec integration in high_level_api.py with proper AbstractFileSystem inheritance.
 
 The test suite covers:
 -   Core IPFS operations (add, get, pin, etc.)
@@ -668,13 +669,16 @@ Current development is focused on:
 3.  **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
 4.  **API Stability**: Finalizing and stabilizing the High-Level API and REST API interfaces.
 5.  **Performance Optimization**: Further tuning of caching, state synchronization, and data loading.
-6.  **Plugin Ecosystem**: Refining the plugin architecture and adding more example plugins.
+6.  **PyPI Release Preparation**: Finalizing package structure and metadata for publication.
+7.  **Containerization**: Creating Docker images for easy deployment in various environments.
 
 Recent accomplishments:
-1.  **Fixed PyArrow Testing**: Resolved schema type mismatch issues in cluster state tests.
-2.  **Enhanced Test Framework**: Improved fixtures and state handling for isolated tests.
-3.  **Updated Documentation**: Expanded testing guides with modern patterns and approaches.
-4.  **Custom Mocking Systems**: Created specialized patches for third-party libraries like PyArrow.
+1.  ✅ **Fixed FSSpec Integration**: Improved the filesystem interface with proper AbstractFileSystem inheritance and graceful fallbacks.
+2.  **Fixed PyArrow Testing**: Resolved schema type mismatch issues in cluster state tests.
+3.  **Enhanced Test Framework**: Improved fixtures and state handling for isolated tests.
+4.  **Updated Documentation**: Expanded testing guides with modern patterns and approaches.
+5.  **Custom Mocking Systems**: Created specialized patches for third-party libraries like PyArrow.
+6.  **Core Development Roadmap**: Completed all planned development phases with fully functional components.
 
 ## Contributing
 
