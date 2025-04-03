@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-04-03
+
+### Added
+- PyTorch integration in AI/ML module with comprehensive model management capabilities
+- Support for PyTorch model saving and loading with IPFS
+- TorchScript tracing and optimization
+- PyTorch DataLoader integration with IPFS datasets
+- Mixed precision inference optimization
+- ONNX export functionality
+- Unit tests for PyTorch integration
+
 ## [0.1.0] - 2025-04-02
 
 ### Added
@@ -45,5 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced cluster state synchronization with CRDT-based approach
 - Reorganized API structure for improved discoverability
 
-[Unreleased]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/endomorphosis/ipfs_kit_py/releases/tag/v0.1.0
