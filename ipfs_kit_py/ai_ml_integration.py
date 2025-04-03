@@ -5820,6 +5820,19 @@ class LangchainIntegration:
                 if PYDANTIC_AVAILABLE:
                     return CreateIPFSVectorStoreResponse(**result)
                 return result
+        except Exception as e:
+            # Handle any unexpected exceptions
+            self.logger.error(f"Unexpected error in create_vector_store: {str(e)}")
+            result = {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "error_type": type(e).__name__,
+                "operation": "create_vector_store",
+                "timestamp": time.time()
+            }
+            if PYDANTIC_AVAILABLE:
+                return CreateIPFSVectorStoreResponse(**result)
+            return result
 
         # Vector store implementation for IPFS
         class IPFSVectorStore:
@@ -6019,16 +6032,7 @@ class LangchainIntegration:
             if PYDANTIC_AVAILABLE:
                 return CreateIPFSVectorStoreResponse(**result)
             return vector_store
-        
-        except Exception as e:
-            error_msg = str(e)
-            result["error"] = error_msg
-            result["error_type"] = type(e).__name__
-            self.logger.exception(f"Unexpected error creating IPFS vector store: {error_msg}")
-            
-            if PYDANTIC_AVAILABLE:
-                return CreateIPFSVectorStoreResponse(**result)
-            return result
+        # End of create_vector_store method
 
     if PYDANTIC_AVAILABLE:
         class CreateDocumentLoaderRequest(BaseModel):
@@ -6105,6 +6109,19 @@ class LangchainIntegration:
                 if PYDANTIC_AVAILABLE:
                     return CreateDocumentLoaderResponse(**result)
                 return result
+        except Exception as e:
+            # Handle any unexpected exceptions
+            self.logger.error(f"Unexpected error in create_document_loader: {str(e)}")
+            result = {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "error_type": type(e).__name__,
+                "operation": "create_document_loader",
+                "timestamp": time.time()
+            }
+            if PYDANTIC_AVAILABLE:
+                return CreateDocumentLoaderResponse(**result)
+            return result
 
         # Document loader implementation for IPFS
         class IPFSDocumentLoader:
@@ -6198,16 +6215,6 @@ class LangchainIntegration:
             if PYDANTIC_AVAILABLE:
                 return CreateDocumentLoaderResponse(**result)
             return loader
-            
-        except Exception as e:
-            error_msg = str(e)
-            result["error"] = error_msg
-            result["error_type"] = type(e).__name__
-            self.logger.exception(f"Unexpected error creating document loader: {error_msg}")
-            
-            if PYDANTIC_AVAILABLE:
-                return CreateDocumentLoaderResponse(**result)
-            return result
 
     if PYDANTIC_AVAILABLE:
         class StoreChainRequest(BaseModel):
@@ -7774,6 +7781,19 @@ class LlamaIndexIntegration:
             return result
 
 
+if PYDANTIC_AVAILABLE:
+    class IPFSDataLoaderConfig(BaseModel):
+        """Configuration model for IPFSDataLoader class."""
+        batch_size: int = Field(32, description="Number of samples per batch")
+        shuffle: bool = Field(True, description="Whether to shuffle the dataset")
+        prefetch: int = Field(2, description="Number of batches to prefetch")
+        cache_dir: Optional[str] = Field(None, description="Directory for caching dataset files")
+        max_cache_size: Optional[int] = Field(None, description="Maximum cache size in bytes")
+        timeout: float = Field(30.0, description="Timeout for IPFS operations in seconds")
+        retry_count: int = Field(3, description="Number of retries for failed operations")
+        max_retries: int = Field(3, description="Maximum number of retry attempts for failed operations")
+        backoff_factor: float = Field(0.5, description="Exponential backoff factor for retries")
+
 class IPFSDataLoader:
     """IPFS data loader class for machine learning datasets.
 
@@ -7793,25 +7813,76 @@ class IPFSDataLoader:
     """
 
     def __init__(
-        self, ipfs_client=None, batch_size=32, shuffle=True, prefetch=2, metrics=None, **kwargs
-    ):
+        self, 
+        ipfs_client: Optional[Any] = None, 
+        batch_size: int = 32, 
+        shuffle: bool = True, 
+        prefetch: int = 2, 
+        metrics: Optional[Any] = None, 
+        **kwargs: Any
+    ) -> None:
         """Initialize data loader with IPFS client and configuration.
 
+        This method configures the IPFSDataLoader with the specified parameters for 
+        efficient batch loading of datasets from IPFS. The data loader provides background
+        prefetching for improved performance and seamless integration with popular 
+        ML frameworks.
+
         Args:
-            ipfs_client: IPFS client for content access
-            batch_size: Number of samples per batch
-            shuffle: Whether to shuffle the dataset
-            prefetch: Number of batches to prefetch
-            metrics: Optional AIMLMetrics instance for performance tracking
+            ipfs_client: IPFS client for content access. This should be an initialized
+                instance of IPFSKit or compatible client.
+            batch_size: Number of samples per batch. Determines how many samples are
+                processed at once during training or evaluation.
+            shuffle: Whether to shuffle the dataset. Recommended for training to ensure
+                random ordering of samples across epochs.
+            prefetch: Number of batches to prefetch in background threads. Higher values
+                improve throughput at the cost of memory usage.
+            metrics: Optional AIMLMetrics instance for performance tracking. If provided,
+                various performance metrics will be collected during operation.
+            **kwargs: Additional configuration options that can include:
+                - cache_dir: Directory for caching dataset files
+                - max_cache_size: Maximum cache size in bytes
+                - timeout: Timeout for IPFS operations in seconds
+                - retry_count: Number of retries for failed operations
         """
         import logging
 
         self.logger = logging.getLogger(__name__)
 
+        # Apply configuration from Pydantic model if available
+        if PYDANTIC_AVAILABLE:
+            # Extract all kwargs that match our config model
+            config_kwargs = {k: v for k, v in kwargs.items() 
+                           if k in IPFSDataLoaderConfig.__fields__}
+            # Add the standard parameters
+            config_kwargs.update({
+                "batch_size": batch_size,
+                "shuffle": shuffle,
+                "prefetch": prefetch
+            })
+            # Validate with Pydantic
+            config = IPFSDataLoaderConfig(**config_kwargs)
+            # Apply validated config to instance
+            self.batch_size = config.batch_size
+            self.shuffle = config.shuffle
+            self.prefetch = config.prefetch
+            self.timeout = config.timeout
+            self.max_retries = config.max_retries
+            self.backoff_factor = config.backoff_factor
+            self.cache_dir = config.cache_dir
+            self.max_cache_size = config.max_cache_size
+        else:
+            # Basic configuration without validation
+            self.batch_size = batch_size
+            self.shuffle = shuffle
+            self.prefetch = prefetch
+            self.timeout = kwargs.get("timeout", 30.0)
+            self.max_retries = kwargs.get("max_retries", 3)
+            self.backoff_factor = kwargs.get("backoff_factor", 0.5)
+            self.cache_dir = kwargs.get("cache_dir")
+            self.max_cache_size = kwargs.get("max_cache_size")
+
         self.ipfs = ipfs_client
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.prefetch = prefetch
         self.metrics = metrics
 
         # For testing, detect if we're in a test environment - used to optimize for tests
@@ -7849,16 +7920,65 @@ class IPFSDataLoader:
         self.prefetch_threads = []
         self.stop_prefetch = threading.Event()
 
-    def load_dataset(self, dataset_cid):
+    if PYDANTIC_AVAILABLE:
+        class LoadDatasetRequest(BaseModel):
+            """Request model for loading a dataset from IPFS."""
+            dataset_cid: str = Field(..., description="Content Identifier of the dataset to load")
+        
+        class LoadDatasetResponse(BaseModel):
+            """Response model for dataset loading operation."""
+            success: bool = Field(..., description="Operation success status")
+            operation: str = Field("load_dataset", description="Operation name")
+            timestamp: float = Field(..., description="Operation timestamp")
+            dataset_cid: str = Field(..., description="Content Identifier of the dataset")
+            total_samples: Optional[int] = Field(None, description="Total number of samples in the dataset")
+            format: Optional[str] = Field(None, description="Format of the dataset (embedded, referenced, etc.)")
+            sharded: Optional[bool] = Field(None, description="Whether the dataset is sharded across multiple CIDs")
+            total_shards: Optional[int] = Field(None, description="Total number of shards if sharded")
+            loaded_shard: Optional[int] = Field(None, description="Index of loaded shard if sharded")
+            metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
+            mocked: Optional[bool] = Field(None, description="Whether this is a mock dataset due to missing IPFS client")
+            load_time_ms: Optional[float] = Field(None, description="Time taken to load the dataset in milliseconds")
+            error: Optional[str] = Field(None, description="Error message if operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error if operation failed")
+
+    def load_dataset(self, dataset_cid: str) -> Union[Dict[str, Any], "LoadDatasetResponse"]:
         """Load dataset metadata from IPFS.
 
+        This method loads dataset metadata from IPFS using the provided Content Identifier (CID)
+        and sets up the data loader for iterating through the dataset samples. It automatically
+        detects the dataset format (embedded, referenced, or sharded) and configures the
+        appropriate loading strategy.
+        
+        The dataset should follow one of these formats:
+        1. Embedded: Dataset document contains actual data samples in a "data" field
+        2. Referenced: Dataset document contains CIDs to individual samples in a "samples" field
+        3. Sharded: Dataset is split across multiple CIDs in a "shards" field (for large datasets)
+
         Args:
-            dataset_cid: CID of the dataset to load
+            dataset_cid: Content Identifier (CID) of the dataset to load from IPFS
 
         Returns:
-            Dictionary with load status and metadata
+            Union[Dict[str, Any], LoadDatasetResponse]: A response object or dictionary containing:
+                - success: Boolean indicating if loading was successful
+                - dataset_cid: The CID of the loaded dataset
+                - total_samples: Number of samples in the dataset
+                - format: Dataset format (embedded, referenced, etc.)
+                - metadata: Additional dataset metadata
+                - error: Error message if loading failed
+                - load_time_ms: Time taken to load in milliseconds
+                
+        Examples:
+            >>> # Load a dataset by CID
+            >>> result = data_loader.load_dataset("QmYourDatasetCID")
+            >>> if result["success"]:
+            ...     print(f"Loaded dataset with {result['total_samples']} samples")
+            ...     print(f"Dataset format: {result['format']}")
+            ... else:
+            ...     print(f"Failed to load dataset: {result['error']}")
         """
         import time
+        from contextlib import nullcontext
 
         # Use metrics tracking if available
         if hasattr(self, "metrics") and self.metrics:
@@ -7868,6 +7988,14 @@ class IPFSDataLoader:
                 context = nullcontext()
         else:
             context = nullcontext()
+
+        # Prepare result structure
+        result = {
+            "success": False,
+            "operation": "load_dataset",
+            "timestamp": time.time(),
+            "dataset_cid": dataset_cid
+        }
 
         with context:
             start_time = time.time()
@@ -7923,11 +8051,17 @@ class IPFSDataLoader:
                         if len(dataset_info["shards"]) > 0:
                             first_shard_cid = dataset_info["shards"][0]
                             shard_result = self.load_dataset(first_shard_cid)
-                            if shard_result["success"]:
+                            
+                            # Check if result is a Pydantic model or dict
+                            if hasattr(shard_result, "success"):
+                                shard_success = shard_result.success
+                            else:
+                                shard_success = shard_result.get("success", False)
+                                
+                            if shard_success:
                                 # Return success but indicate this is a sharded dataset
-                                return {
+                                result.update({
                                     "success": True,
-                                    "dataset_cid": dataset_cid,
                                     "total_samples": self.total_samples,
                                     "sharded": True,
                                     "total_shards": len(dataset_info["shards"]),
@@ -7937,16 +8071,26 @@ class IPFSDataLoader:
                                         "format": dataset_info.get("format", "Unknown"),
                                         "version": dataset_info.get("version", "1.0.0"),
                                     },
+                                    "format": "sharded",
                                     "load_time_ms": (time.time() - start_time) * 1000,
-                                }
+                                })
+                                
+                                if PYDANTIC_AVAILABLE:
+                                    return LoadDatasetResponse(**result)
+                                return result
                             else:
+                                if PYDANTIC_AVAILABLE and isinstance(shard_result, BaseModel):
+                                    return shard_result
                                 return shard_result
                         else:
-                            return {
-                                "success": False,
+                            result.update({
                                 "error": "Sharded dataset contains no shards",
-                                "dataset_cid": dataset_cid,
-                            }
+                                "error_type": "empty_shards_error"
+                            })
+                            
+                            if PYDANTIC_AVAILABLE:
+                                return LoadDatasetResponse(**result)
+                            return result
                     else:
                         # Check if dataset is a sample list itself (simple array of samples)
                         if isinstance(dataset_info, list):
@@ -7956,18 +8100,21 @@ class IPFSDataLoader:
                             self.dataset_format = "embedded"
                         else:
                             # No samples found
-                            return {
-                                "success": False,
+                            result.update({
                                 "error": "Dataset does not contain samples or data",
-                                "dataset_cid": dataset_cid,
-                            }
+                                "error_type": "missing_samples_error"
+                            })
+                            
+                            if PYDANTIC_AVAILABLE:
+                                return LoadDatasetResponse(**result)
+                            return result
 
                     # Start prefetching
                     self._start_prefetch()
 
-                    result = {
+                    # Update success result
+                    result.update({
                         "success": True,
-                        "dataset_cid": dataset_cid,
                         "total_samples": self.total_samples,
                         "format": self.dataset_format,
                         "metadata": {
@@ -7976,11 +8123,13 @@ class IPFSDataLoader:
                             "version": dataset_info.get("version", "1.0.0"),
                         },
                         "load_time_ms": (time.time() - start_time) * 1000,
-                    }
+                    })
 
                     # Record in performance metrics
                     self.performance_metrics["load_times"].append((time.time() - start_time) * 1000)
 
+                    if PYDANTIC_AVAILABLE:
+                        return LoadDatasetResponse(**result)
                     return result
                 else:
                     # Mock behavior if no IPFS client or dag_get method
@@ -8001,41 +8150,113 @@ class IPFSDataLoader:
                     # Start prefetching
                     self._start_prefetch()
 
-                    result = {
+                    # Update success result with mock data
+                    result.update({
                         "success": True,
-                        "dataset_cid": dataset_cid,
                         "total_samples": self.total_samples,
+                        "format": self.dataset_format,
                         "metadata": self.dataset_metadata,
                         "mocked": True,
                         "load_time_ms": (time.time() - start_time) * 1000,
-                    }
+                    })
 
                     # Record in performance metrics
                     self.performance_metrics["load_times"].append((time.time() - start_time) * 1000)
 
+                    if PYDANTIC_AVAILABLE:
+                        return LoadDatasetResponse(**result)
                     return result
 
             except Exception as e:
                 self.logger.error(f"Error loading dataset {dataset_cid}: {str(e)}")
-                return {
-                    "success": False,
+                result.update({
                     "error": str(e),
-                    "error_type": type(e).__name__,
-                    "dataset_cid": dataset_cid,
-                }
+                    "error_type": type(e).__name__
+                })
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadDatasetResponse(**result)
+                return result
 
-    def load_embedded_dataset(self, data_array):
-        """Load an already-retrieved array of data samples.
+    if PYDANTIC_AVAILABLE:
+        class LoadEmbeddedDatasetRequest(BaseModel):
+            """Request model for the load_embedded_dataset method."""
+            data_array: List[Any] = Field(
+                ..., 
+                description="List of data samples to load into memory"
+            )
+            
+        class LoadEmbeddedDatasetResponse(BaseModel):
+            """Response model for the load_embedded_dataset method."""
+            success: bool = Field(
+                True, 
+                description="Whether the operation was successful"
+            )
+            total_samples: int = Field(
+                0, 
+                description="The total number of samples loaded"
+            )
+            format: str = Field(
+                "embedded_local", 
+                description="The format of the loaded dataset"
+            )
+            load_time_ms: float = Field(
+                0.0, 
+                description="The time taken to load the dataset in milliseconds"
+            )
+            error: Optional[str] = Field(
+                None, 
+                description="Error message if operation failed"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred if operation failed"
+            )
 
-        This method allows loading a dataset from memory without
-        IPFS retrieval, useful for testing or when data is already
-        available locally.
+    def load_embedded_dataset(
+        self, 
+        data_array: List[Any]
+    ) -> Union[Dict[str, Any], "LoadEmbeddedDatasetResponse"]:
+        """Load an already-retrieved array of data samples into memory.
+
+        This method allows loading a dataset from memory without IPFS retrieval,
+        useful for testing, development, or when data is already available locally.
+        The provided data samples can be any structure (dictionaries, lists, custom objects)
+        as long as they're in a Python list.
 
         Args:
-            data_array: List of data samples to use
+            data_array: List of data samples to use. Each sample can be any Python object
+                       that will be yielded during iteration (dictionaries with 'features'
+                       and 'labels' keys work best for ML model training).
 
         Returns:
-            Result dictionary with success/failure status
+            Union[Dict[str, Any], LoadEmbeddedDatasetResponse]: Result containing:
+                - success: Whether the operation was successful
+                - total_samples: The number of samples loaded
+                - format: The dataset format (always "embedded_local")
+                - load_time_ms: Time taken to load the dataset in milliseconds
+                - error: Error message if operation failed
+                - error_type: Type of error if operation failed
+
+        Example:
+            ```python
+            # Create sample data for a classification task
+            samples = [
+                {"features": [1.0, 2.0, 3.0], "labels": 0},
+                {"features": [4.0, 5.0, 6.0], "labels": 1},
+                {"features": [7.0, 8.0, 9.0], "labels": 0}
+            ]
+            
+            # Load the samples into the data loader
+            result = data_loader.load_embedded_dataset(samples)
+            
+            if result["success"]:
+                print(f"Loaded {result['total_samples']} samples")
+                
+                # Now the data loader can be used for training
+                for batch in data_loader:
+                    print(f"Processing batch with {len(batch)} samples")
+            ```
         """
         import time
 
@@ -8043,7 +8264,15 @@ class IPFSDataLoader:
 
         try:
             if not isinstance(data_array, list):
-                return {"success": False, "error": "data_array must be a list of samples"}
+                result = {
+                    "success": False, 
+                    "error": "data_array must be a list of samples",
+                    "error_type": "parameter_error"
+                }
+                
+                if PYDANTIC_AVAILABLE:
+                    return LoadEmbeddedDatasetResponse(**result)
+                return result
 
             # Clear any existing dataset
             self.clear()
@@ -8076,11 +8305,21 @@ class IPFSDataLoader:
             # Record in performance metrics
             self.performance_metrics["load_times"].append((time.time() - start_time) * 1000)
 
+            if PYDANTIC_AVAILABLE:
+                return LoadEmbeddedDatasetResponse(**result)
             return result
 
         except Exception as e:
             self.logger.error(f"Error loading embedded dataset: {str(e)}")
-            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            result = {
+                "success": False, 
+                "error": str(e), 
+                "error_type": type(e).__name__
+            }
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadEmbeddedDatasetResponse(**result)
+            return result
 
     def _start_prefetch(self):
         """Start prefetching thread for background batch loading."""
@@ -8272,16 +8511,98 @@ class IPFSDataLoader:
 
         return batch
 
-    def fetch_image(self, image_cid, transform_to_tensor=False, image_transforms=None):
-        """Fetch an image from IPFS and optionally convert to a tensor.
+    if PYDANTIC_AVAILABLE:
+        class FetchImageRequest(BaseModel):
+            """Request model for the fetch_image method."""
+            image_cid: str = Field(
+                ..., 
+                description="Content Identifier (CID) of the image in IPFS"
+            )
+            transform_to_tensor: bool = Field(
+                False, 
+                description="Whether to convert the image to a PyTorch tensor"
+            )
+            image_transforms: Optional[Any] = Field(
+                None, 
+                description="Optional torchvision transforms to apply to the image"
+            )
+            
+        class FetchImageErrorResponse(BaseModel):
+            """Error response model for the fetch_image method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: str = Field(
+                "", 
+                description="Type of error that occurred"
+            )
+            
+    def fetch_image(
+        self, 
+        image_cid: str, 
+        transform_to_tensor: bool = False, 
+        image_transforms: Optional[Any] = None
+    ) -> Union[Any, Dict[str, Any], "FetchImageErrorResponse"]:
+        """Fetch an image from IPFS and optionally convert to a PyTorch tensor.
+
+        This method retrieves an image stored in IPFS using its Content Identifier (CID)
+        and returns it either as a PIL Image object or as a PyTorch tensor, depending
+        on the parameters. It supports optional image transformations through torchvision.
 
         Args:
-            image_cid: CID of the image in IPFS
-            transform_to_tensor: Whether to convert to a tensor (requires PyTorch)
-            image_transforms: Optional transforms to apply (torchvision.transforms)
+            image_cid: Content Identifier (CID) of the image in IPFS
+            transform_to_tensor: Whether to convert the image to a PyTorch tensor (requires PyTorch)
+            image_transforms: Optional torchvision transforms to apply to the image
+                             (e.g., transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224)]))
 
         Returns:
-            PIL Image or tensor depending on transform_to_tensor
+            Union[PIL.Image.Image, torch.Tensor, Dict[str, Any], FetchImageErrorResponse]:
+                - PIL Image if transform_to_tensor is False (default)
+                - PyTorch tensor if transform_to_tensor is True
+                - Error response if the operation fails
+
+        Raises:
+            ValueError: If IPFS client is not provided or doesn't support required operations
+            ImportError: If required dependencies are not installed
+            Exception: For any other errors during image retrieval or processing
+
+        Example:
+            ```python
+            # Simple usage - get PIL Image
+            image = data_loader.fetch_image("QmImageCID")
+            
+            # Convert to PyTorch tensor
+            tensor = data_loader.fetch_image("QmImageCID", transform_to_tensor=True)
+            
+            # Apply custom transformations
+            from torchvision import transforms
+            
+            preprocess = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                     std=[0.229, 0.224, 0.225])
+            ])
+            
+            input_tensor = data_loader.fetch_image(
+                "QmImageCID", 
+                transform_to_tensor=True,
+                image_transforms=preprocess
+            )
+            
+            # Use with a model
+            model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+            model.eval()
+            
+            with torch.no_grad():
+                output = model(input_tensor.unsqueeze(0))
+            ```
         """
         # Track operation if metrics available
         if hasattr(self, "metrics") and self.metrics and hasattr(self.metrics, "track_operation"):
@@ -8351,18 +8672,99 @@ class IPFSDataLoader:
 
             except Exception as e:
                 self.logger.error(f"Error fetching image {image_cid}: {str(e)}")
-                raise
+                error_response = {
+                    "success": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+                
+                if PYDANTIC_AVAILABLE:
+                    return FetchImageErrorResponse(**error_response)
+                return error_response
 
-    def process_text(self, text, tokenizer=None, max_length=None):
-        """Process text data, optionally applying tokenization.
+    if PYDANTIC_AVAILABLE:
+        class ProcessTextRequest(BaseModel):
+            """Request model for the process_text method."""
+            text: str = Field(
+                ..., 
+                description="Text string to process"
+            )
+            tokenizer: Optional[Any] = Field(
+                None, 
+                description="Optional tokenizer to apply (e.g., from transformers)"
+            )
+            max_length: Optional[int] = Field(
+                None, 
+                description="Maximum sequence length for tokenization"
+            )
+            
+        class ProcessTextErrorResponse(BaseModel):
+            """Error response model for the process_text method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: str = Field(
+                "", 
+                description="Type of error that occurred"
+            )
+            
+    def process_text(
+        self, 
+        text: str, 
+        tokenizer: Optional[Any] = None, 
+        max_length: Optional[int] = None
+    ) -> Union[str, Any, Dict[str, Any], "ProcessTextErrorResponse"]:
+        """Process text data, optionally applying tokenization for ML models.
+
+        This method processes text data, with optional tokenization using popular NLP
+        libraries like Hugging Face Transformers. It supports different tokenizer types
+        and provides appropriate configuration for common use cases.
 
         Args:
             text: Text string to process
             tokenizer: Optional tokenizer to apply (e.g., from transformers)
-            max_length: Maximum sequence length for tokenization
+            max_length: Maximum sequence length for tokenization (truncation)
 
         Returns:
-            Processed text (tokenized if tokenizer provided)
+            Union[str, Dict, TokenizerOutput, ProcessTextErrorResponse]:
+                - Raw text string if no tokenizer is provided
+                - Tokenized output (format depends on tokenizer type)
+                - Error response if the operation fails
+
+        Raises:
+            ValueError: If an unsupported tokenizer type is provided
+            Exception: For any other errors during text processing
+
+        Example:
+            ```python
+            # Simple usage - just return the text
+            text = data_loader.process_text("Hello, world!")
+            
+            # Using with Hugging Face Transformers tokenizer
+            from transformers import AutoTokenizer
+            
+            tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+            encoded = data_loader.process_text(
+                "Hello, world!",
+                tokenizer=tokenizer,
+                max_length=512
+            )
+            
+            # encoded is a dict with keys like 'input_ids', 'attention_mask'
+            # that can be directly fed to a transformer model
+            
+            # Using with a custom tokenizer function
+            def simple_tokenizer(text):
+                return text.lower().split()
+                
+            tokens = data_loader.process_text("Hello, world!", tokenizer=simple_tokenizer)
+            # tokens = ['hello,', 'world!']
+            ```
         """
         try:
             if tokenizer is None:
@@ -8390,18 +8792,123 @@ class IPFSDataLoader:
 
         except Exception as e:
             self.logger.error(f"Error processing text: {str(e)}")
-            raise
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+            
+            if PYDANTIC_AVAILABLE:
+                return ProcessTextErrorResponse(**error_response)
+            return error_response
 
-    def process_audio(self, audio_cid, sample_rate=None, transform_to_tensor=False):
-        """Process audio data from IPFS.
+    if PYDANTIC_AVAILABLE:
+        class ProcessAudioRequest(BaseModel):
+            """Request model for the process_audio method."""
+            audio_cid: str = Field(
+                ..., 
+                description="CID of the audio file to process"
+            )
+            sample_rate: Optional[int] = Field(
+                None, 
+                description="Target sample rate in Hz for resampling (None for no resampling)"
+            )
+            transform_to_tensor: bool = Field(
+                False, 
+                description="Whether to convert the audio to a PyTorch tensor"
+            )
+            
+        class ProcessAudioErrorResponse(BaseModel):
+            """Error response model for the process_audio method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: str = Field(
+                "", 
+                description="Type of error that occurred"
+            )
+            
+    def process_audio(
+        self, 
+        audio_cid: str, 
+        sample_rate: Optional[int] = None, 
+        transform_to_tensor: bool = False
+    ) -> Union[bytes, Any, Dict[str, Any], "ProcessAudioErrorResponse"]:
+        """Process audio data from IPFS with optional tensor conversion and resampling.
+
+        This method retrieves audio data from IPFS and optionally converts it to a PyTorch 
+        tensor with resampling capabilities. It's designed to work seamlessly with audio 
+        processing workflows and machine learning pipelines.
 
         Args:
-            audio_cid: CID of the audio file
-            sample_rate: Target sample rate (None for no resampling)
-            transform_to_tensor: Whether to convert to tensor
+            audio_cid: CID of the audio file in IPFS
+            sample_rate: Target sample rate in Hz for resampling (None for no resampling)
+            transform_to_tensor: Whether to convert the audio to a PyTorch tensor
 
         Returns:
-            Audio data in the requested format
+            Union[bytes, torch.Tensor, Dict[str, Any], ProcessAudioErrorResponse]:
+                - Raw audio bytes if transform_to_tensor=False
+                - PyTorch tensor if transform_to_tensor=True
+                - Error response if the operation fails
+
+        Raises:
+            ValueError: If IPFS client is missing or doesn't support required operations
+            ImportError: If torchaudio is needed but not available
+            Exception: For any other errors during audio processing
+            
+        Example:
+            ```python
+            # Basic usage - get raw audio bytes
+            audio_data = data_loader.process_audio("QmAudioFileCID")
+            
+            # Convert to PyTorch tensor with original sample rate
+            audio_tensor = data_loader.process_audio(
+                "QmAudioFileCID", 
+                transform_to_tensor=True
+            )
+            
+            # Convert to PyTorch tensor with resampling to 16kHz
+            audio_tensor = data_loader.process_audio(
+                "QmAudioFileCID", 
+                sample_rate=16000, 
+                transform_to_tensor=True
+            )
+            
+            # Using the audio with a PyTorch model
+            import torch
+            
+            class AudioModel(torch.nn.Module):
+                def __init__(self):
+                    super().__init__()
+                    self.conv = torch.nn.Conv1d(1, 16, kernel_size=3)
+                    self.fc = torch.nn.Linear(16, 10)
+                    
+                def forward(self, x):
+                    # x has shape [batch, channels, time]
+                    x = self.conv(x)
+                    x = torch.mean(x, dim=2)  # Global average pooling
+                    return self.fc(x)
+            
+            model = AudioModel()
+            audio_tensor = data_loader.process_audio(
+                "QmAudioFileCID", 
+                sample_rate=16000, 
+                transform_to_tensor=True
+            )
+            
+            # Add batch dimension if needed
+            if audio_tensor.dim() == 2:  # [channels, time]
+                audio_tensor = audio_tensor.unsqueeze(0)  # [1, channels, time]
+                
+            # Process with model
+            with torch.no_grad():
+                output = model(audio_tensor)
+            ```
         """
         # Track operation if metrics available
         if hasattr(self, "metrics") and self.metrics and hasattr(self.metrics, "track_operation"):
@@ -8460,14 +8967,54 @@ class IPFSDataLoader:
 
             except Exception as e:
                 self.logger.error(f"Error processing audio {audio_cid}: {str(e)}")
-                raise
+                error_response = {
+                    "success": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+                
+                if PYDANTIC_AVAILABLE:
+                    return ProcessAudioErrorResponse(**error_response)
+                return error_response
 
-    def __iter__(self):
-        """Iterator interface for dataset."""
+    def __iter__(self) -> 'IPFSDataLoader':
+        """Iterator interface for dataset.
+        
+        This method allows the IPFSDataLoader to be used as an iterator in
+        for-loops and other iteration contexts, making it compatible with
+        standard Python iteration patterns and ML training loops.
+        
+        Returns:
+            IPFSDataLoader: Self reference to enable iteration
+            
+        Example:
+            ```python
+            # Use data loader as iterator in for loop
+            data_loader.load_dataset("QmYourDatasetCID")
+            for batch in data_loader:
+                # Process each batch
+                process_batch(batch)
+            ```
+        """
         return self
 
-    def __next__(self):
-        """Get next batch from dataset."""
+    def __next__(self) -> List[Dict[str, Any]]:
+        """Get next batch from dataset.
+        
+        This method retrieves the next batch of samples from the prefetching
+        queue when the data loader is being used as an iterator. It manages
+        timeout handling and termination signals to ensure clean iteration.
+        
+        Returns:
+            List[Dict[str, Any]]: A batch of dataset samples
+            
+        Raises:
+            StopIteration: When no more batches are available or dataset is empty
+            
+        Note:
+            The timeout value is shorter (0.5s) in testing mode and longer (10s)
+            in production mode to accommodate different usage patterns.
+        """
         if self.total_samples == 0:
             raise StopIteration
 
@@ -8488,51 +9035,206 @@ class IPFSDataLoader:
             # If prefetch is too slow or exhausted
             raise StopIteration
 
-    def __len__(self):
-        """Number of batches in dataset."""
+    def __len__(self) -> int:
+        """Get the number of batches in the dataset.
+        
+        This method calculates the total number of batches that will be
+        generated from the dataset with the current batch size. It uses
+        ceiling division to ensure partial batches are counted.
+        
+        Returns:
+            int: Number of batches in the dataset (0 if dataset is empty)
+            
+        Example:
+            ```python
+            # Get number of batches for training loop
+            data_loader.load_dataset("QmYourDatasetCID")
+            num_batches = len(data_loader)
+            print(f"Training on {num_batches} batches")
+            
+            # Use in progress tracking
+            for i, batch in enumerate(data_loader):
+                print(f"Processing batch {i+1}/{num_batches}")
+                # Process batch
+            ```
+        """
         if self.total_samples == 0:
             return 0
 
         # Calculate number of batches (ceiling division)
         return (self.total_samples + self.batch_size - 1) // self.batch_size
 
-    def clear(self):
-        """Clear the current dataset from memory without stopping prefetching threads.
+    if PYDANTIC_AVAILABLE:
+        class ClearResponse(BaseModel):
+            """Response model for the clear method."""
+            success: bool = Field(
+                True, 
+                description="Whether the operation was successful"
+            )
+            cleared_items: Dict[str, int] = Field(
+                {}, 
+                description="Count of items cleared from different caches and stores"
+            )
+            prefetch_reset: bool = Field(
+                False, 
+                description="Whether the prefetch mechanism was successfully reset"
+            )
+            
+    def clear(self) -> Union[Dict[str, Any], "ClearResponse"]:
+        """Clear the current dataset from memory and reset prefetching mechanism.
 
-        This is useful when processing multiple datasets sequentially.
-        """
-        # Stop current prefetching
-        self.stop_prefetch.set()
-
-        # Clear dataset attributes
-        self.dataset_cid = None
-        self.dataset_metadata = None
-        self.sample_cids = None
-        self.embedded_samples = None
-        self.total_samples = 0
-
-        # Clear cache and queue
-        self.sample_cache = {}
-
-        import queue
-
-        self.prefetch_queue = queue.Queue(maxsize=self.prefetch)
-
-        # Reset stop event
-        self.stop_prefetch.clear()
-
-    def to_pytorch(self):
-        """Convert to PyTorch DataLoader.
+        This method efficiently clears the current dataset from memory without fully 
+        stopping the data loader. It resets all internal caches, queues, and dataset 
+        references while preserving the configured prefetch mechanism. This is especially 
+        useful when processing multiple datasets sequentially without recreating the 
+        data loader instance.
 
         Returns:
-            PyTorch DataLoader or error dictionary if PyTorch not available
+            Union[Dict[str, Any], ClearResponse]:
+                - Success status and details about cleared items
+                - Pydantic model if available, dictionary otherwise
+
+        Example:
+            ```python
+            # Load and process dataset A
+            data_loader.load_dataset("QmDatasetA")
+            for batch in data_loader:
+                # Process batch from dataset A
+                pass
+                
+            # Clear dataset A and load dataset B without recreating the data loader
+            clear_result = data_loader.clear()
+            print(f"Successfully cleared data: {clear_result['success']}")
+            
+            # Load dataset B using the same data loader instance
+            data_loader.load_dataset("QmDatasetB")
+            for batch in data_loader:
+                # Process batch from dataset B
+                pass
+            ```
+        """
+        # Track operation if metrics available
+        if hasattr(self, "metrics") and self.metrics and hasattr(self.metrics, "track_operation"):
+            op_context = self.metrics.track_operation("clear")
+        else:
+            op_context = nullcontext()
+            
+        with op_context:
+            # Collect information about what will be cleared
+            cleared_items = {
+                "dataset_metadata": 1 if self.dataset_metadata is not None else 0,
+                "sample_cids": len(self.sample_cids) if hasattr(self, "sample_cids") and self.sample_cids else 0,
+                "embedded_samples": len(self.embedded_samples) if hasattr(self, "embedded_samples") and self.embedded_samples else 0,
+                "cache_entries": len(self.sample_cache) if hasattr(self, "sample_cache") else 0
+            }
+            
+            # Stop current prefetching
+            self.stop_prefetch.set()
+
+            # Clear dataset attributes
+            self.dataset_cid = None
+            self.dataset_metadata = None
+            self.sample_cids = None
+            self.embedded_samples = None
+            self.total_samples = 0
+
+            # Clear cache and queue
+            self.sample_cache = {}
+
+            import queue
+            self.prefetch_queue = queue.Queue(maxsize=self.prefetch)
+
+            # Reset stop event
+            self.stop_prefetch.clear()
+            
+            # Prepare response
+            result = {
+                "success": True,
+                "cleared_items": cleared_items,
+                "prefetch_reset": True
+            }
+            
+            if PYDANTIC_AVAILABLE:
+                return ClearResponse(**result)
+            return result
+
+    if PYDANTIC_AVAILABLE:
+        class ToPytorchResponse(BaseModel):
+            """Response model for the to_pytorch method when PyTorch is not available."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining why the operation failed"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            message: Optional[str] = Field(
+                None, 
+                description="Additional message about the error"
+            )
+            simulation_note: Optional[str] = Field(
+                None, 
+                description="Note about simulated errors for testing"
+            )
+            
+    def to_pytorch(self) -> Union[Any, Dict[str, Any], "ToPytorchResponse"]:
+        """Convert the data loader to a PyTorch DataLoader.
+
+        This method creates a PyTorch DataLoader that wraps this IPFSDataLoader,
+        enabling seamless integration with PyTorch training loops. The DataLoader
+        automatically converts data samples to PyTorch tensors based on their format.
+
+        Supported data formats:
+        1. Structured data: Samples with 'features' and 'labels' keys
+        2. Image data: Samples with 'image_cid' referencing IPFS images
+        3. Generic data: Any dict-like samples with automatic tensor conversion
+
+        The resulting DataLoader uses the same batch size as this IPFSDataLoader
+        and leverages its built-in prefetching for efficient data loading.
+
+        Returns:
+            Union[torch.utils.data.DataLoader, Dict[str, Any], ToPytorchResponse]: 
+                - PyTorch DataLoader if successful
+                - Error dictionary if PyTorch is not available or conversion fails
+
+        Example:
+            ```python
+            # Load a dataset
+            data_loader.load_dataset("QmYourDatasetCID")
+            
+            # Convert to PyTorch DataLoader
+            dataloader = data_loader.to_pytorch()
+            
+            # Use in PyTorch training loop
+            for epoch in range(5):
+                for features, labels in dataloader:
+                    # Your training code here
+                    outputs = model(features)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    optimizer.step()
+            ```
+            
+        Note:
+            This method requires PyTorch to be installed. If PyTorch is not
+            available, it returns an error dictionary explaining the issue.
         """
         if not TORCH_AVAILABLE:
-            return {
+            result = {
                 "success": False,
                 "error": "PyTorch is not available. Please install with 'pip install torch'",
+                "error_type": "dependency_error",
                 "simulation_note": "This is a simulated error, no DataLoader was created",
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ToPytorchResponse(**result)
+            return result
 
         try:
             # Import torch modules
@@ -8614,28 +9316,99 @@ class IPFSDataLoader:
             return loader
 
         except Exception as e:
-            self.logger.error(f"Error converting to PyTorch DataLoader: {str(e)}")
-            return {
+            result = {
                 "success": False,
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "message": "Failed to convert to PyTorch DataLoader",
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ToPytorchResponse(**result)
+            return result
 
-    def to_pytorch_dataset(self):
+    if PYDANTIC_AVAILABLE:
+        class ToPytorchDatasetResponse(BaseModel):
+            """Response model for the to_pytorch_dataset method when PyTorch is not available."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining why the operation failed"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            message: Optional[str] = Field(
+                None, 
+                description="Additional message about the error"
+            )
+            simulation_note: Optional[str] = Field(
+                None, 
+                description="Note about simulated errors for testing"
+            )
+            
+    def to_pytorch_dataset(self) -> Union[Any, Dict[str, Any], "ToPytorchDatasetResponse"]:
         """Convert to PyTorch IterableDataset (without creating a DataLoader).
 
-        This is useful when you want to use custom DataLoader parameters or
-        when using distributed sampling with PyTorch's DistributedSampler.
+        This method creates and returns a PyTorch IterableDataset that wraps this 
+        IPFSDataLoader, providing more flexibility than to_pytorch() since it returns 
+        the dataset without creating a DataLoader. This is useful when you need:
+        - Custom DataLoader parameters
+        - Distributed sampling with DistributedSampler
+        - Integration with advanced PyTorch utilities
+        - Custom worker initialization
+
+        The returned dataset automatically converts data samples to PyTorch tensors
+        with the same behavior as to_pytorch() but lets you control how those 
+        tensors are batched and processed.
 
         Returns:
-            PyTorch IterableDataset or error dictionary if PyTorch not available
+            Union[torch.utils.data.IterableDataset, Dict[str, Any], ToPytorchDatasetResponse]:
+                - PyTorch IterableDataset if successful
+                - Error dictionary if PyTorch is not available or conversion fails
+
+        Example:
+            ```python
+            # Get the dataset
+            dataset = data_loader.to_pytorch_dataset()
+            
+            # Create custom DataLoader
+            dataloader = torch.utils.data.DataLoader(
+                dataset,
+                batch_size=64,  # Custom batch size
+                num_workers=4,  # Multi-process loading
+                pin_memory=True,  # Faster data transfer to GPU
+                prefetch_factor=2  # Control prefetching
+            )
+            
+            # Use in distributed training
+            sampler = DistributedSampler(dataset)
+            dataloader = torch.utils.data.DataLoader(
+                dataset, 
+                batch_size=32,
+                sampler=sampler
+            )
+            ```
+            
+        Note:
+            This method requires PyTorch to be installed. If PyTorch is not
+            available, it returns an error dictionary explaining the issue.
         """
         if not TORCH_AVAILABLE:
-            return {
+            result = {
                 "success": False,
                 "error": "PyTorch is not available. Please install with 'pip install torch'",
+                "error_type": "dependency_error",
                 "simulation_note": "This is a simulated error, no IterableDataset was created",
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ToPytorchDatasetResponse(**result)
+            return result
 
         try:
             # Import torch modules
@@ -8706,19 +9479,55 @@ class IPFSDataLoader:
 
         except Exception as e:
             self.logger.error(f"Error creating PyTorch IterableDataset: {str(e)}")
-            return {
+            result = {
                 "success": False,
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "message": "Failed to create PyTorch IterableDataset",
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ToPytorchDatasetResponse(**result)
+            return result
 
-    def to_tensorflow(self):
+    if PYDANTIC_AVAILABLE:
+        class ToTensorflowResponse(BaseModel):
+            """Response model for the to_tensorflow method when TensorFlow is not available."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining why the operation failed"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            message: Optional[str] = Field(
+                None, 
+                description="Additional message about the error"
+            )
+            simulation_note: Optional[str] = Field(
+                None, 
+                description="Note about simulated errors for testing"
+            )
+            
+    def to_tensorflow(self) -> Union[Any, Dict[str, Any], "ToTensorflowResponse"]:
         """Convert the IPFSDataLoader to a TensorFlow Dataset.
         
-        This method creates a TensorFlow Dataset from the IPFSDataLoader, with 
-        automatic type inference, batching, and performance optimization. It supports 
-        several data formats:
+        This method creates a TensorFlow Dataset from the IPFSDataLoader with 
+        automatic type inference, batching, and performance optimization. The resulting
+        dataset is ready to use with TensorFlow models through the tf.data API.
         
+        Features:
+        - Automatic conversion of Python data types to appropriate TensorFlow tensors
+        - Proper shape and type inference from data samples
+        - Performance optimization with automatic prefetching
+        - Support for different data formats in a single, unified interface
+        
+        Supported data formats:
         1. Supervised learning format: Samples with 'features' and 'labels' keys
         2. Image datasets: Samples with 'image_cid' key referencing images in IPFS
         3. Generic datasets: Any dictionary-like samples with numeric or string values
@@ -8729,27 +9538,46 @@ class IPFSDataLoader:
         - Proper tensor shapes and types inference from data
         
         Returns:
-            tf.data.Dataset: A TensorFlow Dataset ready for model training/evaluation
-                or
-            dict: Error information if TensorFlow is not available or conversion fails
+            Union[tf.data.Dataset, Dict[str, Any], ToTensorflowResponse]:
+                - TensorFlow Dataset if successful
+                - Error dictionary if TensorFlow is not available or conversion fails
         
         Example:
             ```python
+            # Load a dataset
+            data_loader.load_dataset("QmYourDatasetCID")
+            
             # Convert to TensorFlow Dataset
             tf_dataset = data_loader.to_tensorflow()
             
             # Use in TensorFlow training
-            model = tf.keras.Sequential([...])
-            model.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
+            model = tf.keras.Sequential([
+                tf.keras.layers.Dense(128, activation='relu'),
+                tf.keras.layers.Dense(10, activation='softmax')
+            ])
+            model.compile(
+                optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy']
+            )
             model.fit(tf_dataset, epochs=5)
             ```
+            
+        Note:
+            This method requires TensorFlow to be installed. If TensorFlow is not
+            available, it returns an error dictionary explaining the issue.
         """
         if not TF_AVAILABLE:
-            return {
+            result = {
                 "success": False,
                 "error": "TensorFlow is not available. Please install with 'pip install tensorflow'",
+                "error_type": "dependency_error",
                 "simulation_note": "This is a simulated error, no Dataset was created",
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ToTensorflowResponse(**result)
+            return result
 
         try:
             import tensorflow as tf
@@ -8907,48 +9735,148 @@ class IPFSDataLoader:
 
         except Exception as e:
             self.logger.error(f"Error converting to TensorFlow Dataset: {str(e)}")
-            return {
+            result = {
                 "success": False,
                 "error": str(e),
+                "error_type": type(e).__name__,
                 "message": "Failed to convert to TensorFlow Dataset",
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ToTensorflowResponse(**result)
+            return result
 
-    def get_performance_metrics(self):
+    if PYDANTIC_AVAILABLE:
+        class PerformanceMetricsResponse(BaseModel):
+            """Response model for the get_performance_metrics method."""
+            # Cache metrics
+            cache_hits: int = Field(
+                0, 
+                description="Number of successful cache retrievals"
+            )
+            cache_misses: int = Field(
+                0, 
+                description="Number of cache misses requiring fetches from storage"
+            )
+            cache_hit_rate: float = Field(
+                0.0, 
+                description="Ratio of cache hits to total access attempts"
+            )
+            
+            # Timing statistics
+            batch_times: List[float] = Field(
+                [], 
+                description="List of batch loading times in milliseconds"
+            )
+            load_times: List[float] = Field(
+                [], 
+                description="List of dataset loading times in milliseconds"
+            )
+            avg_batch_time_ms: Optional[float] = Field(
+                None, 
+                description="Average time to load a batch in milliseconds"
+            )
+            min_batch_time_ms: Optional[float] = Field(
+                None, 
+                description="Minimum batch loading time in milliseconds"
+            )
+            max_batch_time_ms: Optional[float] = Field(
+                None, 
+                description="Maximum batch loading time in milliseconds"
+            )
+            avg_load_time_ms: Optional[float] = Field(
+                None, 
+                description="Average dataset loading time in milliseconds"
+            )
+            total_prefetch_time: float = Field(
+                0.0, 
+                description="Total time spent in prefetching operations"
+            )
+            
+            # Dataset information
+            total_samples: int = Field(
+                0, 
+                description="Total number of samples in the dataset"
+            )
+            samples_processed: int = Field(
+                0, 
+                description="Number of samples processed so far"
+            )
+            batch_size: int = Field(
+                32, 
+                description="Current batch size setting"
+            )
+            dataset_format: Optional[str] = Field(
+                None, 
+                description="Format of the current dataset"
+            )
+            prefetch_queue_size: int = Field(
+                2, 
+                description="Current prefetch queue size setting"
+            )
+            
+            # Additional metrics fields
+            progress: Optional[float] = Field(
+                None, 
+                description="Dataset processing progress (0.0 to 1.0)"
+            )
+            
+    def get_performance_metrics(self) -> Union[Dict[str, Any], "PerformanceMetricsResponse"]:
         """Get comprehensive performance metrics for this data loader.
         
-        Collects and calculates various performance metrics including:
-        - Cache efficiency (hits, misses, hit rate)
-        - Timing statistics (batch loading times, dataset loading times)
-        - Dataset information (samples, batch size, format)
-        - Resource utilization metrics
+        This method provides detailed performance analytics for the IPFSDataLoader,
+        covering cache efficiency, timing statistics, and resource utilization. These
+        metrics are valuable for identifying bottlenecks, optimizing configurations,
+        and monitoring performance during training or inference.
         
-        These metrics are useful for identifying bottlenecks, optimizing data loading
-        configurations, and monitoring overall performance during training or inference.
+        The metrics include:
+        
+        Cache Efficiency:
+        - Hit/miss counts and hit rate percentage
+        - Cache tier utilization statistics
+        
+        Timing Statistics:
+        - Batch loading times (average, min, max)
+        - Dataset loading latency
+        - Prefetching overhead time
+        
+        Data Processing:
+        - Total samples and processed count
+        - Format and configuration settings
+        - Processing progress indication
         
         Returns:
-            dict: Dictionary with detailed performance metrics including:
-                - cache_hits: Number of successful cache retrievals
-                - cache_misses: Number of cache misses requiring IPFS fetches
-                - cache_hit_rate: Ratio of hits to total access attempts
-                - avg_batch_time_ms: Average time to load a batch in milliseconds
-                - min_batch_time_ms: Minimum batch loading time
-                - max_batch_time_ms: Maximum batch loading time
-                - avg_load_time_ms: Average dataset loading time
-                - total_samples: Total number of samples in the dataset
-                - batch_size: Current batch size setting
-                - dataset_format: Format of the current dataset
-                - prefetch_queue_size: Current prefetch queue size setting
+            Union[Dict[str, Any], PerformanceMetricsResponse]: Dictionary or Pydantic model with detailed 
+            performance metrics including cache efficiency, timing statistics, and 
+            dataset information.
         
         Example:
             ```python
             # Get and analyze performance metrics
             metrics = data_loader.get_performance_metrics()
             
+            # Analyze cache efficiency
             print(f"Cache hit rate: {metrics['cache_hit_rate']:.2%}")
+            print(f"Cache hits: {metrics['cache_hits']}, misses: {metrics['cache_misses']}")
+            
+            # Analyze timing performance
             print(f"Average batch load time: {metrics['avg_batch_time_ms']:.2f} ms")
-            print(f"Total samples processed: {metrics['total_samples']}")
+            print(f"Min/Max batch times: {metrics['min_batch_time_ms']:.2f}/{metrics['max_batch_time_ms']:.2f} ms")
+            
+            # Track progress
+            print(f"Samples processed: {metrics['samples_processed']}/{metrics['total_samples']}")
+            
+            # Visualize performance metrics
+            import matplotlib.pyplot as plt
+            plt.figure(figsize=(10, 5))
+            plt.plot(metrics['batch_times'])
+            plt.title('Batch Loading Times')
+            plt.xlabel('Batch Number')
+            plt.ylabel('Loading Time (ms)')
+            plt.show()
             ```
         """
+        # Create a copy of the metrics to avoid modifying the original
         metrics = self.performance_metrics.copy()
 
         # Calculate derived metrics
@@ -8957,7 +9885,7 @@ class IPFSDataLoader:
                 metrics["cache_hits"] + metrics["cache_misses"]
             )
         else:
-            metrics["cache_hit_rate"] = 0
+            metrics["cache_hit_rate"] = 0.0
 
         # Calculate average batch load time if available
         if metrics["batch_times"]:
@@ -8974,20 +9902,62 @@ class IPFSDataLoader:
         metrics["batch_size"] = self.batch_size
         metrics["dataset_format"] = self.dataset_format
         metrics["prefetch_queue_size"] = self.prefetch
+        
+        # Calculate progress if possible
+        if self.total_samples > 0 and "samples_processed" in metrics:
+            metrics["progress"] = min(1.0, metrics["samples_processed"] / self.total_samples)
 
+        if PYDANTIC_AVAILABLE:
+            # Remove any metrics not in the Pydantic model to avoid validation errors
+            valid_fields = set(PerformanceMetricsResponse.__fields__.keys())
+            filtered_metrics = {k: v for k, v in metrics.items() if k in valid_fields}
+            return PerformanceMetricsResponse(**filtered_metrics)
+        
         return metrics
 
-    def close(self):
+    if PYDANTIC_AVAILABLE:
+        class CloseResponse(BaseModel):
+            """Response model for the close method."""
+            success: bool = Field(
+                True, 
+                description="Whether the cleanup operation was successful"
+            )
+            threads_stopped: int = Field(
+                0, 
+                description="Number of threads that were successfully stopped"
+            )
+            queue_items_cleared: int = Field(
+                0, 
+                description="Number of items cleared from the queue"
+            )
+            error: Optional[str] = Field(
+                None, 
+                description="Error message if operation failed"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred if operation failed"
+            )
+
+    def close(self) -> Union[Dict[str, Any], "CloseResponse"]:
         """Clean up resources used by the data loader.
         
-        This method properly releases all resources used by the data loader, including:
-        - Stopping background prefetching threads
-        - Closing queue resources
-        - Releasing any cached data
+        This method properly releases all resources used by the data loader to prevent 
+        memory leaks and ensure clean shutdown. It performs the following cleanup operations:
         
-        It's important to call this method when you're done using the data loader
-        to prevent resource leaks, especially in long-running applications or
-        when processing multiple datasets sequentially.
+        1. Stops all background prefetching threads
+        2. Clears and releases queue resources
+        3. Releases cached data and file handles
+        
+        Always call this method when you're done using the data loader, especially in 
+        long-running applications or when processing multiple datasets sequentially.
+        
+        Returns:
+            Union[Dict[str, Any], CloseResponse]: A status object containing:
+                - success: Whether all resources were properly released
+                - threads_stopped: Number of threads that were successfully stopped
+                - queue_items_cleared: Number of items cleared from the queue
+                - error: Error message if any issues occurred during cleanup
         
         Example:
             ```python
@@ -9006,39 +9976,79 @@ class IPFSDataLoader:
                 loader.close()  # Always call close to release resources
             ```
         """
-        # Stop prefetching
-        self.stop_prefetch.set()
-
-        # Wait for prefetch threads to stop
-        for thread in self.prefetch_threads:
-            if thread.is_alive():
-                thread.join(timeout=1.0)
-
-        # Clear thread list
-        self.prefetch_threads = []
-
-        # Clear queue
         import queue
+        
+        result = {
+            "success": True,
+            "threads_stopped": 0,
+            "queue_items_cleared": 0,
+        }
+        
+        try:
+            # Stop prefetching
+            self.stop_prefetch.set()
+    
+            # Wait for prefetch threads to stop
+            for thread in self.prefetch_threads:
+                if thread.is_alive():
+                    thread.join(timeout=1.0)
+                    # Check if thread actually stopped
+                    if not thread.is_alive():
+                        result["threads_stopped"] += 1
+    
+            # Clear thread list
+            thread_count = len(self.prefetch_threads)
+            self.prefetch_threads = []
+    
+            # Clear queue
+            queue_items = 0
+            while not self.prefetch_queue.empty():
+                try:
+                    self.prefetch_queue.get_nowait()
+                    queue_items += 1
+                except queue.Empty:
+                    break
+                    
+            result["queue_items_cleared"] = queue_items
+            
+            # Check if all threads were properly stopped
+            if result["threads_stopped"] < thread_count:
+                result["success"] = False
+                result["error"] = f"Failed to stop all threads: {result['threads_stopped']}/{thread_count} stopped"
+            
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error during data loader cleanup: {e}")
+            
+        if PYDANTIC_AVAILABLE:
+            return CloseResponse(**result)
+        return result
 
-        while not self.prefetch_queue.empty():
-            try:
-                self.prefetch_queue.get_nowait()
-            except queue.Empty:
-                break
 
-
-def ipfs_data_loader_context(kit, batch_size=32, shuffle=True, prefetch=2, metrics=None):
+def ipfs_data_loader_context(
+    kit: Any, 
+    batch_size: int = 32, 
+    shuffle: bool = True, 
+    prefetch: int = 2, 
+    metrics: Optional[Any] = None
+) -> Any:
     """Context manager for the IPFSDataLoader to ensure proper resource cleanup.
     
     This function returns a context manager that automatically creates an IPFSDataLoader
     and properly closes it when the context is exited, ensuring that all resources
     are correctly released regardless of normal execution or exceptions.
     
+    The context manager pattern is the recommended way to use IPFSDataLoader as it
+    guarantees proper cleanup even if errors occur during processing. It handles
+    thread termination, queue cleanup, and cache release automatically.
+    
     Args:
         kit: IPFS Kit instance with AI/ML integration enabled
-        batch_size: Number of samples per batch
-        shuffle: Whether to shuffle the dataset
-        prefetch: Number of batches to prefetch
+        batch_size: Number of samples per batch (default: 32)
+        shuffle: Whether to shuffle the dataset (default: True)
+        prefetch: Number of batches to prefetch (default: 2)
         metrics: Optional metrics collector for performance tracking
         
     Returns:
@@ -11905,19 +12915,110 @@ class TensorflowIntegration:
                 except:
                     pass
     
-    def load_model(self, cid=None, name=None, version=None):
-        """Load a TensorFlow model from IPFS.
+    if PYDANTIC_AVAILABLE:
+        class LoadModelRequest(BaseModel):
+            """Request model for the load_model method."""
+            cid: Optional[str] = Field(
+                None, 
+                description="CID of the TensorFlow model to load from IPFS"
+            )
+            name: Optional[str] = Field(
+                None, 
+                description="Model name when using the model registry"
+            )
+            version: Optional[Union[str, int]] = Field(
+                None, 
+                description="Model version when using the model registry"
+            )
+        
+        class LoadModelResponse(BaseModel):
+            """Success response model for the load_model method."""
+            success: bool = Field(
+                True, 
+                description="Whether the operation was successful"
+            )
+            model: Any = Field(
+                ..., 
+                description="The loaded TensorFlow model"
+            )
+            metadata: Dict[str, Any] = Field(
+                {}, 
+                description="Metadata associated with the model"
+            )
+            source: str = Field(
+                "ipfs", 
+                description="Source of the loaded model (ipfs, cache, registry)"
+            )
+            loading_time_ms: float = Field(
+                0.0, 
+                description="Time taken to load the model in milliseconds"
+            )
+            
+        class LoadModelErrorResponse(BaseModel):
+            """Error response model for the load_model method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            operation: str = Field(
+                "load_model", 
+                description="Name of the operation that failed"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the error occurred"
+            )
+            
+    def load_model(
+        self, 
+        cid: Optional[str] = None, 
+        name: Optional[str] = None, 
+        version: Optional[Union[str, int]] = None
+    ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadModelResponse", "LoadModelErrorResponse"]:
+        """Load a TensorFlow model from IPFS or model registry.
         
         This method loads a TensorFlow model from IPFS, either directly by CID
-        or by looking up a model in the registry by name and version.
+        or by looking up a model in the registry by name and version. It supports
+        retrieving models from local cache for improved performance and handles
+        various error conditions gracefully.
         
         Args:
-            cid: Content identifier for the model
-            name: Model name (used with model registry)
-            version: Model version (used with model registry)
+            cid: Content identifier for the model in IPFS
+            name: Model name when using the model registry
+            version: Model version when using the model registry
             
         Returns:
-            Tuple of (model, metadata) on success or dict with error on failure
+            Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], LoadModelResponse, LoadModelErrorResponse]:
+                - If successful: Either a tuple of (model, metadata) or a LoadModelResponse
+                - If failed: Dictionary with error information or LoadModelErrorResponse
+        
+        Raises:
+            ImportError: If TensorFlow is not available
+            Exception: For other errors during model loading
+            
+        Example:
+            ```python
+            # Load model directly by CID
+            model, metadata = data_loader.load_model(cid="QmModelCID")
+            
+            # Load from model registry by name and version
+            model, metadata = data_loader.load_model(name="mnist_classifier", version="1.0")
+            
+            # Check for successful loading
+            if isinstance(result, dict) and not result.get("success", False):
+                print(f"Error loading model: {result.get('error')}")
+            else:
+                # Use the model
+                model.predict(input_data)
+            ```
         """
         import json
         import os
@@ -11925,13 +13026,20 @@ class TensorflowIntegration:
         import tempfile
         import time
         
+        start_time = time.time()
+        
         if not TF_AVAILABLE:
-            return {
+            error_response = {
                 "success": False,
                 "error": "TensorFlow is not available. Please install with 'pip install tensorflow'",
+                "error_type": "dependency_error",
                 "operation": "load_model",
                 "timestamp": time.time(),
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadModelErrorResponse(**error_response)
+            return error_response
         
         import tensorflow as tf
         
@@ -12021,37 +13129,183 @@ class TensorflowIntegration:
                 shutil.copytree(local_path, perm_dir)
             
             # Add loading info to metadata
-            metadata["_loaded_at"] = time.time()
-            metadata["_loaded_from"] = "local_cache" if not temp_dir else "ipfs"
+            loading_time_ms = (time.time() - start_time) * 1000
+            source = "local_cache" if not temp_dir else "ipfs"
             
+            metadata["_loaded_at"] = time.time()
+            metadata["_loaded_from"] = source
+            metadata["_loading_time_ms"] = loading_time_ms
+            
+            # Return appropriate format based on Pydantic availability
+            if PYDANTIC_AVAILABLE:
+                success_response = {
+                    "success": True,
+                    "model": model,
+                    "metadata": metadata,
+                    "source": source,
+                    "loading_time_ms": loading_time_ms
+                }
+                return LoadModelResponse(**success_response)
+            
+            # For backward compatibility, continue returning tuple
             return model, metadata
             
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error loading model: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                return LoadModelErrorResponse(**result)
             return result
+            
         finally:
             # Clean up temporary directory
             if "temp_dir" in locals() and temp_dir and os.path.exists(temp_dir):
                 try:
                     shutil.rmtree(temp_dir)
-                except:
+                except Exception:
                     pass
     
-    def export_saved_model(self, model, export_dir=None, serving_config=None):
-        """Export a TensorFlow model in SavedModel format.
+    if PYDANTIC_AVAILABLE:
+        class ExportSavedModelRequest(BaseModel):
+            """Request model for the export_saved_model method."""
+            model: Any = Field(
+                ..., 
+                description="TensorFlow model to export"
+            )
+            export_dir: Optional[str] = Field(
+                None, 
+                description="Directory to export to (temporary directory if None)"
+            )
+            serving_config: Optional[Dict[str, Any]] = Field(
+                None, 
+                description="TensorFlow Serving configuration"
+            )
+            
+        class ExportSavedModelResponse(BaseModel):
+            """Success response model for the export_saved_model method."""
+            success: bool = Field(
+                True, 
+                description="Whether the operation was successful"
+            )
+            export_path: str = Field(
+                ..., 
+                description="Path where the model was exported"
+            )
+            cid: Optional[str] = Field(
+                None, 
+                description="CID of the exported model in IPFS (if available)"
+            )
+            model_type: str = Field(
+                "", 
+                description="Type of TensorFlow model ('keras' or 'saved_model')"
+            )
+            tf_version: str = Field(
+                "", 
+                description="TensorFlow version used for export"
+            )
+            has_serving_config: bool = Field(
+                False, 
+                description="Whether a serving configuration was included"
+            )
+            operation: str = Field(
+                "export_saved_model", 
+                description="Name of the operation"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the export was completed"
+            )
+            
+        class ExportSavedModelErrorResponse(BaseModel):
+            """Error response model for the export_saved_model method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            operation: str = Field(
+                "export_saved_model", 
+                description="Name of the operation that failed"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the error occurred"
+            )
+            
+    def export_saved_model(
+        self, 
+        model: Any, 
+        export_dir: Optional[str] = None, 
+        serving_config: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], "ExportSavedModelResponse", "ExportSavedModelErrorResponse"]:
+        """Export a TensorFlow model in SavedModel format for deployment.
         
         This method exports a TensorFlow model in the SavedModel format, which is
-        suitable for deployment with TensorFlow Serving or TensorFlow Lite conversion.
+        suitable for deployment with TensorFlow Serving, TensorFlow Lite conversion, 
+        or direct loading in production environments. It handles both Keras models 
+        and generic TensorFlow models, optionally adding serving configurations
+        and storing the result in IPFS.
         
         Args:
-            model: TensorFlow model to export
-            export_dir: Directory to export to (temporary directory if None)
-            serving_config: TensorFlow Serving configuration
+            model: TensorFlow model to export (Keras Model or SavedModel)
+            export_dir: Directory to export to (uses a temporary directory if None)
+            serving_config: TensorFlow Serving configuration dictionary
             
         Returns:
-            Dictionary with export results including the export path
+            Union[Dict[str, Any], ExportSavedModelResponse, ExportSavedModelErrorResponse]:
+                - Dictionary with export results including the export path
+                - Pydantic model if available
+                
+        Raises:
+            ImportError: If TensorFlow is not available
+            Exception: For errors during model export
+            
+        Example:
+            ```python
+            # Create and train a Keras model
+            model = tf.keras.Sequential([
+                tf.keras.layers.Dense(128, activation='relu', input_shape=(10,)),
+                tf.keras.layers.Dense(64, activation='relu'),
+                tf.keras.layers.Dense(1, activation='sigmoid')
+            ])
+            model.compile(optimizer='adam', loss='binary_crossentropy')
+            
+            # Export the model with serving configuration
+            serving_config = {
+                "model_name": "my_classifier",
+                "model_signature_name": "serving_default",
+                "versions": {
+                    "1": {
+                        "signature_def": {
+                            "inputs": {"features": "float_input"},
+                            "outputs": {"prediction": "sigmoid_output"}
+                        }
+                    }
+                }
+            }
+            
+            result = data_loader.export_saved_model(
+                model, 
+                export_dir="/tmp/my_model", 
+                serving_config=serving_config
+            )
+            
+            if result["success"]:
+                print(f"Model exported to {result['export_path']}")
+                print(f"IPFS CID: {result['cid']}")
+                
+                # The exported model can now be loaded with TensorFlow:
+                loaded_model = tf.saved_model.load(result["export_path"])
+            ```
         """
         import os
         import shutil
@@ -12059,13 +13313,20 @@ class TensorflowIntegration:
         import time
         import uuid
         
+        start_time = time.time()
+        
         if not TF_AVAILABLE:
-            return {
+            error_response = {
                 "success": False,
                 "error": "TensorFlow is not available. Please install with 'pip install tensorflow'",
+                "error_type": "dependency_error",
                 "operation": "export_saved_model",
                 "timestamp": time.time(),
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return ExportSavedModelErrorResponse(**error_response)
+            return error_response
         
         import tensorflow as tf
         
@@ -12115,6 +13376,7 @@ class TensorflowIntegration:
                         except Exception as e:
                             self.logger.warning(f"Failed to pin saved model: {e}")
             
+            # Update result with success information
             result.update({
                 "success": True,
                 "export_path": export_dir,
@@ -12122,70 +13384,298 @@ class TensorflowIntegration:
                 "model_type": "keras" if isinstance(model, tf.keras.Model) else "saved_model",
                 "tf_version": tf.__version__,
                 "has_serving_config": serving_config is not None,
+                "timestamp": time.time()
             })
             
+            # Return Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ExportSavedModelResponse(**result)
             return result
             
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error exporting SavedModel: {e}")
+            
+            # Return Pydantic model if available
+            if PYDANTIC_AVAILABLE:
+                return ExportSavedModelErrorResponse(**result)
             return result
     
-    def create_data_loader(self, dataset_cid=None, batch_size=32, **kwargs):
+    if PYDANTIC_AVAILABLE:
+        class CreateDataLoaderRequest(BaseModel):
+            """Request model for the create_data_loader method."""
+            dataset_cid: Optional[str] = Field(
+                None, 
+                description="CID of the dataset to load from IPFS"
+            )
+            batch_size: int = Field(
+                32, 
+                description="Batch size for the data loader"
+            )
+            shuffle: bool = Field(
+                True, 
+                description="Whether to shuffle the dataset"
+            )
+            prefetch: int = Field(
+                2, 
+                description="Number of batches to prefetch"
+            )
+            
+        class CreateDataLoaderErrorResponse(BaseModel):
+            """Error response model for the create_data_loader method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            operation: str = Field(
+                "create_data_loader", 
+                description="Name of the operation that failed"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the error occurred"
+            )
+            
+    def create_data_loader(
+        self, 
+        dataset_cid: Optional[str] = None, 
+        batch_size: int = 32, 
+        **kwargs
+    ) -> Union[Any, Dict[str, Any], "CreateDataLoaderErrorResponse"]:
         """Create a TensorFlow data loader from an IPFS dataset.
         
-        Args:
-            dataset_cid: CID of the dataset in IPFS
-            batch_size: Batch size for the data loader
-            **kwargs: Additional options for the data loader
-            
-        Returns:
-            IPFSDataLoader instance for use with TensorFlow
-        """
-        if not self.ipfs:
-            return {
-                "success": False,
-                "error": "No IPFS client provided",
-                "operation": "create_data_loader",
-                "timestamp": time.time(),
-            }
-        
-        # Create IPFSDataLoader instance
-        data_loader = IPFSDataLoader(
-            ipfs_client=self.ipfs,
-            batch_size=batch_size,
-            **kwargs
-        )
-        
-        # Load dataset if CID provided
-        if dataset_cid:
-            load_result = data_loader.load_dataset(dataset_cid)
-            if not load_result.get("success", False):
-                self.logger.warning(f"Failed to load dataset: {load_result.get('error')}")
-        
-        return data_loader
-    
-    def optimize_for_inference(self, model, input_shapes=None, mixed_precision=None):
-        """Optimize a TensorFlow model for inference.
+        This method creates an IPFSDataLoader instance configured for TensorFlow 
+        integration, optionally loading a dataset from IPFS by its Content Identifier.
+        It provides a clean interface for creating data loaders with appropriate 
+        defaults and configuration.
         
         Args:
-            model: TensorFlow model to optimize
-            input_shapes: Dictionary of input shapes for the model
-            mixed_precision: Whether to use mixed precision (FP16)
+            dataset_cid: CID of the dataset in IPFS (optional, can be loaded later)
+            batch_size: Batch size for the data loader (default: 32)
+            **kwargs: Additional options for the data loader, such as:
+                - shuffle: Whether to shuffle the dataset (default: True)
+                - prefetch: Number of batches to prefetch (default: 2)
+                - cache_dir: Directory for caching datasets (default: ~/.ipfs_cache)
+                - metrics: Metrics collection object (optional)
+                - transforms: Data transformation functions (optional)
             
         Returns:
-            Optimized model and dictionary with optimization results
+            Union[IPFSDataLoader, Dict[str, Any], CreateDataLoaderErrorResponse]:
+                - IPFSDataLoader instance configured for TensorFlow integration
+                - Error dictionary or Pydantic model if creation fails
+                
+        Example:
+            ```python
+            # Create a data loader with default settings
+            data_loader = tf_integration.create_data_loader(
+                dataset_cid="QmYourDatasetCID"
+            )
+            
+            # Create a data loader with custom settings
+            data_loader = tf_integration.create_data_loader(
+                dataset_cid="QmYourDatasetCID",
+                batch_size=64,
+                shuffle=True,
+                prefetch=4,
+                cache_dir="/tmp/dataset_cache"
+            )
+            
+            # Use the data loader with TensorFlow
+            for batch in data_loader:
+                # Each batch contains samples from the dataset
+                features, labels = batch_to_tensors(batch)
+                model.train_on_batch(features, labels)
+            ```
         """
         import time
         
+        if not self.ipfs:
+            error_response = {
+                "success": False,
+                "error": "No IPFS client provided",
+                "error_type": "configuration_error",
+                "operation": "create_data_loader",
+                "timestamp": time.time(),
+            }
+            
+            if PYDANTIC_AVAILABLE:
+                return CreateDataLoaderErrorResponse(**error_response)
+            return error_response
+        
+        try:
+            # Create IPFSDataLoader instance
+            data_loader = IPFSDataLoader(
+                ipfs_client=self.ipfs,
+                batch_size=batch_size,
+                **kwargs
+            )
+            
+            # Load dataset if CID provided
+            if dataset_cid:
+                load_result = data_loader.load_dataset(dataset_cid)
+                if not load_result.get("success", False):
+                    self.logger.warning(f"Failed to load dataset: {load_result.get('error')}")
+            
+            return data_loader
+            
+        except Exception as e:
+            error_response = {
+                "success": False,
+                "error": f"Failed to create data loader: {str(e)}",
+                "error_type": type(e).__name__,
+                "operation": "create_data_loader",
+                "timestamp": time.time(),
+            }
+            
+            if PYDANTIC_AVAILABLE:
+                return CreateDataLoaderErrorResponse(**error_response)
+            return error_response
+    
+    if PYDANTIC_AVAILABLE:
+        class OptimizeForInferenceRequest(BaseModel):
+            """Request model for the optimize_for_inference method."""
+            model: Any = Field(
+                ..., 
+                description="TensorFlow model to optimize"
+            )
+            input_shapes: Optional[Dict[str, List[int]]] = Field(
+                None, 
+                description="Dictionary of input shapes for the model"
+            )
+            mixed_precision: Optional[bool] = Field(
+                None, 
+                description="Whether to use mixed precision (FP16)"
+            )
+            
+        class OptimizeForInferenceResponse(BaseModel):
+            """Success response model for the optimize_for_inference method."""
+            success: bool = Field(
+                True, 
+                description="Whether the operation was successful"
+            )
+            model_type: str = Field(
+                "", 
+                description="Type of TensorFlow model ('keras' or 'saved_model')"
+            )
+            original_trainable_params: Optional[int] = Field(
+                None, 
+                description="Number of trainable parameters in the original model"
+            )
+            optimized_trainable_params: Optional[int] = Field(
+                None, 
+                description="Number of trainable parameters in the optimized model"
+            )
+            mixed_precision: bool = Field(
+                False, 
+                description="Whether mixed precision optimization was applied"
+            )
+            concrete_function_created: bool = Field(
+                False, 
+                description="Whether a concrete function was created for specific input shapes"
+            )
+            operation: str = Field(
+                "optimize_for_inference", 
+                description="Name of the operation"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the optimization was completed"
+            )
+            
+        class OptimizeForInferenceErrorResponse(BaseModel):
+            """Error response model for the optimize_for_inference method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            operation: str = Field(
+                "optimize_for_inference", 
+                description="Name of the operation that failed"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the error occurred"
+            )
+            
+    def optimize_for_inference(
+        self, 
+        model: Any, 
+        input_shapes: Optional[Dict[str, List[int]]] = None, 
+        mixed_precision: Optional[bool] = None
+    ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "OptimizeForInferenceResponse", "OptimizeForInferenceErrorResponse"]:
+        """Optimize a TensorFlow model for faster inference.
+        
+        This method applies various optimizations to TensorFlow models to improve
+        inference performance, including mixed precision, operator fusion, and 
+        concrete function compilation. It supports both Keras models and SavedModel
+        objects, returning the optimized model along with optimization details.
+        
+        Args:
+            model: TensorFlow model to optimize (Keras Model or SavedModel)
+            input_shapes: Dictionary of input shapes for concrete function optimization
+                (e.g., {'input_1': [1, 224, 224, 3]})
+            mixed_precision: Whether to use mixed precision (FP16) optimization
+                (defaults to class setting if not specified)
+            
+        Returns:
+            Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], OptimizeForInferenceResponse, OptimizeForInferenceErrorResponse]:
+                - If successful: Tuple of (optimized_model, optimization_results) or OptimizeForInferenceResponse
+                - If failed: Dictionary with error details or OptimizeForInferenceErrorResponse
+                
+        Example:
+            ```python
+            # Optimize a Keras model
+            model = tf.keras.applications.MobileNetV2(weights='imagenet')
+            
+            # Optimize for specific batch size and input dimensions
+            optimized_model, opt_info = data_loader.optimize_for_inference(
+                model,
+                input_shapes={'input_1': [1, 224, 224, 3]},
+                mixed_precision=True
+            )
+            
+            # Check optimization results
+            print(f"Original params: {opt_info['original_trainable_params']}")
+            print(f"Optimized params: {opt_info['optimized_trainable_params']}")
+            print(f"Mixed precision: {opt_info['mixed_precision']}")
+            
+            # Use optimized model for inference
+            result = optimized_model.predict(sample_input)
+            ```
+        """
+        import time
+        
+        start_time = time.time()
+        
         if not TF_AVAILABLE:
-            return {
+            error_response = {
                 "success": False,
                 "error": "TensorFlow is not available. Please install with 'pip install tensorflow'",
+                "error_type": "dependency_error",
                 "operation": "optimize_for_inference",
                 "timestamp": time.time(),
             }
+            
+            if PYDANTIC_AVAILABLE:
+                return OptimizeForInferenceErrorResponse(**error_response)
+            return error_response
         
         import tensorflow as tf
         
@@ -12233,7 +13723,14 @@ class TensorflowIntegration:
                     "optimized_trainable_params": sum(
                         tf.keras.backend.count_params(p) for p in opt_model.trainable_weights
                     ),
+                    "timestamp": time.time()
                 })
+                
+                # Return Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    pydantic_result = OptimizeForInferenceResponse(**result)
+                    # We can't include the model in the Pydantic response directly
+                    return opt_model, pydantic_result
                 
                 return opt_model, result
                 
@@ -12245,18 +13742,36 @@ class TensorflowIntegration:
                     "model_type": "saved_model",
                     "original_size": "unknown",  # Would require serialization to measure
                     "optimized_size": "unknown", 
+                    "timestamp": time.time()
                 })
+                
+                # Return Pydantic model if available
+                if PYDANTIC_AVAILABLE:
+                    pydantic_result = OptimizeForInferenceResponse(**result)
+                    return model, pydantic_result
                 
                 return model, result  # Return original model with metadata
                 
             else:
                 result["error"] = f"Unsupported model type: {type(model).__name__}"
+                result["error_type"] = "unsupported_model_type"
+                
+                if PYDANTIC_AVAILABLE:
+                    error_result = OptimizeForInferenceErrorResponse(**result)
+                    return model, error_result
+                
                 return model, result  # Return original model with error
                 
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
+            result["timestamp"] = time.time()
             self.logger.exception(f"Error optimizing model: {e}")
+            
+            if PYDANTIC_AVAILABLE:
+                error_result = OptimizeForInferenceErrorResponse(**result)
+                return model, error_result
+            
             return model, result  # Return original model with error
 
 
@@ -12314,23 +13829,212 @@ class PyTorchIntegration:
         if not TORCH_AVAILABLE:
             self.logger.warning("PyTorch not available. Install with 'pip install torch'")
     
-    def save_model(self, model, name, version="1.0.0", metadata=None, trace=True, 
-                   example_inputs=None, use_jit=True, export_onnx=False, **kwargs):
-        """Save a PyTorch model to IPFS.
+    if PYDANTIC_AVAILABLE:
+        class SaveModelRequest(BaseModel):
+            """Request model for the save_model method."""
+            model: Any = Field(
+                ..., 
+                description="PyTorch model to save"
+            )
+            name: str = Field(
+                ..., 
+                description="Model name for registry and identification"
+            )
+            version: str = Field(
+                "1.0.0", 
+                description="Model version string (semantic versioning recommended)"
+            )
+            metadata: Optional[Dict[str, Any]] = Field(
+                None, 
+                description="Additional metadata about the model"
+            )
+            trace: bool = Field(
+                True, 
+                description="Whether to trace the model with TorchScript"
+            )
+            example_inputs: Optional[Any] = Field(
+                None, 
+                description="Example inputs for tracing and ONNX export"
+            )
+            use_jit: bool = Field(
+                True, 
+                description="Whether to use JIT compilation (trace vs. script)"
+            )
+            export_onnx: bool = Field(
+                False, 
+                description="Whether to also export to ONNX format"
+            )
+            
+        class SaveModelResponse(BaseModel):
+            """Success response model for the save_model method."""
+            success: bool = Field(
+                True, 
+                description="Whether the operation was successful"
+            )
+            operation: str = Field(
+                "save_model", 
+                description="Name of the operation"
+            )
+            model_name: str = Field(
+                "", 
+                description="Model name used for saving"
+            )
+            model_version: str = Field(
+                "", 
+                description="Model version used for saving"
+            )
+            cid: Optional[str] = Field(
+                None, 
+                description="Content identifier of the saved model in IPFS"
+            )
+            state_dict_saved: bool = Field(
+                False, 
+                description="Whether the model state dictionary was successfully saved"
+            )
+            traced_model_saved: Optional[bool] = Field(
+                None, 
+                description="Whether a traced/scripted version was successfully saved"
+            )
+            onnx_exported: Optional[bool] = Field(
+                None, 
+                description="Whether the model was successfully exported to ONNX"
+            )
+            registered: Optional[bool] = Field(
+                None, 
+                description="Whether the model was registered in the model registry"
+            )
+            trace_error: Optional[str] = Field(
+                None, 
+                description="Error message if tracing failed"
+            )
+            onnx_error: Optional[str] = Field(
+                None, 
+                description="Error message if ONNX export failed"
+            )
+            registry_error: Optional[str] = Field(
+                None, 
+                description="Error message if registry registration failed"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the save operation completed"
+            )
+            
+        class SaveModelErrorResponse(BaseModel):
+            """Error response model for the save_model method."""
+            success: bool = Field(
+                False, 
+                description="Whether the operation was successful"
+            )
+            operation: str = Field(
+                "save_model", 
+                description="Name of the operation that failed"
+            )
+            error: str = Field(
+                "", 
+                description="Error message explaining what went wrong"
+            )
+            error_type: Optional[str] = Field(
+                None, 
+                description="Type of error that occurred"
+            )
+            model_name: Optional[str] = Field(
+                None, 
+                description="Model name that was being saved"
+            )
+            model_version: Optional[str] = Field(
+                None, 
+                description="Model version that was being saved"
+            )
+            timestamp: float = Field(
+                0.0, 
+                description="Timestamp when the error occurred"
+            )
+            
+    def save_model(
+        self, 
+        model: Any, 
+        name: str, 
+        version: str = "1.0.0", 
+        metadata: Optional[Dict[str, Any]] = None, 
+        trace: bool = True, 
+        example_inputs: Optional[Any] = None, 
+        use_jit: bool = True, 
+        export_onnx: bool = False, 
+        **kwargs
+    ) -> Union[Dict[str, Any], "SaveModelResponse", "SaveModelErrorResponse"]:
+        """Save a PyTorch model to IPFS with various export formats.
+        
+        This method saves a PyTorch model to IPFS, with options for different export
+        formats (state dict, traced/scripted model, ONNX). It also registers the model
+        in a model registry if one is available. This provides a complete model
+        versioning and storage solution leveraging content-addressing.
         
         Args:
-            model: PyTorch model to save
-            name: Model name for registry
-            version: Model version string
-            metadata: Additional metadata about the model
+            model: PyTorch model to save (nn.Module instance)
+            name: Model name for registry and identification
+            version: Model version string (semantic versioning recommended)
+            metadata: Additional metadata about the model architecture, training, etc.
             trace: Whether to trace the model with TorchScript
-            example_inputs: Example inputs for tracing
-            use_jit: Whether to use JIT compilation
+            example_inputs: Example inputs for tracing and ONNX export
+            use_jit: Whether to use JIT compilation (trace vs. script)
             export_onnx: Whether to also export to ONNX format
-            **kwargs: Additional parameters for saving
+            **kwargs: Additional parameters for saving, including:
+                - opset_version: ONNX opset version (default: 12)
+                - input_names: Names for input tensors in ONNX
+                - output_names: Names for output tensors in ONNX
+                - dynamic_axes: Dynamic axes configuration for ONNX
             
         Returns:
-            Dictionary with operation results including CID
+            Union[Dict[str, Any], SaveModelResponse, SaveModelErrorResponse]:
+                Dictionary or Pydantic model with operation results including CID
+                
+        Example:
+            ```python
+            # Create a simple PyTorch model
+            import torch
+            import torch.nn as nn
+            
+            class SimpleModel(nn.Module):
+                def __init__(self):
+                    super().__init__()
+                    self.fc = nn.Linear(10, 1)
+                    
+                def forward(self, x):
+                    return torch.sigmoid(self.fc(x))
+            
+            model = SimpleModel()
+            
+            # Create example inputs for tracing
+            example_inputs = torch.randn(1, 10)
+            
+            # Save the model with various export formats
+            result = pytorch_integration.save_model(
+                model=model,
+                name="simple_classifier",
+                version="1.0.0",
+                metadata={
+                    "accuracy": 0.95,
+                    "dataset": "synthetic_data",
+                    "description": "Simple binary classifier"
+                },
+                trace=True,
+                example_inputs=example_inputs,
+                export_onnx=True
+            )
+            
+            if result["success"]:
+                print(f"Model saved with CID: {result['cid']}")
+                
+                # The model can now be loaded from IPFS:
+                loaded_model, _ = pytorch_integration.load_model(cid=result["cid"])
+                
+                # Or by name and version (if registry is available):
+                loaded_model, _ = pytorch_integration.load_model(
+                    name="simple_classifier", 
+                    version="1.0.0"
+                )
+            ```
         """
         result = {
             "success": False,
@@ -12341,8 +14045,19 @@ class PyTorchIntegration:
         }
         
         if not TORCH_AVAILABLE:
-            result["error"] = "PyTorch not available"
-            return result
+            error_response = {
+                "success": False,
+                "operation": "save_model",
+                "error": "PyTorch not available. Please install with 'pip install torch'",
+                "error_type": "dependency_error",
+                "model_name": name,
+                "model_version": version,
+                "timestamp": time.time()
+            }
+            
+            if PYDANTIC_AVAILABLE:
+                return SaveModelErrorResponse(**error_response)
+            return error_response
             
         try:
             import torch

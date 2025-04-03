@@ -404,55 +404,111 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             mock_get_endpoint_status.assert_called_once()
 
     def test_ai_test_inference(self):
-        """Test inference."""
+        """Test running inference on a test dataset using a model."""
         # Setup test data
-        endpoint_id = "test-endpoint-id"
-        test_data = {"inputs": [1.0, 2.0, 3.0]}
+        model_cid = "QmTestModelCID"
+        test_data_cid = "QmTestDataCID"
+        
+        # Test with keyword-only parameters
+        batch_size = 32
+        max_samples = 100
+        metrics = ["accuracy", "precision", "recall"]
+        output_format = "json"
+        device = "cpu"
 
         # We need to patch IPFSSimpleAPI to return a simulated response
         # for our test since we know the actual implementation handles things differently
         with patch.object(self.api, "ai_test_inference") as mock_test_inference:
             mock_test_inference.return_value = {
                 "success": True,
-                "endpoint_id": endpoint_id,
-                "predictions": [0.78, 0.22],
-                "latency_ms": 42,
-                "model_version": "1.0.0",
+                "model_cid": model_cid,
+                "test_data_cid": test_data_cid,
+                "metrics": {
+                    "accuracy": 0.92,
+                    "precision": 0.89,
+                    "recall": 0.87
+                },
+                "predictions_cid": "QmPredictionsCID",
+                "samples_processed": 100,
+                "sample_predictions": [
+                    {"sample_id": 0, "prediction": 1, "confidence": 0.95},
+                    {"sample_id": 1, "prediction": 0, "confidence": 0.89}
+                ],
+                "processing_time_ms": 1250,
+                "inference_time_per_sample_ms": 12.5,
                 "simulation_note": "AI/ML integration not available, using simulated response",
             }
 
             # Test with AI/ML integration unavailable
-            result = self.api.ai_test_inference(endpoint_id, test_data)
+            result = self.api.ai_test_inference(
+                model_cid, 
+                test_data_cid,
+                batch_size=batch_size,
+                max_samples=max_samples,
+                metrics=metrics,
+                output_format=output_format,
+                device=device
+            )
 
             # Verify
             self.assertTrue("success" in result)
             self.assertTrue(result["success"])
-            self.assertTrue("predictions" in result)
-            self.assertTrue("latency_ms" in result)
+            self.assertEqual(result["model_cid"], model_cid)
+            self.assertEqual(result["test_data_cid"], test_data_cid)
+            self.assertTrue("metrics" in result)
+            self.assertTrue("predictions_cid" in result)
+            self.assertTrue("sample_predictions" in result)
             self.assertEqual(
                 result["simulation_note"],
                 "AI/ML integration not available, using simulated response",
             )
-            mock_test_inference.assert_called_once()
+            mock_test_inference.assert_called_once_with(
+                model_cid, 
+                test_data_cid,
+                batch_size=batch_size,
+                max_samples=max_samples,
+                metrics=metrics,
+                output_format=output_format,
+                device=device
+            )
 
         # Test with AI/ML integration available by patching the method directly
         # This avoids issues with the non-existent classes
         with patch.object(self.api, "ai_test_inference") as mock_test_inference:
             mock_test_inference.return_value = {
                 "success": True,
-                "predictions": [0.8, 0.2],
-                "latency_ms": 42,
-                "model_version": "1.0.0",
+                "model_cid": model_cid,
+                "test_data_cid": test_data_cid,
+                "metrics": {
+                    "accuracy": 0.94,
+                    "precision": 0.92,
+                    "recall": 0.90
+                },
+                "predictions_cid": "QmRealPredictionsCID",
+                "samples_processed": 100,
+                "processing_time_ms": 980,
+                "inference_time_per_sample_ms": 9.8
             }
 
             # Simulate AI/ML integration available
-            result = self.api.ai_test_inference(endpoint_id, test_data)
+            result = self.api.ai_test_inference(
+                model_cid, 
+                test_data_cid,
+                batch_size=batch_size,
+                compute_metrics=True
+            )
 
             # Verify
             self.assertTrue(result["success"])
-            self.assertEqual(result["predictions"], [0.8, 0.2])
-            self.assertEqual(result["latency_ms"], 42)
-            mock_test_inference.assert_called_once()
+            self.assertEqual(result["model_cid"], model_cid)
+            self.assertEqual(result["metrics"]["accuracy"], 0.94)
+            self.assertEqual(result["predictions_cid"], "QmRealPredictionsCID")
+            mock_test_inference.assert_called_once_with(
+                model_cid, 
+                test_data_cid,
+                batch_size=batch_size,
+                compute_metrics=True
+            )
 
     def test_ai_update_deployment(self):
         """Test updating deployment."""
@@ -1420,6 +1476,237 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["index_type"], index_type)
             mock_create_vector_index.assert_called_once()
 
+    def test_ai_create_knowledge_graph(self):
+        """Test creating a knowledge graph from source data."""
+        # Setup test data
+        source_data_cid = "QmTestSourceDataCID"
+        graph_name = "test_knowledge_graph"
+        entity_types = ["Person", "Organization", "Location"]
+        relationship_types = ["worksFor", "locatedIn"]
+        max_entities = 50
+        
+        # Test with AI/ML integration unavailable with simulation allowed
+        with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
+            mock_create_graph.return_value = {
+                "success": True,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "graph_cid": "QmSimulatedGraphCID",
+                "graph_name": graph_name,
+                "entities": [
+                    {
+                        "id": "person_0",
+                        "type": "Person",
+                        "name": "Person 0",
+                        "properties": {"occupation": "Researcher"}
+                    }
+                ],
+                "relationships": [
+                    {
+                        "id": "rel_0",
+                        "type": "worksFor",
+                        "source": "person_0",
+                        "target": "organization_1",
+                        "properties": {"confidence": 0.9}
+                    }
+                ],
+                "entity_count": 25,
+                "relationship_count": 50,
+                "source_data_cid": source_data_cid,
+                "processing_time_ms": 550,
+                "simulation_note": "AI/ML integration not available, using simulated response"
+            }
+
+            # Test with AI/ML integration unavailable
+            result = self.api.ai_create_knowledge_graph(
+                source_data_cid,
+                graph_name=graph_name,
+                entity_types=entity_types,
+                relationship_types=relationship_types,
+                max_entities=max_entities,
+                include_text_context=True,
+                extract_metadata=True,
+                allow_simulation=True
+            )
+
+            # Verify
+            self.assertTrue("success" in result)
+            self.assertTrue(result["success"])
+            self.assertEqual(result["operation"], "ai_create_knowledge_graph")
+            self.assertEqual(result["graph_name"], graph_name)
+            self.assertEqual(result["source_data_cid"], source_data_cid)
+            self.assertTrue("entities" in result)
+            self.assertTrue("relationships" in result)
+            self.assertTrue("entity_count" in result)
+            self.assertTrue("relationship_count" in result)
+            self.assertEqual(
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
+            )
+            # Verify the method was called with the correct parameters
+            mock_create_graph.assert_called_once_with(
+                source_data_cid,
+                graph_name=graph_name,
+                entity_types=entity_types,
+                relationship_types=relationship_types,
+                max_entities=max_entities,
+                include_text_context=True,
+                extract_metadata=True,
+                allow_simulation=True
+            )
+
+        # Test with AI/ML integration available by patching the method directly
+        # This avoids issues with the non-existent classes
+        with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
+            mock_create_graph.return_value = {
+                "success": True,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "graph_cid": "QmRealGraphCID",
+                "graph_name": graph_name,
+                "entities": [
+                    {
+                        "id": "person_123",
+                        "type": "Person",
+                        "name": "Jane Doe",
+                        "properties": {"occupation": "Data Scientist", "expertise": "AI"}
+                    },
+                    {
+                        "id": "org_456",
+                        "type": "Organization",
+                        "name": "TechCorp",
+                        "properties": {"industry": "Technology", "size": "Large"}
+                    }
+                ],
+                "relationships": [
+                    {
+                        "id": "rel_789",
+                        "type": "worksFor",
+                        "source": "person_123",
+                        "target": "org_456",
+                        "properties": {"confidence": 0.95, "since": "2020"}
+                    }
+                ],
+                "entity_count": 42,
+                "relationship_count": 78,
+                "source_data_cid": source_data_cid,
+                "processing_time_ms": 1250,
+                "entity_types": {
+                    "Person": 15,
+                    "Organization": 12,
+                    "Location": 8,
+                    "Topic": 7
+                },
+                "relationship_types": {
+                    "worksFor": 14,
+                    "locatedIn": 12,
+                    "mentions": 32,
+                    "relatedTo": 20
+                }
+            }
+
+            # Simulate AI/ML integration available
+            result = self.api.ai_create_knowledge_graph(
+                source_data_cid,
+                graph_name=graph_name,
+                entity_types=entity_types,
+                relationship_types=relationship_types,
+                max_entities=max_entities,
+                save_intermediate_results=True
+            )
+
+            # Verify
+            self.assertTrue(result["success"])
+            self.assertEqual(result["operation"], "ai_create_knowledge_graph")
+            self.assertEqual(result["graph_cid"], "QmRealGraphCID")
+            self.assertEqual(result["entity_count"], 42)
+            self.assertEqual(result["relationship_count"], 78)
+            self.assertEqual(len(result["entities"]), 2)
+            self.assertEqual(result["entities"][0]["name"], "Jane Doe")
+            self.assertEqual(result["relationships"][0]["type"], "worksFor")
+            self.assertTrue("entity_types" in result)
+            self.assertTrue("relationship_types" in result)
+            # Verify the AI/ML specific fields
+            self.assertEqual(result["entity_types"]["Person"], 15)
+            self.assertEqual(result["relationship_types"]["worksFor"], 14)
+            mock_create_graph.assert_called_once()
+            
+    def test_ai_create_knowledge_graph_failure(self):
+        """Test error handling when creating a knowledge graph fails."""
+        # Setup test data
+        source_data_cid = "QmTestSourceDataCID"
+        
+        # Test with AI/ML integration unavailable and simulation not allowed
+        with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
+            mock_create_graph.return_value = {
+                "success": False,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "error": "AI/ML integration not available and simulation not allowed",
+                "error_type": "IntegrationError",
+                "source_data_cid": source_data_cid
+            }
+
+            # Test with simulation not allowed
+            result = self.api.ai_create_knowledge_graph(
+                source_data_cid,
+                allow_simulation=False
+            )
+
+            # Verify
+            self.assertFalse(result["success"])
+            self.assertEqual(result["operation"], "ai_create_knowledge_graph")
+            self.assertEqual(result["source_data_cid"], source_data_cid)
+            self.assertTrue("error" in result)
+            self.assertTrue("error_type" in result)
+            self.assertEqual(result["error_type"], "IntegrationError")
+            
+        # Test with empty source_data_cid
+        with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
+            mock_create_graph.return_value = {
+                "success": False,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "error": "Source data CID cannot be empty",
+                "error_type": "ValidationError"
+            }
+
+            # Test with empty CID
+            result = self.api.ai_create_knowledge_graph(
+                "",
+                graph_name="test_graph"
+            )
+
+            # Verify
+            self.assertFalse(result["success"])
+            self.assertEqual(result["operation"], "ai_create_knowledge_graph")
+            self.assertTrue("error" in result)
+            self.assertEqual(result["error_type"], "ValidationError")
+            
+        # Test with exception in implementation
+        with patch.object(self.api, "ai_create_knowledge_graph") as mock_create_graph:
+            mock_create_graph.return_value = {
+                "success": False,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "error": "KnowledgeGraphManager initialization failed",
+                "error_type": "ImportError",
+                "source_data_cid": source_data_cid
+            }
+
+            # Test with AI/ML integration that throws an exception
+            result = self.api.ai_create_knowledge_graph(
+                source_data_cid,
+                graph_name="test_graph"
+            )
+
+            # Verify
+            self.assertFalse(result["success"])
+            self.assertEqual(result["operation"], "ai_create_knowledge_graph")
+            self.assertEqual(result["source_data_cid"], source_data_cid)
+            self.assertTrue("error" in result)
+            self.assertEqual(result["error_type"], "ImportError")
+        
     def test_ai_query_knowledge_graph(self):
         """Test querying knowledge graph."""
         # Setup test data

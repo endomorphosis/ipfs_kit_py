@@ -4732,262 +4732,238 @@ class IPFSSimpleAPI:
     # AI/ML Methods
 
     def ai_register_dataset(
-    self, 
-    dataset_cid: str, 
-    metadata: Dict[str, Any],
-    *,
-    pin: bool = True,
-    add_to_index: bool = True,
-    overwrite: bool = False,
-    register_features: bool = False,
-    verify_existence: bool = False,
-    allow_simulation: bool = True,
-    **kwargs
-) -> Dict[str, Any]:
-    """
-    Register a dataset with metadata in the IPFS Kit registry.
+        self, 
+        dataset_cid: str, 
+        metadata: Dict[str, Any],
+        *,
+        pin: bool = True,
+        add_to_index: bool = True,
+        overwrite: bool = False,
+        register_features: bool = False,
+        verify_existence: bool = False,
+        allow_simulation: bool = True,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Register a dataset with metadata in the IPFS Kit registry.
 
-    Args:
-        dataset_cid: CID of the dataset to register
-        metadata: Dictionary of metadata about the dataset including:
-            - name: Name of the dataset (required)
-            - description: Description of the dataset
-            - features: List of feature names
-            - target: Target column name (for supervised learning)
-            - rows: Number of rows
-            - columns: Number of columns
-            - created_at: Timestamp of creation
-            - tags: List of tags for categorization
-            - license: License information
-            - source: Original source of the dataset
-            - maintainer: Person or organization maintaining the dataset
-        pin: Whether to pin the dataset content to ensure persistence
-        add_to_index: Whether to add the dataset to the searchable index
-        overwrite: Whether to overwrite existing metadata if dataset is already registered
-        register_features: Whether to register dataset features for advanced querying
-        verify_existence: Whether to verify the dataset exists before registering
-        allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
-        **kwargs: Additional parameters for advanced configuration
+        Args:
+            dataset_cid: CID of the dataset to register
+            metadata: Dictionary of metadata about the dataset including:
+                - name: Name of the dataset (required)
+                - description: Description of the dataset
+                - features: List of feature names
+                - target: Target column name (for supervised learning)
+                - rows: Number of rows
+                - columns: Number of columns
+                - created_at: Timestamp of creation
+                - tags: List of tags for categorization
+                - license: License information
+                - source: Original source of the dataset
+                - maintainer: Person or organization maintaining the dataset
+            pin: Whether to pin the dataset content to ensure persistence
+            add_to_index: Whether to add the dataset to the searchable index
+            overwrite: Whether to overwrite existing metadata if dataset is already registered
+            register_features: Whether to register dataset features for advanced querying
+            verify_existence: Whether to verify the dataset exists before registering
+            allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
+            **kwargs: Additional parameters for advanced configuration
 
-    Returns:
-        Dict[str, Any]: Dictionary containing operation results with these keys:
-            - "success": bool indicating if the operation succeeded
-            - "operation": "ai_register_dataset"
-            - "dataset_cid": CID of the registered dataset
-            - "metadata_cid": CID of the stored metadata
-            - "timestamp": Time of registration
-            - "features_indexed": Whether features were indexed (if requested)
-            - "simulation_note": (optional) Note about simulation if result is simulated
-            - "fallback": (optional) True if using fallback implementation
-            - "error": (optional) Error message if operation partially failed
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "operation": "ai_register_dataset"
+                - "dataset_cid": CID of the registered dataset
+                - "metadata_cid": CID of the stored metadata
+                - "timestamp": Time of registration
+                - "features_indexed": Whether features were indexed (if requested)
+                - "simulation_note": (optional) Note about simulation if result is simulated
+                - "fallback": (optional) True if using fallback implementation
+                - "error": (optional) Error message if operation partially failed
 
-    Raises:
-        ValueError: If required metadata fields are missing
-        IPFSError: If the dataset or metadata cannot be stored in IPFS
-    """
-    import time
-    from . import validation
+        Raises:
+            ValueError: If required metadata fields are missing
+            IPFSError: If the dataset or metadata cannot be stored in IPFS
+        """
+        import time
+        from . import validation
 
-    # Update kwargs with explicit parameters
-    kwargs_with_defaults = {
-        "pin": pin,
-        "add_to_index": add_to_index,
-        "overwrite": overwrite,
-        "register_features": register_features,
-        "verify_existence": verify_existence,
-        **kwargs  # Any additional kwargs override the defaults
-    }
-
-    # Validate dataset_cid
-    if not dataset_cid:
-        return {
-            "success": False,
-            "operation": "ai_register_dataset",
-            "timestamp": time.time(),
-            "error": "Dataset CID cannot be empty",
-            "error_type": "ValidationError"
+        # Update kwargs with explicit parameters
+        kwargs_with_defaults = {
+            "pin": pin,
+            "add_to_index": add_to_index,
+            "overwrite": overwrite,
+            "register_features": register_features,
+            "verify_existence": verify_existence,
+            **kwargs  # Any additional kwargs override the defaults
         }
 
-    # Validate metadata
-    required_fields = ["name"]
-    for field in required_fields:
-        if field not in metadata:
-            raise ValueError(f"Required field '{field}' missing from metadata")
+        # Validate dataset_cid
+        if not dataset_cid:
+            return {
+                "success": False,
+                "operation": "ai_register_dataset",
+                "timestamp": time.time(),
+                "error": "Dataset CID cannot be empty",
+                "error_type": "ValidationError"
+            }
 
-    # Verify dataset existence if requested
-    if verify_existence:
-        try:
-            # Check if the dataset CID resolves
-            verify_result = self.kit.ipfs_stat(dataset_cid)
-            if not verify_result.get("success", False):
+        # Validate metadata
+        required_fields = ["name"]
+        for field in required_fields:
+            if field not in metadata:
+                raise ValueError(f"Required field '{field}' missing from metadata")
+
+        # Verify dataset existence if requested
+        if verify_existence:
+            try:
+                # Check if the dataset CID resolves
+                verify_result = self.kit.ipfs_stat(dataset_cid)
+                if not verify_result.get("success", False):
+                    return {
+                        "success": False,
+                        "operation": "ai_register_dataset",
+                        "timestamp": time.time(),
+                        "error": f"Dataset CID cannot be resolved: {dataset_cid}",
+                        "error_type": "IPFSContentNotFoundError"
+                    }
+            except Exception as e:
                 return {
                     "success": False,
                     "operation": "ai_register_dataset",
                     "timestamp": time.time(),
-                    "error": f"Dataset CID cannot be resolved: {dataset_cid}",
-                    "error_type": "IPFSContentNotFoundError"
+                    "error": f"Failed to verify dataset existence: {str(e)}",
+                    "error_type": type(e).__name__
                 }
-        except Exception as e:
-            return {
-                "success": False,
-                "operation": "ai_register_dataset",
-                "timestamp": time.time(),
-                "error": f"Failed to verify dataset existence: {str(e)}",
-                "error_type": type(e).__name__
-            }
 
-    # Check if AI/ML integration is available
-    if not AI_ML_AVAILABLE:
-        # Only proceed with fallback if simulation is allowed
-        if not allow_simulation:
-            return {
-                "success": False,
-                "operation": "ai_register_dataset",
-                "timestamp": time.time(),
-                "error": "AI/ML integration not available and simulation not allowed",
-                "error_type": "ModuleNotFoundError"
-            }
-
-        # Fallback to simple metadata registration without advanced features
-        logger.warning("AI/ML integration not available, using fallback implementation")
-        
-        # Generate a simulated metadata CID
-        metadata_cid = f"Qm{os.urandom(16).hex()}"
-        
-        # Create simulated metadata statistics
-        num_features = len(metadata.get("features", []))
-        num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
-        
-        result = {
-            "success": True,
-            "operation": "ai_register_dataset",
-            "dataset_cid": dataset_cid,
-            "metadata_cid": metadata_cid,
-            "timestamp": time.time(),
-            "features_indexed": False,
-            "simulation_note": "AI/ML integration not available, using simulated response",
-            "fallback": True,
-            "dataset_name": metadata.get("name", "Simulated dataset"),
-            "dataset_stats": {
-                "feature_count": num_features,
-                "row_count": num_rows,
-                "column_count": num_features + 1,  # Add one for potential target column
-                "indexed_properties": [],
-                "data_types": {
-                    "numeric": int(num_features * 0.6),
-                    "categorical": int(num_features * 0.3),
-                    "datetime": int(num_features * 0.1)
+        # Check if AI/ML integration is available
+        if not AI_ML_AVAILABLE:
+            # Only proceed with fallback if simulation is allowed
+            if not allow_simulation:
+                return {
+                    "success": False,
+                    "operation": "ai_register_dataset",
+                    "timestamp": time.time(),
+                    "error": "AI/ML integration not available and simulation not allowed",
+                    "error_type": "ModuleNotFoundError"
                 }
-            }
-        }
 
-        # Add pinning information if requested
-        if pin:
-            result["pinned"] = True
-            result["pin_status"] = "simulated"
-
-        return result
-
-    # Use the AI/ML integration module
-    try:
-        dataset_manager = self.kit.dataset_manager
-        if dataset_manager is None:
-            dataset_manager = ai_ml_integration.DatasetManager(self.kit)
-            self.kit.dataset_manager = dataset_manager
-
-        # Forward allow_simulation parameter to the dataset_manager
-        kwargs_with_defaults["allow_simulation"] = allow_simulation
-        
-        result = dataset_manager.register_dataset(dataset_cid, metadata, **kwargs_with_defaults)
-        return result
-    except Exception as e:
-        # Only use fallback implementation if simulation is allowed
-        if not allow_simulation:
-            return {
-                "success": False,
-                "operation": "ai_register_dataset",
-                "timestamp": time.time(),
-                "error": f"Error in AI/ML integration: {str(e)}",
-                "error_type": type(e).__name__
-            }
+            # Fallback to simple metadata registration without advanced features
+            logger.warning("AI/ML integration not available, using fallback implementation")
             
-        # Fallback to simulation on error
-        logger.error(f"Error registering dataset with AI/ML integration: {str(e)}")
-
-        # Generate a simulated metadata CID
-        metadata_cid = f"Qm{os.urandom(16).hex()}"
-        
-        # Create simulated metadata statistics
-        num_features = len(metadata.get("features", []))
-        num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
-        
-        return {
-            "success": True,
-            "operation": "ai_register_dataset",
-            "dataset_cid": dataset_cid,
-            "metadata_cid": metadata_cid,
-            "timestamp": time.time(),
-            "features_indexed": False,
-            "simulation_note": "AI/ML integration error, using simulated response",
-            "fallback": True,
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "dataset_name": metadata.get("name", "Simulated dataset"),
-            "dataset_stats": {
-                "feature_count": num_features,
-                "row_count": num_rows,
-                "column_count": num_features + 1,  # Add one for potential target column
-                "indexed_properties": [],
-                "data_types": {
-                    "numeric": int(num_features * 0.6),
-                    "categorical": int(num_features * 0.3),
-                    "datetime": int(num_features * 0.1)
+            # Generate a simulated metadata CID
+            metadata_cid = f"Qm{os.urandom(16).hex()}"
+            
+            # Create simulated metadata statistics
+            num_features = len(metadata.get("features", []))
+            num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
+            
+            result = {
+                "success": True,
+                "operation": "ai_register_dataset",
+                "dataset_cid": dataset_cid,
+                "metadata_cid": metadata_cid,
+                "timestamp": time.time(),
+                "features_indexed": False,
+                "simulation_note": "AI/ML integration not available, using simulated response",
+                "fallback": True,
+                "dataset_name": metadata.get("name", "Simulated dataset"),
+                "dataset_stats": {
+                    "feature_count": num_features,
+                    "row_count": num_rows,
+                    "column_count": num_features + 1,  # Add one for potential target column
+                    "indexed_properties": [],
+                    "data_types": {
+                        "numeric": int(num_features * 0.6),
+                        "categorical": int(num_features * 0.3),
+                        "datetime": int(num_features * 0.1)
+                    }
                 }
             }
-        }
-IPFS Kit Python SDK.
 
-This SDK provides a simplified interface to IPFS Kit.
-\"\"\"
+            # Add pinning information if requested
+            if pin:
+                result["pinned"] = True
+                result["pin_status"] = "simulated"
 
-from .client import IPFSClient
+            return result
 
-__version__ = "0.1.0"
-"""
-            )
+        # Use the AI/ML integration module
+        try:
+            dataset_manager = self.kit.dataset_manager
+            if dataset_manager is None:
+                dataset_manager = ai_ml_integration.DatasetManager(self.kit)
+                self.kit.dataset_manager = dataset_manager
 
-        # Create client.py
-        with open(os.path.join(sdk_path, "client.py"), "w") as f:
-            f.write(
-                """\"\"\"
-IPFS Kit Client.
+            # Forward allow_simulation parameter to the dataset_manager
+            kwargs_with_defaults["allow_simulation"] = allow_simulation
+            
+            result = dataset_manager.register_dataset(dataset_cid, metadata, **kwargs_with_defaults)
+            return result
+        except Exception as e:
+            # Only use fallback implementation if simulation is allowed
+            if not allow_simulation:
+                return {
+                    "success": False,
+                    "operation": "ai_register_dataset",
+                    "timestamp": time.time(),
+                    "error": f"Error in AI/ML integration: {str(e)}",
+                    "error_type": type(e).__name__
+                }
+                
+            # Fallback to simulation on error
+            logger.error(f"Error registering dataset with AI/ML integration: {str(e)}")
 
-This module provides a client for interacting with IPFS Kit.
-\"\"\"
+            # Generate a simulated metadata CID
+            metadata_cid = f"Qm{os.urandom(16).hex()}"
+            
+            # Create simulated metadata statistics
+            num_features = len(metadata.get("features", []))
+            num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
+            
+            return {
+                "success": True,
+                "operation": "ai_register_dataset",
+                "dataset_cid": dataset_cid,
+                "metadata_cid": metadata_cid,
+                "timestamp": time.time(),
+                "features_indexed": False,
+                "simulation_note": "AI/ML integration error, using simulated response",
+                "fallback": True,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "dataset_name": metadata.get("name", "Simulated dataset"),
+                "dataset_stats": {
+                    "feature_count": num_features,
+                    "row_count": num_rows,
+                    "column_count": num_features + 1,  # Add one for potential target column
+                    "indexed_properties": [],
+                    "data_types": {
+                        "numeric": int(num_features * 0.6),
+                        "categorical": int(num_features * 0.3),
+                        "datetime": int(num_features * 0.1)
+                    }
+                }
+            }
 
-import os
-import json
-import yaml
-import requests
-from typing import Dict, List, Optional, Union, Any
 
 class IPFSClient:
-    \"\"\"
+    """
     Client for interacting with IPFS Kit.
     
     This client provides a simplified interface to IPFS Kit,
     with methods for common operations.
-    \"\"\"
+    """
     
     def __init__(self, config_path: Optional[str] = None, api_url: Optional[str] = None, **kwargs):
-        \"\"\"
+        """
         Initialize the IPFS Kit client.
         
         Args:
             config_path: Path to YAML/JSON configuration file
             api_url: URL of the IPFS Kit API server
             **kwargs: Additional configuration parameters
-        \"\"\"
+        """
         # Initialize configuration
         self.config = self._load_config(config_path)
         
@@ -4999,7 +4975,7 @@ class IPFSClient:
         self.api_url = api_url or self.config.get("api_url", "http://localhost:8000")
         
     def _load_config(self, config_path: Optional[str]) -> Dict[str, Any]:
-        \"\"\"
+        """
         Load configuration from file with fallbacks.
         
         Args:
@@ -5007,7 +4983,7 @@ class IPFSClient:
             
         Returns:
             Dictionary of configuration parameters
-        \"\"\"
+        """
         config = {}
         
         # Default locations if not specified
@@ -5040,160 +5016,6 @@ class IPFSClient:
                 config = {}
         
         return config
-"""
-            )
-
-            # Add methods
-            for method in methods:
-                # Skip internal methods and non-API methods
-                if method["name"] in [
-                    "generate_sdk",
-                    "_generate_python_sdk",
-                    "_generate_javascript_sdk",
-                    "_generate_rust_sdk",
-                ]:
-                    continue
-
-                f.write(
-                    f"""
-    def {method["name"]}(self, *args, **kwargs):
-        {method["doc"]}
-        # Make API request
-        response = requests.post(
-            f"{{self.api_url}}/api/{method["name"]}",
-            json={{"args": args, "kwargs": kwargs}}
-        )
-        
-        # Check for errors
-        response.raise_for_status()
-        
-        return response.json()
-"""
-                )
-
-        # Create setup.py
-        with open(os.path.join(output_path, "setup.py"), "w") as f:
-            f.write(
-                """from setuptools import setup, find_packages
-
-setup(
-    name="ipfs_kit_sdk",
-    version="0.1.0",
-    packages=find_packages(),
-    install_requires=[
-        "requests>=2.28.0",
-        "pyyaml>=6.0",
-    ],
-    author="IPFS Kit Team",
-    author_email="author@example.com",
-    description="SDK for IPFS Kit",
-    keywords="ipfs, sdk",
-    url="https://github.com/example/ipfs_kit_sdk",
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-    ],
-    python_requires=">=3.8",
-)
-"""
-            )
-
-        # Create README.md
-        with open(os.path.join(output_path, "README.md"), "w") as f:
-            f.write(
-                """# IPFS Kit Python SDK
-
-This SDK provides a simplified interface to IPFS Kit.
-
-## Installation
-
-```bash
-pip install ipfs_kit_sdk
-```
-
-## Usage
-
-```python
-from ipfs_kit_sdk import IPFSClient
-
-# Initialize client
-client = IPFSClient()
-
-# Add content to IPFS
-result = client.add("Hello, IPFS!")
-print(f"Added content with CID: {result['cid']}")
-
-# Get content from IPFS
-content = client.get(result['cid'])
-print(f"Retrieved content: {content}")
-```
-
-## Configuration
-
-You can configure the client with a YAML or JSON file:
-
-```yaml
-# config.yaml
-api_url: "http://localhost:8000"
-timeouts:
-  api: 30
-  gateway: 60
-```
-
-```python
-client = IPFSClient(config_path="config.yaml")
-```
-
-Or with parameters:
-
-```python
-client = IPFSClient(api_url="http://localhost:8000")
-```
-
-## Available Methods
-
-"""
-            )
-
-            # Add method documentation
-            for method in methods:
-                # Skip internal methods and non-API methods
-                if method["name"] in [
-                    "generate_sdk",
-                    "_generate_python_sdk",
-                    "_generate_javascript_sdk",
-                    "_generate_rust_sdk",
-                ]:
-                    continue
-
-                f.write(
-                    f"""### {method["name"]}{method["signature"]}
-
-{method["doc"]}
-
-```python
-result = client.{method["name"]}(...)
-```
-
-"""
-                )
-
-        return {
-            "success": True,
-            "output_path": output_path,
-            "language": "python",
-            "files_generated": [
-                os.path.join(sdk_path, "__init__.py"),
-                os.path.join(sdk_path, "client.py"),
-                os.path.join(output_path, "setup.py"),
-                os.path.join(output_path, "README.md"),
-            ],
-        }
 
     def _generate_javascript_sdk(
         self, methods: List[Dict[str, Any]], output_path: str
@@ -5217,147 +5039,147 @@ result = client.{method["name"]}(...)
         with open(os.path.join(sdk_path, "package.json"), "w") as f:
             f.write(
                 """{
-  "name": "ipfs-kit-sdk",
-  "version": "0.1.0",
-  "description": "SDK for IPFS Kit",
-  "main": "src/index.js",
-  "scripts": {
-    "test": "echo \\"Error: no test specified\\" && exit 1"
-  },
-  "keywords": [
-    "ipfs",
-    "sdk"
-  ],
-  "author": "IPFS Kit Team",
-  "license": "MIT",
-  "dependencies": {
-    "axios": "^1.3.4",
-    "js-yaml": "^4.1.0"
-  }
-}
-"""
+                "name": "ipfs-kit-sdk",
+                "version": "0.1.0",
+                "description": "SDK for IPFS Kit",
+                "main": "src/index.js",
+                "scripts": {
+                    "test": "echo \\"Error: no test specified\\" && exit 1"
+                },
+                "keywords": [
+                    "ipfs",
+                    "sdk"
+                ],
+                "author": "IPFS Kit Team",
+                "license": "MIT",
+                "dependencies": {
+                    "axios": "^1.3.4",
+                    "js-yaml": "^4.1.0"
+                }
+                }
+                """
             )
 
         # Create src/index.js
         with open(os.path.join(sdk_path, "src", "index.js"), "w") as f:
             f.write(
                 """/**
- * IPFS Kit JavaScript SDK.
- * 
- * This SDK provides a simplified interface to IPFS Kit.
- */
+                * IPFS Kit JavaScript SDK.
+                * 
+                * This SDK provides a simplified interface to IPFS Kit.
+                */
 
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
-const axios = require('axios');
+                const fs = require('fs');
+                const path = require('path');
+                const yaml = require('js-yaml');
+                const axios = require('axios');
 
-class IPFSClient {
-  /**
-   * Initialize the IPFS Kit client.
-   * 
-   * @param {Object} options - Configuration options
-   * @param {string} options.configPath - Path to YAML/JSON configuration file
-   * @param {string} options.apiUrl - URL of the IPFS Kit API server
-   */
-  constructor(options = {}) {
-    // Initialize configuration
-    this.config = this._loadConfig(options.configPath);
-    
-    // Override with options
-    if (options) {
-      this.config = { ...this.config, ...options };
-    }
-    
-    // Set API URL
-    this.apiUrl = options.apiUrl || this.config.apiUrl || 'http://localhost:8000';
-    
-    // Create axios instance
-    this.client = axios.create({
-      baseURL: this.apiUrl,
-      timeout: (this.config.timeouts && this.config.timeouts.api) || 30000,
-    });
-  }
-  
-  /**
-   * Load configuration from file with fallbacks.
-   * 
-   * @param {string} configPath - Path to YAML/JSON configuration file
-   * @returns {Object} Configuration parameters
-   * @private
-   */
-  _loadConfig(configPath) {
-    let config = {};
-    
-    // Default locations if not specified
-    if (!configPath) {
-      // Try standard locations
-      const standardPaths = [
-        './ipfs_config.yaml',
-        './ipfs_config.json',
-        '~/.ipfs_kit/config.yaml',
-        '~/.ipfs_kit/config.json',
-      ];
-      
-      for (const p of standardPaths) {
-        const expandedPath = p.startsWith('~') 
-          ? path.join(process.env.HOME, p.substring(1)) 
-          : p;
-          
-        if (fs.existsSync(expandedPath)) {
-          configPath = expandedPath;
-          break;
-        }
-      }
-    }
-    
-    // Load from file if available
-    if (configPath && fs.existsSync(configPath)) {
-      try {
-        const content = fs.readFileSync(configPath, 'utf8');
-        
-        if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
-          config = yaml.load(content);
-        } else {
-          config = JSON.parse(content);
-        }
-      } catch (error) {
-        console.error(`Error loading configuration from ${configPath}: ${error.message}`);
-        config = {};
-      }
-    }
-    
-    return config;
-  }
-  
-  /**
-   * Make an API request.
-   * 
-   * @param {string} method - Method name
-   * @param {Array} args - Positional arguments
-   * @param {Object} kwargs - Keyword arguments
-   * @returns {Promise<Object>} API response
-   * @private
-   */
-  async _request(method, args = [], kwargs = {}) {
-    try {
-      const response = await this.client.post(`/api/${method}`, {
-        args,
-        kwargs,
-      });
-      
-      return response.data;
-    } catch (error) {
-      if (error.response) {
-        throw new Error(`API error: ${error.response.data.message || error.response.statusText}`);
-      } else if (error.request) {
-        throw new Error('No response from server');
-      } else {
-        throw new Error(`Request error: ${error.message}`);
-      }
-    }
-  }
-"""
+                class IPFSClient {
+                /**
+                * Initialize the IPFS Kit client.
+                * 
+                * @param {Object} options - Configuration options
+                * @param {string} options.configPath - Path to YAML/JSON configuration file
+                * @param {string} options.apiUrl - URL of the IPFS Kit API server
+                */
+                constructor(options = {}) {
+                    // Initialize configuration
+                    this.config = this._loadConfig(options.configPath);
+                    
+                    // Override with options
+                    if (options) {
+                    this.config = { ...this.config, ...options };
+                    }
+                    
+                    // Set API URL
+                    this.apiUrl = options.apiUrl || this.config.apiUrl || 'http://localhost:8000';
+                    
+                    // Create axios instance
+                    this.client = axios.create({
+                    baseURL: this.apiUrl,
+                    timeout: (this.config.timeouts && this.config.timeouts.api) || 30000,
+                    });
+                }
+                
+                /**
+                * Load configuration from file with fallbacks.
+                * 
+                * @param {string} configPath - Path to YAML/JSON configuration file
+                * @returns {Object} Configuration parameters
+                * @private
+                */
+                _loadConfig(configPath) {
+                    let config = {};
+                    
+                    // Default locations if not specified
+                    if (!configPath) {
+                    // Try standard locations
+                    const standardPaths = [
+                        './ipfs_config.yaml',
+                        './ipfs_config.json',
+                        '~/.ipfs_kit/config.yaml',
+                        '~/.ipfs_kit/config.json',
+                    ];
+                    
+                    for (const p of standardPaths) {
+                        const expandedPath = p.startsWith('~') 
+                        ? path.join(process.env.HOME, p.substring(1)) 
+                        : p;
+                        
+                        if (fs.existsSync(expandedPath)) {
+                        configPath = expandedPath;
+                        break;
+                        }
+                    }
+                    }
+                    
+                    // Load from file if available
+                    if (configPath && fs.existsSync(configPath)) {
+                    try {
+                        const content = fs.readFileSync(configPath, 'utf8');
+                        
+                        if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
+                        config = yaml.load(content);
+                        } else {
+                        config = JSON.parse(content);
+                        }
+                    } catch (error) {
+                        console.error(`Error loading configuration from ${configPath}: ${error.message}`);
+                        config = {};
+                    }
+                    }
+                    
+                    return config;
+                }
+                
+                /**
+                * Make an API request.
+                * 
+                * @param {string} method - Method name
+                * @param {Array} args - Positional arguments
+                * @param {Object} kwargs - Keyword arguments
+                * @returns {Promise<Object>} API response
+                * @private
+                */
+                async _request(method, args = [], kwargs = {}) {
+                    try {
+                    const response = await this.client.post(`/api/${method}`, {
+                        args,
+                        kwargs,
+                    });
+                    
+                    return response.data;
+                    } catch (error) {
+                    if (error.response) {
+                        throw new Error(`API error: ${error.response.data.message || error.response.statusText}`);
+                    } else if (error.request) {
+                        throw new Error('No response from server');
+                    } else {
+                        throw new Error(`Request error: ${error.message}`);
+                    }
+                    }
+                }
+                """
             )
 
             # Add methods
@@ -5378,93 +5200,93 @@ class IPFSClient {
 
                 f.write(
                     f"""
-  /**
-   * {docstring}
-   */
-  async {method["name"]}(...args) {{
-    // Extract kwargs if last argument is an object
-    let kwargs = {{}};
-    if (args.length > 0 && typeof args[args.length - 1] === 'object') {{
-      kwargs = args.pop();
-    }}
-    
-    return this._request('{method["name"]}', args, kwargs);
-  }}
-"""
+                    /**
+                    * {docstring}
+                    */
+                    async {method["name"]}(...args) {{
+                        // Extract kwargs if last argument is an object
+                        let kwargs = {{}};
+                        if (args.length > 0 && typeof args[args.length - 1] === 'object') {{
+                        kwargs = args.pop();
+                        }}
+                        
+                        return this._request('{method["name"]}', args, kwargs);
+                    }}
+                    """
                 )
 
             f.write(
                 """
-}
+                }
 
-module.exports = { IPFSClient };
-"""
-            )
+                module.exports = { IPFSClient };
+                """
+                )
 
-        # Create README.md
-        with open(os.path.join(sdk_path, "README.md"), "w") as f:
-            f.write(
-                """# IPFS Kit JavaScript SDK
+            # Create README.md
+            with open(os.path.join(sdk_path, "README.md"), "w") as f:
+                f.write(
+                    """# IPFS Kit JavaScript SDK
 
-This SDK provides a simplified interface to IPFS Kit.
+                    This SDK provides a simplified interface to IPFS Kit.
 
-## Installation
+                    ## Installation
 
-```bash
-npm install ipfs-kit-sdk
-```
+                    ```bash
+                    npm install ipfs-kit-sdk
+                    ```
 
-## Usage
+                    ## Usage
 
-```javascript
-const { IPFSClient } = require('ipfs-kit-sdk');
+                    ```javascript
+                    const { IPFSClient } = require('ipfs-kit-sdk');
 
-// Initialize client
-const client = new IPFSClient();
+                    // Initialize client
+                    const client = new IPFSClient();
 
-// Add content to IPFS
-async function addContent() {
-  try {
-    const result = await client.add("Hello, IPFS!");
-    console.log(`Added content with CID: ${result.cid}`);
-    
-    // Get content from IPFS
-    const content = await client.get(result.cid);
-    console.log(`Retrieved content: ${content}`);
-  } catch (error) {
-    console.error(error);
-  }
-}
+                    // Add content to IPFS
+                    async function addContent() {
+                    try {
+                        const result = await client.add("Hello, IPFS!");
+                        console.log(`Added content with CID: ${result.cid}`);
+                        
+                        // Get content from IPFS
+                        const content = await client.get(result.cid);
+                        console.log(`Retrieved content: ${content}`);
+                    } catch (error) {
+                        console.error(error);
+                    }
+                    }
 
-addContent();
-```
+                    addContent();
+                    ```
 
-## Configuration
+                    ## Configuration
 
-You can configure the client with a YAML or JSON file:
+                    You can configure the client with a YAML or JSON file:
 
-```yaml
-# config.yaml
-apiUrl: "http://localhost:8000"
-timeouts:
-  api: 30
-  gateway: 60
-```
+                    ```yaml
+                    # config.yaml
+                    apiUrl: "http://localhost:8000"
+                    timeouts:
+                    api: 30
+                    gateway: 60
+                    ```
 
-```javascript
-const client = new IPFSClient({ configPath: "config.yaml" });
-```
+                    ```javascript
+                    const client = new IPFSClient({ configPath: "config.yaml" });
+                    ```
 
-Or with parameters:
+                    Or with parameters:
 
-```javascript
-const client = new IPFSClient({ apiUrl: "http://localhost:8000" });
-```
+                    ```javascript
+                    const client = new IPFSClient({ apiUrl: "http://localhost:8000" });
+                    ```
 
-## Available Methods
+                    ## Available Methods
 
-"""
-            )
+                    """
+                )
 
             # Add method documentation
             for method in methods:
@@ -5483,13 +5305,13 @@ const client = new IPFSClient({ apiUrl: "http://localhost:8000" });
                 f.write(
                     f"""### {method["name"]}
 
-{docstring}
+                    {docstring}
 
-```javascript
-const result = await client.{method["name"]}(...);
-```
+                    ```javascript
+                    const result = await client.{method["name"]}(...);
+                    ```
 
-"""
+                    """
                 )
 
         return {
@@ -5523,252 +5345,252 @@ const result = await client.{method["name"]}(...);
         with open(os.path.join(sdk_path, "Cargo.toml"), "w") as f:
             f.write(
                 """[package]
-name = "ipfs-kit-sdk"
-version = "0.1.0"
-edition = "2021"
-authors = ["IPFS Kit Team"]
-description = "SDK for IPFS Kit"
-license = "MIT"
-repository = "https://github.com/example/ipfs-kit-sdk"
+                name = "ipfs-kit-sdk"
+                version = "0.1.0"
+                edition = "2021"
+                authors = ["IPFS Kit Team"]
+                description = "SDK for IPFS Kit"
+                license = "MIT"
+                repository = "https://github.com/example/ipfs-kit-sdk"
 
-[dependencies]
-reqwest = { version = "0.11", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-anyhow = "1.0"
-thiserror = "1.0"
-async-trait = "0.1"
-bytes = "1.4"
-[dev-dependencies]
-tokio-test = "0.4"
-"""
+                [dependencies]
+                reqwest = { version = "0.11", features = ["json"] }
+                tokio = { version = "1", features = ["full"] }
+                serde = { version = "1.0", features = ["derive"] }
+                serde_json = "1.0"
+                serde_yaml = "0.9"
+                anyhow = "1.0"
+                thiserror = "1.0"
+                async-trait = "0.1"
+                bytes = "1.4"
+                [dev-dependencies]
+                tokio-test = "0.4"
+                """
             )
 
         # Create src/lib.rs
         with open(os.path.join(sdk_path, "src", "lib.rs"), "w") as f:
             f.write(
                 """//! IPFS Kit Rust SDK.
-//!
-//! This SDK provides a simplified interface to IPFS Kit.
+                //!
+                //! This SDK provides a simplified interface to IPFS Kit.
 
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+                use std::collections::HashMap;
+                use std::fs;
+                use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+                use anyhow::{Context, Result};
+                use reqwest::Client;
+                use serde::{Deserialize, Serialize};
+                use thiserror::Error;
 
-/// Error type for IPFS Kit SDK.
-#[derive(Error, Debug)]
-pub enum IPFSError {
-    /// Network error.
-    #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
-    
-    /// Configuration error.
-    #[error("Configuration error: {0}")]
-    Config(String),
-    
-    /// API error.
-    #[error("API error: {0}")]
-    Api(String),
-    
-    /// IO error.
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    
-    /// Serialization error.
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
-    
-    /// YAML parsing error.
-    #[error("YAML parsing error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
-}
-
-/// Configuration for IPFS Kit client.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    /// API URL.
-    #[serde(default = "default_api_url")]
-    pub api_url: String,
-    
-    /// Timeouts.
-    #[serde(default)]
-    pub timeouts: Timeouts,
-}
-
-/// Timeout configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Timeouts {
-    /// API timeout in seconds.
-    #[serde(default = "default_api_timeout")]
-    pub api: u64,
-    
-    /// Gateway timeout in seconds.
-    #[serde(default = "default_gateway_timeout")]
-    pub gateway: u64,
-}
-
-fn default_api_url() -> String {
-    "http://localhost:8000".to_string()
-}
-
-fn default_api_timeout() -> u64 {
-    30
-}
-
-fn default_gateway_timeout() -> u64 {
-    60
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            api_url: default_api_url(),
-            timeouts: Timeouts::default(),
-        }
-    }
-}
-
-impl Default for Timeouts {
-    fn default() -> Self {
-        Self {
-            api: default_api_timeout(),
-            gateway: default_gateway_timeout(),
-        }
-    }
-}
-
-/// Request for API method call.
-#[derive(Debug, Serialize)]
-struct ApiRequest {
-    /// Positional arguments.
-    args: Vec<serde_json::Value>,
-    
-    /// Keyword arguments.
-    kwargs: HashMap<String, serde_json::Value>,
-}
-
-/// Client for IPFS Kit.
-#[derive(Debug, Clone)]
-pub struct IPFSClient {
-    /// Configuration.
-    config: Config,
-    
-    /// HTTP client.
-    client: Client,
-}
-
-impl IPFSClient {
-    /// Create a new IPFS Kit client with default configuration.
-    pub fn new() -> Result<Self> {
-        Self::with_config(Config::default())
-    }
-    
-    /// Create a new IPFS Kit client with custom configuration.
-    pub fn with_config(config: Config) -> Result<Self> {
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(config.timeouts.api))
-            .build()
-            .context("Failed to create HTTP client")?;
-        
-        Ok(Self { config, client })
-    }
-    
-    /// Load configuration from a file.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        
-        let config = if path.extension().and_then(|e| e.to_str()) == Some("yaml")
-            || path.extension().and_then(|e| e.to_str()) == Some("yml")
-        {
-            serde_yaml::from_str(&content)
-                .with_context(|| format!("Failed to parse YAML config: {}", path.display()))?
-        } else {
-            serde_json::from_str(&content)
-                .with_context(|| format!("Failed to parse JSON config: {}", path.display()))?
-        };
-        
-        Self::with_config(config)
-    }
-    
-    /// Load configuration from standard locations.
-    pub fn from_standard_locations() -> Result<Self> {
-        let standard_paths = [
-            "ipfs_config.yaml",
-            "ipfs_config.json",
-            "~/.ipfs_kit/config.yaml",
-            "~/.ipfs_kit/config.json",
-        ];
-        
-        for path_str in &standard_paths {
-            let path = if path_str.starts_with("~/") {
-                if let Some(home) = dirs::home_dir() {
-                    home.join(&path_str[2..])
-                } else {
-                    continue;
+                /// Error type for IPFS Kit SDK.
+                #[derive(Error, Debug)]
+                pub enum IPFSError {
+                    /// Network error.
+                    #[error("Network error: {0}")]
+                    Network(#[from] reqwest::Error),
+                    
+                    /// Configuration error.
+                    #[error("Configuration error: {0}")]
+                    Config(String),
+                    
+                    /// API error.
+                    #[error("API error: {0}")]
+                    Api(String),
+                    
+                    /// IO error.
+                    #[error("IO error: {0}")]
+                    Io(#[from] std::io::Error),
+                    
+                    /// Serialization error.
+                    #[error("Serialization error: {0}")]
+                    Serialization(#[from] serde_json::Error),
+                    
+                    /// YAML parsing error.
+                    #[error("YAML parsing error: {0}")]
+                    Yaml(#[from] serde_yaml::Error),
                 }
-            } else {
-                PathBuf::from(path_str)
-            };
-            
-            if path.exists() {
-                return Self::from_file(path);
-            }
-        }
-        
-        // Fall back to default configuration
-        Self::new()
-    }
-    
-    /// Make an API request.
-    async fn request(
-        &self,
-        method: &str,
-        args: Vec<serde_json::Value>,
-        kwargs: HashMap<String, serde_json::Value>,
-    ) -> Result<serde_json::Value> {
-        let url = format!("{}/api/{}", self.config.api_url, method);
-        
-        let request = ApiRequest { args, kwargs };
-        
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await
-            .with_context(|| format!("Failed to send request to {}", url))?;
-        
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-                
-            return Err(IPFSError::Api(format!(
-                "API error ({}): {}",
-                status, error_text
-            ))
-            .into());
-        }
-        
-        let result = response
-            .json()
-            .await
-            .context("Failed to parse API response")?;
-            
-        Ok(result)
-    }
-"""
+
+                /// Configuration for IPFS Kit client.
+                #[derive(Debug, Clone, Serialize, Deserialize)]
+                pub struct Config {
+                    /// API URL.
+                    #[serde(default = "default_api_url")]
+                    pub api_url: String,
+                    
+                    /// Timeouts.
+                    #[serde(default)]
+                    pub timeouts: Timeouts,
+                }
+
+                /// Timeout configuration.
+                #[derive(Debug, Clone, Serialize, Deserialize)]
+                pub struct Timeouts {
+                    /// API timeout in seconds.
+                    #[serde(default = "default_api_timeout")]
+                    pub api: u64,
+                    
+                    /// Gateway timeout in seconds.
+                    #[serde(default = "default_gateway_timeout")]
+                    pub gateway: u64,
+                }
+
+                fn default_api_url() -> String {
+                    "http://localhost:8000".to_string()
+                }
+
+                fn default_api_timeout() -> u64 {
+                    30
+                }
+
+                fn default_gateway_timeout() -> u64 {
+                    60
+                }
+
+                impl Default for Config {
+                    fn default() -> Self {
+                        Self {
+                            api_url: default_api_url(),
+                            timeouts: Timeouts::default(),
+                        }
+                    }
+                }
+
+                impl Default for Timeouts {
+                    fn default() -> Self {
+                        Self {
+                            api: default_api_timeout(),
+                            gateway: default_gateway_timeout(),
+                        }
+                    }
+                }
+
+                /// Request for API method call.
+                #[derive(Debug, Serialize)]
+                struct ApiRequest {
+                    /// Positional arguments.
+                    args: Vec<serde_json::Value>,
+                    
+                    /// Keyword arguments.
+                    kwargs: HashMap<String, serde_json::Value>,
+                }
+
+                /// Client for IPFS Kit.
+                #[derive(Debug, Clone)]
+                pub struct IPFSClient {
+                    /// Configuration.
+                    config: Config,
+                    
+                    /// HTTP client.
+                    client: Client,
+                }
+
+                impl IPFSClient {
+                    /// Create a new IPFS Kit client with default configuration.
+                    pub fn new() -> Result<Self> {
+                        Self::with_config(Config::default())
+                    }
+                    
+                    /// Create a new IPFS Kit client with custom configuration.
+                    pub fn with_config(config: Config) -> Result<Self> {
+                        let client = Client::builder()
+                            .timeout(std::time::Duration::from_secs(config.timeouts.api))
+                            .build()
+                            .context("Failed to create HTTP client")?;
+                        
+                        Ok(Self { config, client })
+                    }
+                    
+                    /// Load configuration from a file.
+                    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+                        let path = path.as_ref();
+                        let content = fs::read_to_string(path)
+                            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+                        
+                        let config = if path.extension().and_then(|e| e.to_str()) == Some("yaml")
+                            || path.extension().and_then(|e| e.to_str()) == Some("yml")
+                        {
+                            serde_yaml::from_str(&content)
+                                .with_context(|| format!("Failed to parse YAML config: {}", path.display()))?
+                        } else {
+                            serde_json::from_str(&content)
+                                .with_context(|| format!("Failed to parse JSON config: {}", path.display()))?
+                        };
+                        
+                        Self::with_config(config)
+                    }
+                    
+                    /// Load configuration from standard locations.
+                    pub fn from_standard_locations() -> Result<Self> {
+                        let standard_paths = [
+                            "ipfs_config.yaml",
+                            "ipfs_config.json",
+                            "~/.ipfs_kit/config.yaml",
+                            "~/.ipfs_kit/config.json",
+                        ];
+                        
+                        for path_str in &standard_paths {
+                            let path = if path_str.starts_with("~/") {
+                                if let Some(home) = dirs::home_dir() {
+                                    home.join(&path_str[2..])
+                                } else {
+                                    continue;
+                                }
+                            } else {
+                                PathBuf::from(path_str)
+                            };
+                            
+                            if path.exists() {
+                                return Self::from_file(path);
+                            }
+                        }
+                        
+                        // Fall back to default configuration
+                        Self::new()
+                    }
+                    
+                    /// Make an API request.
+                    async fn request(
+                        &self,
+                        method: &str,
+                        args: Vec<serde_json::Value>,
+                        kwargs: HashMap<String, serde_json::Value>,
+                    ) -> Result<serde_json::Value> {
+                        let url = format!("{}/api/{}", self.config.api_url, method);
+                        
+                        let request = ApiRequest { args, kwargs };
+                        
+                        let response = self
+                            .client
+                            .post(&url)
+                            .json(&request)
+                            .send()
+                            .await
+                            .with_context(|| format!("Failed to send request to {}", url))?;
+                        
+                        if !response.status().is_success() {
+                            let status = response.status();
+                            let error_text = response
+                                .text()
+                                .await
+                                .unwrap_or_else(|_| "Unknown error".to_string());
+                                
+                            return Err(IPFSError::Api(format!(
+                                "API error ({}): {}",
+                                status, error_text
+                            ))
+                            .into());
+                        }
+                        
+                        let result = response
+                            .json()
+                            .await
+                            .context("Failed to parse API response")?;
+                            
+                        Ok(result)
+                    }
+                """
             )
 
             # Add methods
@@ -5805,113 +5627,113 @@ impl IPFSClient {
 
                 f.write(
                     f"""
-{docstring}
-    pub async fn {rust_method_name}(
-        &self,
-        // Parameters would go here in a real implementation
-    ) -> Result<serde_json::Value> {{
-        let args = vec![];
-        let mut kwargs = HashMap::new();
-        
-        // Add parameters to args or kwargs as appropriate
-        
-        self.request("{method["name"]}", args, kwargs).await
-    }}
-"""
+                    {docstring}
+                        pub async fn {rust_method_name}(
+                            &self,
+                            // Parameters would go here in a real implementation
+                        ) -> Result<serde_json::Value> {{
+                            let args = vec![];
+                            let mut kwargs = HashMap::new();
+                            
+                            // Add parameters to args or kwargs as appropriate
+                            
+                            self.request("{method["name"]}", args, kwargs).await
+                        }}
+                    """
                 )
 
             f.write(
                 """
-}
+                    }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[tokio::test]
-    async fn test_client_creation() {
-        let client = IPFSClient::new().unwrap();
-        assert_eq!(client.config.api_url, "http://localhost:8000");
-    }
-    
-    // Add more tests as needed
-}
-"""
+                    #[cfg(test)]
+                    mod tests {
+                        use super::*;
+                        
+                        #[tokio::test]
+                        async fn test_client_creation() {
+                            let client = IPFSClient::new().unwrap();
+                            assert_eq!(client.config.api_url, "http://localhost:8000");
+                        }
+                        
+                        // Add more tests as needed
+                    }
+                """
             )
 
         # Create README.md
         with open(os.path.join(sdk_path, "README.md"), "w") as f:
             f.write(
-                """# IPFS Kit Rust SDK
+            """# IPFS Kit Rust SDK
 
-This SDK provides a simplified interface to IPFS Kit.
+            This SDK provides a simplified interface to IPFS Kit.
 
-## Installation
+            ## Installation
 
-Add this to your `Cargo.toml`:
+            Add this to your `Cargo.toml`:
 
-```toml
-[dependencies]
-ipfs-kit-sdk = "0.1.0"
-```
+            ```toml
+            [dependencies]
+            ipfs-kit-sdk = "0.1.0"
+            ```
 
-## Usage
+            ## Usage
 
-```rust
-use ipfs_kit_sdk::IPFSClient;
+            ```rust
+            use ipfs_kit_sdk::IPFSClient;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize client
-    let client = IPFSClient::new()?;
-    
-    // Add content to IPFS
-    let result = client.add("Hello, IPFS!").await?;
-    println!("Added content with CID: {}", result["cid"]);
-    
-    // Get content from IPFS
-    let content = client.get(&result["cid"].as_str().unwrap()).await?;
-    println!("Retrieved content: {}", content);
-    
-    Ok(())
-}
-```
+            #[tokio::main]
+            async fn main() -> anyhow::Result<()> {
+                // Initialize client
+                let client = IPFSClient::new()?;
+                
+                // Add content to IPFS
+                let result = client.add("Hello, IPFS!").await?;
+                println!("Added content with CID: {}", result["cid"]);
+                
+                // Get content from IPFS
+                let content = client.get(&result["cid"].as_str().unwrap()).await?;
+                println!("Retrieved content: {}", content);
+                
+                Ok(())
+            }
+            ```
 
-## Configuration
+            ## Configuration
 
-You can configure the client with a YAML or JSON file:
+            You can configure the client with a YAML or JSON file:
 
-```yaml
-# config.yaml
-api_url: "http://localhost:8000"
-timeouts:
-  api: 30
-  gateway: 60
-```
+            ```yaml
+            # config.yaml
+            api_url: "http://localhost:8000"
+            timeouts:
+            api: 30
+            gateway: 60
+            ```
 
-```rust
-let client = IPFSClient::from_file("config.yaml")?;
-```
+            ```rust
+            let client = IPFSClient::from_file("config.yaml")?;
+            ```
 
-Or with custom configuration:
+            Or with custom configuration:
 
-```rust
-use ipfs_kit_sdk::{Config, IPFSClient, Timeouts};
+            ```rust
+            use ipfs_kit_sdk::{Config, IPFSClient, Timeouts};
 
-let config = Config {
-    api_url: "http://localhost:8000".to_string(),
-    timeouts: Timeouts {
-        api: 30,
-        gateway: 60,
-    },
-};
+            let config = Config {
+                api_url: "http://localhost:8000".to_string(),
+                timeouts: Timeouts {
+                    api: 30,
+                    gateway: 60,
+                },
+            };
 
-let client = IPFSClient::with_config(config)?;
-```
+            let client = IPFSClient::with_config(config)?;
+            ```
 
-## Available Methods
+            ## Available Methods
 
-"""
+            """
             )
 
             # Add method documentation
@@ -5936,13 +5758,13 @@ let client = IPFSClient::with_config(config)?;
                 f.write(
                     f"""### {rust_method_name}
 
-{docstring}
+                    {docstring}
 
-```rust
-let result = client.{rust_method_name}(...).await?;
-```
+                    ```rust
+                    let result = client.{rust_method_name}(...).await?;
+                    ```
 
-"""
+                    """
                 )
 
         return {
@@ -6211,706 +6033,707 @@ let result = client.{rust_method_name}(...).await?;
             }
 
     def ai_vector_search(
-    self, 
-    query: Union[str, List[float]], 
-    vector_index_cid: str, 
-    *, 
-    top_k: int = 10, 
-    similarity_threshold: float = 0.0, 
-    filter: Optional[Dict[str, Any]] = None, 
-    embedding_model: Optional[str] = None, 
-    search_type: Literal["similarity", "knn", "hybrid"] = "similarity", 
-    timeout: int = 30,
-    allow_simulation: bool = True,
-    **kwargs
-) -> Dict[str, Any]:
-    """
-    Perform vector similarity search using a vector index.
+        self, 
+        query: Union[str, List[float]], 
+        vector_index_cid: str, 
+        *, 
+        top_k: int = 10, 
+        similarity_threshold: float = 0.0, 
+        filter: Optional[Dict[str, Any]] = None, 
+        embedding_model: Optional[str] = None, 
+        search_type: Literal["similarity", "knn", "hybrid"] = "similarity", 
+        timeout: int = 30,
+        allow_simulation: bool = True,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Perform vector similarity search using a vector index.
 
-    Args:
-        query: Query text or embedding vector to search for
-        vector_index_cid: CID of the vector index
-        top_k: Number of top results to return
-        similarity_threshold: Minimum similarity threshold (0.0-1.0)
-        filter: Optional dictionary of metadata filters to apply to search results
-        embedding_model: Optional name of embedding model to use (if query is text)
-        search_type: Type of search to perform ("similarity", "knn", "hybrid")
-        timeout: Operation timeout in seconds
-        allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
-        **kwargs: Additional parameters
+        Args:
+            query: Query text or embedding vector to search for
+            vector_index_cid: CID of the vector index
+            top_k: Number of top results to return
+            similarity_threshold: Minimum similarity threshold (0.0-1.0)
+            filter: Optional dictionary of metadata filters to apply to search results
+            embedding_model: Optional name of embedding model to use (if query is text)
+            search_type: Type of search to perform ("similarity", "knn", "hybrid")
+            timeout: Operation timeout in seconds
+            allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
+            **kwargs: Additional parameters
 
-    Returns:
-        Dict[str, Any]: Dictionary with search results containing these keys:
-            - "success": bool indicating if the operation succeeded
-            - "operation": Name of the operation ("ai_vector_search")
-            - "timestamp": Time when the operation was performed
-            - "query": The original query (text or vector representation)
-            - "results": List of search results with content and similarity scores
-            - "total_vectors_searched": Number of vectors searched
-            - "search_time_ms": Search time in milliseconds
-            - "error": Error message if operation failed (only present on failure)
-            - "error_type": Type of error if operation failed (only present on failure)
-    """
-    from . import validation
+        Returns:
+            Dict[str, Any]: Dictionary with search results containing these keys:
+                - "success": bool indicating if the operation succeeded
+                - "operation": Name of the operation ("ai_vector_search")
+                - "timestamp": Time when the operation was performed
+                - "query": The original query (text or vector representation)
+                - "results": List of search results with content and similarity scores
+                - "total_vectors_searched": Number of vectors searched
+                - "search_time_ms": Search time in milliseconds
+                - "error": Error message if operation failed (only present on failure)
+                - "error_type": Type of error if operation failed (only present on failure)
+        """
+        from . import validation
 
-    # Build kwargs dictionary
-    kwargs_dict = {}
-    if filter is not None:
-        kwargs_dict["filter"] = filter
-    if embedding_model is not None:
-        kwargs_dict["embedding_model"] = embedding_model
-    kwargs_dict["search_type"] = search_type
-    kwargs_dict["timeout"] = timeout
-    
-    # Add any additional kwargs
-    kwargs_dict.update(kwargs)
-    
-    # Validate parameters
-    validation.validate_parameters(
-        kwargs_dict,
-        {
-            "filter": {"type": dict},
-            "embedding_model": {"type": str},
-            "search_type": {"type": str, "default": "similarity"},
-            "timeout": {"type": int, "default": 30},
-        },
-    )
+        # Build kwargs dictionary
+        kwargs_dict = {}
+        if filter is not None:
+            kwargs_dict["filter"] = filter
+        if embedding_model is not None:
+            kwargs_dict["embedding_model"] = embedding_model
+        kwargs_dict["search_type"] = search_type
+        kwargs_dict["timeout"] = timeout
+        
+        # Add any additional kwargs
+        kwargs_dict.update(kwargs)
+        
+        # Validate parameters
+        validation.validate_parameters(
+            kwargs_dict,
+            {
+                "filter": {"type": dict},
+                "embedding_model": {"type": str},
+                "search_type": {"type": str, "default": "similarity"},
+                "timeout": {"type": int, "default": 30},
+            },
+        )
 
-    # Validate similarity threshold
-    if not 0.0 <= similarity_threshold <= 1.0:
-        raise ValueError("similarity_threshold must be between 0.0 and 1.0")
+        # Validate similarity threshold
+        if not 0.0 <= similarity_threshold <= 1.0:
+            raise ValueError("similarity_threshold must be between 0.0 and 1.0")
 
-    # Check if AI/ML integration is available
-    if not AI_ML_AVAILABLE and allow_simulation:
-        # Fallback to simulation for demonstration
+        # Check if AI/ML integration is available
+        if not AI_ML_AVAILABLE and allow_simulation:
+            # Fallback to simulation for demonstration
 
-        # Generate simulated search results
-        results = []
-        for i in range(min(top_k, 5)):  # Simulate up to 5 results
-            results.append(
-                {
-                    "content": f"This is content {i} that matched the query.",
-                    "similarity": 0.95 - (i * 0.05),  # Decreasing similarity
-                    "metadata": {
-                        "source": f"document_{i}.txt",
-                        "cid": f"Qm{os.urandom(16).hex()}",
-                    },
-                }
+            # Generate simulated search results
+            results = []
+            for i in range(min(top_k, 5)):  # Simulate up to 5 results
+                results.append(
+                    {
+                        "content": f"This is content {i} that matched the query.",
+                        "similarity": 0.95 - (i * 0.05),  # Decreasing similarity
+                        "metadata": {
+                            "source": f"document_{i}.txt",
+                            "cid": f"Qm{os.urandom(16).hex()}",
+                        },
+                    }
+                )
+
+            result = {
+                "success": True,
+                "operation": "ai_vector_search",
+                "timestamp": time.time(),
+                "simulation_note": "AI/ML integration not available, using simulated response",
+                "query": query,
+                "results": results,
+                "total_vectors_searched": 100,
+                "search_time_ms": 8,
+            }
+
+            # Add any additional parameters from kwargs
+            for key, value in kwargs_dict.items():
+                if key not in ["filter", "embedding_model", "search_type", "timeout"]:
+                    result[key] = value
+
+            return result
+        elif not AI_ML_AVAILABLE and not allow_simulation:
+            return {
+                "success": False,
+                "operation": "ai_vector_search",
+                "timestamp": time.time(),
+                "error": "AI/ML integration not available and simulation not allowed",
+                "error_type": "IntegrationError",
+                "query": query,
+                "vector_index_cid": vector_index_cid,
+            }
+
+        # If AI/ML integration is available, use the real implementation
+        try:
+            # Create vector searcher
+            searcher = ai_ml_integration.VectorSearch(self._kit)
+
+            search_result = searcher.search(
+                query=query,
+                vector_index_cid=vector_index_cid,
+                top_k=top_k,
+                similarity_threshold=similarity_threshold,
+                **kwargs_dict,
             )
 
-        result = {
-            "success": True,
-            "operation": "ai_vector_search",
-            "timestamp": time.time(),
-            "simulation_note": "AI/ML integration not available, using simulated response",
-            "query": query,
-            "results": results,
-            "total_vectors_searched": 100,
-            "search_time_ms": 8,
+            return search_result
+
+        except Exception as e:
+            # Return error information
+            return {
+                "success": False,
+                "operation": "ai_vector_search",
+                "timestamp": time.time(),
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "query": query,
+                "vector_index_cid": vector_index_cid,
+            }
+    def ai_create_knowledge_graph(
+        self,
+        source_data_cid: str,
+        *,
+        graph_name: str = "knowledge_graph",
+        extraction_model: Optional[str] = None,
+        entity_types: Optional[List[str]] = None,
+        relationship_types: Optional[List[str]] = None,
+        max_entities: int = 1000,
+        include_text_context: bool = True,
+        extract_metadata: bool = True,
+        allow_simulation: bool = True,
+        save_intermediate_results: bool = False,
+        timeout: int = 120,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Create a knowledge graph from source data.
+
+        This method extracts entities and relationships from source data and 
+        creates a structured knowledge graph stored in IPLD format. The resulting
+        graph can be used for semantic search, reasoning, and data exploration.
+
+        Args:
+            source_data_cid: CID of the source data to process (document, dataset, etc.)
+            graph_name: Name to assign to the created knowledge graph
+            extraction_model: Optional name/type of model to use for entity extraction 
+                (if None, uses the default model appropriate for the content type)
+            entity_types: List of entity types to extract (e.g., ["Person", "Organization", "Location"])
+            relationship_types: List of relationship types to extract (e.g., ["worksFor", "locatedIn"])
+            max_entities: Maximum number of entities to extract
+            include_text_context: Whether to include source text context with entities
+            extract_metadata: Whether to extract metadata from source data
+            allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
+            save_intermediate_results: Whether to save intermediate extraction results as separate CIDs
+            timeout: Operation timeout in seconds
+            **kwargs: Additional extraction parameters
+
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "operation": "ai_create_knowledge_graph"
+                - "timestamp": Time when the operation was performed
+                - "graph_cid": CID of the created knowledge graph
+                - "graph_name": Name of the created graph
+                - "entities": List of extracted entities with their properties
+                - "relationships": List of extracted relationships
+                - "entity_count": Total number of extracted entities
+                - "relationship_count": Total number of extracted relationships
+                - "source_data_cid": Original source data CID
+                - "processing_time_ms": Total processing time in milliseconds
+                - "intermediate_results_cid": CID of intermediate results (if save_intermediate_results=True)
+                - "simulation_note": Note about simulation if result is simulated
+                - "error": Error message if operation failed (only present on failure)
+                - "error_type": Type of error if operation failed (only present on failure)
+        """
+        import time
+        import uuid
+        from . import validation
+
+        # Build kwargs dictionary with explicit parameters
+        kwargs_dict = {
+            "graph_name": graph_name,
+            "max_entities": max_entities,
+            "include_text_context": include_text_context,
+            "extract_metadata": extract_metadata,
+            "save_intermediate_results": save_intermediate_results,
+            "timeout": timeout
         }
-
-        # Add any additional parameters from kwargs
-        for key, value in kwargs_dict.items():
-            if key not in ["filter", "embedding_model", "search_type", "timeout"]:
-                result[key] = value
-
-        return result
-    elif not AI_ML_AVAILABLE and not allow_simulation:
-        return {
-            "success": False,
-            "operation": "ai_vector_search",
-            "timestamp": time.time(),
-            "error": "AI/ML integration not available and simulation not allowed",
-            "error_type": "IntegrationError",
-            "query": query,
-            "vector_index_cid": vector_index_cid,
-        }
-
-    # If AI/ML integration is available, use the real implementation
-    try:
-        # Create vector searcher
-        searcher = ai_ml_integration.VectorSearch(self._kit)
-
-        search_result = searcher.search(
-            query=query,
-            vector_index_cid=vector_index_cid,
-            top_k=top_k,
-            similarity_threshold=similarity_threshold,
-            **kwargs_dict,
+        
+        # Add optional parameters if provided
+        if extraction_model is not None:
+            kwargs_dict["extraction_model"] = extraction_model
+        if entity_types is not None:
+            kwargs_dict["entity_types"] = entity_types
+        if relationship_types is not None:
+            kwargs_dict["relationship_types"] = relationship_types
+            
+        # Add any additional kwargs
+        kwargs_dict.update(kwargs)
+        
+        # Validate parameters
+        validation.validate_parameters(
+            kwargs_dict,
+            {
+                "graph_name": {"type": str, "default": "knowledge_graph"},
+                "extraction_model": {"type": str},
+                "entity_types": {"type": list},
+                "relationship_types": {"type": list},
+                "max_entities": {"type": int, "default": 1000},
+                "include_text_context": {"type": bool, "default": True},
+                "extract_metadata": {"type": bool, "default": True},
+                "save_intermediate_results": {"type": bool, "default": False},
+                "timeout": {"type": int, "default": 120}
+            }
         )
-
-        return search_result
-
-    except Exception as e:
-        # Return error information
-        return {
-            "success": False,
-            "operation": "ai_vector_search",
-            "timestamp": time.time(),
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "query": query,
-            "vector_index_cid": vector_index_cid,
-        }
-def ai_create_knowledge_graph(
-    self,
-    source_data_cid: str,
-    *,
-    graph_name: str = "knowledge_graph",
-    extraction_model: Optional[str] = None,
-    entity_types: Optional[List[str]] = None,
-    relationship_types: Optional[List[str]] = None,
-    max_entities: int = 1000,
-    include_text_context: bool = True,
-    extract_metadata: bool = True,
-    allow_simulation: bool = True,
-    save_intermediate_results: bool = False,
-    timeout: int = 120,
-    **kwargs
-) -> Dict[str, Any]:
-    """
-    Create a knowledge graph from source data.
-
-    This method extracts entities and relationships from source data and 
-    creates a structured knowledge graph stored in IPLD format. The resulting
-    graph can be used for semantic search, reasoning, and data exploration.
-
-    Args:
-        source_data_cid: CID of the source data to process (document, dataset, etc.)
-        graph_name: Name to assign to the created knowledge graph
-        extraction_model: Optional name/type of model to use for entity extraction 
-            (if None, uses the default model appropriate for the content type)
-        entity_types: List of entity types to extract (e.g., ["Person", "Organization", "Location"])
-        relationship_types: List of relationship types to extract (e.g., ["worksFor", "locatedIn"])
-        max_entities: Maximum number of entities to extract
-        include_text_context: Whether to include source text context with entities
-        extract_metadata: Whether to extract metadata from source data
-        allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
-        save_intermediate_results: Whether to save intermediate extraction results as separate CIDs
-        timeout: Operation timeout in seconds
-        **kwargs: Additional extraction parameters
-
-    Returns:
-        Dict[str, Any]: Dictionary containing operation results with these keys:
-            - "success": bool indicating if the operation succeeded
-            - "operation": "ai_create_knowledge_graph"
-            - "timestamp": Time when the operation was performed
-            - "graph_cid": CID of the created knowledge graph
-            - "graph_name": Name of the created graph
-            - "entities": List of extracted entities with their properties
-            - "relationships": List of extracted relationships
-            - "entity_count": Total number of extracted entities
-            - "relationship_count": Total number of extracted relationships
-            - "source_data_cid": Original source data CID
-            - "processing_time_ms": Total processing time in milliseconds
-            - "intermediate_results_cid": CID of intermediate results (if save_intermediate_results=True)
-            - "simulation_note": Note about simulation if result is simulated
-            - "error": Error message if operation failed (only present on failure)
-            - "error_type": Type of error if operation failed (only present on failure)
-    """
-    import time
-    import uuid
-    from . import validation
-
-    # Build kwargs dictionary with explicit parameters
-    kwargs_dict = {
-        "graph_name": graph_name,
-        "max_entities": max_entities,
-        "include_text_context": include_text_context,
-        "extract_metadata": extract_metadata,
-        "save_intermediate_results": save_intermediate_results,
-        "timeout": timeout
-    }
-    
-    # Add optional parameters if provided
-    if extraction_model is not None:
-        kwargs_dict["extraction_model"] = extraction_model
-    if entity_types is not None:
-        kwargs_dict["entity_types"] = entity_types
-    if relationship_types is not None:
-        kwargs_dict["relationship_types"] = relationship_types
         
-    # Add any additional kwargs
-    kwargs_dict.update(kwargs)
-    
-    # Validate parameters
-    validation.validate_parameters(
-        kwargs_dict,
-        {
-            "graph_name": {"type": str, "default": "knowledge_graph"},
-            "extraction_model": {"type": str},
-            "entity_types": {"type": list},
-            "relationship_types": {"type": list},
-            "max_entities": {"type": int, "default": 1000},
-            "include_text_context": {"type": bool, "default": True},
-            "extract_metadata": {"type": bool, "default": True},
-            "save_intermediate_results": {"type": bool, "default": False},
-            "timeout": {"type": int, "default": 120}
-        }
-    )
-    
-    # Validate source_data_cid
-    if not source_data_cid:
-        return {
-            "success": False,
-            "operation": "ai_create_knowledge_graph",
-            "timestamp": time.time(),
-            "error": "Source data CID cannot be empty",
-            "error_type": "ValidationError"
-        }
+        # Validate source_data_cid
+        if not source_data_cid:
+            return {
+                "success": False,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "error": "Source data CID cannot be empty",
+                "error_type": "ValidationError"
+            }
 
-    # Check if AI/ML integration is available
-    if not AI_ML_AVAILABLE and allow_simulation:
-        # Fallback to simulation for demonstration
-        start_time = time.time()
-        
-        # Generate simulated entity types if not provided
-        sim_entity_types = entity_types or ["Person", "Organization", "Location", "Event", "Topic", "Product"]
-        
-        # Generate simulated relationship types if not provided
-        sim_relationship_types = relationship_types or ["relatedTo", "partOf", "hasProperty", "locatedIn", "createdBy"]
-        
-        # Simulate processing delay
-        time.sleep(0.5)
-        
-        # Generate simulated entities
-        entities = []
-        entity_ids = []
-        
-        for i in range(min(max_entities, 25)):  # Simulate up to 25 entities
-            entity_type = sim_entity_types[i % len(sim_entity_types)]
-            entity_id = f"{entity_type.lower()}_{i}"
-            entity_ids.append(entity_id)
+        # Check if AI/ML integration is available
+        if not AI_ML_AVAILABLE and allow_simulation:
+            # Fallback to simulation for demonstration
+            start_time = time.time()
             
-            # Create entity with appropriate properties based on type
-            if entity_type == "Person":
-                entity = {
-                    "id": entity_id,
-                    "type": entity_type,
-                    "name": f"Person {i}",
-                    "properties": {
-                        "occupation": ["Researcher", "Engineer", "Scientist"][i % 3],
-                        "expertise": ["AI", "Blockchain", "Distributed Systems"][i % 3]
+            # Generate simulated entity types if not provided
+            sim_entity_types = entity_types or ["Person", "Organization", "Location", "Event", "Topic", "Product"]
+            
+            # Generate simulated relationship types if not provided
+            sim_relationship_types = relationship_types or ["relatedTo", "partOf", "hasProperty", "locatedIn", "createdBy"]
+            
+            # Simulate processing delay
+            time.sleep(0.5)
+            
+            # Generate simulated entities
+            entities = []
+            entity_ids = []
+            
+            for i in range(min(max_entities, 25)):  # Simulate up to 25 entities
+                entity_type = sim_entity_types[i % len(sim_entity_types)]
+                entity_id = f"{entity_type.lower()}_{i}"
+                entity_ids.append(entity_id)
+                
+                # Create entity with appropriate properties based on type
+                if entity_type == "Person":
+                    entity = {
+                        "id": entity_id,
+                        "type": entity_type,
+                        "name": f"Person {i}",
+                        "properties": {
+                            "occupation": ["Researcher", "Engineer", "Scientist"][i % 3],
+                            "expertise": ["AI", "Blockchain", "Distributed Systems"][i % 3]
+                        }
                     }
-                }
-            elif entity_type == "Organization":
-                entity = {
-                    "id": entity_id,
-                    "type": entity_type,
-                    "name": f"Organization {i}",
-                    "properties": {
-                        "industry": ["Technology", "Research", "Education"][i % 3],
-                        "size": ["Small", "Medium", "Large"][i % 3]
+                elif entity_type == "Organization":
+                    entity = {
+                        "id": entity_id,
+                        "type": entity_type,
+                        "name": f"Organization {i}",
+                        "properties": {
+                            "industry": ["Technology", "Research", "Education"][i % 3],
+                            "size": ["Small", "Medium", "Large"][i % 3]
+                        }
                     }
-                }
-            elif entity_type == "Location":
-                entity = {
-                    "id": entity_id,
-                    "type": entity_type,
-                    "name": f"Location {i}",
-                    "properties": {
-                        "region": ["North", "South", "East", "West"][i % 4],
-                        "type": ["City", "Building", "Country"][i % 3]
+                elif entity_type == "Location":
+                    entity = {
+                        "id": entity_id,
+                        "type": entity_type,
+                        "name": f"Location {i}",
+                        "properties": {
+                            "region": ["North", "South", "East", "West"][i % 4],
+                            "type": ["City", "Building", "Country"][i % 3]
+                        }
                     }
-                }
-            else:
-                entity = {
-                    "id": entity_id,
-                    "type": entity_type,
-                    "name": f"{entity_type} {i}",
+                else:
+                    entity = {
+                        "id": entity_id,
+                        "type": entity_type,
+                        "name": f"{entity_type} {i}",
+                        "properties": {
+                            "relevance": 0.9 - (i * 0.02),
+                            "mentions": i + 1
+                        }
+                    }
+                    
+                # Add text context if requested
+                if include_text_context:
+                    entity["context"] = f"This is a sample text mentioning {entity['name']} in the source document."
+                    
+                entities.append(entity)
+                
+            # Generate simulated relationships
+            relationships = []
+            for i in range(min(max_entities * 2, 50)):  # Simulate up to 50 relationships
+                # Ensure we have at least 2 entities to create relationships
+                if len(entity_ids) < 2:
+                    continue
+                    
+                # Get random source and target entities (ensure they're different)
+                source_idx = i % len(entity_ids)
+                target_idx = (i + 1 + (i % 3)) % len(entity_ids)  # Ensure different from source
+                
+                relationship_type = sim_relationship_types[i % len(sim_relationship_types)]
+                
+                relationship = {
+                    "id": f"rel_{i}",
+                    "type": relationship_type,
+                    "source": entity_ids[source_idx],
+                    "target": entity_ids[target_idx],
                     "properties": {
-                        "relevance": 0.9 - (i * 0.02),
-                        "mentions": i + 1
+                        "confidence": 0.9 - (i * 0.01),
+                        "weight": i % 10
                     }
                 }
                 
-            # Add text context if requested
-            if include_text_context:
-                entity["context"] = f"This is a sample text mentioning {entity['name']} in the source document."
+                # Add text context if requested
+                if include_text_context:
+                    source_name = entities[source_idx]["name"]
+                    target_name = entities[target_idx]["name"]
+                    relationship["context"] = f"This is evidence that {source_name} is {relationship_type} {target_name}."
+                    
+                relationships.append(relationship)
                 
-            entities.append(entity)
+            # Create simulated graph CID
+            graph_cid = f"Qm{os.urandom(16).hex()}"
             
-        # Generate simulated relationships
-        relationships = []
-        for i in range(min(max_entities * 2, 50)):  # Simulate up to 50 relationships
-            # Ensure we have at least 2 entities to create relationships
-            if len(entity_ids) < 2:
-                continue
+            # Create intermediate results CID if requested
+            intermediate_results_cid = None
+            if save_intermediate_results:
+                intermediate_results_cid = f"Qm{os.urandom(16).hex()}"
                 
-            # Get random source and target entities (ensure they're different)
-            source_idx = i % len(entity_ids)
-            target_idx = (i + 1 + (i % 3)) % len(entity_ids)  # Ensure different from source
+            # Calculate processing time
+            processing_time_ms = int((time.time() - start_time) * 1000)
             
-            relationship_type = sim_relationship_types[i % len(sim_relationship_types)]
-            
-            relationship = {
-                "id": f"rel_{i}",
-                "type": relationship_type,
-                "source": entity_ids[source_idx],
-                "target": entity_ids[target_idx],
-                "properties": {
-                    "confidence": 0.9 - (i * 0.01),
-                    "weight": i % 10
-                }
+            # Return simulated results
+            result = {
+                "success": True,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "simulation_note": "AI/ML integration not available, using simulated response",
+                "graph_cid": graph_cid,
+                "graph_name": graph_name,
+                "entities": entities[:5],  # Just include first 5 for brevity
+                "relationships": relationships[:5],  # Just include first 5 for brevity
+                "entity_count": len(entities),
+                "relationship_count": len(relationships),
+                "source_data_cid": source_data_cid,
+                "processing_time_ms": processing_time_ms
             }
             
-            # Add text context if requested
-            if include_text_context:
-                source_name = entities[source_idx]["name"]
-                target_name = entities[target_idx]["name"]
-                relationship["context"] = f"This is evidence that {source_name} is {relationship_type} {target_name}."
+            # Add intermediate results if requested
+            if save_intermediate_results:
+                result["intermediate_results_cid"] = intermediate_results_cid
                 
-            relationships.append(relationship)
+            # Add entity and relationship type counts
+            result["entity_types"] = {
+                entity_type: len([e for e in entities if e["type"] == entity_type])
+                for entity_type in set(e["type"] for e in entities)
+            }
             
-        # Create simulated graph CID
-        graph_cid = f"Qm{os.urandom(16).hex()}"
-        
-        # Create intermediate results CID if requested
-        intermediate_results_cid = None
-        if save_intermediate_results:
-            intermediate_results_cid = f"Qm{os.urandom(16).hex()}"
+            result["relationship_types"] = {
+                rel_type: len([r for r in relationships if r["type"] == rel_type])
+                for rel_type in set(r["type"] for r in relationships)
+            }
             
-        # Calculate processing time
-        processing_time_ms = int((time.time() - start_time) * 1000)
-        
-        # Return simulated results
-        result = {
-            "success": True,
-            "operation": "ai_create_knowledge_graph",
-            "timestamp": time.time(),
-            "simulation_note": "AI/ML integration not available, using simulated response",
-            "graph_cid": graph_cid,
-            "graph_name": graph_name,
-            "entities": entities[:5],  # Just include first 5 for brevity
-            "relationships": relationships[:5],  # Just include first 5 for brevity
-            "entity_count": len(entities),
-            "relationship_count": len(relationships),
-            "source_data_cid": source_data_cid,
-            "processing_time_ms": processing_time_ms
-        }
-        
-        # Add intermediate results if requested
-        if save_intermediate_results:
-            result["intermediate_results_cid"] = intermediate_results_cid
+            return result
             
-        # Add entity and relationship type counts
-        result["entity_types"] = {
-            entity_type: len([e for e in entities if e["type"] == entity_type])
-            for entity_type in set(e["type"] for e in entities)
-        }
-        
-        result["relationship_types"] = {
-            rel_type: len([r for r in relationships if r["type"] == rel_type])
-            for rel_type in set(r["type"] for r in relationships)
-        }
-        
-        return result
-        
-    elif not AI_ML_AVAILABLE and not allow_simulation:
-        return {
-            "success": False,
-            "operation": "ai_create_knowledge_graph",
-            "timestamp": time.time(),
-            "error": "AI/ML integration not available and simulation not allowed",
-            "error_type": "IntegrationError",
-            "source_data_cid": source_data_cid
-        }
+        elif not AI_ML_AVAILABLE and not allow_simulation:
+            return {
+                "success": False,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "error": "AI/ML integration not available and simulation not allowed",
+                "error_type": "IntegrationError",
+                "source_data_cid": source_data_cid
+            }
 
-    # If AI/ML integration is available, use the real implementation
-    try:
-        # Create knowledge graph manager
-        kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
+        # If AI/ML integration is available, use the real implementation
+        try:
+            # Create knowledge graph manager
+            kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
+            
+            # Create knowledge graph
+            result = kg_manager.create_knowledge_graph(
+                source_data_cid=source_data_cid,
+                **kwargs_dict
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Return error information
+            return {
+                "success": False,
+                "operation": "ai_create_knowledge_graph",
+                "timestamp": time.time(),
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "source_data_cid": source_data_cid
+            }
+    def ai_test_inference(
+        self,
+        model_cid: str,
+        test_data_cid: str,
+        *,
+        batch_size: int = 32,
+        max_samples: Optional[int] = None,
+        compute_metrics: bool = True,
+        metrics: Optional[List[str]] = None,
+        output_format: Literal["json", "csv", "parquet"] = "json",
+        save_predictions: bool = True,
+        device: Optional[str] = None,
+        precision: Literal["float32", "float16", "bfloat16"] = "float32",
+        allow_simulation: bool = True,
+        timeout: int = 300,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Run inference on a test dataset using a model and evaluate performance.
         
-        # Create knowledge graph
-        result = kg_manager.create_knowledge_graph(
-            source_data_cid=source_data_cid,
-            **kwargs_dict
+        This method loads a model and test dataset, performs inference, 
+        computes evaluation metrics, and optionally saves the predictions.
+        
+        Args:
+            model_cid: CID of the model to use for inference
+            test_data_cid: CID of the test dataset
+            batch_size: Batch size for inference
+            max_samples: Maximum number of samples to use (None for all)
+            compute_metrics: Whether to compute evaluation metrics
+            metrics: List of metrics to compute (e.g., ["accuracy", "precision", "recall", "f1"])
+            output_format: Format for prediction output ("json", "csv", "parquet")
+            save_predictions: Whether to save predictions to IPFS
+            device: Device to run inference on ("cpu", "cuda", "cuda:0", etc.)
+            precision: Numerical precision for inference
+            allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
+            timeout: Operation timeout in seconds
+            **kwargs: Additional parameters for inference
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "operation": "ai_test_inference"
+                - "timestamp": Time when the operation was performed
+                - "model_cid": CID of the model used
+                - "test_data_cid": CID of the test dataset used
+                - "metrics": Dictionary of computed metrics
+                - "predictions_cid": CID of saved predictions (if save_predictions=True)
+                - "samples_processed": Number of samples processed
+                - "sample_predictions": Small sample of predictions for preview
+                - "processing_time_ms": Total processing time in milliseconds
+                - "inference_time_per_sample_ms": Average inference time per sample
+                - "simulation_note": Note about simulation if result is simulated
+                - "error": Error message if operation failed (only present on failure)
+                - "error_type": Type of error if operation failed (only present on failure)
+        """
+        import time
+        import random
+        import math
+        import json
+        import uuid
+        from . import validation
+        
+        # Validate required parameters
+        if not model_cid:
+            return {
+                "success": False,
+                "operation": "ai_test_inference",
+                "timestamp": time.time(),
+                "error": "Model CID cannot be empty",
+                "error_type": "ValidationError"
+            }
+        
+        if not test_data_cid:
+            return {
+                "success": False,
+                "operation": "ai_test_inference",
+                "timestamp": time.time(),
+                "error": "Test data CID cannot be empty",
+                "error_type": "ValidationError"
+            }
+        
+        # Build kwargs dictionary with explicit parameters
+        kwargs_dict = {
+            "batch_size": batch_size,
+            "compute_metrics": compute_metrics,
+            "output_format": output_format,
+            "save_predictions": save_predictions,
+            "precision": precision,
+            "timeout": timeout
+        }
+        
+        # Add optional parameters if provided
+        if max_samples is not None:
+            kwargs_dict["max_samples"] = max_samples
+        if metrics is not None:
+            kwargs_dict["metrics"] = metrics
+        if device is not None:
+            kwargs_dict["device"] = device
+        
+        # Add any additional kwargs
+        kwargs_dict.update(kwargs)
+        
+        # Validate parameters
+        validation.validate_parameters(
+            kwargs_dict,
+            {
+                "batch_size": {"type": int, "default": 32},
+                "max_samples": {"type": int},
+                "compute_metrics": {"type": bool, "default": True},
+                "metrics": {"type": list},
+                "output_format": {"type": str, "default": "json"},
+                "save_predictions": {"type": bool, "default": True},
+                "device": {"type": str},
+                "precision": {"type": str, "default": "float32"},
+                "timeout": {"type": int, "default": 300}
+            }
         )
         
-        return result
+        # Validate output format
+        valid_formats = ["json", "csv", "parquet"]
+        if output_format not in valid_formats:
+            return {
+                "success": False,
+                "operation": "ai_test_inference",
+                "timestamp": time.time(),
+                "error": f"Invalid output format: {output_format}. Valid formats: {', '.join(valid_formats)}",
+                "error_type": "ValidationError"
+            }
         
-    except Exception as e:
-        # Return error information
-        return {
-            "success": False,
-            "operation": "ai_create_knowledge_graph",
-            "timestamp": time.time(),
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "source_data_cid": source_data_cid
-        }
-def ai_test_inference(
-    self,
-    model_cid: str,
-    test_data_cid: str,
-    *,
-    batch_size: int = 32,
-    max_samples: Optional[int] = None,
-    compute_metrics: bool = True,
-    metrics: Optional[List[str]] = None,
-    output_format: Literal["json", "csv", "parquet"] = "json",
-    save_predictions: bool = True,
-    device: Optional[str] = None,
-    precision: Literal["float32", "float16", "bfloat16"] = "float32",
-    allow_simulation: bool = True,
-    timeout: int = 300,
-    **kwargs
-) -> Dict[str, Any]:
-    """
-    Run inference on a test dataset using a model and evaluate performance.
-    
-    This method loads a model and test dataset, performs inference, 
-    computes evaluation metrics, and optionally saves the predictions.
-    
-    Args:
-        model_cid: CID of the model to use for inference
-        test_data_cid: CID of the test dataset
-        batch_size: Batch size for inference
-        max_samples: Maximum number of samples to use (None for all)
-        compute_metrics: Whether to compute evaluation metrics
-        metrics: List of metrics to compute (e.g., ["accuracy", "precision", "recall", "f1"])
-        output_format: Format for prediction output ("json", "csv", "parquet")
-        save_predictions: Whether to save predictions to IPFS
-        device: Device to run inference on ("cpu", "cuda", "cuda:0", etc.)
-        precision: Numerical precision for inference
-        allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
-        timeout: Operation timeout in seconds
-        **kwargs: Additional parameters for inference
-    
-    Returns:
-        Dict[str, Any]: Dictionary containing operation results with these keys:
-            - "success": bool indicating if the operation succeeded
-            - "operation": "ai_test_inference"
-            - "timestamp": Time when the operation was performed
-            - "model_cid": CID of the model used
-            - "test_data_cid": CID of the test dataset used
-            - "metrics": Dictionary of computed metrics
-            - "predictions_cid": CID of saved predictions (if save_predictions=True)
-            - "samples_processed": Number of samples processed
-            - "sample_predictions": Small sample of predictions for preview
-            - "processing_time_ms": Total processing time in milliseconds
-            - "inference_time_per_sample_ms": Average inference time per sample
-            - "simulation_note": Note about simulation if result is simulated
-            - "error": Error message if operation failed (only present on failure)
-            - "error_type": Type of error if operation failed (only present on failure)
-    """
-    import time
-    import random
-    import math
-    import json
-    import uuid
-    from . import validation
-    
-    # Validate required parameters
-    if not model_cid:
-        return {
-            "success": False,
-            "operation": "ai_test_inference",
-            "timestamp": time.time(),
-            "error": "Model CID cannot be empty",
-            "error_type": "ValidationError"
-        }
-    
-    if not test_data_cid:
-        return {
-            "success": False,
-            "operation": "ai_test_inference",
-            "timestamp": time.time(),
-            "error": "Test data CID cannot be empty",
-            "error_type": "ValidationError"
-        }
-    
-    # Build kwargs dictionary with explicit parameters
-    kwargs_dict = {
-        "batch_size": batch_size,
-        "compute_metrics": compute_metrics,
-        "output_format": output_format,
-        "save_predictions": save_predictions,
-        "precision": precision,
-        "timeout": timeout
-    }
-    
-    # Add optional parameters if provided
-    if max_samples is not None:
-        kwargs_dict["max_samples"] = max_samples
-    if metrics is not None:
-        kwargs_dict["metrics"] = metrics
-    if device is not None:
-        kwargs_dict["device"] = device
-    
-    # Add any additional kwargs
-    kwargs_dict.update(kwargs)
-    
-    # Validate parameters
-    validation.validate_parameters(
-        kwargs_dict,
-        {
-            "batch_size": {"type": int, "default": 32},
-            "max_samples": {"type": int},
-            "compute_metrics": {"type": bool, "default": True},
-            "metrics": {"type": list},
-            "output_format": {"type": str, "default": "json"},
-            "save_predictions": {"type": bool, "default": True},
-            "device": {"type": str},
-            "precision": {"type": str, "default": "float32"},
-            "timeout": {"type": int, "default": 300}
-        }
-    )
-    
-    # Validate output format
-    valid_formats = ["json", "csv", "parquet"]
-    if output_format not in valid_formats:
-        return {
-            "success": False,
-            "operation": "ai_test_inference",
-            "timestamp": time.time(),
-            "error": f"Invalid output format: {output_format}. Valid formats: {', '.join(valid_formats)}",
-            "error_type": "ValidationError"
-        }
-    
-    # Check if AI/ML integration is available
-    if not AI_ML_AVAILABLE and allow_simulation:
-        # Fallback to simulation for demonstration
-        start_time = time.time()
-        
-        # Simulate processing delay
-        processing_delay = random.uniform(0.5, 2.0)
-        time.sleep(processing_delay)
-        
-        # Simulate number of samples
-        num_samples = max_samples if max_samples is not None else random.randint(100, 1000)
-        
-        # Simulate metrics
-        default_metrics = ["accuracy", "precision", "recall", "f1"]
-        metric_names = metrics if metrics else default_metrics
-        
-        simulated_metrics = {}
-        for metric in metric_names:
-            # Generate realistic metric values
-            if metric == "accuracy":
-                simulated_metrics[metric] = round(random.uniform(0.82, 0.96), 4)
-            elif metric == "precision":
-                simulated_metrics[metric] = round(random.uniform(0.80, 0.95), 4)
-            elif metric == "recall":
-                simulated_metrics[metric] = round(random.uniform(0.75, 0.92), 4)
-            elif metric == "f1":
-                # Make F1 consistent with precision and recall if both exist
-                if "precision" in simulated_metrics and "recall" in simulated_metrics:
-                    p = simulated_metrics["precision"]
-                    r = simulated_metrics["recall"]
-                    simulated_metrics[metric] = round(2 * p * r / (p + r), 4)
+        # Check if AI/ML integration is available
+        if not AI_ML_AVAILABLE and allow_simulation:
+            # Fallback to simulation for demonstration
+            start_time = time.time()
+            
+            # Simulate processing delay
+            processing_delay = random.uniform(0.5, 2.0)
+            time.sleep(processing_delay)
+            
+            # Simulate number of samples
+            num_samples = max_samples if max_samples is not None else random.randint(100, 1000)
+            
+            # Simulate metrics
+            default_metrics = ["accuracy", "precision", "recall", "f1"]
+            metric_names = metrics if metrics else default_metrics
+            
+            simulated_metrics = {}
+            for metric in metric_names:
+                # Generate realistic metric values
+                if metric == "accuracy":
+                    simulated_metrics[metric] = round(random.uniform(0.82, 0.96), 4)
+                elif metric == "precision":
+                    simulated_metrics[metric] = round(random.uniform(0.80, 0.95), 4)
+                elif metric == "recall":
+                    simulated_metrics[metric] = round(random.uniform(0.75, 0.92), 4)
+                elif metric == "f1":
+                    # Make F1 consistent with precision and recall if both exist
+                    if "precision" in simulated_metrics and "recall" in simulated_metrics:
+                        p = simulated_metrics["precision"]
+                        r = simulated_metrics["recall"]
+                        simulated_metrics[metric] = round(2 * p * r / (p + r), 4)
+                    else:
+                        simulated_metrics[metric] = round(random.uniform(0.78, 0.94), 4)
                 else:
-                    simulated_metrics[metric] = round(random.uniform(0.78, 0.94), 4)
-            else:
-                # Generic metric
-                simulated_metrics[metric] = round(random.uniform(0.7, 0.98), 4)
-        
-        # Add confusion matrix if requested
-        if "confusion_matrix" in metric_names:
-            # Simplified 2-class confusion matrix for simulation
-            true_pos = int(num_samples * 0.8)
-            false_pos = int(num_samples * 0.05)
-            false_neg = int(num_samples * 0.10)
-            true_neg = num_samples - true_pos - false_pos - false_neg
+                    # Generic metric
+                    simulated_metrics[metric] = round(random.uniform(0.7, 0.98), 4)
             
-            simulated_metrics["confusion_matrix"] = [
-                [true_pos, false_neg],
-                [false_pos, true_neg]
-            ]
-        
-        # Simulate predictions
-        sample_predictions = []
-        for i in range(min(5, num_samples)):  # Show at most 5 sample predictions
-            # For classification
-            if "classes" in kwargs:
-                classes = kwargs["classes"]
-                prediction = {
-                    "sample_id": i,
-                    "prediction": random.choice(classes),
-                    "probabilities": {
-                        cls: round(random.random(), 4) for cls in classes
+            # Add confusion matrix if requested
+            if "confusion_matrix" in metric_names:
+                # Simplified 2-class confusion matrix for simulation
+                true_pos = int(num_samples * 0.8)
+                false_pos = int(num_samples * 0.05)
+                false_neg = int(num_samples * 0.10)
+                true_neg = num_samples - true_pos - false_pos - false_neg
+                
+                simulated_metrics["confusion_matrix"] = [
+                    [true_pos, false_neg],
+                    [false_pos, true_neg]
+                ]
+            
+            # Simulate predictions
+            sample_predictions = []
+            for i in range(min(5, num_samples)):  # Show at most 5 sample predictions
+                # For classification
+                if "classes" in kwargs:
+                    classes = kwargs["classes"]
+                    prediction = {
+                        "sample_id": i,
+                        "prediction": random.choice(classes),
+                        "probabilities": {
+                            cls: round(random.random(), 4) for cls in classes
+                        }
                     }
-                }
-            # For regression
-            else:
-                prediction = {
-                    "sample_id": i,
-                    "prediction": round(random.uniform(0, 100), 2)
-                }
+                # For regression
+                else:
+                    prediction = {
+                        "sample_id": i,
+                        "prediction": round(random.uniform(0, 100), 2)
+                    }
+                
+                sample_predictions.append(prediction)
             
-            sample_predictions.append(prediction)
-        
-        # Generate CID for predictions if saving
-        predictions_cid = None
-        if save_predictions:
-            predictions_cid = f"Qm{os.urandom(16).hex()}"
-        
-        # Calculate processing time
-        processing_time_ms = int((time.time() - start_time) * 1000)
-        inference_time_per_sample_ms = round(processing_time_ms / num_samples, 2)
-        
-        # Return simulated results
-        result = {
-            "success": True,
-            "operation": "ai_test_inference",
-            "timestamp": time.time(),
-            "simulation_note": "AI/ML integration not available, using simulated response",
-            "model_cid": model_cid,
-            "test_data_cid": test_data_cid,
-            "metrics": simulated_metrics,
-            "samples_processed": num_samples,
-            "sample_predictions": sample_predictions,
-            "processing_time_ms": processing_time_ms,
-            "inference_time_per_sample_ms": inference_time_per_sample_ms,
-            "batch_size": batch_size
-        }
-        
-        # Add predictions CID if saving
-        if save_predictions and predictions_cid:
-            result["predictions_cid"] = predictions_cid
+            # Generate CID for predictions if saving
+            predictions_cid = None
+            if save_predictions:
+                predictions_cid = f"Qm{os.urandom(16).hex()}"
             
-        # Add device info if provided
-        if device:
-            result["device"] = device
+            # Calculate processing time
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            inference_time_per_sample_ms = round(processing_time_ms / num_samples, 2)
             
-        return result
+            # Return simulated results
+            result = {
+                "success": True,
+                "operation": "ai_test_inference",
+                "timestamp": time.time(),
+                "simulation_note": "AI/ML integration not available, using simulated response",
+                "model_cid": model_cid,
+                "test_data_cid": test_data_cid,
+                "metrics": simulated_metrics,
+                "samples_processed": num_samples,
+                "sample_predictions": sample_predictions,
+                "processing_time_ms": processing_time_ms,
+                "inference_time_per_sample_ms": inference_time_per_sample_ms,
+                "batch_size": batch_size
+            }
+            
+            # Add predictions CID if saving
+            if save_predictions and predictions_cid:
+                result["predictions_cid"] = predictions_cid
+                
+            # Add device info if provided
+            if device:
+                result["device"] = device
+                
+            return result
+            
+        elif not AI_ML_AVAILABLE and not allow_simulation:
+            return {
+                "success": False,
+                "operation": "ai_test_inference",
+                "timestamp": time.time(),
+                "error": "AI/ML integration not available and simulation not allowed",
+                "error_type": "IntegrationError",
+                "model_cid": model_cid,
+                "test_data_cid": test_data_cid
+            }
         
-    elif not AI_ML_AVAILABLE and not allow_simulation:
-        return {
-            "success": False,
-            "operation": "ai_test_inference",
-            "timestamp": time.time(),
-            "error": "AI/ML integration not available and simulation not allowed",
-            "error_type": "IntegrationError",
-            "model_cid": model_cid,
-            "test_data_cid": test_data_cid
-        }
-    
-    # If AI/ML integration is available, use the real implementation
-    try:
-        # Create inference manager
-        inference_manager = ai_ml_integration.InferenceManager(self.kit)
+        # If AI/ML integration is available, use the real implementation
+        try:
+            # Create inference manager
+            inference_manager = ai_ml_integration.InferenceManager(self.kit)
+            
+            # Run inference
+            result = inference_manager.run_inference(
+                model_cid=model_cid,
+                test_data_cid=test_data_cid,
+                **kwargs_dict
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Return error information
+            return {
+                "success": False,
+                "operation": "ai_test_inference",
+                "timestamp": time.time(),
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "model_cid": model_cid,
+                "test_data_cid": test_data_cid
+            }
         
-        # Run inference
-        result = inference_manager.run_inference(
-            model_cid=model_cid,
-            test_data_cid=test_data_cid,
-            **kwargs_dict
-        )
-        
-        return result
-        
-    except Exception as e:
-        # Return error information
-        return {
-            "success": False,
-            "operation": "ai_test_inference",
-            "timestamp": time.time(),
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "model_cid": model_cid,
-            "test_data_cid": test_data_cid
-        }
 class PluginBase:
     """
     Base class for plugins.
