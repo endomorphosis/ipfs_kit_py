@@ -26,6 +26,7 @@ graph TD
     AIML[AI/ML Integration]
     KnowledgeGraph[Knowledge Graph]
     Utils[Utilities]
+    Observability[Prometheus & Grafana]
 
     CLI --> HLAPI
     HLAPI --> Kit
@@ -42,6 +43,7 @@ graph TD
     Kit --> AIML
     Kit --> KnowledgeGraph
     Kit --> Utils
+    Kit --> Observability
 
     ClusterMgmt --> Roles
     ClusterMgmt --> LibP2P
@@ -53,6 +55,7 @@ graph TD
     AIML --> Metadata
     KnowledgeGraph --> Storage
     Metadata --> Storage
+    Observability --> Kit
 ```
 
 -   **User Interfaces**: Provides multiple ways to interact with the kit (CLI, High-Level API, Core API, REST API Server).
@@ -67,6 +70,7 @@ graph TD
 -   **AI/ML Integration**: Tools for managing ML models/datasets and integrating with frameworks like PyTorch/TensorFlow.
 -   **Knowledge Graph**: Represents relationships between IPFS objects using IPLD.
 -   **Utilities**: Common functions for error handling, validation, etc.
+-   **Observability**: Comprehensive metrics collection and visualization using Prometheus and Grafana.
 
 ## Features
 
@@ -85,6 +89,7 @@ graph TD
 -   **AI/ML Integration**: Comprehensive AI/ML integration providing tools for model registry, dataset management, LangChain/LlamaIndex integration, distributed training, and more. Features include efficient `IPFSDataLoader` for PyTorch/TensorFlow, versioned content-addressed ML assets, AI safety tools, fine-tuning infrastructure, and GraphRAG capabilities. ([See Docs](docs/ai_ml_integration.md), [IPFS DataLoader](docs/ipfs_dataloader.md))
 -   **IPLD Knowledge Graph**: Model relationships between IPFS objects using IPLD for advanced data representation. ([See Docs](docs/knowledge_graph.md))
 -   **SDK Generation**: Automatically generate client SDKs for Python, JavaScript, and Rust.
+-   **Observability**: Comprehensive metrics collection and visualization using Prometheus and Grafana, with pre-configured dashboards for monitoring system performance, cache efficiency, operation latency, and more. ([See Docs](docs/observability.md))
 
 ## Installation
 
@@ -523,6 +528,12 @@ plugins:
 #    enabled: true
 #    config:
 #      setting1: value1
+
+# Observability
+observability:
+  metrics_enabled: true
+  prometheus_port: 9090
+  metrics_path: /metrics
 ```
 
 ### API Server
@@ -571,54 +582,6 @@ The API server provides:
 | `/api/v0/pin/ls` | GET | List pinned content on local node |
 | `/api/v0/id` | GET | Get node identity information |
 | `/api/v0/swarm/peers` | GET | List connected peers |
-
-#### GraphQL API
-
-IPFS Kit provides a GraphQL API for flexible client-side querying capabilities. GraphQL allows clients to request exactly the data they need, with the ability to traverse relationships and nested data in a single query.
-
-| Endpoint | Description |
-|----------|-------------|
-| `/graphql` | Main GraphQL endpoint for executing queries and mutations |
-| `/graphql/playground` | Interactive GraphQL IDE for exploring the API |
-| `/graphql/schema` | GraphQL schema in SDL (Schema Definition Language) format |
-
-Example GraphQL query:
-
-```graphql
-query {
-  # Get content information
-  content(cid: "QmExample") {
-    cid
-    size
-    isDirectory
-    pinned
-  }
-  
-  # List connected peers
-  peers {
-    peerId
-    address
-  }
-  
-  # Get IPFS version
-  version
-}
-```
-
-Example GraphQL mutation:
-
-```graphql
-mutation {
-  # Add content to IPFS (Base64 encoded)
-  addContent(content: "SGVsbG8sIElQRlMh", pin: true) {
-    success
-    cid
-    size
-  }
-}
-```
-
-See the `examples/graphql_example.py` file for more examples of using the GraphQL API.
 | `/api/v0/swarm/connect` | POST | Connect to a peer (provide multiaddr) |
 | `/api/v0/name/publish` | POST | Publish content to IPNS (provide CID) |
 | `/api/v0/name/resolve` | GET | Resolve IPNS name to CID |
@@ -682,6 +645,55 @@ except Exception as e:
 
 For more examples, see the `examples/` directory.
 
+## Observability
+
+IPFS Kit includes comprehensive observability features using Prometheus and Grafana, providing real-time metrics and visualization for:
+
+- System resources (CPU, memory, disk usage)
+- Cache performance (hit ratios, evictions, size)
+- Operation latency (add, get, pin operations)
+- Network traffic (bandwidth, peer connections)
+- Error rates and patterns
+
+### Prometheus Integration
+
+The system exposes metrics in Prometheus format through a dedicated endpoint (`/metrics`). Key metrics include:
+
+- **System Metrics**: CPU, memory, and disk usage percentages
+- **Cache Metrics**: Hit ratios, sizes, and item counts for each cache tier
+- **Operation Metrics**: Counts, durations, and error rates for IPFS operations
+- **Network Metrics**: Bytes sent/received, peer counts, and connection states
+- **Content Metrics**: Total content size, pin counts, and storage distribution
+
+### Grafana Dashboards
+
+Pre-configured Grafana dashboards provide comprehensive visualization:
+
+- **System Dashboard**: Real-time monitoring of system resources, cache performance, and network activity
+- **Operations Dashboard**: Detailed metrics on operation rates, latencies, and error patterns
+
+### Deployment
+
+The observability stack can be deployed using Kubernetes:
+
+```bash
+# Apply namespace
+kubectl apply -f kubernetes/namespace.yaml
+
+# Deploy Prometheus
+kubectl apply -f kubernetes/prometheus-configmap.yaml
+kubectl apply -f kubernetes/prometheus-deployment.yaml
+
+# Deploy Grafana
+kubectl apply -f kubernetes/grafana-dashboard-configmap.yaml
+kubectl apply -f kubernetes/grafana-deployment.yaml
+
+# Access Grafana (default password: ipfskitadmin)
+kubectl port-forward -n ipfs-kit svc/grafana 3000:3000
+```
+
+For more details on observability features, see the [Observability documentation](docs/observability.md).
+
 ## Advanced Features Documentation
 
 Detailed documentation for advanced features can be found in the `docs/` directory:
@@ -699,6 +711,7 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [IPFS DataLoader](docs/ipfs_dataloader.md)
 -   [IPLD Knowledge Graph](docs/knowledge_graph.md)
 -   [Storage Backends (S3/Storacha)](docs/storage_backends.md)
+-   [Observability](docs/observability.md)
 
 ## For Developers
 
@@ -847,8 +860,9 @@ Current development is focused on:
 2.  ✅ **PyPI Release Preparation**: Finalized package structure and metadata for publication.
 3.  ✅ **Containerization**: Created comprehensive Docker and Kubernetes deployments with detailed documentation.
 4.  ✅ **CI/CD Pipeline**: Established complete continuous integration and deployment workflows for packages, containers, and documentation.
-5.  **Test Stability and Reliability**: Enhancing test fixtures and mocking systems for consistent test results.
-6.  **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
+5.  ✅ **Observability Stack**: Implemented comprehensive metrics collection and visualization with Prometheus and Grafana.
+6.  **Test Stability and Reliability**: Enhancing test fixtures and mocking systems for consistent test results.
+7.  **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
 
 Recent accomplishments:
 1.  ✅ **Automatic Platform-Specific Binary Downloads**: Implemented smart binary installation:
@@ -887,10 +901,15 @@ Recent accomplishments:
    - Automated version management and release creation
    - Docker image building with security scanning
    - Documentation publishing with API references
-8.  **Fixed PyArrow Testing**: Resolved schema type mismatch issues in cluster state tests.
-9.  **Enhanced Test Framework**: Improved fixtures and state handling for isolated tests.
-10. **Custom Mocking Systems**: Created specialized patches for third-party libraries like PyArrow.
-11. **Core Development Roadmap**: Completed all planned development phases with fully functional components.
+8.  ✅ **Observability Stack**: Implemented comprehensive metrics collection and visualization:
+   - Prometheus exporter for IPFS kit metrics
+   - Custom Grafana dashboards for system and operations monitoring
+   - Kubernetes manifests for observability deployment
+   - Pre-configured alerting and visualization
+9.  **Fixed PyArrow Testing**: Resolved schema type mismatch issues in cluster state tests.
+10. **Enhanced Test Framework**: Improved fixtures and state handling for isolated tests.
+11. **Custom Mocking Systems**: Created specialized patches for third-party libraries like PyArrow.
+12. **Core Development Roadmap**: Completed all planned development phases with fully functional components.
 
 ## Contributing
 

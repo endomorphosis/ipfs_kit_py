@@ -633,17 +633,27 @@ if FASTAPI_AVAILABLE:
 
     # Add metrics if enabled
     if hasattr(app, "state") and getattr(app.state, "config", {}).get("metrics_enabled"):
-        try:
-            from prometheus_fastapi_instrumentator import Instrumentator
+        if PROMETHEUS_AVAILABLE:
+            # Use our custom Prometheus exporter instead of instrumentator
+            metrics_instance = app.state.performance_metrics
+            if add_prometheus_metrics_endpoint(app, metrics_instance, path="/metrics"):
+                logger.info("Prometheus metrics enabled at /metrics")
+            else:
+                logger.warning("Failed to set up Prometheus metrics")
+                app.state.config["metrics_enabled"] = False
+        else:
+            # Fallback to prometheus_fastapi_instrumentator if available
+            try:
+                from prometheus_fastapi_instrumentator import Instrumentator
 
-            # Set up Prometheus metrics
-            instrumentator = Instrumentator()
-            instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+                # Set up Prometheus metrics
+                instrumentator = Instrumentator()
+                instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
-            logger.info("Prometheus metrics enabled at /metrics")
-        except ImportError:
-            logger.warning("prometheus_fastapi_instrumentator not available, metrics disabled")
-            app.state.config["metrics_enabled"] = False
+                logger.info("Prometheus metrics enabled at /metrics (using instrumentator)")
+            except ImportError:
+                logger.warning("prometheus_fastapi_instrumentator not available, metrics disabled")
+                app.state.config["metrics_enabled"] = False
 
 # Implement core IPFS endpoints for v0 API if FastAPI is available
 if FASTAPI_AVAILABLE:

@@ -67,6 +67,9 @@ spec:
         - name: api
           containerPort: 5001
           protocol: TCP
+        - name: metrics
+          containerPort: 9100
+          protocol: TCP
         volumeMounts:
         - name: ipfs-data
           mountPath: /data

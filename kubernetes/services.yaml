@@ -25,6 +25,10 @@ spec:
     port: 9096
     targetPort: cluster
     protocol: TCP
+  - name: metrics
+    port: 9100
+    targetPort: metrics
+    protocol: TCP
   selector:
     app: ipfs-kit
     role: master
@@ -72,6 +76,10 @@ spec:
     port: 5001
     targetPort: api
     protocol: TCP
+  - name: metrics
+    port: 9100
+    targetPort: metrics
+    protocol: TCP
   selector:
     app: ipfs-kit
     role: worker
@@ -98,6 +106,10 @@ spec:
   - name: gateway
     port: 8080
     targetPort: gateway
+    protocol: TCP
+  - name: metrics
+    port: 9100
+    targetPort: metrics
     protocol: TCP
   selector:
     app: ipfs-kit
