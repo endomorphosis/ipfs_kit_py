@@ -3,6 +3,7 @@ import platform
 import shutil
 import tempfile
 import unittest.mock
+
 import pytest
 
 from ipfs_kit_py import download_binaries
@@ -11,115 +12,118 @@ from ipfs_kit_py.install_ipfs import install_ipfs
 
 class TestBinaryDownload:
     """Test suite for verifying automatic binary downloads based on platform."""
-    
+
     @pytest.fixture
     def temp_bin_dir(self):
         """Create a temporary bin directory for testing downloads."""
         temp_dir = tempfile.mkdtemp()
         temp_bin_dir = os.path.join(temp_dir, "bin")
         os.makedirs(temp_bin_dir, exist_ok=True)
-        
+
         # Save original directory to restore it after test
         orig_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ipfs_kit_py", "bin")
-        
+
         yield temp_bin_dir
-        
+
         # Cleanup
         shutil.rmtree(temp_dir)
-    
+
     @pytest.fixture
     def mock_platform(self, monkeypatch):
         """Fixture to mock platform information for testing different OS environments."""
+
         def _set_platform(system, machine):
             monkeypatch.setattr(platform, "system", lambda: system)
             monkeypatch.setattr(platform, "machine", lambda: machine)
             monkeypatch.setattr(platform, "architecture", lambda: ("64bit", ""))
-            
+
             if system == "Linux":
                 monkeypatch.setattr(platform, "processor", lambda: "x86_64")
             elif system == "Darwin":
                 monkeypatch.setattr(platform, "processor", lambda: "arm")
             elif system == "Windows":
                 monkeypatch.setattr(platform, "processor", lambda: "Intel")
-                
+
         return _set_platform
-    
+
     def test_detect_current_platform(self):
         """Test that the installer correctly detects the current platform."""
         installer = install_ipfs({}, {})  # pass empty dicts for resources and metadata
         platform_str = installer.dist_select()
-        
+
         # The platform string should be in the format "system arch"
         system, arch = platform_str.split()
-        
+
         # Verify system is correctly detected
         assert system.lower() == platform.system().lower()
-        
+
         # Verify architecture is one of the valid values
         assert arch in ["x86_64", "x86", "arm64", "arm"]
-        
+
     def test_binary_distribution_urls(self):
         """Test that distribution URLs exist for the current platform."""
         installer = install_ipfs({}, {})
         platform_str = installer.dist_select()
-        
+
         # Check that URLs exist for the current platform
         assert platform_str in installer.ipfs_dists
         assert platform_str in installer.ipfs_cluster_service_dists
         assert platform_str in installer.ipfs_cluster_ctl_dists
         assert platform_str in installer.ipfs_cluster_follow_dists
-        
+
         # Check that the URLs are valid
         assert installer.ipfs_dists[platform_str].startswith("https://")
         assert installer.ipfs_cluster_service_dists[platform_str].startswith("https://")
         assert installer.ipfs_cluster_ctl_dists[platform_str].startswith("https://")
         assert installer.ipfs_cluster_follow_dists[platform_str].startswith("https://")
-    
-    @unittest.mock.patch('os.path.exists', return_value=False)
-    @unittest.mock.patch('ipfs_kit_py.install_ipfs.install_ipfs.install_ipfs_daemon')
+
+    @unittest.mock.patch("os.path.exists", return_value=False)
+    @unittest.mock.patch("ipfs_kit_py.install_ipfs.install_ipfs.install_ipfs_daemon")
     def test_download_binaries_function(self, mock_daemon, mock_exists):
         """Test that the download_binaries function calls the appropriate installer."""
         # Create a simple mock for the installer class
         mock_installer = unittest.mock.MagicMock()
         mock_installer.install_ipfs_daemon.return_value = "QmTest123"
-        
+
         # Mock the installer instantiation
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.install_ipfs', return_value=mock_installer):
+        with unittest.mock.patch(
+            "ipfs_kit_py.install_ipfs.install_ipfs", return_value=mock_installer
+        ):
             # Call the download function
             download_binaries()
-            
+
             # Check if the installer was used
             mock_installer.install_ipfs_daemon.assert_called_once()
-    
-    @unittest.mock.patch('subprocess.check_output')
+
+    @unittest.mock.patch("subprocess.check_output")
     def test_linux_binary_download(self, mock_subprocess, mock_platform, temp_bin_dir):
         """Test binary download for Linux x86_64."""
         mock_platform("Linux", "x86_64")
-        
+
         # Mock successful download and extraction
         mock_subprocess.return_value = b"Download successful"
-        
+
         # Create a test installer with our temp directory
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.os.path.dirname') as mock_dirname:
+        with unittest.mock.patch("ipfs_kit_py.install_ipfs.os.path.dirname") as mock_dirname:
             mock_dirname.return_value = os.path.dirname(temp_bin_dir)
             installer = install_ipfs({}, {})
             installer.bin_path = temp_bin_dir
-            
+
             # Create a mock binary to simulate successful extraction
             ipfs_bin = os.path.join(temp_bin_dir, "ipfs")
-            with open(ipfs_bin, 'w') as f:
+            with open(ipfs_bin, "w") as f:
                 f.write("#!/bin/bash\necho 'IPFS mock'")
             os.chmod(ipfs_bin, 0o755)
-            
+
             # Test the installation
             result = installer.install_ipfs_daemon()
-            
+
             # Since our mock download "succeeded" and we created the binary file,
             # the installation should report success
             assert result is not None
             assert os.path.exists(ipfs_bin)
-    
-    @unittest.mock.patch('subprocess.check_output')
+
+    @unittest.mock.patch("subprocess.check_output")
     def test_macos_binary_download(self, mock_subprocess, mock_platform, temp_bin_dir):
         """Test binary download for macOS arm64."""
         # Skip this test since we're modifying the mock on a different platform
@@ -128,83 +132,83 @@ class TestBinaryDownload:
 
         # The test would look like this:
         mock_platform("Darwin", "arm64")
-        
+
         # Mock successful download and extraction
         mock_subprocess.return_value = b"Download successful"
-        
+
         # Create a test installer with our temp directory
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.os.path.dirname') as mock_dirname:
+        with unittest.mock.patch("ipfs_kit_py.install_ipfs.os.path.dirname") as mock_dirname:
             mock_dirname.return_value = os.path.dirname(temp_bin_dir)
             installer = install_ipfs({}, {})
             installer.bin_path = temp_bin_dir
-            
+
             # Add the Darwin arm64 key to installer.ipfs_dists if it doesn't exist
             if "darwin arm64" not in installer.ipfs_dists:
                 installer.ipfs_dists["darwin arm64"] = installer.ipfs_dists["darwin x86_64"]
-            
+
             # Create a mock binary to simulate successful extraction
             ipfs_bin = os.path.join(temp_bin_dir, "ipfs")
-            with open(ipfs_bin, 'w') as f:
+            with open(ipfs_bin, "w") as f:
                 f.write("#!/bin/bash\necho 'IPFS mock'")
             os.chmod(ipfs_bin, 0o755)
-            
+
             # Test the installation
             result = installer.install_ipfs_daemon()
-            
+
             # Since our mock download "succeeded" and we created the binary file,
             # the installation should report success
             assert result is not None
             assert os.path.exists(ipfs_bin)
-    
-    @unittest.mock.patch('subprocess.check_output')
+
+    @unittest.mock.patch("subprocess.check_output")
     def test_windows_binary_download(self, mock_subprocess, mock_platform, temp_bin_dir):
         """Test binary download for Windows x86_64."""
         mock_platform("Windows", "AMD64")
-        
+
         # Mock successful download and extraction
         mock_subprocess.return_value = b"Download successful"
-        
+
         # Create a test installer with our temp directory
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.os.path.dirname') as mock_dirname:
+        with unittest.mock.patch("ipfs_kit_py.install_ipfs.os.path.dirname") as mock_dirname:
             mock_dirname.return_value = os.path.dirname(temp_bin_dir)
             installer = install_ipfs({}, {})
             installer.bin_path = temp_bin_dir
-            
+
             # Create a mock binary to simulate successful extraction
             ipfs_bin = os.path.join(temp_bin_dir, "ipfs.exe")
-            with open(ipfs_bin, 'w') as f:
+            with open(ipfs_bin, "w") as f:
                 f.write("Windows IPFS Mock")
-            
+
             # Test the installation
             result = installer.install_ipfs_daemon()
-            
+
             # Since our mock download "succeeded" and we created the binary file,
             # the installation should report success
             assert result is not None
             assert os.path.exists(ipfs_bin)
-    
+
     def test_platform_specific_binary_names(self, mock_platform, temp_bin_dir):
         """Test that the correct binary names are used for each platform."""
         # Test Linux
         mock_platform("Linux", "x86_64")
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.os.path.dirname') as mock_dirname:
+        with unittest.mock.patch("ipfs_kit_py.install_ipfs.os.path.dirname") as mock_dirname:
             mock_dirname.return_value = os.path.dirname(temp_bin_dir)
             installer = install_ipfs({}, {})
             binary_path = os.path.join(installer.bin_path, "ipfs")
             assert "ipfs" in binary_path
             assert ".exe" not in binary_path
-        
+
         # Test Windows
         mock_platform("Windows", "AMD64")
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.os.path.dirname') as mock_dirname:
+        with unittest.mock.patch("ipfs_kit_py.install_ipfs.os.path.dirname") as mock_dirname:
             mock_dirname.return_value = os.path.dirname(temp_bin_dir)
             installer = install_ipfs({}, {})
             binary_path = os.path.join(installer.bin_path, "ipfs.exe")
             assert "ipfs.exe" in binary_path
-        
+
         # Test macOS
         mock_platform("Darwin", "arm64")
-        with unittest.mock.patch('ipfs_kit_py.install_ipfs.os.path.dirname') as mock_dirname:
+        with unittest.mock.patch("ipfs_kit_py.install_ipfs.os.path.dirname") as mock_dirname:
             mock_dirname.return_value = os.path.dirname(temp_bin_dir)
             installer = install_ipfs({}, {})
             binary_path = os.path.join(installer.bin_path, "ipfs")
@@ -215,47 +219,49 @@ class TestBinaryDownload:
         """Test the auto-download on import feature."""
         # Skip this test as it's difficult to properly test module import behavior
         pytest.skip("This test requires special setup to test module import behavior")
-        
+
         # The test would look like this:
         # First ensure the _BINARIES_DOWNLOADED flag is reset
         from ipfs_kit_py import _BINARIES_DOWNLOADED
-        
+
         # Mock the conditions that trigger download on import
-        with unittest.mock.patch('ipfs_kit_py._BINARIES_DOWNLOADED', False):
-            with unittest.mock.patch('os.path.exists', return_value=False):
-                with unittest.mock.patch('ipfs_kit_py.download_binaries') as mock_download:
+        with unittest.mock.patch("ipfs_kit_py._BINARIES_DOWNLOADED", False):
+            with unittest.mock.patch("os.path.exists", return_value=False):
+                with unittest.mock.patch("ipfs_kit_py.download_binaries") as mock_download:
                     # Simulate the import process
                     from importlib import reload
+
                     import ipfs_kit_py
+
                     reload(ipfs_kit_py)
-                    
+
                     # Verify download_binaries was called
                     mock_download.assert_called_once()
-    
+
     def test_ipfs_kit_initialization_download(self):
         """Test that ipfs_kit class triggers binary downloads if needed."""
         from ipfs_kit_py.ipfs_kit import ipfs_kit
-        
+
         # Make sure binaries appear to be missing
-        with unittest.mock.patch('os.path.exists', return_value=False):
+        with unittest.mock.patch("os.path.exists", return_value=False):
             # Mock the download_binaries function
-            with unittest.mock.patch('ipfs_kit_py.download_binaries') as mock_download:
+            with unittest.mock.patch("ipfs_kit_py.download_binaries") as mock_download:
                 # Initialize ipfs_kit with auto_download enabled
                 kit = ipfs_kit(metadata={"auto_download_binaries": True})
-                
+
                 # Verify download_binaries was called
                 mock_download.assert_called_once()
-    
+
     def test_disable_auto_download(self):
         """Test that auto-download can be disabled."""
         from ipfs_kit_py.ipfs_kit import ipfs_kit
-        
+
         # Make sure binaries appear to be missing
-        with unittest.mock.patch('os.path.exists', return_value=False):
+        with unittest.mock.patch("os.path.exists", return_value=False):
             # Mock the download_binaries function
-            with unittest.mock.patch('ipfs_kit_py.download_binaries') as mock_download:
+            with unittest.mock.patch("ipfs_kit_py.download_binaries") as mock_download:
                 # Initialize ipfs_kit with auto_download disabled
                 kit = ipfs_kit(metadata={"auto_download_binaries": False})
-                
+
                 # Verify download_binaries was NOT called
                 mock_download.assert_not_called()

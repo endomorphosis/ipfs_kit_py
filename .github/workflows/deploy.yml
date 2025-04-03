@@ -1,0 +1,318 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - staging
+        - production
+      version:
+        description: 'Version to deploy (defaults to latest tag)'
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        
+      - name: Set up kubeconfig
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          context: ipfs-kit-${{ github.event.inputs.environment }}
+      
+      - name: Set deployment variables
+        id: vars
+        run: |
+          # Set environment-specific variables
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo "replicas_master=2" >> $GITHUB_OUTPUT
+            echo "replicas_worker=5" >> $GITHUB_OUTPUT
+            echo "namespace=ipfs-kit-prod" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "replicas_master=1" >> $GITHUB_OUTPUT
+            echo "replicas_worker=3" >> $GITHUB_OUTPUT
+            echo "namespace=ipfs-kit-staging" >> $GITHUB_OUTPUT
+          else
+            echo "replicas_master=1" >> $GITHUB_OUTPUT
+            echo "replicas_worker=1" >> $GITHUB_OUTPUT
+            echo "namespace=ipfs-kit-dev" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set version
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Get latest tag
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
+            echo "version=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create namespace if not exists
+        run: kubectl create namespace ${{ steps.vars.outputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy ConfigMap
+        run: |
+          # Create ConfigMap from environment-specific configuration
+          kubectl -n ${{ steps.vars.outputs.namespace }} create configmap ipfs-kit-config \
+            --from-file=docker/config-master.yaml \
+            --from-file=docker/config-worker.yaml \
+            --from-file=docker/config-leecher.yaml \
+            --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Create Cluster Secret
+        run: |
+          # Create cluster secret for secure communication
+          kubectl -n ${{ steps.vars.outputs.namespace }} create secret generic ipfs-cluster-secret \
+            --from-literal=cluster-secret=${{ secrets.CLUSTER_SECRET }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy Master StatefulSet
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: ipfs-master
+            namespace: ${{ steps.vars.outputs.namespace }}
+          spec:
+            serviceName: ipfs-master
+            replicas: ${{ steps.vars.outputs.replicas_master }}
+            selector:
+              matchLabels:
+                app: ipfs-kit
+                role: master
+            template:
+              metadata:
+                labels:
+                  app: ipfs-kit
+                  role: master
+              spec:
+                containers:
+                - name: ipfs-master
+                  image: ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.version }}
+                  args: ["master"]
+                  ports:
+                  - containerPort: 4001
+                    name: swarm
+                  - containerPort: 5001
+                    name: api
+                  - containerPort: 8080
+                    name: gateway
+                  - containerPort: 9096
+                    name: cluster
+                  env:
+                  - name: ROLE
+                    value: master
+                  - name: CONFIG_PATH
+                    value: /etc/ipfs-kit/config-master.yaml
+                  - name: MAX_MEMORY
+                    value: "4G"
+                  - name: MAX_STORAGE
+                    value: "100G"
+                  - name: CLUSTER_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: ipfs-cluster-secret
+                        key: cluster-secret
+                  volumeMounts:
+                  - name: data
+                    mountPath: /data
+                  - name: config-volume
+                    mountPath: /etc/ipfs-kit
+                    readOnly: true
+                  resources:
+                    requests:
+                      memory: "2Gi"
+                      cpu: "1"
+                    limits:
+                      memory: "4Gi"
+                      cpu: "2"
+                  livenessProbe:
+                    exec:
+                      command:
+                      - /health-check.sh
+                    initialDelaySeconds: 60
+                    periodSeconds: 30
+                    timeoutSeconds: 10
+                    failureThreshold: 3
+                  readinessProbe:
+                    httpGet:
+                      path: /api/v0/id
+                      port: 5001
+                    initialDelaySeconds: 30
+                    periodSeconds: 15
+                volumes:
+                - name: config-volume
+                  configMap:
+                    name: ipfs-kit-config
+            volumeClaimTemplates:
+            - metadata:
+                name: data
+              spec:
+                accessModes: [ "ReadWriteOnce" ]
+                resources:
+                  requests:
+                    storage: 100Gi
+          EOF
+      
+      - name: Deploy Worker Deployment
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ipfs-worker
+            namespace: ${{ steps.vars.outputs.namespace }}
+          spec:
+            replicas: ${{ steps.vars.outputs.replicas_worker }}
+            selector:
+              matchLabels:
+                app: ipfs-kit
+                role: worker
+            template:
+              metadata:
+                labels:
+                  app: ipfs-kit
+                  role: worker
+              spec:
+                containers:
+                - name: ipfs-worker
+                  image: ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.version }}
+                  args: ["worker"]
+                  ports:
+                  - containerPort: 4001
+                    name: swarm
+                  - containerPort: 5001
+                    name: api
+                  env:
+                  - name: ROLE
+                    value: worker
+                  - name: CONFIG_PATH
+                    value: /etc/ipfs-kit/config-worker.yaml
+                  - name: MASTER_ADDR
+                    value: /dns4/ipfs-master.${{ steps.vars.outputs.namespace }}.svc.cluster.local/tcp/9096
+                  - name: MAX_MEMORY
+                    value: "2G"
+                  - name: MAX_STORAGE
+                    value: "50G"
+                  - name: CLUSTER_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: ipfs-cluster-secret
+                        key: cluster-secret
+                  volumeMounts:
+                  - name: data
+                    mountPath: /data
+                  - name: config-volume
+                    mountPath: /etc/ipfs-kit
+                    readOnly: true
+                  resources:
+                    requests:
+                      memory: "1Gi"
+                      cpu: "0.5"
+                    limits:
+                      memory: "2Gi"
+                      cpu: "1"
+                  livenessProbe:
+                    exec:
+                      command:
+                      - /health-check.sh
+                    initialDelaySeconds: 60
+                    periodSeconds: 30
+                    timeoutSeconds: 10
+                    failureThreshold: 3
+                volumes:
+                - name: config-volume
+                  configMap:
+                    name: ipfs-kit-config
+                - name: data
+                  persistentVolumeClaim:
+                    claimName: ipfs-worker-data
+          EOF
+      
+      - name: Create Worker PVC
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: ipfs-worker-data
+            namespace: ${{ steps.vars.outputs.namespace }}
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+          EOF
+      
+      - name: Deploy Service
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ipfs-master
+            namespace: ${{ steps.vars.outputs.namespace }}
+          spec:
+            selector:
+              app: ipfs-kit
+              role: master
+            ports:
+            - name: swarm
+              port: 4001
+              targetPort: 4001
+            - name: api
+              port: 5001
+              targetPort: 5001
+            - name: gateway
+              port: 8080
+              targetPort: 8080
+            - name: cluster
+              port: 9096
+              targetPort: 9096
+          EOF
+      
+      - name: Verify deployment
+        run: |
+          kubectl -n ${{ steps.vars.outputs.namespace }} rollout status statefulset/ipfs-master --timeout=300s
+          kubectl -n ${{ steps.vars.outputs.namespace }} rollout status deployment/ipfs-worker --timeout=300s
+          
+      - name: Run deployment tests
+        run: |
+          # Simple health check
+          echo "Waiting for services to be fully ready..."
+          sleep 30
+          
+          # Check master API
+          MASTER_IP=$(kubectl -n ${{ steps.vars.outputs.namespace }} get service ipfs-master -o jsonpath='{.spec.clusterIP}')
+          if curl -s -f -m 5 "http://${MASTER_IP}:5001/api/v0/id" > /dev/null; then
+            echo "Master API check: SUCCESS ✅"
+          else
+            echo "Master API check: FAILED ❌"
+            exit 1
+          fi
+          
+          # Check worker status by checking connected peers on master
+          PEERS=$(kubectl -n ${{ steps.vars.outputs.namespace }} exec statefulset/ipfs-master -c ipfs-master -- curl -s "http://localhost:5001/api/v0/swarm/peers" | grep -o -E "p2p/[a-zA-Z0-9]+" | wc -l)
+          if [ $PEERS -ge ${{ steps.vars.outputs.replicas_worker }} ]; then
+            echo "Peer connection check: SUCCESS ✅ (Found $PEERS peers)"
+          else
+            echo "Peer connection check: WARNING ⚠️ (Found $PEERS peers, expected at least ${{ steps.vars.outputs.replicas_worker }})"
+          fi
+          
+          echo "Deployment verification completed successfully!"

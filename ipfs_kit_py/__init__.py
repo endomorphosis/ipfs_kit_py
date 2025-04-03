@@ -6,10 +6,10 @@ __version__ = "0.1.0"
 __author__ = "Benjamin Barber"
 __email__ = "starworks5@gmail.com"
 
+import logging
 import os
 import platform
 import sys
-import logging
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -18,22 +18,23 @@ logger = logging.getLogger(__name__)
 _BINARIES_DOWNLOADED = False
 _DOWNLOAD_BINARIES_AUTOMATICALLY = True
 
+
 def download_binaries():
     """Download platform-specific binaries for IPFS and related tools."""
     global _BINARIES_DOWNLOADED
-    
+
     if _BINARIES_DOWNLOADED:
         return
-    
+
     try:
         # Import the installer
         from .install_ipfs import install_ipfs
-        
+
         logger.info(f"Auto-downloading IPFS binaries for {platform.system()} {platform.machine()}")
-        
+
         # Create installer instance
         installer = install_ipfs()
-        
+
         # Install core binaries based on platform
         try:
             if not os.path.exists(os.path.join(os.path.dirname(__file__), "bin", "ipfs")):
@@ -41,43 +42,52 @@ def download_binaries():
                 logger.info("Downloaded IPFS daemon successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS daemon: {e}")
-        
+
         try:
-            if not os.path.exists(os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-service")):
+            if not os.path.exists(
+                os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-service")
+            ):
                 installer.install_ipfs_cluster_service()
                 logger.info("Downloaded IPFS cluster service successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS cluster service: {e}")
-            
+
         try:
-            if not os.path.exists(os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-ctl")):
+            if not os.path.exists(
+                os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-ctl")
+            ):
                 installer.install_ipfs_cluster_ctl()
                 logger.info("Downloaded IPFS cluster control successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS cluster control: {e}")
-            
+
         try:
-            if not os.path.exists(os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-follow")):
+            if not os.path.exists(
+                os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-follow")
+            ):
                 installer.install_ipfs_cluster_follow()
                 logger.info("Downloaded IPFS cluster follow successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS cluster follow: {e}")
-            
+
         _BINARIES_DOWNLOADED = True
         logger.info("IPFS binary downloads completed")
-        
+
     except Exception as e:
         logger.error(f"Error downloading IPFS binaries: {e}")
+
 
 # Auto-download binaries on import if enabled
 if _DOWNLOAD_BINARIES_AUTOMATICALLY:
     # Initialize the binary directory
     bin_dir = os.path.join(os.path.dirname(__file__), "bin")
     os.makedirs(bin_dir, exist_ok=True)
-    
+
     # Check if any binaries need to be downloaded
-    if not (os.path.exists(os.path.join(bin_dir, "ipfs")) or 
-            (platform.system() == "Windows" and os.path.exists(os.path.join(bin_dir, "ipfs.exe")))):
+    if not (
+        os.path.exists(os.path.join(bin_dir, "ipfs"))
+        or (platform.system() == "Windows" and os.path.exists(os.path.join(bin_dir, "ipfs.exe")))
+    ):
         try:
             download_binaries()
         except Exception as e:

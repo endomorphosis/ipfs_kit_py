@@ -344,6 +344,13 @@ ipfs_api = IPFSSimpleAPI(config_path=config_path)
 log_level = os.environ.get("IPFS_KIT_LOG_LEVEL", "INFO").upper()
 logging.getLogger("ipfs_kit_py").setLevel(log_level)
 
+# Try to import Prometheus exporter (optional)
+try:
+    from .prometheus_exporter import add_prometheus_metrics_endpoint, PROMETHEUS_AVAILABLE
+except ImportError:
+    logger.warning("Prometheus exporter not available, metrics will be disabled")
+    PROMETHEUS_AVAILABLE = False
+
 if FASTAPI_AVAILABLE:
     # Set the API in app state for better testability and middleware access
     app.state.ipfs_api = ipfs_api
@@ -358,8 +365,20 @@ if FASTAPI_AVAILABLE:
         "rate_limit_enabled": os.environ.get("IPFS_KIT_RATE_LIMIT_ENABLED", "false").lower()
         == "true",
         "rate_limit": int(os.environ.get("IPFS_KIT_RATE_LIMIT", 100)),  # requests per minute
-        "metrics_enabled": os.environ.get("IPFS_KIT_METRICS_ENABLED", "false").lower() == "true",
+        "metrics_enabled": os.environ.get("IPFS_KIT_METRICS_ENABLED", "true").lower() == "true",
     }
+    
+    # Add the performance metrics instance to app state if it exists on the API
+    if hasattr(ipfs_api, "performance_metrics"):
+        app.state.performance_metrics = ipfs_api.performance_metrics
+    else:
+        # Create a new instance if not available
+        from .performance_metrics import PerformanceMetrics
+        app.state.performance_metrics = PerformanceMetrics(
+            metrics_dir=os.environ.get("IPFS_KIT_METRICS_DIR"),
+            enable_logging=True,
+            track_system_resources=True
+        )
 
 # Define API models for standardized responses if FastAPI is available
 if FASTAPI_AVAILABLE:
@@ -2448,12 +2467,81 @@ if FASTAPI_AVAILABLE:
     @app.get("/health")
     async def health_check():
         """Health check endpoint."""
+        # Get GraphQL status
         graphql_status = (
             graphql_schema.check_graphql_availability()
             if GRAPHQL_AVAILABLE
             else {"available": False}
         )
-        return {"status": "ok", "version": "0.1.0", "graphql": graphql_status}
+        
+        # Get API status
+        api_status = "ok"
+        ipfs_version = None
+        ipfs_id = None
+        ipfs_peers = 0
+        
+        try:
+            api = app.state.ipfs_api
+            
+            # Check if IPFS daemon is responsive
+            version_result = api.version()
+            if version_result.get("success", False):
+                ipfs_version = version_result.get("version")
+                
+            # Get IPFS node ID
+            id_result = api.id()
+            if id_result.get("success", False):
+                ipfs_id = id_result.get("id")
+                
+            # Count connected peers
+            peers_result = api.peers()
+            if peers_result.get("success", False):
+                if isinstance(peers_result.get("peers"), list):
+                    ipfs_peers = len(peers_result.get("peers", []))
+                elif isinstance(peers_result.get("Peers"), list):
+                    ipfs_peers = len(peers_result.get("Peers", []))
+                    
+        except Exception as e:
+            api_status = f"error: {str(e)}"
+            
+        # Get system metrics if available
+        system_metrics = {}
+        if hasattr(app.state, "performance_metrics") and app.state.performance_metrics.track_system_resources:
+            try:
+                system_metrics = app.state.performance_metrics.get_system_utilization()
+            except Exception as e:
+                logger.warning(f"Error getting system metrics: {e}")
+                
+        return {
+            "status": "ok", 
+            "timestamp": time.time(),
+            "version": "0.1.0",
+            "api_status": api_status,
+            "ipfs": {
+                "version": ipfs_version,
+                "id": ipfs_id,
+                "peers": ipfs_peers
+            },
+            "system": system_metrics,
+            "graphql": graphql_status
+        }
+            
+    # Add Prometheus metrics endpoint if enabled and available
+    if PROMETHEUS_AVAILABLE and app.state.config.get("metrics_enabled", False):
+        # Try to add metrics endpoint
+        try:
+            metrics_path = os.environ.get("IPFS_KIT_METRICS_PATH", "/metrics")
+            metrics_added = add_prometheus_metrics_endpoint(
+                app, 
+                app.state.performance_metrics,
+                path=metrics_path
+            )
+            if metrics_added:
+                logger.info(f"Prometheus metrics endpoint added at {metrics_path}")
+            else:
+                logger.warning("Failed to add Prometheus metrics endpoint")
+        except Exception as e:
+            logger.error(f"Error setting up Prometheus metrics: {e}", exc_info=True)
 
 
 # Special test endpoints for testing and validation (only if FastAPI is available)

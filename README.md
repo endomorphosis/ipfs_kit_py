@@ -686,9 +686,9 @@ For more examples, see the `examples/` directory.
 
 Detailed documentation for advanced features can be found in the `docs/` directory:
 
--   [Core Concepts](docs/core_concepts.md) (TBD)
--   [High-Level API](docs/high_level_api.md) (TBD)
--   [Cluster Management](docs/cluster_management.md) (TBD)
+-   [Core Concepts](docs/core_concepts.md)
+-   [High-Level API](docs/high_level_api.md)
+-   [Cluster Management](docs/cluster_management.md)
 -   [Cluster State Helpers](docs/cluster_state_helpers.md)
 -   [Tiered Cache System](docs/tiered_cache.md)
 -   [FSSpec Filesystem Interface](docs/fsspec_integration.md)
@@ -697,10 +697,8 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [Performance Profiling & Optimization](examples/PERFORMANCE_PROFILING.md)
 -   [AI/ML Integration](docs/ai_ml_integration.md)
 -   [IPFS DataLoader](docs/ipfs_dataloader.md)
--   [IPLD Knowledge Graph](docs/knowledge_graph.md) (TBD)
--   [Storage Backends (S3/Storacha)](docs/storage_backends.md) (TBD)
-
-*(Note: TBD indicates files planned but not yet created)*
+-   [IPLD Knowledge Graph](docs/knowledge_graph.md)
+-   [Storage Backends (S3/Storacha)](docs/storage_backends.md)
 
 ## For Developers
 

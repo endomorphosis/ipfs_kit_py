@@ -35,6 +35,8 @@ from ipfs_kit_py.ai_ml_integration import (
     LangchainIntegration,
     LlamaIndexIntegration,
     ModelRegistry,
+    TensorflowIntegration,
+    PyTorchIntegration,
 )
 
 
@@ -808,6 +810,612 @@ class TestDistributedTraining(unittest.TestCase):
 
         # Verify cluster manager interactions
         self.cluster_manager.get_task_results.assert_called_once_with("test_task_id")
+
+
+class TestTensorflowIntegration(unittest.TestCase):
+    """Test cases for the TensorflowIntegration implementation."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Skip tests if TensorFlow is not available
+        if not TF_AVAILABLE:
+            self.skipTest("TensorFlow not available")
+        
+        # Create mock IPFS client
+        self.ipfs_mock = MagicMock()
+        self.ipfs_mock._testing_mode = False
+        
+        # Mock model registry
+        self.model_registry_mock = MagicMock()
+        self.ipfs_mock.get_model_registry = MagicMock(return_value=self.model_registry_mock)
+        
+        # Mock dataset manager
+        self.dataset_manager_mock = MagicMock()
+        self.ipfs_mock.get_dataset_manager = MagicMock(return_value=self.dataset_manager_mock)
+        
+        # Mock IPFS operations
+        self.mock_model_cid = f"QmModelCID{uuid.uuid4().hex[:8]}"
+        self.ipfs_mock.ipfs_add_path = MagicMock(return_value={
+            "success": True,
+            "Hash": self.mock_model_cid,
+            "cid": self.mock_model_cid
+        })
+        self.ipfs_mock.get = MagicMock(return_value={"success": True})
+        self.ipfs_mock.pin_add = MagicMock(return_value={"success": True})
+        
+        # Create a temporary directory for testing
+        self.temp_dir = tempfile.mkdtemp()
+        
+        # Initialize TensorflowIntegration
+        self.tf_integration = TensorflowIntegration(
+            ipfs_client=self.ipfs_mock,
+            cache_dir=self.temp_dir
+        )
+        
+    def test_init(self):
+        """Test initialization with different parameters."""
+        # Default initialization
+        integration = TensorflowIntegration(self.ipfs_mock)
+        self.assertEqual(integration.ipfs, self.ipfs_mock)
+        self.assertFalse(integration.mixed_precision)
+        
+        # With custom parameters
+        integration = TensorflowIntegration(
+            self.ipfs_mock,
+            cache_dir="/tmp/custom_cache",
+            mixed_precision=True,
+            serving_config={"model_config": "test"}
+        )
+        self.assertEqual(integration.mixed_precision, True)
+        self.assertEqual(integration.serving_config, {"model_config": "test"})
+        
+        # Directories should be created
+        self.assertTrue(os.path.exists(os.path.join(self.temp_dir, "models")))
+        self.assertTrue(os.path.exists(os.path.join(self.temp_dir, "datasets")))
+        self.assertTrue(os.path.exists(os.path.join(self.temp_dir, "saved_models")))
+    
+    @patch("tensorflow.keras.models.Sequential")
+    def test_save_model(self, mock_sequential):
+        """Test saving a TensorFlow model to IPFS."""
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.to_json.return_value = '{"config": {"layers": []}}'
+        mock_model.input_names = ["input_1"]
+        mock_model.output_names = ["output_1"]
+        mock_sequential.return_value = mock_model
+        
+        # Simulate TensorFlow import
+        with patch("ipfs_kit_py.ai_ml_integration.TF_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.tensorflow") as mock_tf:
+            
+            mock_tf.__version__ = "2.8.0"
+            mock_tf.keras.Model = MagicMock
+            
+            # Call save_model
+            result = self.tf_integration.save_model(
+                model=mock_model,
+                name="test_model",
+                version="1.0.0",
+                metadata={"test_key": "test_value"}
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["model_name"], "test_model")
+            self.assertEqual(result["version"], "1.0.0")
+            self.assertEqual(result["cid"], self.mock_model_cid)
+            
+            # Verify IPFS operations were called
+            self.ipfs_mock.ipfs_add_path.assert_called_once()
+            self.ipfs_mock.pin_add.assert_called_once_with(self.mock_model_cid)
+            
+            # Verify model registry was used
+            self.model_registry_mock.store_model.assert_called_once()
+    
+    @patch("tensorflow.keras.models.load_model")
+    def test_load_model(self, mock_load_model):
+        """Test loading a model from IPFS."""
+        # Mock model registry
+        self.model_registry_mock.get_model_cid.return_value = self.mock_model_cid
+        
+        # Mock loading model
+        mock_model = MagicMock()
+        mock_load_model.return_value = mock_model
+        
+        # Simulate TensorFlow import
+        with patch("ipfs_kit_py.ai_ml_integration.TF_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.tensorflow") as mock_tf, \
+             patch("json.load") as mock_json_load, \
+             patch("builtins.open", mock_open()):
+            
+            mock_tf.keras.models.load_model = mock_load_model
+            mock_tf.saved_model.load = MagicMock()
+            mock_json_load.return_value = {
+                "model_type": "keras", 
+                "framework": "tensorflow",
+                "tf_version": "2.8.0"
+            }
+            
+            # Test loading by CID
+            model, metadata = self.tf_integration.load_model(cid=self.mock_model_cid)
+            
+            # Verify model was loaded
+            self.assertEqual(model, mock_model)
+            self.assertEqual(metadata["model_type"], "keras")
+            self.assertEqual(metadata["framework"], "tensorflow")
+            
+            # Verify IPFS operations
+            self.ipfs_mock.get.assert_called_once()
+            
+            # Test loading by name/version
+            self.ipfs_mock.get.reset_mock()
+            model, metadata = self.tf_integration.load_model(name="test_model", version="1.0.0")
+            
+            # Verify model registry was called
+            self.model_registry_mock.get_model_cid.assert_called_once_with("test_model", "1.0.0")
+            
+            # Verify IPFS operations
+            self.ipfs_mock.get.assert_called_once()
+    
+    def test_export_saved_model(self):
+        """Test exporting a model in SavedModel format."""
+        # Create mock model
+        mock_model = MagicMock()
+        
+        # Simulate TensorFlow import
+        with patch("ipfs_kit_py.ai_ml_integration.TF_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.tensorflow") as mock_tf, \
+             patch("json.dump") as mock_json_dump, \
+             patch("builtins.open", mock_open()):
+            
+            mock_tf.__version__ = "2.8.0"
+            mock_tf.keras.Model = MagicMock
+            
+            # Call export_saved_model
+            result = self.tf_integration.export_saved_model(
+                model=mock_model,
+                serving_config={"serving_key": "value"}
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["tf_version"], "2.8.0")
+            self.assertEqual(result["has_serving_config"], True)
+            
+            # Verify TensorFlow operations
+            if isinstance(mock_model, mock_tf.keras.Model):
+                mock_model.save.assert_called_once()
+            else:
+                mock_tf.saved_model.save.assert_called_once()
+            
+            # Verify serving config was saved
+            mock_json_dump.assert_called_once()
+    
+    def test_create_data_loader(self):
+        """Test creating a data loader from an IPFS dataset."""
+        # Call create_data_loader
+        data_loader = self.tf_integration.create_data_loader(
+            dataset_cid="QmTestDataset",
+            batch_size=64,
+            shuffle=False
+        )
+        
+        # Verify data loader was created properly
+        self.assertIsInstance(data_loader, IPFSDataLoader)
+        self.assertEqual(data_loader.batch_size, 64)
+        self.assertEqual(data_loader.shuffle, False)
+        self.assertEqual(data_loader.ipfs, self.ipfs_mock)
+    
+    @patch("tensorflow.keras.models.clone_model")
+    def test_optimize_for_inference(self, mock_clone_model):
+        """Test optimizing a model for inference."""
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.trainable_weights = [MagicMock(), MagicMock()]
+        
+        # Mock cloned model
+        mock_optimized_model = MagicMock()
+        mock_optimized_model.trainable_weights = [MagicMock()]
+        mock_clone_model.return_value = mock_optimized_model
+        
+        # Simulate TensorFlow import
+        with patch("ipfs_kit_py.ai_ml_integration.TF_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.tensorflow") as mock_tf:
+            
+            mock_tf.keras.Model = MagicMock
+            mock_tf.keras.models.clone_model = mock_clone_model
+            mock_tf.function = MagicMock(return_value=MagicMock())
+            mock_tf.keras.backend.count_params = lambda p: 1000
+            
+            # Test with Keras model
+            mock_tf.keras.Model.__instancecheck__ = lambda _, instance: True
+            opt_model, result = self.tf_integration.optimize_for_inference(
+                model=mock_model,
+                input_shapes={"input_1": [None, 10]},
+                mixed_precision=True
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["model_type"], "keras")
+            self.assertEqual(result["mixed_precision"], True)
+            self.assertIn("original_trainable_params", result)
+            
+            # Verify TensorFlow operations
+            mock_tf.keras.mixed_precision.set_global_policy.assert_called_once_with("mixed_float16")
+            mock_clone_model.assert_called_once_with(mock_model)
+            
+            # Test with non-Keras model
+            mock_tf.keras.Model.__instancecheck__ = lambda _, instance: False
+            mock_tf.Module.__instancecheck__ = lambda _, instance: True
+            opt_model, result = self.tf_integration.optimize_for_inference(
+                model=mock_model,
+                mixed_precision=False
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["model_type"], "saved_model")
+    
+    def tearDown(self):
+        """Clean up after tests."""
+        # Remove temporary directory
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+
+
+class TestPyTorchIntegration(unittest.TestCase):
+    """Test cases for the PyTorchIntegration implementation."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Skip tests if PyTorch is not available
+        if not TORCH_AVAILABLE:
+            self.skipTest("PyTorch not available")
+        
+        # Create mock IPFS client
+        self.ipfs_mock = MagicMock()
+        self.ipfs_mock._testing_mode = False
+        
+        # Mock model registry
+        self.model_registry_mock = MagicMock()
+        self.ipfs_mock.get_model_registry = MagicMock(return_value=self.model_registry_mock)
+        
+        # Mock dataset manager
+        self.dataset_manager_mock = MagicMock()
+        self.ipfs_mock.get_dataset_manager = MagicMock(return_value=self.dataset_manager_mock)
+        
+        # Mock IPFS operations
+        self.mock_model_cid = f"QmModelCID{uuid.uuid4().hex[:8]}"
+        self.ipfs_mock.add_path = MagicMock(return_value={
+            "success": True,
+            "Hash": self.mock_model_cid,
+            "cid": self.mock_model_cid
+        })
+        self.ipfs_mock.get = MagicMock(return_value={"success": True})
+        self.ipfs_mock.pin_add = MagicMock(return_value={"success": True})
+        
+        # Create a temporary directory for testing
+        self.temp_dir = tempfile.mkdtemp()
+        
+        # Initialize PyTorchIntegration
+        self.torch_integration = PyTorchIntegration(
+            ipfs_client=self.ipfs_mock,
+            temp_dir=self.temp_dir
+        )
+        
+    def test_init(self):
+        """Test initialization with different parameters."""
+        # Default initialization
+        integration = PyTorchIntegration(self.ipfs_mock)
+        self.assertEqual(integration.ipfs, self.ipfs_mock)
+        
+        # With custom parameters
+        custom_registry = MagicMock()
+        integration = PyTorchIntegration(
+            self.ipfs_mock,
+            model_registry=custom_registry,
+            temp_dir="/tmp/custom_cache"
+        )
+        self.assertEqual(integration.model_registry, custom_registry)
+        
+        # Directory should be created
+        self.assertTrue(os.path.exists(self.temp_dir))
+    
+    def test_save_model(self):
+        """Test saving a PyTorch model to IPFS."""
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.state_dict.return_value = {"weights": MagicMock()}
+        mock_model.__class__.__name__ = "MockModel"
+        mock_model.parameters = MagicMock(return_value=[MagicMock()])
+        
+        # Create mock example input
+        mock_input = MagicMock()
+        
+        # Simulate PyTorch import
+        with patch("ipfs_kit_py.ai_ml_integration.TORCH_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.torch") as mock_torch, \
+             patch("json.dump") as mock_json_dump, \
+             patch("builtins.open", mock_open()):
+            
+            mock_torch.__version__ = "1.10.0"
+            mock_torch.save = MagicMock()
+            mock_torch.jit.trace = MagicMock()
+            mock_torch.jit.script = MagicMock()
+            mock_torch.onnx.export = MagicMock()
+            
+            # Create a mock traced model
+            mock_traced_model = MagicMock()
+            mock_traced_model.save = MagicMock()
+            mock_torch.jit.trace.return_value = mock_traced_model
+            
+            # Call save_model
+            result = self.torch_integration.save_model(
+                model=mock_model,
+                name="test_model",
+                version="1.0.0",
+                metadata={"test_key": "test_value"},
+                trace=True,
+                example_inputs=mock_input,
+                export_onnx=True
+            )
+            
+            # Verify result
+            self.assertTrue(result.get("success"))
+            self.assertEqual(result["model_name"], "test_model")
+            self.assertEqual(result["model_version"], "1.0.0")
+            self.assertEqual(result["cid"], self.mock_model_cid)
+            
+            # Verify PyTorch operations
+            mock_torch.save.assert_called_once()
+            mock_torch.jit.trace.assert_called_once_with(mock_model, mock_input)
+            mock_traced_model.save.assert_called_once()
+            mock_torch.onnx.export.assert_called_once()
+            
+            # Verify IPFS operations
+            self.ipfs_mock.add_path.assert_called_once()
+    
+    def test_load_model(self):
+        """Test loading a model from IPFS."""
+        # Mock model registry
+        self.model_registry_mock.get_model_cid = MagicMock(return_value={
+            "success": True,
+            "cid": self.mock_model_cid
+        })
+        
+        # Simulate PyTorch import
+        with patch("ipfs_kit_py.ai_ml_integration.TORCH_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.torch") as mock_torch, \
+             patch("json.load") as mock_json_load, \
+             patch("builtins.open", mock_open()):
+            
+            # Mock state dict loading
+            mock_state_dict = {"layer1.weight": MagicMock()}
+            mock_torch.load = MagicMock(return_value=mock_state_dict)
+            
+            # Mock JIT loading
+            mock_jit_model = MagicMock()
+            mock_torch.jit.load = MagicMock(return_value=mock_jit_model)
+            
+            # Mock metadata
+            mock_json_load.return_value = {
+                "framework": "pytorch",
+                "torch_version": "1.10.0",
+                "model_type": "CNN",
+                "traced": True
+            }
+            
+            # Test loading traced model by CID
+            model, metadata = self.torch_integration.load_model(
+                cid=self.mock_model_cid,
+                use_traced=True
+            )
+            
+            # Verify model was loaded
+            self.assertEqual(model, mock_jit_model)
+            self.assertEqual(metadata["framework"], "pytorch")
+            self.assertEqual(metadata["model_type"], "CNN")
+            
+            # Verify PyTorch operations
+            mock_torch.jit.load.assert_called_once()
+            
+            # Test loading state dict by name/version
+            # Reset mocks
+            mock_torch.jit.load.reset_mock()
+            mock_torch.load.reset_mock()
+            
+            # Mock module class
+            mock_module_class = MagicMock()
+            mock_module_instance = MagicMock()
+            mock_module_class.return_value = mock_module_instance
+            
+            # Test loading with module class
+            model, metadata = self.torch_integration.load_model(
+                name="test_model",
+                version="1.0.0",
+                use_traced=False,
+                module_class=mock_module_class
+            )
+            
+            # Verify model was loaded
+            self.assertEqual(model, mock_module_instance)
+            
+            # Verify PyTorch operations
+            mock_torch.load.assert_called_once()
+            mock_module_instance.load_state_dict.assert_called_once_with(mock_state_dict)
+    
+    def test_trace_model(self):
+        """Test tracing a model with TorchScript."""
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.eval = MagicMock()
+        
+        # Create mock example input
+        mock_input = MagicMock()
+        
+        # Simulate PyTorch import
+        with patch("ipfs_kit_py.ai_ml_integration.TORCH_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.torch") as mock_torch:
+            
+            # Mock torch operations
+            mock_traced_model = MagicMock()
+            mock_torch.jit.trace = MagicMock(return_value=mock_traced_model)
+            mock_torch.jit.script = MagicMock(return_value=mock_traced_model)
+            mock_torch.no_grad = MagicMock().__enter__ = MagicMock().__exit__ = MagicMock()
+            
+            # Test tracing
+            traced_model, result = self.torch_integration.trace_model(
+                model=mock_model,
+                example_inputs=mock_input,
+                use_script=False
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["method"], "trace")
+            self.assertEqual(traced_model, mock_traced_model)
+            
+            # Verify PyTorch operations
+            mock_model.eval.assert_called_once()
+            mock_torch.jit.trace.assert_called_once()
+            
+            # Test scripting
+            mock_torch.jit.trace.reset_mock()
+            mock_model.eval.reset_mock()
+            
+            traced_model, result = self.torch_integration.trace_model(
+                model=mock_model,
+                example_inputs=mock_input,
+                use_script=True
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["method"], "script")
+            
+            # Verify PyTorch operations
+            mock_model.eval.assert_called_once()
+            mock_torch.jit.script.assert_called_once_with(mock_model)
+    
+    def test_create_data_loader(self):
+        """Test creating a data loader from an IPFS dataset."""
+        # Mock IPFSDataLoader
+        with patch("ipfs_kit_py.ai_ml_integration.IPFSDataLoader") as mock_data_loader_class:
+            # Create mock data loader instance
+            mock_data_loader = MagicMock()
+            mock_data_loader.load_dataset = MagicMock(return_value={"success": True, "data": []})
+            mock_data_loader_class.return_value = mock_data_loader
+            
+            # Call create_data_loader
+            loader, result = self.torch_integration.create_data_loader(
+                dataset_cid="QmTestDataset",
+                batch_size=32,
+                shuffle=True,
+                num_workers=2
+            )
+            
+            # Verify data loader creation
+            mock_data_loader_class.assert_called_once_with(ipfs_client=self.ipfs_mock)
+            mock_data_loader.load_dataset.assert_called_once_with("QmTestDataset")
+            
+            # Verify torch DataLoader creation
+            self.assertTrue(result["success"])
+    
+    def test_optimize_for_inference(self):
+        """Test optimizing a model for inference."""
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.eval = MagicMock()
+        mock_model.parameters = MagicMock(return_value=[MagicMock(), MagicMock()])
+        
+        # Create mock input
+        mock_input = MagicMock()
+        
+        # Simulate PyTorch import
+        with patch("ipfs_kit_py.ai_ml_integration.TORCH_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.torch") as mock_torch:
+            
+            # Mock half precision conversion
+            mock_half_model = MagicMock()
+            mock_model.half = MagicMock(return_value=mock_half_model)
+            mock_half_model.parameters = MagicMock(return_value=[MagicMock()])
+            
+            # Mock tracing
+            mock_traced_model = MagicMock()
+            mock_torch.jit.trace = MagicMock(return_value=mock_traced_model)
+            mock_torch.jit.optimize_for_inference = MagicMock(return_value=mock_traced_model)
+            
+            # Mock parameter counting
+            def mock_numel():
+                return 1000
+            for p in mock_model.parameters():
+                p.numel = mock_numel
+            for p in mock_half_model.parameters():
+                p.numel = mock_numel
+            
+            # Test with mixed precision and TorchScript
+            opt_model, result = self.torch_integration.optimize_for_inference(
+                model=mock_model,
+                example_inputs=mock_input,
+                mixed_precision=True
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertTrue(result["mixed_precision"])
+            self.assertTrue(result["eval_mode"])
+            self.assertEqual(result["original_params_count"], 2000)
+            
+            # Verify PyTorch operations
+            mock_model.eval.assert_called_once()
+            mock_model.half.assert_called_once()
+            mock_torch.jit.trace.assert_called_once_with(mock_half_model, mock_input)
+            mock_torch.jit.optimize_for_inference.assert_called_once_with(mock_traced_model)
+    
+    def test_export_onnx(self):
+        """Test exporting a model to ONNX format."""
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.eval = MagicMock()
+        
+        # Create mock input
+        mock_input = MagicMock()
+        
+        # Simulate PyTorch import
+        with patch("ipfs_kit_py.ai_ml_integration.TORCH_AVAILABLE", True), \
+             patch("ipfs_kit_py.ai_ml_integration.torch") as mock_torch, \
+             patch("os.path.getsize") as mock_getsize:
+            
+            # Mock ONNX export
+            mock_torch.onnx.export = MagicMock()
+            
+            # Mock file size
+            mock_getsize.return_value = 1024 * 1024  # 1MB
+            
+            # Test ONNX export
+            result = self.torch_integration.export_onnx(
+                model=mock_model,
+                save_path="/tmp/model.onnx",
+                example_inputs=mock_input,
+                input_names=["input"],
+                output_names=["output"]
+            )
+            
+            # Verify result
+            self.assertTrue(result["success"])
+            self.assertEqual(result["save_path"], "/tmp/model.onnx")
+            self.assertEqual(result["file_size_bytes"], 1024 * 1024)
+            
+            # Verify PyTorch operations
+            mock_model.eval.assert_called_once()
+            mock_torch.onnx.export.assert_called_once()
+    
+    def tearDown(self):
+        """Clean up after tests."""
+        # Remove temporary directory
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
 
 
 if __name__ == "__main__":

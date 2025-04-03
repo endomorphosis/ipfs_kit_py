@@ -106,10 +106,10 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "dataset_cid": dataset_cid,
                 "registry_cid": "QmTestRegistryCID",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_register_dataset(dataset_cid, metadata)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["dataset_cid"], dataset_cid)
@@ -164,10 +164,10 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 ],
                 "count": 1,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_list_models()
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(len(result["models"]), 1)
@@ -217,10 +217,10 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "model_cid": model_cid,
                 "registry_cid": "QmTestRegistryCID",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_register_model(model_cid, metadata)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["model_cid"], model_cid)
@@ -276,10 +276,10 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "status": "deploying",
                 "url": "https://api.example.com/models/QmTestModelCID",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_deploy_model(model_cid, deployment_config)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["model_cid"], model_cid)
@@ -293,7 +293,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
         target_platform = "cpu"
         optimization_level = "O2"
         quantization = "int8"
-        
+
         # We need to patch IPFSSimpleAPI to return a simulated response
         # for our test since we know the actual implementation raises an error
         with patch.object(self.api, "ai_optimize_model") as mock_optimize_model:
@@ -312,7 +312,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 model_cid,
                 target_platform=target_platform,
                 optimization_level=optimization_level,
-                quantization=quantization
+                quantization=quantization,
             )
 
             # Verify
@@ -343,7 +343,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 model_cid,
                 target_platform=target_platform,
                 optimization_level=optimization_level,
-                quantization=quantization
+                quantization=quantization,
             )
 
             # Verify
@@ -366,9 +366,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "status": "ready",
                 "url": f"https://api.example.com/models/{endpoint_id}",
                 "metrics": {"requests_per_second": 10, "average_latency_ms": 45},
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_get_endpoint_status(endpoint_id)
 
@@ -378,7 +378,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["endpoint_id"], endpoint_id)
             self.assertTrue("status" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_get_endpoint_status.assert_called_once()
 
@@ -390,12 +391,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "endpoint_id": endpoint_id,
                 "status": "ready",
                 "url": "https://api.example.com/models/test-model",
-                "metrics": {"requests_per_second": 10, "average_latency_ms": 45}
+                "metrics": {"requests_per_second": 10, "average_latency_ms": 45},
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_get_endpoint_status(endpoint_id)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["endpoint_id"], endpoint_id)
@@ -417,9 +418,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "predictions": [0.78, 0.22],
                 "latency_ms": 42,
                 "model_version": "1.0.0",
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_test_inference(endpoint_id, test_data)
 
@@ -429,7 +430,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("predictions" in result)
             self.assertTrue("latency_ms" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_test_inference.assert_called_once()
 
@@ -440,12 +442,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "success": True,
                 "predictions": [0.8, 0.2],
                 "latency_ms": 42,
-                "model_version": "1.0.0"
+                "model_version": "1.0.0",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_test_inference(endpoint_id, test_data)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["predictions"], [0.8, 0.2])
@@ -467,9 +469,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "previous_model_cid": "QmOldModelCID",
                 "new_model_cid": model_cid,
                 "status": "updating",
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_update_deployment(endpoint_id, model_cid)
 
@@ -479,7 +481,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["endpoint_id"], endpoint_id)
             self.assertEqual(result["new_model_cid"], model_cid)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_update_deployment.assert_called_once()
 
@@ -491,12 +494,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "endpoint_id": endpoint_id,
                 "previous_model_cid": "QmOldModelCID",
                 "new_model_cid": model_cid,
-                "status": "updating"
+                "status": "updating",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_update_deployment(endpoint_id, model_cid)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["endpoint_id"], endpoint_id)
@@ -524,9 +527,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "worker_count": worker_count,
                 "priority": priority,
                 "status": "queued",
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_distributed_training_submit_job(
                 training_task, worker_count=worker_count, priority=priority
@@ -539,7 +542,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["worker_count"], worker_count)
             self.assertEqual(result["priority"], priority)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_submit_job.assert_called_once()
 
@@ -551,14 +555,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "job_id": "test-job-id",
                 "worker_count": worker_count,
                 "priority": priority,
-                "status": "queued"
+                "status": "queued",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_distributed_training_submit_job(
                 training_task, worker_count=worker_count, priority=priority
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["job_id"], "test-job-id")
@@ -579,9 +583,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "status": "running",
                 "progress": {"total_tasks": 10, "completed_tasks": 4, "percentage": 40},
                 "metrics": {"current_epoch": 4, "loss": 0.342, "accuracy": 0.78},
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_distributed_training_get_status(job_id)
 
@@ -592,7 +596,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("status" in result)
             self.assertTrue("progress" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_get_status.assert_called_once()
 
@@ -603,12 +608,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "success": True,
                 "job_id": job_id,
                 "status": "running",
-                "progress": {"total_tasks": 10, "completed_tasks": 5, "percentage": 50}
+                "progress": {"total_tasks": 10, "completed_tasks": 5, "percentage": 50},
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_distributed_training_get_status(job_id)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["job_id"], job_id)
@@ -630,9 +635,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "cancelled_at": time.time(),
                 "previous_status": "running",
                 "current_status": "cancelled",
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_distributed_training_cancel_job(job_id)
 
@@ -641,7 +646,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue(result["success"])
             self.assertEqual(result["job_id"], job_id)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_cancel_job.assert_called_once()
 
@@ -653,12 +659,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "job_id": job_id,
                 "cancelled_at": time.time(),
                 "previous_status": "running",
-                "current_status": "cancelled"
+                "current_status": "cancelled",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_distributed_training_cancel_job(job_id)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["job_id"], job_id)
@@ -678,9 +684,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "job_id": job_id,
                 "model_cid": "QmSimulatedModelCID",
                 "metrics": {"final_loss": 0.15, "final_accuracy": 0.89},
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_distributed_training_aggregate_results(job_id)
 
@@ -691,7 +697,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("model_cid" in result)
             self.assertTrue("metrics" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_aggregate.assert_called_once()
 
@@ -702,12 +709,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "success": True,
                 "job_id": job_id,
                 "model_cid": "QmAggregatedModelCID",
-                "metrics": {"final_loss": 0.12, "final_accuracy": 0.92}
+                "metrics": {"final_loss": 0.12, "final_accuracy": 0.92},
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_distributed_training_aggregate_results(job_id)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["job_id"], job_id)
@@ -731,13 +738,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "id": "doc1",
                         "content": "Simulated document content for testing",
-                        "metadata": {"source": "test.txt"}
+                        "metadata": {"source": "test.txt"},
                     }
                 ],
                 "count": 1,
-                "simulation_note": "AI/ML or Langchain not available, using simulated response"
+                "simulation_note": "AI/ML or Langchain not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_langchain_load_documents(
                 docs_cid, recursive=recursive, filter_pattern=filter_pattern
@@ -749,7 +756,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("documents" in result)
             self.assertTrue(isinstance(result["documents"], list))
             self.assertEqual(
-                result["simulation_note"], "AI/ML or Langchain not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML or Langchain not available, using simulated response",
             )
             mock_load_documents.assert_called_once()
 
@@ -762,17 +770,17 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "id": "doc1",
                         "content": "Test document content",
-                        "metadata": {"source": "test.txt"}
+                        "metadata": {"source": "test.txt"},
                     }
                 ],
-                "count": 1
+                "count": 1,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_langchain_load_documents(
                 docs_cid, recursive=recursive, filter_pattern=filter_pattern
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(len(result["documents"]), 1)
@@ -797,9 +805,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "embedding_dimensions": 384,
                 "document_count": 1,
                 "vectorstore_cid": "QmSimulatedVectorstoreCID",
-                "simulation_note": "AI/ML or Langchain not available, using simulated response"
+                "simulation_note": "AI/ML or Langchain not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_langchain_create_vectorstore(
                 documents, embedding_model=embedding_model, vector_store_type=vector_store_type
@@ -810,7 +818,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue(result["success"])
             self.assertEqual(result["vector_store_type"], vector_store_type)
             self.assertEqual(
-                result["simulation_note"], "AI/ML or Langchain not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML or Langchain not available, using simulated response",
             )
             mock_create_vectorstore.assert_called_once()
 
@@ -822,14 +831,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "vector_store_type": vector_store_type,
                 "embedding_dimensions": 384,
                 "document_count": 1,
-                "vectorstore_cid": "QmRealVectorstoreCID"
+                "vectorstore_cid": "QmRealVectorstoreCID",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_langchain_create_vectorstore(
                 documents, embedding_model=embedding_model, vector_store_type=vector_store_type
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["vector_store_type"], vector_store_type)
@@ -853,13 +862,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "content": "Machine learning is a branch of AI...",
                         "metadata": {"source": "doc1.txt"},
-                        "similarity": 0.87
+                        "similarity": 0.87,
                     }
                 ],
                 "count": 1,
-                "simulation_note": "AI/ML or Langchain not available, using simulated response"
+                "simulation_note": "AI/ML or Langchain not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_langchain_query(
                 vectorstore_cid=vectorstore_cid, query=query, top_k=top_k
@@ -871,7 +880,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["query"], query)
             self.assertTrue("results" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML or Langchain not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML or Langchain not available, using simulated response",
             )
             mock_langchain_query.assert_called_once()
 
@@ -885,17 +895,17 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "content": "Machine learning is a branch of AI...",
                         "metadata": {"source": "doc1.txt"},
-                        "similarity": 0.87
+                        "similarity": 0.87,
                     }
                 ],
-                "count": 1
+                "count": 1,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_langchain_query(
                 vectorstore_cid=vectorstore_cid, query=query, top_k=top_k
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["query"], query)
@@ -919,13 +929,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "id": "doc1",
                         "content": "Simulated document content for testing",
-                        "metadata": {"source": "test.txt"}
+                        "metadata": {"source": "test.txt"},
                     }
                 ],
                 "count": 1,
-                "simulation_note": "AI/ML or LlamaIndex not available, using simulated response"
+                "simulation_note": "AI/ML or LlamaIndex not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_llama_index_load_documents(
                 docs_cid, recursive=recursive, filter_pattern=filter_pattern
@@ -937,7 +947,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("documents" in result)
             self.assertTrue(isinstance(result["documents"], list))
             self.assertEqual(
-                result["simulation_note"], "AI/ML or LlamaIndex not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML or LlamaIndex not available, using simulated response",
             )
             mock_load_documents.assert_called_once()
 
@@ -950,17 +961,17 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "id": "doc1",
                         "content": "Test document content",
-                        "metadata": {"source": "test.txt"}
+                        "metadata": {"source": "test.txt"},
                     }
                 ],
-                "count": 1
+                "count": 1,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_llama_index_load_documents(
                 docs_cid, recursive=recursive, filter_pattern=filter_pattern
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(len(result["documents"]), 1)
@@ -984,9 +995,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "index_type": index_type,
                 "document_count": 1,
                 "index_cid": "QmSimulatedIndexCID",
-                "simulation_note": "AI/ML or LlamaIndex not available, using simulated response"
+                "simulation_note": "AI/ML or LlamaIndex not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_llama_index_create_index(
                 documents, index_type=index_type, embed_model=embed_model
@@ -997,7 +1008,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue(result["success"])
             self.assertEqual(result["index_type"], index_type)
             self.assertEqual(
-                result["simulation_note"], "AI/ML or LlamaIndex not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML or LlamaIndex not available, using simulated response",
             )
             mock_create_index.assert_called_once()
 
@@ -1008,14 +1020,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "success": True,
                 "index_type": index_type,
                 "document_count": 1,
-                "index_cid": "QmRealIndexCID"
+                "index_cid": "QmRealIndexCID",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_llama_index_create_index(
                 documents, index_type=index_type, embed_model=embed_model
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["index_type"], index_type)
@@ -1040,13 +1052,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "content": "Machine learning is a branch of AI...",
                         "metadata": {"source": "doc1.txt"},
-                        "score": 0.92
+                        "score": 0.92,
                     }
                 ],
                 "response_mode": response_mode,
-                "simulation_note": "AI/ML or LlamaIndex not available, using simulated response"
+                "simulation_note": "AI/ML or LlamaIndex not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_llama_index_query(
                 index_cid=index_cid, query=query, response_mode=response_mode
@@ -1058,7 +1070,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["query"], query)
             self.assertTrue("response" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML or LlamaIndex not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML or LlamaIndex not available, using simulated response",
             )
             mock_llama_query.assert_called_once()
 
@@ -1073,17 +1086,17 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "content": "Machine learning is a branch of AI...",
                         "metadata": {"source": "doc1.txt"},
-                        "score": 0.92
+                        "score": 0.92,
                     }
                 ],
-                "response_mode": response_mode
+                "response_mode": response_mode,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_llama_index_query(
                 index_cid=index_cid, query=query, response_mode=response_mode
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["query"], query)
@@ -1132,12 +1145,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "model_cid": model_cid,
                 "dataset_cid": dataset_cid,
                 "metrics": {"accuracy": 0.85, "latency_ms": 120},
-                "benchmark_id": "bench-123"
+                "benchmark_id": "bench-123",
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_benchmark_model(model_cid, dataset_cid, metrics=metrics)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["model_cid"], model_cid)
@@ -1161,9 +1174,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "batch_size": batch_size,
                 "shuffle": shuffle,
                 "framework": framework,
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_data_loader(
                 dataset_cid, batch_size=batch_size, shuffle=shuffle, framework=framework
@@ -1177,7 +1190,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["shuffle"], shuffle)
             self.assertEqual(result["framework"], framework)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
 
         # Test with AI/ML integration available by patching the method directly
@@ -1222,13 +1236,13 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {
                         "content": "Machine learning is a branch of AI...",
                         "score": 0.85,
-                        "metadata": {"source": "doc1.txt"}
+                        "metadata": {"source": "doc1.txt"},
                     }
                 ],
                 "weights": {"keyword": keyword_weight, "vector": vector_weight},
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_hybrid_search(
                 query,
@@ -1246,7 +1260,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["weights"]["keyword"], keyword_weight)
             self.assertEqual(result["weights"]["vector"], vector_weight)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
 
         # Test with AI/ML integration available by patching the method directly
@@ -1300,9 +1315,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "embedding_model": embedding_model,
                 "embedding_count": 10,
                 "dimensions": 384,
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_create_embeddings(
                 docs_cid,
@@ -1317,7 +1332,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("cid" in result)
             self.assertEqual(result["embedding_model"], embedding_model)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
 
         # Test with AI/ML integration available by patching the method directly
@@ -1362,9 +1378,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "dimensions": 384,
                 "vector_count": 10,
                 "parameters": params,
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_create_vector_index(
                 embedding_cid=embedding_cid, index_type=index_type, params=params
@@ -1377,7 +1393,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["index_type"], index_type)
             self.assertEqual(result["parameters"]["M"], params["M"])
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
 
         # Test with AI/ML integration available by patching the method directly
@@ -1419,9 +1436,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "query_type": query_type,
                 "results": [{"p": {"id": "entity1", "type": "Person", "name": "John Doe"}}],
                 "execution_time_ms": 8,
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_query_knowledge_graph(
                 graph_cid=graph_cid, query=query, query_type=query_type
@@ -1434,7 +1451,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertEqual(result["query_type"], query_type)
             self.assertTrue("results" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_query_graph.assert_called_once()
 
@@ -1446,14 +1464,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "query": query,
                 "query_type": query_type,
                 "results": [{"p": {"id": "entity1", "type": "Person", "name": "John Doe"}}],
-                "execution_time_ms": 8
+                "execution_time_ms": 8,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_query_knowledge_graph(
                 graph_cid=graph_cid, query=query, query_type=query_type
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["query"], query)
@@ -1475,12 +1493,12 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "graph_cid": graph_cid,
                 "metrics": {
                     "centrality": {"entity1": 0.67, "entity2": 1.0},
-                    "clustering_coefficient": {"entity1": 0.33, "entity2": 0}
+                    "clustering_coefficient": {"entity1": 0.33, "entity2": 0},
                 },
                 "calculation_time_ms": 15,
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_calculate_graph_metrics(graph_cid=graph_cid, metrics=metrics)
 
@@ -1491,7 +1509,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("metrics" in result)
             self.assertTrue("centrality" in result["metrics"])
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_graph_metrics.assert_called_once()
 
@@ -1503,14 +1522,14 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "graph_cid": graph_cid,
                 "metrics": {
                     "centrality": {"entity1": 0.67, "entity2": 1.0},
-                    "clustering_coefficient": {"entity1": 0.33, "entity2": 0}
+                    "clustering_coefficient": {"entity1": 0.33, "entity2": 0},
                 },
-                "calculation_time_ms": 15
+                "calculation_time_ms": 15,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_calculate_graph_metrics(graph_cid=graph_cid, metrics=metrics)
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["graph_cid"], graph_cid)
@@ -1538,9 +1557,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                     {"from": "entity2", "to": "entity5", "type": "COMPETES_WITH"}
                 ],
                 "expansion_source": data_source,
-                "simulation_note": "AI/ML integration not available, using simulated response"
+                "simulation_note": "AI/ML integration not available, using simulated response",
             }
-            
+
             # Test with AI/ML integration unavailable
             result = self.api.ai_expand_knowledge_graph(
                 graph_cid=graph_cid,
@@ -1557,7 +1576,8 @@ class TestHighLevelAPIAIML(unittest.TestCase):
             self.assertTrue("expanded_graph_cid" in result)
             self.assertTrue("added_entities" in result)
             self.assertEqual(
-                result["simulation_note"], "AI/ML integration not available, using simulated response"
+                result["simulation_note"],
+                "AI/ML integration not available, using simulated response",
             )
             mock_expand_graph.assert_called_once()
 
@@ -1572,9 +1592,9 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 "added_relationships": [
                     {"from": "entity2", "to": "entity5", "type": "COMPETES_WITH"}
                 ],
-                "expansion_source": data_source
+                "expansion_source": data_source,
             }
-            
+
             # Simulate AI/ML integration available
             result = self.api.ai_expand_knowledge_graph(
                 graph_cid=graph_cid,
@@ -1583,7 +1603,7 @@ class TestHighLevelAPIAIML(unittest.TestCase):
                 expansion_type=expansion_type,
                 max_entities=max_entities,
             )
-            
+
             # Verify
             self.assertTrue(result["success"])
             self.assertEqual(result["original_graph_cid"], graph_cid)

@@ -212,17 +212,18 @@ class ipfs_kit:
             bin_dir = os.path.join(this_dir, "bin")
             ipfs_bin = os.path.join(bin_dir, "ipfs")
             ipfs_cluster_service_bin = os.path.join(bin_dir, "ipfs-cluster-service")
-            
+
             # On Windows, check for .exe files
             if platform.system() == "Windows":
                 ipfs_bin += ".exe"
                 ipfs_cluster_service_bin += ".exe"
-            
+
             # Download binaries if they don't exist
             if not os.path.exists(ipfs_bin) or not os.path.exists(ipfs_cluster_service_bin):
                 try:
                     # Import from package root to ensure we get the package-level function
                     from ipfs_kit_py import download_binaries
+
                     download_binaries()
                 except Exception as e:
                     self.logger.warning(f"Failed to download binaries: {e}")

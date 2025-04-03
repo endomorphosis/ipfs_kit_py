@@ -528,6 +528,9 @@ The `DistributedTraining` component enables distributed machine learning trainin
 - **Result Aggregation**: Combine results from distributed training
 - **Model Averaging**: Aggregate model parameters from multiple workers
 - **Training Coordination**: Synchronize training across workers
+- **Fault Tolerance**: Handle worker failures gracefully
+- **Gradient Compression**: Optimize network usage
+- **Federated Learning**: Support for privacy-preserving training
 
 ### Architecture
 
@@ -535,17 +538,61 @@ The distributed training system uses a master-worker architecture:
 
 1. **Master Node**:
    - Prepares training tasks and splits datasets
-   - Distributes tasks to worker nodes
+   - Distributes tasks to worker nodes via IPFS PubSub
    - Monitors training progress
    - Aggregates results from workers
+   - Publishes global model updates
+   - Handles worker failures
    - Registers final models in the ModelRegistry
 
 2. **Worker Nodes**:
-   - Receive training tasks from master
+   - Receive training tasks from master via PubSub
    - Load models and datasets from IPFS
    - Execute training on local resources
    - Upload trained models back to IPFS
    - Report results to master
+   - Participate in parameter synchronization
+
+3. **Communication Flows**:
+   - **Task Assignment**: Master → Workers (via PubSub topics)
+   - **Parameter Updates**: Master ↔ Workers (bidirectional)
+   - **Status Reporting**: Workers → Master
+   - **Model Exchange**: Via IPFS content addressing
+
+### Detailed Workflow
+
+The distributed training process follows these steps:
+
+1. **Task Preparation**: The master node creates a training task with model, dataset, and configuration
+2. **Task Announcement**: The task is announced to worker nodes via the IPFS PubSub system
+3. **Worker Joining**: Workers join the task and begin initialization
+4. **Dataset & Model Distribution**: Workers retrieve the required dataset and model from IPFS
+5. **Local Training**: Each worker trains the model on its local dataset partition
+6. **Parameter Synchronization**: Workers periodically share updates via IPFS
+7. **Aggregation**: The master aggregates updates and creates a new global model
+8. **Model Distribution**: The updated global model is shared with all workers
+9. **Convergence Monitoring**: Training continues until convergence criteria are met
+10. **Result Storage**: The final model is stored in the model registry
+
+### Synchronization Mechanisms
+
+The `DistributedTraining` class implements several synchronization mechanisms:
+
+1. **Parameter Server**:
+   - Master node acts as a parameter server
+   - Workers fetch the latest model at regular intervals
+   - Workers push updates to the parameter server
+   - Server aggregates updates and publishes a new global model
+
+2. **Gradient Synchronization**:
+   - Instead of sharing full models, workers can share gradients
+   - Reduces communication overhead for large models
+   - Enables more efficient parameter updates
+
+3. **Federated Averaging**:
+   - Weights updates by dataset size on each worker
+   - Preserves data privacy by keeping raw data local
+   - Reduces bias from imbalanced data distribution
 
 ### Basic Usage
 
@@ -583,61 +630,183 @@ if task_result.get("success"):
     print(f"Distributed training task created with ID: {task_id}")
     print(f"Task distributed to {task_result.get('num_workers')} workers")
     
-    # Training is now happening on worker nodes...
-    # In a real scenario, you would wait for completion
+    # Start the distributed training process
+    run_result = kit_master.distributed_training.run_distributed_training(
+        task_id=task_id
+    )
     
-    # --- Aggregate Results (after workers complete) ---
-    # In a real scenario, this would be called after workers finish
-    aggregate_result = kit_master.distributed_training.aggregate_training_results(task_id)
-    
-    if aggregate_result.get("success"):
-        final_model_cid = aggregate_result.get("best_model_cid")
-        print(f"Aggregated model stored with CID: {final_model_cid}")
-        print(f"Metrics from workers: {aggregate_result.get('worker_metrics')}")
+    if run_result.get("success"):
+        print(f"Distributed training started successfully")
+        
+        # In a production environment, you would wait for completion
+        # or monitor progress asynchronously
     else:
-        print(f"Failed to aggregate results: {aggregate_result.get('error')}")
+        print(f"Failed to start distributed training: {run_result.get('error')}")
 else:
     print(f"Failed to prepare distributed task: {task_result.get('error')}")
 
-# --- Worker Node (for reference) ---
-# Worker nodes receive tasks from the master node automatically
-# and execute them using the worker's resources
+# --- Worker Node ---
+# On worker nodes, you would start the worker service:
+kit_worker = ipfs_kit(role="worker", metadata={"enable_ai_ml": True})
 
-# The worker execution looks something like this (simplified):
-def execute_training_worker(task_config_cid):
-    # Get task configuration from IPFS
-    task_config = kit_worker.ipfs.cat(task_config_cid)
+# Start the worker service (listens for training tasks)
+worker_result = kit_worker.distributed_training.start_worker()
+
+if worker_result.get("success"):
+    print(f"Worker started with ID: {worker_result.get('worker_id')}")
+    print("Worker is now listening for training tasks...")
+else:
+    print(f"Failed to start worker: {worker_result.get('error')}")
+
+# The worker automatically handles:
+# 1. Subscribing to task announcements
+# 2. Loading datasets and models
+# 3. Training and parameter synchronization
+# 4. Reporting results to the master
+```
+
+### Advanced Configuration
+
+The `DistributedTraining` class supports advanced configuration options:
+
+```python
+# Initialize with advanced options
+distributed_training = DistributedTraining(
+    ipfs_client=ipfs,
+    cluster_manager=cluster_manager,
+    role="master",
+    metrics=metrics_instance,
     
-    # Load model and dataset
-    model = kit_worker.model_registry.get_model(task_config["model_name"])
-    dataset = kit_worker.dataset_manager.get_dataset(task_config["dataset_name"])
+    # Synchronization configuration
+    sync_interval=10,  # Seconds between synchronization rounds
     
-    # Create data loader
-    dataloader = kit_worker.ipfs_dataloader(
-        task_config["dataset_cid"],
-        batch_size=task_config["training_config"]["batch_size"]
-    )
+    # Aggregation options
+    aggregation_method="federated_average",  # "average", "federated_average"
     
-    # Train the model
-    for epoch in range(task_config["training_config"]["epochs"]):
-        for batch in dataloader:
-            # Training steps...
-            pass
+    # Privacy-enhancing features
+    federated=True,  # Enable federated learning mode
+    differential_privacy=True,  # Apply differential privacy
+    dp_epsilon=1.0,  # Privacy budget for differential privacy
     
-    # Save trained model to IPFS
-    result = kit_worker.model_registry.add_model(
-        model,
-        task_config["model_name"],
-        version=f"worker-{kit_worker.get_node_id()}"
-    )
+    # Performance optimizations
+    gradient_compression=True,  # Enable gradient compression
+    adaptive_sync=True,  # Dynamically adjust sync frequency
     
-    # Report result to master
-    return {
-        "task_id": task_config["task_id"],
-        "worker_id": kit_worker.get_node_id(),
-        "model_cid": result["cid"],
-        "metrics": {"accuracy": 0.92}  # Example metrics
-    }
+    # Fault tolerance and security
+    fault_tolerance=True,  # Handle worker failures
+    secure_aggregation=False  # Enable secure aggregation protocol
+)
+```
+
+### Worker Management
+
+Worker nodes can be started, stopped, and monitored programmatically:
+
+```python
+# Start a worker node
+worker_info = kit.distributed_training.start_worker()
+worker_id = worker_info["worker_id"]
+print(f"Started worker with ID: {worker_id}")
+
+# Check worker status
+status = kit.distributed_training.get_worker_status(worker_id)
+print(f"Worker {worker_id} status: {status['status']}")
+print(f"Active tasks: {len(status['active_tasks'])}")
+
+# Stop a worker node gracefully
+result = kit.distributed_training.stop_worker()
+if result["success"]:
+    print("Worker stopped successfully")
+```
+
+### Gradient Synchronization
+
+For more efficient training, gradients can be synchronized directly:
+
+```python
+# During training loop on worker
+def train_with_gradient_sync(model, optimizer, data_loader, task_id):
+    for epoch in range(num_epochs):
+        for batch in data_loader:
+            # Forward pass
+            outputs = model(batch['inputs'])
+            loss = loss_fn(outputs, batch['targets'])
+            
+            # Backward pass
+            optimizer.zero_grad()
+            loss.backward()
+            
+            # Instead of immediate update, sync gradients first
+            gradients = [p.grad for p in model.parameters()]
+            
+            # Synchronize with other workers
+            sync_result = kit.distributed_training.synchronize_gradients(
+                model, gradients, task_id
+            )
+            
+            if sync_result["success"]:
+                # Replace gradients with synchronized ones
+                synced_gradients = sync_result["gradients"]
+                
+                # Apply synchronized gradients
+                for param, grad in zip(model.parameters(), synced_gradients):
+                    if param.grad is not None:
+                        param.grad = grad
+                        
+            # Update model parameters
+            optimizer.step()
+```
+
+### Fault Tolerance
+
+The system includes robust fault tolerance features:
+
+1. **Worker Failure Detection**:
+   - Heartbeat mechanism to detect worker failures
+   - Configurable timeout for considering a worker disconnected
+   - Automatic handling of disconnected workers
+
+2. **Recovery Mechanisms**:
+   - Task reassignment to active workers
+   - Checkpoint-based recovery for long-running tasks
+   - Automatic exclusion of failed workers from aggregation
+
+3. **Graceful Degradation**:
+   - Continue training with reduced worker count
+   - Adjust aggregation weights to compensate for missing workers
+   - Complete training even if some workers fail
+
+### Performance Monitoring
+
+The system provides comprehensive performance monitoring:
+
+```python
+# Get training progress for a specific task
+progress = kit.distributed_training.get_training_progress(task_id)
+
+print(f"Task progress: {progress['progress']:.2%}")
+print(f"Iterations completed: {progress['iterations_completed']}")
+print(f"Active workers: {progress['active_workers']}")
+print(f"Current loss: {progress['current_metrics']['loss']:.4f}")
+print(f"Current accuracy: {progress['current_metrics']['accuracy']:.4f}")
+
+# Get metrics history
+metrics_history = kit.distributed_training.get_training_metrics_history(task_id)
+
+# Plot metrics history (requires matplotlib)
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.plot(metrics_history['loss_history'])
+plt.title('Loss History')
+
+plt.subplot(1, 2, 2)
+plt.plot(metrics_history['accuracy_history'])
+plt.title('Accuracy History')
+
+plt.tight_layout()
+plt.show()
 ```
 
 ### Aggregation Methods
@@ -645,11 +814,108 @@ def execute_training_worker(task_config_cid):
 The distributed training system supports different methods for aggregating results from workers:
 
 1. **Best Model Selection**: Choose the model with the best performance metrics
+   ```python
+   task_result = kit.distributed_training.prepare_distributed_task(
+       model_name="BestModelSelection",
+       aggregation_method="best_model"
+   )
+   ```
+
 2. **Model Averaging**: Average model parameters across workers (for compatible models)
-3. **Ensembling**: Create an ensemble of models from different workers
-4. **Incremental Learning**: Apply updates sequentially from each worker
+   ```python
+   task_result = kit.distributed_training.prepare_distributed_task(
+       model_name="ParameterAveraging",
+       aggregation_method="average"
+   )
+   ```
+
+3. **Federated Averaging**: Weight parameter updates by dataset size on each worker
+   ```python
+   task_result = kit.distributed_training.prepare_distributed_task(
+       model_name="FederatedAveraging",
+       aggregation_method="federated_average"
+   )
+   ```
+
+4. **Ensembling**: Create an ensemble of models from different workers
+   ```python
+   task_result = kit.distributed_training.prepare_distributed_task(
+       model_name="EnsembleModel",
+       aggregation_method="ensemble"
+   )
+   ```
 
 The default method is Best Model Selection, but this can be configured in the training parameters.
+
+### Implementation Details
+
+The `DistributedTraining` class uses several IPFS features for coordination:
+
+1. **PubSub for Communication**:
+   - Task announcements via `ipfs_kit/training/tasks` topic
+   - Worker status via `ipfs_kit/training/workers` topic
+   - Parameter updates via `ipfs_kit/training/parameters` topic
+   - Training results via `ipfs_kit/training/results` topic
+
+2. **Content Addressing for Model Exchange**:
+   - Models stored as IPFS content with unique CIDs
+   - Workers refer to models by CID rather than transferring full models
+   - Content deduplication minimizes bandwidth usage
+
+3. **Coordination State Management**:
+   - Master maintains a comprehensive coordination state
+   - State tracks worker status, progress, and metrics
+   - State is used for monitoring, visualization, and recovery
+
+### Use Cases and Applications
+
+The distributed training system is designed for several key use cases:
+
+1. **Large Model Training**: Distribute training of large models across multiple nodes
+2. **Data Parallelism**: Train on different data partitions in parallel
+3. **Federated Learning**: Train models across organizational boundaries without sharing raw data
+4. **Edge Device Training**: Leverage edge devices for training without central infrastructure
+5. **Resilient Training**: Ensure training completes even with unstable nodes
+6. **Cross-Organization Collaboration**: Enable collaborative model development across organizations
+
+### Example: Federated Learning
+
+```python
+# On master node:
+federated_task = kit_master.distributed_training.prepare_distributed_task(
+    model_name="FederatedModel",
+    dataset_name=None,  # Each worker uses its own local dataset
+    training_config={
+        "framework": "pytorch",
+        "epochs": 10,
+        "federation": {
+            "aggregation": "federated_average",
+            "client_epochs": 5,  # Local epochs per round
+            "rounds": 20,  # Global aggregation rounds
+            "min_clients": 3,  # Minimum clients required
+            "privacy": {
+                "differential_privacy": True,
+                "dp_epsilon": 3.0,
+                "dp_delta": 1e-5
+            }
+        }
+    }
+)
+
+# Start federated training process
+kit_master.distributed_training.run_distributed_training(
+    task_id=federated_task["task_id"]
+)
+
+# On worker nodes (organization A, B, C, etc.):
+# Each worker would have its own private dataset
+worker_a = kit_worker_a.distributed_training.start_worker()
+worker_b = kit_worker_b.distributed_training.start_worker()
+worker_c = kit_worker_c.distributed_training.start_worker()
+
+# The workers join the federated training task automatically
+# and contribute to the global model without sharing raw data
+```
 
 ## Integration with Knowledge Graphs
 

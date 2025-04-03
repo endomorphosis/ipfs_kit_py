@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: ipfs-kit
+  labels:
+    app: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      scrape_timeout: 10s
+
+    scrape_configs:
+      # IPFS master node metrics
+      - job_name: 'ipfs-master'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - ipfs-kit
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_role]
+            regex: master
+            action: keep
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            regex: api
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+        metrics_path: /metrics
+        scheme: http
+
+      # IPFS worker node metrics
+      - job_name: 'ipfs-worker'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - ipfs-kit
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_role]
+            regex: worker
+            action: keep
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            regex: api
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+        metrics_path: /metrics
+        scheme: http
+
+      # IPFS leecher node metrics
+      - job_name: 'ipfs-leecher'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - ipfs-kit
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_role]
+            regex: leecher
+            action: keep
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            regex: api
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+        metrics_path: /metrics
+        scheme: http
+
+      # Kubernetes API Server metrics
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - default
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+
+      # Kubernetes nodes metrics
+      - job_name: 'kubernetes-nodes'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+
+      # Prometheus itself
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
