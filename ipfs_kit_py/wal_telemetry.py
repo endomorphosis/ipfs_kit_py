@@ -558,7 +558,7 @@ class WALTelemetry:
                 
                 if field_type == pa.timestamp('ms'):
                     arrays.append(pa.array([record.get(field_name, None) for record in records], type=field_type))
-                elif field_type.id == pa.Type.MAP:
+                elif str(field_type).startswith('map<'):
                     # Handle map fields
                     map_arrays = []
                     for record in records:
@@ -566,12 +566,35 @@ class WALTelemetry:
                         if not metadata:
                             map_arrays.append(None)
                         else:
-                            keys = list(metadata.keys())
-                            values = [str(metadata[k]) for k in keys]
-                            map_arrays.append(pa.MapScalar.from_arrays(
-                                pa.array(keys, type=pa.string()),
-                                pa.array(values, type=pa.string())
-                            ))
+                            try:
+                                keys = list(metadata.keys())
+                                values = [str(metadata[k]) for k in keys]
+                                # Use different approaches depending on PyArrow version
+                                try:
+                                    # Try to create a MapScalar or equivalent based on PyArrow version
+                                    if hasattr(pa, 'map_'):
+                                        # PyArrow >= 9.0.0 method
+                                        map_type = pa.map_(pa.string(), pa.string())
+                                        map_arrays.append(pa.scalar(
+                                            {k: v for k, v in zip(keys, values)},
+                                            type=map_type
+                                        ))
+                                    elif hasattr(pa, 'MapScalar'):
+                                        # Some versions use MapScalar
+                                        map_arrays.append(pa.MapScalar.from_arrays(
+                                            pa.array(keys, type=pa.string()),
+                                            pa.array(values, type=pa.string())
+                                        ))
+                                    else:
+                                        # Fallback
+                                        map_arrays.append(None)
+                                        logger.warning("No suitable MapScalar method found in this PyArrow version")
+                                except AttributeError as ae:
+                                    logger.warning(f"MapScalar error: {ae}")
+                                    map_arrays.append(None)
+                            except Exception as e:
+                                map_arrays.append(None)
+                                logger.warning(f"Error creating map array: {e}")
                     arrays.append(pa.array(map_arrays, type=field_type))
                 else:
                     arrays.append(pa.array([record.get(field_name, None) for record in records], type=field_type))
