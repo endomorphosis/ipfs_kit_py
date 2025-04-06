@@ -9,25 +9,23 @@ import shutil
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, Type, TypeVar, Generic
 from datetime import datetime
 
-try:
-    from contextlib import nullcontext
-except ImportError:
-    # Simple nullcontext implementation for Python versions that don't have it
-    class nullcontext:
-        """Context manager that does nothing.
 
-        This is a polyfill for contextlib.nullcontext which was introduced in Python 3.7.
-        Used as a placeholder context manager when metrics tracking is unavailable.
-        """
+# Simple nullcontext implementation for Python versions that don't have it
+class nullcontext:
+    """Context manager that does nothing.
 
-        def __init__(self, enter_result=None):
-            self.enter_result = enter_result
+    This is a polyfill for contextlib.nullcontext which was introduced in Python 3.7.
+    Used as a placeholder context manager when metrics tracking is unavailable.
+    """
 
-        def __enter__(self):
-            return self.enter_result
+    def __init__(self, enter_result=None):
+        self.enter_result = enter_result
 
-        def __exit__(self, *excinfo):
-            pass
+    def __enter__(self):
+        return self.enter_result
+
+    def __exit__(self, *excinfo):
+        pass
 
 try:
     import pydantic
@@ -1315,6 +1313,33 @@ class ModelRegistry:
 
             # Save registry
             self._save_registry()
+
+            # Add metadata to index if available
+            if self.ipfs and self.ipfs.metadata_index and cid:
+                try:
+                    index_record = {
+                        "cid": cid,
+                        "mime_type": "application/x-ml-model",
+                        "filename": f"{name}_{version}",
+                        "path": f"/ipfs/{cid}",
+                        "size_bytes": metadata.get("size_bytes"), # Get size if available
+                        "tags": ["model", framework, name] + metadata.get("tags", []),
+                        "properties": {
+                            "model_name": name,
+                            "model_version": version,
+                            "framework": framework,
+                            "type": "ml_model",
+                            **{k: str(v) for k, v in metadata.items() if k not in ["framework", "stored_at", "stored_by", "tags"]}
+                        }
+                    }
+                    # Remove None values from index_record before adding
+                    index_record = {k: v for k, v in index_record.items() if v is not None}
+                    index_result = self.ipfs.metadata_index.add(index_record)
+                    if not index_result.get("success"):
+                        self.logger.warning(f"Failed to add model metadata to index: {index_result.get('error')}")
+                except Exception as idx_e:
+                    self.logger.warning(f"Error adding model metadata to index: {idx_e}")
+
 
             # Success result
             result.update({
@@ -10860,33 +10885,6 @@ class DistributedTraining:
 
             # Publish initial model to workers
             self._publish_global_model(task, coordination_state)
-
-        except Exception as e:
-            self.logger.error(f"Error initializing synchronization for task {task['task_id']}: {e}")
-            raise
-
-    def _collect_parameter_updates(self, task, coordination_state, timeout=30):
-        """Collect parameter updates from workers.
-
-        Args:
-            task: The task configuration dictionary
-            coordination_state: The current coordination state
-            timeout: Timeout in seconds to wait for updates
-
-        Returns:
-            Number of updates received
-        """
-        import time
-
-        # Initialize counters
-        start_time = time.time()
-        updates_received = 0
-        active_workers = len(coordination_state["workers"])
-
-        # Wait for updates from workers (up to timeout)
-        while time.time() - start_time < timeout and updates_received < active_workers:
-
-            # Check if any workers have reported updates
             for worker_id, worker_state in list(coordination_state["workers"].items()):
                 if worker_state.get("has_update", False) and not worker_state.get(
                     "update_processed", False
@@ -10897,12 +10895,17 @@ class DistributedTraining:
             # Don't busy-wait
             if updates_received < active_workers:
                 time.sleep(0.1)
-
-        return updates_received
+            try:
+                return updates_received
+            except Exception as e:
+                self.logger.error(f"Error waiting for updates: {e}")
+                return 0
+        except Exception as e:
+            self.logger.error(f"Error in synchronization initialization: {e}")
+            return 0
 
     def _aggregate_parameters(self, task, coordination_state):
         """Aggregate parameter updates from workers.
-
         Args:
             task: The task configuration dictionary
             coordination_state: The current coordination state

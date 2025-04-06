@@ -38,6 +38,9 @@ class TestModelRegistryMetadataIndexIntegration(unittest.TestCase):
             "success": True,
             "cid": f"mock-cid-{data.get('name', 'test')}",
         }
+        # Explicitly mock ipfs_add_path to return a dict with a string CID
+        self.ipfs_client.ipfs_add_path.return_value = {"success": True, "cid": "mock-dir-cid"}
+        # Also mock add_directory for consistency if it's used elsewhere
         self.ipfs_client.add_directory.return_value = {"success": True, "Hash": "mock-dir-cid"}
         self.ipfs_client.pin_add.return_value = {"success": True}
 
@@ -69,9 +72,11 @@ class TestModelRegistryMetadataIndexIntegration(unittest.TestCase):
                 metadata={"accuracy": 0.95, "tags": ["classification", "test"]},
             )
 
-        # Verify the model was added successfully
-        self.assertTrue(result["success"])
-        self.assertEqual(result["model_name"], "test_model")
+        # Verify the model was added successfully using attribute access
+        self.assertTrue(result.success)
+        self.assertEqual(result.model_name, "test_model")
+        # Check that the CID returned is the mocked string CID
+        self.assertEqual(result.cid, "mock-dir-cid")
 
         # Verify the metadata index was called with appropriate parameters
         self.mock_metadata_index.add.assert_called_once()
@@ -111,6 +116,8 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
             "success": True,
             "cid": f"mock-cid-{data.get('name', 'test')}",
         }
+        # Explicitly mock ipfs_add_path for dataset manager
+        self.ipfs_client.ipfs_add_path.return_value = {"success": True, "cid": "mock-dataset-cid"}
         self.ipfs_client.add_directory.return_value = {"success": True, "Hash": "mock-dataset-cid"}
         self.ipfs_client.pin_add.return_value = {"success": True}
 
@@ -153,9 +160,11 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
                     metadata={"description": "Test dataset", "tags": ["tabular", "test"]},
                 )
 
-        # Verify the dataset was added successfully
-        self.assertTrue(result["success"])
-        self.assertEqual(result["dataset_name"], "test_dataset")
+        # Verify the dataset was added successfully using attribute access
+        self.assertTrue(result.success)
+        self.assertEqual(result.dataset_name, "test_dataset")
+        # Check that the CID returned is the mocked string CID
+        self.assertEqual(result.cid, "mock-dataset-cid")
 
         # Verify the metadata index was called with appropriate parameters
         self.mock_metadata_index.add.assert_called_once()
@@ -201,7 +210,9 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
             "success": True,
             "cid": f"mock-cid-{data.get('name', 'test')}",
         }
-        self.ipfs_client.add_directory.return_value = {"success": True, "Hash": "mock-dir-cid"}
+        # Mock ipfs_add_path to return a string CID even without metadata index
+        self.ipfs_client.ipfs_add_path.return_value = {"success": True, "cid": "mock-dir-cid-fallback"}
+        self.ipfs_client.add_directory.return_value = {"success": True, "Hash": "mock-dir-cid-fallback"}
         self.ipfs_client.pin_add.return_value = {"success": True}
 
         # Create temp directory for registry storage
@@ -221,9 +232,11 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
             model=dummy_model, model_name="test_model", version="1.0.0"
         )
 
-        # Verify model was added successfully despite no metadata index
-        self.assertTrue(result["success"])
-        self.assertEqual(result["model_name"], "test_model")
+        # Verify model was added successfully using attribute access
+        self.assertTrue(result.success)
+        self.assertEqual(result.model_name, "test_model")
+        # Check CID is the fallback string CID
+        self.assertEqual(result.cid, "mock-dir-cid-fallback")
 
         # Create a test dataset file
         test_csv = os.path.join(self.temp_dir, "test.csv")
@@ -248,9 +261,11 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
                 dataset_path=test_csv, dataset_name="test_dataset", version="1.0.0"
             )
 
-        # Verify dataset was added successfully despite no metadata index
-        self.assertTrue(result["success"])
-        self.assertEqual(result["dataset_name"], "test_dataset")
+        # Verify dataset was added successfully using attribute access
+        self.assertTrue(result.success)
+        self.assertEqual(result.dataset_name, "test_dataset")
+        # Check CID is the fallback string CID
+        self.assertEqual(result.cid, "mock-dir-cid-fallback") # Assuming dataset manager also uses ipfs_add_path
 
 
 if __name__ == "__main__":

@@ -1363,11 +1363,16 @@ class StorageWriteAheadLog:
         """
         # Stop the processing thread
         self._stop_processing_thread()
-        
-        # Close any open file handles
-        for _, (file_obj, _) in self.mmap_files.items():
-            file_obj.close()
-        
+
+        # Close any open file handles if mmap_files exists and is not empty
+        if hasattr(self, 'mmap_files') and self.mmap_files:
+            for _, (file_obj, _) in self.mmap_files.items():
+                if file_obj: # Check if file_obj is not None
+                    try:
+                        file_obj.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing mmap file: {e}")
+
         logger.info("WAL closed")
 
 

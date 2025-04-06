@@ -15,6 +15,7 @@ import time
 import uuid
 import json
 import collections
+from collections import defaultdict
 import datetime
 import concurrent.futures
 import struct
@@ -4334,7 +4335,6 @@ class ParquetCIDCache:
                         if row_group_idx < metadata.num_row_groups:
                             try:
                                 # Just accessing the statistics prefetches them
-                                col_stats = metadata.row_group(row_group_idx).column(col_name).statistics
                                 # Estimate size of statistics (~100 bytes per column stats)
                                 prefetched_bytes += 100
                                 prefetched_columns_set.add(col_name)

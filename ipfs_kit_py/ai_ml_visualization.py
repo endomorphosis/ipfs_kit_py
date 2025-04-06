@@ -521,8 +521,10 @@ class AIMLVisualization:
             fig, ax = plt.subplots(figsize=figsize)
 
             # Create bar chart
+            # Corrected color mapping: Apply division element-wise
+            normalized_utilization = [u / 100.0 for u in utilization_values]
             bars = ax.bar(
-                worker_ids, utilization_values, color=plt.cm.viridis(utilization_values / 100)
+                worker_ids, utilization_values, color=plt.cm.viridis(normalized_utilization)
             )
 
             # Add target line

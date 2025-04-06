@@ -1,17 +1,12 @@
 import unittest
 import asyncio
 import os
-import time
 import tempfile
-import json
-import mimetypes
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, AsyncMock
 import shutil
 import pytest
 import io
-import random
 from fastapi.testclient import TestClient
-from fastapi import WebSocket
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 from ipfs_kit_py.api import app
@@ -140,6 +135,21 @@ class TestStreaming(unittest.TestCase):
 class TestAsyncStreaming:
     """Test asynchronous streaming functionality."""
     
+    @pytest.fixture(autouse=True)
+    async def setup_and_cleanup(self):
+        """Setup and cleanup fixture that runs for each test."""
+        # Create a new event loop for each test
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        yield
+        # Clean up the loop
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+        await loop.shutdown_asyncgens()
+        loop.close()
+    
     @pytest.fixture
     async def setup(self):
         """Set up test environment."""
@@ -188,9 +198,37 @@ class TestAsyncStreaming:
         # Setup mock
         mock_add.return_value = {"Hash": test_cid}
         
-        # Create a file-like object
+        # Create a file-like object for streaming
         file_obj = io.BytesIO(test_content)
         
+        # Test the async streaming upload method
+        result = await api.stream_to_ipfs_async(file_obj, chunk_size=1024)
+        
+        # Verify result
+        assert result.get("Hash") == test_cid
+        
+        # Verify add was called
+        mock_add.assert_called_once()
+class TestWebSocketStreaming:
+    """Test WebSocket streaming functionality."""
+    
+    @pytest.fixture(autouse=True)
+    async def setup_and_cleanup(self):
+        """Setup and cleanup fixture that runs for each test."""
+        # Create a new event loop for each test
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        yield
+        # Clean up the loop
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+        await loop.shutdown_asyncgens()
+        loop.close()
+    
+    @pytest.fixture
+    async def setup(self):
         # Test the async streaming upload method
         result = await api.stream_to_ipfs_async(file_obj, chunk_size=1024)
         
@@ -344,74 +382,89 @@ class TestWebSocketStreaming:
         """Test bidirectional WebSocket streaming."""
         api, test_content, _, _, test_cid = setup
         
-        # Setup mocks
-        mock_cat.return_value = test_content
-        mock_add.return_value = {"Hash": test_cid}
-        
-        # Create mock WebSocket
-        mock_websocket = AsyncMock()
-        
-        # Setup the receive sequence for commands
-        command_queue = asyncio.Queue()
-        
-        # Add a 'get' command
-        await command_queue.put({
-            "command": "get",
-            "path": test_cid
-        })
-        
-        # Add an 'add' command (will be followed by content chunks)
-        await command_queue.put({
-            "command": "add",
-            "filename": "test_file.txt",
-            "content_type": "text/plain",
-            "content_length": len(test_content)
-        })
-        
-        # Add content chunks for the 'add' command
-        chunk_size = 1024
-        for i in range(0, len(test_content), chunk_size):
-            chunk = test_content[i:i+chunk_size]
-            await command_queue.put(chunk)
-        
-        # Add a 'complete' message for the 'add' command
-        await command_queue.put({
-            "command": "complete"
-        })
-        
-        # Define side effects to simulate receiving messages
-        async def receive_json_side_effect():
-            if not command_queue.empty():
-                item = await command_queue.get()
-                if isinstance(item, dict):
-                    return item
-                else:
-                    # If we get bytes, we should return from receive_bytes next time
-                    mock_websocket.receive_bytes.return_value = item
-                    # And return a placeholder here
-                    return {"command": "content_chunk"}
-            return {"command": "exit"}
-        
-        mock_websocket.receive_json.side_effect = receive_json_side_effect
-        
-        # Mock the websocket accept method
-        mock_websocket.accept = AsyncMock()
-        
-        # Test the WebSocket bidirectional handler
-        await api.handle_websocket_bidirectional_stream(mock_websocket)
-        
-        # Verify accept was called
-        mock_websocket.accept.assert_called_once()
-        
-        # Verify both cat and add were called
-        mock_cat.assert_called_once_with(test_cid)
-        mock_add.assert_called_once()
-        
-        # Verify send_json was called multiple times (for responses to commands)
-        assert mock_websocket.send_json.call_count > 0
-        
-        # Verify send_bytes was called for the 'get' command response
-        assert mock_websocket.send_bytes.call_count > 0
+        # Use a more robust timeout mechanism
+        try:
+            async with asyncio.timeout(5):  # 5 seconds timeout
+                # Setup mocks
+                mock_cat.return_value = test_content
+                mock_add.return_value = {"Hash": test_cid}
+                
+                # Create mock WebSocket with cleanup context
+                mock_websocket = AsyncMock()
+                mock_websocket.close = AsyncMock()
+                
+                # Setup the receive sequence for commands
+                command_queue = asyncio.Queue()
+                
+                # Add a 'get' command
+                await command_queue.put({
+                    "command": "get",
+                    "path": test_cid
+                })
+                
+                # Add an 'add' command (will be followed by content chunks)
+                await command_queue.put({
+                    "command": "add",
+                    "filename": "test_file.txt",
+                    "content_type": "text/plain",
+                    "content_length": len(test_content)
+                })
+                
+                # Add content chunks for the 'add' command
+                chunk_size = 1024
+                for i in range(0, len(test_content), chunk_size):
+                    chunk = test_content[i:i+chunk_size]
+                    await command_queue.put(chunk)
+                
+                # Add a 'complete' message for the 'add' command
+                await command_queue.put({
+                    "command": "complete"
+                })
+                
+                # Define side effects to simulate receiving messages
+                async def receive_json_side_effect():
+                    if not command_queue.empty():
+                        item = await command_queue.get()
+                        if isinstance(item, dict):
+                            return item
+                        else:
+                            # If we get bytes, we should return from receive_bytes next time
+                            mock_websocket.receive_bytes.return_value = item
+                            # And return a placeholder here
+                            return {"command": "content_chunk"}
+                    return {"command": "exit"}
+                
+                mock_websocket.receive_json.side_effect = receive_json_side_effect
+                
+                # Mock the websocket accept method
+                mock_websocket.accept = AsyncMock()
+                
+                # Test the WebSocket bidirectional handler
+                await api.handle_websocket_bidirectional_stream(mock_websocket)
+                
+                # Verify accept was called
+                mock_websocket.accept.assert_called_once()
+                
+                # Verify both cat and add were called
+                mock_cat.assert_called_once_with(test_cid)
+                mock_add.assert_called_once()
+                
+                # Verify send_json was called multiple times (for responses to commands)
+                assert mock_websocket.send_json.call_count > 0
+                # Ensure WebSocket is closed and resources are cleaned up
+                await mock_websocket.close()
+                assert mock_websocket.send_bytes.call_count > 0
+        except asyncio.TimeoutError:
+            # Handle timeout gracefully
+            await mock_websocket.close()
+            pytest.fail("Test timed out after 5 seconds")
+        finally:
+            # Clean up any remaining tasks
+            for task in asyncio.all_tasks():
+                if task is not asyncio.current_task():
+                    task.cancel()
+            
+            assert mock_websocket.send_bytes.call_count > 0
 
 
 if __name__ == "__main__":
