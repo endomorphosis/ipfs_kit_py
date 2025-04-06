@@ -421,3 +421,135 @@ enhanced_rag.index_entity(
 3. **Distributed Index**: Enhance with distributed capabilities for large-scale deployments
 4. **Caching Layer**: Add result caching for frequently accessed queries
 5. **Feedback Integration**: Incorporate user feedback to improve search rankings
+
+## AIMLSearchConnector
+
+The `AIMLSearchConnector` class provides a focused interface for searching specifically for AI/ML assets (models and datasets) stored and indexed within IPFS Kit. It leverages the underlying `MetadataEnhancedGraphRAG` or directly the `ArrowMetadataIndex` and `ModelRegistry`/`DatasetManager`.
+
+**Key Features:**
+
+*   **Targeted Search**: Methods like `search_models` and `search_datasets` with parameters relevant to AI/ML (framework, task, format, tags).
+*   **Retriever Creation**: Can generate Langchain or LlamaIndex compatible retrievers based on search results, facilitating integration into RAG pipelines focused on AI assets.
+*   **Abstraction**: Simplifies searching for AI/ML assets compared to using the generic `hybrid_search`.
+
+**Usage Example:**
+
+```python
+from ipfs_kit_py.ipfs_kit import IPFSKit
+from ipfs_kit_py.integrated_search import AIMLSearchConnector
+
+kit = IPFSKit(role="worker")
+search_connector = AIMLSearchConnector(ipfs_client=kit)
+
+# Search for PyTorch image classification models
+model_results = search_connector.search_models(
+    query_text="image classification",
+    framework="pytorch",
+    tags=["cnn"],
+    min_accuracy=0.9
+)
+print(f"Found {len(model_results)} models.")
+
+# Search for Parquet datasets related to finance
+dataset_results = search_connector.search_datasets(
+    query_text="financial timeseries",
+    format="parquet",
+    min_rows=100000
+)
+print(f"Found {len(dataset_results)} datasets.")
+
+# Create a Langchain retriever for relevant models
+langchain_retriever = search_connector.create_langchain_retriever(
+    query_text="transformer models for NLP",
+    asset_type="model",
+    search_kwargs={"k": 3} # Retrieve top 3
+)
+# Use retriever in a Langchain chain...
+```
+
+## Distributed Query Optimizer
+
+For large clusters or complex search queries, the `DistributedQueryOptimizer` aims to improve performance by distributing parts of the search query across multiple worker nodes.
+
+**Key Features:**
+
+*   **Query Analysis**: Determines if a query (especially metadata filters) can be parallelized.
+*   **Worker Selection**: Identifies available worker nodes capable of handling query shards.
+*   **Query Distribution**: Splits the query or search space and sends shards to workers.
+*   **Result Aggregation**: Combines results received from workers into a final ranked list.
+*   **Load Balancing**: Distributes query load across the cluster.
+
+**Usage (Conceptual):**
+
+The optimizer might be used internally by `MetadataEnhancedGraphRAG` or `AIMLSearchConnector` when cluster mode is active, or potentially invoked directly for complex queries.
+
+```python
+from ipfs_kit_py.ipfs_kit import IPFSKit
+from ipfs_kit_py.integrated_search import DistributedQueryOptimizer, MetadataEnhancedGraphRAG
+
+kit = IPFSKit(role="master") # Assume running on coordinator
+enhanced_rag = MetadataEnhancedGraphRAG(ipfs_client=kit)
+optimizer = DistributedQueryOptimizer(ipfs_client=kit) # Needs access to cluster info
+
+query_params = {
+    "query_text": "find relevant documents",
+    "metadata_filters": [("year", ">", 2020), ("tags", "contains", "ipfs")],
+    "top_k": 50
+}
+
+if optimizer.is_query_distributable(query_params):
+    print("Query is distributable. Executing via optimizer...")
+    results = optimizer.distribute_query(query_params, enhanced_rag)
+else:
+    print("Query not suitable for distribution. Executing locally...")
+    results = enhanced_rag.hybrid_search(**query_params)
+
+# Process results...
+```
+
+**Considerations:**
+
+*   Adds complexity and network overhead.
+*   Most effective for queries with highly parallelizable filters over large datasets/metadata indices.
+*   Requires a properly configured cluster with available workers.
+
+## Search Benchmarking
+
+The `SearchBenchmark` class provides tools to evaluate the performance of different search strategies within IPFS Kit.
+
+**Key Features:**
+
+*   **Targeted Benchmarks**: Methods to specifically benchmark metadata search, vector search, and hybrid search.
+*   **Realistic Queries**: Uses predefined or custom query sets relevant to the indexed data.
+*   **Performance Metrics**: Measures latency, throughput, and potentially relevance (if ground truth is available).
+*   **Configuration Comparison**: Allows comparing performance across different index settings or query parameters.
+*   **Reporting**: Generates reports summarizing benchmark results.
+
+**Usage Example:**
+
+```python
+from ipfs_kit_py.ipfs_kit import IPFSKit
+from ipfs_kit_py.integrated_search import SearchBenchmark, AIMLSearchConnector
+
+kit = IPFSKit(role="worker")
+search_connector = AIMLSearchConnector(ipfs_client=kit) # Needed if benchmarking connector methods
+benchmark = SearchBenchmark(ipfs_client=kit, search_connector=search_connector)
+
+# Define test cases for hybrid search
+hybrid_test_cases = [
+    {"query_text": "IPFS concepts", "metadata_filters": [("type", "==", "documentation")]},
+    {"query_text": "image models", "metadata_filters": [("framework", "==", "pytorch")]},
+]
+
+# Run benchmarks
+metadata_results = benchmark.benchmark_metadata_search(num_runs=20)
+vector_results = benchmark.benchmark_vector_search(num_runs=50)
+hybrid_results = benchmark.benchmark_hybrid_search(test_cases=hybrid_test_cases, num_runs=10)
+
+# Run full suite
+full_results = benchmark.run_full_benchmark_suite(save_results=True, output_dir="./search_benchmarks")
+
+# Generate report
+report = benchmark.generate_benchmark_report(results=full_results, format="markdown")
+print(report)
+```

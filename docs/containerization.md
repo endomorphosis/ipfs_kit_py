@@ -453,6 +453,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./kubernetes/grafana-dashboard-configmap.yaml:/etc/grafana/provisioning/dashboards/ipfs-kit-dashboards.yaml
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -461,6 +462,8 @@ services:
     restart: unless-stopped
     networks:
       - ipfs-network
+    depends_on:
+      - prometheus
 
 volumes:
   # ... IPFS Kit volumes from above ...
@@ -1333,7 +1336,7 @@ IPFS Kit exposes Prometheus metrics:
 
 - **Endpoint**: `/metrics` provides performance and operational metrics
 - **Dimensions**: Metrics are tagged with node role and component
-- **Categories**: Storage, network, cache, operations, errors
+- **Categories**: Storage, network, cache, operations, errors, repository, content, cluster
 
 Prometheus configuration example:
 
@@ -1345,6 +1348,14 @@ scrape_configs:
     static_configs:
       - targets: ['ipfs-master:8000', 'ipfs-worker-1:8000', 'ipfs-worker-2:8000']
 ```
+
+Grafana dashboards are provided for visualization:
+
+1. **System Dashboard**: General system resource usage (CPU, memory, network)
+2. **Operations Dashboard**: IPFS operation metrics (add, get, pin, latency)
+3. **IPFS Core Dashboard**: IPFS-specific metrics (repository, pins, peers, DHT, cluster)
+
+For details on available metrics and dashboards, see the [Observability Documentation](/docs/observability.md).
 
 ### Log Management
 

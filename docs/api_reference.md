@@ -83,7 +83,8 @@ api = IPFSSimpleAPI(
 | Method | Description | Parameters | Return Value |
 |--------|-------------|------------|--------------|
 | `register_extension(name, func)` | Register a custom extension | `name`: Extension name<br>`func`: Extension function | None |
-| `call_extension(name, *args, **kwargs)` | Call an extension | `name`: Extension name<br>`*args`: Positional arguments<br>`**kwargs`: Keyword arguments | Return value of the extension function |
+| `register_extension(extension_instance)` | Register a custom extension instance | `extension_instance`: An instance of a class following the extension pattern (e.g., inheriting from `PluginBase`) | None |
+| `call_extension(name, method_name, *args, **kwargs)` | Call a method on a registered extension | `name`: Extension name (from `get_name()`)<br>`method_name`: Name of the method to call<br>`*args`: Positional arguments for the method<br>`**kwargs`: Keyword arguments for the method | Return value of the extension method |
 
 ### SDK Generation
 
@@ -109,8 +110,58 @@ result = api.add("example.txt")
 result = api("add", "example.txt")
 
 # Extension call
-result = api("StatisticsPlugin.get_stats")
+result = api("my_custom_service.get_service_status")
+
+# Note: Direct attribute access (e.g., api.my_custom_method()) might also be supported
+# depending on the specific implementation of IPFSSimpleAPI's dynamic handling.
 ```
+
+### Streaming Operations
+
+| Method | Description | Parameters | Return Value |
+|--------|-------------|------------|--------------|
+| `stream_media(cid, byte_range=None, **kwargs)` | Stream media content (video/audio) | `cid`: Content identifier<br>`byte_range`: Optional tuple `(start, end)` for range requests | Generator yielding chunks of bytes |
+| `stream_to_ipfs(data_stream, pin=True, **kwargs)` | Stream data directly to IPFS | `data_stream`: Iterator/generator yielding bytes<br>`pin`: Whether to pin the resulting content<br>`**kwargs`: Additional add options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Content identifier<br>- Add metadata |
+| `handle_websocket_media_stream(websocket, cid, **kwargs)` | Handle WebSocket connection for media streaming | `websocket`: WebSocket connection object<br>`cid`: Content identifier<br>`**kwargs`: Streaming options | Async task (None) |
+| `handle_websocket_upload_stream(websocket, pin=True, **kwargs)` | Handle WebSocket connection for uploading data | `websocket`: WebSocket connection object<br>`pin`: Pin uploaded content<br>`**kwargs`: Add options | Async task returning add result dict |
+| `handle_websocket_bidirectional_stream(websocket, **kwargs)` | Handle bidirectional WebSocket stream | `websocket`: WebSocket connection object<br>`**kwargs`: Options | Async task (None) |
+| `handle_webrtc_streaming(websocket, **kwargs)` | Handle WebRTC signaling and streaming via WebSocket | `websocket`: WebSocket signaling connection object<br>`**kwargs`: WebRTC configuration | Async task (None) |
+
+
+### Advanced AI/ML Operations (Requires ai_ml extra)
+
+*(This section expands on the basic AI/ML operations listed previously)*
+
+| Method | Description | Parameters | Return Value |
+|--------|-------------|------------|--------------|
+| `ai_data_loader(dataset_cid=None, dataset_name=None, batch_size=32, shuffle=True, prefetch=2, **kwargs)` | Get an IPFSDataLoader instance | `dataset_cid/name`: Dataset identifier<br>`batch_size`, `shuffle`, `prefetch`: Loader options<br>`**kwargs`: Additional options | `IPFSDataLoader` instance |
+| `ai_langchain_create_vectorstore(documents, embedding_model, collection_name=None, **kwargs)` | Create Langchain vector store on IPFS | `documents`: List of Langchain Documents<br>`embedding_model`: Langchain embedding model instance<br>`collection_name`: Optional name<br>`**kwargs`: Options | Dict with `success`, `vector_store` object, `cid` |
+| `ai_langchain_load_documents(cid_or_path, **kwargs)` | Load documents from IPFS for Langchain | `cid_or_path`: IPFS CID or path<br>`**kwargs`: Loader options | List of Langchain `Document` objects |
+| `ai_langchain_store_chain(chain, name, version, metadata=None, **kwargs)` | Store Langchain chain on IPFS | `chain`: Langchain chain object<br>`name`, `version`: Identifier<br>`metadata`: Optional metadata<br>`**kwargs`: Options | Dict with `success`, `cid` |
+| `ai_langchain_load_chain(name, version, **kwargs)` | Load Langchain chain from IPFS | `name`, `version`: Identifier<br>`**kwargs`: Options | Dict with `success`, `chain` object |
+| `ai_llama_index_create_index(documents, service_context=None, **kwargs)` | Create LlamaIndex index on IPFS | `documents`: List of LlamaIndex Documents<br>`service_context`: Optional LlamaIndex ServiceContext<br>`**kwargs`: Options | Dict with `success`, `index` object, `cid` |
+| `ai_llama_index_load_documents(cid_or_path, **kwargs)` | Load documents from IPFS for LlamaIndex | `cid_or_path`: IPFS CID or path<br>`**kwargs`: Loader options | List of LlamaIndex `Document` objects |
+| `ai_llama_index_store_index(index, name, version, metadata=None, **kwargs)` | Store LlamaIndex index on IPFS | `index`: LlamaIndex index object<br>`name`, `version`: Identifier<br>`metadata`: Optional metadata<br>`**kwargs`: Options | Dict with `success`, `cid` |
+| `ai_llama_index_load_index(name, version, service_context=None, **kwargs)` | Load LlamaIndex index from IPFS | `name`, `version`: Identifier<br>`service_context`: Optional LlamaIndex ServiceContext<br>`**kwargs`: Options | Dict with `success`, `index` object |
+| `ai_distributed_training_submit_job(task_config, **kwargs)` | Submit a distributed training job | `task_config`: Dictionary defining the job<br>`**kwargs`: Options | Dict with `success`, `task_id` |
+| `ai_distributed_training_get_status(task_id, **kwargs)` | Get status of a distributed training job | `task_id`: Job identifier<br>`**kwargs`: Options | Dict with `success`, `status`, `progress`, etc. |
+| `ai_distributed_training_aggregate_results(task_id, **kwargs)` | Aggregate results from a completed job | `task_id`: Job identifier<br>`**kwargs`: Options | Dict with `success`, `final_model_cid`, `metrics` |
+| `ai_benchmark_model(...)` | Benchmark model performance | *(Params depend on implementation)* | Benchmark results dict |
+| `ai_deploy_model(...)` | Deploy model to an endpoint | *(Params depend on implementation)* | Deployment info dict |
+| `ai_optimize_model(...)` | Optimize model for inference | *(Params depend on implementation)* | Dict with `success`, `optimized_model_cid` |
+
+
+### Integrated Search Operations (Requires relevant extras)
+
+| Method | Description | Parameters | Return Value |
+|--------|-------------|------------|--------------|
+| `hybrid_search(query_text=None, query_vector=None, metadata_filters=None, entity_types=None, hop_count=1, top_k=10, **kwargs)` | Perform hybrid metadata/vector/graph search | *(See method signature)*<br>`**kwargs`: Options | List of search result dictionaries |
+| `load_embedding_model(model_name_or_path, **kwargs)` | Load an embedding model | `model_name_or_path`: Identifier for the model<br>`**kwargs`: Options | Embedding model instance |
+| `generate_embeddings(texts, model=None, **kwargs)` | Generate embeddings for text | `texts`: List of strings<br>`model`: Optional pre-loaded model<br>`**kwargs`: Options | List of embedding vectors |
+| `create_search_connector(**kwargs)` | Get an AIMLSearchConnector instance | `**kwargs`: Options | `AIMLSearchConnector` instance |
+| `create_search_benchmark(**kwargs)` | Get a SearchBenchmark instance | `**kwargs`: Options | `SearchBenchmark` instance |
+| `run_search_benchmark(...)` | Run search benchmarks | *(Params depend on implementation)* | Benchmark results dict |
+
 
 ## REST API Reference
 
@@ -198,6 +249,29 @@ run_server(
 | `/api/v0/ai/dataset/add` | POST | Add dataset | Multipart form with dataset file and metadata | `{"success": true, "cid": "Qm...", "metadata": {...}}` |
 | `/api/v0/ai/dataset/get` | GET | Get dataset | Query param: `cid` | Dataset file with appropriate Content-Type |
 | `/api/v0/ai/metrics` | GET | Get metrics | Query params for model ID and metrics type | `{"success": true, "metrics": {...}}` |
+| `/api/v0/ai/dataloader` | POST | Get IPFSDataLoader info/status | JSON body with loader config/ID | `{"success": true, "loader_status": {...}}` |
+| `/api/v0/ai/langchain/vectorstore/create` | POST | Create Langchain vector store | JSON body with documents, embedding config | `{"success": true, "cid": "Qm...", "collection_name": "..."}` |
+| `/api/v0/ai/langchain/chain/store` | POST | Store Langchain chain | JSON body with chain data, name, version | `{"success": true, "cid": "Qm..."}` |
+| `/api/v0/ai/langchain/chain/load` | GET | Load Langchain chain | Query params: `name`, `version` | `{"success": true, "chain": {...}}` |
+| `/api/v0/ai/llamaindex/index/create` | POST | Create LlamaIndex index | JSON body with documents, config | `{"success": true, "cid": "Qm...", "index_name": "..."}` |
+| `/api/v0/ai/llamaindex/index/store` | POST | Store LlamaIndex index | JSON body with index data, name, version | `{"success": true, "cid": "Qm..."}` |
+| `/api/v0/ai/llamaindex/index/load` | GET | Load LlamaIndex index | Query params: `name`, `version` | `{"success": true, "index": {...}}` |
+| `/api/v0/ai/distributed/submit` | POST | Submit distributed training job | JSON body with task config | `{"success": true, "task_id": "..."}` |
+| `/api/v0/ai/distributed/status` | GET | Get distributed job status | Query param: `task_id` | `{"success": true, "status": "...", "progress": 0.5}` |
+
+### Streaming Endpoints
+
+| Endpoint | Method | Description | Request Format | Response Format |
+|----------|--------|-------------|----------------|-----------------|
+| `/api/v0/stream/media` | GET | Stream media content | Query param: `arg` (CID), Optional `Range` header | Chunked byte stream with appropriate Content-Type |
+| `/api/v0/stream/upload` | POST | Stream data upload to IPFS | Raw byte stream in request body, Optional query param `pin=true` | `{"success": true, "cid": "Qm...", "size": 1234}` |
+
+### Integrated Search Endpoints (Requires relevant extras)
+
+| Endpoint | Method | Description | Request Format | Response Format |
+|----------|--------|-------------|----------------|-----------------|
+| `/api/v0/search/hybrid` | POST | Perform hybrid search | JSON body with query, filters, vector, etc. | `{"success": true, "results": [...]}` |
+| `/api/v0/embeddings/generate` | POST | Generate text embeddings | JSON body with `texts` list and optional `model` | `{"success": true, "embeddings": [[...], ...]}` |
 
 ### Error Handling
 
@@ -327,6 +401,16 @@ fetch('http://localhost:8000/api/v0/pubsub/pub', {
 });
 ```
 
+#### Streaming WebSocket Endpoints
+
+| Endpoint | Description | Client Messages | Server Messages |
+|----------|-------------|-----------------|-----------------|
+| `/ws/v0/stream/media` | Stream media content down | JSON `{"cid": "Qm..."}` | Binary chunks |
+| `/ws/v0/stream/upload` | Stream data upload | Binary chunks | JSON `{"success": true, "cid": "Qm..."}` on completion |
+| `/ws/v0/stream/bidirectional` | Bidirectional data streaming | Binary chunks | Binary chunks |
+| `/ws/v0/webrtc` | WebRTC signaling channel | JSON signaling messages (offer, answer, candidate) | JSON signaling messages |
+
+
 ## OpenAPI Schema
 
 The REST API provides an OpenAPI schema at the `/api/v0/openapi.json` endpoint. This schema can be used with tools like Swagger UI, Postman, or code generators to create client libraries.
@@ -366,7 +450,8 @@ mutation {
     }
   }
 }
-```
+
+The GraphQL schema includes types like `IPFSContent`, `PinInfo`, `PeerInfo`, `AIModel`, `AIDataset`, etc., allowing detailed queries. Mutations are available for actions like adding/pinning content (`AddContentMutation`, `PinContentMutation`), publishing to IPNS (`PublishIPNSMutation`), managing keys (`GenerateKeyMutation`), and cluster operations (`ClusterPinMutation`). Refer to the GraphQL Playground for the full interactive schema.
 
 ## Authentication
 

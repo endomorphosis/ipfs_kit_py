@@ -348,8 +348,9 @@ def test_run_server():
         from ipfs_kit_py.api import run_server
 
         run_server(host="localhost", port=8888, reload=True)
+        # Include the log_level which is a default parameter
         mock_run.assert_called_once_with(
-            "ipfs_kit_py.api:app", host="localhost", port=8888, reload=True
+            "ipfs_kit_py.api:app", host="localhost", port=8888, reload=True, log_level="info"
         )
 
 

@@ -13,12 +13,21 @@ Key features:
 
 This high-level API serves as the main entry point for most users,
 abstracting away the complexity of the underlying components.
+
+API Stability:
+The API is divided into stability levels that indicate compatibility guarantees:
+- @stable_api: Methods won't change within the same major version
+- @beta_api: Methods are nearly stable but may change in minor versions
+- @experimental_api: Methods may change at any time
+
+See docs/api_stability.md for more details on API versioning and stability.
 """
 
 import importlib
 import inspect
 import json
 import logging
+import warnings
 import os
 import sys
 import tempfile
@@ -37,6 +46,7 @@ try:
     from .error import IPFSConfigurationError, IPFSError, IPFSValidationError
     from .ipfs_kit import IPFSKit, ipfs_kit  # Import both the function and the class
     from .validation import validate_parameters
+    from .api_stability import stable_api, beta_api, experimental_api, deprecated
 
     # Try to import FSSpec integration
     try:
@@ -68,6 +78,7 @@ except ImportError:
     from ipfs_kit_py.error import IPFSConfigurationError, IPFSError, IPFSValidationError
     from ipfs_kit_py.ipfs_kit import IPFSKit, ipfs_kit  # Import both the function and the class
     from ipfs_kit_py.validation import validate_parameters
+    from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
 
     # Try to import FSSpec integration
     try:
@@ -194,7 +205,7 @@ class IPFSSimpleAPI:
         based on the current API configuration.
         
         Args:
-            language: Target programming language (python, javascript, rust)
+            language: Target programming language (python, javascript, rust, go/golang, typescript)
             output_dir: Directory where the SDK will be generated
             **kwargs: Additional language-specific options
                 
@@ -271,6 +282,49 @@ class IPFSSimpleAPI:
                 readme_file = os.path.join(output_dir, "README.md")
                 with open(readme_file, "w") as f:
                     f.write(self._generate_readme("rust"))
+                result["files_generated"].append(readme_file)
+                
+                result["success"] = True
+                
+            elif language.lower() == "go" or language.lower() == "golang":
+                # Generate Go SDK
+                client_file = os.path.join(output_dir, "ipfs_client.go")
+                with open(client_file, "w") as f:
+                    f.write(self._generate_go_client())
+                result["files_generated"].append(client_file)
+                
+                go_mod_file = os.path.join(output_dir, "go.mod")
+                with open(go_mod_file, "w") as f:
+                    f.write(self._generate_go_mod())
+                result["files_generated"].append(go_mod_file)
+                
+                readme_file = os.path.join(output_dir, "README.md")
+                with open(readme_file, "w") as f:
+                    f.write(self._generate_readme("go"))
+                result["files_generated"].append(readme_file)
+                
+                result["success"] = True
+                
+            elif language.lower() == "typescript":
+                # Generate TypeScript SDK
+                client_file = os.path.join(output_dir, "ipfs-client.ts")
+                with open(client_file, "w") as f:
+                    f.write(self._generate_typescript_client())
+                result["files_generated"].append(client_file)
+                
+                package_file = os.path.join(output_dir, "package.json")
+                with open(package_file, "w") as f:
+                    f.write(self._generate_typescript_package())
+                result["files_generated"].append(package_file)
+                
+                tsconfig_file = os.path.join(output_dir, "tsconfig.json")
+                with open(tsconfig_file, "w") as f:
+                    f.write(self._generate_typescript_config())
+                result["files_generated"].append(tsconfig_file)
+                
+                readme_file = os.path.join(output_dir, "README.md")
+                with open(readme_file, "w") as f:
+                    f.write(self._generate_readme("typescript"))
                 result["files_generated"].append(readme_file)
                 
                 result["success"] = True
@@ -417,6 +471,233 @@ reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
+"""
+        
+    def _generate_go_client(self) -> str:
+        """Generate Go client code."""
+        return """package ipfsclient
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"time"
+)
+
+// IPFSClient provides a client for the IPFS API
+type IPFSClient struct {
+	BaseURL    string
+	APIKey     string
+	HTTPClient *http.Client
+}
+
+// NewIPFSClient creates a new IPFS client
+func NewIPFSClient(baseURL string, apiKey string) *IPFSClient {
+	return &IPFSClient{
+		BaseURL: baseURL,
+		APIKey:  apiKey,
+		HTTPClient: &http.Client{
+			Timeout: time.Second * 30,
+		},
+	}
+}
+
+// AddOptions contains options for the Add operation
+type AddOptions struct {
+	Pin         bool   `json:"pin,omitempty"`
+	WrapWithDir bool   `json:"wrap-with-directory,omitempty"`
+	OnlyHash    bool   `json:"only-hash,omitempty"`
+	Filename    string `json:"filename,omitempty"`
+}
+
+// AddResponse is the response from an Add operation
+type AddResponse struct {
+	CID  string `json:"cid"`
+	Size int64  `json:"size"`
+	Name string `json:"name"`
+}
+
+// Add adds content to IPFS
+func (c *IPFSClient) Add(content []byte, options *AddOptions) (*AddResponse, error) {
+	// Implementation for adding content
+	return nil, fmt.Errorf("not implemented")
+}
+
+// Get retrieves content from IPFS by CID
+func (c *IPFSClient) Get(cid string) ([]byte, error) {
+	// Implementation for getting content
+	return nil, fmt.Errorf("not implemented")
+}
+"""
+
+    def _generate_go_mod(self) -> str:
+        """Generate Go module file."""
+        return """module github.com/your-org/ipfs-client
+
+go 1.20
+
+require (
+	github.com/pkg/errors v0.9.1
+)
+"""
+
+    def _generate_typescript_client(self) -> str:
+        """Generate TypeScript client code."""
+        return """import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+
+export interface IPFSClientOptions {
+  baseURL?: string;
+  apiKey?: string;
+  timeout?: number;
+}
+
+export interface AddOptions {
+  pin?: boolean;
+  wrapWithDir?: boolean;
+  onlyHash?: boolean;
+  filename?: string;
+}
+
+export interface AddResponse {
+  cid: string;
+  size: number;
+  name: string;
+}
+
+export class IPFSClient {
+  private client: AxiosInstance;
+  private baseURL: string;
+  private apiKey?: string;
+
+  constructor(options: IPFSClientOptions = {}) {
+    this.baseURL = options.baseURL || 'http://localhost:8000';
+    this.apiKey = options.apiKey;
+
+    const config: AxiosRequestConfig = {
+      baseURL: this.baseURL,
+      timeout: options.timeout || 30000,
+      headers: {}
+    };
+
+    if (this.apiKey) {
+      config.headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
+    this.client = axios.create(config);
+  }
+
+  /**
+   * Add content to IPFS
+   * @param content Content to add to IPFS (string, Buffer, or Blob)
+   * @param options Additional options for the add operation
+   * @returns Promise with the add response
+   */
+  async add(content: string | Buffer | Blob, options?: AddOptions): Promise<AddResponse> {
+    const formData = new FormData();
+    
+    if (typeof content === 'string') {
+      formData.append('file', new Blob([content]));
+    } else {
+      formData.append('file', content);
+    }
+    
+    if (options) {
+      Object.entries(options).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
+    }
+    
+    const response = await this.client.post('/api/v0/add', formData);
+    return response.data;
+  }
+
+  /**
+   * Get content from IPFS by CID
+   * @param cid Content identifier
+   * @returns Promise with the content data
+   */
+  async get(cid: string): Promise<ArrayBuffer> {
+    const response = await this.client.get(`/api/v0/cat?arg=${cid}`, {
+      responseType: 'arraybuffer'
+    });
+    return response.data;
+  }
+
+  /**
+   * Pin content to the local node
+   * @param cid Content identifier to pin
+   * @returns Promise with the pin response
+   */
+  async pin(cid: string): Promise<any> {
+    const response = await this.client.post(`/api/v0/pin/add?arg=${cid}`);
+    return response.data;
+  }
+
+  /**
+   * Unpin content from the local node
+   * @param cid Content identifier to unpin
+   * @returns Promise with the unpin response
+   */
+  async unpin(cid: string): Promise<any> {
+    const response = await this.client.post(`/api/v0/pin/rm?arg=${cid}`);
+    return response.data;
+  }
+}
+"""
+
+    def _generate_typescript_package(self) -> str:
+        """Generate TypeScript package.json file."""
+        return """{
+  "name": "ipfs-client",
+  "version": "0.1.0",
+  "description": "TypeScript client for IPFS API",
+  "main": "dist/ipfs-client.js",
+  "types": "dist/ipfs-client.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": [
+    "ipfs",
+    "api",
+    "client",
+    "typescript"
+  ],
+  "author": "IPFS Kit",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.27.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "typescript": "^4.7.4",
+    "jest": "^28.1.2",
+    "ts-jest": "^28.0.5"
+  }
+}
+"""
+
+    def _generate_typescript_config(self) -> str:
+        """Generate TypeScript tsconfig.json file."""
+        return """{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2018", "dom"]
+  },
+  "include": ["ipfs-client.ts"],
+  "exclude": ["node_modules", "dist"]
+}
 """
         
     def _generate_readme(self, language: str) -> str:
@@ -627,6 +908,7 @@ MIT
         result["success"] = True
         return result
 
+    @beta_api(since="0.1.0")
     def get_filesystem(
         self, 
         *,
@@ -761,6 +1043,7 @@ MIT
             logger.error(f"Failed to initialize IPFSFileSystem: {e}")
             return None
 
+    @stable_api(since="0.1.0")
     def add(
         self, 
         content: Union[bytes, str, Path, 'BinaryIO'],
@@ -863,6 +1146,7 @@ MIT
 
         return result
 
+    @stable_api(since="0.1.0")
     def get(
         self, 
         cid: str, 
@@ -932,6 +1216,7 @@ MIT
             logger.error(f"Unexpected error getting CID {cid}: {e}")
             raise IPFSError(f"An unexpected error occurred while retrieving CID {cid}") from e
             
+    @beta_api(since="0.1.0")
     def stream_media(
         self, 
         path: str, 
@@ -1824,6 +2109,7 @@ MIT
                 # WebSocket might be closed already
                 pass
 
+    @stable_api(since="0.1.0")
     def pin(
         self, 
         cid: str, 
@@ -1870,6 +2156,7 @@ MIT
 
         return self.kit.ipfs_pin_add(cid, **kwargs_with_defaults)
 
+    @stable_api(since="0.1.0")
     def unpin(
         self, 
         cid: str, 
@@ -1916,6 +2203,7 @@ MIT
 
         return self.kit.ipfs_pin_rm(cid, **kwargs_with_defaults)
 
+    @stable_api(since="0.1.0")
     def list_pins(
         self, 
         *, 
@@ -1968,6 +2256,7 @@ MIT
 
         return self.kit.ipfs_pin_ls(**kwargs_with_defaults)
 
+    @beta_api(since="0.1.0")
     def publish(
         self, 
         cid: str, 
@@ -2575,6 +2864,7 @@ MIT
 
         return self.kit.cluster_pin_add(cid, **kwargs_with_defaults)
 
+    @beta_api(since="0.1.0")
     def cluster_status(
         self, 
         cid: Optional[str] = None, 
@@ -2694,6 +2984,7 @@ MIT
             
         return self.kit.cluster_peers(**kwargs_with_defaults)
 
+    @experimental_api(since="0.1.0")
     def ai_model_add(
         self, 
         model: Union[str, Path, bytes, object], 
@@ -2790,6 +3081,7 @@ MIT
             
         return self.kit.ai_model_add(model, metadata, **kwargs_with_defaults)
 
+    @experimental_api(since="0.1.0")
     def ai_model_get(
         self, 
         model_id: str, 
@@ -5749,6 +6041,7 @@ MIT
             logger.error(f"Error calling extension '{extension_name}': {str(e)}")
             raise
 
+    @beta_api(since="0.1.0")
     def open_file(
         self, 
         path: str,
@@ -5938,7 +6231,94 @@ MIT
         except UnicodeDecodeError as e:
             logger.error(f"Error decoding file {path} with encoding {encoding}: {str(e)}")
             raise
+            
+    def list_directory(
+        self, 
+        path: str,
+        *,
+        detail: bool = True,
+        recursive: bool = False,
+        max_depth: Optional[int] = None,
+        delimiter: Optional[str] = None,
+        **kwargs
+    ) -> Union[List[str], List[Dict[str, Any]]]:
+        """
+        List the contents of a directory in IPFS.
+        
+        Args:
+            path: Path or CID of the directory to list
+            detail: If True, return a list of dictionaries with detailed information
+                   If False, return just the list of paths/names
+            recursive: If True, recursively list subdirectories
+            max_depth: Maximum depth for recursive listing (None for unlimited)
+            delimiter: Delimiter character for path separation
+            **kwargs: Additional options passed to the filesystem
+            
+        Returns:
+            Union[List[str], List[Dict[str, Any]]]: List of directory contents
+                - If detail=False: List of path strings
+                - If detail=True: List of dictionaries with details
+                  (name, size, type, hash, etc.)
+                
+        Raises:
+            IPFSError: If the directory cannot be listed
+            ImportError: If FSSpec is not available
+            
+        Example:
+            ```python
+            # List directory contents
+            files = api.list_directory("QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn")
+            
+            # List with just names
+            file_names = api.list_directory("QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn", detail=False)
+            
+            # Recursive listing
+            all_files = api.list_directory("QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn", recursive=True)
+            ```
+        """
+        # Initialize filesystem if needed
+        if not self.fs:
+            self.fs = self.get_filesystem(**kwargs)
+            
+        if not self.fs:
+            raise ImportError("FSSpec filesystem interface is not available")
+            
+        # Prepare kwargs
+        kwargs_with_defaults = kwargs.copy()
+        
+        # Ensure path has ipfs:// prefix if it's a CID
+        if not path.startswith("ipfs://") and not path.startswith("/"):
+            path = f"ipfs://{path}"
+            
+        try:
+            if recursive:
+                # Use find method for recursive listing
+                if HAVE_FSSPEC:
+                    if max_depth is not None:
+                        kwargs_with_defaults["maxdepth"] = max_depth
+                    result = self.fs.find(path, **kwargs_with_defaults)
+                else:
+                    raise ImportError("FSSpec is required for recursive listing")
+            else:
+                # Use ls method for non-recursive listing
+                result = self.fs.ls(path, detail=True, **kwargs_with_defaults)
+                
+            # Return appropriate format based on detail flag
+            if detail:
+                return result
+            else:
+                if recursive:
+                    # For recursive listings, result is already just paths
+                    return result
+                else:
+                    # For non-recursive listings, extract names from detail dictionaries
+                    return [item["name"] for item in result]
+                    
+        except Exception as e:
+            logger.error(f"Error listing directory {path}: {str(e)}")
+            raise IPFSError(f"Failed to list directory: {str(e)}") from e
 
+    @stable_api(since="0.1.0")
     def add_json(
         self, 
         data: Any,

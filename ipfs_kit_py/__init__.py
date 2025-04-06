@@ -101,6 +101,41 @@ except ImportError:
     IPFSSimpleAPI = None
     PluginBase = None
 
+# Import WAL components
+try:
+    from .storage_wal import (
+        StorageWriteAheadLog,
+        BackendHealthMonitor,
+        OperationType,
+        OperationStatus,
+        BackendType
+    )
+except ImportError:
+    StorageWriteAheadLog = None
+    BackendHealthMonitor = None
+    OperationType = None
+    OperationStatus = None
+    BackendType = None
+
+# Import WAL integration
+try:
+    from .wal_integration import WALIntegration, with_wal
+except ImportError:
+    WALIntegration = None
+    with_wal = None
+
+# Import WAL-enabled API
+try:
+    from .wal_api_extension import WALEnabledAPI
+except ImportError:
+    WALEnabledAPI = None
+    
+# Import WAL API
+try:
+    from .wal_api import register_wal_api
+except ImportError:
+    register_wal_api = None
+
 try:
     from .install_ipfs import install_ipfs
 except ImportError:

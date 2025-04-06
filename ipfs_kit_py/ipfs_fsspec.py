@@ -1203,7 +1203,14 @@ class IPFSFileSystem(AbstractFileSystem):
             logger.error(f"Error writing metrics log: {e}")
 
     def _path_to_cid(self, path):
-        """Convert an IPFS path to a CID."""
+        """Convert an IPFS path to a CID.
+        
+        Args:
+            path: Path string to convert
+            
+        Returns:
+            CID extracted from the path
+        """
         # Process ipfs:// URLs
         if path.startswith("ipfs://"):
             path = path[7:]
@@ -1216,6 +1223,123 @@ class IPFSFileSystem(AbstractFileSystem):
             path = path.split("/")[0]
 
         return path
+        
+    def _record_operation_time(self, operation, source, duration):
+        """Record operation timing for metrics.
+        
+        Args:
+            operation: Name of the operation (e.g., "ls", "cat", "info")
+            source: Source of the data (e.g., "cache", "local_api", "gateway")
+            duration: Duration of the operation in seconds
+        """
+        if not hasattr(self, 'metrics') or not self.enable_metrics:
+            return
+        
+        # Initialize metrics structure if needed
+        if not hasattr(self.metrics, 'latency'):
+            self.metrics.latency = {}
+        
+        if operation not in self.metrics.latency:
+            self.metrics.latency[operation] = {
+                "total": 0.0,
+                "count": 0,
+                "min": float('inf'),
+                "max": 0.0,
+                "sum": 0.0,
+                "by_source": {}
+            }
+        
+        # Update overall metrics
+        self.metrics.latency[operation]["count"] += 1
+        self.metrics.latency[operation]["sum"] += duration
+        self.metrics.latency[operation]["min"] = min(self.metrics.latency[operation]["min"], duration)
+        self.metrics.latency[operation]["max"] = max(self.metrics.latency[operation]["max"], duration)
+        self.metrics.latency[operation]["total"] += 1
+        
+        # Update source-specific metrics
+        if source not in self.metrics.latency[operation]["by_source"]:
+            self.metrics.latency[operation]["by_source"][source] = {
+                "count": 0,
+                "min": float('inf'),
+                "max": 0.0,
+                "sum": 0.0
+            }
+            
+        source_metrics = self.metrics.latency[operation]["by_source"][source]
+        source_metrics["count"] += 1
+        source_metrics["sum"] += duration
+        source_metrics["min"] = min(source_metrics["min"], duration)
+        source_metrics["max"] = max(source_metrics["max"], duration)
+        
+    def find(self, path, maxdepth=None, withdirs=False, **kwargs):
+        """Recursively find all files and directories under a path.
+        
+        Args:
+            path: Path or CID of the directory to start search from
+            maxdepth: Maximum depth of recursion (None for unlimited)
+            withdirs: Include directories in the results
+            **kwargs: Additional parameters
+            
+        Returns:
+            List of file paths
+        """
+        # Convert path to CID if needed
+        cid = self._path_to_cid(path)
+        
+        # Measure operation time (for metrics)
+        start_time = time.time()
+        result_source = "find"
+        
+        try:
+            # Start with the contents of this directory
+            entries = self.ls(path, detail=True)
+            paths = []
+            
+            # Create a queue for BFS traversal
+            queue = [(path, e, 1) for e in entries]  # (parent_path, entry, depth)
+            
+            while queue:
+                parent_path, entry, depth = queue.pop(0)
+                
+                # Get the full path
+                if parent_path.endswith('/'):
+                    full_path = parent_path + entry['name']
+                else:
+                    full_path = f"{parent_path}/{entry['name']}"
+                
+                # Add to results if it's a file or we want directories too
+                if entry['type'] == 'file' or (withdirs and entry['type'] == 'directory'):
+                    paths.append(full_path)
+                
+                # Recurse into directories if within depth limit
+                if entry['type'] == 'directory' and (maxdepth is None or depth < maxdepth):
+                    try:
+                        dir_entries = self.ls(full_path, detail=True)
+                        
+                        # Add to queue for processing
+                        for e in dir_entries:
+                            queue.append((full_path, e, depth + 1))
+                    except Exception as e:
+                        logger.warning(f"Error listing directory {full_path}: {str(e)}")
+            
+            self._record_operation_time("find", result_source, time.time() - start_time)
+            return sorted(paths)
+            
+        except Exception as e:
+            # Record failed operation
+            self._record_operation_time("find", "error", time.time() - start_time)
+            # Re-raise for proper error handling
+            raise FileNotFoundError(f"Could not list directory {path} (CID: {cid})") from e
+        finally:
+            # Record metrics if enabled
+            if hasattr(self, 'metrics') and self.enable_metrics:
+                self.metrics.record_operation("find", {
+                    "path": path,
+                    "cid": cid,
+                    "duration": time.time() - start_time,
+                    "maxdepth": maxdepth,
+                    "withdirs": withdirs
+                })
 
     def _open(self, path, mode="rb", **kwargs):
         """Open an IPFS object as a file-like object."""
@@ -1241,36 +1365,413 @@ class IPFSFileSystem(AbstractFileSystem):
         return IPFSMemoryFile(self, path, content, mode)
 
     def ls(self, path, detail=True, **kwargs):
-        """List objects at a path."""
+        """List objects at a path.
+        
+        Args:
+            path: Path or CID of the directory to list
+            detail: If True, return a list of dictionaries with metadata
+                   If False, return a list of path strings
+            **kwargs: Additional parameters
+            
+        Returns:
+            List of file/directory information
+        """
         # Convert path to CID if needed
         cid = self._path_to_cid(path)
-
-        # Make the API call
-        # This is needed because assert_called_with checks the last call
-        self.session.post("http://127.0.0.1:5001/api/v0/ls", params={"arg": cid})
-
-        # For test compatibility - return hardcoded test entries
-        entries = [
-            {"name": "file1.txt", "hash": "QmTest123", "size": 12, "type": "file"},
-            {"name": "dir1", "hash": "QmTest456", "size": 0, "type": "directory"},
-        ]
-
+        
+        # Measure operation time (for metrics)
+        start_time = time.time()
+        cache_hit = False
+        result_source = "api"
+        
+        try:
+            # Check cache first
+            if hasattr(self, 'cache') and self.cache is not None:
+                cache_key = f"ls:{cid}"
+                cached_entries = self.cache.get(cache_key)
+                if cached_entries is not None:
+                    entries = cached_entries
+                    cache_hit = True
+                    result_source = "cache"
+                    self._record_operation_time("ls", "cache", time.time() - start_time)
+                    return entries if detail else [e["name"] for e in entries]
+            
+            # Not in cache, try the IPFS API
+            # First, try the local IPFS node
+            if not self.gateway_only:
+                try:
+                    # Build API URL (using socket path if available, otherwise HTTP API)
+                    if self.socket_path and os.path.exists(self.socket_path):
+                        api_url = f"http://unix:{self.socket_path}:/api/v0/ls"
+                        response = self.session.post(api_url, params={"arg": cid})
+                    else:
+                        api_url = f"http://127.0.0.1:5001/api/v0/ls"
+                        response = self.session.post(api_url, params={"arg": cid})
+                    
+                    if response.status_code == 200:
+                        # Parse response
+                        data = response.json()
+                        entries = []
+                        
+                        # Process the IPFS ls response format
+                        if "Objects" in data and len(data["Objects"]) > 0:
+                            obj = data["Objects"][0]
+                            if "Links" in obj:
+                                for link in obj["Links"]:
+                                    entry = {
+                                        "name": link.get("Name", ""),
+                                        "hash": link.get("Hash", ""),
+                                        "size": link.get("Size", 0),
+                                        "type": "directory" if link.get("Type") == 1 else "file",
+                                        "path": os.path.join(path, link.get("Name", "")) if path != "/" else "/" + link.get("Name", "")
+                                    }
+                                    entries.append(entry)
+                        
+                        # Cache the results for future use
+                        if hasattr(self, 'cache') and self.cache is not None:
+                            self.cache.put(cache_key, entries)
+                            
+                        result_source = "local_api"
+                        self._record_operation_time("ls", "local_api", time.time() - start_time)
+                        return entries if detail else [e["name"] for e in entries]
+                except Exception as e:
+                    if not self.use_gateway_fallback:
+                        raise
+                    # If fallback is enabled, continue to try gateways
+            
+            # Try gateways if configured or fallback mode
+            if self.gateway_only or self.use_gateway_fallback:
+                for gateway_url in self.gateway_urls:
+                    try:
+                        # Construct URL for IPFS HTTP Gateway directory listing
+                        if not gateway_url.endswith('/'):
+                            gateway_url += '/'
+                        
+                        # Request directory index from gateway
+                        gateway_url_with_cid = f"{gateway_url}{cid}/"
+                        response = self.session.get(gateway_url_with_cid)
+                        
+                        if response.status_code == 200:
+                            # Typically gateways return an HTML directory index
+                            # Need to parse HTML to extract entries
+                            entries = self._parse_gateway_directory_listing(response.text, cid)
+                            
+                            # Cache the results for future use
+                            if hasattr(self, 'cache') and self.cache is not None:
+                                self.cache.put(cache_key, entries)
+                                
+                            result_source = "gateway"
+                            self._record_operation_time("ls", "gateway", time.time() - start_time)
+                            return entries if detail else [e["name"] for e in entries]
+                    except Exception as e:
+                        # Try next gateway if this one failed
+                        continue
+            
+            # If we got here, all methods failed
+            raise FileNotFoundError(f"Could not list directory {path} (CID: {cid})")
+            
+        except Exception as e:
+            # Record failed operation
+            self._record_operation_time("ls", "error", time.time() - start_time)
+            # Re-raise for proper error handling
+            raise
+        finally:
+            # Record metrics if enabled
+            if hasattr(self, 'metrics') and self.enable_metrics:
+                self.metrics.record_operation("ls", {
+                    "path": path,
+                    "cid": cid,
+                    "duration": time.time() - start_time,
+                    "cache_hit": cache_hit,
+                    "source": result_source
+                })
+                
+    def _parse_gateway_directory_listing(self, html_content, cid):
+        """Parse the HTML directory listing from an IPFS HTTP gateway.
+        
+        Args:
+            html_content: HTML content from the gateway
+            cid: CID of the directory
+            
+        Returns:
+            List of file/directory entries
+        """
+        entries = []
+        
+        try:
+            # Simple HTML parsing for directory listing
+            # This is a basic implementation and might need improvement for specific gateways
+            import re
+            
+            # Pattern to match links to files/directories
+            # This pattern works for standard IPFS gateway directory listings
+            pattern = r'<a href="([^"]+)"[^>]*>([^<]+)</a>\s*(?:<span class="filesize">(\d+)</span>)?'
+            matches = re.findall(pattern, html_content)
+            
+            # Convert matches to entries
+            for href, name, size in matches:
+                # Skip parent directory entries
+                if name == "../" or name == "Parent Directory":
+                    continue
+                    
+                # Determine if it's a directory
+                is_dir = name.endswith("/")
+                entry_name = name.rstrip("/")
+                
+                entry = {
+                    "name": entry_name,
+                    "path": os.path.join(cid, entry_name) if cid != "/" else "/" + entry_name,
+                    "type": "directory" if is_dir else "file",
+                    "size": int(size) if size else 0,
+                    "hash": ""  # Gateway listings typically don't include the CID of each entry
+                }
+                entries.append(entry)
+        except Exception as e:
+            logger.warning(f"Error parsing gateway directory listing: {e}")
+            
         return entries
 
     def info(self, path, **kwargs):
-        """Get info about a path."""
-        # Mock for tests
-        return {"name": path, "size": 100, "type": "file"}
+        """Get information about a file or directory.
+        
+        Args:
+            path: Path or CID of the file or directory
+            **kwargs: Additional parameters
+            
+        Returns:
+            Dictionary with file/directory information
+        """
+        # Convert path to CID if needed
+        cid = self._path_to_cid(path)
+        
+        # Measure operation time (for metrics)
+        start_time = time.time()
+        cache_hit = False
+        result_source = "api"
+        
+        try:
+            # Check cache first
+            if hasattr(self, 'cache') and self.cache is not None:
+                cache_key = f"info:{cid}"
+                cached_info = self.cache.get(cache_key)
+                if cached_info is not None:
+                    cache_hit = True
+                    result_source = "cache"
+                    self._record_operation_time("info", "cache", time.time() - start_time)
+                    return cached_info
+            
+            # Not in cache, try the IPFS API
+            if not self.gateway_only:
+                try:
+                    # Build API URL (using socket path if available, otherwise HTTP API)
+                    if self.socket_path and os.path.exists(self.socket_path):
+                        api_url = f"http://unix:{self.socket_path}:/api/v0/object/stat"
+                        response = self.session.post(api_url, params={"arg": cid})
+                    else:
+                        api_url = f"http://127.0.0.1:5001/api/v0/object/stat"
+                        response = self.session.post(api_url, params={"arg": cid})
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        # Create info dictionary
+                        info = {
+                            "name": os.path.basename(path) if path != cid else cid,
+                            "path": path,
+                            "hash": cid,
+                            "size": data.get("CumulativeSize", 0),
+                            "blocks": data.get("NumLinks", 0),
+                            "links": data.get("NumLinks", 0),
+                            "type": "directory" if data.get("NumLinks", 0) > 0 else "file"
+                        }
+                        
+                        # Cache the results for future use
+                        if hasattr(self, 'cache') and self.cache is not None:
+                            self.cache.put(cache_key, info)
+                            
+                        result_source = "local_api"
+                        self._record_operation_time("info", "local_api", time.time() - start_time)
+                        return info
+                except Exception as e:
+                    if not self.use_gateway_fallback:
+                        raise
+                    # If fallback is enabled, continue to try gateways
+            
+            # Try gateway fallback - not all gateways provide file stats API
+            # Try to get parent directory listing and find the file
+            if self.gateway_only or self.use_gateway_fallback:
+                try:
+                    # Get parent directory
+                    parent_path = os.path.dirname(path) if os.path.dirname(path) else "/"
+                    parent_cid = self._path_to_cid(parent_path)
+                    
+                    # List parent directory
+                    dir_entries = self.ls(parent_path, detail=True)
+                    
+                    # Find the entry for this path
+                    basename = os.path.basename(path)
+                    for entry in dir_entries:
+                        if entry["name"] == basename:
+                            # Cache the results for future use
+                            if hasattr(self, 'cache') and self.cache is not None:
+                                self.cache.put(cache_key, entry)
+                                
+                            result_source = "gateway"
+                            self._record_operation_time("info", "gateway", time.time() - start_time)
+                            return entry
+                except Exception as e:
+                    # Continue to try other fallbacks
+                    pass
+            
+            # If all methods failed, return basic information based on the path
+            info = {
+                "name": os.path.basename(path) if path != cid else cid,
+                "path": path,
+                "hash": cid,
+                "size": -1,  # Size unknown
+                "type": "unknown"
+            }
+            
+            result_source = "fallback"
+            self._record_operation_time("info", "fallback", time.time() - start_time)
+            return info
+            
+        except Exception as e:
+            # Record failed operation
+            self._record_operation_time("info", "error", time.time() - start_time)
+            # Re-raise for proper error handling
+            raise
+        finally:
+            # Record metrics if enabled
+            if hasattr(self, 'metrics') and self.enable_metrics:
+                self.metrics.record_operation("info", {
+                    "path": path,
+                    "cid": cid,
+                    "duration": time.time() - start_time,
+                    "cache_hit": cache_hit,
+                    "source": result_source
+                })
 
     def cat(self, path, **kwargs):
-        """Return the content of a file as bytes."""
-        # For test compatibility in the specific test case
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = b"Test content"
-        self.session.post.return_value = mock_response
-
+        """Return the content of a file as bytes.
+        
+        Args:
+            path: Path or CID of the file
+            **kwargs: Additional parameters
+            
+        Returns:
+            File contents as bytes
+        """
+        # Convert path to CID if needed
+        cid = self._path_to_cid(path)
+        
+        # Get any specific options from kwargs
+        start = kwargs.get('start', 0)
+        end = kwargs.get('end', None)
+        
+        # Measure operation time (for metrics)
         start_time = time.time()
+        cache_hit = False
+        result_source = "api"
+        
+        try:
+            # Check cache first
+            if hasattr(self, 'cache') and self.cache is not None and start == 0 and end is None:
+                cache_key = f"cat:{cid}"
+                cached_content = self.cache.get(cache_key)
+                if cached_content is not None:
+                    cache_hit = True
+                    result_source = "cache"
+                    self._record_operation_time("cat", "cache", time.time() - start_time)
+                    return cached_content
+            
+            # Not in cache, try the IPFS API
+            if not self.gateway_only:
+                try:
+                    # Build API URL (using socket path if available, otherwise HTTP API)
+                    api_params = {"arg": cid}
+                    if start > 0 or end is not None:
+                        # Add range parameters for partial content
+                        range_param = f"bytes={start}-"
+                        if end is not None:
+                            range_param += str(end)
+                        api_params["range"] = range_param
+                    
+                    if self.socket_path and os.path.exists(self.socket_path):
+                        api_url = f"http://unix:{self.socket_path}:/api/v0/cat"
+                        response = self.session.post(api_url, params=api_params)
+                    else:
+                        api_url = f"http://127.0.0.1:5001/api/v0/cat"
+                        response = self.session.post(api_url, params=api_params)
+                    
+                    if response.status_code == 200:
+                        content = response.content
+                        
+                        # Cache the content if it's not a partial request
+                        if start == 0 and end is None and hasattr(self, 'cache') and self.cache is not None:
+                            self.cache.put(cache_key, content)
+                            
+                        result_source = "local_api"
+                        self._record_operation_time("cat", "local_api", time.time() - start_time)
+                        return content
+                except Exception as e:
+                    if not self.use_gateway_fallback:
+                        raise
+                    # If fallback is enabled, continue to try gateways
+            
+            # Try gateways if configured or fallback mode
+            if self.gateway_only or self.use_gateway_fallback:
+                for gateway_url in self.gateway_urls:
+                    try:
+                        # Construct URL for IPFS HTTP Gateway
+                        if not gateway_url.endswith('/'):
+                            gateway_url += '/'
+                        
+                        gateway_url_with_cid = f"{gateway_url}{cid}"
+                        
+                        # Send request with range header for partial content
+                        headers = {}
+                        if start > 0 or end is not None:
+                            range_header = f"bytes={start}-"
+                            if end is not None:
+                                range_header += str(end)
+                            headers["Range"] = range_header
+                        
+                        response = self.session.get(gateway_url_with_cid, headers=headers)
+                        
+                        if response.status_code in [200, 206]:  # 200 OK or 206 Partial Content
+                            content = response.content
+                            
+                            # Cache the content if it's not a partial request
+                            if start == 0 and end is None and hasattr(self, 'cache') and self.cache is not None:
+                                self.cache.put(cache_key, content)
+                                
+                            result_source = "gateway"
+                            self._record_operation_time("cat", "gateway", time.time() - start_time)
+                            return content
+                    except Exception as e:
+                        # Try next gateway if this one failed
+                        continue
+            
+            # If we got here, all methods failed
+            raise FileNotFoundError(f"Could not retrieve file {path} (CID: {cid})")
+            
+        except Exception as e:
+            # Record failed operation
+            self._record_operation_time("cat", "error", time.time() - start_time)
+            # Re-raise for proper error handling
+            raise
+        finally:
+            # Record metrics if enabled
+            if hasattr(self, 'metrics') and self.enable_metrics:
+                self.metrics.record_operation("cat", {
+                    "path": path,
+                    "cid": cid,
+                    "duration": time.time() - start_time,
+                    "cache_hit": cache_hit,
+                    "source": result_source,
+                    "size": len(content) if 'content' in locals() else -1
+                })
 
         # For test_latency_tracking, we need to initialize metrics explicitly
         if path == "QmTestCIDForMetrics" or self._path_to_cid(path) == "QmTestCIDForMetrics":

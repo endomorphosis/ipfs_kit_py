@@ -78,10 +78,32 @@ try:
         Request,
         Response,
         UploadFile,
+        WebSocket,
+        WebSocketDisconnect,
+        BackgroundTasks,
     )
+    
+    # Handle WebSocketState import based on FastAPI/Starlette version
+    # In FastAPI < 0.100, WebSocketState was in fastapi module
+    # In FastAPI >= 0.100, WebSocketState moved to starlette.websockets
+    # See: https://github.com/tiangolo/fastapi/pull/9281
+    try:
+        from fastapi import WebSocketState
+    except ImportError:
+        try:
+            # In newer FastAPI versions, WebSocketState is in starlette
+            from starlette.websockets import WebSocketState
+        except ImportError:
+            # Fallback for when WebSocketState is not available
+            from enum import Enum
+            class WebSocketState(str, Enum):
+                CONNECTING = "CONNECTING"
+                CONNECTED = "CONNECTED"
+                DISCONNECTED = "DISCONNECTED"
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import FileResponse, JSONResponse
+    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
     from fastapi.routing import APIRouter
+    import mimetypes
 
     # BackgroundTask might be in starlette in newer FastAPI versions
     try:
@@ -122,6 +144,18 @@ try:
     # First try relative imports (when used as a package)
     from .error import IPFSError
     from .high_level_api import IPFSSimpleAPI
+    
+    # Import WebSocket notifications
+    try:
+        from .websocket_notifications import (
+            handle_notification_websocket, 
+            emit_event, 
+            NotificationType,
+            notification_manager
+        )
+        NOTIFICATIONS_AVAILABLE = True
+    except ImportError:
+        NOTIFICATIONS_AVAILABLE = False
 
     # Try to import AI/ML integration
     try:
@@ -137,6 +171,13 @@ try:
         GRAPHQL_AVAILABLE = graphql_schema.GRAPHQL_AVAILABLE
     except ImportError:
         GRAPHQL_AVAILABLE = False
+        
+    # Try to import WAL API
+    try:
+        from . import wal_api
+        WAL_API_AVAILABLE = True
+    except ImportError:
+        WAL_API_AVAILABLE = False
 except ImportError:
     # For development/testing
     import os
@@ -161,6 +202,13 @@ except ImportError:
         GRAPHQL_AVAILABLE = graphql_schema.GRAPHQL_AVAILABLE
     except ImportError:
         GRAPHQL_AVAILABLE = False
+        
+    # Try to import WAL API
+    try:
+        from ipfs_kit_py import wal_api
+        WAL_API_AVAILABLE = True
+    except ImportError:
+        WAL_API_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -780,6 +828,642 @@ if FASTAPI_AVAILABLE:
         except Exception as e:
             logger.exception(f"Error retrieving content: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error retrieving content: {str(e)}")
+
+
+    @v0_router.get("/stream", tags=["content"])
+    async def stream_content(
+        path: str,
+        chunk_size: Optional[int] = Query(1024 * 1024, description="Size of each chunk in bytes"),
+        mime_type: Optional[str] = Query(None, description="MIME type of the content"),
+        cache: Optional[bool] = Query(True, description="Whether to cache content for faster repeated access"),
+        timeout: Optional[int] = Query(30, description="Timeout in seconds")
+    ):
+        """
+        Stream content from IPFS with chunked delivery.
+        
+        This endpoint efficiently streams content from IPFS, allowing for progressive 
+        loading of large files including media content like video and audio.
+        
+        Parameters:
+        - **path**: IPFS path or CID
+        - **chunk_size**: Size of each chunk in bytes (default: 1MB)
+        - **mime_type**: MIME type of the content (auto-detected if not provided)
+        - **cache**: Whether to cache content for faster repeated access (default: True)
+        - **timeout**: Timeout in seconds (default: 30)
+        
+        Returns:
+            Streaming response with content
+        """
+        try:
+            # Get API from app state
+            api = app.state.ipfs_api
+            
+            # Get content size if possible for proper content-length header
+            content_length = None
+            try:
+                fs = api.get_filesystem()
+                if fs is not None:
+                    file_info = fs.info(path)
+                    content_length = file_info.get("size", None)
+            except Exception:
+                # Continue without content length if info can't be determined
+                pass
+            
+            # Create async generator for streaming content
+            async def content_generator():
+                try:
+                    # Use the async streaming method
+                    async for chunk in api.stream_media_async(
+                        path=path,
+                        chunk_size=chunk_size,
+                        mime_type=mime_type,
+                        cache=cache,
+                        timeout=timeout
+                    ):
+                        yield chunk
+                except Exception as e:
+                    logger.error(f"Error during content streaming: {str(e)}")
+                    # We can't raise an HTTP exception in the generator
+                    # Just stop the generator which will end the response
+                    return
+            
+            # Detect mime type if not provided
+            if mime_type is None:
+                mime_type, _ = mimetypes.guess_type(path)
+                if mime_type is None:
+                    mime_type = "application/octet-stream"
+            
+            # Create response headers
+            headers = {}
+            if content_length is not None:
+                headers["Content-Length"] = str(content_length)
+            
+            # Return streaming response
+            return StreamingResponse(
+                content=content_generator(),
+                media_type=mime_type,
+                headers=headers
+            )
+        except Exception as e:
+            logger.exception(f"Error setting up content streaming: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error streaming content: {str(e)}")
+
+    @v0_router.get("/stream/media", tags=["content"])
+    async def stream_media(
+        path: str,
+        chunk_size: Optional[int] = Query(1024 * 1024, description="Size of each chunk in bytes"),
+        mime_type: Optional[str] = Query(None, description="MIME type of the media content"),
+        start_byte: Optional[int] = Query(None, description="Start byte position for range request"),
+        end_byte: Optional[int] = Query(None, description="End byte position for range request"),
+        cache: Optional[bool] = Query(True, description="Whether to cache content for faster repeated access"),
+        timeout: Optional[int] = Query(30, description="Timeout in seconds")
+    ):
+        """
+        Stream media content from IPFS with range support.
+        
+        This endpoint specifically optimized for media streaming (video/audio) with
+        support for range requests enabling seeking, fast-forward, and other media player features.
+        
+        Parameters:
+        - **path**: IPFS path or CID
+        - **chunk_size**: Size of each chunk in bytes (default: 1MB)
+        - **mime_type**: MIME type of the media content (auto-detected if not provided)
+        - **start_byte**: Start byte position for range request
+        - **end_byte**: End byte position for range request
+        - **cache**: Whether to cache content for faster repeated access (default: True)
+        - **timeout**: Timeout in seconds (default: 30)
+        
+        Returns:
+            Streaming response with media content and appropriate headers for range support
+        """
+        try:
+            # Get API from app state
+            api = app.state.ipfs_api
+            
+            # Get content size if possible for proper content-length header
+            content_length = None
+            try:
+                fs = api.get_filesystem()
+                if fs is not None:
+                    file_info = fs.info(path)
+                    content_length = file_info.get("size", None)
+            except Exception:
+                # Continue without content length if info can't be determined
+                pass
+            
+            # Create async generator for streaming content
+            async def content_generator():
+                try:
+                    # Use the async streaming method
+                    async for chunk in api.stream_media_async(
+                        path=path,
+                        chunk_size=chunk_size,
+                        mime_type=mime_type,
+                        start_byte=start_byte,
+                        end_byte=end_byte,
+                        cache=cache,
+                        timeout=timeout
+                    ):
+                        yield chunk
+                except Exception as e:
+                    logger.error(f"Error during media streaming: {str(e)}")
+                    # We can't raise an HTTP exception in the generator
+                    # Just stop the generator which will end the response
+                    return
+            
+            # Detect mime type if not provided
+            if mime_type is None:
+                mime_type, _ = mimetypes.guess_type(path)
+                if mime_type is None:
+                    if path.lower().endswith((".mp4", ".m4v", ".mov")):
+                        mime_type = "video/mp4"
+                    elif path.lower().endswith((".mp3", ".m4a", ".wav")):
+                        mime_type = "audio/mpeg"
+                    else:
+                        mime_type = "application/octet-stream"
+            
+            # Create response headers
+            headers = {
+                "Accept-Ranges": "bytes"  # Indicate that server supports range requests
+            }
+            
+            # Calculate content length for range requests
+            if start_byte is not None or end_byte is not None:
+                if content_length is None:
+                    # Without content length, we can't properly handle range requests
+                    logger.warning("Range request without known content length")
+                else:
+                    # Default to full range if either end is not specified
+                    start = start_byte or 0
+                    end = end_byte or (content_length - 1)
+                    
+                    # Set headers for range response
+                    headers["Content-Range"] = f"bytes {start}-{end}/{content_length}"
+                    headers["Content-Length"] = str(end - start + 1)
+                    
+                    # Set status code to 206 Partial Content for range requests
+                    status_code = 206
+            else:
+                # Regular request with full content
+                if content_length is not None:
+                    headers["Content-Length"] = str(content_length)
+                status_code = 200
+            
+            # Return streaming response
+            return StreamingResponse(
+                content=content_generator(),
+                media_type=mime_type,
+                headers=headers,
+                status_code=status_code
+            )
+        except Exception as e:
+            logger.exception(f"Error setting up media streaming: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error streaming media: {str(e)}")
+
+    @v0_router.post("/upload/stream", tags=["content"])
+    async def upload_stream(
+        file: UploadFile = File(...),
+        chunk_size: Optional[int] = Form(1024 * 1024, description="Size of each chunk in bytes"),
+        timeout: Optional[int] = Form(30, description="Timeout in seconds")
+    ):
+        """
+        Stream upload content to IPFS.
+        
+        This endpoint allows streaming upload of content to IPFS without loading the entire
+        file into memory, making it suitable for large files.
+        
+        Parameters:
+        - **file**: The file to upload
+        - **chunk_size**: Size of each chunk in bytes for processing (default: 1MB)
+        - **timeout**: Timeout in seconds (default: 30)
+        
+        Returns:
+            Dictionary with upload result including the content CID
+        """
+        try:
+            # Get API from app state
+            api = app.state.ipfs_api
+            
+            # Create a bytes iterator from the uploaded file
+            async def file_iterator():
+                while True:
+                    chunk = await file.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+            
+            # Stream content to IPFS
+            result = await api.stream_to_ipfs_async(
+                content_iterator=file_iterator(),
+                filename=file.filename,
+                mime_type=file.content_type,
+                chunk_size=chunk_size,
+                timeout=timeout
+            )
+            
+            # Return the result with standard formatting
+            return {
+                "success": result.get("success", False),
+                "operation": "upload_stream",
+                "timestamp": time.time(),
+                "cid": result.get("cid"),
+                "size": result.get("size"),
+                "filename": file.filename,
+                "content_type": file.content_type
+            }
+        except Exception as e:
+            logger.exception(f"Error streaming upload: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error streaming upload: {str(e)}")
+            
+    @app.websocket("/ws/stream")
+    async def websocket_stream(websocket: WebSocket):
+        """
+        WebSocket endpoint for media streaming.
+        
+        This endpoint allows streaming content from IPFS via WebSocket.
+        The client should send a JSON message with the path to stream.
+        
+        Example message:
+            {"path": "ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"}
+        """
+        try:
+            # Accept the WebSocket connection
+            await websocket.accept()
+            
+            # Get API from app state
+            api = app.state.ipfs_api
+            
+            # Get request parameters
+            try:
+                data = await websocket.receive_json()
+                path = data.get("path")
+                chunk_size = data.get("chunk_size", 1024 * 1024)  # Default 1MB
+                mime_type = data.get("mime_type")
+                cache = data.get("cache", True)
+                timeout = data.get("timeout", 30)
+                
+                if not path:
+                    await websocket.send_json({
+                        "type": "error",
+                        "error": "Path parameter is required",
+                        "timestamp": time.time()
+                    })
+                    await websocket.close()
+                    return
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "error",
+                    "error": f"Invalid request format: {str(e)}",
+                    "timestamp": time.time()
+                })
+                await websocket.close()
+                return
+            
+            # Stream content through the WebSocket
+            await api.handle_websocket_media_stream(
+                websocket=websocket,
+                path=path,
+                chunk_size=chunk_size,
+                mime_type=mime_type,
+                cache=cache,
+                timeout=timeout
+            )
+            
+        except WebSocketDisconnect:
+            logger.info("WebSocket client disconnected")
+        except Exception as e:
+            logger.exception(f"Error in WebSocket stream: {str(e)}")
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                })
+                await websocket.close()
+            except:
+                # Can't send if already closed
+                pass
+                
+    @app.websocket("/ws/upload")
+    async def websocket_upload(websocket: WebSocket):
+        """
+        WebSocket endpoint for streaming content uploads.
+        
+        This endpoint allows streaming uploads to IPFS via WebSocket.
+        The client should first send a metadata JSON message, followed
+        by the binary content chunks, and finally a completion message.
+        """
+        try:
+            # Accept the WebSocket connection
+            await websocket.accept()
+            
+            # Get API from app state
+            api = app.state.ipfs_api
+            
+            # Handle upload
+            await api.handle_websocket_upload_stream(
+                websocket=websocket,
+                chunk_size=1024 * 1024,  # Default 1MB
+                timeout=60  # Default 60 seconds
+            )
+            
+        except WebSocketDisconnect:
+            logger.info("WebSocket upload client disconnected")
+        except Exception as e:
+            logger.exception(f"Error in WebSocket upload: {str(e)}")
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                })
+                await websocket.close()
+            except:
+                # Can't send if already closed
+                pass
+                
+    @app.websocket("/ws/bidirectional")
+    async def websocket_bidirectional(websocket: WebSocket):
+        """
+        WebSocket endpoint for bidirectional content streaming.
+        
+        This endpoint allows both uploading to and downloading from IPFS
+        in a single WebSocket connection. The client can send various
+        commands to perform operations like get, add, and pin.
+        """
+        try:
+            # Accept the WebSocket connection
+            await websocket.accept()
+            
+            # Send welcome message
+            await websocket.send_json({
+                "type": "welcome",
+                "message": "Connected to IPFS Kit WebSocket API",
+                "timestamp": time.time(),
+                "supported_commands": ["get", "add", "pin", "close"]
+            })
+            
+            # Get API from app state
+            api = app.state.ipfs_api
+            
+            # Handle bidirectional streaming
+            await api.handle_websocket_bidirectional_stream(
+                websocket=websocket,
+                chunk_size=1024 * 1024,  # Default 1MB
+                timeout=60  # Default 60 seconds
+            )
+            
+        except WebSocketDisconnect:
+            logger.info("WebSocket bidirectional client disconnected")
+        except Exception as e:
+            logger.exception(f"Error in WebSocket bidirectional: {str(e)}")
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                })
+                await websocket.close()
+            except:
+                # Can't send if already closed
+                pass
+
+
+@app.websocket("/ws/webrtc")
+async def websocket_webrtc(websocket: WebSocket):
+    """
+    WebSocket endpoint for WebRTC signaling.
+    
+    This endpoint provides WebRTC signaling services for streaming 
+    media content from IPFS with minimal latency. The actual media 
+    content is transferred via WebRTC after connection establishment.
+    
+    WebRTC enables real-time streaming capabilities for applications
+    like video conferencing, live streaming, and interactive media.
+    """
+    try:
+        # Get API from app state
+        api = app.state.ipfs_api
+        
+        # WebRTC signaling uses WebSocket for coordination
+        # but transfers actual media via WebRTC peer connection
+        await api.handle_webrtc_streaming(
+            websocket=websocket,
+            # WebRTC-specific options can be added here
+            ice_servers=[
+                {"urls": ["stun:stun.l.google.com:19302"]}
+            ]
+        )
+        
+    except WebSocketDisconnect:
+        logger.info("WebRTC signaling client disconnected")
+    except Exception as e:
+        logger.exception(f"Error in WebRTC signaling: {str(e)}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "error": str(e),
+                "timestamp": time.time()
+            })
+            await websocket.close()
+        except:
+            # Can't send if already closed
+            pass
+
+
+@app.websocket("/ws/notifications")
+async def websocket_notifications(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time notifications.
+    
+    This endpoint allows clients to subscribe to various events and
+    receive real-time notifications when those events occur. Events
+    include content addition/removal, pin status changes, peer
+    connections, cluster state changes, and system metrics.
+    
+    Clients can:
+    - Subscribe to specific notification types
+    - Apply filters to notifications
+    - Retrieve event history
+    - Get connection information and metrics
+    """
+    # Skip if notifications are not available
+    if not NOTIFICATIONS_AVAILABLE:
+        await websocket.accept()
+        await websocket.send_json({
+            "type": "error",
+            "error": "Notification system is not available",
+            "message": "Install with 'pip install ipfs_kit_py[notifications]'",
+            "timestamp": time.time()
+        })
+        await websocket.close()
+        return
+    
+    try:
+        # Get API from app state for passing to the handler
+        api = app.state.ipfs_api
+        
+        # Handle the notification WebSocket
+        await handle_notification_websocket(websocket, api)
+        
+    except WebSocketDisconnect:
+        logger.info("Notification client disconnected")
+    except Exception as e:
+        logger.exception(f"Error in notification WebSocket: {str(e)}")
+        try:
+            if websocket.client_state != WebSocketState.DISCONNECTED:
+                await websocket.send_json({
+                    "type": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                })
+                await websocket.close()
+        except:
+            # Can't send if already closed
+            pass
+
+
+@app.websocket("/ws/status")
+async def websocket_status(websocket: WebSocket):
+    """
+    WebSocket endpoint for system status updates.
+    
+    This endpoint provides continuous real-time updates about the
+    system state, including:
+    - Peer connection status
+    - Pin progress
+    - Cluster state
+    - Content availability
+    - System metrics (CPU, memory, bandwidth)
+    
+    This is a specialized endpoint for monitoring dashboards
+    and status displays.
+    """
+    # Skip if notifications are not available
+    if not NOTIFICATIONS_AVAILABLE:
+        await websocket.accept()
+        await websocket.send_json({
+            "type": "error",
+            "error": "Status monitoring system is not available",
+            "message": "Install with 'pip install ipfs_kit_py[notifications]'",
+            "timestamp": time.time()
+        })
+        await websocket.close()
+        return
+    
+    try:
+        # Accept the connection
+        await websocket.accept()
+        
+        # Generate unique connection ID
+        connection_id = f"status_{int(time.time() * 1000)}_{id(websocket)}"
+        
+        # Register with notification manager
+        await notification_manager.connect(websocket, connection_id)
+        
+        # Get API from app state
+        api = app.state.ipfs_api
+        
+        # Send welcome message
+        await websocket.send_json({
+            "type": "welcome",
+            "message": "Connected to IPFS status monitoring",
+            "timestamp": time.time()
+        })
+        
+        # Automatically subscribe to relevant status notifications
+        status_notifications = [
+            NotificationType.PEER_CONNECTED.value,
+            NotificationType.PEER_DISCONNECTED.value,
+            NotificationType.PIN_PROGRESS.value,
+            NotificationType.PIN_STATUS_CHANGED.value,
+            NotificationType.CLUSTER_STATE_CHANGED.value,
+            NotificationType.SYSTEM_METRICS.value,
+        ]
+        
+        await notification_manager.subscribe(connection_id, status_notifications)
+        
+        # Start initial status report
+        await websocket.send_json({
+            "type": "initial_status",
+            "ipfs_online": True,  # TODO: Get actual status
+            "peers_connected": 0,  # TODO: Get actual count
+            "pins_in_progress": 0,  # TODO: Get actual count
+            "system_info": {
+                # TODO: Get actual system info
+                "cpu_usage": 0.0,
+                "memory_usage": 0.0,
+                "disk_usage": 0.0,
+                "bandwidth": {
+                    "in": 0.0,
+                    "out": 0.0
+                }
+            },
+            "timestamp": time.time()
+        })
+        
+        # Keep the connection alive with updates
+        while True:
+            # Process commands
+            try:
+                # Check for client message (non-blocking)
+                message = await asyncio.wait_for(websocket.receive_json(), timeout=1.0)
+                
+                # Process message
+                if message.get("action") == "get_status":
+                    # Send a full status update
+                    # TODO: Implement full status gathering
+                    await websocket.send_json({
+                        "type": "status_update",
+                        "timestamp": time.time(),
+                        "status": {
+                            "ipfs_online": True,
+                            "peers_connected": 0,
+                            "pins_in_progress": 0,
+                            "system_info": {
+                                "cpu_usage": 0.0,
+                                "memory_usage": 0.0,
+                                "disk_usage": 0.0,
+                            }
+                        }
+                    })
+                
+                elif message.get("action") == "ping":
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": time.time()
+                    })
+                    
+            except asyncio.TimeoutError:
+                # No message from client, continue with status updates
+                pass
+            
+            # Wait before next update
+            await asyncio.sleep(5)
+            
+    except WebSocketDisconnect:
+        logger.info("Status monitoring client disconnected")
+        # Clean up connection
+        if 'connection_id' in locals():
+            notification_manager.disconnect(connection_id)
+            
+    except Exception as e:
+        logger.exception(f"Error in status WebSocket: {str(e)}")
+        try:
+            if websocket.client_state != WebSocketState.DISCONNECTED:
+                await websocket.send_json({
+                    "type": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                })
+                await websocket.close()
+        except:
+            # Can't send if already closed
+            pass
+        
+        # Clean up connection
+        if 'connection_id' in locals():
+            notification_manager.disconnect(connection_id)
 
 
 @v0_router.post("/pin/add", response_model=PinResponse, tags=["pin"])
@@ -2500,6 +3184,11 @@ if FASTAPI_AVAILABLE:
     if GRAPHQL_AVAILABLE:
         app.include_router(graphql_router)
         logger.info("GraphQL API available at /graphql")
+        
+    # Add WAL API if available
+    if WAL_API_AVAILABLE:
+        wal_api.register_wal_api(app)
+        logger.info("WAL API available at /api/v0/wal")
 
     # Health check endpoint
     @app.get("/health")
@@ -2756,6 +3445,7 @@ if FASTAPI_AVAILABLE:
         file: UploadFile = File(...),
         pin: bool = Form(True),
         wrap_with_directory: bool = Form(False),
+        background_tasks: BackgroundTasks = None,
     ):
         """
         Upload file to IPFS.
@@ -2764,6 +3454,7 @@ if FASTAPI_AVAILABLE:
             file: File to upload
             pin: Whether to pin the file
             wrap_with_directory: Whether to wrap the file in a directory
+            background_tasks: Background tasks runner for notifications
 
         Returns:
             API response with CID
@@ -2787,10 +3478,53 @@ if FASTAPI_AVAILABLE:
             # Ensure result has success flag
             if isinstance(result, dict) and "success" not in result:
                 result["success"] = True
+                
+            # Emit notification event if successful
+            if NOTIFICATIONS_AVAILABLE and background_tasks and result.get("success", False):
+                cid = result.get("Hash") or result.get("cid")
+                if cid:
+                    background_tasks.add_task(
+                        emit_event,
+                        NotificationType.CONTENT_ADDED.value,
+                        {
+                            "cid": cid,
+                            "filename": filename,
+                            "size": len(content),
+                            "pinned": pin,
+                            "wrapped": wrap_with_directory,
+                            "mime_type": file.content_type
+                        }
+                    )
+                    
+                    # If content was pinned, also emit pin event
+                    if pin:
+                        background_tasks.add_task(
+                            emit_event,
+                            NotificationType.PIN_ADDED.value,
+                            {
+                                "cid": cid,
+                                "recursive": True,
+                                "success": True
+                            }
+                        )
 
             return result
         except Exception as e:
             logger.exception(f"Error uploading file: {str(e)}")
+            
+            # Emit error event
+            if NOTIFICATIONS_AVAILABLE and background_tasks:
+                background_tasks.add_task(
+                    emit_event,
+                    NotificationType.SYSTEM_ERROR.value,
+                    {
+                        "operation": "upload_file",
+                        "filename": file.filename,
+                        "error": str(e),
+                        "error_type": type(e).__name__
+                    }
+                )
+                
             return {
                 "success": False,
                 "error": str(e),

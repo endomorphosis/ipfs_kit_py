@@ -50,10 +50,19 @@ ai_ml = [
     "numpy>=1.22.0",
     "scikit-learn>=1.0.0",
 ]
+huggingface = [
+    "huggingface_hub>=0.19.0",
+]
 api = [
     "fastapi>=0.100.0",
     "uvicorn>=0.22.0",
     "python-multipart>=0.0.6",
+]
+webrtc = [
+    "aiortc>=1.5.0",
+    "av>=10.0.0",  # Required by aiortc for media handling
+    "opencv-python>=4.7.0.72",  # For video processing
+    "websockets>=10.4",  # For WebSocket signaling
 ]
 graphql = [
     "graphene>=3.4.0",
@@ -93,6 +102,11 @@ full = [
     "networkx>=3.0",
     "matplotlib>=3.5.0",
     "boto3>=1.26.0",
+    "huggingface_hub>=0.19.0",
+    "aiortc>=1.5.0",
+    "av>=10.0.0",
+    "opencv-python>=4.7.0.72",
+    "websockets>=10.4",
 ]
 
 [project.scripts]
@@ -123,3 +137,4 @@ line_length = 100
 testpaths = ["test"]
 python_files = "test_*.py"
 python_functions = "test_*"
+asyncio_default_fixture_loop_scope = "function"

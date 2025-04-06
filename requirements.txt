@@ -24,6 +24,7 @@ scikit-learn>=1.0.0
 # torch>=2.0.0  # Commented out as it's a large dependency - install separately as needed
 faiss-cpu>=1.7.4
 networkx>=3.0
+huggingface_hub>=0.19.0
 
 # Optional: API server
 fastapi>=0.100.0

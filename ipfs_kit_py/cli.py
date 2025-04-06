@@ -19,12 +19,24 @@ try:
     from .error import IPFSError, IPFSValidationError
     from .high_level_api import IPFSSimpleAPI
     from .validation import validate_cid
+    # Import WAL CLI integration
+    try:
+        from .wal_cli_integration import register_wal_commands, handle_wal_command
+        WAL_CLI_AVAILABLE = True
+    except ImportError:
+        WAL_CLI_AVAILABLE = False
 except ImportError:
     # Use relative imports when run directly
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ipfs_kit_py.error import IPFSError, IPFSValidationError
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
     from ipfs_kit_py.validation import validate_cid
+    # Import WAL CLI integration
+    try:
+        from ipfs_kit_py.wal_cli_integration import register_wal_commands, handle_wal_command
+        WAL_CLI_AVAILABLE = True
+    except ImportError:
+        WAL_CLI_AVAILABLE = False
 
 # Set up logging
 logger = logging.getLogger("ipfs_kit_cli")
@@ -150,6 +162,10 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+    
+    # Register WAL commands if available
+    if WAL_CLI_AVAILABLE:
+        register_wal_commands(subparsers)
 
     # Add command
     add_parser = subparsers.add_parser(
@@ -545,6 +561,10 @@ def run_command(args: argparse.Namespace) -> Any:
 
     # Parse command-specific parameters
     kwargs = parse_kwargs(args)
+
+    # Handle WAL commands if available
+    if WAL_CLI_AVAILABLE and args.command == "wal":
+        return handle_wal_command(client, args)
 
     # Execute command
     if args.command == "add":

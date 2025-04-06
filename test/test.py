@@ -35,6 +35,14 @@ class test_ipfs_kit_py:
             results["ipfs_kit_install"] = str(e)
 
         try:
+            # Test HuggingFace integration
+            huggingface_kit = self.ipfs_kit_py.huggingface_kit()
+            huggingface_test = {"whoami": huggingface_kit("whoami")}
+            results["huggingface_kit"] = huggingface_test
+        except Exception as e:
+            results["huggingface_kit"] = str(e)
+
+        try:
             storacha_kit = self.ipfs_kit_py.storacha_kit_py()
             storacha_kit_test = storacha_kit.test()
             results["storacha_kit"] = storacha_kit_test

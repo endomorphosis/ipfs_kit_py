@@ -204,6 +204,262 @@ pip install seaborn kaleido
 
 When visualization libraries are not available, the example will demonstrate graceful degradation with text-based output.
 
+### Real-time Streaming and Notifications
+
+The IPFS Kit now supports real-time streaming capabilities with WebRTC and WebSocket notifications.
+
+#### `websocket_streaming_example.py`
+
+Demonstrates bidirectional streaming of content via WebSockets. This example shows how to:
+
+- Stream content FROM IPFS sources using chunked transfer encoding
+- Stream content TO IPFS without loading entire files into memory
+- Support HTTP Range requests for media seeking
+- Implement bidirectional streaming for real-time applications
+- Handle progress monitoring for large transfers
+
+**Usage**:
+```bash
+# Run the WebSocket streaming example
+python -m examples.websocket_streaming_example
+```
+
+**Prerequisites**: Requires `aiohttp` package for WebSocket support.
+
+```bash
+pip install aiohttp
+```
+
+#### `webrtc_streaming_example.py`
+
+Demonstrates WebRTC-based media streaming directly from IPFS content. This example shows how to:
+
+- Set up WebRTC streaming from IPFS content
+- Establish peer-to-peer media connections
+- Stream video content with low latency
+- Support multiple stream qualities
+- Implement signaling over WebSockets
+- Handle ICE candidate exchange for NAT traversal
+
+**Usage**:
+```bash
+# Run the WebRTC streaming example server
+python -m examples.webrtc_streaming_example server
+
+# In another terminal or browser, run the client
+python -m examples.webrtc_streaming_example client
+```
+
+**Prerequisites**: Requires WebRTC dependencies.
+
+```bash
+pip install aiortc av websockets
+```
+
+#### `notification_client_example.py`
+
+Demonstrates the real-time notification system via WebSockets. This example shows how to:
+
+- Connect to the notification WebSocket endpoint
+- Subscribe to different notification types
+- Receive real-time updates about system events
+- Filter notifications by specific criteria
+- Implement custom notification handlers
+- Process various notification types:
+  - Content events (added, retrieved, removed)
+  - Peer events (connected, disconnected)
+  - WebRTC events (stream started/ended, connection changes)
+  - System events (metrics, warnings, errors)
+
+**Usage**:
+```bash
+# Run the notification client example
+python -m examples.notification_client_example
+```
+
+**Prerequisites**: Requires `websockets` package.
+
+```bash
+pip install websockets
+```
+
+#### `unified_dashboard_example.py`
+
+A comprehensive example that combines WebRTC streaming with WebSocket notifications in a unified dashboard. This example shows how to:
+
+- Create a complete monitoring dashboard for IPFS Kit
+- Stream media content from IPFS via WebRTC
+- Receive and display real-time system notifications
+- Visualize streaming statistics and performance metrics
+- Track WebRTC connection status
+- Filter and search through notifications
+- Customize the dashboard appearance
+
+**Usage**:
+```bash
+# Run the unified dashboard example
+python -m examples.unified_dashboard_example [--api-url API_URL] [--cid CID]
+```
+
+**Prerequisites**: Requires UI dependencies in addition to WebRTC and WebSocket packages.
+
+```bash
+pip install ipfs_kit_py[webrtc,ui]
+```
+
+### Write-Ahead Log (WAL) Examples
+
+The IPFS Kit includes a robust Write-Ahead Log (WAL) system for fault-tolerant operations. These examples demonstrate the various interfaces to the WAL system.
+
+#### `wal_cli_example.py`
+
+Demonstrates the standalone WAL command-line interface. This example shows how to:
+
+- Use the `wal-cli` command for managing WAL operations
+- Check WAL status and statistics
+- List pending operations
+- Show details of specific operations
+- Wait for operations to complete
+- Clean up old operations
+- Monitor backend health
+
+**Usage**:
+```bash
+# Run the WAL CLI example
+python -m examples.wal_cli_example
+
+# You can also run the WAL CLI directly
+python -m ipfs_kit_py.wal_cli status
+python -m ipfs_kit_py.wal_cli list pending
+python -m ipfs_kit_py.wal_cli health
+```
+
+#### `wal_cli_integration_example.py`
+
+Demonstrates the integrated WAL CLI commands within the main IPFS Kit CLI. This example shows how to:
+
+- Use WAL commands integrated with the main CLI
+- Add content through the WAL system
+- Check WAL status and statistics
+- List and monitor operations
+- View backend health information
+- Process pending operations
+- Get WAL metrics and configuration
+
+**Usage**:
+```bash
+# Run the WAL CLI integration example
+python -m examples.wal_cli_integration_example
+
+# You can also use the WAL commands directly with the main CLI
+python -m ipfs_kit_py.cli wal status
+python -m ipfs_kit_py.cli wal list pending
+python -m ipfs_kit_py.cli wal health
+python -m ipfs_kit_py.cli wal process
+```
+
+#### `wal_api_example.py`
+
+Demonstrates the WAL REST API interface. This example shows how to:
+
+- Use the WAL HTTP API endpoints
+- Add content through the WAL system
+- Check WAL status and retrieve operation details
+- List operations of different statuses
+- Monitor backend health
+- Get WAL metrics and configuration
+- Retry failed operations
+
+**Usage**:
+```bash
+# Run the WAL API example
+python -m examples.wal_api_example
+```
+
+#### `wal_visualization_example.py`
+
+Demonstrates visualization of WAL operations and metrics. This example shows how to:
+
+- Visualize WAL operation flow
+- Monitor backend health over time
+- Track operation latency and success rates
+- Generate dashboards for WAL monitoring
+- Create reports of WAL performance
+
+**Usage**:
+```bash
+# Run the WAL visualization example
+python -m examples.wal_visualization_example
+```
+
+**Prerequisites**: Visualization requires matplotlib and pandas.
+```bash
+pip install matplotlib pandas
+```
+
+### Performance Optimization Examples
+
+#### `probabilistic_data_structures_example.py`
+
+Demonstrates the probabilistic data structures implemented in the IPFS Kit library. These structures provide memory-efficient approximations for common operations like membership testing, cardinality estimation, and frequency counting. This comprehensive example shows:
+
+- **Bloom Filter**: Space-efficient membership testing with configurable false positive rates
+- **HyperLogLog**: Cardinality estimation using minimal memory
+- **Count-Min Sketch**: Frequency estimation for streaming data
+- **Cuckoo Filter**: Membership testing with deletion support
+- **MinHash**: Document similarity estimation
+- **TopK**: Identifying most frequent items
+
+The example includes detailed benchmarks comparing these structures to exact implementations, showing the memory/accuracy tradeoffs, and providing visualization of their performance characteristics. It also demonstrates practical applications in IPFS Kit:
+
+- Using Bloom filters for fast CID availability checking
+- Using HyperLogLog for unique peer tracking
+- Using Count-Min Sketch for content popularity monitoring
+- Using MinHash for content similarity detection
+
+**Usage**:
+```bash
+# Run all examples
+python -m examples.probabilistic_data_structures_example
+
+# Run specific examples
+python -m examples.probabilistic_data_structures_example bloom hll cms cuckoo minhash topk ipfs
+```
+
+**Prerequisites**: Requires `matplotlib` and `numpy` for visualizations.
+
+```bash
+pip install matplotlib numpy
+```
+
+#### `probabilistic_data_structures_integration_example.py`
+
+Demonstrates practical integration of probabilistic data structures with IPFS Kit in real-world scenarios. This example showcases how probabilistic structures can be used to solve actual challenges in distributed content systems while dramatically reducing memory requirements. The example focuses on three main integration scenarios:
+
+1. **Content Tracking System**: Processes simulated streams of content accesses using probabilistic structures, demonstrating memory efficiency compared to exact implementations
+2. **Tiered Cache Integration**: Shows how to enhance the tiered cache system with probabilistic structures to make intelligent caching decisions
+3. **IPFS Content Analytics Dashboard**: Builds a complete dashboard that uses probabilistic structures to provide insights with minimal overhead
+
+Key features demonstrated:
+- Tracking content popularity across millions of unique CIDs with minimal memory
+- Implementing real-world access patterns using Zipfian distribution with temporal locality
+- Memory usage visualization comparing probabilistic vs. exact data structures
+- Integration with the IPFS Kit tiered cache system
+- Configurable accuracy vs. memory tradeoffs
+- Implementation of a complete analytics system using the `ProbabilisticDataStructureManager`
+
+**Usage**:
+```bash
+# Run the integration example
+python -m examples.probabilistic_data_structures_integration_example
+```
+
+**Prerequisites**: Requires `matplotlib`, `numpy`, and `pandas` for visualizations and data handling.
+
+```bash
+pip install matplotlib numpy pandas
+```
+
 ### Additional Examples
 
 - `libp2p_example.py`: Direct peer-to-peer communication

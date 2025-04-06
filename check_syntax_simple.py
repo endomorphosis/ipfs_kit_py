@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
 
 """
-Simpler script to check for syntax errors in high_level_api.py
+Simpler script to check for syntax errors in ai_ml_integration.py
 """
 
 import os
 import sys
 
+filename = 'ipfs_kit_py/ai_ml_integration.py'
+
 try:
-    with open('ipfs_kit_py/high_level_api.py', 'r') as f:
+    with open(filename, 'r') as f:
         source = f.read()
     
     # Try to compile the source code
-    compile(source, 'high_level_api.py', 'exec')
+    compile(source, filename, 'exec')
     print('Compilation successful!')
     
 except SyntaxError as e:
     print(f'Syntax error at line {e.lineno}: {e.msg}')
     # Get several lines of context
     try:
-        with open('ipfs_kit_py/high_level_api.py', 'r') as f:
+        with open(filename, 'r') as f:
             lines = f.readlines()
-            start = max(0, e.lineno - 3)
-            end = min(len(lines), e.lineno + 3)
+            start = max(0, e.lineno - 5)
+            end = min(len(lines), e.lineno + 5)
             print(f'\nContext around line {e.lineno}:')
             for i in range(start, end):
                 prefix = '*' if i+1 == e.lineno else ' '

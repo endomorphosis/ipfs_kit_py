@@ -94,6 +94,10 @@ Below is a comprehensive list of all metrics exposed by the IPFS Kit Prometheus 
 | `ipfs_cache_hit_ratio` | Gauge | Ratio of cache hits to total accesses | - |
 | `ipfs_cache_tier_hits_total` | Counter | Total number of cache hits by tier | `tier` |
 | `ipfs_cache_tier_misses_total` | Counter | Total number of cache misses by tier | `tier` |
+| `ipfs_cache_entries` | Gauge | Number of entries in the cache | `tier` |
+| `ipfs_cache_size_bytes` | Gauge | Size of cache in bytes | `tier` |
+| `ipfs_cache_max_size_bytes` | Gauge | Maximum size of cache in bytes | `tier` |
+| `ipfs_cache_usage_percent` | Gauge | Cache usage as percentage of maximum | `tier` |
 
 #### Operation Metrics
 | Metric Name | Type | Description | Labels |
@@ -108,6 +112,8 @@ Below is a comprehensive list of all metrics exposed by the IPFS Kit Prometheus 
 | `ipfs_bandwidth_inbound_bytes_total` | Counter | Total inbound bandwidth used | - |
 | `ipfs_bandwidth_outbound_bytes_total` | Counter | Total outbound bandwidth used | - |
 | `ipfs_bytes_per_second` | Gauge | Bytes per second (total throughput) | - |
+| `ipfs_bandwidth_rate_in` | Gauge | Inbound bandwidth rate in bytes per second | - |
+| `ipfs_bandwidth_rate_out` | Gauge | Outbound bandwidth rate in bytes per second | - |
 
 #### Error Metrics
 | Metric Name | Type | Description | Labels |
@@ -123,6 +129,39 @@ Below is a comprehensive list of all metrics exposed by the IPFS Kit Prometheus 
 | `ipfs_memory_available_bytes` | Gauge | Available memory in bytes | - |
 | `ipfs_disk_usage_percent` | Gauge | Disk usage percentage | - |
 | `ipfs_disk_free_bytes` | Gauge | Free disk space in bytes | - |
+
+#### IPFS Repository Metrics
+| Metric Name | Type | Description | Labels |
+|-------------|------|-------------|--------|
+| `ipfs_specific_repo_size_bytes` | Gauge | Size of IPFS repository in bytes | `type` |
+| `ipfs_specific_repo_size_limit_bytes` | Gauge | Maximum size limit of IPFS repository | - |
+| `ipfs_specific_repo_usage_percent` | Gauge | Repository usage as percentage of maximum | - |
+| `ipfs_specific_repo_objects` | Gauge | Number of objects in the repository | - |
+
+#### IPFS Content Metrics
+| Metric Name | Type | Description | Labels |
+|-------------|------|-------------|--------|
+| `ipfs_specific_pins_count` | Gauge | Count of pinned content items | `type` |
+| `ipfs_specific_pins_size_bytes` | Gauge | Total size of pinned content in bytes | `type` |
+| `ipfs_specific_pins_total` | Gauge | Total number of pinned items | - |
+
+#### IPFS Network Metrics
+| Metric Name | Type | Description | Labels |
+|-------------|------|-------------|--------|
+| `ipfs_specific_peers_connected` | Gauge | Number of connected peers | - |
+| `ipfs_specific_peers_by_type` | Gauge | Number of connected peers by type | `type` |
+| `ipfs_specific_protocols_count` | Gauge | Number of supported protocols | - |
+| `ipfs_specific_protocol_connections` | Gauge | Number of connections by protocol | `protocol` |
+| `ipfs_specific_dht_peers` | Gauge | Number of peers in the DHT routing table | - |
+| `ipfs_specific_dht_records` | Gauge | Number of records in the DHT | - |
+
+#### IPFS Cluster Metrics
+| Metric Name | Type | Description | Labels |
+|-------------|------|-------------|--------|
+| `ipfs_specific_cluster_peers` | Gauge | Number of peers in the IPFS cluster | - |
+| `ipfs_specific_cluster_pins` | Gauge | Number of pins in the cluster | - |
+| `ipfs_specific_cluster_pin_status` | Gauge | Count of pins by status | `status` |
+| `ipfs_specific_cluster_replication_factor` | Gauge | Average replication factor across pins | - |
 
 ### Metrics Exporter
 
@@ -258,6 +297,16 @@ Focuses on IPFS operation metrics for detailed analysis:
 - **Error Rates**: Overall and per-operation error rates
 - **Cache Hit/Miss**: Detailed cache access patterns
 - **Content Statistics**: Pin counts, total content size, and replication metrics
+
+### 3. IPFS Core Dashboard
+
+Monitors IPFS internal metrics and behavior:
+
+- **Repository Metrics**: Repository size and usage with storage limits
+- **Content Metrics**: Detailed pin information by type (direct, recursive, indirect)
+- **Network Metrics**: Peer connections, protocol distribution, bandwidth, DHT statistics
+- **Cluster Metrics**: Cluster health, peer count, pin status across the cluster
+- **Cache Metrics**: Detailed performance metrics for tiered caching system
 
 ## Deployment
 
@@ -641,6 +690,43 @@ groups:
     annotations:
       summary: "Slow network throughput on {{$labels.instance}}"
       description: "Combined bandwidth is below 100KB/s for 10 minutes, indicating potential network issues"
+  
+  # IPFS Core-specific alerts
+  - alert: IPFSRepositoryNearlyFull
+    expr: ipfs_specific_repo_usage_percent > 90
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "IPFS repository nearly full on {{$labels.instance}}"
+      description: "IPFS repository is {{ $value }}% full, approaching storage limit"
+
+  - alert: IPFSPeerCountLow
+    expr: ipfs_specific_peers_connected < 5
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Low peer count on {{$labels.instance}}"
+      description: "IPFS node has only {{ $value }} peers connected, which may limit functionality"
+
+  - alert: IPFSClusterMembersDown
+    expr: ipfs_specific_cluster_peers < 2 and on(instance) ipfs_specific_cluster_peers > 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "IPFS cluster members missing on {{$labels.instance}}"
+      description: "IPFS cluster has only {{ $value }} peers, indicating multiple cluster members are down"
+
+  - alert: IPFSPinningErrors
+    expr: ipfs_specific_cluster_pin_status{status="error"} > 0
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "IPFS pinning errors detected on {{$labels.instance}}"
+      description: "{{ $value }} pins in error state in IPFS cluster, content reliability at risk"
 ```
 
 ### Recording Rules for IPFS Kit
@@ -698,6 +784,7 @@ These recording rules provide:
 ### Example Dashboards
 - [System Dashboard](/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured system metrics dashboard
 - [Operations Dashboard](/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured operations metrics dashboard
+- [IPFS Core Dashboard](/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured IPFS-specific metrics dashboard
 
 ### Deployment Examples
 - [Prometheus Deployment](/kubernetes/prometheus-deployment.yaml): Kubernetes deployment for Prometheus

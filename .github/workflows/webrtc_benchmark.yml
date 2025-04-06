@@ -1,0 +1,182 @@
+name: WebRTC Performance Benchmarking
+
+on:
+  # Run on push to main branch
+  push:
+    branches: [ main ]
+    paths:
+      - 'ipfs_kit_py/webrtc_*.py'
+      - 'ipfs_kit_py/high_level_api.py'
+      - 'test/test_webrtc_*.py'
+  
+  # Run on relevant pull requests
+  pull_request:
+    paths:
+      - 'ipfs_kit_py/webrtc_*.py'
+      - 'ipfs_kit_py/high_level_api.py'
+      - 'test/test_webrtc_*.py'
+  
+  # Run on schedule (weekly)
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      test_cid:
+        description: 'Test CID to benchmark'
+        required: false
+        default: 'QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn'  # IPFS directory listing
+      duration:
+        description: 'Benchmark duration in seconds'
+        required: false
+        default: '60'
+      compare_baseline:
+        description: 'Compare with baseline'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  benchmark:
+    name: Run WebRTC Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install IPFS
+        run: |
+          wget -q https://dist.ipfs.tech/kubo/v0.18.1/kubo_v0.18.1_linux-amd64.tar.gz
+          tar -xzf kubo_v0.18.1_linux-amd64.tar.gz
+          cd kubo
+          sudo bash install.sh
+          ipfs --version
+          
+      - name: Initialize IPFS Node
+        run: |
+          ipfs init
+          ipfs daemon --enable-gc --enable-pubsub-experiment &
+          sleep 10  # Wait for daemon to start
+          ipfs swarm peers  # Verify connectivity
+        
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install with webrtc extras
+          python -m pip install -e .[webrtc,test]
+          # Check if dependencies are installed
+          python -c "import ipfs_kit_py.webrtc_benchmark; print('WebRTC benchmark module available')"
+          
+      - name: Prepare Test Environment
+        run: |
+          # Create directories for benchmark results
+          mkdir -p ~/.ipfs_kit/webrtc_benchmarks/baselines
+          mkdir -p ~/.ipfs_kit/webrtc_benchmarks/ci_reports
+          
+          # Determine test CID
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.test_cid }}" != "" ]]; then
+            echo "TEST_CID=${{ github.event.inputs.test_cid }}" >> $GITHUB_ENV
+          else
+            echo "TEST_CID=QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn" >> $GITHUB_ENV
+          fi
+          
+          # Determine benchmark duration
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.duration }}" != "" ]]; then
+            echo "BENCHMARK_DURATION=${{ github.event.inputs.duration }}" >> $GITHUB_ENV
+          else
+            echo "BENCHMARK_DURATION=60" >> $GITHUB_ENV
+          fi
+          
+          # Check if baseline exists
+          BASELINE_PATH=~/.ipfs_kit/webrtc_benchmarks/baselines/baseline_${TEST_CID}_latest.json
+          if [[ -f "$BASELINE_PATH" ]]; then
+            echo "BASELINE_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "BASELINE_EXISTS=false" >> $GITHUB_ENV
+          fi
+        
+      - name: Run WebRTC Benchmark
+        run: |
+          # Determine benchmark command based on baseline existence
+          if [[ "$BASELINE_EXISTS" == "false" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+            # Create baseline for main branch or if no baseline exists
+            python bin/webrtc_benchmark_ci.py run --cid=$TEST_CID --duration=$BENCHMARK_DURATION --save-baseline
+            echo "Created new baseline benchmark"
+          else
+            # For PR or scheduled runs, compare with baseline
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.compare_baseline }}" == "false" ]]; then
+              python bin/webrtc_benchmark_ci.py run --cid=$TEST_CID --duration=$BENCHMARK_DURATION
+              echo "Ran benchmark without comparison (as requested)"
+            else
+              # Run benchmark with comparison
+              python bin/webrtc_benchmark_ci.py run --cid=$TEST_CID --duration=$BENCHMARK_DURATION --compare-baseline
+              BENCHMARK_STATUS=$?
+              echo "BENCHMARK_STATUS=$BENCHMARK_STATUS" >> $GITHUB_ENV
+            fi
+          fi
+      
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: webrtc-benchmark-results
+          path: ~/.ipfs_kit/webrtc_benchmarks
+          
+      - name: Check Benchmark Status
+        if: env.BENCHMARK_STATUS != ''
+        run: |
+          if [[ "$BENCHMARK_STATUS" == "0" ]]; then
+            echo "Benchmark comparison passed"
+          else
+            echo "::warning::Benchmark comparison failed - performance regression detected"
+            # We don't want to fail the CI pipeline, just warn about it
+            # exit 1
+          fi
+
+  # Scheduled job to update baseline
+  update-baseline:
+    name: Update Benchmark Baseline
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    needs: benchmark
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Download Benchmark Results
+        uses: actions/download-artifact@v3
+        with:
+          name: webrtc-benchmark-results
+          path: ~/.ipfs_kit/webrtc_benchmarks
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[webrtc]
+          
+      - name: Update Baseline
+        run: |
+          # Find latest benchmark report
+          LATEST_REPORT=$(ls -t ~/.ipfs_kit/webrtc_benchmarks/ci_reports/webrtc_benchmark_*.json | head -1)
+          if [[ -f "$LATEST_REPORT" ]]; then
+            # Extract CID from report
+            CID=$(python -c "import json; print(json.load(open('$LATEST_REPORT'))['summary']['cid'])")
+            
+            # Save as new baseline using the BenchmarkCI class directly
+            python -c "from ipfs_kit_py.bin.webrtc_benchmark_ci import BenchmarkCI; print(BenchmarkCI().save_as_baseline('$LATEST_REPORT', 'baseline_$CID'))"
+            echo "Updated baseline benchmark for $CID"
+          else
+            echo "No benchmark report found to update baseline"
+          fi

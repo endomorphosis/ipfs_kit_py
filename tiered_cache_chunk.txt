@@ -1,0 +1,31 @@
+1830:                     # Append new record
+1831:                     self.in_memory_batch = pa.concat_batches([self.in_memory_batch, new_batch])
+1832:             
+1833:                 needs_rotation = self.in_memory_batch.num_rows >= self.max_partition_rows
+1834:                 self.modified_since_sync = True
+1835:             
+1836:                 # Delegate disk operations to a background thread
+1837:                 if needs_rotation or (self.auto_sync and (time.time() - self.last_sync_time > self.sync_interval)):
+1838:                     # Run disk operations in background
+1839:                     asyncio.create_task(self._async_disk_operations(needs_rotation))
+1840:             
+1841:                 # Update C Data Interface if enabled (in background)
+1842:                 if self.enable_c_data_interface:
+1843:                     asyncio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
+1844:                 
+1845:                 return True
+1846:             except Exception as e:
+1847:                 logger.error(f"Error putting metadata for CID {cid} (async): {e}")
+1848:                 return False
+1849:             
+1850:     async def _async_disk_operations(self, needs_rotation: bool) -> None:
+1851:         """Perform asynchronous disk operations.
+1852:         
+1853:         Args:
+1854:             needs_rotation: Whether partition rotation is needed
+1855:         """
+1856:         try:
+1857:             if needs_rotation:
+1858:                 await self._run_in_thread_pool(self._write_current_partition)
+1859:                 self.current_partition_id += 1
+1860:                 self.in_memory_batch = None

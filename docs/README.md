@@ -47,13 +47,23 @@ The documentation is organized into several key sections:
    - Heat Scoring Algorithm
    - Cache Migration
 
-4. [**FSSpec Filesystem Interface**](fsspec_integration.md) - Standard filesystem interface
+4. [**Probabilistic Data Structures**](probabilistic_data_structures.md) - Memory-efficient approximation algorithms
+   - Bloom Filter for Membership Testing
+   - HyperLogLog for Cardinality Estimation
+   - Count-Min Sketch for Frequency Estimation
+   - Cuckoo Filters with Deletion Support
+   - MinHash for Similarity Detection
+   - TopK for Popular Item Tracking
+   - Memory/Accuracy Tradeoffs
+   - Practical Integration Examples
+
+5. [**FSSpec Filesystem Interface**](fsspec_integration.md) - Standard filesystem interface
    - File-like Operations
    - Integration with Data Science Tools
    - Performance Optimizations
    - Gateway Support
 
-5. [**Storage Backends**](storage_backends.md) - External storage integrations
+6. [**Storage Backends**](storage_backends.md) - External storage integrations
    - Storacha/Web3.Storage Integration
    - S3-Compatible Storage
    - Multi-backend Content Management
@@ -157,6 +167,8 @@ For practical examples of using IPFS Kit, see the [examples directory](../exampl
 - Data science workflow examples
 - High-level API usage examples
 - Tiered cache performance examples
+- Probabilistic data structures examples
+- Practical integration examples
 
 ## Contributing to Documentation
 

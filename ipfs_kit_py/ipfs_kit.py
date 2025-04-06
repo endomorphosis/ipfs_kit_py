@@ -50,6 +50,13 @@ from .s3_kit import s3_kit
 from .storacha_kit import storacha_kit
 from .test_fio import test_fio
 
+# Try to import huggingface_kit
+try:
+    from .huggingface_kit import huggingface_kit
+    HAS_HUGGINGFACE = True
+except ImportError:
+    HAS_HUGGINGFACE = False
+
 # Try to import libp2p
 try:
     from .libp2p_peer import IPFSLibp2pPeer
@@ -271,6 +278,9 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                # Initialize HuggingFace Hub integration if available
+                if HAS_HUGGINGFACE:
+                    self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
 
@@ -284,6 +294,9 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                # Initialize HuggingFace Hub integration if available
+                if HAS_HUGGINGFACE:
+                    self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
 
@@ -299,6 +312,9 @@ class ipfs_kit:
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
+                # Initialize HuggingFace Hub integration if available
+                if HAS_HUGGINGFACE:
+                    self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
 
@@ -1208,6 +1224,35 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
+            
+    def _check_huggingface_and_call(self, method_name, *args, **kwargs):
+        """Helper to check and call Hugging Face Hub methods."""
+        operation = f"huggingface_{method_name}"
+        correlation_id = kwargs.get("correlation_id", str(uuid.uuid4()))
+        result = create_result_dict(operation, correlation_id)
+        try:
+            if not HAS_HUGGINGFACE:
+                return handle_error(result, IPFSError("Hugging Face Hub integration is not available"))
+            if not hasattr(self, "huggingface_kit") or self.huggingface_kit is None:
+                return handle_error(
+                    result, IPFSError("Hugging Face Hub component is not initialized")
+                )
+            if not hasattr(self.huggingface_kit, method_name):
+                return handle_error(
+                    result, IPFSError(f"Method '{method_name}' not found in huggingface_kit")
+                )
+            method = getattr(self.huggingface_kit, method_name)
+            method_result = method(*args, **kwargs)
+            if isinstance(method_result, dict):
+                result.update(method_result)
+                if "success" not in result:
+                    result["success"] = True
+            else:
+                result["success"] = True
+                result["result"] = method_result
+            return result
+        except Exception as e:
+            return handle_error(result, e)
 
     def __call__(self, method, **kwargs):
         """Call a method by name with keyword arguments."""
@@ -1411,6 +1456,12 @@ class ipfs_kit:
                 return {"success": True, "operation": "get_data_loader", "data_loader": data_loader}
             else:
                 raise NotImplementedError("get_data_loader not implemented or available")
+                
+        # Hugging Face Hub operations
+        if method.startswith("huggingface_"):
+            # Extract the actual method name (remove the huggingface_ prefix)
+            hf_method = method.replace("huggingface_", "")
+            return self._check_huggingface_and_call(hf_method, **kwargs)
 
         # Handle unknown method
         raise ValueError(f"Unknown method: {method}")
