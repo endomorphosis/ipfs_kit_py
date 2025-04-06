@@ -30,7 +30,7 @@ from typing import Dict, Any, List, Optional, Generator
 # Add parent directory to path for importing from ipfs_kit_py
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ipfs_kit_py.wal import WAL
+from ipfs_kit_py.storage_wal import StorageWriteAheadLog as WAL # Corrected import
 from ipfs_kit_py.wal_telemetry import WALTelemetry
 from ipfs_kit_py.wal_telemetry_client import WALTelemetryClient, TelemetryMetricType
 from ipfs_kit_py.wal_api import create_api_app, start_api_server

@@ -1311,3 +1311,441 @@ def register_wal_api(app):
     except Exception as e:
         logger.exception(f"Error registering WAL API: {str(e)}")
         return False
+
+"""
+Write-Ahead Log (WAL) API for IPFS Kit.
+
+This module provides a FastAPI-based REST API for interacting with the Write-Ahead Log
+system. It allows for API-based control of WAL operations, monitoring, and management.
+
+Key features:
+1. REST API for WAL operations
+2. Telemetry and metrics endpoints
+3. Swagger/OpenAPI documentation
+4. Authentication and authorization
+5. Rate limiting and request validation
+"""
+
+import asyncio
+import json
+import logging
+import os
+import threading
+import time
+import uuid
+from typing import Any, Dict, List, Optional, Union
+
+# Try to import FastAPI - this is optional but needed for HTTP API
+try:
+    import fastapi
+    from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse
+    from fastapi.routing import APIRouter
+    from pydantic import BaseModel, Field
+    
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
+    # Create placeholder BaseModel for type hints
+    class BaseModel:
+        pass
+    
+    # Create placeholder API router
+    class APIRouter:
+        def get(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+            
+        def post(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+            
+        def put(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+            
+        def delete(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+
+# Import WAL components if available
+try:
+    from .wal import WAL, OperationType, OperationStatus, BackendType
+    from .wal_telemetry import WALTelemetry
+    from .wal_telemetry_tracing import WALTracing
+    WAL_AVAILABLE = True
+except ImportError:
+    WAL_AVAILABLE = False
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Models for API requests and responses
+if FASTAPI_AVAILABLE:
+    class OperationRequest(BaseModel):
+        """Model for operation creation request."""
+        operation_type: str
+        backend: str
+        parameters: Optional[Dict[str, Any]] = {}
+        operation_id: Optional[str] = None
+        priority: Optional[int] = 0
+        metadata: Optional[Dict[str, Any]] = {}
+        
+    class StatusUpdateRequest(BaseModel):
+        """Model for operation status update request."""
+        new_status: str
+        updates: Optional[Dict[str, Any]] = {}
+        
+    class OperationResponse(BaseModel):
+        """Model for operation response."""
+        success: bool
+        operation_id: Optional[str] = None
+        operation: Optional[Dict[str, Any]] = None
+        error: Optional[str] = None
+        error_type: Optional[str] = None
+        
+    class OperationsResponse(BaseModel):
+        """Model for multiple operations response."""
+        success: bool
+        operations: Optional[List[Dict[str, Any]]] = None
+        total: Optional[int] = None
+        returned: Optional[int] = None
+        error: Optional[str] = None
+        error_type: Optional[str] = None
+        
+    class TelemetryResponse(BaseModel):
+        """Model for telemetry response."""
+        success: bool
+        metrics: Optional[Dict[str, Any]] = None
+        error: Optional[str] = None
+        error_type: Optional[str] = None
+
+def create_api_router(wal: Optional['WAL'] = None, telemetry: Optional['WALTelemetry'] = None) -> Any:
+    """
+    Create an API router for the WAL system.
+    
+    Args:
+        wal: WAL instance to use for the API
+        telemetry: WALTelemetry instance to use for metrics
+        
+    Returns:
+        FastAPI router or None if FastAPI is not available
+    """
+    if not FASTAPI_AVAILABLE:
+        logger.warning("FastAPI not available. WAL API cannot be created.")
+        return None
+        
+    if not WAL_AVAILABLE:
+        logger.warning("WAL components not available. WAL API cannot be created.")
+        return None
+        
+    # Create router
+    router = APIRouter(tags=["WAL"])
+    
+    # Reference to WAL instance
+    router.wal = wal
+    router.telemetry = telemetry
+    
+    @router.get("/operations", response_model=OperationsResponse)
+    async def get_operations(
+        status: Optional[str] = None,
+        operation_type: Optional[str] = None,
+        backend: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
+        sort_by: str = "created_time",
+        sort_desc: bool = True
+    ):
+        """Get operations matching the specified criteria."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.get_operations(
+            status=status,
+            operation_type=operation_type,
+            backend=backend,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_desc=sort_desc
+        )
+        
+    @router.get("/operations/{operation_id}", response_model=OperationResponse)
+    async def get_operation(operation_id: str):
+        """Get an operation by ID."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.get_operation(operation_id)
+        
+    @router.post("/operations", response_model=OperationResponse)
+    async def add_operation(operation: OperationRequest):
+        """Add a new operation."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.add_operation(
+            operation_type=operation.operation_type,
+            backend=operation.backend,
+            parameters=operation.parameters,
+            operation_id=operation.operation_id,
+            priority=operation.priority,
+            metadata=operation.metadata
+        )
+        
+    @router.put("/operations/{operation_id}/status", response_model=OperationResponse)
+    async def update_operation_status(operation_id: str, update: StatusUpdateRequest):
+        """Update the status of an operation."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.update_operation_status(
+            operation_id=operation_id,
+            new_status=update.new_status,
+            updates=update.updates
+        )
+        
+    @router.post("/operations/{operation_id}/execute", response_model=OperationResponse)
+    async def execute_operation(operation_id: str):
+        """Execute a specific operation."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.execute_operation(operation_id)
+        
+    @router.post("/operations/process", response_model=OperationResponse)
+    async def process_pending_operations(
+        max_operations: Optional[int] = None,
+        types: Optional[List[str]] = None,
+        backends: Optional[List[str]] = None
+    ):
+        """Process pending operations."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.process_pending_operations(
+            max_operations=max_operations,
+            types=types,
+            backends=backends
+        )
+        
+    @router.delete("/operations/{operation_id}", response_model=OperationResponse)
+    async def delete_operation(operation_id: str):
+        """Delete an operation."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.delete_operation(operation_id)
+        
+    @router.post("/operations/recover", response_model=OperationResponse)
+    async def recover_stalled_operations():
+        """Recover operations that have been in processing state for too long."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.recover_stalled_operations()
+        
+    @router.post("/operations/clear", response_model=OperationResponse)
+    async def clear_completed_operations(
+        older_than: Optional[float] = None,
+        limit: Optional[int] = None
+    ):
+        """Clear completed operations."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.clear_completed_operations(
+            older_than=older_than,
+            limit=limit
+        )
+        
+    @router.get("/statistics", response_model=TelemetryResponse)
+    async def get_statistics():
+        """Get statistics about the WAL."""
+        if not router.wal:
+            return {"success": False, "error": "WAL not initialized", "error_type": "NotInitialized"}
+            
+        return router.wal.get_statistics()
+        
+    @router.get("/telemetry", response_model=TelemetryResponse)
+    async def get_telemetry():
+        """Get telemetry data about the WAL system."""
+        if not router.telemetry:
+            return {"success": False, "error": "Telemetry not initialized", "error_type": "NotInitialized"}
+            
+        try:
+            metrics = router.telemetry.get_metrics()
+            return {"success": True, "metrics": metrics}
+        except Exception as e:
+            logger.error(f"Error getting telemetry metrics: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+            
+    @router.post("/telemetry/reset", response_model=TelemetryResponse)
+    async def reset_telemetry():
+        """Reset telemetry data."""
+        if not router.telemetry:
+            return {"success": False, "error": "Telemetry not initialized", "error_type": "NotInitialized"}
+            
+        try:
+            router.telemetry.reset_metrics()
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"Error resetting telemetry metrics: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+    
+    return router
+
+def create_api_app(
+    wal: Optional['WAL'] = None,
+    telemetry: Optional['WALTelemetry'] = None,
+    tracing: Optional['WALTracing'] = None,
+    app: Optional[Any] = None,
+    prefix: str = "/api/v0/wal",
+    enable_cors: bool = True,
+    cors_origins: List[str] = ["*"],
+    enable_docs: bool = True
+) -> Any:
+    """
+    Create a FastAPI app for the WAL API.
+    
+    Args:
+        wal: WAL instance to use for the API
+        telemetry: WALTelemetry instance to use for metrics
+        tracing: WALTracing instance to use for distributed tracing
+        app: Existing FastAPI app to attach the WAL API to (if None, creates a new one)
+        prefix: URL prefix for the WAL API
+        enable_cors: Whether to enable CORS
+        cors_origins: List of allowed origins for CORS
+        enable_docs: Whether to enable Swagger/OpenAPI documentation
+        
+    Returns:
+        FastAPI app or None if FastAPI is not available
+    """
+    if not FASTAPI_AVAILABLE:
+        logger.warning("FastAPI not available. WAL API cannot be created.")
+        return None
+        
+    # Create app if not provided
+    if app is None:
+        app = FastAPI(
+            title="IPFS Kit WAL API",
+            description="API for the Write-Ahead Log system in IPFS Kit",
+            version="0.1.0",
+            docs_url="/docs" if enable_docs else None,
+            redoc_url="/redoc" if enable_docs else None,
+        )
+        
+    # Create router
+    router = create_api_router(wal=wal, telemetry=telemetry)
+    
+    if router:
+        # Add CORS middleware if requested
+        if enable_cors:
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=cors_origins,
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+            
+        # Add tracing middleware if provided
+        if tracing:
+            from .wal_telemetry_tracing import add_tracing_middleware
+            add_tracing_middleware(app, tracing, service_name="wal-api")
+            
+        # Add router to app
+        app.include_router(router, prefix=prefix)
+        
+        # Add app initialization endpoint to confirm API is working
+        @app.get(f"{prefix}/ping")
+        async def ping():
+            return {"status": "ok", "timestamp": time.time()}
+            
+        logger.info(f"WAL API registered successfully with the FastAPI app.")
+            
+    return app
+
+async def start_api_server(
+    app: Any,
+    host: str = "0.0.0.0",
+    port: int = 8000,
+    log_level: str = "info"
+) -> None:
+    """
+    Start the FastAPI server for the WAL API.
+    
+    Args:
+        app: FastAPI app to start
+        host: Host to bind to
+        port: Port to bind to
+        log_level: Logging level
+    """
+    if not FASTAPI_AVAILABLE:
+        logger.error("FastAPI not available. Cannot start WAL API server.")
+        return
+        
+    import uvicorn
+    
+    # Configure uvicorn logging
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    
+    logger.info(f"Starting WAL API server on {host}:{port}")
+    
+    # Start the server
+    await uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level=log_level,
+        log_config=log_config,
+    )
+    
+def start_api_server_thread(
+    app: Any,
+    host: str = "0.0.0.0",
+    port: int = 8000,
+    log_level: str = "info"
+) -> threading.Thread:
+    """
+    Start the FastAPI server in a background thread.
+    
+    Args:
+        app: FastAPI app to start
+        host: Host to bind to
+        port: Port to bind to
+        log_level: Logging level
+        
+    Returns:
+        Thread object for the server
+    """
+    if not FASTAPI_AVAILABLE:
+        logger.error("FastAPI not available. Cannot start WAL API server thread.")
+        return None
+        
+    # Create thread to run the server
+    def run_server():
+        import asyncio
+        asyncio.run(start_api_server(app, host, port, log_level))
+        
+    thread = threading.Thread(target=run_server, daemon=True)
+    thread.start()
+    
+    logger.info(f"Started WAL API server thread on {host}:{port}")
+    
+    return thread

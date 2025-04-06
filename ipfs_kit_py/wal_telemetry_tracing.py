@@ -22,6 +22,7 @@ import logging
 import json
 import uuid
 import threading
+from enum import Enum
 from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 
 # Import WAL components if available
@@ -630,7 +631,7 @@ class WALTracing:
                 "http.path": request_info.get("path", ""),
                 "http.status_code": response_info.get("status_code", 0),
                 "http.request_content_length": request_info.get("content_length", 0),
-                "http.response_content_length": response_info.get("content_length", 0),
+                "http.response_content_length": request_info.get("content_length", 0),
                 "http.duration_ms": response_info.get("duration_ms", 0)
             }
         ) as span:

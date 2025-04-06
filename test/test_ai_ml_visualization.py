@@ -36,7 +36,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from ipfs_kit_py.ai_ml_metrics import AIMLMetricsCollector
 from ipfs_kit_py.ai_ml_visualization import (
     AIMLVisualization,
-    check_visualization_libraries,
     create_visualization,
 )
 
@@ -116,12 +115,15 @@ class TestAIMLVisualization(unittest.TestCase):
 
     def test_library_detection(self):
         """Test visualization library detection."""
-        libraries = check_visualization_libraries()
+        # Instantiate the class to call the method
+        viz = AIMLVisualization()
+        libraries = viz.check_visualization_availability()
         self.assertIsInstance(libraries, dict)
         self.assertIn("matplotlib", libraries)
         self.assertIn("plotly", libraries)
-        self.assertIn("pandas", libraries)
-        self.assertIn("jupyter", libraries)
+        self.assertIn("in_notebook", libraries) # Check for correct keys
+        self.assertIn("interactive", libraries)
+        self.assertIn("theme", libraries)
 
     @unittest.skipIf(not MATPLOTLIB_AVAILABLE, "Matplotlib not available")
     def test_plot_training_metrics(self):

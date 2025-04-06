@@ -30,7 +30,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
-from pyarrow.dataset import dataset, partitioning
+import pyarrow.dataset as ds
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -192,52 +192,40 @@ class TimeBasedPartitionStrategy:
         Create the partition schema for PyArrow Dataset.
         
         Returns:
-            PyArrow partition schema
+            PyArrow schema for the partition
         """
         if self.period == "hourly":
-            return partitioning.DirectoryPartitioning(
-                pa.schema([
-                    pa.field("year", pa.int32()),
-                    pa.field("month", pa.int32()),
-                    pa.field("day", pa.int32()),
-                    pa.field("hour", pa.int32())
-                ])
-            )
+            return pa.schema([
+                pa.field("year", pa.int32()),
+                pa.field("month", pa.int32()),
+                pa.field("day", pa.int32()),
+                pa.field("hour", pa.int32())
+            ])
         elif self.period == "daily":
-            return partitioning.DirectoryPartitioning(
-                pa.schema([
-                    pa.field("year", pa.int32()),
-                    pa.field("month", pa.int32()),
-                    pa.field("day", pa.int32())
-                ])
-            )
+            return pa.schema([
+                pa.field("year", pa.int32()),
+                pa.field("month", pa.int32()),
+                pa.field("day", pa.int32())
+            ])
         elif self.period == "monthly":
-            return partitioning.DirectoryPartitioning(
-                pa.schema([
-                    pa.field("year", pa.int32()),
-                    pa.field("month", pa.int32())
-                ])
-            )
+            return pa.schema([
+                pa.field("year", pa.int32()),
+                pa.field("month", pa.int32())
+            ])
         elif self.period == "quarterly":
-            return partitioning.DirectoryPartitioning(
-                pa.schema([
-                    pa.field("year", pa.int32()),
-                    pa.field("quarter", pa.int32())
-                ])
-            )
+            return pa.schema([
+                pa.field("year", pa.int32()),
+                pa.field("quarter", pa.int32())
+            ])
         elif self.period == "yearly":
-            return partitioning.DirectoryPartitioning(
-                pa.schema([
-                    pa.field("year", pa.int32())
-                ])
-            )
+            return pa.schema([
+                pa.field("year", pa.int32())
+            ])
         else:  # weekly
-            return partitioning.DirectoryPartitioning(
-                pa.schema([
-                    pa.field("year", pa.int32()),
-                    pa.field("week", pa.int32())
-                ])
-            )
+            return pa.schema([
+                pa.field("year", pa.int32()),
+                pa.field("week", pa.int32())
+            ])
             
     def get_activity_timeframe(self, timeframe_days: int = 30) -> List[str]:
         """
@@ -313,6 +301,7 @@ class SizeBasedPartitionStrategy:
         if pid is None:
             pid = self.initialize_partition()
             
+        # Create the path with the partition ID as the directory name
         return os.path.join(self.base_path, pid)
     
     def should_rotate_partition(self, record_size: int) -> bool:
@@ -485,13 +474,11 @@ class ContentTypePartitionStrategy:
         Create the partition schema for PyArrow Dataset.
         
         Returns:
-            PyArrow partition schema
+            PyArrow schema for the partition
         """
-        return partitioning.DirectoryPartitioning(
-            pa.schema([
-                pa.field("content_type", pa.string())
-            ])
-        )
+        return pa.schema([
+            pa.field("content_type", pa.string())
+        ])
 
 
 class HashBasedPartitionStrategy:
@@ -1057,7 +1044,7 @@ class DynamicPartitionManager:
         # Return strategy with highest score
         return max(scores.items(), key=lambda x: x[1])[0]
         
-    def build_dataset(self, filter_expression=None) -> pa.dataset:
+    def build_dataset(self, filter_expression=None) -> Any:
         """
         Build a PyArrow dataset from all partitions.
         
@@ -1071,7 +1058,7 @@ class DynamicPartitionManager:
         partition_paths = [partition.path for partition in self.partitions.values()]
         
         # Create the dataset
-        return dataset(
+        return ds.dataset(
             partition_paths,
             format="parquet",
             partitioning="hive",  # Automatically discover partitioning

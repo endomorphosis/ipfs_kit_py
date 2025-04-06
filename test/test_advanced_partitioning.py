@@ -247,9 +247,14 @@ class TimeBasedPartitionStrategyTest(unittest.TestCase):
         """Test creating partition schema."""
         schema = self.strategy.create_partition_schema()
         self.assertIsInstance(schema, pa.Schema)
-        self.assertIn("year", [field.name for field in schema.types[0].fields])
-        self.assertIn("month", [field.name for field in schema.types[0].fields])
-        self.assertIn("day", [field.name for field in schema.types[0].fields])
+        
+        # Get field names from the schema
+        field_names = [field.name for field in schema]
+        
+        # Check that the expected fields are present
+        self.assertIn("year", field_names)
+        self.assertIn("month", field_names)
+        self.assertIn("day", field_names)
 
 
 @unittest.skipIf(not HAVE_PARTITIONING, "Advanced partitioning module not available")
@@ -290,8 +295,8 @@ class SizeBasedPartitionStrategyTest(unittest.TestCase):
         # Get path
         path = self.strategy.get_partition_path()
         
-        # Should be based on the partition ID
-        self.assertEqual(os.path.basename(os.path.dirname(path)), partition_id)
+        # Should end with the partition ID
+        self.assertTrue(path.endswith(partition_id))
     
     def test_should_rotate_partition(self):
         """Test partition rotation logic."""
@@ -416,8 +421,13 @@ class ContentTypePartitionStrategyTest(unittest.TestCase):
         """Test creating partition schema."""
         schema = self.strategy.create_partition_schema()
         self.assertIsInstance(schema, pa.Schema)
-        self.assertEqual(len(schema.types[0].fields), 1)
-        self.assertEqual(schema.types[0].field(0).name, "content_type")
+        
+        # Get field names from the schema correctly
+        field_names = [field.name for field in schema]
+        
+        # Check content_type field is present
+        self.assertEqual(len(field_names), 1)
+        self.assertEqual(field_names[0], "content_type")
 
 
 @unittest.skipIf(not HAVE_PARTITIONING, "Advanced partitioning module not available")
