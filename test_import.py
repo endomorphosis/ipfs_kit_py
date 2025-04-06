@@ -22,7 +22,7 @@ try:
         print("ERROR: ai_register_dataset method not found on IPFSSimpleAPI!")
     
     print("All tests passed successfully!")
-    sys.exit(0)
+    # sys.exit(0) # Removed to prevent pytest collection error
 except ImportError as e:
     print(f"Import Error: {e}")
     traceback.print_exc()
