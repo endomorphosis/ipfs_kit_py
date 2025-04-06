@@ -1,99 +1,85 @@
 #!/usr/bin/env python3
+import os
 
-"""
-Comprehensive fix for all indentation issues in ai_ml_integration.py
-"""
-
-def fix_vector_store_method():
-    file_path = 'ipfs_kit_py/ai_ml_integration.py'
+def fix_tiered_cache():
+    file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/tiered_cache.py'
     
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    print(f"Reading file: {file_path}")
+    # Read the file
+    try:
+        with open(file_path, 'r') as f:
+            content = f.readlines()
+        print(f"Successfully read file with {len(content)} lines")
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return
     
-    # Find the create_vector_store method
-    method_start_idx = content.find('def create_vector_store(')
-    if method_start_idx == -1:
-        print("Could not find create_vector_store method")
-        return False
+    # Find the _discover_partitions method
+    start_line = -1
+    end_line = -1
     
-    # Find where the method should end (before the next unindented def or class)
-    method_end_pattern = '\n    if PYDANTIC_AVAILABLE:'
-    method_end_idx = content.find(method_end_pattern, method_start_idx)
-    if method_end_idx == -1:
-        print("Could not find end of method")
-        return False
+    for i, line in enumerate(content):
+        if 'def _discover_partitions' in line:
+            start_line = i
+            print(f"Found _discover_partitions method at line {start_line}")
+        if start_line != -1 and line.strip() == '' and i > start_line and end_line == -1:
+            # Found the end of the method
+            end_line = i
+            print(f"Found end of method at line {end_line}")
+            break
     
-    # Make sure the line before this is properly indented
-    before_end = content.rfind('\n', 0, method_end_idx)
-    if before_end != -1:
-        # Check what's between the last line and the Pydantic class
-        method_body_end = content[before_end+1:method_end_idx].strip()
-        
-        # If the last line in the method is a return, we have the correct structure
-        if method_body_end and ('return' in method_body_end):
-            # The structure is correct, we just need to add an extra newline
-            print("Method ends correctly with a return statement, adding newline")
-            new_content = (content[:method_end_idx] + 
-                          '\n' +  # Add an extra newline between method and next section
-                          content[method_end_idx:])
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-            return True
-        else:
-            print("Method doesn't end correctly, more extensive fix needed")
-            return False
+    # If we didn't find the end, assume it's the last line
+    if end_line == -1:
+        end_line = len(content)
+        print(f"Could not find end of method, assuming it's the last line: {end_line}")
     
-    print("Could not find proper location to fix")
-    return False
-
-def fix_document_loader_method():
-    file_path = 'ipfs_kit_py/ai_ml_integration.py'
+    # Create the fixed version of the method
+    fixed_method = [
+        '    def _discover_partitions(self) -> Dict[int, Dict[str, Any]]:\n',
+        '        """Discover existing partition files."""\n',
+        '        partitions = {}\n',
+        '        for filename in os.listdir(self.directory):\n',
+        '            if not filename.startswith(\'cid_cache_\') or not filename.endswith(\'.parquet\'):\n',
+        '                continue\n',
+        '                \n',
+        '            try:\n',
+        '                # Extract partition ID from filename\n',
+        '                partition_id = int(filename.split(\'_\')[2].split(\'.\')[0])\n',
+        '                partition_path = os.path.join(self.directory, filename)\n',
+        '                \n',
+        '                # Get metadata without loading full content\n',
+        '                try:\n',
+        '                    metadata = pq.read_metadata(partition_path)\n',
+        '                    \n',
+        '                    partitions[partition_id] = {\n',
+        '                        \'path\': partition_path,\n',
+        '                        \'size\': os.path.getsize(partition_path),\n',
+        '                        \'rows\': metadata.num_rows,\n',
+        '                        \'created\': os.path.getctime(partition_path),\n',
+        '                        \'modified\': os.path.getmtime(partition_path)\n',
+        '                    }\n',
+        '                except Exception as e:\n',
+        '                    logger.warning(f"Invalid partition file {filename}: {e}")\n',
+        '            except Exception as e:\n',
+        '                logger.warning(f"Could not process partition file {filename}: {e}")\n',
+        '                \n',
+        '        return partitions\n',
+        '\n'
+    ]
     
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    # Replace the old method with the fixed version
+    print(f"Replacing method from line {start_line} to {end_line} with fixed version")
+    content[start_line:end_line] = fixed_method
     
-    # Find the create_document_loader method
-    method_start_idx = content.find('def create_document_loader(')
-    if method_start_idx == -1:
-        print("Could not find create_document_loader method")
-        return False
+    # Write the fixed content back
+    try:
+        with open(file_path, 'w') as f:
+            f.writelines(content)
+        print(f"Successfully wrote fixed content back to file")
+    except Exception as e:
+        print(f"Error writing to file: {e}")
     
-    # Find where the method should end (before the next unindented def or class)
-    method_end_pattern = '\n    if PYDANTIC_AVAILABLE:'
-    method_end_idx = content.find(method_end_pattern, method_start_idx)
-    if method_end_idx == -1:
-        print("Could not find end of document_loader method")
-        return False
-    
-    # Same procedure as before
-    before_end = content.rfind('\n', 0, method_end_idx)
-    if before_end != -1:
-        method_body_end = content[before_end+1:method_end_idx].strip()
-        
-        if method_body_end and ('return' in method_body_end):
-            print("Document loader method ends correctly with a return statement, adding newline")
-            new_content = (content[:method_end_idx] + 
-                          '\n' +  # Add an extra newline
-                          content[method_end_idx:])
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-            return True
-    
-    print("Could not find proper location to fix document_loader method")
-    return False
+    print(f"Fixed _discover_partitions method in tiered_cache.py")
 
 if __name__ == "__main__":
-    # Fix the create_vector_store method
-    vector_store_fixed = fix_vector_store_method()
-    print(f"Vector store method fixed: {vector_store_fixed}")
-    
-    # Fix the create_document_loader method
-    document_loader_fixed = fix_document_loader_method()
-    print(f"Document loader method fixed: {document_loader_fixed}")
-    
-    if vector_store_fixed and document_loader_fixed:
-        print("All fixes applied successfully!")
-    else:
-        print("Some fixes could not be applied.")
+    fix_tiered_cache()

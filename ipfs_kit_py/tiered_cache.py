@@ -2325,17 +2325,20 @@ class ParquetCIDCache:
                 partition_id = int(filename.split('_')[2].split('.')[0])
                 partition_path = os.path.join(self.directory, filename)
                 
-                # Get metadata without loading full content
-                metadata = pq.read_metadata(partition_path)
-                
-                partitions[partition_id] = {
-                    'path': partition_path,
-                    'size': os.path.getsize(partition_path),
-                    'rows': metadata.num_rows,
-                    'created': os.path.getctime(partition_path),
-                    'modified': os.path.getmtime(partition_path)
-                }
-                
+                try:
+                    # Get metadata without loading full content
+                    metadata = pq.read_metadata(partition_path)
+                    
+                    partitions[partition_id] = {
+                        'path': partition_path,
+                        'size': os.path.getsize(partition_path),
+                        'rows': metadata.num_rows,
+                        'created': os.path.getctime(partition_path),
+                        'modified': os.path.getmtime(partition_path)
+                    }
+                except Exception as e:
+                    logger.warning(f"Invalid partition file {filename}: {e}")
+            
             except Exception as e:
                 logger.warning(f"Invalid partition file {filename}: {e}")
                 
@@ -2986,39 +2989,37 @@ class ParquetCIDCache:
         return await self._run_in_thread_pool(self.batch_get_metadata, cids)
         
     async def _async_disk_operations(self, needs_rotation: bool) -> None:
-                mask = pc.equal(pc.field('cid'), pa.scalar(cid))
-                existing = table.filter(mask)
+            mask = pc.equal(pc.field('cid'), pa.scalar(cid))
+            existing = table.filter(mask)
+            
+            if existing.num_rows > 0:
+                # Remove existing entries
+                inverse_mask = pc.invert(mask)
+                filtered_table = table.filter(inverse_mask)
+                filtered_batches = filtered_table.to_batches()
                 
-                if existing.num_rows > 0:
-                    # Remove existing entries
-                    inverse_mask = pc.invert(mask)
-                    filtered_table = table.filter(inverse_mask)
-                    filtered_batches = filtered_table.to_batches()
-                    
-                    if filtered_batches:
-                        batch_without_cid = filtered_batches[0]
-                        self.in_memory_batch = pa.concat_batches([batch_without_cid, new_batch])
-                    else:
-                        self.in_memory_batch = new_batch
+                if filtered_batches:
+                    batch_without_cid = filtered_batches[0]
+                    self.in_memory_batch = pa.concat_batches([batch_without_cid, new_batch])
                 else:
-                    # Append new record
-                    self.in_memory_batch = pa.concat_batches([self.in_memory_batch, new_batch])
+                    self.in_memory_batch = new_batch
+            else:
+                # Append new record
+                self.in_memory_batch = pa.concat_batches([self.in_memory_batch, new_batch])
+        
+            needs_rotation = self.in_memory_batch.num_rows >= self.max_partition_rows
+            self.modified_since_sync = True
+        
+            # Delegate disk operations to a background thread
+            if needs_rotation or (self.auto_sync and (time.time() - self.last_sync_time > self.sync_interval)):
+                # Run disk operations in background
+                asyncio.create_task(self._async_disk_operations(needs_rotation))
+        
+            # Update C Data Interface if enabled (in background)
+            if self.enable_c_data_interface:
+                asyncio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
             
-                needs_rotation = self.in_memory_batch.num_rows >= self.max_partition_rows
-                self.modified_since_sync = True
-            
-                # Delegate disk operations to a background thread
-                if needs_rotation or (self.auto_sync and (time.time() - self.last_sync_time > self.sync_interval)):
-                    # Run disk operations in background
-                    asyncio.create_task(self._async_disk_operations(needs_rotation))
-            
-                # Update C Data Interface if enabled (in background)
-                if self.enable_c_data_interface:
-                    asyncio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
-                
-                return True
-            except Exception as e:
-                logger.error(f"Error putting metadata for CID {cid} (async): {e}")
+            return True
             
     async def _async_disk_operations(self, needs_rotation: bool) -> None:
         """Perform asynchronous disk operations.
@@ -5584,7 +5585,7 @@ class ParquetCIDCache:
                 
         # Access in a context manager pattern (recommended)
         def access_parquet_cache(cache_dir, **kwargs):
-            """Context manager for accessing ParquetCIDCache safely."""
+            """ + '"""Context manager for accessing ParquetCIDCache safely."""' + """
             result = None
             try:
                 result = ParquetCIDCache.access_via_c_data_interface(cache_dir, **kwargs)
@@ -6281,12 +6282,6 @@ class ParquetCIDCache:
         main().catch(console.error);
         """
             
-            # Always disconnect when done to free resources
-            result["plasma_client"].disconnect()
-        else:
-            print(f"Error accessing cache: {result['error']}")
-        """
-        
         # C++ Example
         cpp_example = """
         #include <arrow/api.h>
@@ -9522,7 +9517,7 @@ class DiskCache:
                     logger.info(f"Removing old time partition: {partition['path']}")
                     os.remove(partition['path'])
                 except Exception as e:
-                    logger.warning(f"Failed to remove old partition {partition['path']}: {e}")$')
+                    logger.warning(f"Failed to remove old partition {partition['path']}: {e}")
         time_partitions = []
         
         for filename in os.listdir(self.directory):
@@ -11466,10 +11461,6 @@ class TieredCacheManager:
                 existing = self.parquet_cache.get_metadata(key)
                 if existing:
                     # Merge with new metadata
-                    existing.update(metadata)
-                    return self.parquet_cache.put_metadata(key, existing)
-                else:
-                    # Need to check if content exists in other tiers
                     if key in self.memory_cache or self.disk_cache.contains(key):
                         # Content exists, create new metadata
                         current_time_ms = int(time.time() * 1000)
