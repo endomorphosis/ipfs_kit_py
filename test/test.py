@@ -4,7 +4,7 @@ import os
 import sys
 import unittest
 
-from ipfs_kit_py import ipfs_kit
+from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 
 class test_ipfs_kit_py:
@@ -71,8 +71,8 @@ class test_ipfs_kit_py:
             results["ipfs_cluster_service"] = str(e)
 
         try:
-            ipfs_kit = self.ipfs_kit_py.ipfs_kit()
-            ipfs_kit_test = ipfs_kit.test()
+            ipfs_kit_instance = self.ipfs_kit_py.ipfs_kit()
+            ipfs_kit_test = ipfs_kit_instance.test()
             results["ipfs_kit"] = ipfs_kit_test
         except Exception as e:
             results["ipfs_kit"] = str(e)

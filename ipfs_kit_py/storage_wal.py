@@ -556,17 +556,25 @@ class StorageWriteAheadLog:
             # Convert operation to Arrow RecordBatch
             arrays = []
             
+            # Special handling for parameters field
+            # Make a shallow copy of the operation to preserve the original
+            processed_operation = operation.copy()
+            
+            # Convert parameters dict to JSON string for reliable storage and retrieval
+            if "parameters" in processed_operation and isinstance(processed_operation["parameters"], dict):
+                processed_operation["parameters"] = json.dumps(processed_operation["parameters"])
+            
             for field in self.schema:
                 field_name = field.name
                 
-                if field_name in operation:
-                    value = operation[field_name]
+                if field_name in processed_operation:
+                    value = processed_operation[field_name]
                     
                     # Handle special types
                     if field.type == pa.timestamp('ms') and isinstance(value, (int, float)):
                         # Create timestamp from milliseconds
                         arrays.append(pa.array([value], type=field.type))
-                    elif field.type.id == pa.Type.STRUCT:
+                    elif isinstance(field.type, pa.StructType):
                         # Handle struct fields
                         if value is None:
                             arrays.append(pa.array([None], type=field.type))
@@ -583,18 +591,46 @@ class StorageWriteAheadLog:
                                 arrays=list(struct_values.values()),
                                 names=list(struct_values.keys())
                             ))
-                    elif field.type.id == pa.Type.MAP:
+                    elif isinstance(field.type, pa.MapType):
                         # Handle map fields
                         if value is None or not value:
                             arrays.append(pa.array([None], type=field.type))
                         else:
-                            # Convert dict to map
-                            keys = list(value.keys())
-                            values = [str(value[k]) for k in keys]
-                            arrays.append(pa.MapArray.from_arrays(
-                                pa.array(keys, type=pa.string()),
-                                pa.array(values, type=pa.string())
-                            ))
+                            try:
+                                # Convert dict to map
+                                try:
+                                    # Special case for parameters field - parse JSON string
+                                    if field_name == "parameters" and isinstance(value, str):
+                                        try:
+                                            value = json.loads(value)
+                                        except json.JSONDecodeError:
+                                            # If not valid JSON, keep as is
+                                            pass
+                                    
+                                    keys = list(value.keys())
+                                    values = [str(value[k]) for k in keys]
+                                    
+                                    # Create map array with proper arguments
+                                    # Different versions of PyArrow have different APIs
+                                    try:
+                                        # Newer PyArrow versions - from_arrays takes keys and values
+                                        key_array = pa.array(keys, type=pa.string())
+                                        value_array = pa.array(values, type=pa.string())
+                                        
+                                        # Try with 2 arguments first (most common)
+                                        map_array = pa.MapArray.from_arrays(key_array, value_array)
+                                        arrays.append(map_array)
+                                    except TypeError:
+                                        # Try with 3 arguments (some versions need offsets)
+                                        offsets = pa.array([0, len(keys)], type=pa.int32())
+                                        map_array = pa.MapArray.from_arrays(offsets, key_array, value_array)
+                                        arrays.append(map_array)
+                                except Exception as e:
+                                    logger.warning(f"Error creating map array: {e}")
+                                    arrays.append(pa.array([None], type=field.type))
+                            except Exception as e:
+                                logger.warning(f"Error creating map array: {e}")
+                                arrays.append(pa.array([None], type=field.type))
                     else:
                         # Regular field
                         arrays.append(pa.array([value], type=field.type))
@@ -676,7 +712,36 @@ class StorageWriteAheadLog:
                     
                     if filtered.num_rows > 0:
                         # Convert to Python dict
-                        return filtered.to_pylist()[0]
+                        operation = filtered.to_pylist()[0]
+                        
+                        # Debug output
+                        logger.info(f"Found operation {operation_id} with parameters: {operation.get('parameters', None)}, type: {type(operation.get('parameters', None))}")
+                        
+                        # Convert parameters to dict
+                        if "parameters" in operation:
+                            if isinstance(operation["parameters"], str):
+                                # Parse JSON string
+                                try:
+                                    operation["parameters"] = json.loads(operation["parameters"])
+                                    logger.info(f"Converted parameters JSON to dict: {operation['parameters']}")
+                                except (json.JSONDecodeError, TypeError):
+                                    logger.warning(f"Failed to parse parameters JSON: {operation['parameters']}")
+                                    # Keep as string
+                            elif isinstance(operation["parameters"], list):
+                                # Convert list of tuples to dict
+                                try:
+                                    params_dict = {}
+                                    for item in operation["parameters"]:
+                                        if isinstance(item, tuple) and len(item) == 2:
+                                            params_dict[item[0]] = item[1]
+                                    operation["parameters"] = params_dict
+                                    logger.info(f"Converted parameters list to dict: {operation['parameters']}")
+                                except Exception as e:
+                                    logger.warning(f"Failed to convert parameters list to dict: {e}")
+                            else:
+                                logger.info(f"Parameters is type: {type(operation['parameters'])}")
+                                
+                        return operation
                 except Exception as e:
                     logger.error(f"Error reading partition {partition_path}: {e}")
             else:
@@ -774,8 +839,8 @@ class StorageWriteAheadLog:
         if updates:
             updated_op.update(updates)
             
-        # Update updated_at timestamp if not provided
-        if "updated_at" not in updates:
+        # Update updated_at timestamp if not provided or if updates is None
+        if updates is None or "updated_at" not in updates:
             updated_op["updated_at"] = int(time.time() * 1000)
         
         # Find the partition containing this operation
@@ -813,7 +878,7 @@ class StorageWriteAheadLog:
                                 if field.type == pa.timestamp('ms') and isinstance(value, (int, float)):
                                     # Create timestamp from milliseconds
                                     arrays.append(pa.array([value], type=field.type))
-                                elif field.type.id == pa.Type.STRUCT:
+                                elif isinstance(field.type, pa.StructType):
                                     # Handle struct fields
                                     if value is None:
                                         arrays.append(pa.array([None], type=field.type))
@@ -830,18 +895,38 @@ class StorageWriteAheadLog:
                                             arrays=list(struct_values.values()),
                                             names=list(struct_values.keys())
                                         ))
-                                elif field.type.id == pa.Type.MAP:
+                                elif isinstance(field.type, pa.MapType):
                                     # Handle map fields
                                     if value is None or not value:
                                         arrays.append(pa.array([None], type=field.type))
                                     else:
-                                        # Convert dict to map
-                                        keys = list(value.keys())
-                                        values = [str(value[k]) for k in keys]
-                                        arrays.append(pa.MapArray.from_arrays(
-                                            pa.array(keys, type=pa.string()),
-                                            pa.array(values, type=pa.string())
-                                        ))
+                                        try:
+                                            # Convert dict to map
+                                            try:
+                                                keys = list(value.keys())
+                                                values = [str(value[k]) for k in keys]
+                                                
+                                                # Create map array with proper arguments
+                                                # Different versions of PyArrow have different APIs
+                                                try:
+                                                    # Newer PyArrow versions - from_arrays takes keys and values
+                                                    key_array = pa.array(keys, type=pa.string())
+                                                    value_array = pa.array(values, type=pa.string())
+                                                    
+                                                    # Try with 2 arguments first (most common)
+                                                    map_array = pa.MapArray.from_arrays(key_array, value_array)
+                                                    arrays.append(map_array)
+                                                except TypeError:
+                                                    # Try with 3 arguments (some versions need offsets)
+                                                    offsets = pa.array([0, len(keys)], type=pa.int32())
+                                                    map_array = pa.MapArray.from_arrays(offsets, key_array, value_array)
+                                                    arrays.append(map_array)
+                                            except Exception as e:
+                                                logger.warning(f"Error creating map array: {e}")
+                                                arrays.append(pa.array([None], type=field.type))
+                                        except Exception as e:
+                                            logger.warning(f"Error creating map array: {e}")
+                                            arrays.append(pa.array([None], type=field.type))
                                 else:
                                     # Regular field
                                     arrays.append(pa.array([value], type=field.type))
@@ -934,7 +1019,7 @@ class StorageWriteAheadLog:
         if not self.archive_completed:
             return False
             
-        # Generate archive ID based on the current date
+        # Generate archive ID based on the current date - make it a string
         archive_id = datetime.datetime.now().strftime("%Y%m%d")
         archive_path = self._get_archive_path(archive_id)
         
@@ -953,7 +1038,7 @@ class StorageWriteAheadLog:
                         if field.type == pa.timestamp('ms') and isinstance(value, (int, float)):
                             # Create timestamp from milliseconds
                             arrays.append(pa.array([value], type=field.type))
-                        elif field.type.id == pa.Type.STRUCT:
+                        elif isinstance(field.type, pa.StructType):
                             # Handle struct fields
                             if value is None:
                                 arrays.append(pa.array([None], type=field.type))
@@ -970,18 +1055,38 @@ class StorageWriteAheadLog:
                                     arrays=list(struct_values.values()),
                                     names=list(struct_values.keys())
                                 ))
-                        elif field.type.id == pa.Type.MAP:
+                        elif isinstance(field.type, pa.MapType):
                             # Handle map fields
                             if value is None or not value:
                                 arrays.append(pa.array([None], type=field.type))
                             else:
-                                # Convert dict to map
-                                keys = list(value.keys())
-                                values = [str(value[k]) for k in keys]
-                                arrays.append(pa.MapArray.from_arrays(
-                                    pa.array(keys, type=pa.string()),
-                                    pa.array(values, type=pa.string())
-                                ))
+                                try:
+                                    # Convert dict to map
+                                    try:
+                                        keys = list(value.keys())
+                                        values = [str(value[k]) for k in keys]
+                                        
+                                        # Create map array with proper arguments
+                                        # Different versions of PyArrow have different APIs
+                                        try:
+                                            # Newer PyArrow versions - from_arrays takes keys and values
+                                            key_array = pa.array(keys, type=pa.string())
+                                            value_array = pa.array(values, type=pa.string())
+                                            
+                                            # Try with 2 arguments first (most common)
+                                            map_array = pa.MapArray.from_arrays(key_array, value_array)
+                                            arrays.append(map_array)
+                                        except TypeError:
+                                            # Try with 3 arguments (some versions need offsets)
+                                            offsets = pa.array([0, len(keys)], type=pa.int32())
+                                            map_array = pa.MapArray.from_arrays(offsets, key_array, value_array)
+                                            arrays.append(map_array)
+                                    except Exception as e:
+                                        logger.warning(f"Error creating map array: {e}")
+                                        arrays.append(pa.array([None], type=field.type))
+                                except Exception as e:
+                                    logger.warning(f"Error creating map array: {e}")
+                                    arrays.append(pa.array([None], type=field.type))
                         else:
                             # Regular field
                             arrays.append(pa.array([value], type=field.type))
@@ -1072,8 +1177,17 @@ class StorageWriteAheadLog:
                     filtered = table.filter(mask)
                     
                     if filtered.num_rows > 0:
-                        # Convert to Python dicts
-                        operations.extend(filtered.to_pylist())
+                        # Convert to Python dicts and process parameters
+                        ops_list = filtered.to_pylist()
+                        for op in ops_list:
+                            # Convert parameters JSON string back to dict if necessary
+                            if "parameters" in op and isinstance(op["parameters"], str):
+                                try:
+                                    op["parameters"] = json.loads(op["parameters"])
+                                except (json.JSONDecodeError, TypeError):
+                                    # Keep as is if not valid JSON
+                                    pass
+                        operations.extend(ops_list)
                 except Exception as e:
                     logger.error(f"Error reading partition {partition_path}: {e}")
             else:
@@ -1093,6 +1207,56 @@ class StorageWriteAheadLog:
                                 continue
                 except Exception as e:
                     logger.error(f"Error reading partition {partition_path}: {e}")
+        
+        # Also check archives if looking for completed operations
+        if status == OperationStatus.COMPLETED.value and self.archive_completed:
+            # Check all archive files
+            for archive_file in os.listdir(self.archives_path):
+                if not archive_file.endswith('.parquet'):
+                    continue
+                    
+                archive_path = os.path.join(self.archives_path, archive_file)
+                
+                if ARROW_AVAILABLE:
+                    try:
+                        # Read the table
+                        table = pq.read_table(archive_path)
+                        
+                        # Filter by status (though archives should only contain completed operations)
+                        mask = pc.equal(table["status"], status)
+                        filtered = table.filter(mask)
+                        
+                        if filtered.num_rows > 0:
+                            # Convert to Python dicts and process parameters
+                            ops_list = filtered.to_pylist()
+                            for op in ops_list:
+                                # Convert parameters JSON string back to dict if necessary
+                                if "parameters" in op and isinstance(op["parameters"], str):
+                                    try:
+                                        op["parameters"] = json.loads(op["parameters"])
+                                    except (json.JSONDecodeError, TypeError):
+                                        # Keep as is if not valid JSON
+                                        pass
+                            operations.extend(ops_list)
+                    except Exception as e:
+                        logger.error(f"Error reading archive {archive_path}: {e}")
+                else:
+                    # Fallback to JSON
+                    try:
+                        with open(archive_path) as f:
+                            for line in f:
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                    
+                                try:
+                                    op = json.loads(line)
+                                    if op.get("status") == status:
+                                        operations.append(op)
+                                except json.JSONDecodeError:
+                                    continue
+                    except Exception as e:
+                        logger.error(f"Error reading archive {archive_path}: {e}")
         
         # Sort by timestamp (newest first)
         operations.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
@@ -1124,8 +1288,30 @@ class StorageWriteAheadLog:
                     # Read the table
                     table = pq.read_table(partition_path)
                     
-                    # Convert to Python dicts
-                    operations.extend(table.to_pylist())
+                    # Convert to Python dicts and process parameters
+                    ops_list = table.to_pylist()
+                    for op in ops_list:
+                        # Convert parameters to dict
+                        if "parameters" in op:
+                            if isinstance(op["parameters"], str):
+                                # Parse JSON string
+                                try:
+                                    op["parameters"] = json.loads(op["parameters"])
+                                except (json.JSONDecodeError, TypeError):
+                                    # Keep as string
+                                    pass
+                            elif isinstance(op["parameters"], list):
+                                # Convert list of tuples to dict
+                                try:
+                                    params_dict = {}
+                                    for item in op["parameters"]:
+                                        if isinstance(item, tuple) and len(item) == 2:
+                                            params_dict[item[0]] = item[1]
+                                    op["parameters"] = params_dict
+                                except Exception:
+                                    # Keep as list
+                                    pass
+                    operations.extend(ops_list)
                 except Exception as e:
                     logger.error(f"Error reading partition {partition_path}: {e}")
             else:
@@ -1262,10 +1448,13 @@ class StorageWriteAheadLog:
             try:
                 # Format: archive_YYYYMMDD.parquet
                 date_str = archive_file.split('_')[1].split('.')[0]
+                
+                # Set a specific time in the day for consistent comparisons
                 archive_date = datetime.datetime.strptime(date_str, "%Y%m%d")
                 archive_timestamp = archive_date.timestamp()
                 
                 # If the archive is older than the cutoff, remove it
+                logger.info(f"Checking archive {archive_file}, timestamp: {archive_timestamp}, cutoff: {cutoff}")
                 if archive_timestamp < cutoff:
                     # Count operations in the archive
                     if ARROW_AVAILABLE:

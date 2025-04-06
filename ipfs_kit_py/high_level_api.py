@@ -159,7 +159,585 @@ class IPFSSimpleAPI:
         self.extensions = {}
 
         logger.info(f"IPFSSimpleAPI initialized with role: {self.config.get('role', 'leecher')}")
+    
+    @stable_api(since="0.1.0")
+    def add(self, content: Union[str, bytes, IOBase, Path], **kwargs) -> Dict[str, Any]:
+        """
+        Add content to IPFS.
         
+        Args:
+            content: Content to add (string, bytes, file-like object, or Path)
+            **kwargs: Additional parameters for the add operation
+                - pin: Whether to pin the content (default: True)
+                - wrap_with_directory: Whether to wrap the content in a directory
+                - filename: Filename to use when content is a string or bytes
+                - chunker: Chunking algorithm to use
+                - hash: Hash function to use (default: sha2-256)
+                - cid_version: CID version to use (default: 1)
+                - only_hash: Only compute the hash, don't actually store the data
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "cid": Content identifier of the added content
+                - "size": Size of the content in bytes
+                - "name": Name assigned to the content
+        """
+        try:
+            # Different handling based on content type
+            if isinstance(content, (str, bytes)) and not isinstance(content, Path):
+                # If content is string but not a Path, assume it's data not a file path
+                if isinstance(content, str):
+                    content = content.encode('utf-8')
+                
+                # Create a temporary file with the content
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_file_path = temp_file.name
+                    try:
+                        temp_file.write(content)
+                    except Exception as e:
+                        logger.error(f"Error writing content to temporary file: {e}")
+                        return {
+                            "success": False,
+                            "error": f"Failed to write to temporary file: {str(e)}",
+                            "error_type": type(e).__name__
+                        }
+                
+                try:
+                    # Add the temporary file
+                    result = self.kit.ipfs_add_file(temp_file_path, **kwargs)
+                finally:
+                    # Clean up temporary file
+                    os.unlink(temp_file_path)
+                    
+                return result
+                
+            elif isinstance(content, Path):
+                # If content is a Path, convert to string
+                return self.kit.ipfs_add_file(str(content), **kwargs)
+                
+            elif isinstance(content, IOBase):
+                # If content is a file-like object, read data and create temp file
+                data = content.read()
+                if hasattr(content, 'seek'):
+                    # Reset file position if possible
+                    content.seek(0)
+                
+                # Create a temporary file with the data
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_file_path = temp_file.name
+                    try:
+                        temp_file.write(data if isinstance(data, bytes) else data.encode('utf-8'))
+                    except Exception as e:
+                        logger.error(f"Error writing content to temporary file: {e}")
+                        return {
+                            "success": False,
+                            "error": f"Failed to write to temporary file: {str(e)}",
+                            "error_type": type(e).__name__
+                        }
+                
+                try:
+                    # Add the temporary file
+                    result = self.kit.ipfs_add_file(temp_file_path, **kwargs)
+                finally:
+                    # Clean up temporary file
+                    os.unlink(temp_file_path)
+                    
+                return result
+                
+            else:
+                # Assume it's a file path
+                return self.kit.ipfs_add_file(content, **kwargs)
+                
+        except Exception as e:
+            logger.error(f"Error adding content to IPFS: {e}")
+            return {
+                "success": False, 
+                "error": str(e), 
+                "error_type": type(e).__name__
+            }
+            
+    @stable_api(since="0.1.0")
+    def cat(self, cid: str, **kwargs) -> bytes:
+        """
+        Retrieve content from IPFS by its CID.
+        
+        Args:
+            cid: Content Identifier to retrieve
+            **kwargs: Additional parameters for the cat operation
+                - timeout: Operation timeout in seconds
+                - offset: Starting position to read from
+                - length: Maximum number of bytes to read
+        
+        Returns:
+            bytes: Content data
+            
+        Raises:
+            IPFSError: If the content cannot be retrieved
+        """
+        try:
+            # Forward to kit's ipfs_cat method
+            if hasattr(self.kit, "ipfs_cat"):
+                return self.kit.ipfs_cat(cid, **kwargs)
+            
+            # Try with ipfs attribute as fallback
+            if hasattr(self.kit, "ipfs") and hasattr(self.kit.ipfs, "cat"):
+                return self.kit.ipfs.cat(cid, **kwargs)
+                
+            # As a last resort, try using the filesystem interface
+            if self.fs:
+                try:
+                    return self.read_file(f"ipfs://{cid}", **kwargs)
+                except Exception as fs_error:
+                    logger.warning(f"Failed to read via filesystem: {fs_error}")
+                    
+            raise IPFSError(f"Unable to retrieve content: {cid}. No suitable method available.")
+            
+        except Exception as e:
+            logger.error(f"Error retrieving content {cid}: {e}")
+            raise IPFSError(f"Failed to retrieve content: {str(e)}") from e
+            
+    @stable_api(since="0.1.0")
+    def stream_media(self, cid: str, chunk_size: int = 1024 * 1024) -> Iterator[bytes]:
+        """
+        Stream media content from IPFS in chunks.
+        
+        Args:
+            cid: Content Identifier to stream
+            chunk_size: Size of chunks to yield (default: 1MB)
+            
+        Yields:
+            bytes: Content chunks
+            
+        Raises:
+            IPFSError: If the content cannot be retrieved
+        """
+        try:
+            # Get the full content first
+            content = self.cat(cid)
+            
+            # Stream in chunks
+            for i in range(0, len(content), chunk_size):
+                yield content[i:i+chunk_size]
+                
+        except Exception as e:
+            logger.error(f"Error streaming media {cid}: {e}")
+            raise IPFSError(f"Failed to stream media: {str(e)}") from e
+            
+    @beta_api(since="0.1.0")
+    async def stream_media_async(self, cid: str, chunk_size: int = 1024 * 1024) -> AsyncIterator[bytes]:
+        """
+        Asynchronously stream media content from IPFS in chunks.
+        
+        Args:
+            cid: Content Identifier to stream
+            chunk_size: Size of chunks to yield (default: 1MB)
+            
+        Yields:
+            bytes: Content chunks
+            
+        Raises:
+            IPFSError: If the content cannot be retrieved
+        """
+        try:
+            # Get the full content
+            content = self.cat(cid)
+            
+            # Stream in chunks asynchronously
+            for i in range(0, len(content), chunk_size):
+                yield content[i:i+chunk_size]
+                # Add a small delay to allow other tasks to run
+                await asyncio.sleep(0.001)
+                
+        except Exception as e:
+            logger.error(f"Error async streaming media {cid}: {e}")
+            raise IPFSError(f"Failed to stream media asynchronously: {str(e)}") from e
+            
+    @stable_api(since="0.1.0")
+    def stream_to_ipfs(self, file_obj: BinaryIO, chunk_size: int = 1024 * 1024, **kwargs) -> Dict[str, Any]:
+        """
+        Stream content from a file-like object to IPFS.
+        
+        Args:
+            file_obj: File-like object to read content from
+            chunk_size: Size of chunks to read (default: 1MB)
+            **kwargs: Additional parameters for the add operation
+                - pin: Whether to pin the content (default: True)
+                - wrap_with_directory: Whether to wrap the content in a directory
+                - filename: Filename to use
+                
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "cid": Content identifier of the added content
+                - "size": Size of the content in bytes
+                - "name": Name assigned to the content
+        """
+        try:
+            # Create a temporary file for the streamed data
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file_path = temp_file.name
+                
+                # Stream content to temp file in chunks
+                bytes_written = 0
+                while True:
+                    chunk = file_obj.read(chunk_size)
+                    if not chunk:
+                        break
+                    temp_file.write(chunk)
+                    bytes_written += len(chunk)
+            
+            try:
+                # Add the temp file to IPFS
+                result = self.kit.ipfs_add_file(temp_file_path, **kwargs)
+                
+                # Add size information if not already present
+                if "size" not in result and bytes_written > 0:
+                    result["size"] = bytes_written
+                    
+                return result
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_file_path)
+                
+        except Exception as e:
+            logger.error(f"Error streaming to IPFS: {e}")
+            return {
+                "success": False, 
+                "error": str(e), 
+                "error_type": type(e).__name__
+            }
+            
+    @beta_api(since="0.1.0")
+    async def stream_to_ipfs_async(self, file_obj: BinaryIO, chunk_size: int = 1024 * 1024, **kwargs) -> Dict[str, Any]:
+        """
+        Asynchronously stream content from a file-like object to IPFS.
+        
+        Args:
+            file_obj: File-like object to read content from
+            chunk_size: Size of chunks to read (default: 1MB)
+            **kwargs: Additional parameters for the add operation
+                - pin: Whether to pin the content (default: True)
+                - wrap_with_directory: Whether to wrap the content in a directory
+                - filename: Filename to use
+                
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "cid": Content identifier of the added content
+                - "size": Size of the content in bytes
+                - "name": Name assigned to the content
+        """
+        try:
+            # Create a temporary file for the streamed data
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file_path = temp_file.name
+                
+                # Stream content to temp file in chunks asynchronously
+                bytes_written = 0
+                while True:
+                    # Use run_in_executor for non-blocking file reads
+                    chunk = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: file_obj.read(chunk_size)
+                    )
+                    if not chunk:
+                        break
+                    
+                    # Use run_in_executor for non-blocking file writes
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: temp_file.write(chunk)
+                    )
+                    bytes_written += len(chunk)
+                    
+                    # Allow other tasks to run
+                    await asyncio.sleep(0.001)
+            
+            try:
+                # Add the temp file to IPFS (wrap in run_in_executor for non-blocking)
+                result = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: self.kit.ipfs_add_file(temp_file_path, **kwargs)
+                )
+                
+                # Add size information if not already present
+                if "size" not in result and bytes_written > 0:
+                    result["size"] = bytes_written
+                    
+                return result
+            finally:
+                # Clean up temporary file
+                await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: os.unlink(temp_file_path)
+                )
+                
+        except Exception as e:
+            logger.error(f"Error async streaming to IPFS: {e}")
+            return {
+                "success": False, 
+                "error": str(e), 
+                "error_type": type(e).__name__
+            }
+            
+    async def handle_websocket_media_stream(self, websocket, cid: str):
+        """
+        Handle WebSocket media streaming requests.
+        
+        Args:
+            websocket: WebSocket connection object
+            cid: Content identifier to stream
+            
+        This method is used by the API server to stream media over WebSockets.
+        """
+        try:
+            # Get the content
+            content = self.cat(cid)
+            
+            # Send metadata first
+            await websocket.send_json({
+                "type": "metadata",
+                "content_length": len(content),
+                "content_type": mimetypes.guess_type(cid)[0] or "application/octet-stream",
+                "cid": cid
+            })
+            
+            # Stream in chunks
+            chunk_size = 1024 * 1024  # 1MB chunks
+            for i in range(0, len(content), chunk_size):
+                chunk = content[i:i+chunk_size]
+                await websocket.send_bytes(chunk)
+                await asyncio.sleep(0.001)  # Small delay to prevent blocking
+                
+            # Send completion message
+            await websocket.send_json({
+                "type": "complete",
+                "cid": cid
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in WebSocket media stream: {e}")
+            # Send error message
+            await websocket.send_json({
+                "type": "error",
+                "error": str(e),
+                "error_type": type(e).__name__
+            })
+            
+    async def handle_websocket_upload_stream(self, websocket):
+        """
+        Handle WebSocket upload streaming requests.
+        
+        Args:
+            websocket: WebSocket connection object
+            
+        This method is used by the API server to receive content uploads over WebSockets.
+        """
+        try:
+            # Accept the connection
+            await websocket.accept()
+            
+            # Receive metadata
+            metadata = await websocket.receive_json()
+            if metadata.get("type") != "metadata":
+                raise ValueError("Expected metadata message first")
+                
+            # Extract info from metadata
+            filename = metadata.get("filename", f"upload_{int(time.time())}")
+            content_length = metadata.get("content_length", 0)
+            
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file_path = temp_file.name
+                bytes_received = 0
+                
+                # Receive content in chunks
+                while bytes_received < content_length:
+                    message = await websocket.receive_json()
+                    
+                    if message.get("type") == "content_chunk":
+                        # Receive binary data
+                        chunk = await websocket.receive_bytes()
+                        temp_file.write(chunk)
+                        bytes_received += len(chunk)
+                        
+                        # Send progress update
+                        await websocket.send_json({
+                            "type": "progress",
+                            "received": bytes_received,
+                            "total": content_length,
+                            "percent": int(bytes_received / content_length * 100)
+                        })
+                    elif message.get("type") == "complete":
+                        # Upload complete
+                        break
+                    else:
+                        # Unexpected message
+                        raise ValueError(f"Unexpected message type: {message.get('type')}")
+            
+            try:
+                # Add file to IPFS
+                result = self.kit.ipfs_add_file(temp_file_path, filename=filename)
+                
+                # Send success response
+                await websocket.send_json({
+                    "type": "success",
+                    "cid": result.get("cid") or result.get("Hash"),
+                    "size": bytes_received,
+                    "name": filename
+                })
+                
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_file_path)
+                
+        except Exception as e:
+            logger.error(f"Error in WebSocket upload stream: {e}")
+            # Send error message
+            await websocket.send_json({
+                "type": "error",
+                "error": str(e),
+                "error_type": type(e).__name__
+            })
+            
+    async def handle_websocket_bidirectional_stream(self, websocket):
+        """
+        Handle bidirectional WebSocket streaming for both uploads and downloads.
+        
+        Args:
+            websocket: WebSocket connection object
+            
+        This method is used by the API server to support bidirectional communication,
+        allowing both uploads to and downloads from IPFS.
+        """
+        try:
+            # Accept the connection
+            await websocket.accept()
+            
+            # Process commands until client disconnects
+            while True:
+                # Receive command
+                message = await websocket.receive_json()
+                command = message.get("command")
+                
+                if command == "get":
+                    # Download request
+                    path = message.get("path")
+                    if not path:
+                        await websocket.send_json({
+                            "command": "error",
+                            "error": "Path is required for 'get' command"
+                        })
+                        continue
+                        
+                    try:
+                        # Get content
+                        content = self.cat(path)
+                        
+                        # Send metadata
+                        await websocket.send_json({
+                            "command": "metadata",
+                            "path": path,
+                            "content_length": len(content),
+                            "content_type": mimetypes.guess_type(path)[0] or "application/octet-stream"
+                        })
+                        
+                        # Stream in chunks
+                        chunk_size = 1024 * 1024  # 1MB chunks
+                        for i in range(0, len(content), chunk_size):
+                            chunk = content[i:i+chunk_size]
+                            await websocket.send_bytes(chunk)
+                            await asyncio.sleep(0.001)
+                            
+                        # Send completion
+                        await websocket.send_json({
+                            "command": "complete",
+                            "path": path
+                        })
+                        
+                    except Exception as e:
+                        logger.error(f"Error retrieving {path}: {e}")
+                        await websocket.send_json({
+                            "command": "error",
+                            "path": path,
+                            "error": str(e),
+                            "error_type": type(e).__name__
+                        })
+                
+                elif command == "add":
+                    # Upload request
+                    filename = message.get("filename", f"upload_{int(time.time())}")
+                    content_length = message.get("content_length", 0)
+                    
+                    # Create temporary file
+                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        temp_file_path = temp_file.name
+                        bytes_received = 0
+                        
+                        # Receive content in chunks
+                        while bytes_received < content_length:
+                            chunk_message = await websocket.receive_json()
+                            
+                            if chunk_message.get("command") == "content_chunk":
+                                # Receive binary data
+                                chunk = await websocket.receive_bytes()
+                                temp_file.write(chunk)
+                                bytes_received += len(chunk)
+                                
+                                # Send progress update
+                                await websocket.send_json({
+                                    "command": "progress",
+                                    "received": bytes_received,
+                                    "total": content_length,
+                                    "percent": int(bytes_received / content_length * 100)
+                                })
+                            elif chunk_message.get("command") == "complete":
+                                # Upload complete
+                                break
+                            else:
+                                # Unexpected message
+                                raise ValueError(f"Unexpected message type: {chunk_message.get('command')}")
+                    
+                    try:
+                        # Add file to IPFS
+                        result = self.kit.ipfs_add_file(temp_file_path, filename=filename)
+                        
+                        # Send success response
+                        await websocket.send_json({
+                            "command": "success",
+                            "cid": result.get("cid") or result.get("Hash"),
+                            "size": bytes_received,
+                            "name": filename
+                        })
+                        
+                    finally:
+                        # Clean up temporary file
+                        os.unlink(temp_file_path)
+                
+                elif command == "exit":
+                    # Client requested to end session
+                    await websocket.send_json({
+                        "command": "goodbye"
+                    })
+                    break
+                    
+                else:
+                    # Unknown command
+                    await websocket.send_json({
+                        "command": "error",
+                        "error": f"Unknown command: {command}"
+                    })
+                    
+        except Exception as e:
+            logger.error(f"Error in bidirectional WebSocket stream: {e}")
+            # Send error message
+            try:
+                await websocket.send_json({
+                    "command": "error",
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                })
+            except:
+                # Connection might be closed
+                pass
+    
     def save_config(self, config_path: str) -> Dict[str, Any]:
         """
         Save current configuration to a file.

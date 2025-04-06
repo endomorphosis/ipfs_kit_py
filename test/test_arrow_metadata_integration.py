@@ -149,7 +149,7 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
             # Mock dataset stats generation
             with patch.object(
                 self.dataset_manager,
-                "_generate_dataset_stats",
+                "_get_dataset_stats",
                 return_value={"size_bytes": 1024, "num_files": 1, "num_rows": 3},
             ):
                 # Add dataset to registry
@@ -253,7 +253,7 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
         # Mock dataset stats generation to avoid real file operations
         with patch.object(
             self.dataset_manager,
-            "_generate_dataset_stats",
+            "_get_dataset_stats",
             return_value={"size_bytes": 1024, "num_files": 1, "num_rows": 3},
         ):
             # Add dataset to registry
