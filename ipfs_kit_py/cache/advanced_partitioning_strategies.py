@@ -182,7 +182,7 @@ class TimeBasedPartitionStrategy:
         timestamp = record.get(self.timestamp_column)
         if timestamp is None:
             # Default to current time if timestamp not found
-            logger.warning(f"Timestamp column '{self.timestamp_column}' not found in record, using current time")
+            logger.debug(f"Timestamp column '{self.timestamp_column}' not found in record, using current time")
             timestamp = time.time()
             
         return self.get_partition_path(timestamp)
@@ -502,7 +502,7 @@ class HashBasedPartitionStrategy:
         if num_partitions & (num_partitions - 1) != 0:
             # Round up to next power of 2
             num_partitions = 1 << (num_partitions - 1).bit_length()
-            logger.warning(f"Adjusted num_partitions to next power of 2: {num_partitions}")
+            logger.debug(f"Adjusted num_partitions to next power of 2: {num_partitions}")
             
         self.key_column = key_column
         self.num_partitions = num_partitions
@@ -533,7 +533,7 @@ class HashBasedPartitionStrategy:
                 import xxhash
                 return xxhash.xxh64(key_bytes).intdigest()
             except ImportError:
-                logger.warning("xxhash not available, falling back to md5")
+                logger.debug("xxhash not available, falling back to md5")
                 hash_hex = hashlib.md5(key_bytes).hexdigest()
                 return int(hash_hex[:8], 16)
         else:
@@ -580,7 +580,7 @@ class HashBasedPartitionStrategy:
         key = record.get(self.key_column)
         if key is None:
             # Use a random key if the key column is missing
-            logger.warning(f"Key column '{self.key_column}' not found in record, using random key")
+            logger.debug(f"Key column '{self.key_column}' not found in record, using random key")
             key = uuid.uuid4().hex
             
         return self.get_partition_path(key)
