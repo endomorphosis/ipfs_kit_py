@@ -708,7 +708,7 @@ class PrometheusExporter:
         
         # Check if Prometheus client is available
         if not PROMETHEUS_AVAILABLE:
-            logger.warning(
+            logger.debug(
                 "Prometheus client not available. Install with 'pip install prometheus-client'"
             )
             self.enabled = False
@@ -1194,7 +1194,7 @@ def add_prometheus_metrics_endpoint(app, metrics_instance: PerformanceMetrics, p
         True if successful, False otherwise
     """
     if not PROMETHEUS_AVAILABLE:
-        logger.warning("Prometheus client not available, skipping metrics endpoint")
+        logger.debug("Prometheus client not available, skipping metrics endpoint")
         return False
         
     try:

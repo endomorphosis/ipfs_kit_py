@@ -231,7 +231,7 @@ class ArrowMetadataIndex:
                     }
 
                 except (ValueError, IndexError) as e:
-                    self.logger.warning(f"Invalid partition file {filename}: {e}")
+                    self.logger.debug(f"Invalid partition file {filename}: {e}")
 
         except Exception as e:
             self.logger.error(f"Error discovering partitions: {e}")
@@ -663,7 +663,7 @@ class ArrowMetadataIndex:
                     file_obj.close()
                     del self.mmap_files[path]
                 except Exception as e:
-                    self.logger.warning(f"Error closing memory-mapped file {path}: {e}")
+                    self.logger.debug(f"Error closing memory-mapped file {path}: {e}")
 
             # Remove partition files
             for partition_id in list(self.partitions.keys()):
@@ -672,7 +672,7 @@ class ArrowMetadataIndex:
                     try:
                         os.remove(path)
                     except Exception as e:
-                        self.logger.warning(f"Error removing partition file {path}: {e}")
+                        self.logger.debug(f"Error removing partition file {path}: {e}")
 
                 del self.partitions[partition_id]
 
@@ -1026,7 +1026,7 @@ class ArrowMetadataIndex:
                             synced_partitions += 1
 
                 except Exception as e:
-                    self.logger.warning(f"Error syncing with peer {peer}: {e}")
+                    self.logger.debug(f"Error syncing with peer {peer}: {e}")
 
             result["partitions_synced"] = synced_partitions
             result["success"] = True
@@ -1074,7 +1074,7 @@ class ArrowMetadataIndex:
             Dictionary mapping partition IDs to metadata or None
         """
         if not self.ipfs_client:
-            self.logger.warning("No IPFS client available for peer communication")
+            self.logger.debug("No IPFS client available for peer communication")
             return None
 
         try:
@@ -1085,7 +1085,7 @@ class ArrowMetadataIndex:
             # Check if node_id is available
             if not hasattr(self, "node_id") or self.node_id is None:
                 self.node_id = "unknown-node-" + str(uuid.uuid4())
-                self.logger.warning(f"No node_id set, using generated id: {self.node_id}")
+                self.logger.debug(f"No node_id set, using generated id: {self.node_id}")
 
             # Create a message with request for partitions
             message = {
@@ -1128,7 +1128,7 @@ class ArrowMetadataIndex:
                     return self._get_peer_partitions_via_dag(peer_id)
             else:
                 # Fallback to DAG-based exchange if pubsub not available
-                self.logger.warning("Pubsub not available, falling back to DAG-based exchange")
+                self.logger.debug("Pubsub not available, falling back to DAG-based exchange")
                 return self._get_peer_partitions_via_dag(peer_id)
 
             # Publish request
@@ -1138,7 +1138,7 @@ class ArrowMetadataIndex:
                 # Check if publish succeeded
                 if not publish_result or not publish_result.get("success", False):
                     # Fallback to DAG-based exchange if pubsub publish fails
-                    self.logger.warning("Pubsub publish failed, falling back to DAG-based exchange")
+                    self.logger.debug("Pubsub publish failed, falling back to DAG-based exchange")
                     # Unsubscribe first
                     if hasattr(self.ipfs_client, "pubsub_unsubscribe"):
                         self.ipfs_client.pubsub_unsubscribe(response_topic)
@@ -1149,7 +1149,7 @@ class ArrowMetadataIndex:
                     # Success - we got data
                     return response_data
                 else:
-                    self.logger.warning(f"Timeout waiting for partition data from peer {peer_id}")
+                    self.logger.debug(f"Timeout waiting for partition data from peer {peer_id}")
                     # Fallback to DAG-based exchange on timeout
                     return self._get_peer_partitions_via_dag(peer_id)
             else:
@@ -1168,7 +1168,7 @@ class ArrowMetadataIndex:
                 try:
                     self.ipfs_client.pubsub_unsubscribe(response_topic)
                 except Exception as e:
-                    self.logger.warning(f"Error unsubscribing from topic: {e}")
+                    self.logger.debug(f"Error unsubscribing from topic: {e}")
 
     def _get_peer_partitions_via_dag(self, peer_id: str) -> Optional[Dict[str, Dict[str, Any]]]:
         """
@@ -1194,7 +1194,7 @@ class ArrowMetadataIndex:
             if result and result.get("success", False):
                 return result.get("value", {})
             else:
-                self.logger.warning(f"Failed to get DAG node from peer {peer_id}")
+                self.logger.debug(f"Failed to get DAG node from peer {peer_id}")
                 return None
 
         except Exception as e:
@@ -1216,7 +1216,7 @@ class ArrowMetadataIndex:
             True if successful, False otherwise
         """
         if not self.ipfs_client:
-            self.logger.warning("No IPFS client available for peer communication")
+            self.logger.debug("No IPFS client available for peer communication")
             return False
 
         try:
@@ -1258,7 +1258,7 @@ class ArrowMetadataIndex:
             result = self.ipfs_client.cat(cid)
 
             if not result or not result.get("success", False):
-                self.logger.warning(f"Failed to download partition {partition_id} with CID {cid}")
+                self.logger.debug(f"Failed to download partition {partition_id} with CID {cid}")
                 return False
 
             # Write the data to the partition file
@@ -1344,7 +1344,7 @@ class ArrowMetadataIndex:
                         total_chunks = msg_data.get("total_chunks")
 
                         if chunk is None or chunk_index is None or total_chunks is None:
-                            self.logger.warning("Received invalid partition data response")
+                            self.logger.debug("Received invalid partition data response")
                             return
 
                         # Initialize chunk storage if needed
@@ -1412,15 +1412,15 @@ class ArrowMetadataIndex:
                                 os.remove(partition_path)
                             return False
                     else:
-                        self.logger.warning(
+                        self.logger.debug(
                             f"Timeout waiting for partition data from peer {peer_id}"
                         )
                         return False
                 else:
-                    self.logger.warning("IPFS client doesn't support pubsub_publish")
+                    self.logger.debug("IPFS client doesn't support pubsub_publish")
                     return False
             else:
-                self.logger.warning("IPFS client doesn't support pubsub_subscribe")
+                self.logger.debug("IPFS client doesn't support pubsub_subscribe")
                 return False
 
         except Exception as e:
@@ -1545,13 +1545,13 @@ class ArrowMetadataIndex:
                 try:
                     partition_id = int(partition_id)
                 except ValueError:
-                    self.logger.warning(f"Invalid partition ID: {partition_id}")
+                    self.logger.debug(f"Invalid partition ID: {partition_id}")
                     return
 
             # Check if we have this partition
             partition_path = self._get_partition_path(partition_id)
             if not os.path.exists(partition_path):
-                self.logger.warning(f"Partition {partition_id} not found")
+                self.logger.debug(f"Partition {partition_id} not found")
                 return
 
             # Read the partition file
@@ -1680,7 +1680,7 @@ class ArrowMetadataIndex:
                         file_obj.close()
                     except Exception as e:
                         if hasattr(self, "logger"):
-                            self.logger.warning(f"Error closing memory-mapped file {path}: {e}")
+                            self.logger.debug(f"Error closing memory-mapped file {path}: {e}")
                         else:
                             print(f"Warning: Error closing memory-mapped file {path}: {e}")
 
@@ -1693,7 +1693,7 @@ class ArrowMetadataIndex:
                     self.plasma_client = None
                 except Exception as e:
                     if hasattr(self, "logger"):
-                        self.logger.warning(f"Error disconnecting from plasma store: {e}")
+                        self.logger.debug(f"Error disconnecting from plasma store: {e}")
                     else:
                         print(f"Warning: Error disconnecting from plasma store: {e}")
 
