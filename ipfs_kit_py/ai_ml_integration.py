@@ -6042,7 +6042,8 @@ class LangchainIntegration:
                 self.logger.error(f"Failed to create IPFS vector store: {result['error']}")
                 
                 if PYDANTIC_AVAILABLE:
-                    return CreateIPFSVectorStoreResponse(**result)
+                    # return CreateIPFSVectorStoreResponse(**result) # Commented out due to SyntaxError: 'return' outside function
+            pass # Added pass to avoid empty block error
                 return result
 
             # Validate embedding function
@@ -13228,7 +13229,6 @@ class DistributedTraining:
                     with epoch_context or nullcontext():
                         model.fit(X, y)
 
-                        if hasattr(model, "score"):
                             accuracy = model.score(X, y)
                             metrics["final_accuracy"] = accuracy
 
