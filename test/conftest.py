@@ -314,6 +314,10 @@ def reset_globals(request):
         import ipfs_kit_py.s3_kit
         import ipfs_kit_py.storacha_kit
         import ipfs_kit_py.tiered_cache
+        # Import new modules that need to be reset
+        import ipfs_kit_py.tiered_cache_manager
+        import ipfs_kit_py.arc_cache
+        import ipfs_kit_py.disk_cache
 
         # Create a reusable function to safely store original values
         def save_attr(module, attr_name, dict_key=None):
@@ -387,6 +391,14 @@ def reset_globals(request):
 
         # Reset tiered_cache module globals
         save_attr(ipfs_kit_py.tiered_cache, "_cache_instances", "cache_instances")
+        # Reset tiered_cache_manager module globals
+        save_attr(ipfs_kit_py.tiered_cache_manager, "_cache_instances", "cache_manager_instances")
+        # Reset arc_cache module globals
+        if hasattr(ipfs_kit_py.arc_cache, "_cache_instances"):
+            save_attr(ipfs_kit_py.arc_cache, "_cache_instances", "arc_cache_instances")
+        # Reset disk_cache module globals
+        if hasattr(ipfs_kit_py.disk_cache, "_cache_instances"):
+            save_attr(ipfs_kit_py.disk_cache, "_cache_instances", "disk_cache_instances")
 
         # Reset storacha_kit module globals
         save_attr(ipfs_kit_py.storacha_kit, "_storacha_instances", "storacha_instances")
@@ -454,6 +466,14 @@ def reset_globals(request):
 
         # Restore tiered_cache module globals
         restore_attr(ipfs_kit_py.tiered_cache, "_cache_instances", "cache_instances")
+        # Restore tiered_cache_manager module globals
+        restore_attr(ipfs_kit_py.tiered_cache_manager, "_cache_instances", "cache_manager_instances")
+        # Restore arc_cache module globals
+        if hasattr(ipfs_kit_py.arc_cache, "_cache_instances"):
+            restore_attr(ipfs_kit_py.arc_cache, "_cache_instances", "arc_cache_instances")
+        # Restore disk_cache module globals
+        if hasattr(ipfs_kit_py.disk_cache, "_cache_instances"):
+            restore_attr(ipfs_kit_py.disk_cache, "_cache_instances", "disk_cache_instances")
 
         # Restore storacha_kit module globals
         restore_attr(ipfs_kit_py.storacha_kit, "_storacha_instances", "storacha_instances")

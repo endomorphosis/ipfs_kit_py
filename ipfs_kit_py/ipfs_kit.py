@@ -39,11 +39,7 @@ sys.path.append(parent_dir)
 
 # Configure logger
 logger = logging.getLogger(__name__)
-
-# Import core components
 from .install_ipfs import install_ipfs
-# download_binaries is defined in __init__.py, not install_ipfs.py
-from ipfs_kit_py import download_binaries
 from .ipfs import ipfs_py
 from .ipfs_cluster_ctl import ipfs_cluster_ctl
 from .ipfs_cluster_follow import ipfs_cluster_follow
@@ -53,9 +49,6 @@ from .ipget import ipget
 from .s3_kit import s3_kit
 from .storacha_kit import storacha_kit
 from .test_fio import test_fio
-
-# Module-wide flag to track binary downloads
-_BINARIES_DOWNLOADED = False
 
 # Try to import huggingface_kit
 try:
@@ -102,8 +95,6 @@ except ImportError:
     HAS_KNOWLEDGE_GRAPH = False
 
 # Try to import AI/ML integration components
-
-# Try to import AI/ML integration components
 try:
     from .ai_ml_integration import (
         DatasetManager,
@@ -122,39 +113,43 @@ except ImportError:
 try:
     from .arrow_metadata_index import ArrowMetadataIndex
     from .metadata_sync_handler import MetadataSyncHandler
-    
-    HAS_ARROW_METADATA_INDEX = True
+
     HAS_ARROW_INDEX = True
 except ImportError:
     HAS_ARROW_INDEX = False
-    HAS_ARROW_METADATA_INDEX = False
 
 # Import FSSpec integration (with fallback for when fsspec isn't installed)
 try:
-    from .ipfs_fsspec import IPFSFileSystem, TieredCacheManager
+    from .ipfs_fsspec import IPFSFileSystem
+    from .tiered_cache_manager import TieredCacheManager
 
     FSSPEC_AVAILABLE = True
 except ImportError:
     FSSPEC_AVAILABLE = False
+import json
+import os
+import subprocess
+import time
 
 
 class ipfs_kit:
-    """Main orchestrator class for IPFS Kit.
-    
+    """
+    Main orchestrator class for IPFS Kit.
+
     Provides a unified interface to various IPFS and cluster functionalities,
     adapting its behavior and available components based on the configured
     node role (master, worker, leecher) and enabled features.
-    
-    Manages underlying components like IPFS daemon interaction (ipfs_py),
-    IPFS Cluster components (ipfs_cluster_service, ipfs_cluster_ctl,
-    ipfs_cluster_follow), storage integrations (s3_kit, storacha_kit),
+
+    Manages underlying components like IPFS daemon interaction (`ipfs_py`),
+    IPFS Cluster components (`ipfs_cluster_service`, `ipfs_cluster_ctl`,
+    `ipfs_cluster_follow`), storage integrations (`s3_kit`, `storacha_kit`),
     FSSpec interface, tiered caching, metadata indexing, libp2p networking,
     advanced cluster management, AI/ML tools, and more.
-    
+
     Configuration is primarily driven by the `metadata` dictionary passed
     during initialization.
     """
-    
+
     def __init__(
         self,
         resources=None,
@@ -164,8 +159,8 @@ class ipfs_kit:
         enable_metadata_index=False,
     ):
         """
+        Initializes the IPFS Kit instance.
 
-        
         Args:
             resources (dict, optional): Dictionary describing available node
                 resources (e.g., {'memory': '8GB', 'cpu': 4}). Used by some
@@ -197,15 +192,19 @@ class ipfs_kit:
         """
         # Initialize logger
         self.logger = logger
+
         # Store metadata
         self.metadata = metadata or {}
-        
-        # Properly set up method aliases - avoid infinite recursion
+
+        # Properly set up method aliases - avoid infinite recursion by removing self-referential assignments
         # These will be assigned later as we implement the methods
         # For now, we'll initialize ipfs_get as a lambda to call ipget's method when available
         self.ipfs_get = lambda **kwargs: (
             self.ipget.ipget_download_object(**kwargs) if hasattr(self, "ipget") else None
         )
+
+        # We need to define the methods first before creating aliases
+
         # FSSpec filesystem instance (initialized on first use)
         self._filesystem = None
 
@@ -215,15 +214,13 @@ class ipfs_kit:
 
         # Check if we need to download binaries
         auto_download = self.metadata.get("auto_download_binaries", True)
-        
-        # Global binaries download flag
-        global _BINARIES_DOWNLOADED
-        if auto_download and not _BINARIES_DOWNLOADED:
+        if auto_download:
             # Check if binaries directory exists and has the required binaries
             this_dir = os.path.dirname(os.path.realpath(__file__))
             bin_dir = os.path.join(this_dir, "bin")
             ipfs_bin = os.path.join(bin_dir, "ipfs")
             ipfs_cluster_service_bin = os.path.join(bin_dir, "ipfs-cluster-service")
+
             # On Windows, check for .exe files
             if platform.system() == "Windows":
                 ipfs_bin += ".exe"
@@ -236,7 +233,6 @@ class ipfs_kit:
                     from ipfs_kit_py import download_binaries
 
                     download_binaries()
-                    _BINARIES_DOWNLOADED = True
                 except Exception as e:
                     self.logger.warning(f"Failed to download binaries: {e}")
                     self.logger.info("Will attempt to continue with available binaries")

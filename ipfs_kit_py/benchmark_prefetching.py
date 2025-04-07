@@ -24,7 +24,8 @@ try:
 except ImportError:
     HAS_VISUALIZATION = False
 
-from ipfs_kit_py.tiered_cache import TieredCacheManager, PredictiveCacheManager
+from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
+from ipfs_kit_py.predictive_cache_manager import PredictiveCacheManager
 from ipfs_kit_py.predictive_prefetching import create_prefetching_engine
 
 # Initialize logger

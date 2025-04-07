@@ -188,7 +188,9 @@ except ImportError:
     test_fio = None
 
 try:
-    from .tiered_cache import ARCache, DiskCache, TieredCacheManager
+    from .arc_cache import ARCache
+    from .disk_cache import DiskCache
+    from .tiered_cache_manager import TieredCacheManager
 except ImportError:
     ARCache = None
     DiskCache = None

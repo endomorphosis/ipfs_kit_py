@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from statistics import mean, median, stdev
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-from ipfs_kit_py.tiered_cache import TieredCacheManager
+from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 from ipfs_kit_py.performance_metrics import PerformanceMetrics
 
 

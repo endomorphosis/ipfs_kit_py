@@ -43,7 +43,7 @@ fsspec = [
     "requests-unixsocket>=0.3.0",
 ]
 arrow = [
-    "pyarrow>=12.0.0",
+    "pyarrow>=11.0.0",  # Updated minimum version to be more compatible
     "pandas>=1.3.0",
 ]
 ai_ml = [
@@ -90,7 +90,7 @@ dev = [
 full = [
     "fsspec>=2023.3.0",
     "requests-unixsocket>=0.3.0",
-    "pyarrow>=12.0.0",
+    "pyarrow>=11.0.0",  # Updated minimum version to be more compatible
     "pandas>=1.3.0",
     "multiformats>=0.2.0",
     "aiohttp>=3.8.4",

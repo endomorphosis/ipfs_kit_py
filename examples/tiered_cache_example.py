@@ -16,7 +16,7 @@ from typing import Dict, Any
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ipfs_kit_py.tiered_cache import TieredCacheManager
+from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 
 
 def setup_logging(level=logging.INFO):

@@ -528,7 +528,7 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
 
     def test_tiered_cache_integration(self):
         """Test integration with actual TieredCacheManager."""
-        from ipfs_kit_py.tiered_cache import TieredCacheManager
+        from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
         
         # Create temp directory for cache
         temp_dir = tempfile.mkdtemp()

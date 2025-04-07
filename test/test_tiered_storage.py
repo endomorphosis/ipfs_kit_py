@@ -46,7 +46,9 @@ try:
 
     # Try to import from tiered_cache first (new implementation)
     try:
-        from ipfs_kit_py.tiered_cache import ARCache, DiskCache, TieredCacheManager
+        from ipfs_kit_py.arc_cache import ARCache
+        from ipfs_kit_py.disk_cache import DiskCache
+        from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 
         # We still need IPFSFileSystem for some tests
         try:

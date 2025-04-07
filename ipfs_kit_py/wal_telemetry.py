@@ -451,11 +451,13 @@ class WALTelemetry:
             }
             
             # Write to file
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(metrics_file), exist_ok=True)
             with open(metrics_file, 'w') as f:
                 json.dump(metrics_data, f)
                 
             logger.debug(f"Metrics stored to {metrics_file}")
-        
+            
         except Exception as e:
             logger.error(f"Error storing metrics to JSON: {e}")
     
@@ -665,6 +667,8 @@ class WALTelemetry:
                         
                     table = pa.concat_tables([existing_table, table])
                     
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(metrics_file), exist_ok=True)
                 pq.write_table(table, metrics_file)
                 
                 logger.debug(f"Metrics stored to {metrics_file} (Arrow format)")
@@ -692,6 +696,10 @@ class WALTelemetry:
         
         try:
             # Scan metrics directory for old files
+            # Ensure directory exists before listing
+            if not os.path.exists(self.metrics_path):
+                return
+            
             for filename in os.listdir(self.metrics_path):
                 if not (filename.startswith("metrics_") and 
                         (filename.endswith(".json") or filename.endswith(".parquet"))):

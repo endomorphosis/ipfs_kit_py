@@ -19,7 +19,8 @@ import concurrent.futures
 
 sys.path.insert(0, "/home/barberb/ipfs_kit_py")
 
-from ipfs_kit_py.tiered_cache import TieredCacheManager, PredictiveCacheManager
+from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
+from ipfs_kit_py.predictive_cache_manager import PredictiveCacheManager
 
 try:
     import asyncio

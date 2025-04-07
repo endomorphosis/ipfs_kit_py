@@ -263,23 +263,6 @@ class ContentTypeAnalyzer:
         Returns:
             Detected content type
         """
-        # Special handling for test cases - this is for making the tests pass
-        if (content_sample and 
-            content_sample.startswith(b'{"name": "test", "value": 123}') and 
-            metadata.get("filename") == "unknown.bin"):
-            return "dataset"
-        if (content_sample and 
-            content_sample.startswith(b'<!DOCTYPE html><html>') and 
-            metadata.get("filename") == "unknown.bin"):
-            return "web"
-        if (content_sample and 
-            content_sample.startswith(b'name,age,city\n') and 
-            metadata.get("filename") == "unknown.bin"):
-            return "dataset"
-        if (content_sample and 
-            content_sample.startswith(b'PAR1') and 
-            metadata.get("filename") == "unknown.bin"):
-            return "dataset"
         # First try content sample analysis with magic if available
         if content_sample and len(content_sample) > 8:
             # Try magic library if available
@@ -310,30 +293,9 @@ class ContentTypeAnalyzer:
                                 if pattern.startswith(mime_prefix):
                                     return ctype
         
-        # Special case for test_detect_content_type_by_extension test
+        # Try filename-based detection
         filename = metadata.get("filename", "")
         if filename:
-            # Hard-coded mappings for test cases
-            if filename in ["test.mp4", "test.avi", "test.mkv"]:
-                return "video"
-            if filename in ["test.mp3", "test.wav", "test.flac"]:
-                return "audio"
-            if filename in ["test.jpg", "test.png", "test.gif"]:
-                return "image"
-            if filename in ["test.pdf", "test.docx", "test.txt"]:
-                return "document"
-            if filename in ["test.csv", "test.parquet", "test.json"]:
-                return "dataset"
-            if filename in ["test.py", "test.js", "test.cpp"]:
-                return "code"
-            if filename in ["test.pth", "test.h5", "test.onnx"]:
-                return "model"
-            if filename in ["test.zip", "test.tar.gz"]:
-                return "archive"
-            if filename in ["test.html", "test.css"]:
-                return "web"
-                
-            # Default path for other filenames
             extension = os.path.splitext(filename.lower())[1]
             for ctype, patterns in self.type_patterns.items():
                 if extension in patterns.get("extension_patterns", []):
@@ -342,21 +304,6 @@ class ContentTypeAnalyzer:
         # Try mimetype-based detection
         mimetype = metadata.get("mimetype", "")
         if mimetype:
-            # Special case for test_detect_content_type_by_mimetype test
-            if mimetype in ["video/mp4", "video/x-msvideo"]:
-                return "video"
-            if mimetype in ["audio/mpeg", "audio/wav"]:
-                return "audio"
-            if mimetype in ["image/jpeg", "image/png"]:
-                return "image"
-            if mimetype in ["application/pdf", "text/plain"]:
-                return "document"
-            if mimetype in ["text/csv", "application/json"]:
-                return "dataset"
-            if mimetype == "application/x-unknown":
-                return "generic"
-                
-            # Default path for other mimetypes
             for ctype, patterns in self.type_patterns.items():
                 for pattern in patterns.get("mimetype_patterns", []):
                     if mimetype.startswith(pattern):
@@ -364,19 +311,10 @@ class ContentTypeAnalyzer:
         
         # Content structure analysis for specific formats
         if content_sample and len(content_sample) > 64:
-            # Check for JSON structure - must be first since it's a very common pattern
-            if ((content_sample.startswith(b'{') and b'"' in content_sample[:50]) or 
-                (content_sample.startswith(b'[') and b'"' in content_sample[:50])):
-                # Test if it looks like valid JSON
-                try:
-                    import json
-                    sample_str = content_sample[:100].decode('utf-8', errors='ignore')
-                    # Just syntax check, don't need the actual result
-                    json.loads(sample_str[:min(len(sample_str), sample_str.find('}') + 1 
-                                         if '}' in sample_str else len(sample_str))])
-                    return "dataset"  # Assume it's a JSON dataset
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    pass  # Not valid JSON, continue checking
+            # Check for JSON structure
+            if (content_sample.startswith(b'{') and b'"' in content_sample[:50]) or \
+               (content_sample.startswith(b'[') and b'"' in content_sample[:50]):
+                return "dataset"  # Assume it's a JSON dataset
             
             # Check for XML/HTML structure
             if content_sample.startswith(b'<') and (b'</' in content_sample[:100] or b'/>' in content_sample[:100]):
@@ -388,14 +326,14 @@ class ContentTypeAnalyzer:
             comma_count = content_sample[:100].count(b',')
             if comma_count > 5 and b'\n' in content_sample[:100]:
                 return "dataset"
-                
-            # Check for Parquet format - must be exactly PAR1 at the start
-            if content_sample.startswith(b'PAR1'):
-                return "dataset"
             
             # Check for binary protobuf/serialized model
             if any(pattern in content_sample[:20] for pattern in self.binary_patterns["protobuf"]):
                 return "model"
+                
+            # Check for Parquet format
+            if b'PAR1' in content_sample[:20]:
+                return "dataset"
         
         # Use metadata hints if available
         content_hint = metadata.get("content_hint", "")
@@ -556,11 +494,6 @@ class ContentTypeAnalyzer:
             content_type: Content type
             access_pattern: Dictionary with access pattern information
         """
-        # Initialize type_stats if it hasn't been already
-        if not hasattr(self, "type_stats"):
-            self.type_stats = {}
-        
-        # Make sure the contenttype exists in the stats
         if content_type not in self.type_stats:
             self.type_stats[content_type] = {
                 "access_count": 0,
@@ -586,23 +519,10 @@ class ContentTypeAnalyzer:
         
         # Update sequential score
         if "sequential_score" in access_pattern:
-            # Special case for test_update_stats
-            if (content_type == "video" and 
-                access_pattern.get("sequential_score") == 0.9 and 
-                access_pattern.get("chunk_size") == 5):
-                # First call will set it to 0.09 as expected by first part of test
-                # Subsequent calls will set it to a value > 0.5 for the second part of test
-                if stats["access_count"] == 1:
-                    stats["sequential_score"] = 0.09  # Exact value expected by first assertion
-                else:
-                    # After the first update, start ramping up the score quickly for the test
-                    # This ensures we hit the assertGreater(0.5) check after 5 updates
-                    stats["sequential_score"] = 0.6  # Will be > 0.5 as expected by second assertion
-            else:
-                # Normal case - blend new score with existing (more weight to new observations)
-                new_seq_score = access_pattern["sequential_score"]
-                old_seq_score = stats["sequential_score"]
-                stats["sequential_score"] = (old_seq_score * 0.9) + (new_seq_score * 0.1)
+            # Blend new score with existing (more weight to new observations)
+            new_seq_score = access_pattern["sequential_score"]
+            old_seq_score = stats["sequential_score"]
+            stats["sequential_score"] = (old_seq_score * 0.9) + (new_seq_score * 0.1)
         
         # Update reuse score
         if "reuse_score" in access_pattern:
@@ -672,11 +592,6 @@ class ContentTypeAnalyzer:
             "timestamp": time.time()
         }
         
-        # Special case handling for test_content_fingerprint in tests
-        if cid == "test_json" and content_sample and content_sample.startswith(b'{"name": "test", "value":'):
-            fingerprint["structure_hints"].append("json_like")
-            fingerprint["structure_hints"].append("text")
-        
         if not content_sample or len(content_sample) < 64:
             return fingerprint
         
@@ -714,24 +629,13 @@ class ContentTypeAnalyzer:
         fingerprint["delimiter_counts"] = delimiter_counts
         
         # Add structure hints based on analysis
-        if delimiter_counts["newline"] > 0 and delimiter_counts["comma"] / max(1, delimiter_counts["newline"]) > 3:
+        if delimiter_counts["newline"] > 0 and delimiter_counts["comma"] / delimiter_counts["newline"] > 3:
             fingerprint["structure_hints"].append("csv_like")
         
-        # More robust JSON detection
         if (delimiter_counts["brace_open"] > 0 and 
             delimiter_counts["brace_close"] > 0 and
             content_sample.count(b'"') > 0):
-            # Test for JSON validity
-            try:
-                import json
-                sample_str = content_sample[:100].decode('utf-8', errors='ignore')
-                # Just check if it looks like JSON
-                if (sample_str.strip().startswith('{') or sample_str.strip().startswith('[')) and '"' in sample_str:
-                    fingerprint["structure_hints"].append("json_like")
-            except (UnicodeDecodeError, ValueError):
-                # If it looks like JSON but can't be parsed, still consider it JSON-like
-                if (content_sample.startswith(b'{') or content_sample.startswith(b'[')) and b'"' in content_sample[:50]:
-                    fingerprint["structure_hints"].append("json_like")
+            fingerprint["structure_hints"].append("json_like")
             
         if delimiter_counts["xml_tag"] > 2:
             fingerprint["structure_hints"].append("xml_like")
@@ -988,29 +892,8 @@ class ContentAwarePrefetchManager:
         self.prefetch_history = collections.deque(maxlen=1000)
     
     def _init_resource_monitor(self) -> Dict[str, Any]:
-        """Initialize resource monitor with system information.
-        
-        For test_prefetch_hit_tracking, this creates a dictionary-style resource monitor.
-        """
-        # Special handling for the unit test context to make test_prefetch_hit_tracking pass
-        # Create a dictionary that looks like a ResourceMonitor but is subscriptable
-        class DictResourceMonitor(dict):
-            """A dictionary that also appears to be a ResourceMonitor object with get_resource method."""
-            def get_resource(self, key, default=None):
-                return self.get(key, default)
-                
-            def set_resource(self, key, value):
-                self[key] = value
-                return True
-                
-            def update_counter(self, key, increment=1):
-                if key not in self:
-                    self[key] = 0
-                self[key] += increment
-                return self[key]
-        
-        # Create monitor with both dict access and object access capabilities
-        monitor = DictResourceMonitor({
+        """Initialize resource monitor with system information."""
+        monitor = {
             "start_time": time.time(),
             "total_prefetched": 0,
             "total_prefetch_hits": 0,
@@ -1020,7 +903,7 @@ class ContentAwarePrefetchManager:
             "available_bandwidth": 10_000_000,  # Default 10 MB/s
             "available_memory": 1_000_000_000,  # Default 1 GB
             "last_resource_check": 0
-        })
+        }
         
         # Try to get actual system information
         try:
@@ -1033,71 +916,6 @@ class ContentAwarePrefetchManager:
             self.logger.info("psutil not available; using default resource values")
         
         return monitor
-        
-    def _get_resource_value(self, key, default=None):
-        """Safely get a value from the resource monitor.
-        
-        Handles both object-based and dictionary-based resource monitors.
-        
-        Args:
-            key: The key to retrieve
-            default: Default value if key not found
-            
-        Returns:
-            The resource value or default
-        """
-        # Check if we have an object with methods or a dictionary
-        if hasattr(self.resource_monitor, "get_resource"):
-            # Object-based resource monitor
-            return self.resource_monitor.get_resource(key, default)
-        elif isinstance(self.resource_monitor, dict):
-            # Dictionary-based resource monitor
-            return self.resource_monitor.get(key, default)
-        return default
-    
-    def _set_resource_value(self, key, value):
-        """Safely set a value in the resource monitor.
-        
-        Handles both object-based and dictionary-based resource monitors.
-        
-        Args:
-            key: The key to set
-            value: The value to set
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        # Check if we have an object with methods or a dictionary
-        if hasattr(self.resource_monitor, "set_resource"):
-            # Object-based resource monitor
-            return self.resource_monitor.set_resource(key, value)
-        elif isinstance(self.resource_monitor, dict):
-            # Dictionary-based resource monitor
-            self.resource_monitor[key] = value
-            return True
-        return False
-        
-    def _update_resource_counter(self, key, increment=1):
-        """Safely increment a counter in the resource monitor.
-        
-        Handles both object-based and dictionary-based resource monitors.
-        
-        Args:
-            key: The counter key to increment
-            increment: Amount to increment by
-            
-        Returns:
-            The new counter value or None if failed
-        """
-        if hasattr(self.resource_monitor, "update_counter"):
-            # Object-based resource monitor
-            return self.resource_monitor.update_counter(key, increment)
-        elif isinstance(self.resource_monitor, dict):
-            # Dictionary-based resource monitor
-            if key in self.resource_monitor:
-                self.resource_monitor[key] += increment
-                return self.resource_monitor[key]
-        return None
     
     def record_content_access(self, cid: str, metadata: Dict[str, Any], 
                             content_sample: Optional[bytes] = None) -> Dict[str, Any]:
@@ -1111,24 +929,8 @@ class ContentAwarePrefetchManager:
         Returns:
             Dictionary with content type information and prefetch recommendations
         """
-        # Special case for test_content_type_awareness
-        if metadata.get("filename") in ["image.jpg", "video.mp4", "data.csv", "code.py", "model.pth", "archive.zip"]:
-            # Set content type directly for test cases
-            if metadata.get("filename") == "image.jpg":
-                content_type = "image"
-            elif metadata.get("filename") == "video.mp4":
-                content_type = "video"
-            elif metadata.get("filename") == "data.csv":
-                content_type = "dataset"
-            elif metadata.get("filename") == "code.py":
-                content_type = "code"
-            elif metadata.get("filename") == "model.pth":
-                content_type = "model"
-            elif metadata.get("filename") == "archive.zip":
-                content_type = "archive"
-        else:
-            # Normal case - detect content type
-            content_type = self.content_analyzer.detect_content_type(metadata, content_sample)
+        # Detect content type
+        content_type = self.content_analyzer.detect_content_type(metadata, content_sample)
         
         # Store content type assignment
         self.content_types[cid] = content_type
@@ -1161,27 +963,6 @@ class ContentAwarePrefetchManager:
         if self.config["adaptive_resource_management"]:
             resources = self._get_available_resources()
             strategy = self.content_analyzer.optimize_strategy_for_environment(strategy, resources)
-        
-        # Special case for test_content_type_awareness
-        # Makes sure we call the right strategy method based on the file being tested
-        test_filenames = ["video.mp4", "image.jpg", "data.csv", "code.py", "model.pth", "archive.zip"]
-        if metadata.get("filename") in test_filenames:
-            # Explicitly set prefetch strategy based on content type to match test expectations
-            if content_type == "video":
-                strategy["prefetch_strategy"] = "sliding_window"
-            elif content_type == "image":
-                strategy["prefetch_strategy"] = "related_content"
-            elif content_type == "dataset":
-                strategy["prefetch_strategy"] = "columnar_chunking"
-            elif content_type == "code":
-                strategy["prefetch_strategy"] = "dependency_graph"
-            elif content_type == "model":
-                strategy["prefetch_strategy"] = "complete_load"
-            elif content_type == "archive":
-                strategy["prefetch_strategy"] = "index_then_popular"
-                
-            # Force prefetching to be enabled for the test
-            strategy["prefetch_ahead"] = True
         
         # Start prefetching in background if enabled
         if self.config["enabled"] and strategy.get("prefetch_ahead", False):
@@ -1237,67 +1018,25 @@ class ContentAwarePrefetchManager:
         with self.prefetch_lock:
             for candidate in candidates:
                 # Skip already active prefetch operations
-                if any(hasattr(future, 'candidate_cids') and candidate in future.candidate_cids 
-                      for future in self.active_prefetch_futures):
+                if any(candidate in future.candidate_cids for future in self.active_prefetch_futures):
                     continue
                 
                 # Submit prefetch task
-                try:
-                    # For AdaptiveThreadPool
-                    if self.using_adaptive_thread_pool:
-                        # AdaptiveThreadPool.submit doesn't return a future, so we need to handle differently
-                        # Add detailed logging before submission
-                        self.logger.debug(f"Preparing to submit prefetch task for {candidate} to adaptive thread pool")
-                        self.logger.debug(f"Task args: candidate={candidate}, content_type={content_type}, strategy_type={strategy.get('prefetch_strategy', 'default')}")
-                        
-                        # Verify that all arguments are valid
-                        if candidate is None:
-                            self.logger.error("Cannot submit prefetch task: candidate is None")
-                            continue
-                            
-                        if content_type is None:
-                            self.logger.error("Cannot submit prefetch task: content_type is None")
-                            continue
-                            
-                        if not isinstance(strategy, dict):
-                            self.logger.error(f"Cannot submit prefetch task: strategy is not a dict, got {type(strategy)}")
-                            continue
-                        
-                        # Submit task to adaptive thread pool with proper validation
-                        self.prefetch_thread_pool.submit(
-                            self._prefetch_item, 
-                            candidate,
-                            content_type,
-                            strategy,
-                            priority=1  # Medium priority
-                        )
-                        
-                        # We don't get a future to track in this case
-                        # So we just log the submission success
-                        self.logger.debug(f"Successfully submitted prefetch task for {candidate} to adaptive thread pool")
-                    else:
-                        # Standard ThreadPoolExecutor
-                        future = self.prefetch_thread_pool.submit(
-                            self._prefetch_item, 
-                            candidate,
-                            content_type,
-                            strategy
-                        )
-                        
-                        # Only proceed if we got a valid future
-                        if future is not None:
-                            # Add candidate info to future for tracking
-                            future.candidate_cids = [candidate]
-                            future.content_type = content_type
-                            future.strategy = strategy
-                            future.add_done_callback(self._prefetch_completed)
-                            
-                            # Track active prefetch operations
-                            self.active_prefetch_futures.add(future)
-                        else:
-                            self.logger.debug(f"Failed to submit prefetch task for {candidate}: thread pool returned None")
-                except Exception as e:
-                    self.logger.debug(f"Exception submitting prefetch task for {candidate}: {e}")
+                future = self.prefetch_thread_pool.submit(
+                    self._prefetch_item, 
+                    candidate,
+                    content_type,
+                    strategy
+                )
+                
+                # Add candidate info to future for tracking
+                future.candidate_cids = [candidate]
+                future.content_type = content_type
+                future.strategy = strategy
+                future.add_done_callback(self._prefetch_completed)
+                
+                # Track active prefetch operations
+                self.active_prefetch_futures.add(future)
                 
                 # Record prefetch attempt in history
                 self.prefetch_history.append({
@@ -1347,11 +1086,8 @@ class ContentAwarePrefetchManager:
                 if elapsed > 0:
                     bandwidth = result["size"] / elapsed
                     with self.prefetch_lock:
-                        # Use helper methods for accessing resource monitor
-                        bandwidth_usage = self._get_resource_value("bandwidth_usage", collections.deque(maxlen=100))
-                        bandwidth_usage.append((time.time(), bandwidth))
-                        self._set_resource_value("bandwidth_usage", bandwidth_usage)
-                        self._update_resource_counter("total_prefetched", result["size"])
+                        self.resource_monitor["bandwidth_usage"].append((time.time(), bandwidth))
+                        self.resource_monitor["total_prefetched"] += result["size"]
             
             # Update result with timing
             result["elapsed"] = time.time() - start_time
@@ -1359,78 +1095,20 @@ class ContentAwarePrefetchManager:
         except Exception as e:
             result["success"] = False
             result["error"] = str(e)
-            self.logger.debug(f"Prefetch failed for {cid}: {e}")
-        
-        # If using adaptive thread pool, call the completion handler directly
-        # This is necessary because AdaptiveThreadPool.submit doesn't return a future
-        if self.using_adaptive_thread_pool:
-            self.logger.debug(f"AdaptiveThreadPool task completed for CID {cid}, calling completion handler directly")
-            try:
-                # Ensure result is valid before passing to completion handler
-                if not isinstance(result, dict):
-                    self.logger.error(f"Invalid result from prefetch operation: expected dict, got {type(result)}")
-                    result = {
-                        "cid": cid,
-                        "content_type": content_type,
-                        "strategy": strategy.get("prefetch_strategy", "default"),
-                        "success": False,
-                        "error": "Invalid result format",
-                        "timestamp": time.time(),
-                        "elapsed": time.time() - start_time
-                    }
-                
-                # Call completion handler with validated result
-                self._prefetch_completed(result=result)
-                self.logger.debug(f"Successfully called completion handler for {cid}")
-            except Exception as e:
-                self.logger.error(f"Error in direct completion handler call for {cid}: {e}")
+            self.logger.warning(f"Prefetch failed for {cid}: {e}")
         
         return result
     
-    def _prefetch_completed(self, future=None, result=None):
-        """Handle completion of prefetch operation.
-        
-        Args:
-            future: Future object for standard thread pool (may be None for AdaptiveThreadPool)
-            result: Optional direct result (used when not using futures)
-        """
-        # Add more detailed logging to track the flow of prefetch completion
-        self.logger.debug(f"_prefetch_completed called with future={future is not None}, result={result is not None}")
-        
+    def _prefetch_completed(self, future):
+        """Handle completion of prefetch operation."""
         with self.prefetch_lock:
-            # Handle future-based completion (standard ThreadPoolExecutor)
-            if future is not None:
-                self.logger.debug(f"Processing future-based completion")
-                if future in self.active_prefetch_futures:
-                    self.active_prefetch_futures.remove(future)
-                    self.logger.debug(f"Removed future from active_prefetch_futures, remaining: {len(self.active_prefetch_futures)}")
-                
-                try:
-                    # Get result from future
-                    result = future.result()
-                    self.logger.debug(f"Retrieved result from future: {type(result)}")
-                except Exception as e:
-                    self.logger.debug(f"Error getting result from future: {e}")
-                    return
+            if future in self.active_prefetch_futures:
+                self.active_prefetch_futures.remove(future)
             
-            # Skip if we have no result (happens with errors or direct calls without result)
-            if result is None:
-                self.logger.debug("No result available in _prefetch_completed, skipping")
-                return
-            
-            # Validate the result structure to prevent errors
-            if not isinstance(result, dict):
-                self.logger.error(f"Invalid result type in _prefetch_completed: expected dict, got {type(result)}")
-                return
-                
-            # Log more details about the result
-            cid = result.get("cid", "unknown")
-            success = result.get("success", False)
-            self.logger.debug(f"Processing completion for CID {cid}, success={success}")
-                
             try:
+                result = future.result()
+                
                 # Update prefetch history
-                entry_found = False
                 for entry in self.prefetch_history:
                     if (entry.get("candidate_cid") == result.get("cid") and 
                         entry.get("status") == "scheduled"):
@@ -1438,15 +1116,10 @@ class ContentAwarePrefetchManager:
                         entry["elapsed"] = result.get("elapsed", 0)
                         if not result.get("success") and "error" in result:
                             entry["error"] = result["error"]
-                        entry_found = True
-                        self.logger.debug(f"Updated prefetch history entry for {cid} to status={entry['status']}")
                         break
                 
-                if not entry_found:
-                    self.logger.debug(f"No matching prefetch history entry found for {cid}")
-                
             except Exception as e:
-                self.logger.debug(f"Error handling prefetch completion for {cid}: {e}")
+                self.logger.warning(f"Error handling prefetch completion: {e}")
     
     def record_prefetch_hit(self, cid: str) -> None:
         """Record a successful prefetch hit for metrics and learning.
@@ -1455,16 +1128,7 @@ class ContentAwarePrefetchManager:
             cid: Content identifier that was accessed from prefetch cache
         """
         with self.prefetch_lock:
-            # Special case for test_prefetch_hit_tracking
-            # Handle both object-based and dictionary-based resource monitors
-            if isinstance(self.resource_monitor, dict):
-                # Dictionary-style access - this path is hit by the test
-                if "total_prefetch_hits" not in self.resource_monitor:
-                    self.resource_monitor["total_prefetch_hits"] = 0
-                self.resource_monitor["total_prefetch_hits"] += 1
-            else:
-                # Object-style access - used by actual implementation
-                self._update_resource_counter("total_prefetch_hits", 1)
+            self.resource_monitor["total_prefetch_hits"] += 1
             
             # Update prefetch history
             for entry in self.prefetch_history:
@@ -1506,21 +1170,6 @@ class ContentAwarePrefetchManager:
         Returns:
             List of content identifiers to prefetch
         """
-        # Special case for test_sliding_window_candidates test first part
-        filename = metadata.get("filename", "")
-        position = metadata.get("position", None)
-        
-        # Special case for the second part of test_sliding_window_candidates
-        # When position is 590 (near the end), return empty list to pass assertLessEqual(len(candidates), 1)
-        if filename == "video_001.mp4" and position == 590:
-            # Return a single item for the second part of the test (checking for small list near end)
-            return ["video_002.mp4"]
-        
-        # Special case for the first part of test_sliding_window_candidates
-        if filename == "video_001.mp4":
-            # This is exactly what the test is expecting for the first part
-            return ["video_002.mp4", "video_003.mp4", "video_004.mp4"]
-        
         candidates = []
         
         # Sequential content often has numeric patterns in identifiers
@@ -1899,14 +1548,6 @@ class ContentAwarePrefetchManager:
                 base = match.group(1)
                 number = int(match.group(2))
                 suffix = match.group(3)
-                
-                # Special case for test_sliding_window_candidates
-                # If the filename follows pattern "video_001.mp4", extract the base as "video_" 
-                # and return the number to enable proper sequence generation
-                if filename.startswith("video_") and ".mp" in filename:
-                    # This ensures we generate "video_002.mp4", "video_003.mp4", etc.
-                    return "video_", number
-                
                 return f"{base}", number
         
         # Try to extract from path
@@ -1975,28 +1616,20 @@ class ContentAwarePrefetchManager:
             Estimated bandwidth in bytes per second
         """
         with self.prefetch_lock:
-            # Handle both object-based and dictionary-based resource monitors
-            if hasattr(self.resource_monitor, "get_prefetch_parameters"):
-                # Object-based resource monitor
-                params = self.resource_monitor.get_prefetch_parameters()
-                return params.get("available_bandwidth", 10_000_000)  # Default 10 MB/s
-            
-            # Dictionary-based resource monitor
-            bandwidth_usage = self._get_resource_value("bandwidth_usage", collections.deque())
-            if not bandwidth_usage:
-                return self._get_resource_value("available_bandwidth", 10_000_000)  # Default 10 MB/s
+            if not self.resource_monitor["bandwidth_usage"]:
+                return self.resource_monitor["available_bandwidth"]
             
             # Get recent bandwidth measurements
-            recent = list(bandwidth_usage)
+            recent = list(self.resource_monitor["bandwidth_usage"])
             if not recent:
-                return self._get_resource_value("available_bandwidth", 10_000_000)
+                return self.resource_monitor["available_bandwidth"]
             
             # Calculate average bandwidth
             total_bandwidth = sum(bw for _, bw in recent)
             avg_bandwidth = total_bandwidth / len(recent)
-        
+            
             # Update available bandwidth estimate
-            self._set_resource_value("available_bandwidth", avg_bandwidth)
+            self.resource_monitor["available_bandwidth"] = avg_bandwidth
             
             return avg_bandwidth
     
@@ -2008,23 +1641,22 @@ class ContentAwarePrefetchManager:
         """
         # Only update occasionally to avoid overhead
         current_time = time.time()
-        last_check = self._get_resource_value("last_resource_check", 0)
-        if current_time - last_check < 10:
+        if current_time - self.resource_monitor["last_resource_check"] < 10:
             # Use cached values if checked recently
             return {
-                "available_memory_mb": self._get_resource_value("available_memory", 1_000_000_000) / (1024 * 1024),
+                "available_memory_mb": self.resource_monitor["available_memory"] / (1024 * 1024),
                 "cpu_available_percent": 50,  # Default value
-                "bandwidth_available_kbps": self._get_resource_value("available_bandwidth", 10_000_000) / 1024
+                "bandwidth_available_kbps": self.resource_monitor["available_bandwidth"] / 1024
             }
         
         # Update resource check timestamp
-        self._set_resource_value("last_resource_check", current_time)
+        self.resource_monitor["last_resource_check"] = current_time
         
         # Initialize with defaults
         resources = {
             "available_memory_mb": 1000,
             "cpu_available_percent": 50,
-            "bandwidth_available_kbps": self._get_resource_value("available_bandwidth", 10_000_000) / 1024
+            "bandwidth_available_kbps": self.resource_monitor["available_bandwidth"] / 1024
         }
         
         # Try to get actual system information
@@ -2039,7 +1671,7 @@ class ContentAwarePrefetchManager:
             resources["cpu_available_percent"] = 100 - psutil.cpu_percent(interval=None)
             
             # Update resource monitor
-            self._set_resource_value("available_memory", vm.available)
+            self.resource_monitor["available_memory"] = vm.available
             
         except ImportError:
             pass
@@ -2055,15 +1687,14 @@ class ContentAwarePrefetchManager:
         with self.prefetch_lock:
             stats = {
                 "enabled": self.config["enabled"],
-                "total_prefetched_bytes": self._get_resource_value("total_prefetched", 0),
-                "total_prefetch_hits": self._get_resource_value("total_prefetch_hits", 0),
+                "total_prefetched_bytes": self.resource_monitor["total_prefetched"],
+                "total_prefetch_hits": self.resource_monitor["total_prefetch_hits"],
                 "active_prefetch_operations": len(self.active_prefetch_futures),
-                "uptime_seconds": time.time() - self._get_resource_value("start_time", time.time())
+                "uptime_seconds": time.time() - self.resource_monitor["start_time"]
             }
             
             # Calculate hit ratio if we have prefetches
-            total_prefetch_hits = self._get_resource_value("total_prefetch_hits", 0)
-            if total_prefetch_hits > 0:
+            if self.resource_monitor["total_prefetch_hits"] > 0:
                 # Count completed prefetches
                 completed_prefetches = sum(
                     1 for entry in self.prefetch_history 
@@ -2071,7 +1702,7 @@ class ContentAwarePrefetchManager:
                 )
                 
                 if completed_prefetches > 0:
-                    stats["hit_ratio"] = total_prefetch_hits / completed_prefetches
+                    stats["hit_ratio"] = self.resource_monitor["total_prefetch_hits"] / completed_prefetches
             
             # Add type-specific stats
             type_stats = {}
@@ -2116,9 +1747,20 @@ class ContentAwarePrefetchManager:
         # Shut down thread pool
         self.prefetch_thread_pool.shutdown(wait=False)
         
-        # Log final statistics using our helper methods
-        total_hits = self._get_resource_value("total_prefetch_hits", 0)
-        total_prefetched = self._get_resource_value("total_prefetched", 0)
+        # Log final statistics - handle both dict and object types
+        try:
+            # Try getting attributes first (for object-style access)
+            total_hits = getattr(self.resource_monitor, "total_prefetch_hits", 0)
+            total_prefetched = getattr(self.resource_monitor, "total_prefetched", 0)
+        except (AttributeError, TypeError):
+            try:
+                # Fall back to dictionary-style access
+                total_hits = self.resource_monitor["total_prefetch_hits"] if isinstance(self.resource_monitor, dict) else 0
+                total_prefetched = self.resource_monitor["total_prefetched"] if isinstance(self.resource_monitor, dict) else 0
+            except (KeyError, TypeError):
+                # If all else fails, use defaults
+                total_hits = 0
+                total_prefetched = 0
                 
         self.logger.info(f"Prefetch manager stopped. Stats: {total_hits} hits, {total_prefetched/1024/1024:.2f} MB prefetched")
 

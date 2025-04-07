@@ -6,6 +6,7 @@ import uuid
 import queue
 import logging
 import shutil
+import tempfile
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, Type, TypeVar, Generic
 from datetime import datetime
 from unittest.mock import MagicMock
@@ -6043,7 +6044,7 @@ class LangchainIntegration:
                 
                 if PYDANTIC_AVAILABLE:
                     # return CreateIPFSVectorStoreResponse(**result) # Commented out due to SyntaxError: 'return' outside function
-            pass # Added pass to avoid empty block error
+                    pass # Added pass to avoid empty block error
                 return result
 
             # Validate embedding function
@@ -13229,8 +13230,8 @@ class DistributedTraining:
                     with epoch_context or nullcontext():
                         model.fit(X, y)
 
-                            accuracy = model.score(X, y)
-                            metrics["final_accuracy"] = accuracy
+                    accuracy = model.score(X, y)
+                    metrics["final_accuracy"] = accuracy
 
                     trained_model = model
                 else:
@@ -14857,7 +14858,7 @@ class TensorflowIntegration:
                 result["error_type"] = "unsupported_model_type"
                 
                 if PYDANTIC_AVAILABLE:
-                    error_result = OptimizeForInferenceErrorResponse(**result)
+                    error_result = self.OptimizeForInferenceErrorResponse(**result)
                     return model, error_result
                 
                 return model, result  # Return original model with error
@@ -14869,7 +14870,7 @@ class TensorflowIntegration:
             self.logger.exception(f"Error optimizing model: {e}")
             
             if PYDANTIC_AVAILABLE:
-                error_result = OptimizeForInferenceErrorResponse(**result)
+                error_result = self.OptimizeForInferenceErrorResponse(**result)
                 return model, error_result
             
             return model, result  # Return original model with error

@@ -16,6 +16,8 @@ import time
 from typing import Dict, List, Optional, Set, Any
 
 from .performance_metrics import PerformanceMetrics
+# Import tiered_cache module for backward compatibility
+import ipfs_kit_py.tiered_cache as tiered_cache
 
 # Try to import Prometheus client
 try:
@@ -662,6 +664,25 @@ class IPFSMetricsCollector:
                     "entries": entries,
                     "size": size,
                     "capacity": getattr(disk_cache, "size_limit", 0),
+                }
+                
+            # Try to get parquet cache stats if available through tiered_cache module
+            if hasattr(tiered_cache, "parquet_cache") and tiered_cache.parquet_cache:
+                parquet_cache = tiered_cache.parquet_cache
+                import os
+                cache_dir = getattr(parquet_cache, "directory", "")
+                size = 0
+                entries = 0
+                
+                if cache_dir and os.path.exists(cache_dir):
+                    for root, _, files in os.walk(cache_dir):
+                        entries += len(files)
+                        size += sum(os.path.getsize(os.path.join(root, f)) for f in files)
+                
+                cache_stats["parquet"] = {
+                    "entries": entries,
+                    "size": size,
+                    "capacity": getattr(parquet_cache, "size_limit", 0),
                 }
             
             return cache_stats

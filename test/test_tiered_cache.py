@@ -16,7 +16,10 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, "/home/barberb/ipfs_kit_py")
 
-from ipfs_kit_py.tiered_cache import ARCache, DiskCache, TieredCacheManager
+# Import from new module locations directly for testing
+from ipfs_kit_py.arc_cache import ARCache
+from ipfs_kit_py.disk_cache import DiskCache
+from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 
 
 class TestARCache(unittest.TestCase):

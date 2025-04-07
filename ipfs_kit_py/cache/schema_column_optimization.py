@@ -1178,14 +1178,87 @@ class ParquetCIDCache:
     the schema optimization features.
     """
     
-    def __init__(self, cache_path: str):
+    def __init__(self, 
+                 cache_path: str = None, 
+                 directory: str = None,
+                 max_partition_rows: int = 100000, 
+                 auto_sync: bool = True, 
+                 sync_interval: int = 300):
         """Initialize the cache."""
-        self.cache_path = cache_path
-        os.makedirs(cache_path, exist_ok=True)
+        # Use directory if provided, otherwise use cache_path
+        self.cache_path = directory if directory is not None else cache_path
+        os.makedirs(self.cache_path, exist_ok=True)
+        self.max_partition_rows = max_partition_rows
+        self.auto_sync = auto_sync
+        self.sync_interval = sync_interval
+        # Initialize optimization components
         self.schema_profiler = SchemaProfiler()
         self.schema_optimizer = SchemaOptimizer(self.schema_profiler)
-        self.evolution_manager = SchemaEvolutionManager(cache_path)
+        self.evolution_manager = SchemaEvolutionManager(self.cache_path)
         self.optimized = False
+        
+    @property
+    def directory(self):
+        """Directory property for backward compatibility."""
+        return self.cache_path
+        
+    def _update_access_stats(self, cid: str):
+        """Update access statistics for a CID."""
+        # This is a mock implementation that would be replaced with real
+        # functionality in a production system
+        logger.debug(f"Updating access stats for CID: {cid}")
+        # In a real implementation, this would update access timestamps and counts
+    
+    def contains(self, cid: str) -> bool:
+        """Check if a CID exists in the cache."""
+        # This is a mock implementation
+        return False
+        
+    def delete(self, cid: str) -> bool:
+        """Delete a CID from the cache."""
+        # This is a mock implementation
+        logger.debug(f"Deleting CID from cache: {cid}")
+        return True
+        
+    def get_metadata(self, cid: str) -> dict:
+        """Get metadata for a CID."""
+        # This is a mock implementation
+        return {}
+        
+    def put_metadata(self, cid: str, metadata: dict) -> bool:
+        """Store metadata for a CID."""
+        # This is a mock implementation
+        logger.debug(f"Storing metadata for CID: {cid}")
+        return True
+        
+    def batch_get_metadata(self, cids: list) -> dict:
+        """Get metadata for multiple CIDs."""
+        # This is a mock implementation
+        return {cid: {} for cid in cids}
+        
+    def query(self, filters=None, columns=None, sort_by=None, limit=None) -> dict:
+        """Query metadata with filters."""
+        # This is a mock implementation
+        return {}
+        
+    def stats(self) -> dict:
+        """Get statistics about the cache."""
+        # This is a mock implementation
+        return {
+            "record_count": 0,
+            "file_count": 0,
+            "total_size_bytes": 0
+        }
+        
+    def get_all_cids(self) -> list:
+        """Get all CIDs in the cache."""
+        # This is a mock implementation
+        return []
+        
+    def clear(self) -> bool:
+        """Clear the cache."""
+        # This is a mock implementation
+        return True
         
     def optimize_schema(self):
         """Optimize the cache schema based on access patterns."""

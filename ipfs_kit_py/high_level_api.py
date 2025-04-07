@@ -58,14 +58,10 @@ except ImportError:
     from ipfs_kit_py.validation import validate_parameters
     from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
 
-# Try to import FSSpec integration
-try:
-    from .ipfs_fsspec import HAVE_FSSPEC, IPFSFileSystem
-    logger.info(f"FSSpec integration available: {HAVE_FSSPEC}")
-except ImportError:
-    HAVE_FSSPEC = False
-    IPFSFileSystem = None
-    logger.warning("Could not import ipfs_fsspec module. FSSpec integration will be disabled.")
+# Define initial values for FSSpec integration
+HAVE_FSSPEC = False
+IPFSFileSystem = None
+# These will be properly set when get_filesystem is called
         
 # Try to import WebRTC streaming
 try:
@@ -1189,7 +1185,12 @@ MIT
         # Try to import IPFSFileSystem
         try:
             # Import IPFSFileSystem inside the method to handle import errors gracefully
-            from .ipfs_fsspec import IPFSFileSystem, HAVE_FSSPEC
+            try:
+                # First try relative import
+                from .ipfs_fsspec import IPFSFileSystem, HAVE_FSSPEC
+            except ImportError:
+                # Fall back to absolute import
+                from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem, HAVE_FSSPEC
             HAVE_IPFSFS = True
         except ImportError:
             HAVE_IPFSFS = False

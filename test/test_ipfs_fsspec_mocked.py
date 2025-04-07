@@ -7,12 +7,12 @@ import pytest
 from ipfs_kit_py.error import IPFSContentNotFoundError
 from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem  # Changed IPFSMappedFile to IPFSFile
 from ipfs_kit_py.ipfs_fsspec import (
-    ARCache,
-    DiskCache,
     IPFSFile,
     IPFSMemoryFile,
-    TieredCacheManager,
 )
+from ipfs_kit_py.arc_cache import ARCache
+from ipfs_kit_py.disk_cache import DiskCache
+from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 
 # Mock fsspec availability
 pytest.importorskip("fsspec")

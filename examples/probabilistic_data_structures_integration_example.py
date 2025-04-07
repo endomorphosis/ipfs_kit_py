@@ -26,7 +26,7 @@ import logging
 # Import IPFS Kit if available
 try:
     from ipfs_kit_py.ipfs_kit import IPFSKit
-    from ipfs_kit_py.tiered_cache import TieredCacheManager
+    from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
     from ipfs_kit_py.cache.probabilistic_data_structures import (
         ProbabilisticDataStructureManager,
         BloomFilter,
