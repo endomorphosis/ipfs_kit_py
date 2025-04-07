@@ -189,9 +189,8 @@ class SimulatedNode:
                         # Deliver the message to all subscribed callbacks
                         for callback in peer.subscribed_topics[topic]:
                             # Schedule callback in peer's event loop
-                            peer.event_loop.call_soon_threadsafe(
-                                callback, {"from": self.peer_id, "data": data, "topic": topic}
-                            )
+                            if callable(callback):
+                                callback(self.peer_id, data)
         return True
     
     def start(self):
@@ -206,6 +205,35 @@ class SimulatedNode:
         for peer_id in list(self.connected_peers):
             self.connected_peers.remove(peer_id)
         return True
+
+    def fetch_content(self, cid):
+        """Fetch content from the network."""
+        # Check local store first
+        if cid in self.content_store:
+            return self.content_store[cid]
+        
+        # Try to get from connected peers
+        for peer_id in self.connected_peers:
+            # Find the peer
+            for peer in NetworkSimulator.get_instance().get_nodes():
+                if peer.peer_id == peer_id:
+                    content = peer.get_content(cid)
+                    if content:
+                        # Store locally for future use
+                        self.store_content(cid, content)
+                        # Increment counters
+                        NetworkSimulator.get_instance().content_requests += 1
+                        NetworkSimulator.get_instance().successful_transfers += 1
+                        
+                        # Record provider used
+                        providers = NetworkSimulator.get_instance().find_providers(cid)
+                        if providers:
+                            NetworkSimulator.get_instance().last_provider_used = providers[0]
+                            
+                        return content
+        
+        # Not found
+        return None
 
 
 class NetworkSimulator:
@@ -226,6 +254,12 @@ class NetworkSimulator:
         self.network_latency = 0  # Default network latency
         self.packet_loss = 0.0  # Default packet loss rate
         self.lock = threading.RLock()
+        
+        # Track content providers and requests
+        self.content_providers = {}  # cid -> [peer_ids]
+        self.content_requests = 0
+        self.successful_transfers = 0
+        self.last_provider_used = None
     
     def add_node(self, node):
         """Add a node to the network."""
@@ -279,6 +313,41 @@ class NetworkSimulator:
             # Reset network conditions
             self.network_latency = 0
             self.packet_loss = 0.0
+            # Reset stats
+            self.content_providers = {}
+            self.content_requests = 0
+            self.successful_transfers = 0
+            self.last_provider_used = None
+            
+    def register_provider(self, cid, provider_id):
+        """Register a content provider."""
+        with self.lock:
+            if cid not in self.content_providers:
+                self.content_providers[cid] = []
+            if provider_id not in self.content_providers[cid]:
+                self.content_providers[cid].append(provider_id)
+    
+    def find_providers(self, cid):
+        """Find providers for a CID."""
+        with self.lock:
+            return self.content_providers.get(cid, [])
+    
+    def discover_peers(self, peer_id):
+        """Discover peers in the network."""
+        with self.lock:
+            return [node.peer_id for node in self.nodes.values() if node.peer_id != peer_id]
+    
+    def process_message_queue(self):
+        """Process the message queue for all nodes."""
+        # Simple implementation that just waits for messages to propagate
+        time.sleep(0.1)
+        
+    def get_closest_peer(self, peer_id, provider_ids):
+        """Get the closest peer by simulated network distance."""
+        if not provider_ids:
+            return None
+        # For simplicity, just return the first provider
+        return provider_ids[0]
 
 
 class MockLibp2pPeer:
@@ -321,6 +390,9 @@ class MockLibp2pPeer:
         # Create simulated node in the network
         self.node = SimulatedNode(role=role)
         NetworkSimulator.get_instance().add_node(self.node)
+        
+        # Add the peer_id attribute that directly accesses the node's peer_id
+        self.peer_id = self.node.peer_id
         
         # Set up protocols based on role
         self._init_host()
@@ -486,10 +558,42 @@ class MockLibp2pPeer:
         self.content_store.clear()
         self.content_metadata.clear()
         self.protocol_handlers.clear()
+        
+    def publish(self, topic, message):
+        """Publish a message to a topic."""
+        return self.node.publish(topic, message)
+        
+    def subscribe(self, topic, handler):
+        """Subscribe to a topic with a handler."""
+        return self.node.subscribe(topic, handler)
+        
+    def fetch_content(self, cid):
+        """Fetch content from the network."""
+        return self.node.fetch_content(cid)
+        
+    def store_content(self, cid, data):
+        """Store content in the local store."""
+        return self.node.store_content(cid, data)
 
 
 class NetworkScenario:
     """Factory for creating network test scenarios."""
+    
+    def __init__(self, network_simulator):
+        """Initialize with a network simulator instance."""
+        self.network = network_simulator
+        self.nodes = {}
+        
+    def get_node_by_role(self, role):
+        """Get a node by role."""
+        for node_id, node in self.nodes.items():
+            if node.role == role:
+                return node
+        return None
+        
+    def get_nodes_by_role(self, role):
+        """Get all nodes with a specific role."""
+        return [node for node_id, node in self.nodes.items() if node.role == role]
     
     @staticmethod
     def create_simple_network():
@@ -511,6 +615,47 @@ class NetworkScenario:
             "worker": worker,
             "leecher": leecher
         }
+    
+    @staticmethod
+    def create_small_network_scenario(network_simulator):
+        """Create a small network scenario with 1 master, 3 workers, and 1 leecher.
+        
+        Args:
+            network_simulator: The network simulator instance
+            
+        Returns:
+            NetworkScenario object with the created network
+        """
+        # Reset the simulator
+        network_simulator.reset()
+        
+        # Create scenario object
+        scenario = NetworkScenario(network_simulator)
+        
+        # Create master node
+        master = MockLibp2pPeer(role="master")
+        scenario.nodes["master"] = master
+        
+        # Create worker nodes
+        workers = []
+        for i in range(3):
+            worker = MockLibp2pPeer(role="worker")
+            worker_id = f"worker-{i}"
+            scenario.nodes[worker_id] = worker
+            workers.append(worker)
+            
+        # Create leecher node
+        leecher = MockLibp2pPeer(role="leecher")
+        scenario.nodes["leecher"] = leecher
+        
+        # Connect nodes in a hub-and-spoke topology with master at the center
+        for worker in workers:
+            master.connect_peer(worker.get_peer_id())
+            
+        # Connect leecher to first worker
+        leecher.connect_peer(workers[0].get_peer_id())
+        
+        return scenario
     
     @staticmethod
     def create_cluster_network(master_count=1, worker_count=3, leecher_count=2):
@@ -578,7 +723,7 @@ if __name__ == "__main__":
     # Store content in master
     cid = "QmTestContent"
     content = b"Test content for libp2p testing"
-    network["master"].store_bytes(cid, content)
+    network["master"].store_content(cid, content)
     
     # Request content from leecher (should find it through the network)
     retrieved = network["leecher"].request_content(cid)

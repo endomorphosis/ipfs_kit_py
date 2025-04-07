@@ -100,7 +100,7 @@ class MetadataEnhancedGraphRAG:
 
         if query_optimizer is not None:
             self.query_optimizer = query_optimizer
-        elif enable_distributed:
+        elif enable_distributed and 'DistributedQueryOptimizer' in globals():
             self.query_optimizer = DistributedQueryOptimizer(
                 ipfs_client=ipfs_client, cluster_manager=cluster_manager
             )

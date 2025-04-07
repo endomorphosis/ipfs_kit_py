@@ -12,9 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-# Class under test
-from ipfs_kit_py.integrated_search import MetadataEnhancedGraphRAG
-
 # Import mock classes to avoid actual IPFS dependencies during testing
 from .mock_ipfs_kit import MockIPFSKit
 
@@ -161,19 +158,25 @@ class MockIPFSArrowIndex:
         return mock_table
 
 
-# Path the imports in the integrated_search module
-@patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB)
-@patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex)
 class TestIntegratedSearch(unittest.TestCase):
     """Test the integration between Arrow metadata index and GraphRAG."""
 
     def setUp(self):
         """Set up test environment before each test."""
         self.ipfs = MockIPFSKit()
-        self.integrated_search = MetadataEnhancedGraphRAG(ipfs_client=self.ipfs)
 
-        # Add some test data
-        self._add_test_data()
+        # Patch the modules *before* creating the instance to prevent ImportError
+        # Use the mock classes defined within this test file
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+
+            # Import the class *after* patching its dependencies
+            from ipfs_kit_py.integrated_search import MetadataEnhancedGraphRAG
+            # Now instantiate the class; the ImportError should be prevented
+            self.integrated_search = MetadataEnhancedGraphRAG(ipfs_client=self.ipfs)
+
+            # Add some test data using the instance with mocked dependencies
+            self._add_test_data()
 
     def _add_test_data(self):
         """Add test entities to both systems."""
@@ -240,113 +243,127 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_metadata_only_search(self):
         """Test search with only metadata filters."""
-        # Search for PyTorch models
-        results = self.integrated_search.hybrid_search(
-            metadata_filters=[("mime_type", "==", "application/x-pytorch")]
-        )
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Search for PyTorch models
+            results = self.integrated_search.hybrid_search(
+                metadata_filters=[("mime_type", "==", "application/x-pytorch")]
+            )
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["id"], "QmModelA")
-        self.assertEqual(results[0]["source"], "metadata")
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["id"], "QmModelA")
+            self.assertEqual(results[0]["source"], "metadata")
 
-        # Search by tag
-        results = self.integrated_search.hybrid_search(
-            metadata_filters=[("tags", "contains", "nlp")]
-        )
+            # Search by tag
+            results = self.integrated_search.hybrid_search(
+                metadata_filters=[("tags", "contains", "nlp")]
+            )
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["id"], "QmModelB")
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["id"], "QmModelB")
 
     def test_vector_only_search(self):
         """Test search with only vector similarity."""
-        # Search using a vector that should be closer to ModelA
-        query_vector = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.0]
-        results = self.integrated_search.hybrid_search(query_vector=query_vector)
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Search using a vector that should be closer to ModelA
+            query_vector = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.0]
+            results = self.integrated_search.hybrid_search(query_vector=query_vector)
 
-        self.assertEqual(len(results), 3)  # All entities with vectors
-        self.assertEqual(results[0]["id"], "QmModelA")  # Should be most similar
-        self.assertEqual(results[0]["source"], "vector")
+            self.assertEqual(len(results), 3)  # All entities with vectors
+            self.assertEqual(results[0]["id"], "QmModelA")  # Should be most similar
+            self.assertEqual(results[0]["source"], "vector")
 
-        # Filter by entity type
-        results = self.integrated_search.hybrid_search(
-            query_vector=query_vector, entity_types=["dataset"]
-        )
+            # Filter by entity type
+            results = self.integrated_search.hybrid_search(
+                query_vector=query_vector, entity_types=["dataset"]
+            )
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["id"], "QmDatasetA")
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["id"], "QmDatasetA")
 
     def test_combined_search(self):
         """Test combined metadata and vector search."""
-        # Search for computer vision models with vector similarity
-        query_vector = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.0]
-        results = self.integrated_search.hybrid_search(
-            query_vector=query_vector, metadata_filters=[("tags", "contains", "computer-vision")]
-        )
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Search for computer vision models with vector similarity
+            query_vector = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.0]
+            results = self.integrated_search.hybrid_search(
+                query_vector=query_vector, metadata_filters=[("tags", "contains", "computer-vision")]
+            )
 
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]["id"], "QmModelA")
-        self.assertEqual(results[0]["source"], "combined")
+            self.assertEqual(len(results), 2)
+            self.assertEqual(results[0]["id"], "QmModelA")
+            self.assertEqual(results[0]["source"], "combined")
 
     def test_text_query_conversion(self):
         """Test that text queries are properly converted to vectors."""
-        # Should convert text to a vector internally
-        results = self.integrated_search.hybrid_search(query_text="image classification model")
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Should convert text to a vector internally
+            results = self.integrated_search.hybrid_search(query_text="image classification model")
 
-        self.assertEqual(len(results), 3)  # All entities with vectors
-        # The exact order depends on the embedding function, but we can check basic properties
-        self.assertTrue(all(r["source"] == "vector" for r in results))
+            self.assertEqual(len(results), 3)  # All entities with vectors
+            # The exact order depends on the embedding function, but we can check basic properties
+            self.assertTrue(all(r["source"] == "vector" for r in results))
 
     def test_llm_context_generation(self):
         """Test generating LLM context from search results."""
-        # Get some search results
-        results = self.integrated_search.hybrid_search(query_text="image classification")
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Get some search results
+            results = self.integrated_search.hybrid_search(query_text="image classification")
 
-        # Generate context
-        context = self.integrated_search.generate_llm_context(
-            query="image classification", search_results=results, format_type="markdown"
-        )
+            # Generate context
+            context = self.integrated_search.generate_llm_context(
+                query="image classification", search_results=results, format_type="markdown"
+            )
 
-        # Verify context contains the query
-        self.assertIn("image classification", context)
-        # Verify it contains the most relevant entity
-        self.assertIn("QmModelA", context)
+            # Verify context contains the query
+            self.assertIn("image classification", context)
+            # Verify it contains the most relevant entity
+            self.assertIn("QmModelA", context)
 
     def test_error_handling(self):
         """Test the error handling in the implementation."""
-        # Mock failure in graph vector search
-        original_method = self.integrated_search.graph_db.graph_vector_search
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Mock failure in graph vector search
+            original_method = self.integrated_search.graph_db.graph_vector_search
 
-        def mock_failure(*args, **kwargs):
-            raise Exception("Simulated failure")
+            def mock_failure(*args, **kwargs):
+                raise Exception("Simulated failure")
 
-        self.integrated_search.graph_db.graph_vector_search = mock_failure
+            self.integrated_search.graph_db.graph_vector_search = mock_failure
 
-        # Should handle error and return empty results
-        results = self.integrated_search.hybrid_search(query_text="image classification")
+            # Should handle error and return empty results
+            results = self.integrated_search.hybrid_search(query_text="image classification")
 
-        # Reset the method
-        self.integrated_search.graph_db.graph_vector_search = original_method
+            # Reset the method
+            self.integrated_search.graph_db.graph_vector_search = original_method
 
-        # Should have gracefully handled the error
-        self.assertEqual(len(results), 0)
+            # Should have gracefully handled the error
+            self.assertEqual(len(results), 0)
 
     def test_index_entity(self):
         """Test indexing an entity in both systems."""
-        # Index a new entity
-        result = self.integrated_search.index_entity(
-            entity_id="QmNewEntity",
-            properties={"type": "model", "name": "NewModel", "framework": "custom"},
-            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-        )
+        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
+             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+            # Index a new entity
+            result = self.integrated_search.index_entity(
+                entity_id="QmNewEntity",
+                properties={"type": "model", "name": "NewModel", "framework": "custom"},
+                vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+            )
 
-        # Should have succeeded
-        self.assertTrue(result["success"])
+            # Should have succeeded
+            self.assertTrue(result["success"])
 
-        # Entity should be in the graph DB
-        self.assertIsNotNone(self.integrated_search.graph_db.get_entity("QmNewEntity"))
+            # Entity should be in the graph DB
+            self.assertIsNotNone(self.integrated_search.graph_db.get_entity("QmNewEntity"))
 
-        # Entity should be in the metadata index
-        self.assertIsNotNone(self.integrated_search.metadata_index.get_by_cid("QmNewEntity"))
+            # Entity should be in the metadata index
+            self.assertIsNotNone(self.integrated_search.metadata_index.get_by_cid("QmNewEntity"))
 
 
 if __name__ == "__main__":

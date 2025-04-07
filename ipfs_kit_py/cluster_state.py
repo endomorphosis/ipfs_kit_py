@@ -2019,99 +2019,190 @@ class ArrowClusterState:
         Returns:
             Dictionary with state information and status
         """
+        # Add more detailed logging to help debug test failures
         logger.info(f"Accessing cluster state from path: {state_path}")
-
-        # Check if metadata file exists for shared memory access
-        metadata_path = os.path.join(state_path, "state_metadata.json")
-
-        # First try shared memory access for backward compatibility with tests
-        # that mock this functionality
-        if os.path.exists(metadata_path):
-            try:
-                with open(metadata_path, "r") as f:
-                    metadata = json.load(f)
-
-                logger.info(
-                    f"Found metadata file with plasma socket: {metadata.get('plasma_socket')}"
-                )
-
-                # Try to use plasma connect if it's available
-                try:
-                    from pyarrow.plasma import ObjectID, plasma_connect
-
-                    # Connect to plasma store
-                    plasma_client = plasma_connect(metadata["plasma_socket"])
-
-                    # Get object ID
-                    object_id = ObjectID(bytes.fromhex(metadata["object_id"]))
-
-                    # Get the object from plasma store
-                    buffer = plasma_client.get(object_id)
-
-                    # Read the table from the buffer
-                    reader = pa.RecordBatchStreamReader(buffer)
-                    state_table = reader.read_all()
-
-                    # Return successful result
-                    return state_table
-
-                except (ImportError, Exception) as e:
-                    logger.warning(f"Failed to use plasma interface: {e}")
-                    pass  # Fall back to file access
-            except Exception as e:
-                logger.warning(f"Failed to parse metadata file: {e}")
-                pass  # Fall back to file access
-
-        # Fall back to direct file access
-        logger.info("Falling back to direct file access")
-
+        logger.info(f"Path exists: {os.path.exists(state_path) if state_path else False}")
+        logger.info(f"Path type: {type(state_path)}")
+        
+        # Create standard result structure
         result = {
             "success": False,
             "operation": "access_cluster_state",
             "timestamp": time.time(),
-            "method": "parquet_file",
+            "method": "unknown",
         }
+        
+        # Check state_path is valid 
+        if state_path is None:
+            logger.error("State path is None")
+            result["error"] = "State path is None"
+            return result
+            
+        if not os.path.exists(state_path):
+            logger.error(f"State path does not exist: {state_path}")
+            result["error"] = f"State path does not exist: {state_path}"
+            return result
+            
+        if not os.path.isdir(state_path):
+            logger.error(f"State path is not a directory: {state_path}")
+            result["error"] = f"State path is not a directory: {state_path}"
+            return result
 
-        try:
-            # Find parquet files in the state directory
-            parquet_files = [
-                f
-                for f in os.listdir(state_path)
-                if f.startswith("state_") and f.endswith(".parquet")
-            ]
+        # First try to use the metadata file for path information
+        metadata_path = os.path.join(state_path, "state_metadata.json")
+        metadata = None
+        
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, "r") as f:
+                    metadata = json.load(f)
+                logger.info(f"Successfully loaded metadata file")
+            except Exception as e:
+                logger.warning(f"Failed to parse metadata file: {e}")
+                metadata = None
 
-            if not parquet_files:
-                result["error"] = "No state files found"
+        # Try Plasma shared memory access if metadata is available
+        # This is mainly for backward compatibility with tests
+        if metadata and "plasma_socket" in metadata and "object_id" in metadata:
+            try:
+                # Import inside the try block to avoid module-level dependency
+                from pyarrow.plasma import ObjectID, plasma_connect
+                
+                logger.info(f"Attempting plasma connection via: {metadata.get('plasma_socket')}")
+                
+                # Connect to plasma store
+                plasma_client = plasma_connect(metadata["plasma_socket"])
+                
+                # Get object ID and retrieve the data
+                object_id = ObjectID(bytes.fromhex(metadata["object_id"]))
+                buffer = plasma_client.get(object_id)
+                
+                # Read the table from the buffer
+                reader = pa.RecordBatchStreamReader(buffer)
+                state_table = reader.read_all()
+                
+                # Create success result with table data
+                result = {
+                    "success": True,
+                    "operation": "access_cluster_state",
+                    "timestamp": time.time(),
+                    "method": "plasma",
+                    "table": state_table,
+                    "num_rows": state_table.num_rows
+                }
+                
+                # Extract metadata from table if it has rows
+                if state_table.num_rows > 0:
+                    try:
+                        result["cluster_id"] = state_table.column("cluster_id")[0].as_py()
+                        result["master_id"] = state_table.column("master_id")[0].as_py()
+                        
+                        nodes_list = state_table.column("nodes")[0].as_py() or []
+                        tasks_list = state_table.column("tasks")[0].as_py() or []
+                        content_list = state_table.column("content")[0].as_py() or []
+                        
+                        result["node_count"] = len(nodes_list)
+                        result["task_count"] = len(tasks_list)
+                        result["content_count"] = len(content_list)
+                    except Exception as ext_e:
+                        logger.warning(f"Error extracting metadata from table: {ext_e}")
+                
                 return result
-
-            # Use the most recent file
-            parquet_path = os.path.join(state_path, parquet_files[0])
-
-            # Load the table from parquet file
+                
+            except Exception as e:
+                logger.warning(f"Failed to use plasma interface: {e}")
+                # Fall back to file access
+        
+        # Fall back to direct parquet file access
+        result["method"] = "parquet_file"
+        logger.info("Falling back to direct parquet file access")
+        
+        # Find suitable parquet file to load
+        parquet_path = None
+        
+        # Option 1: Use parquet_path from metadata if available and valid
+        if metadata and "parquet_path" in metadata and os.path.exists(metadata["parquet_path"]):
+            parquet_path = metadata["parquet_path"]
+            logger.info(f"Using parquet path from metadata: {parquet_path}")
+            
+        # Option 2: Scan directory for parquet files matching state_*.parquet pattern
+        if parquet_path is None or not os.path.exists(parquet_path):
+            try:
+                logger.info(f"Scanning directory for parquet files: {state_path}")
+                parquet_files = [
+                    f for f in os.listdir(state_path)
+                    if f.startswith("state_") and f.endswith(".parquet")
+                ]
+                
+                if parquet_files:
+                    # Sort by modification time (newest first)
+                    parquet_files.sort(
+                        key=lambda f: os.path.getmtime(os.path.join(state_path, f)),
+                        reverse=True
+                    )
+                    parquet_path = os.path.join(state_path, parquet_files[0])
+                    logger.info(f"Found parquet file: {parquet_path}")
+                else:
+                    logger.error("No parquet files found in directory")
+                    result["error"] = "No state files found in directory"
+                    return result
+            except Exception as e:
+                logger.error(f"Error scanning directory for parquet files: {e}")
+                result["error"] = f"Error finding parquet files: {str(e)}"
+                return result
+            
+        # Final check before attempting to read
+        if parquet_path is None or not os.path.exists(parquet_path):
+            logger.error(f"No valid parquet path found or file doesn't exist: {parquet_path}")
+            result["error"] = "No valid parquet path found"
+            return result
+            
+        logger.info(f"Loading parquet file: {parquet_path}")
+        
+        # Try to read the parquet file
+        try:
+            # Make sure pyarrow and pyarrow.parquet are available
+            if 'pa' not in locals() or 'pq' not in locals():
+                try:
+                    import pyarrow as pa
+                    import pyarrow.parquet as pq
+                except ImportError as imp_err:
+                    logger.error(f"PyArrow not available for reading parquet: {imp_err}")
+                    result["error"] = f"PyArrow not available: {str(imp_err)}"
+                    return result
+            
+            # Read the table
             state_table = pq.read_table(parquet_path)
-
-            # Get cluster info from the table
+            
+            # Update result with success and basic info
             result["success"] = True
             result["table"] = state_table
             result["num_rows"] = state_table.num_rows
-
-            # Extract more metadata if the table has rows
+            
+            # Extract metadata if table has rows
             if state_table.num_rows > 0:
-                result["cluster_id"] = state_table.column("cluster_id")[0].as_py()
-                result["master_id"] = state_table.column("master_id")[0].as_py()
-
-                # Get node and task counts
-                nodes_list = state_table.column("nodes")[0].as_py()
-                tasks_list = state_table.column("tasks")[0].as_py()
-                content_list = state_table.column("content")[0].as_py()
-
-                result["node_count"] = len(nodes_list)
-                result["task_count"] = len(tasks_list)
-                result["content_count"] = len(content_list)
-
+                try:
+                    result["cluster_id"] = state_table.column("cluster_id")[0].as_py()
+                    result["master_id"] = state_table.column("master_id")[0].as_py()
+                    
+                    # Get counts of nodes, tasks, and content
+                    nodes_list = state_table.column("nodes")[0].as_py() or []
+                    tasks_list = state_table.column("tasks")[0].as_py() or []
+                    content_list = state_table.column("content")[0].as_py() or []
+                    
+                    result["node_count"] = len(nodes_list)
+                    result["task_count"] = len(tasks_list)
+                    result["content_count"] = len(content_list)
+                    
+                    logger.info(f"Successfully loaded state with {result['node_count']} nodes, "
+                               f"{result['task_count']} tasks, {result['content_count']} content items")
+                except Exception as meta_err:
+                    logger.warning(f"Error extracting metadata from table: {meta_err}")
+                    # Still return success since we loaded the table
+            
             return result
-
+            
         except Exception as e:
-            result["error"] = str(e)
-            logger.error(f"Error accessing cluster state: {e}")
+            logger.error(f"Error reading parquet file: {e}")
+            result["error"] = f"Error reading parquet file: {str(e)}"
             return result

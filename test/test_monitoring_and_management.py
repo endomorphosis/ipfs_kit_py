@@ -80,6 +80,17 @@ def monitoring_cluster():
 
 class TestClusterHealthMonitoring:
     """Test cluster health monitoring capabilities."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Set up the event loop for all tests in this class."""
+        cls.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cls.loop)
+        
+    @classmethod
+    def teardown_class(cls):
+        """Clean up the event loop after all tests in this class."""
+        cls.loop.close()
 
     def test_node_metrics_collection(self, monitoring_cluster):
         """Test collection of metrics from cluster nodes."""
@@ -472,6 +483,17 @@ class TestClusterHealthMonitoring:
 
 class TestPerformanceVisualization:
     """Test performance visualization and metrics systems."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Set up the event loop for all tests in this class."""
+        cls.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cls.loop)
+        
+    @classmethod
+    def teardown_class(cls):
+        """Clean up the event loop after all tests in this class."""
+        cls.loop.close()
 
     def test_metrics_aggregation(self, monitoring_cluster):
         """Test aggregation of metrics for visualization."""
@@ -784,6 +806,17 @@ class TestPerformanceVisualization:
 
 class TestConfigurationManagement:
     """Test configuration management tools."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Set up the event loop for all tests in this class."""
+        cls.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cls.loop)
+        
+    @classmethod
+    def teardown_class(cls):
+        """Clean up the event loop after all tests in this class."""
+        cls.loop.close()
 
     def test_configuration_validation(self, monitoring_cluster):
         """Test validation of cluster configuration."""

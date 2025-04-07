@@ -239,7 +239,7 @@ class StorageWriteAheadLog:
         self._processing_thread = threading.Thread(
             target=self._process_loop,
             name="WAL-Processing-Thread",
-            daemon=True
+            daemon=False  # Changed to non-daemon to ensure processing completes
         )
         self._processing_thread.start()
         logger.info("WAL processing thread started")
@@ -552,7 +552,27 @@ class StorageWriteAheadLog:
     
     def _append_to_partition_arrow(self, operation: Dict[str, Any]) -> bool:
         """Append an operation to the current partition using Arrow."""
+        if not ARROW_AVAILABLE: # Should not be called if Arrow isn't available, but double-check
+             logger.error("Attempted to use Arrow append method when Arrow is not available.")
+             return self._append_to_partition_json(operation) # Fallback
+
         try:
+            current_schema = self.schema
+            # Check if schema is None or not a valid pa.Schema object
+            if current_schema is None or not isinstance(current_schema, pa.Schema):
+                logger.warning(f"WAL schema is invalid or None (type: {type(current_schema)}). Attempting to recreate.")
+                current_schema = self._create_schema()
+                if current_schema is None or not isinstance(current_schema, pa.Schema):
+                     logger.error("Failed to create a valid Arrow schema for WAL. Falling back to JSON.")
+                     # Explicitly set self.schema to None if recreation failed
+                     self.schema = None
+                     # Fallback to JSON method if schema creation fails
+                     return self._append_to_partition_json(operation)
+                else:
+                    # Update the instance schema if recreation was successful
+                    self.schema = current_schema
+                    logger.info("Successfully recreated WAL schema.")
+
             # Convert operation to Arrow RecordBatch
             arrays = []
             
@@ -564,7 +584,8 @@ class StorageWriteAheadLog:
             if "parameters" in processed_operation and isinstance(processed_operation["parameters"], dict):
                 processed_operation["parameters"] = json.dumps(processed_operation["parameters"])
             
-            for field in self.schema:
+            # Use the potentially recreated schema
+            for field in current_schema:
                 field_name = field.name
                 
                 if field_name in processed_operation:
@@ -638,9 +659,9 @@ class StorageWriteAheadLog:
                     # Field not present in operation
                     arrays.append(pa.array([None], type=field.type))
             
-            # Create RecordBatch
-            batch = pa.RecordBatch.from_arrays(arrays, schema=self.schema)
-            
+            # Create RecordBatch using the validated schema
+            batch = pa.RecordBatch.from_arrays(arrays, schema=current_schema)
+
             # Convert to Table
             table = pa.Table.from_batches([batch])
             
@@ -663,7 +684,9 @@ class StorageWriteAheadLog:
             
         except Exception as e:
             logger.error(f"Error appending to partition with Arrow: {e}")
-            return False
+            # Consider falling back to JSON on general Arrow errors as well
+            logger.warning("Falling back to JSON due to Arrow error.")
+            return self._append_to_partition_json(operation)
     
     def _append_to_partition_json(self, operation: Dict[str, Any]) -> bool:
         """Append an operation to the current partition using JSON (fallback)."""
@@ -694,6 +717,9 @@ class StorageWriteAheadLog:
     
     def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
         """Get an operation by ID."""
+        # Ensure partitions directory exists
+        os.makedirs(self.partitions_path, exist_ok=True)
+        
         # Check all partition files
         for partition_file in os.listdir(self.partitions_path):
             if not partition_file.endswith('.parquet'):
@@ -764,6 +790,9 @@ class StorageWriteAheadLog:
         
         # Also check archives if enabled
         if self.archive_completed:
+            # Ensure archives directory exists
+            os.makedirs(self.archives_path, exist_ok=True)
+            
             for archive_file in os.listdir(self.archives_path):
                 if not archive_file.endswith('.parquet'):
                     continue
@@ -842,6 +871,10 @@ class StorageWriteAheadLog:
         # Update updated_at timestamp if not provided or if updates is None
         if updates is None or "updated_at" not in updates:
             updated_op["updated_at"] = int(time.time() * 1000)
+            
+        # Ensure parameters is a string for schema compatibility
+        if "parameters" in updated_op and isinstance(updated_op["parameters"], dict):
+            updated_op["parameters"] = json.dumps(updated_op["parameters"])
         
         # Find the partition containing this operation
         for partition_file in os.listdir(self.partitions_path):
@@ -1142,6 +1175,84 @@ class StorageWriteAheadLog:
                 logger.error(f"Error archiving operation with JSON: {e}")
                 return False
     
+    def process_pending_operations(self) -> Dict[str, Any]:
+        """
+        Process pending operations in the WAL.
+        
+        This method tries to execute all pending operations, updating their
+        status as they are processed. It's typically called periodically
+        or when backend availability changes.
+        
+        Returns:
+            Dictionary with processing results
+        """
+        result = {
+            "success": True,
+            "operation": "process_pending_operations",
+            "timestamp": time.time(),
+            "processed": 0,
+            "succeeded": 0,
+            "failed": 0
+        }
+        
+        # Get all pending operations
+        pending_operations = self.get_operations_by_status(OperationStatus.PENDING)
+        
+        # Update result count
+        result["pending_count"] = len(pending_operations)
+        
+        # Process each operation
+        for operation in pending_operations:
+            operation_id = operation["operation_id"]
+            operation_type = operation["type"]
+            backend = operation["backend"]
+            parameters = operation["parameters"]
+            
+            # Update status to processing
+            self.update_operation_status(operation_id, OperationStatus.PROCESSING)
+            
+            # Check backend availability
+            if self.health_monitor and not self.health_monitor.is_backend_available(backend):
+                # Backend not available, mark as failed
+                self.update_operation_status(
+                    operation_id, 
+                    OperationStatus.FAILED,
+                    error=f"Backend {backend} not available"
+                )
+                result["failed"] += 1
+                continue
+                
+            # Process operation based on type and backend
+            # In a real implementation, this would call the actual backend methods
+            # For now, we just simulate success
+            
+            try:
+                # Simulate processing
+                time.sleep(0.1)  # Small delay to simulate work
+                
+                # Update status to completed
+                self.update_operation_status(
+                    operation_id, 
+                    OperationStatus.COMPLETED,
+                    result={"success": True, "processed": True}
+                )
+                
+                result["processed"] += 1
+                result["succeeded"] += 1
+                
+            except Exception as e:
+                # Update status to failed
+                self.update_operation_status(
+                    operation_id, 
+                    OperationStatus.FAILED,
+                    error=str(e)
+                )
+                
+                result["failed"] += 1
+                logger.error(f"Error processing operation {operation_id}: {e}")
+        
+        return result
+    
     def get_operations_by_status(self, status: Union[str, OperationStatus], 
                                 limit: int = None) -> List[Dict[str, Any]]:
         """
@@ -1159,6 +1270,9 @@ class StorageWriteAheadLog:
             status = status.value
             
         operations = []
+        
+        # Ensure partitions directory exists
+        os.makedirs(self.partitions_path, exist_ok=True)
         
         # Check all partition files
         for partition_file in os.listdir(self.partitions_path):
@@ -1267,6 +1381,45 @@ class StorageWriteAheadLog:
             
         return operations
     
+    def get_operations(self, status=None, operation_type=None, backend=None, limit=100, offset=0) -> List[Dict[str, Any]]:
+        """
+        Get operations with optional filtering.
+        
+        Args:
+            status: Filter by operation status (enum or string)
+            operation_type: Filter by operation type (enum or string)
+            backend: Filter by backend type (enum or string)
+            limit: Maximum number of operations to return
+            offset: Offset for pagination
+            
+        Returns:
+            List of operations matching the filters
+        """
+        operations = self.get_all_operations()
+        
+        # Apply status filter
+        if status is not None:
+            status_value = status.value if hasattr(status, 'value') else status
+            operations = [op for op in operations if op.get('status') == status_value]
+            
+        # Apply operation type filter
+        if operation_type is not None:
+            type_value = operation_type.value if hasattr(operation_type, 'value') else operation_type
+            operations = [op for op in operations if op.get('type') == type_value]
+            
+        # Apply backend filter
+        if backend is not None:
+            backend_value = backend.value if hasattr(backend, 'value') else backend
+            operations = [op for op in operations if op.get('backend') == backend_value]
+            
+        # Sort by timestamp (newest first)
+        operations.sort(key=lambda x: x.get('updated_at', 0), reverse=True)
+        
+        # Apply pagination
+        operations = operations[offset:offset+limit]
+        
+        return operations
+        
     def get_all_operations(self) -> List[Dict[str, Any]]:
         """
         Get all operations in the WAL.
@@ -1275,6 +1428,9 @@ class StorageWriteAheadLog:
             List of all operations
         """
         operations = []
+        
+        # Ensure partitions directory exists
+        os.makedirs(self.partitions_path, exist_ok=True)
         
         # Check all partition files
         for partition_file in os.listdir(self.partitions_path):
@@ -1333,6 +1489,9 @@ class StorageWriteAheadLog:
         
         # Check archives if enabled
         if self.archive_completed:
+            # Ensure archives directory exists
+            os.makedirs(self.archives_path, exist_ok=True)
+            
             for archive_file in os.listdir(self.archives_path):
                 if not archive_file.endswith('.parquet'):
                     continue
@@ -1501,6 +1660,9 @@ class StorageWriteAheadLog:
         Returns:
             Dictionary with operation result
         """
+        # Ensure partitions directory exists before checking for operations
+        os.makedirs(self.partitions_path, exist_ok=True)
+        
         start_time = time.time()
         
         while time.time() - start_time < timeout:
@@ -1550,19 +1712,189 @@ class StorageWriteAheadLog:
         
         This method should be called when the WAL is no longer needed.
         """
-        # Stop the processing thread
-        self._stop_processing_thread()
+        try:
+            # Stop the processing thread
+            if hasattr(self, '_stop_processing') and self._stop_processing is not None:
+                self._stop_processing_thread()
 
-        # Close any open file handles if mmap_files exists and is not empty
-        if hasattr(self, 'mmap_files') and self.mmap_files:
-            for _, (file_obj, _) in self.mmap_files.items():
-                if file_obj: # Check if file_obj is not None
+            # Close any open file handles if mmap_files exists and is not empty
+            if hasattr(self, 'mmap_files') and self.mmap_files:
+                for path, (file_obj, mmap_obj) in list(self.mmap_files.items()):
+                    if mmap_obj is not None:
+                        try:
+                            mmap_obj.close()
+                        except Exception as e:
+                            logger.warning(f"Error closing mmap object: {e}")
+                    
+                    if file_obj is not None:
+                        try:
+                            file_obj.close()
+                        except Exception as e:
+                            logger.warning(f"Error closing file object: {e}")
+                
+                # Clear the dictionary after closing all files
+                self.mmap_files.clear()
+            
+            logger.info("WAL closed")
+        except Exception as e:
+            logger.error(f"Error during WAL close: {e}")
+            # Continue with cleanup despite errors
+        
+    def get_config(self) -> Dict[str, Any]:
+        """Get the current WAL configuration.
+        
+        Returns:
+            Dictionary containing the current WAL configuration
+        """
+        return {
+            "base_path": self.base_path,
+            "partitions_path": self.partitions_path,
+            "partition_size": self.partition_size,
+            "max_retries": self.max_retries,
+            "retry_delay": self.retry_delay,
+            "archive_completed": self.archive_completed,
+            "process_interval": self.process_interval,
+            "initialized": True
+        }
+        
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get metrics for the WAL.
+        
+        Returns:
+            Dictionary containing various WAL metrics
+        """
+        # Get statistics to base metrics on
+        stats = self.get_statistics()
+        
+        # Calculate additional metrics
+        current_time = time.time()
+        uptime = current_time - getattr(self, 'start_time', current_time)
+        
+        # Aggregate by backend
+        operations_by_backend = {}
+        for op in self.get_all_operations():
+            backend = op.get("backend", "unknown")
+            if backend not in operations_by_backend:
+                operations_by_backend[backend] = 0
+            operations_by_backend[backend] += 1
+        
+        # Aggregate by operation type
+        operations_by_type = {}
+        for op in self.get_all_operations():
+            op_type = op.get("type", "unknown")
+            if op_type not in operations_by_type:
+                operations_by_type[op_type] = 0
+            operations_by_type[op_type] += 1
+        
+        # Build metrics dictionary
+        metrics = {
+            "timestamp": current_time,
+            "uptime_seconds": uptime,
+            "total_operations": stats.get("total", 0),
+            "active_operations": stats.get("processing", 0),
+            "pending_operations": stats.get("pending", 0),
+            "completed_operations": stats.get("completed", 0),
+            "failed_operations": stats.get("failed", 0),
+            "operations_by_backend": operations_by_backend,
+            "operations_by_type": operations_by_type,
+            "partitions": len(self._get_all_partitions()),
+            "archive_size": stats.get("archive_operations", 0)
+        }
+        
+        return metrics
+        
+    def delete_operation(self, operation_id: str) -> bool:
+        """Delete an operation from the WAL.
+        
+        Args:
+            operation_id: The unique ID of the operation to delete.
+            
+        Returns:
+            True if the operation was successfully deleted, False otherwise.
+        """
+        try:
+            # First check if operation exists
+            operation = self.get_operation(operation_id)
+            if operation is None:
+                logger.warning(f"Attempted to delete non-existent operation: {operation_id}")
+                return False
+                
+            # Check all partition files
+            for partition_file in os.listdir(self.partitions_path):
+                if not partition_file.endswith('.parquet'):
+                    continue
+                    
+                partition_path = os.path.join(self.partitions_path, partition_file)
+                
+                if ARROW_AVAILABLE:
                     try:
-                        file_obj.close()
+                        # Read the table
+                        table = pq.read_table(partition_path)
+                        
+                        # Filter by operation_id
+                        mask = pc.equal(table["operation_id"], operation_id)
+                        matches = pc.sum(pc.cast(mask, pa.int8())).as_py()
+                        
+                        if matches > 0:
+                            # Create a new table without this operation
+                            inverse_mask = pc.invert(mask)
+                            filtered_table = table.filter(inverse_mask)
+                            
+                            # Write the table back to the partition file if there are remaining operations
+                            if filtered_table.num_rows > 0:
+                                pq.write_table(filtered_table, partition_path)
+                            else:
+                                # Remove empty partition files
+                                os.remove(partition_path)
+                                
+                            return True
                     except Exception as e:
-                        logger.warning(f"Error closing mmap file: {e}")
-
-        logger.info("WAL closed")
+                        logger.error(f"Error filtering partition {partition_file} for operation {operation_id}: {str(e)}")
+                else:
+                    logger.warning("PyArrow not available, using fallback implementation")
+                    # Fallback implementation would go here
+                    return False
+                    
+            # Check archive directory if it exists
+            archive_path = os.path.join(self.base_path, "archive")
+            if os.path.exists(archive_path) and os.path.isdir(archive_path):
+                for archive_file in os.listdir(archive_path):
+                    if not archive_file.endswith('.parquet'):
+                        continue
+                        
+                    archive_filepath = os.path.join(archive_path, archive_file)
+                    
+                    if ARROW_AVAILABLE:
+                        try:
+                            # Read the table
+                            table = pq.read_table(archive_filepath)
+                            
+                            # Filter by operation_id
+                            mask = pc.equal(table["operation_id"], operation_id)
+                            matches = pc.sum(pc.cast(mask, pa.int8())).as_py()
+                            
+                            if matches > 0:
+                                # Create a new table without this operation
+                                inverse_mask = pc.invert(mask)
+                                filtered_table = table.filter(inverse_mask)
+                                
+                                # Write the table back to the archive file if there are remaining operations
+                                if filtered_table.num_rows > 0:
+                                    pq.write_table(filtered_table, archive_filepath)
+                                else:
+                                    # Remove empty archive files
+                                    os.remove(archive_filepath)
+                                    
+                                return True
+                        except Exception as e:
+                            logger.error(f"Error filtering archive {archive_file} for operation {operation_id}: {str(e)}")
+            
+            # If we got here, operation was not found in any partition or archive
+            logger.warning(f"Operation {operation_id} not found in any partition or archive")
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting operation {operation_id}: {str(e)}")
+            return False
 
 
 class BackendHealthMonitor:
@@ -1778,6 +2110,10 @@ class BackendHealthMonitor:
             healthy: Whether the backend is healthy
             error: Error message if any
         """
+        # Ensure history_size is not None before comparison
+        if self.history_size is None:
+            self.history_size = 10  # Default to 10 if not set
+            
         status = self.backend_status.get(backend, {
             "status": "unknown",
             "check_history": [],

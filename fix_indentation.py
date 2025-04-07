@@ -12,6 +12,22 @@ def fix_tiered_cache_indentation():
     
     print(f"File has {len(lines)} lines")
     
+    # Fix indentation for @staticmethod around line 5498
+    for i in range(5495, 5510):
+        if i < len(lines) and '@staticmethod' in lines[i]:
+            # Check context
+            if '    def __del__' in lines[i-2]:
+                indent = '    '  # Match class-level indentation
+                print(f"Fixing @staticmethod indentation at line {i+1}")
+                lines[i] = indent + '@staticmethod\n'
+                # Also fix the next line (method definition)
+                if i+1 < len(lines) and 'def ' in lines[i+1]:
+                    lines[i+1] = indent + 'def ' + lines[i+1].lstrip().lstrip('def ')
+                    print(f"Fixing method definition indentation at line {i+2}")
+    
+    # Save the initially fixed lines
+    fixed_lines = lines
+    
     # First fix any indentation issues at the beginning of the file
     # Look for an improperly indented __init__ method not attached to a class
     fixed_lines = []

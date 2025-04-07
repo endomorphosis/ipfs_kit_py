@@ -95,6 +95,7 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
             logger.info("Binaries will be downloaded when specific functions are called")
 
 # Use try/except for all imports to handle optional dependencies gracefully
+# High-level API import
 try:
     from .high_level_api import IPFSSimpleAPI, PluginBase
 except ImportError:

@@ -538,13 +538,11 @@ class AIMLMetrics:
             loss_values = [
                 l for l in self.training_metrics["loss_values"].get(model_id, []) if l is not None
             ]
-            # Retrieve accuracy values similarly (assuming they might be stored elsewhere or added later)
-            # For now, let's assume accuracy might be stored like loss. If not, this will be empty.
-            # We need accuracy_curve for the visualization function.
-            accuracy_values = [
-                a for a in self.training_metrics.get("accuracy_values", {}).get(model_id, []) if a is not None
-            ]
-
+            
+            # Initialize an empty accuracy_values list since we don't track it directly
+            # This is needed for the visualization function
+            accuracy_values = []
+            
             # Calculate convergence rate if possible
             convergence_rate = None
             if len(loss_values) >= 2:
@@ -569,7 +567,7 @@ class AIMLMetrics:
                     "final": loss_values[-1] if loss_values else None,
                     "convergence_rate": convergence_rate,
                     "loss_curve": loss_values,  # Add the full loss curve
-                    "accuracy_curve": accuracy_values, # Add accuracy curve (might be empty)
+                    "accuracy_curve": accuracy_values, # Always initialize as empty list for now
                 },
                 "learning_rates": self.training_metrics["learning_rates"].get(model_id, []),
                 "gradient_norms": self.training_metrics["gradient_norms"].get(model_id, []),

@@ -11,6 +11,7 @@ import time
 import math
 import logging
 import threading
+import queue # Import queue module
 import collections
 from typing import Dict, List, Optional, Any, Callable, Tuple, Deque
 from collections import defaultdict, deque
@@ -949,21 +950,20 @@ class AdaptiveThreadPool:
         
         # Pool name
         self.name = name
-        
-        # Task queues (one per priority level)
-        self.task_queues = []
-        for i in range(self.config["priority_levels"]):
-            self.task_queues.append(deque())
-        
+
+        # Use a single PriorityQueue
+        queue_max_size = self.config["queue_size"] if self.config["queue_size"] > 0 else 0
+        self.task_queue = queue.PriorityQueue(maxsize=queue_max_size)
+
         # Worker threads
         self.workers = []
         
         # Control flags and locks
         self.shutdown_flag = threading.Event()
         self.pool_lock = threading.RLock()
-        self.queue_semaphore = threading.Semaphore(0)  # Signals waiting workers
+        # self.queue_semaphore = threading.Semaphore(0) # Removed semaphore
         self.adjustment_lock = threading.RLock()
-        
+
         # Statistics
         self.stats = {
             "tasks_submitted": 0,
@@ -1038,73 +1038,90 @@ class AdaptiveThreadPool:
         
         # Find our worker record
         worker_record = None
-        for worker in self.workers:
-            if worker["thread"].name == thread_name:
-                worker_record = worker
-                break
+        with self.pool_lock: # Lock needed to safely access self.workers
+            for worker in self.workers:
+                if worker["thread"].name == thread_name:
+                    worker_record = worker
+                    break
         
         # Mark as started
         if worker_record:
             worker_record["status"] = "idle"
-        
+
         # Worker main loop
         while not self.shutdown_flag.is_set():
+            task_item = None
             try:
                 # Wait for a task to be available or shutdown signal
-                if not self._get_task_with_timeout(self.config["thread_idle_timeout"]):
+                task_item = self._get_task_with_timeout(self.config["thread_idle_timeout"])
+
+                if not task_item:
                     # Timed out waiting for task, check if we should exit
                     with self.pool_lock:
-                        # Only exit if we have more than min_threads
                         if len(self.workers) > self.config["min_threads"]:
-                            # Mark for removal and exit
                             if worker_record:
-                                worker_record["status"] = "exiting"
-                            
-                            # Remove from workers list
-                            for i, w in enumerate(self.workers):
-                                if w["thread"].name == thread_name:
-                                    self.workers.pop(i)
-                                    break
-                            
-                            # Update stats
+                                worker_record["status"] = "exiting_idle"
+                            # Remove worker (best effort, might already be removed by adjustment)
+                            self.workers = [w for w in self.workers if w["thread"].name != thread_name]
                             self.stats["current_size"] = len(self.workers)
                             self.stats["thread_count_history"].append((time.time(), len(self.workers)))
-                            
-                            return  # Exit the thread
-                    
+                            logger.debug(f"Worker {thread_name} exiting due to idle timeout.")
+                            return # Exit thread
                     # Otherwise, continue waiting
                     continue
-                
-                # Get next task (using priority order)
-                func, args, kwargs, priority, task_id = self._get_next_task()
-                
-                # No task available
-                if func is None:
+
+                # Try to unpack the task_item safely
+                if not isinstance(task_item, tuple) or len(task_item) != 2:
+                    logger.error(f"Invalid task_item format in {thread_name}: expected (priority, task_tuple) tuple, got {type(task_item).__name__} with {len(task_item) if isinstance(task_item, tuple) else 'N/A'} elements")
+                    self.task_queue.task_done() # Mark as done to avoid blocking
                     continue
                 
+                # Task retrieved successfully, unpack it
+                priority, task_tuple = task_item
+
+                # Check for shutdown sentinel
+                if task_tuple is None:
+                    logger.debug(f"Worker {thread_name} received shutdown sentinel, exiting.")
+                    self.task_queue.task_done() # Mark sentinel as done
+                    break # Exit loop on sentinel
+
+                # Verify task_tuple has enough elements before unpacking
+                if not isinstance(task_tuple, tuple) or len(task_tuple) < 3:
+                    logger.error(f"Task tuple format invalid in {thread_name}: expected (func, args, kwargs) but got {type(task_tuple).__name__} with {len(task_tuple) if isinstance(task_tuple, tuple) else 'N/A'} elements")
+                    self.task_queue.task_done() # Mark as done
+                    continue
+
+                # Safely unpack the task details
+                try:
+                    func, args, kwargs = task_tuple
+                    task_id = f"task_{worker_record['tasks_completed'] if worker_record else 'unknown'}"
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error unpacking task tuple in {thread_name}: {e}")
+                    self.task_queue.task_done() # Mark as done
+                    continue
+
                 # Execute task
                 if worker_record:
                     worker_record["status"] = "working"
                     worker_record["last_active"] = time.time()
-                
+
                 start_time = time.time()
+                success = False
                 try:
                     result = func(*args, **kwargs)
                     success = True
                 except Exception as e:
-                    # Log task failure
-                    logger.error(f"Task failed in {thread_name}: {str(e)}")
-                    result = e
-                    success = False
-                
+                    logger.error(f"Task failed in {thread_name} (task_id={task_id}): {str(e)}")
+                    result = e # Store exception as result for potential inspection
+
                 execution_time = time.time() - start_time
-                
+
                 # Update worker stats
                 if worker_record:
                     worker_record["status"] = "idle"
                     worker_record["last_active"] = time.time()
                     worker_record["tasks_completed"] += 1
-                
+
                 # Update execution statistics
                 with self.pool_lock:
                     self.stats["execution_times"].append(execution_time)
@@ -1112,61 +1129,52 @@ class AdaptiveThreadPool:
                         self.stats["tasks_completed"] += 1
                     else:
                         self.stats["tasks_failed"] += 1
-            
+
+                # Only mark task as done if we successfully got to this point
+                try:
+                    self.task_queue.task_done()
+                except ValueError:  # task_done might raise if called too many times
+                    logger.warning(f"task_done() called too many times in {thread_name}")
+                    pass
+
+            except queue.Empty:
+                 # This should ideally not happen with block=True unless timeout occurs
+                 # Handled by the 'if not task_item:' check above
+                 continue
+
             except Exception as e:
-                logger.error(f"Error in worker thread {thread_name}: {str(e)}")
+                # Catch unexpected errors in the loop itself
+                logger.error(f"Unexpected error in worker thread {thread_name}: {str(e)}")
+                # Mark task as done if we managed to get it, to prevent queue blockage
+                if task_item is not None:
+                    try:
+                        self.task_queue.task_done()
+                    except ValueError: # task_done might raise if called too many times
+                        pass
                 # Small sleep to prevent tight error loops
                 time.sleep(0.1)
-        
+
         # Mark as exited when shutdown
         if worker_record:
             worker_record["status"] = "exited"
     
-    def _get_task_with_timeout(self, timeout: float) -> bool:
+    def _get_task_with_timeout(self, timeout: float):
         """Wait for a task with timeout.
         
         Args:
             timeout: Maximum time to wait in seconds
-            
+
         Returns:
-            True if a task is available, False if timed out
+            Task item (priority, (func, args, kwargs)) if available, None if timed out or empty.
         """
-        if timeout <= 0:
-            return self._has_task()
-        
-        # Check if tasks are already available
-        if self._has_task():
-            return True
-        
-        # Wait with timeout
-        return self.queue_semaphore.acquire(timeout=timeout)
-    
-    def _has_task(self) -> bool:
-        """Check if any tasks are available.
-        
-        Returns:
-            True if any task queue has tasks, False otherwise
-        """
-        with self.pool_lock:
-            for queue in self.task_queues:
-                if queue:
-                    return True
-        return False
-    
-    def _get_next_task(self) -> Tuple:
-        """Get the next task from the queues in priority order.
-        
-        Returns:
-            Tuple of (func, args, kwargs, priority, task_id) or (None, None, None, None, None)
-        """
-        with self.pool_lock:
-            # Try each queue in priority order
-            for priority, queue in enumerate(self.task_queues):
-                if queue:
-                    return queue.popleft() + (priority, f"task_{self.stats['tasks_submitted']}")
-        
-        # No tasks available
-        return None, None, None, None, None
+        try:
+            # Get task from priority queue with timeout
+            # PriorityQueue.get() blocks until item available or timeout
+            task_item = self.task_queue.get(block=True, timeout=timeout)
+            return task_item
+        except queue.Empty:
+            # Timeout occurred or queue is empty
+            return None
     
     def _adjustment_loop(self) -> None:
         """Background thread that periodically adjusts thread pool size."""
@@ -1212,12 +1220,11 @@ class AdaptiveThreadPool:
             recommended_threads = self.resource_monitor.get_thread_allocation(
                 self.config["worker_type"]
             )
-            
+
             # Calculate queue pressure
-            with self.pool_lock:
-                queue_length = sum(len(q) for q in self.task_queues)
-                self.stats["queue_length_history"].append((current_time, queue_length))
-            
+            queue_length = self.task_queue.qsize()
+            self.stats["queue_length_history"].append((current_time, queue_length))
+
             # Determine if we need more threads based on backlog
             backlog_pressure = queue_length > idle_threads * 2
             
@@ -1279,19 +1286,17 @@ class AdaptiveThreadPool:
         
         # Add task to queue
         with self.pool_lock:
-            # Check if queue is full
-            if len(self.task_queues[priority]) >= self.config["queue_size"]:
-                logger.warning(f"Task queue {priority} is full, rejecting new task")
-                return
-            
-            # Add task to queue
-            self.task_queues[priority].append((func, args, kwargs))
-            
-            # Update statistics
-            self.stats["tasks_submitted"] += 1
-            
-            # Signal waiting worker
-            self.queue_semaphore.release()
+            # Add task to priority queue
+            # Item format: (priority, (func, args, kwargs))
+            task_item = (priority, (func, args, kwargs))
+            try:
+                 self.task_queue.put(task_item, block=False) # Use block=False to avoid blocking if queue is full
+                 # Update statistics
+                 self.stats["tasks_submitted"] += 1
+            except queue.Full:
+                 logger.warning(f"Task queue is full (max size {self.task_queue.maxsize}), rejecting new task")
+                 # Optionally, handle rejected task (e.g., raise exception, return status)
+
     
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the thread pool.
@@ -1301,10 +1306,8 @@ class AdaptiveThreadPool:
         """
         with self.pool_lock:
             stats = self.stats.copy()
-            
             # Add current information
-            stats["queue_lengths"] = [len(q) for q in self.task_queues]
-            stats["total_queued"] = sum(stats["queue_lengths"])
+            stats["total_queued"] = self.task_queue.qsize()
             stats["total_threads"] = len(self.workers)
             stats["idle_threads"] = sum(1 for w in self.workers if w["status"] == "idle")
             stats["active_threads"] = sum(1 for w in self.workers if w["status"] == "working")
@@ -1325,11 +1328,18 @@ class AdaptiveThreadPool:
         """
         # Set shutdown flag
         self.shutdown_flag.set()
-        
-        # Wake up all waiting workers
-        for _ in range(len(self.workers)):
-            self.queue_semaphore.release()
-        
+
+        # Add sentinel values to wake up workers blocked on get()
+        with self.pool_lock:
+             num_workers = len(self.workers)
+        for _ in range(num_workers):
+             try:
+                 # Use lowest priority for sentinel to ensure it's processed last
+                 self.task_queue.put((self.config["priority_levels"], None), block=False)
+             except queue.Full:
+                 # Queue is full, workers should eventually exit anyway
+                 pass
+
         # Wait for workers to exit if requested
         if wait:
             end_time = time.time() + self.config["shutdown_timeout"]
@@ -1515,3 +1525,16 @@ class ResourceAdapter:
         
         # Return empty config for unknown component
         return {}
+        
+    def update_config(self, component_type: str, new_config: Dict[str, Any]) -> None:
+        """Update the configuration for a specific component type.
+        
+        Args:
+            component_type: Type of component to update
+            new_config: New configuration values to apply
+        """
+
+        if component_type in configs:
+            configs[component_type].update(new_config)
+        else:
+            raise ValueError(f"Unknown component type: {component_type}")

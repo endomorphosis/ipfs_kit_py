@@ -351,8 +351,10 @@ timeouts:
         self.assertEqual(plugin.ipfs_kit, self.mock_kit)
 
 
-class TestPlugin(PluginBase):
-    """Test plugin implementation."""
+# This class is used as a helper, not a test class
+# Rename to avoid pytest collection
+class SamplePlugin(PluginBase):
+    """Sample plugin implementation used in tests."""
 
     def test_method(self):
         """Test method."""
@@ -386,7 +388,7 @@ class TestPluginSystem(unittest.TestCase):
         # Create a plugin module in memory
         self.module_name = "test_plugin_module"
         sys.modules[self.module_name] = MagicMock()
-        sys.modules[self.module_name].TestPlugin = TestPlugin
+        sys.modules[self.module_name].TestPlugin = SamplePlugin  # Use SamplePlugin with original name in module
 
         # Create API instance with plugin configuration
         with patch("ipfs_kit_py.high_level_api.ipfs_kit", return_value=self.mock_kit):
@@ -406,7 +408,7 @@ class TestPluginSystem(unittest.TestCase):
             self.api.extensions = {}
 
             # Manually register the plugin method
-            plugin = TestPlugin(self.mock_kit, {"setting": "value"})
+            plugin = SamplePlugin(self.mock_kit, {"setting": "value"})
             self.api.plugins = {"TestPlugin": plugin}
             self.api.extensions["TestPlugin.test_method"] = plugin.test_method
 
@@ -419,7 +421,7 @@ class TestPluginSystem(unittest.TestCase):
     def test_plugin_loading(self):
         """Test plugin loading."""
         self.assertIn("TestPlugin", self.api.plugins)
-        self.assertIsInstance(self.api.plugins["TestPlugin"], TestPlugin)
+        self.assertIsInstance(self.api.plugins["TestPlugin"], SamplePlugin)
 
     def test_extension_registration(self):
         """Test extension registration."""

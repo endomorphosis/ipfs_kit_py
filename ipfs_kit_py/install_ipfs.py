@@ -29,7 +29,7 @@ class install_ipfs:
         self.install_ipfs_cluster_ctl = self.install_ipfs_cluster_ctl
         self.install_ipfs_cluster_service = self.install_ipfs_cluster_service
         self.env_path = os.environ.get("PATH", "")
-        if "path" in list(metadata.keys()):
+        if metadata and "path" in list(metadata.keys()):
             self.path = metadata["path"]
         else:
             self.path = self.env_path

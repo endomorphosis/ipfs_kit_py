@@ -6,7 +6,9 @@ import tempfile
 from ipfs_kit_py import ipfs_kit, storacha_kit
 
 
-class TestIpfsKit:
+# This is a helper class, not a test class
+# Rename to avoid pytest collection warnings
+class SampleIpfsKit:
     def __init__(self, resources, metadata):
         self.metadata = metadata
         self.resources = resources

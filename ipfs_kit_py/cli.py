@@ -6,11 +6,13 @@ This module provides a command-line interface for interacting with IPFS Kit.
 """
 
 import argparse
+import importlib.metadata # Added
 import json
 import logging
 import os
+import platform # Added
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union # Added Union
 
 import yaml
 
@@ -41,6 +43,9 @@ except ImportError:
 # Set up logging
 logger = logging.getLogger("ipfs_kit_cli")
 
+# Global flag to control colorization
+_enable_color = True
+
 # Define colors for terminal output
 COLORS = {
     "HEADER": "\033[95m",
@@ -65,8 +70,8 @@ def colorize(text: str, color: str) -> str:
     Returns:
         Colorized text
     """
-    # Skip colorization if stdout is not a terminal
-    if not sys.stdout.isatty():
+    # Skip colorization if stdout is not a terminal or if disabled
+    if not _enable_color or not sys.stdout.isatty():
         return text
 
     color_code = COLORS.get(color.upper(), "")
@@ -89,7 +94,7 @@ def setup_logging(verbose: bool = False) -> None:
 
 def parse_key_value(value: str) -> Dict[str, Any]:
     """
-    Parse a key=value string into a dictionary.
+    Parse a key=value string into a dictionary, with value type conversion.
 
     Args:
         value: Key-value string in format key=value
@@ -101,15 +106,57 @@ def parse_key_value(value: str) -> Dict[str, Any]:
         raise ValueError(f"Invalid key-value format: {value}. Expected format: key=value")
 
     key, val = value.split("=", 1)
-
-    # Try to parse as JSON if possible
-    try:
-        val = json.loads(val)
-    except json.JSONDecodeError:
-        # Keep as string if not valid JSON
-        pass
-
+    
+    # Convert values appropriately
+    if val.lower() == "true":
+        val = True
+    elif val.lower() == "false":
+        val = False
+    elif val.isdigit():
+        val = int(val)
+    elif "." in val and val.replace(".", "", 1).isdigit():
+        val = float(val)
+    else:
+        # Try to parse as JSON if not a boolean or number
+        try:
+            val = json.loads(val)
+        except json.JSONDecodeError:
+            # Keep as string if not valid JSON
+            pass
+    
     return {key: val}
+
+
+def handle_version_command(api, args, kwargs):
+    """
+    Handle the 'version' command to show version information.
+    
+    Args:
+        api: The IPFS API instance
+        args: Parsed command-line arguments
+        kwargs: Additional keyword arguments
+    
+    Returns:
+        Version information dictionary
+    """
+    # Get version information from the API
+    try:
+        # Try to get detailed version info if available
+        version_info = api.version(**kwargs)
+        return version_info
+    except (AttributeError, NotImplementedError):
+        # Fallback to package version if API doesn't support version command
+        from importlib.metadata import version as pkg_version
+        try:
+            version = pkg_version("ipfs_kit_py")
+        except:
+            version = "unknown"
+        return {
+            "version": version,
+            "api": "Simple API",
+            "system": platform.system(),
+            "python_version": platform.python_version()
+        }
 
 
 def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
@@ -125,6 +172,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="IPFS Kit CLI",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        exit_on_error=False # Prevent SystemExit on error for better testing
     )
 
     # Global options
@@ -138,13 +186,13 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "--verbose",
         "-v",
         action="store_true",
-        help="Enable verbose output",
+        help="Enable verbose output (sets logging to DEBUG)",
     )
     parser.add_argument(
         "--param",
         "-p",
         action="append",
-        help="Additional parameter in format key=value (can be used multiple times)",
+        help="Additional parameter in format key=value (e.g., -p timeout=60)",
         default=[],
     )
     parser.add_argument(
@@ -160,12 +208,18 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Disable colored output",
     )
 
-    # Subcommands
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
-    
+    # Subcommands - make command required
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute", required=True)
+
     # Register WAL commands if available
     if WAL_CLI_AVAILABLE:
-        register_wal_commands(subparsers)
+        try:
+            register_wal_commands(subparsers)
+            logger.debug("WAL commands registered.")
+        except Exception as e:
+            logger.warning(f"Could not register WAL commands: {e}")
+    else:
+        logger.debug("WAL CLI integration not available, skipping WAL command registration.")
 
     # Add command
     add_parser = subparsers.add_parser(
@@ -189,14 +243,17 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     )
     add_parser.add_argument(
         "--chunker",
-        help="Chunking algorithm",
+        help="Chunking algorithm (e.g., size-262144)",
         default="size-262144",
     )
     add_parser.add_argument(
         "--hash",
-        help="Hash algorithm",
+        help="Hash algorithm (e.g., sha2-256)",
         default="sha2-256",
     )
+    # Set the function to handle this command
+    add_parser.set_defaults(func=lambda api, args, kwargs: api.add(args.content, **kwargs))
+
 
     # Get command
     get_parser = subparsers.add_parser(
@@ -217,7 +274,11 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         type=int,
         help="Timeout in seconds",
         default=30,
+        dest="timeout_get" # Use unique dest to avoid conflict
     )
+    # Set the function to handle this command
+    get_parser.set_defaults(func=lambda api, args, kwargs: handle_get_command(api, args, kwargs))
+
 
     # Pin command
     pin_parser = subparsers.add_parser(
@@ -234,6 +295,8 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Pin recursively",
         default=True,
     )
+    pin_parser.set_defaults(func=lambda api, args, kwargs: api.pin(args.cid, **kwargs))
+
 
     # Unpin command
     unpin_parser = subparsers.add_parser(
@@ -250,6 +313,8 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Unpin recursively",
         default=True,
     )
+    unpin_parser.set_defaults(func=lambda api, args, kwargs: api.unpin(args.cid, **kwargs))
+
 
     # List pins command
     list_pins_parser = subparsers.add_parser(
@@ -267,6 +332,8 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Return only CIDs",
     )
+    list_pins_parser.set_defaults(func=lambda api, args, kwargs: api.list_pins(**kwargs))
+
 
     # Publish command
     publish_parser = subparsers.add_parser(
@@ -290,8 +357,10 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     publish_parser.add_argument(
         "--ttl",
         default="1h",
-        help="IPNS record TTL",
+        help="IPNS record TTL (e.g., 1h)",
     )
+    publish_parser.set_defaults(func=lambda api, args, kwargs: api.publish(args.cid, key=args.key, lifetime=args.lifetime, ttl=args.ttl, **kwargs))
+
 
     # Resolve command
     resolve_parser = subparsers.add_parser(
@@ -313,7 +382,10 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         type=int,
         help="Timeout in seconds",
         default=30,
+        dest="timeout_resolve" # Use unique dest
     )
+    resolve_parser.set_defaults(func=lambda api, args, kwargs: api.resolve(args.name, **kwargs))
+
 
     # Connect command
     connect_parser = subparsers.add_parser(
@@ -329,7 +401,10 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         type=int,
         help="Timeout in seconds",
         default=30,
+        dest="timeout_connect" # Use unique dest
     )
+    connect_parser.set_defaults(func=lambda api, args, kwargs: api.connect(args.peer, **kwargs))
+
 
     # Peers command
     peers_parser = subparsers.add_parser(
@@ -351,6 +426,8 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Include connection direction",
     )
+    peers_parser.set_defaults(func=lambda api, args, kwargs: api.peers(**kwargs))
+
 
     # Exists command
     exists_parser = subparsers.add_parser(
@@ -361,6 +438,8 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "path",
         help="IPFS path or CID",
     )
+    exists_parser.set_defaults(func=lambda api, args, kwargs: {"exists": api.exists(args.path, **kwargs)})
+
 
     # LS command
     ls_parser = subparsers.add_parser(
@@ -377,6 +456,8 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Return detailed information",
         default=True,
     )
+    ls_parser.set_defaults(func=lambda api, args, kwargs: api.ls(args.path, **kwargs))
+
 
     # SDK command
     sdk_parser = subparsers.add_parser(
@@ -392,14 +473,95 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "output_dir",
         help="Output directory",
     )
+    sdk_parser.set_defaults(func=lambda api, args, kwargs: api.generate_sdk(args.language, args.output_dir))
+
 
     # Version command
     version_parser = subparsers.add_parser(
         "version",
         help="Show version information",
     )
+    version_parser.set_defaults(func=handle_version_command) # Use a dedicated handler
 
-    return parser.parse_args(args)
+    # Parse args
+    # Use parse_known_args to allow flexibility if needed later, though not strictly required now
+    parsed_args, unknown = parser.parse_known_args(args)
+
+    # Check for unknown args if necessary (optional)
+    # if unknown:
+    #     logger.warning(f"Unrecognized arguments: {unknown}")
+
+    return parsed_args
+
+
+def handle_version_command(api, args, kwargs):
+    """
+    Handle the 'version' command to show version information.
+    
+    Args:
+        api: IPFS API instance
+        args: Command line arguments
+        kwargs: Additional keyword arguments
+        
+    Returns:
+        Version information as a dictionary
+    """
+    # Get version information
+    version_info = {
+        "ipfs_kit_py": getattr(api, "version", "unknown"),
+        "ipfs_daemon": "unknown",
+    }
+    
+    # Try to get IPFS daemon version if available
+    try:
+        if hasattr(api, "ipfs") and hasattr(api.ipfs, "ipfs_version"):
+            daemon_version = api.ipfs.ipfs_version()
+            if isinstance(daemon_version, dict) and "version" in daemon_version:
+                version_info["ipfs_daemon"] = daemon_version["version"]
+            else:
+                version_info["ipfs_daemon"] = str(daemon_version)
+    except Exception as e:
+        version_info["ipfs_daemon_error"] = str(e)
+    
+    return version_info
+
+def handle_get_command(api, args, kwargs):
+    """
+    Handle the 'get' command with output file support.
+    
+    Args:
+        api: IPFS API instance
+        args: Command line arguments
+        kwargs: Additional keyword arguments
+        
+    Returns:
+        Command result or content
+    """
+    # Extract timeout from kwargs or use default
+    timeout = kwargs.pop('timeout', 30)
+    
+    # Get the content from IPFS
+    content = api.get(args.cid, timeout=timeout, **kwargs)
+    
+    # If output file is specified, save content to file
+    if hasattr(args, 'output') and args.output:
+        # Handle both binary and string content
+        if isinstance(content, str):
+            with open(args.output, 'w') as f:
+                f.write(content)
+        else:
+            with open(args.output, 'wb') as f:
+                f.write(content)
+        
+        # Return success message instead of content
+        return {
+            "success": True,
+            "message": f"Content saved to {args.output}",
+            "size": len(content)
+        }
+    
+    # If no output file, return content directly
+    return content
 
 
 def format_output(result: Any, output_format: str, no_color: bool = False) -> str:
@@ -432,10 +594,15 @@ def format_output(result: Any, output_format: str, no_color: bool = False) -> st
                         formatted.append(f"  - {item}")
                 else:
                     formatted.append(f"{key}: {value}")
-            return "\n".join(formatted)
+            formatted_str = "\n".join(formatted)
+            # Add color for text output if enabled
+            # Example: return colorize(formatted_str, "GREEN") if result.get("success", True) else colorize(formatted_str, "RED")
+            return formatted_str
         elif isinstance(result, list):
+            # Simple list formatting
             return "\n".join([str(item) for item in result])
         else:
+            # Default string conversion
             return str(result)
 
 
@@ -451,82 +618,48 @@ def parse_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
     """
     kwargs = {}
 
-    # Add command-specific arguments
-    if args.command == "add":
-        kwargs.update(
-            {
-                "pin": args.pin,
-                "wrap_with_directory": args.wrap_with_directory,
-                "chunker": args.chunker,
-                "hash": args.hash,
-            }
-        )
-    elif args.command == "get":
-        kwargs.update(
-            {
-                "timeout": args.timeout,
-            }
-        )
-    elif args.command == "pin":
-        kwargs.update(
-            {
-                "recursive": args.recursive,
-            }
-        )
-    elif args.command == "unpin":
-        kwargs.update(
-            {
-                "recursive": args.recursive,
-            }
-        )
-    elif args.command == "list-pins":
-        kwargs.update(
-            {
-                "type": args.type,
-                "quiet": args.quiet,
-            }
-        )
-    elif args.command == "publish":
-        kwargs.update(
-            {
-                "lifetime": args.lifetime,
-                "ttl": args.ttl,
-            }
-        )
-    elif args.command == "resolve":
-        kwargs.update(
-            {
-                "recursive": args.recursive,
-                "timeout": args.timeout,
-            }
-        )
-    elif args.command == "connect":
-        kwargs.update(
-            {
-                "timeout": args.timeout,
-            }
-        )
-    elif args.command == "peers":
-        kwargs.update(
-            {
-                "verbose": args.verbose,
-                "latency": args.latency,
-                "direction": args.direction,
-            }
-        )
-    elif args.command == "ls":
-        kwargs.update(
-            {
-                "detail": args.detail,
-            }
-        )
+    # Process --param arguments if available
+    if hasattr(args, 'param'):
+        for param in args.param:
+            try:
+                kwargs.update(parse_key_value(param))
+            except ValueError as e:
+                logger.warning(f"Skipping invalid parameter: {e}")
 
-    # Add parameters from --param
-    for param in args.param:
-        try:
-            kwargs.update(parse_key_value(param))
-        except ValueError as e:
-            logger.warning(f"Skipping invalid parameter: {e}")
+    # Add timeout if present in args for specific commands
+    if hasattr(args, 'timeout'):
+        kwargs['timeout'] = args.timeout
+    
+    # Handle command-specific timeouts (e.g., timeout_get for get command)
+    if hasattr(args, 'command'):
+        timeout_attr = f'timeout_{args.command}'
+        if hasattr(args, timeout_attr):
+            kwargs['timeout'] = getattr(args, timeout_attr)
+
+    # Merge command-specific args from the namespace into kwargs,
+    # but only if the key wasn't already provided via --param.
+    args_dict = vars(args)
+    for key, value in args_dict.items():
+        # Skip global args, the command itself, and the function handler
+        # Also skip timeout attributes as they're handled separately
+        if key not in ['config', 'verbose', 'param', 'format', 'no_color', 'command', 'func'] and not key.startswith('timeout_'):
+            # If the arg has a value and wasn't set by --param, add it.
+            if value is not None and key not in kwargs:
+                kwargs[key] = value
+            # Handle boolean flags specifically (like --pin, --recursive)
+            # Try to access parser.get_default, but handle case where it's not available in tests
+            try:
+                if 'parser' in globals() and isinstance(getattr(parser.get_default(key), 'action', None), argparse.BooleanOptionalAction):
+                    if value is not None and key not in kwargs:
+                        kwargs[key] = value
+            except (AttributeError, KeyError):
+                # In tests, parser might not be available - just add the value if it's a boolean
+                if isinstance(value, bool) and key not in kwargs:
+                    kwargs[key] = value
+
+    # Clean up kwargs that might have None values if not specified and not overridden by --param
+    # This prevents passing None explicitly to the API methods unless intended
+    kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
     return kwargs
 
@@ -541,123 +674,16 @@ def run_command(args: argparse.Namespace) -> Any:
     Returns:
         Command result
     """
-    # Create API client
-    client = IPFSSimpleAPI(
-        config_path=args.config,
-    )
+    # Create API client - moved to main() to handle initialization errors earlier
+    # client = IPFSSimpleAPI(config_path=args.config)
 
-    # Parse command-specific parameters
-    kwargs = parse_kwargs(args)
+    # Parse command-specific parameters - now handled within main() using parse_kwargs
 
-    # Handle WAL commands if available
-    if WAL_CLI_AVAILABLE and args.command == "wal":
-        return handle_wal_command(client, args)
+    # Handle WAL commands if available - moved to main()
 
-    # Execute command
-    if args.command == "add":
-        # Add content to IPFS
-        result = client.add(args.content, **kwargs)
-
-        # Ensure result is a dictionary for CLI output formatting
-        if not isinstance(result, dict):
-            result = {"result": result}
-
-        # Format the output to match expected format in tests
-        if "cid" in result and "name" in result:
-            result["Added"] = f"{result['name']} ({result['cid']})"
-
-        return result
-    elif args.command == "get":
-        # Validate CID before calling the API
-        if not validate_cid(args.cid):
-            raise IPFSValidationError(f"Invalid CID format: {args.cid}")
-
-        content = client.get(args.cid, **kwargs)
-
-        # Ensure content is bytes
-        if not isinstance(content, bytes):
-            if isinstance(content, dict) and "data" in content:
-                content = content["data"]  # Extract data field if it's a dict
-            else:
-                # Try to convert to bytes
-                try:
-                    content = str(content).encode("utf-8")
-                except Exception:
-                    raise IPFSError(f"Unable to process content returned from API: {type(content)}")
-
-        # Save to file if output path is provided
-        if args.output:
-            with open(args.output, "wb") as f:
-                f.write(content)
-            return {"success": True, "message": f"Content saved to {args.output}"}
-        else:
-            # Return content as string (if it's UTF-8 decodable)
-            try:
-                return content.decode("utf-8")
-            except UnicodeDecodeError:
-                return {"success": True, "message": "Binary content (not displayed)"}
-    elif args.command == "pin":
-        if not validate_cid(args.cid):
-            raise IPFSValidationError(f"Invalid CID format: {args.cid}")
-
-        return client.pin(args.cid, **kwargs)
-    elif args.command == "unpin":
-        if not validate_cid(args.cid):
-            raise IPFSValidationError(f"Invalid CID format: {args.cid}")
-
-        return client.unpin(args.cid, **kwargs)
-    elif args.command == "list-pins":
-        return client.list_pins(**kwargs)
-    elif args.command == "publish":
-        if not validate_cid(args.cid):
-            raise IPFSValidationError(f"Invalid CID format: {args.cid}")
-
-        return client.publish(args.cid, key=args.key, **kwargs)
-    elif args.command == "resolve":
-        return client.resolve(args.name, **kwargs)
-    elif args.command == "connect":
-        return client.connect(args.peer, **kwargs)
-    elif args.command == "peers":
-        return client.peers(**kwargs)
-    elif args.command == "exists":
-        return {"exists": client.exists(args.path, **kwargs)}
-    elif args.command == "ls":
-        return client.ls(args.path, **kwargs)
-    elif args.command == "generate-sdk":
-        return client.generate_sdk(args.language, args.output_dir)
-    elif args.command == "version":
-        # Get package version - use importlib.metadata instead of pkg_resources
-        try:
-            try:
-                # For Python 3.8+
-                from importlib.metadata import version as get_version
-            except ImportError:
-                # For Python < 3.8
-                from importlib_metadata import version as get_version
-            
-            version = get_version("ipfs_kit_py")
-        except Exception:
-            # If we can't determine the version from package, use a fallback
-            version = "0.1.1"  # Hardcode version as fallback
-            
-        # Get IPFS version from daemon if available
-        ipfs_version = "unknown"
-        if hasattr(client, 'ipfs') and client.ipfs:
-            try:
-                ipfs_info = client.ipfs.ipfs_version()
-                if ipfs_info and "success" in ipfs_info and ipfs_info["success"]:
-                    ipfs_version = ipfs_info.get("Version", "unknown")
-            except Exception as e:
-                logger.warning(f"Failed to get IPFS version: {str(e)}")
-                
-        return {
-            "version": version,  # Use the same key as shown in the test output
-            "python": sys.version,
-            "platform": sys.platform,
-            "ipfs_version": ipfs_version,
-        }
-    else:
-        raise IPFSError(f"Unknown command: {args.command}")
+    # Execute command - logic moved to main() using args.func
+    # ... (removed command execution logic from here) ...
+    pass # Placeholder, actual execution happens in main()
 
 
 def main() -> int:
@@ -667,39 +693,109 @@ def main() -> int:
     Returns:
         Exit code
     """
+    args = parse_args()
+
+    # Set up logging level based on verbosity
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    # Use a more standard logging format
+    logging.basicConfig(level=log_level, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+    logger.debug(f"Parsed arguments: {args}")
+
+    # Disable color if requested
+    global _enable_color
+    if args.no_color:
+        _enable_color = False
+        # Disable rich console if no_color is set
+        # global HAS_RICH # Assuming HAS_RICH is defined elsewhere
+        # HAS_RICH = False # This might need adjustment based on how rich is used
+
+    # Initialize API with config if provided
     try:
-        # Parse arguments
-        args = parse_args()
-
-        # Set up logging
-        setup_logging(args.verbose)
-
-        # Run command if specified
-        if args.command:
-            result = run_command(args)
-
-            # Format and print result
-            output = format_output(result, args.format, args.no_color)
-            print(output)
-
-            return 0
-        else:
-            # No command specified, show help
-            parse_args(["--help"])
-            return 0
-
-    except IPFSError as e:
-        logger.error(str(e))
-        print(colorize(f"Error: {str(e)}", "RED"), file=sys.stderr)
-        return 1
+        ipfs_api = IPFSSimpleAPI(config_path=args.config)
+        logger.debug("IPFSSimpleAPI initialized successfully.")
     except Exception as e:
-        logger.exception("Unexpected error")
-        print(
-            colorize(f"Unexpected error: {str(e)}", "RED"),
-            file=sys.stderr,
-        )
+        print(colorize(f"Error initializing IPFS API: {e}", "RED"), file=sys.stderr)
+        if args.verbose:
+             import traceback
+             traceback.print_exc()
         return 1
+
+    # Execute the command function associated with the subparser
+    if hasattr(args, 'func'):
+        try:
+            kwargs = parse_kwargs(args) # Parse --param arguments
+            logger.debug(f"Executing command '{args.command}' with args: {vars(args)} and kwargs: {kwargs}")
+            result = args.func(ipfs_api, args, kwargs) # Call the handler
+
+            # Check if result indicates failure (common pattern is dict with success=False)
+            is_error = isinstance(result, dict) and not result.get("success", True)
+
+            # Format and print result unless it's None
+            if result is not None:
+                 # Use the updated format_output function
+                 output_str = format_output(result, args.format, args.no_color)
+                 print(output_str)
+            elif not is_error:
+                 logger.debug("Command executed successfully but returned no output.")
+
+
+            return 1 if is_error else 0 # Return 1 on error, 0 on success
+
+        except IPFSValidationError as e: # Catch specific validation errors
+             print(colorize(f"Validation Error: {e}", "YELLOW"), file=sys.stderr)
+             return 1
+        except IPFSError as e: # Catch specific IPFS errors
+             print(colorize(f"IPFS Error: {e}", "RED"), file=sys.stderr)
+             return 1
+        except Exception as e: # Catch unexpected errors
+            print(colorize(f"Unexpected Error executing command '{args.command}': {e}", "RED"), file=sys.stderr)
+            if args.verbose:
+                 import traceback
+                 traceback.print_exc()
+            return 1
+    else:
+         # This case should be handled by argparse 'required=True'
+         print(colorize("Error: No command specified. Use --help for usage information.", "RED"), file=sys.stderr)
+         # parser.print_help() # Argparse should handle this
+         return 1
 
 
 if __name__ == "__main__":
     sys.exit(main())
+def handle_version_command(api, args, kwargs):
+    """
+    Handle the 'version' command with platform information.
+    
+    Args:
+        api: IPFS API instance
+        args: Command line arguments
+        kwargs: Additional keyword arguments
+        
+    Returns:
+        Dictionary with version information
+    """
+    # Get package version
+    try:
+        package_version = importlib.metadata.version("ipfs_kit_py")
+    except importlib.metadata.PackageNotFoundError:
+        package_version = "unknown (development mode)"
+    
+    # Get Python version
+    python_version = f"{platform.python_version()}"
+    
+    # Get platform information
+    platform_info = f"{platform.system()} {platform.release()}"
+    
+    # Try to get IPFS daemon version (this might fail if daemon is not running)
+    try:
+        ipfs_version = api.ipfs.ipfs_version()["Version"]
+    except Exception:
+        ipfs_version = "unknown (daemon not running)"
+    
+    # Return version information
+    return {
+        "ipfs_kit_py_version": package_version,
+        "python_version": python_version,
+        "platform": platform_info,
+        "ipfs_daemon_version": ipfs_version
+    }

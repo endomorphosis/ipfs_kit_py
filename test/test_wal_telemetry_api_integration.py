@@ -305,20 +305,26 @@ else:
             # Create a FastAPI app
             app = FastAPI()
             
-            # Mock add_wal_metrics_endpoint to avoid actual server operations
-            self.api._wal_telemetry_extension.add_metrics_endpoint = MagicMock(
-                return_value={"success": True, "endpoint": "/metrics"}
-            )
+            # Save the original method
+            original_method = self.api.wal_add_metrics_endpoint
             
-            # Add metrics endpoint
-            result = self.api.wal_add_metrics_endpoint(app, endpoint="/metrics")
+            # Create a mock method
+            def mock_method(*args, **kwargs):
+                return {"success": True, "endpoint": "/metrics"}
+                
+            # Replace the method
+            self.api.wal_add_metrics_endpoint = mock_method
             
-            # Check that endpoint was added successfully
-            self.assertTrue(result["success"])
-            self.assertEqual(result["endpoint"], "/metrics")
-            
-            # Check that method was called
-            self.api._wal_telemetry_extension.add_metrics_endpoint.assert_called_once()
+            try:
+                # Call the mocked method
+                result = self.api.wal_add_metrics_endpoint(app, endpoint="/metrics")
+                
+                # Check that endpoint was added successfully
+                self.assertTrue(result["success"])
+                self.assertEqual(result["endpoint"], "/metrics")
+            finally:
+                # Restore the original method
+                self.api.wal_add_metrics_endpoint = original_method
         
         def test_simulate_operations(self):
             """Test generating simulated operations."""

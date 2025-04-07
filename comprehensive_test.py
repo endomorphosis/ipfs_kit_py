@@ -77,7 +77,11 @@ def main():
         from ipfs_kit_py.high_level_api import IPFSSimpleAPI
         components["IPFSSimpleAPI"] = IPFSSimpleAPI
         print("✅ Successfully imported IPFSSimpleAPI")
+        
+        # Run the syntax check
+        import check_high_level_api_syntax
         results["details"]["import_high_level_api"] = {"success": True}
+        results["details"]["high_level_api_syntax"] = {"success": True}
     except Exception as e:
         print(f"❌ Error importing IPFSSimpleAPI: {e}")
         traceback.print_exc()

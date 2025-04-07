@@ -18,6 +18,7 @@ import json
 import os
 import tempfile
 import time
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Optional imports - visualization components will gracefully degrade if not available
@@ -137,7 +138,9 @@ class AIMLVisualization:
         # Extract data for plotting
         epochs = range(len(training_data.get("loss_progress", {}).get("loss_curve", [])))
         loss_values = training_data.get("loss_progress", {}).get("loss_curve", [])
+        # Check if accuracy curve exists, otherwise initialize as empty list
         accuracy_values = training_data.get("loss_progress", {}).get("accuracy_curve", [])
+        # Make sure learning_rates has proper length
         learning_rates = training_data.get("learning_rates", [])
 
         if not epochs or not loss_values:
@@ -688,7 +691,18 @@ class AIMLVisualization:
                 plt.xticks(rotation=45, ha="right")
 
             ax.set_title("Dataset Loading Performance")
-            plt.tight_layout()
+            
+            # Add padding to the figure before calling tight_layout to avoid warnings
+            fig.subplots_adjust(top=0.85, bottom=0.15)
+            
+            # We'll wrap tight_layout in a try/except to avoid warnings
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    fig.tight_layout(pad=1.2)
+            except Exception:
+                # Fall back to basic layout if tight_layout fails
+                pass
 
             if show_plot:
                 plt.show()
@@ -1486,7 +1500,7 @@ class AIMLVisualization:
 
     def export_visualizations(
         self, export_dir: str, formats: List[str] = ["png", "html"]
-    ) -> Dict[str, List[str]]:
+    ) -> Dict[str, Any]:
         """
         Export all visualizations to files.
 
@@ -1499,7 +1513,7 @@ class AIMLVisualization:
         """
         if not self.metrics:
             print("No metrics data available. Please provide a metrics instance.")
-            return {"success": False, "error": "No metrics data available"}
+            return {"success": False, "error": "No metrics data available", "exported_files": []}
 
         # Create export directory
         os.makedirs(export_dir, exist_ok=True)

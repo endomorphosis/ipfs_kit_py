@@ -13,6 +13,13 @@ The test suite is organized around these key concepts:
 5. **Coverage Reports:** Measuring how much of the codebase is tested
 6. **Patching Systems:** Special handling for third-party libraries like PyArrow in `patch_cluster_state.py`
 
+## Test Directory Structure
+
+- **test/** - Main test directory
+  - **test_fixtures/** - Reusable test fixtures
+  - **module_tests/** - Tests for specific module features that require special handling
+  - **test_*.py** - Standard test files that are part of the main test suite
+
 ## Current Test Status
 
 The test suite currently has **350+ passing tests** and 45+ skipped tests. Skipped tests typically require external services, specific environment setups (like a running IPFS daemon or cluster), or are platform-specific (running only on Linux, Windows, or macOS).
@@ -618,4 +625,46 @@ def suppress_logging(logger_name=None, level=logging.ERROR):
             yield
         finally:
             root_logger.setLevel(old_level)
+
+## IPFSDataLoader Prefetching System Enhancements
+
+The IPFSDataLoader prefetching system has been significantly enhanced with the following improvements:
+
+### 1. Robust Thread Management
+
+- **Thread Registry**: Tracks all worker threads with detailed metrics
+- **Health Monitoring**: Periodic health checks detect and restart stuck threads
+- **Proper Thread Safety**: Added locks for all shared state modifications
+- **Clean Thread Shutdown**: Improved thread termination with proper cleanup and status updates
+
+### 2. Adaptive Thread Scaling
+
+- **Multi-factor Thread Count Adjustment**: Considers queue utilization, worker efficiency, error rates, processing speed, and thread health
+- **Work Stealing**: Allows efficient workers to process more batches
+- **Health-based Scaling**: Reduces thread count when workers are unhealthy
+- **Fine-grained Metrics**: Tracks reasons for thread count adjustments
+
+### 3. Comprehensive Error Handling
+
+- **Batch Error History**: Tracks problematic batches for smarter scheduling
+- **Error Categorization**: Identifies critical vs. non-critical errors
+- **Smart Retry Logic**: Implements exponential backoff with error-specific delays
+- **Error Recovery Tracking**: Measures success rate of recovery attempts
+- **Adaptive Backoff**: Increases delay after consecutive errors
+
+### 4. Performance Optimization
+
+- **Batch Prioritization**: Smart ordering of batch processing based on error history
+- **Worker Health Scoring**: 0.0-1.0 score based on error rates and recovery efficiency
+- **Adaptive Sleep Times**: Adjusts worker sleep time based on efficiency and health
+- **Dynamic Load Balancing**: Distributes workload optimally across workers
+
+### 5. Improved Diagnostics
+
+- **Detailed Worker Metrics**: Tracks batch sizes, error rates, recovery rates, and health scores
+- **Categorized Error Tracking**: Captures error types for better diagnostics
+- **Performance Analysis**: Improved metrics for thread utilization and efficiency
+- **Error Tracebacks**: Full stack traces for better error diagnosis
+
+These enhancements significantly improve the robustness, efficiency, and adaptability of the IPFSDataLoader's prefetching system, making it more resilient to errors, more efficient with system resources, and better at adapting to changing workload conditions.
 ```

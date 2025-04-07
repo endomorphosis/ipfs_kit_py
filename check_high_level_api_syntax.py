@@ -1,6 +1,12 @@
 """
-Test script to verify high_level_api module syntax.
-This bypasses package imports to focus only on the high_level_api module.
+Syntax Check Utility for high_level_api module.
+
+This utility script verifies the syntax of the high_level_api.py module
+without executing it or importing dependencies. It's used primarily during
+development to check for syntax errors in the high-level API implementation.
+
+Note: This is not a test file, but a utility script. The actual tests for 
+high_level_api.py are in the test/test_high_level_api.py file.
 """
 
 import ast

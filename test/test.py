@@ -7,7 +7,9 @@ import unittest
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 
-class test_ipfs_kit_py:
+# Non-test class (renamed to avoid pytest collection)
+class IPFSKitTester:
+    """Helper class for testing IPFS Kit functionality"""
     def __init__(self, resources=None, metadata=None):
         self.resources = resources or {}
         self.metadata = metadata or {}
@@ -151,8 +153,9 @@ class test_ipfs_kit_py:
 if __name__ == "__main__":
     resources = {}
     metadata = {}
-    test_ipfs_kit = test_ipfs_kit_py(resources, metadata)
-    result = test_ipfs_kit.test()
+    # Use the renamed class
+    tester = IPFSKitTester(resources, metadata)
+    result = tester.test()
 
     # Exit with appropriate code (0 for success, 1 for failure)
     if not result:

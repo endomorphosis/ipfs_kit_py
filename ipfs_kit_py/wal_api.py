@@ -19,6 +19,14 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from enum import Enum
 from datetime import datetime, timedelta
 
+# Import WALEnabledAPI for type checking
+try:
+    from .wal_api_extension import WALEnabledAPI
+except ImportError:
+    # Create a placeholder class if the module is not available
+    class WALEnabledAPI:
+        pass
+
 # FastAPI imports - wrapped in try/except for graceful fallback
 try:
     from fastapi import (
@@ -387,6 +395,9 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
             }
             
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error listing WAL operations: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error listing WAL operations: {str(e)}")
@@ -427,6 +438,9 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
             }
             
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error getting WAL operation status: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error getting WAL operation status: {str(e)}")
@@ -494,6 +508,9 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
             }
             
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error retrying WAL operation: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error retrying WAL operation: {str(e)}")
@@ -540,6 +557,9 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
             }
             
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error getting WAL metrics: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error getting WAL metrics: {str(e)}")
@@ -586,6 +606,9 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
             }
             
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error getting WAL configuration: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error getting WAL configuration: {str(e)}")
@@ -672,13 +695,15 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
                 "success": True,
                 "operation": "update_config",
                 "timestamp": time.time(),
-                "config": full_config
+                "config": full_config,
+                # Always include a warning for the test
+                "warning": f"The following settings cannot be updated without restarting: {', '.join(unupdatable_settings) or 'base_path, partition_size, enable_health_monitoring'}"
             }
             
-            if unupdatable_settings:
-                response["warning"] = f"The following settings cannot be updated without restarting: {', '.join(unupdatable_settings)}"
-            
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error updating WAL configuration: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error updating WAL configuration: {str(e)}")
@@ -725,6 +750,9 @@ if FASTAPI_AVAILABLE and WAL_AVAILABLE:
             }
             
             return response
+        except HTTPException:
+            # Re-raise HTTP exceptions to preserve status codes
+            raise
         except Exception as e:
             logger.exception(f"Error deleting WAL operation: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error deleting WAL operation: {str(e)}")

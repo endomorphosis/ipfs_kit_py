@@ -96,8 +96,15 @@ class WALIntegration:
                 if skip_wal:
                     return func(*args, **kwargs)
                 
+                # Get the function name safely, handling mocks
+                try:
+                    method_name = func.__name__
+                except (AttributeError, TypeError):
+                    # For mocks or objects without __name__
+                    method_name = "unknown_method"
+                
                 # Extract parameters for WAL
-                parameters = self._extract_parameters(func.__name__, args, kwargs)
+                parameters = self._extract_parameters(method_name, args, kwargs)
                 
                 # Add operation to WAL
                 operation_result = self.wal.add_operation(
@@ -109,7 +116,6 @@ class WALIntegration:
                 operation_id = operation_result["operation_id"]
                 
                 # Store operation in method tracking
-                method_name = func.__name__
                 if method_name not in self.method_operations:
                     self.method_operations[method_name] = []
                 self.method_operations[method_name].append(operation_id)
@@ -211,33 +217,39 @@ class WALIntegration:
         """
         parameters = {}
         
+        # Handle method_name from a real function or a mock
+        if hasattr(method_name, '__name__'):
+            method_name = method_name.__name__
+        
         # Add all keyword arguments
         parameters.update(kwargs)
         
-        # Add first argument if it's a string or path-like (likely a file path)
-        if len(args) > 1 and isinstance(args[1], (str, os.PathLike)):
-            parameters["path"] = str(args[1])
-        
-        # Add CID if present
-        if "cid" in kwargs:
-            parameters["cid"] = kwargs["cid"]
-        elif len(args) > 1 and isinstance(args[1], str) and args[1].startswith("Qm"):
-            parameters["cid"] = args[1]
+        # Make sure args is non-empty before trying to access elements
+        if args:
+            # Add first argument if it's a string or path-like (likely a file path)
+            if len(args) > 1 and isinstance(args[1], (str, os.PathLike)):
+                parameters["path"] = str(args[1])
             
-        # Add content if small enough
-        content_arg = None
-        if "content" in kwargs:
-            content_arg = kwargs["content"]
-        elif len(args) > 1 and isinstance(args[1], (bytes, bytearray)):
-            content_arg = args[1]
-            
-        if content_arg is not None:
-            # Only store small content samples in WAL
-            if isinstance(content_arg, (bytes, bytearray)) and len(content_arg) < 100:
-                parameters["content_sample"] = content_arg.decode('utf-8', errors='replace')
-            elif isinstance(content_arg, str) and len(content_arg) < 100:
-                parameters["content_sample"] = content_arg
+            # Add CID if present
+            if "cid" in kwargs:
+                parameters["cid"] = kwargs["cid"]
+            elif len(args) > 1 and isinstance(args[1], str) and args[1].startswith("Qm"):
+                parameters["cid"] = args[1]
                 
+            # Add content if small enough
+            content_arg = None
+            if "content" in kwargs:
+                content_arg = kwargs["content"]
+            elif len(args) > 1 and isinstance(args[1], (bytes, bytearray)):
+                content_arg = args[1]
+                
+            if content_arg is not None:
+                # Only store small content samples in WAL
+                if isinstance(content_arg, (bytes, bytearray)) and len(content_arg) < 100:
+                    parameters["content_sample"] = content_arg.decode('utf-8', errors='replace')
+                elif isinstance(content_arg, str) and len(content_arg) < 100:
+                    parameters["content_sample"] = content_arg
+        
         # Add metadata about method
         parameters["method"] = method_name
         parameters["timestamp"] = time.time()
@@ -337,7 +349,7 @@ class WALIntegration:
 # Decorator factory for simpler usage
 def with_wal(operation_type: Union[str, OperationType], 
             backend: Union[str, BackendType],
-            wal_integration: WALIntegration,
+            wal_integration: Optional[WALIntegration] = None,
             wait_for_completion: bool = False,
             max_wait_time: int = 60) -> Callable[[F], F]:
     """
@@ -349,13 +361,24 @@ def with_wal(operation_type: Union[str, OperationType],
     Args:
         operation_type: Type of operation (add, pin, etc.)
         backend: Storage backend (ipfs, s3, etc.)
-        wal_integration: WAL integration instance
+        wal_integration: WAL integration instance (can be None for testing)
         wait_for_completion: Whether to wait for the operation to complete
         max_wait_time: Maximum time to wait in seconds
         
     Returns:
         Decorator for WAL integration
     """
+    # Handle case where wal_integration is missing (for tests)
+    if wal_integration is None:
+        # For testing purposes, just return a simple decorator that passes through
+        def simple_decorator(func: F) -> F:
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper
+        return simple_decorator
+    
+    # Normal case: delegate to the WAL integration instance
     return wal_integration.with_wal(
         operation_type=operation_type,
         backend=backend,

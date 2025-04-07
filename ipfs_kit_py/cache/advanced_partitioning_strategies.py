@@ -96,7 +96,7 @@ class PartitionInfo:
         try:
             strategy = PartitioningStrategy(strategy_value)
         except ValueError:
-            logger.warning(f"Unknown partitioning strategy: {strategy_value}, using NONE")
+            logger.debug(f"Unknown partitioning strategy: {strategy_value}, using NONE")
             strategy = PartitioningStrategy.NONE
             
         return cls(
@@ -814,7 +814,7 @@ class DynamicPartitionManager:
             statistics: New statistics (if None, keep existing)
         """
         if partition_id not in self.partitions:
-            logger.warning(f"Partition {partition_id} not found in registry")
+            logger.debug(f"Partition {partition_id} not found in registry")
             return
             
         partition = self.partitions[partition_id]
@@ -1121,7 +1121,7 @@ class AdvancedPartitionManager:
             try:
                 self.strategy = PartitioningStrategy(strategy)
             except ValueError:
-                logger.warning(f"Unknown partitioning strategy: {strategy}, using DYNAMIC")
+                logger.debug(f"Unknown partitioning strategy: {strategy}, using DYNAMIC")
                 self.strategy = PartitioningStrategy.DYNAMIC
         else:
             self.strategy = strategy
@@ -1346,7 +1346,7 @@ class AdvancedPartitionManager:
             would require moving data between partitions which is not implemented here.
         """
         if not isinstance(self.strategy_impl, DynamicPartitionManager):
-            logger.warning("Partition optimization only supported with DynamicPartitionManager")
+            logger.debug("Partition optimization only supported with DynamicPartitionManager")
             return
             
         # Log what would happen in a real implementation

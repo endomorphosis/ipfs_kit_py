@@ -1,0 +1,229 @@
+def close(self) -> Union[Dict[str, Any], "CloseResponse"]:
+    """Clean up resources used by the data loader.
+    
+    This method properly releases all resources used by the data loader to prevent 
+    memory leaks and ensure clean shutdown. It performs the following cleanup operations:
+    
+    1. Stops all background prefetching threads
+    2. Clears and releases queue resources
+    3. Releases cached data and file handles
+    4. Cleans up any temporary files or memory mappings
+    5. Releases reference cycles that might prevent garbage collection
+    
+    Always call this method when you're done using the data loader, especially in 
+    long-running applications or when processing multiple datasets sequentially.
+    
+    Returns:
+        Union[Dict[str, Any], CloseResponse]: A status object containing:
+            - success: Whether all resources were properly released
+            - threads_stopped: Number of threads that were successfully stopped
+            - queue_items_cleared: Number of items cleared from the queue
+            - cache_items_released: Number of cache entries released
+            - error: Error message if any issues occurred during cleanup
+    
+    Example:
+        ```python
+        # Using with context manager (recommended)
+        with ipfs_data_loader_context(kit) as loader:
+            loader.load_dataset(dataset_cid)
+            # Use the loader...
+        # Resources automatically released here
+        
+        # Manual cleanup
+        loader = kit.get_data_loader()
+        try:
+            loader.load_dataset(dataset_cid)
+            # Use the loader...
+        finally:
+            loader.close()  # Always call close to release resources
+        ```
+    """
+    import queue
+    import gc
+    import threading
+    
+    result = {
+        "success": True,
+        "operation": "close",
+        "timestamp": time.time(),
+        "threads_stopped": 0,
+        "queue_items_cleared": 0,
+        "cache_items_released": 0,
+        "resources_released": []
+    }
+    
+    errors = []
+    
+    # 1. Handle thread shutdown
+    try:
+        # Stop prefetching by setting stop event
+        if hasattr(self, 'stop_prefetch'):
+            self.stop_prefetch.set()
+        
+        # Additional safety measure: set a thread termination flag if it exists
+        if hasattr(self, 'terminate_threads'):
+            self.terminate_threads = True
+            result["resources_released"].append("thread_termination_flag")
+
+        # Wait for prefetch threads to stop with timeout
+        thread_count = 0
+        if hasattr(self, 'prefetch_threads'):
+            thread_count = len(self.prefetch_threads)
+            for i, thread in enumerate(self.prefetch_threads):
+                if thread and thread.is_alive():
+                    # First try a gentle join with timeout
+                    thread.join(timeout=2.0)
+                    
+                    # Check if thread stopped
+                    if not thread.is_alive():
+                        result["threads_stopped"] += 1
+                    else:
+                        # Log warning about thread not stopping properly
+                        thread_name = thread.name if hasattr(thread, 'name') else f"Thread-{i}"
+                        self.logger.warning(f"Thread {thread_name} did not stop within timeout")
+                        errors.append(f"Thread {thread_name} did not terminate")
+            
+            # Clear thread list to release references
+            self.prefetch_threads = []
+            result["resources_released"].append("thread_references")
+    except Exception as e:
+        errors.append(f"Thread shutdown error: {str(e)}")
+        self.logger.error(f"Error during thread shutdown: {e}", exc_info=True)
+
+    # 2. Handle queue cleanup
+    try:
+        queue_items = 0
+        if hasattr(self, 'prefetch_queue'):
+            # Clear all items from the queue
+            while True:
+                try:
+                    # Use a short timeout to avoid blocking indefinitely
+                    self.prefetch_queue.get(block=True, timeout=0.1)
+                    queue_items += 1
+                except (queue.Empty, AttributeError):
+                    break
+                except Exception as e:
+                    errors.append(f"Queue cleanup error: {str(e)}")
+                    self.logger.warning(f"Error during queue cleanup: {e}")
+                    break
+                    
+            # Try to release the queue itself if possible
+            try:
+                if hasattr(self.prefetch_queue, 'close'):
+                    self.prefetch_queue.close()
+                # Set to None to release reference
+                self.prefetch_queue = None
+                result["resources_released"].append("queue_object")
+            except Exception as e:
+                errors.append(f"Queue release error: {str(e)}")
+                self.logger.warning(f"Error releasing queue: {e}")
+                
+        result["queue_items_cleared"] = queue_items
+    except Exception as e:
+        errors.append(f"Queue cleanup error: {str(e)}")
+        self.logger.error(f"Error during queue cleanup: {e}", exc_info=True)
+
+    # 3. Release sample cache
+    try:
+        cache_items = 0
+        if hasattr(self, 'sample_cache') and self.sample_cache:
+            cache_items = len(self.sample_cache)
+            self.sample_cache.clear()
+            result["cache_items_released"] = cache_items
+            result["resources_released"].append("sample_cache")
+            
+        # Clear access times tracking
+        if hasattr(self, 'cache_access_times') and self.cache_access_times:
+            self.cache_access_times.clear()
+            result["resources_released"].append("cache_access_times")
+            
+        # Release embedded samples if any
+        if hasattr(self, 'embedded_samples') and self.embedded_samples:
+            self.embedded_samples = None
+            result["resources_released"].append("embedded_samples")
+    except Exception as e:
+        errors.append(f"Cache cleanup error: {str(e)}")
+        self.logger.error(f"Error during cache cleanup: {e}", exc_info=True)
+    
+    # 4. Release any file handles or temporary resources
+    try:
+        # Close and release any open file handles if they exist
+        if hasattr(self, 'file_handles') and self.file_handles:
+            for handle in self.file_handles:
+                try:
+                    handle.close()
+                except Exception as e:
+                    self.logger.warning(f"Error closing file handle: {e}")
+            self.file_handles.clear()
+            result["resources_released"].append("file_handles")
+            
+        # Release any memory-mapped files if they exist
+        if hasattr(self, 'mmap_objects') and self.mmap_objects:
+            for mmap_obj in self.mmap_objects:
+                try:
+                    mmap_obj.close()
+                except Exception as e:
+                    self.logger.warning(f"Error closing memory-mapped file: {e}")
+            self.mmap_objects.clear()
+            result["resources_released"].append("mmap_objects")
+            
+        # Clear any temporary directories if they exist
+        if hasattr(self, 'temp_dirs') and self.temp_dirs:
+            import shutil
+            for temp_dir in self.temp_dirs:
+                try:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                except Exception as e:
+                    self.logger.warning(f"Error removing temporary directory: {e}")
+            self.temp_dirs.clear()
+            result["resources_released"].append("temp_dirs")
+    except Exception as e:
+        errors.append(f"Resource cleanup error: {str(e)}")
+        self.logger.error(f"Error during resource cleanup: {e}", exc_info=True)
+    
+    # 5. Final cleanup and garbage collection encouragement
+    try:
+        # Clear dataset references to encourage garbage collection
+        if hasattr(self, 'dataset_metadata'):
+            self.dataset_metadata = None
+            result["resources_released"].append("dataset_metadata")
+        
+        if hasattr(self, 'sample_cids'):
+            self.sample_cids = None
+            result["resources_released"].append("sample_cids")
+            
+        # Reset dataset state
+        self.total_samples = 0
+        self.dataset_cid = None
+        
+        # Explicitly run garbage collection to reclaim memory
+        gc.collect()
+        result["resources_released"].append("garbage_collection_triggered")
+    except Exception as e:
+        errors.append(f"Final cleanup error: {str(e)}")
+        self.logger.error(f"Error during final cleanup: {e}", exc_info=True)
+    
+    # Aggregate all errors and determine success status
+    if errors:
+        result["success"] = False
+        result["errors"] = errors
+        result["error"] = "; ".join(errors[:3])  # Include first 3 errors in summary
+        if len(errors) > 3:
+            result["error"] += f"; and {len(errors) - 3} more errors"
+    else:
+        result["success"] = True
+    
+    # Check for thread termination issues
+    if thread_count > 0 and result["threads_stopped"] < thread_count:
+        result["warning"] = f"Failed to stop all threads: {result['threads_stopped']}/{thread_count} stopped"
+        self.logger.warning(result["warning"])
+    
+    # Return appropriate response type
+    if PYDANTIC_AVAILABLE:
+        # Update the Pydantic model with the new fields
+        try:
+            return CloseResponse(**result)
+        except Exception:
+            # If the model doesn't have the new fields, just return as dict
+            return result
+    return result

@@ -1,5 +1,11 @@
 """
 Simplified test for FSSpec integration in high_level_api.py
+
+This module provides mock classes for testing the FSSpec integration without 
+requiring actual FSSpec to be installed.
+
+Run this from the project root with:
+python -m tools.test_utils.test_fsspec_simple
 """
 
 import os
@@ -10,8 +16,9 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+# Add project root to path if needed
+if not os.getcwd() in sys.path:
+    sys.path.insert(0, os.getcwd())
 
 # Mock the required modules and classes
 class MockAbstractFileSystem:

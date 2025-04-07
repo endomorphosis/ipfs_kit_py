@@ -132,43 +132,72 @@ def get_cluster_state(state_path: str) -> Optional[pa.Table]:
         logger.error("PyArrow not available")
         return None
 
+    # --- Added Check ---
+    # Ensure the state path exists and is a directory before proceeding
+    if not state_path or not os.path.exists(state_path) or not os.path.isdir(state_path):
+        logger.error(f"Invalid or non-existent state directory: {state_path}")
+        return None
+    # --- End Added Check ---
+
     try:
         # Get metadata to find the parquet file path
         _, metadata = connect_to_state_store(state_path)
+        parquet_path = None
+        path_from_metadata = False # Flag to track if path came from metadata
+
         if not metadata:
-            logger.warning("No metadata available, searching for parquet files")
+            logger.warning(f"No metadata available for {state_path}, searching for parquet files")
             # Try to find any parquet file in the directory
             import glob
-
             parquet_files = glob.glob(os.path.join(state_path, "*.parquet"))
             if not parquet_files:
-                logger.error(f"No parquet files found in {state_path}")
+                # Log the specific error for this case
+                logger.error(f"No *.parquet files found via glob in {state_path}")
                 return None
-            parquet_path = parquet_files[0]
+            parquet_path = parquet_files[0] # Take the first one found
+            logger.info(f"Found parquet file via glob: {parquet_path}")
         else:
-            # Use the path from metadata
+            # Use the path from metadata if available
             parquet_path = metadata.get("parquet_path")
-            if not parquet_path:
-                # Look for state_*.parquet files
+            if parquet_path:
+                 path_from_metadata = True
+                 logger.info(f"Using parquet path from metadata: {parquet_path}")
+            else:
+                # Look for state_*.parquet files if parquet_path not in metadata
+                logger.warning(f"Metadata found for {state_path}, but 'parquet_path' missing. Searching for state_*.parquet")
                 import glob
-
                 parquet_files = glob.glob(os.path.join(state_path, "state_*.parquet"))
                 if not parquet_files:
-                    logger.error(f"No state parquet files found in {state_path}")
+                    # Log the specific error for this case
+                    logger.error(f"No state_*.parquet files found via glob in {state_path}")
                     return None
-                parquet_path = parquet_files[0]
+                parquet_path = parquet_files[0] # Take the first one found
+                logger.info(f"Found state_*.parquet file via glob: {parquet_path}")
 
-        # Check if parquet file exists
+
+        # Double check if path is valid before reading
+        if not parquet_path:
+             logger.error("Could not determine a valid parquet path.")
+             return None
+
+        # Check if the determined parquet file actually exists before trying to read
+        # This check is important especially if the path was derived via glob or potentially invalid metadata
         if not os.path.exists(parquet_path):
-            logger.error(f"Parquet file not found at {parquet_path}")
+            logger.error(f"Determined parquet file path does not exist: {parquet_path}")
             return None
 
+
         # Read the parquet file
-        # Use the already imported pq module (alias for pyarrow.parquet)
+        logger.info(f"Attempting to read parquet file: {parquet_path}")
         return pq.read_table(parquet_path)
 
     except Exception as e:
-        logger.error(f"Error getting cluster state: {e}")
+        # Catch specific pyarrow errors if possible, otherwise generic exception
+        if isinstance(e, pa.ArrowIOError) and "does not exist" in str(e):
+             logger.error(f"ArrowIOError: File not found at path: {parquet_path}. Original error: {e}")
+        else:
+             # Log with traceback for better debugging
+             logger.error(f"Error getting cluster state from {state_path}: {e}", exc_info=True)
         return None
 
 

@@ -239,7 +239,24 @@ class TestTieredCacheManager(unittest.TestCase):
         self.cache = TieredCacheManager(config=self.config)
 
     def tearDown(self):
-        """Clean up the temporary directory."""
+        """Clean up the temporary directory and any memory-mapped files."""
+        # Close any memory-mapped files
+        if hasattr(self.cache, 'mmap_store'):
+            for key, (file_obj, mmap_obj, temp_path) in list(self.cache.mmap_store.items()):
+                try:
+                    if mmap_obj and not mmap_obj.closed:
+                        mmap_obj.close()
+                    if file_obj and not file_obj.closed:
+                        file_obj.close()
+                    if temp_path and os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                except Exception as e:
+                    print(f"Error cleaning up mmap for {key}: {e}")
+                
+            # Clear the store
+            self.cache.mmap_store.clear()
+            
+        # Remove temporary directory
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_init(self):

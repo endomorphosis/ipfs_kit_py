@@ -10,7 +10,31 @@ import sys
 import tempfile
 import time
 import unittest
+import asyncio
+import atexit
 from unittest.mock import MagicMock, patch
+
+# Track all event loops to ensure proper cleanup
+all_event_loops = []
+original_new_event_loop = asyncio.new_event_loop
+
+def patched_new_event_loop(*args, **kwargs):
+    loop = original_new_event_loop(*args, **kwargs)
+    all_event_loops.append(loop)
+    return loop
+
+asyncio.new_event_loop = patched_new_event_loop
+
+# Ensure all event loops are closed at exit
+def cleanup_event_loops():
+    for loop in all_event_loops:
+        if not loop.is_closed():
+            try:
+                loop.close()
+            except Exception:
+                pass
+
+atexit.register(cleanup_event_loops)
 
 # Ensure package is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -20,6 +44,26 @@ try:
     from test.test_fixtures.libp2p_test_fixtures import (
         SimulatedNode, NetworkSimulator, MockLibp2pPeer, NetworkScenario
     )
+    
+    # Override NetworkSimulator to prevent event loop resource warnings
+    original_get_instance = NetworkSimulator.get_instance
+    
+    @classmethod
+    def patched_get_instance(cls, *args, **kwargs):
+        instance = original_get_instance(*args, **kwargs)
+        # Ensure the simulator doesn't create its own event loop
+        if hasattr(instance, '_event_loop') and not instance._event_loop.is_closed():
+            try:
+                instance._event_loop.close()
+            except Exception:
+                pass
+        # Use the class event loop instead
+        instance._event_loop = asyncio.get_event_loop()
+        return instance
+    
+    # Apply the patch
+    NetworkSimulator.get_instance = patched_get_instance
+    
     FIXTURES_AVAILABLE = True
 except ImportError:
     FIXTURES_AVAILABLE = False
@@ -454,10 +498,54 @@ class TestLibP2PIntegration(unittest.TestCase):
 class TestLibP2PNetworkWithFixtures(unittest.TestCase):
     """Test libp2p networking using the new fixtures."""
     
+    @classmethod
+    def setUpClass(cls):
+        """Set up resources for all tests in the class."""
+        # Initialize the event loop for the class to prevent ResourceWarning
+        # Store the original event loop policy
+        cls._original_policy = asyncio.get_event_loop_policy()
+        # Create a new event loop for the tests
+        cls._event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cls._event_loop)
+    
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up resources for all tests in the class."""
+        # Close the event loop to prevent ResourceWarning
+        if hasattr(cls, '_event_loop'):
+            try:
+                # Make sure any pending tasks are cancelled
+                pending_tasks = asyncio.all_tasks(cls._event_loop)
+                if pending_tasks:
+                    print(f"Warning: Found {len(pending_tasks)} pending tasks. Cancelling them.")
+                    for task in pending_tasks:
+                        task.cancel()
+                
+                # Run the event loop until all tasks are done
+                if pending_tasks:
+                    cls._event_loop.run_until_complete(
+                        asyncio.gather(*pending_tasks, return_exceptions=True)
+                    )
+                
+                # Close the event loop
+                cls._event_loop.close()
+                print("Event loop closed successfully")
+            except Exception as e:
+                print(f"Error closing event loop: {e}")
+        
+        # Restore the original event loop policy
+        if hasattr(cls, '_original_policy'):
+            try:
+                asyncio.set_event_loop_policy(cls._original_policy)
+                print("Event loop policy restored")
+            except Exception as e:
+                print(f"Error restoring event loop policy: {e}")
+    
     def setUp(self):
         """Set up test environment."""
         # Create a network simulator for testing
-        self.network = NetworkSimulator()
+        self.network = NetworkSimulator.get_instance()
+        self.network.reset()  # Make sure we start with a clean state
         
         # Create a scenario with multiple nodes
         self.scenario = NetworkScenario.create_small_network_scenario(self.network)
@@ -467,6 +555,19 @@ class TestLibP2PNetworkWithFixtures(unittest.TestCase):
         self.worker_nodes = self.scenario.get_nodes_by_role("worker")
         self.leecher_node = self.scenario.get_node_by_role("leecher")
         
+        # Ensure nodes are properly initialized
+        if not self.master_node:
+            raise ValueError("Master node was not initialized properly")
+        if not self.worker_nodes:
+            raise ValueError("Worker nodes were not initialized properly")
+        if not self.leecher_node:
+            raise ValueError("Leecher node was not initialized properly")
+    
+    def tearDown(self):
+        """Clean up after the test."""
+        # Reset the network simulator
+        self.network.reset()
+    
     def test_network_simulator(self):
         """Test the network simulator functionality."""
         # Verify network setup

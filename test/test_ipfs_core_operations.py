@@ -23,8 +23,12 @@ class TestIPFSCoreOperations(unittest.TestCase):
             "testing": True,  # Mark as testing to avoid real daemon calls
         }
 
+        # Initialize list to track all temporary directories
+        self.temp_directories = []
+
         # Create temporary directory for test files
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_directories.append(self.temp_dir)
         self.test_dir = self.temp_dir.name
 
         # Create a test file for operations that need a file
@@ -36,6 +40,16 @@ class TestIPFSCoreOperations(unittest.TestCase):
         from ipfs_kit_py.ipfs import ipfs_py
 
         self.ipfs_cls = ipfs_py
+        
+        # Monkey patch tempfile.TemporaryDirectory to track all instances
+        self.original_temp_dir = tempfile.TemporaryDirectory
+        
+        def tracked_temp_dir(*args, **kwargs):
+            temp_dir = self.original_temp_dir(*args, **kwargs)
+            self.temp_directories.append(temp_dir)
+            return temp_dir
+            
+        tempfile.TemporaryDirectory = tracked_temp_dir
 
         # Add mock methods to the class for testing
         # This is a temporary solution until the actual implementations are added
@@ -177,8 +191,24 @@ class TestIPFSCoreOperations(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test fixtures after each test method."""
-        # Clean up the temporary directory
-        self.temp_dir.cleanup()
+        # Restore original TemporaryDirectory
+        if hasattr(self, 'original_temp_dir'):
+            tempfile.TemporaryDirectory = self.original_temp_dir
+            
+        # Clean up all tracked temporary directories
+        for temp_dir in reversed(self.temp_directories):
+            try:
+                if temp_dir:
+                    temp_dir.cleanup()
+            except Exception as e:
+                print(f"Warning: Error cleaning up temporary directory: {e}")
+        
+        # Clear the list of tracked directories
+        self.temp_directories = []
+        
+        # Explicitly call garbage collection to ensure any remaining TemporaryDirectory objects are cleaned up
+        import gc
+        gc.collect()
 
     @patch("subprocess.run")
     def test_ipfs_add_file(self, mock_run):

@@ -12,6 +12,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Register custom markers
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "no_global_reset: mark test to not reset global variables after running"
+    )
+
 # Configure test logging
 logging.basicConfig(level=logging.INFO)
 
@@ -221,8 +228,15 @@ def patch_global_modules():
         # Apply the ArrowClusterState patches for test compatibility
         try:
             from test.patch_cluster_state import apply_patches
-
             apply_patches()
+        except ImportError:
+            # If the patch module is not available, that's fine
+            pass
+            
+        # Apply the Uvicorn WebSocket patch to fix deprecation warnings
+        try:
+            from test.patches.uvicorn_websockets_patch import apply_uvicorn_websockets_patch
+            apply_uvicorn_websockets_patch()
         except ImportError:
             # If the patch module is not available, that's fine
             pass
@@ -271,14 +285,21 @@ def suppress_test_warnings():
 
 
 @pytest.fixture(autouse=True)
-def reset_globals():
+def reset_globals(request):
     """Reset global state before each test to ensure test isolation."""
+    # Skip if test is marked with no_global_reset
+    if request.node.get_closest_marker("no_global_reset"):
+        # Skip global reset for this test
+        yield
+        return
+
     # Create a dictionary to store original values of modules we'll patch
     original_values = {}
 
     # Reset any ipfs_kit_py modules that have global state
     try:
         # Import modules that might have global state
+        import ipfs_kit_py
         import ipfs_kit_py.ai_ml_integration
         import ipfs_kit_py.arrow_metadata_index
         import ipfs_kit_py.cluster_state
@@ -316,6 +337,9 @@ def reset_globals():
                 # For other types (including None), store directly
                 original_values[key] = attr_value
                 setattr(module, attr_name, None)
+                
+        # We will NOT reset the _BINARIES_DOWNLOADED flag here to avoid issue with the specific binary download tests
+        # Instead, tests that need to control this flag should do so explicitly
 
         # Reset ipfs_kit module globals
         save_attr(ipfs_kit_py.ipfs_kit, "_default_instance", "default_instance")
@@ -346,7 +370,16 @@ def reset_globals():
         # Reset cluster_state_helpers module globals
         save_attr(ipfs_kit_py.cluster_state_helpers, "_state_cache", "state_cache")
 
-        # Reset ipfs_fsspec module globals
+        # Reset ipfs_fsspec module globals and stop metrics collection threads
+        if hasattr(ipfs_kit_py.ipfs_fsspec, "_filesystem_instances"):
+            # Call stop_metrics_collection on any filesystem instances to clean up threads
+            for fs_instance in getattr(ipfs_kit_py.ipfs_fsspec, "_filesystem_instances", {}).values():
+                if hasattr(fs_instance, "stop_metrics_collection"):
+                    try:
+                        fs_instance.stop_metrics_collection()
+                    except Exception:
+                        pass
+                        
         save_attr(ipfs_kit_py.ipfs_fsspec, "_filesystem_instances", "filesystem_instances")
 
         # Reset libp2p module globals
@@ -434,10 +467,34 @@ def reset_globals():
 
         # Restore ipld_knowledge_graph module globals
         restore_attr(ipfs_kit_py.ipld_knowledge_graph, "_graph_instances", "graph_instances")
+        
+        # We do not restore the _BINARIES_DOWNLOADED flag since we didn't save it
+        # Tests that modify this flag should restore it themselves if needed
 
     except (NameError, AttributeError) as e:
         # Module might have been unloaded
         pass
+
+
+@pytest.fixture
+def control_binaries_downloaded():
+    """Control the _BINARIES_DOWNLOADED global flag for tests that need it."""
+    # Import the module that has the flag
+    import ipfs_kit_py
+    
+    # Store original value
+    original_value = getattr(ipfs_kit_py, "_BINARIES_DOWNLOADED", False)
+    
+    # Provide a function to control the flag
+    def set_flag(value):
+        ipfs_kit_py._BINARIES_DOWNLOADED = value
+        return value
+    
+    # Return the control function
+    yield set_flag
+    
+    # Restore original value
+    ipfs_kit_py._BINARIES_DOWNLOADED = original_value
 
 
 @pytest.fixture
