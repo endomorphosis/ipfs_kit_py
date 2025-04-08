@@ -16,9 +16,9 @@ import pytest
 from ipfs_kit_py.huggingface_kit import HUGGINGFACE_HUB_AVAILABLE, huggingface_kit
 
 
-@pytest.mark.skipif(
-    not HUGGINGFACE_HUB_AVAILABLE, reason="HuggingFace Hub package not installed"
-)
+# @pytest.mark.skipif(
+#     not HUGGINGFACE_HUB_AVAILABLE, reason="HuggingFace Hub package not installed"
+# )
 class TestHuggingFaceKit(unittest.TestCase):
     """Test cases for the huggingface_kit module."""
 
