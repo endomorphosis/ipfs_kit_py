@@ -228,14 +228,14 @@ class SchemaProfiler:
         if not self.query_history:
             return
             
-        # Calculate metrics
+        # Calculate metrics with safer access using get() with default values
         read_count = sum(1 for q in self.query_history if q.get("operation") == "read")
         write_count = sum(1 for q in self.query_history if q.get("operation") == "write")
         analytical_count = sum(1 for q in self.query_history 
                               if q.get("group_by") or len(q.get("filters", [])) > 2)
         
-        # Calculate temporal patterns
-        timestamps = sorted([q["timestamp"] for q in self.query_history])
+        # Calculate temporal patterns with safer timestamp access
+        timestamps = sorted([q.get("timestamp", 0) for q in self.query_history])
         time_intervals = [timestamps[i+1] - timestamps[i] for i in range(len(timestamps)-1)]
         is_time_series = False
         if time_intervals:
@@ -246,21 +246,23 @@ class SchemaProfiler:
             if mean_interval > 0 and (stddev_interval / mean_interval) < 0.5:
                 is_time_series = True
         
-        # Check if CID-focused
+        # Check if CID-focused with safer column access
         cid_operations = sum(1 for q in self.query_history 
                             if any(col == "cid" for col in q.get("columns", [])))
         
-        # Determine workload type
+        # Determine workload type with safer division (avoid ZeroDivisionError)
         total = len(self.query_history)
-        if is_time_series:
+        if total == 0:  # Safety check
+            self.workload_type = WorkloadType.MIXED
+        elif is_time_series:
             self.workload_type = WorkloadType.TIME_SERIES
-        elif cid_operations / total > 0.7:
+        elif total > 0 and cid_operations / total > 0.7:
             self.workload_type = WorkloadType.CID_FOCUSED
-        elif analytical_count / total > 0.5:
+        elif total > 0 and analytical_count / total > 0.5:
             self.workload_type = WorkloadType.ANALYTICAL
-        elif read_count / total > 0.7:
+        elif total > 0 and read_count / total > 0.7:
             self.workload_type = WorkloadType.READ_HEAVY
-        elif write_count / total > 0.7:
+        elif total > 0 and write_count / total > 0.7:
             self.workload_type = WorkloadType.WRITE_HEAVY
         else:
             self.workload_type = WorkloadType.MIXED

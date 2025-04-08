@@ -114,32 +114,46 @@ class TestBinaryFunctionality:
 
     def test_ipfs_kit_uses_downloaded_binary(self, ensure_binaries):
         """Test that ipfs_kit uses the downloaded binary."""
-        # Skip the actual implementation and test with a mock
-        # This simplifies the test while still verifying behavior
+        # Test with a proper mock that correctly simulates the ipfs_kit object
+        bin_dir = ensure_binaries
         
-        # Create a mocked ipfs_kit instance
-        kit = MagicMock()
+        # Get the appropriate binary path
+        binary_name = "ipfs.exe" if platform.system() == "Windows" else "ipfs"
+        binary_path = os.path.join(bin_dir, binary_name)
         
-        # Set up the mock to return a successful result for ipfs_add_path
-        mock_cid = "QmTest123"
-        kit.ipfs_add_path.return_value = {
-            "success": True,
-            "cid": mock_cid,
-            "Hash": mock_cid,
-            "operation": "ipfs_add_path"
-        }
+        # Create a temporary test file
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"Test content")
+            test_file_path = tmp.name
         
-        # Call the method
-        result = kit.ipfs_add_path("/path/to/test/file")
-        
-        # Verify the result
-        assert result is not None, "Add operation returned None"
-        assert result["success"] is True, "Add operation was not successful"
-        assert "cid" in result, "CID not found in result"
-        assert result["cid"] == mock_cid, f"CID mismatch: {result['cid']} != {mock_cid}"
-        
-        # Verify the method was called
-        kit.ipfs_add_path.assert_called_once_with("/path/to/test/file")
+        try:
+            # Create a mock for subprocess.run to avoid calling the actual binary
+            with patch('subprocess.run') as mock_run:
+                # Configure the mock to return a successful result
+                mock_process = MagicMock()
+                mock_process.returncode = 0
+                mock_process.stdout = b'{"Hash": "QmTest123", "Size": "12"}'
+                mock_run.return_value = mock_process
+                
+                # Create a real ipfs_py instance with the mocked subprocess
+                ipfs = ipfs_py(binary_path=binary_path)
+                
+                # Call the add method with our test file
+                result = ipfs.add(test_file_path)
+                
+                # Verify the mock was called with the expected arguments
+                assert mock_run.called, "subprocess.run was not called"
+                
+                # Verify the result matches what we expect
+                assert result is not None, "Add operation returned None"
+                assert isinstance(result, dict), "Result is not a dictionary"
+                assert "Hash" in result, "Hash not found in result"
+                assert result["Hash"] == "QmTest123", f"Hash mismatch: {result['Hash']} != QmTest123"
+                
+        finally:
+            # Clean up the temporary file
+            if os.path.exists(test_file_path):
+                os.unlink(test_file_path)
 
     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unix socket test not applicable on Windows"
@@ -150,20 +164,47 @@ class TestBinaryFunctionality:
         if not platform.system() in ["Linux", "Darwin"]:
             pytest.skip("Unix socket test only applies to Unix-like systems")
 
-        # Skip the actual test implementation and just check a mock
-        # This avoids the need to start an actual daemon
-        kit = MagicMock()
-        kit.ipfs_id.return_value = {
-            "success": True,
-            "ID": "TestID",
-            "Addresses": ["/ip4/127.0.0.1/tcp/4001"],
-            "operation": "ipfs_id"
-        }
+        bin_dir = ensure_binaries
         
-        # Test functionality
-        id_result = kit.ipfs_id()
+        # Get the appropriate binary path
+        binary_path = os.path.join(bin_dir, "ipfs")
         
-        # Verify response contains expected data
-        assert id_result is not None, "IPFS ID returned None"
-        assert id_result.get("success", False) is True, f"IPFS ID operation not successful: {id_result}"
-        assert "ID" in id_result, f"Missing ID in response: {id_result}"
+        # Create a mock socket path
+        socket_path = "/tmp/ipfs-api-mock.sock"
+
+        # Mock the necessary parts for Unix socket testing
+        with patch('subprocess.run') as mock_run, \
+             patch('os.path.exists') as mock_exists, \
+             patch('requests.Session') as mock_session_class:
+            
+            # Configure subprocess mock
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.stdout = b'{"ID": "TestID", "Addresses": ["/ip4/127.0.0.1/tcp/4001"]}'
+            mock_run.return_value = mock_process
+            
+            # Configure path exists mock
+            mock_exists.return_value = True  # Pretend socket file exists
+            
+            # Configure session mock
+            mock_session = MagicMock()
+            mock_session_class.return_value = mock_session
+            
+            # Configure response mock
+            mock_response = MagicMock()
+            mock_response.json.return_value = {
+                "ID": "TestID", 
+                "Addresses": ["/ip4/127.0.0.1/tcp/4001"]
+            }
+            mock_session.post.return_value = mock_response
+            
+            # Create ipfs_py instance with socket path (to test Unix socket code paths)
+            ipfs = ipfs_py(binary_path=binary_path, socket_path=socket_path)
+            
+            # Call ID method
+            result = ipfs.id()
+            
+            # Verify result
+            assert result is not None, "IPFS ID returned None"
+            assert "ID" in result, f"Missing ID in response: {result}"
+            assert result["ID"] == "TestID", f"Unexpected ID: {result['ID']}"

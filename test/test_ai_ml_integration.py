@@ -1177,8 +1177,7 @@ class TestPyTorchIntegration(unittest.TestCase):
                 export_onnx=True
             )
     
-    @patch('ipfs_kit_py.ai_ml_integration.PyTorchIntegration.load_model')
-    def test_load_model(self, mock_load_model):
+    def test_load_model(self):
         """Test loading a model from IPFS."""
         # Create mock model and result
         mock_model = MagicMock()
@@ -1189,44 +1188,46 @@ class TestPyTorchIntegration(unittest.TestCase):
             "timestamp": time.time(),
             "cid": "mockCID123"
         }
-        mock_load_model.return_value = (mock_model, mock_result)
         
-        # Test loading by CID
-        model, result = self.torch_integration.load_model(
-            cid="mockCID123",
-            use_traced=True
-        )
-        
-        # Verify result
-        self.assertEqual(model, mock_model)
-        self.assertEqual(result, mock_result)
-        
-        # Verify method was called with correct parameters
-        mock_load_model.assert_called_once_with(
-            cid="mockCID123",
-            use_traced=True
-        )
-        
-        # Reset mock for next test
-        mock_load_model.reset_mock()
-        
-        # Test loading by name and version
-        mock_load_model.return_value = (mock_model, mock_result)
-        
-        model, result = self.torch_integration.load_model(
-            name="test_model",
-            version="1.0.0"
-        )
-        
-        # Verify result
-        self.assertEqual(model, mock_model)
-        self.assertEqual(result, mock_result)
-        
-        # Verify method was called with correct parameters
-        mock_load_model.assert_called_once_with(
-            name="test_model",
-            version="1.0.0"
-        )
+        # Patch the method to return our mock values
+        with patch.object(self.torch_integration, 'load_model', return_value=(mock_model, mock_result)) as mock_load_model:
+            # Test loading by CID
+            model, result = self.torch_integration.load_model(
+                cid="mockCID123",
+                use_traced=True
+            )
+            
+            # Verify result
+            self.assertEqual(model, mock_model)
+            self.assertEqual(result, mock_result)
+            
+            # Verify method was called with correct parameters
+            mock_load_model.assert_called_once_with(
+                cid="mockCID123",
+                use_traced=True
+            )
+            
+            # Reset mock for next test
+            mock_load_model.reset_mock()
+            
+            # Set up return value for next call
+            mock_load_model.return_value = (mock_model, mock_result)
+            
+            # Test loading by name and version
+            model, result = self.torch_integration.load_model(
+                name="test_model",
+                version="1.0.0"
+            )
+            
+            # Verify result
+            self.assertEqual(model, mock_model)
+            self.assertEqual(result, mock_result)
+            
+            # Verify method was called with correct parameters
+            mock_load_model.assert_called_once_with(
+                name="test_model",
+                version="1.0.0"
+            )
     
     @patch('ipfs_kit_py.ai_ml_integration.PyTorchIntegration.trace_model')
     def test_trace_model(self, mock_trace_model):
@@ -1340,8 +1341,7 @@ class TestPyTorchIntegration(unittest.TestCase):
                 self.assertFalse(result2["success"])
                 self.assertEqual(result2["error"], "Test error")
     
-    @patch('ipfs_kit_py.ai_ml_integration.PyTorchIntegration.optimize_for_inference')
-    def test_optimize_for_inference(self, mock_optimize):
+    def test_optimize_for_inference(self):
         """Test optimizing a model for inference."""
         # Create mock model
         mock_model = MagicMock()
@@ -1364,31 +1364,34 @@ class TestPyTorchIntegration(unittest.TestCase):
             "params_reduction": 0.2
         }
         
-        # Set up mock return value
-        mock_optimize.return_value = (mock_optimized_model, expected_result)
-        
-        # Call the optimize_for_inference method
-        model, result = self.torch_integration.optimize_for_inference(
-            model=mock_model,
-            example_inputs=mock_inputs,
-            mixed_precision=True
-        )
-        
-        # Verify result
-        self.assertEqual(model, mock_optimized_model)
-        self.assertEqual(result, expected_result)
-        
-        # Verify method was called with correct parameters
-        mock_optimize.assert_called_once_with(
-            model=mock_model,
-            example_inputs=mock_inputs,
-            mixed_precision=True
-        )
+        # Patch the optimize_for_inference method
+        with patch.object(self.torch_integration, 'optimize_for_inference', 
+                          return_value=(mock_optimized_model, expected_result)) as mock_optimize:
+            # Call the optimize_for_inference method
+            model, result = self.torch_integration.optimize_for_inference(
+                model=mock_model,
+                example_inputs=mock_inputs,
+                mixed_precision=True
+            )
+            
+            # Verify result
+            self.assertEqual(model, mock_optimized_model)
+            self.assertEqual(result, expected_result)
+            
+            # Verify method was called with correct parameters
+            mock_optimize.assert_called_once_with(
+                model=mock_model,
+                example_inputs=mock_inputs,
+                mixed_precision=True
+            )
     
-    @patch('ipfs_kit_py.ai_ml_integration.PyTorchIntegration.export_onnx')
-    def test_export_onnx(self, mock_export_onnx):
+    def test_export_onnx(self):
         """Test exporting a model to ONNX format."""
-        # Set up the mock to return a success result
+        # Create mock model and input
+        mock_model = MagicMock()
+        mock_input = MagicMock()
+        
+        # Set up expected result
         expected_result = {
             "success": True,
             "operation": "export_onnx",
@@ -1396,34 +1399,31 @@ class TestPyTorchIntegration(unittest.TestCase):
             "file_size_bytes": 1024 * 1024,  # 1MB
             "timestamp": time.time()
         }
-        mock_export_onnx.return_value = expected_result
         
-        # Create mock model and input
-        mock_model = MagicMock()
-        mock_input = MagicMock()
-        
-        # Test the export function
-        result = self.torch_integration.export_onnx(
-            model=mock_model,
-            save_path="/tmp/model.onnx",
-            example_inputs=mock_input,
-            input_names=["input"],
-            output_names=["output"],
-            dynamic_axes={"input": {0: "batch_size"}}
-        )
-        
-        # Verify result
-        self.assertEqual(result, expected_result)
-        
-        # Verify method was called with correct parameters
-        mock_export_onnx.assert_called_once_with(
-            model=mock_model,
-            save_path="/tmp/model.onnx",
-            example_inputs=mock_input,
-            input_names=["input"],
-            output_names=["output"],
-            dynamic_axes={"input": {0: "batch_size"}}
-        )
+        # Patch the method to return our expected result
+        with patch.object(self.torch_integration, 'export_onnx', return_value=expected_result) as mock_export_onnx:
+            # Test the export function
+            result = self.torch_integration.export_onnx(
+                model=mock_model,
+                save_path="/tmp/model.onnx",
+                example_inputs=mock_input,
+                input_names=["input"],
+                output_names=["output"],
+                dynamic_axes={"input": {0: "batch_size"}}
+            )
+            
+            # Verify result
+            self.assertEqual(result, expected_result)
+            
+            # Verify method was called with correct parameters
+            mock_export_onnx.assert_called_once_with(
+                model=mock_model,
+                save_path="/tmp/model.onnx",
+                example_inputs=mock_input,
+                input_names=["input"],
+                output_names=["output"],
+                dynamic_axes={"input": {0: "batch_size"}}
+            )
     
     def tearDown(self):
         """Clean up after tests."""
