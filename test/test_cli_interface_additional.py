@@ -49,7 +49,7 @@ def mock_ipfs_api():
 @pytest.fixture
 def mock_version():
     """Mock the version retrieval function."""
-    with patch("importlib.metadata.version", return_value="0.1.1"):
+    with patch("importlib.metadata.version", return_value="0.2.0"):
         yield
 
 
@@ -149,7 +149,7 @@ def test_cli_with_no_color_flag(mock_ipfs_api, cli_main, capsys, mock_version):
     assert exit_code == 0
 # 
 
-@pytest.mark.skip(reason="WAL commands require more complex setup")
+# # @pytest.mark.skip(reason="WAL commands require more complex setup") - removed by fix_all_tests.py - removed by fix_all_tests.py
 def test_cli_wal_status_command(mock_ipfs_api, cli_main, capsys):
     """Test CLI handling of the 'wal status' command."""
     # Skip if WAL CLI integration is not available
@@ -175,7 +175,7 @@ def test_cli_wal_status_command(mock_ipfs_api, cli_main, capsys):
             assert "active" in captured.out
 # 
 
-@pytest.mark.skip(reason="WAL commands require more complex setup")
+# # @pytest.mark.skip(reason="WAL commands require more complex setup") - removed by fix_all_tests.py - removed by fix_all_tests.py
 def test_cli_wal_list_command(mock_ipfs_api, cli_main, capsys):
     """Test CLI handling of the 'wal list' command."""
     # Skip if WAL CLI integration is not available
@@ -255,7 +255,7 @@ def test_cli_error_handling_validation_error(mock_ipfs_api, cli_main, capsys):
     assert "invalid" in error_output.lower() or "invalidcid" in error_output.lower()
 # 
 
-@pytest.mark.skip(reason="Tests IPFS daemon errors which require complex setup")
+# @pytest.mark.skip(reason="Tests IPFS daemon errors which require complex setup") - removed by fix_all_tests.py
 def test_cli_version_ipfs_version_error(mock_ipfs_api, cli_main, capsys, mock_version):
     """Test version command when IPFS daemon version check fails."""
     # Configure the mock to simulate IPFS daemon error
@@ -270,5 +270,5 @@ def test_cli_version_ipfs_version_error(mock_ipfs_api, cli_main, capsys, mock_ve
     
     # Verify output contains version info but indicates daemon error
     captured = capsys.readouterr()
-    assert "0.1.1" in captured.out
+    assert "0.2.0" in captured.out
     assert "unknown" in captured.out  # IPFS version should be "unknown"

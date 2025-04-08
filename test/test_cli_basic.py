@@ -100,7 +100,7 @@ class TestCLIBasic(unittest.TestCase):
 
     # Fix for proper mocking and avoiding import issues
     import pytest
-    # @pytest.mark.skip(reason="Test hangs in pytest but passes with unittest directly. Run with: python -m test.test_cli_basic TestCLIBasic.test_cli_add_command")
+    # # @pytest.mark.skip(reason="Test hangs in pytest but passes with unittest directly. Run with: python -m test.test_cli_basic TestCLIBasic.test_cli_add_command") - removed by fix_all_tests.py
     @patch('subprocess.run')  # Prevent actual subprocess from running
     @patch('subprocess.Popen')  # Prevent actual subprocess from running
     @patch('ipfs_kit_py.cli.IPFSSimpleAPI')  # Mock the API class *before* import
@@ -237,7 +237,7 @@ class TestCLIBasic(unittest.TestCase):
 
     # Fix for proper mocking and avoiding import issues
     import pytest
-    # @pytest.mark.skip(reason="Test hangs in pytest but passes with unittest directly. Run with: python -m test.test_cli_basic TestCLIBasic.test_cli_get_command")
+    # # @pytest.mark.skip(reason="Test hangs in pytest but passes with unittest directly. Run with: python -m test.test_cli_basic TestCLIBasic.test_cli_get_command") - removed by fix_all_tests.py
     @patch('subprocess.run')  # Prevent actual subprocess from running
     @patch('subprocess.Popen')  # Prevent actual subprocess from running
     @patch('ipfs_kit_py.cli.IPFSSimpleAPI')  # Mock the API class *before* import
@@ -358,7 +358,7 @@ class TestCLIBasic(unittest.TestCase):
 
     # Fix for proper mocking and avoiding import issues
     import pytest
-    # @pytest.mark.skip(reason="Test hangs in pytest but passes with unittest directly. Run with: python -m test.test_cli_basic TestCLIBasic.test_cli_version_command")
+    # # @pytest.mark.skip(reason="Test hangs in pytest but passes with unittest directly. Run with: python -m test.test_cli_basic TestCLIBasic.test_cli_version_command") - removed by fix_all_tests.py
     @patch('subprocess.run')  # Prevent actual subprocess from running
     @patch('subprocess.Popen')  # Prevent actual subprocess from running
     @patch('ipfs_kit_py.cli.IPFSSimpleAPI')  # Mock the API class *before* import
@@ -372,7 +372,7 @@ class TestCLIBasic(unittest.TestCase):
         mock_api_class.return_value = mock_api_instance
         
         # Mock version call
-        mock_version.return_value = "0.1.0"
+        mock_version.return_value = "0.2.0"
         
         # Setup subprocess mocks to avoid resource warnings
         mock_popen.return_value.returncode = 0
@@ -414,7 +414,7 @@ class TestCLIBasic(unittest.TestCase):
                 # Add function handler for version command
                 def handle_version(api, args, kwargs):
                     return {
-                        "ipfs_kit_py_version": "0.1.0",
+                        "ipfs_kit_py_version": "0.2.0",
                         "python_version": "3.x.x",
                         "platform": "test",
                         "ipfs_daemon_version": "unknown"
@@ -440,7 +440,7 @@ class TestCLIBasic(unittest.TestCase):
                 output = captured_output.getvalue()
                 print(f"CLI output: {output}")  # DEBUG
                 self.assertIn("version", output.lower())
-                self.assertIn("0.1.0", output)
+                self.assertIn("0.2.0", output)
                 
                 print("Test assertions passed!")  # DEBUG
                 

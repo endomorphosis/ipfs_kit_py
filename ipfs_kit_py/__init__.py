@@ -2,7 +2,7 @@
 IPFS Kit - Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Benjamin Barber"
 __email__ = "starworks5@gmail.com"
 

@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='ipfs_kit_py',
-    version='0.1.0',
+    version='0.2.0',
     description='Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration',
     author='Benjamin Barber',
     author_email='starworks5@gmail.com',

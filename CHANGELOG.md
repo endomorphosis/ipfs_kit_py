@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-04-08
+
 ### Added
 - WebRTC streaming for media content from IPFS
 - Real-time WebSocket notification system
@@ -85,6 +87,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Completed all items in the Performance Optimization Roadmap
 - Improved FSSpec integration in high_level_api.py with proper filesystem initialization and error handling
 
+### Fixed
+- Proper handling of optional dependencies like pandas in ai_ml_integration.py
+- Added conditional imports and fallback implementations for when pandas is not available
+- Fixed syntax errors in test files for better test suite stability
+- Fixed indentation issues in several test files
+- Updated test decorators for consistent test execution
+
 ## [0.1.1] - 2025-04-03
 
 ### Added
@@ -134,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced cluster state synchronization with CRDT-based approach
 - Reorganized API structure for improved discoverability
 
-[Unreleased]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/endomorphosis/ipfs_kit_py/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/endomorphosis/ipfs_kit_py/releases/tag/v0.1.0
