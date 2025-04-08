@@ -96,13 +96,15 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 # To force-enable all WebRTC tests regardless of dependencies, set the environment variable:
 # FORCE_WEBRTC_TESTS=1 python -m pytest test/test_webrtc_streaming.py
 
-# Check if FORCE_WEBRTC_TESTS environment variable is set
+# Check if any force environment variable is set
 import os
-if os.environ.get('FORCE_WEBRTC_TESTS') == '1':
+if (os.environ.get('FORCE_WEBRTC_TESTS') == '1' or 
+    os.environ.get('IPFS_KIT_FORCE_WEBRTC') == '1' or
+    os.environ.get('IPFS_KIT_RUN_ALL_TESTS') == '1'):
     _can_test_webrtc = True
-    print(f"FORCE_WEBRTC_TESTS=1 environment variable detected, enabling all WebRTC tests")
-# 
-# @pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
+    print(f"Force environment variable detected, enabling all WebRTC tests")
+
+# No skipif marker - all tests should run now
 @pytest.mark.asyncio
 class TestWebRTCStreaming:
     """Test WebRTC streaming functionality."""
@@ -202,7 +204,7 @@ class TestWebRTCStreaming:
         # Clean up
         track.stop()
 #     
-    @pytest.mark.skip(reason="WebRTC signaling is too complex to test without a full WebSocket implementation")
+    @pytest.mark.skip(reason="This test is intentionally skipped as it requires complex WebSocket mocking")
     async def test_handle_webrtc_streaming(self, setup):
         """Test the WebRTC signaling handler.
         
@@ -595,7 +597,7 @@ if os.environ.get('FORCE_NOTIFICATION_TESTS') == '1':
     _can_test_notifications = True
     print(f"FORCE_NOTIFICATION_TESTS=1 environment variable detected, enabling notification tests")
 # 
-@pytest.mark.skipif(not _can_test_notifications, reason="WebRTC notification tests require full implementation of dependencies")
+# All tests should run now, no skipif needed
 @pytest.mark.asyncio
 class TestWebRTCNotifications:
     """Test WebRTC integration with the notification system."""

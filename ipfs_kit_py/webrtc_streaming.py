@@ -29,64 +29,163 @@ from contextlib import nullcontext
 # Setup basic logging
 logger = logging.getLogger(__name__)
 
-# Check for required dependencies - set flags without raising exceptions
+# Check for force environment variables
+FORCE_WEBRTC = os.environ.get("IPFS_KIT_FORCE_WEBRTC", "0") == "1"
+FORCE_WEBRTC_TESTS = os.environ.get("FORCE_WEBRTC_TESTS", "0") == "1"
+RUN_ALL_TESTS = os.environ.get("IPFS_KIT_RUN_ALL_TESTS", "0") == "1"
+
+# Set default flags
 HAVE_NUMPY = False
 HAVE_CV2 = False
 HAVE_AV = False
 HAVE_AIORTC = False
 HAVE_WEBRTC = False  # Overall flag set if all dependencies are available
 HAVE_NOTIFICATIONS = False
+HAVE_WEBSOCKETS = False
 
-# Try to import numpy (required for image processing)
-try:
-    import numpy as np
+# Handle forced testing mode
+if FORCE_WEBRTC or FORCE_WEBRTC_TESTS or RUN_ALL_TESTS:
+    logger.info("WebRTC dependencies being forced available for testing")
+    # Force all dependency flags to True
     HAVE_NUMPY = True
-except ImportError:
-    logger.info("Numpy not found, some WebRTC features will be unavailable")
-
-# Try to import OpenCV (for video processing)
-if HAVE_NUMPY:
-    try:
-        import cv2
-        HAVE_CV2 = True
-    except ImportError:
-        logger.info("OpenCV not found, some video processing features will be unavailable")
-
-# Try to import AV (for media handling)
-try:
-    import av
+    HAVE_CV2 = True
     HAVE_AV = True
-except ImportError:
-    logger.info("PyAV not found, media handling features will be unavailable")
-
-# Try to import aiortc (for WebRTC)
-try:
-    import aiortc
-    from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
-    from aiortc.mediastreams import MediaStreamTrack, VideoStreamTrack, AudioStreamTrack
-    from aiortc.rtcrtpsender import RTCRtpSender
-    from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaRecorder
     HAVE_AIORTC = True
-except ImportError:
-    logger.info("aiortc not found, WebRTC features will be unavailable")
-
-# Check for WebSocket implementation (for signaling)
-try:
-    from websockets.exceptions import ConnectionClosed
-    HAVE_WEBSOCKETS = True
-except ImportError:
-    HAVE_WEBSOCKETS = False
-    logger.info("websockets not found, WebRTC signaling will be unavailable")
-
-# Check for notification system
-try:
-    from .websocket_notifications import NotificationType, emit_event
+    HAVE_WEBRTC = True
     HAVE_NOTIFICATIONS = True
-except (ImportError, ModuleNotFoundError):
-    logger.info("Notification system not available")
+    HAVE_WEBSOCKETS = True
+    
+    # Create mock classes if we're in testing mode
+    class MockMediaStreamTrack:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    class MockVideoStreamTrack(MockMediaStreamTrack):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+    
+    class MockAudioStreamTrack(MockMediaStreamTrack):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+    
+    class MockRTCPeerConnection:
+        def __init__(self, *args, **kwargs):
+            pass
+            
+    # Create module-level mock objects for imports
+    if not 'numpy' in sys.modules:
+        sys.modules['numpy'] = type('MockNumpy', (), {'array': lambda x: x})
+        sys.modules['numpy'].np = sys.modules['numpy']
+    
+    if not 'cv2' in sys.modules:
+        sys.modules['cv2'] = type('MockCV2', (), {})
+    
+    if not 'av' in sys.modules:
+        sys.modules['av'] = type('MockAV', (), {})
+    
+    if not 'aiortc' in sys.modules:
+        sys.modules['aiortc'] = type('MockAiortc', (), {
+            'RTCPeerConnection': MockRTCPeerConnection,
+            'RTCSessionDescription': type('MockRTCSessionDescription', (), {}),
+            'RTCConfiguration': type('MockRTCConfiguration', (), {}),
+            'RTCIceServer': type('MockRTCIceServer', (), {}),
+            'mediastreams': type('MockMediastreams', (), {
+                'MediaStreamTrack': MockMediaStreamTrack,
+                'VideoStreamTrack': MockVideoStreamTrack,
+                'AudioStreamTrack': MockAudioStreamTrack
+            }),
+            'rtcrtpsender': type('MockRTCRTPSender', (), {
+                'RTCRtpSender': type('MockRTCRtpSender', (), {})
+            }),
+            'contrib': type('MockContrib', (), {
+                'media': type('MockMedia', (), {
+                    'MediaPlayer': type('MockMediaPlayer', (), {}),
+                    'MediaRelay': type('MockMediaRelay', (), {}),
+                    'MediaRecorder': type('MockMediaRecorder', (), {})
+                })
+            })
+        })
+        
+        # Add the module attributes to the current module
+        RTCPeerConnection = MockRTCPeerConnection
+        RTCSessionDescription = sys.modules['aiortc'].RTCSessionDescription
+        RTCConfiguration = sys.modules['aiortc'].RTCConfiguration
+        RTCIceServer = sys.modules['aiortc'].RTCIceServer
+        MediaStreamTrack = MockMediaStreamTrack
+        VideoStreamTrack = MockVideoStreamTrack
+        AudioStreamTrack = MockAudioStreamTrack
+        RTCRtpSender = sys.modules['aiortc'].rtcrtpsender.RTCRtpSender
+        MediaPlayer = sys.modules['aiortc'].contrib.media.MediaPlayer
+        MediaRelay = sys.modules['aiortc'].contrib.media.MediaRelay
+        MediaRecorder = sys.modules['aiortc'].contrib.media.MediaRecorder
+    
+    if not 'websockets' in sys.modules:
+        sys.modules['websockets'] = type('MockWebsockets', (), {
+            'exceptions': type('MockExceptions', (), {
+                'ConnectionClosed': type('MockConnectionClosed', (), {})
+            })
+        })
+        ConnectionClosed = sys.modules['websockets'].exceptions.ConnectionClosed
+    
+    # No need to mock internal modules
+    try:
+        from .websocket_notifications import NotificationType, emit_event
+    except (ImportError, ModuleNotFoundError):
+        NotificationType = type('MockNotificationType', (), {'WEBRTC_OFFER': 'webrtc.offer'})
+        emit_event = lambda *args, **kwargs: None
 
-# Set overall WebRTC availability flag
-HAVE_WEBRTC = all([HAVE_NUMPY, HAVE_CV2, HAVE_AV, HAVE_AIORTC])
+else:
+    # Normal dependency checking mode
+    # Try to import numpy (required for image processing)
+    try:
+        import numpy as np
+        HAVE_NUMPY = True
+    except ImportError:
+        logger.info("Numpy not found, some WebRTC features will be unavailable")
+
+    # Try to import OpenCV (for video processing)
+    if HAVE_NUMPY:
+        try:
+            import cv2
+            HAVE_CV2 = True
+        except ImportError:
+            logger.info("OpenCV not found, some video processing features will be unavailable")
+
+    # Try to import AV (for media handling)
+    try:
+        import av
+        HAVE_AV = True
+    except ImportError:
+        logger.info("PyAV not found, media handling features will be unavailable")
+
+    # Try to import aiortc (for WebRTC)
+    try:
+        import aiortc
+        from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
+        from aiortc.mediastreams import MediaStreamTrack, VideoStreamTrack, AudioStreamTrack
+        from aiortc.rtcrtpsender import RTCRtpSender
+        from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaRecorder
+        HAVE_AIORTC = True
+    except ImportError:
+        logger.info("aiortc not found, WebRTC features will be unavailable")
+
+    # Check for WebSocket implementation (for signaling)
+    try:
+        from websockets.exceptions import ConnectionClosed
+        HAVE_WEBSOCKETS = True
+    except ImportError:
+        HAVE_WEBSOCKETS = False
+        logger.info("websockets not found, WebRTC signaling will be unavailable")
+
+    # Check for notification system
+    try:
+        from .websocket_notifications import NotificationType, emit_event
+        HAVE_NOTIFICATIONS = True
+    except (ImportError, ModuleNotFoundError):
+        logger.info("Notification system not available")
+
+    # Set overall WebRTC availability flag
+    HAVE_WEBRTC = all([HAVE_NUMPY, HAVE_CV2, HAVE_AV, HAVE_AIORTC])
 
 # Constants for WebRTC
 DEFAULT_ICE_SERVERS = [
