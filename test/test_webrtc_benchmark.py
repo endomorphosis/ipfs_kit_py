@@ -23,6 +23,9 @@ try:
 except ImportError:
     _can_test_webrtc = False
 
+# Force WebRTC testing to be available
+_can_test_webrtc = True
+
 
 @pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC benchmarking not available")
 class TestWebRTCBenchmark(unittest.TestCase):
