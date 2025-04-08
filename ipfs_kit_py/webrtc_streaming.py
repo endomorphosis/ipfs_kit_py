@@ -149,14 +149,29 @@ else:
             import cv2
             HAVE_CV2 = True
         except ImportError:
-            logger.info("OpenCV not found, some video processing features will be unavailable")
+            # Try alternative opencv modules
+            try:
+                import cv2.cv2 as cv2
+                HAVE_CV2 = True
+            except ImportError:
+                try:
+                    # Check for headless version
+                    import cv2
+                    HAVE_CV2 = True
+                except ImportError:
+                    logger.info("OpenCV not found, some video processing features will be unavailable")
 
     # Try to import AV (for media handling)
     try:
         import av
         HAVE_AV = True
     except ImportError:
-        logger.info("PyAV not found, media handling features will be unavailable")
+        try:
+            # Sometimes the import is case-sensitive
+            import av.pyav as av
+            HAVE_AV = True
+        except ImportError:
+            logger.info("PyAV not found, media handling features will be unavailable")
 
     # Try to import aiortc (for WebRTC)
     try:
@@ -167,7 +182,24 @@ else:
         from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaRecorder
         HAVE_AIORTC = True
     except ImportError:
-        logger.info("aiortc not found, WebRTC features will be unavailable")
+        # Second attempt with explicit import paths
+        try:
+            import aiortc
+            # Sometimes the internal modules need to be imported individually
+            try:
+                from aiortc import RTCPeerConnection
+                from aiortc import RTCSessionDescription
+                from aiortc import RTCConfiguration
+                from aiortc import RTCIceServer
+                from aiortc.mediastreams import MediaStreamTrack, VideoStreamTrack, AudioStreamTrack
+                from aiortc.rtcrtpsender import RTCRtpSender
+                from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaRecorder
+                HAVE_AIORTC = True
+            except ImportError as e:
+                logger.info(f"aiortc module found but submodules missing: {e}")
+                HAVE_AIORTC = False
+        except ImportError:
+            logger.info("aiortc not found, WebRTC features will be unavailable")
 
     # Check for WebSocket implementation (for signaling)
     try:
@@ -186,6 +218,10 @@ else:
 
     # Set overall WebRTC availability flag
     HAVE_WEBRTC = all([HAVE_NUMPY, HAVE_CV2, HAVE_AV, HAVE_AIORTC])
+    
+    # Log detected dependencies
+    logger.info(f"WebRTC dependencies status: NUMPY={HAVE_NUMPY}, CV2={HAVE_CV2}, AV={HAVE_AV}, AIORTC={HAVE_AIORTC}")
+    logger.info(f"WebRTC availability: {HAVE_WEBRTC}")
 
 # Constants for WebRTC
 DEFAULT_ICE_SERVERS = [

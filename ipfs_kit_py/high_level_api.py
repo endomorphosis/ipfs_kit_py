@@ -48,6 +48,7 @@ try:
     # First try relative imports (when used as a package)
     from .error import IPFSConfigurationError, IPFSError, IPFSValidationError
     from .ipfs_kit import IPFSKit, ipfs_kit  # Import both the function and the class
+    from .fs_journal_integration import enable_filesystem_journaling, FilesystemJournalIntegration
     from .validation import validate_parameters
     from .api_stability import stable_api, beta_api, experimental_api, deprecated
 except ImportError:
@@ -65,18 +66,52 @@ IPFSFileSystem = None
         
 # Try to import WebRTC streaming
 try:
-    from .webrtc_streaming import HAVE_WEBRTC, HAVE_AV, HAVE_CV2, HAVE_NUMPY, HAVE_AIORTC, handle_webrtc_signaling
+    from .webrtc_streaming import (
+        HAVE_WEBRTC, HAVE_AV, HAVE_CV2, HAVE_NUMPY, HAVE_AIORTC, 
+        handle_webrtc_signaling, check_webrtc_dependencies
+    )
+    
+    # Double-check dependencies are truly available
+    webrtc_status = check_webrtc_dependencies()
+    if webrtc_status["webrtc_available"] != HAVE_WEBRTC:
+        logger.warning(f"WebRTC availability mismatch: module says {HAVE_WEBRTC}, check says {webrtc_status['webrtc_available']}")
+        # Trust the check_webrtc_dependencies function
+        HAVE_WEBRTC = webrtc_status["webrtc_available"]
+        
+    # Log WebRTC availability status
+    logger.info(f"WebRTC capabilities: available={HAVE_WEBRTC}")
+    if HAVE_WEBRTC:
+        logger.info("WebRTC streaming is available and enabled")
+    else:
+        logger.info("WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]")
+        
 except ImportError:
     HAVE_WEBRTC = False
     HAVE_AV = False
     HAVE_CV2 = False
     HAVE_NUMPY = False
     HAVE_AIORTC = False
+    logger.warning("WebRTC streaming module could not be imported")
     
     # Create stub for handle_webrtc_signaling
     async def handle_webrtc_signaling(*args, **kwargs):
         logger.error("WebRTC signaling unavailable. Install with 'pip install ipfs_kit_py[webrtc]'")
         return None
+        
+    # Create stub for check_webrtc_dependencies
+    def check_webrtc_dependencies():
+        return {
+            "webrtc_available": False,
+            "dependencies": {
+                "numpy": False,
+                "opencv": False,
+                "av": False,
+                "aiortc": False,
+                "websockets": False,
+                "notifications": False
+            },
+            "installation_command": "pip install ipfs_kit_py[webrtc]"
+        }
 except Exception as e:
     logger.error(f"Unexpected error in imports: {str(e)}")
     
@@ -1340,6 +1375,57 @@ MIT
             else:
                 # Re-raise the exception with context to help with debugging
                 raise Exception(f"Failed to initialize IPFSFileSystem: {str(e)}") from e
+
+    def enable_filesystem_journaling(
+        self, 
+        journal_base_path: str = "~/.ipfs_kit/journal", 
+        auto_recovery: bool = True, 
+        **kwargs
+    ) -> "FilesystemJournalIntegration":
+        """
+        Enable filesystem journaling for data safety during power outages.
+        
+        This method enhances the API with a filesystem journal that ensures filesystem
+        operations are atomic and recoverable even in case of unexpected shutdowns.
+        The journal works alongside the Write-Ahead Log (WAL) to provide comprehensive
+        data protection.
+        
+        Args:
+            journal_base_path: Base directory for journal storage
+            auto_recovery: Whether to automatically recover on startup
+            **kwargs: Additional journal configuration parameters including:
+                - sync_interval: Seconds between journal syncs to disk (default: 5)
+                - checkpoint_interval: Seconds between checkpoints (default: 60)
+                - max_journal_size: Maximum entries before forcing checkpoint (default: 1000)
+        
+        Returns:
+            FilesystemJournalIntegration: A journaled interface that wraps this API
+            
+        Raises:
+            ImportError: If filesystem journal integration is not available
+            IPFSConfigurationError: If the journal cannot be initialized
+        """
+        from .fs_journal_integration import enable_filesystem_journaling
+        
+        # Get WAL if available
+        wal = getattr(self, "wal", None)
+        
+        try:
+            # Create the journal integration
+            journal_integration = enable_filesystem_journaling(
+                self, 
+                wal=wal,
+                journal_base_path=journal_base_path,
+                auto_recovery=auto_recovery,
+                **kwargs
+            )
+            
+            logger.info(f"Filesystem journaling enabled with base path: {journal_base_path}")
+            return journal_integration
+            
+        except Exception as e:
+            logger.error(f"Failed to enable filesystem journaling: {e}")
+            raise IPFSConfigurationError(f"Failed to enable filesystem journaling: {str(e)}") from e
 
     def add(
         self, 
