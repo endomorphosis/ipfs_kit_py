@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, mock_open, patch, call
 
 import pytest
 
-# Skip this file as it needs further comprehensive updates to match the new CLI implementation
-pytestmark = pytest.mark.skip(reason="CLI implementation has changed, tests need to be updated")
+# Note: The CLI implementation has changed. These tests may need updating.
+# pytestmark = pytest.mark.skip(reason="CLI implementation has changed, tests need to be updated")
 
 """
 IPFS Kit CLI Interface Tests
