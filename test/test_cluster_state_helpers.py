@@ -125,7 +125,11 @@ class TestClusterStateHelpers(unittest.TestCase):
             'master_id': ['test-master'],
             'status': ['online'],
             'node_count': [2],
-            'updated_at': [int(time.time() * 1000)]  # millisecond timestamp
+            'updated_at': [int(time.time() * 1000)],  # millisecond timestamp
+            # Add required columns that are expected by the cluster state code
+            'nodes': [[{'id': 'node1', 'role': 'master'}]],
+            'tasks': [[]],
+            'content': [[]]
         }
         
         # Use PyArrow directly rather than mocking
