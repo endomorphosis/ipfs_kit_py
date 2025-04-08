@@ -24,6 +24,9 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
+    
+# Force matplotlib to be available for testing
+MATPLOTLIB_AVAILABLE = True
 
 try:
     import plotly
@@ -31,6 +34,9 @@ try:
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
+    
+# Force plotly to be available for testing
+PLOTLY_AVAILABLE = True
 
 # Import the modules to test
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
