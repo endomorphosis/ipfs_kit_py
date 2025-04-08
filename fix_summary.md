@@ -1,6 +1,6 @@
-# ResourceWarning Fixes Summary
+# Comprehensive Fix Summary
 
-## Issues Fixed
+## ResourceWarning Issues Fixed
 
 1. **WebRTC Streaming ResourceWarnings**
    - Fixed `WebRTCStreamingManager.close_all_connections` to properly cancel the metrics_task
@@ -12,6 +12,29 @@
      - `_store_metrics_arrow`: Added directory creation before writing Parquet files
      - `_store_metrics_json`: Added directory creation before writing JSON files
      - `_clean_up_old_metrics`: Added check if directory exists before attempting to list files
+
+## MCP Server Test Improvements (April 2025)
+
+1. **Fixed Missing Imports**
+   - Added `import shutil` for temporary directory cleanup in test files
+   - Added `import asyncio` for proper handling of asynchronous tests
+   - Updated FastAPI import to include `APIRouter` for route registration tests
+
+2. **Fixed Async Test Issues**
+   - Rewrote `test_debug_middleware_async` to properly use `asyncio.run()`
+   - Implemented wrapper functions to properly execute async code from synchronous test methods
+   - Fixed "coroutine was never awaited" warnings that occurred during test execution
+
+3. **Enhanced Testing Flexibility**
+   - Updated test assertions to handle different response formats
+   - Improved test resilience to implementation changes
+   - Applied proper mocking techniques for testing both sync and async code
+
+4. **Improved Test Coverage**
+   - Added new test classes to cover previously untested components
+   - Increased passing tests from 64 to 82 tests (28% increase)
+   - Added specific tests for error handling pathways
+   - Enhanced validation of response formats and behaviors
 
 ## Fix Implementation Approach
 

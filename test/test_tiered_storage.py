@@ -68,7 +68,7 @@ except ImportError:
     HAS_TIERED_STORAGE = False
 # 
 
-@pytest.mark.skipif(not HAS_TIERED_STORAGE, reason="Tiered Storage components not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestTieredCacheManager(unittest.TestCase):
     """Test the TieredCacheManager implementation with various cache configurations."""
 
@@ -283,7 +283,7 @@ class TestTieredCacheManager(unittest.TestCase):
         )
 # 
 
-@pytest.mark.skipif(not HAS_TIERED_STORAGE, reason="Tiered Storage components not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestAdaptiveReplacementCache(unittest.TestCase):
     """Test the Adaptive Replacement Cache (ARC) implementation."""
 
@@ -346,7 +346,7 @@ class TestAdaptiveReplacementCache(unittest.TestCase):
         self.assertGreater(evicted_count, 0)
 # 
 
-@pytest.mark.skipif(not HAS_TIERED_STORAGE, reason="Tiered Storage components not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestDiskCache(unittest.TestCase):
     """Test the persistent disk cache implementation."""
 
@@ -455,7 +455,7 @@ class TestDiskCache(unittest.TestCase):
             self.assertEqual(retrieved_metadata[key], value)
 # 
 
-@pytest.mark.skipif(not HAS_TIERED_STORAGE, reason="Tiered Storage components not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestHierarchicalStorageManagement(unittest.TestCase):
     """Test the hierarchical storage management system with multiple tiers."""
 
@@ -650,7 +650,7 @@ class TestHierarchicalStorageManagement(unittest.TestCase):
         self.assertEqual(len(integrity_result["corrupted_tiers"]), 1)
 # 
 
-@pytest.mark.skipif(not HAS_TIERED_STORAGE, reason="Tiered Storage components not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestPerformanceMetrics(unittest.TestCase):
     """Test the performance metrics collection and analysis components."""
 

@@ -21,7 +21,7 @@ from ipfs_kit_py.ai_ml_integration import IPFSDataLoader, ipfs_data_loader_conte
 
 
 # Using a custom condition to skip only when not explicitly requested to run
-@pytest.mark.skipif(os.environ.get('IPFS_KIT_RUN_ALL_TESTS') != '1', 
+# @pytest.mark.skipif(os.environ.get('IPFS_KIT_RUN_ALL_TESTS') != '1', 
                    reason="The entire TestIPFSDataLoader class contains threading tests that can hang in pytest")
 class TestIPFSDataLoader(unittest.TestCase):
     """Test suite for IPFSDataLoader."""

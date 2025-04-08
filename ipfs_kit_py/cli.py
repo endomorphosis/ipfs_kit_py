@@ -27,6 +27,12 @@ try:
         WAL_CLI_AVAILABLE = True
     except ImportError:
         WAL_CLI_AVAILABLE = False
+    # Import Filesystem Journal CLI integration
+    try:
+        from .fs_journal_cli import register_fs_journal_commands
+        FS_JOURNAL_CLI_AVAILABLE = True
+    except ImportError:
+        FS_JOURNAL_CLI_AVAILABLE = False
 except ImportError:
     # Use relative imports when run directly
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -39,6 +45,12 @@ except ImportError:
         WAL_CLI_AVAILABLE = True
     except ImportError:
         WAL_CLI_AVAILABLE = False
+    # Import Filesystem Journal CLI integration
+    try:
+        from ipfs_kit_py.fs_journal_cli import register_fs_journal_commands
+        FS_JOURNAL_CLI_AVAILABLE = True
+    except ImportError:
+        FS_JOURNAL_CLI_AVAILABLE = False
 
 # Set up logging
 logger = logging.getLogger("ipfs_kit_cli")
@@ -221,6 +233,16 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     else:
         logger.debug("WAL CLI integration not available, skipping WAL command registration.")
 
+    # Register Filesystem Journal commands if available
+    if FS_JOURNAL_CLI_AVAILABLE:
+        try:
+            register_fs_journal_commands(subparsers)
+            logger.debug("Filesystem Journal commands registered.")
+        except Exception as e:
+            logger.warning(f"Could not register Filesystem Journal commands: {e}")
+    else:
+        logger.debug("Filesystem Journal CLI integration not available, skipping command registration.")
+
     # Add command
     add_parser = subparsers.add_parser(
         "add",
@@ -333,6 +355,289 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Return only CIDs",
     )
     list_pins_parser.set_defaults(func=lambda api, args, kwargs: api.list_pins(**kwargs))
+    
+    # WebRTC streaming commands
+    webrtc_parser = subparsers.add_parser(
+        "webrtc",
+        help="WebRTC streaming operations",
+    )
+    webrtc_subparsers = webrtc_parser.add_subparsers(dest="webrtc_command", help="WebRTC command", required=True)
+    
+    # Check WebRTC dependencies
+    webrtc_check_parser = webrtc_subparsers.add_parser(
+        "check-deps",
+        help="Check WebRTC dependencies status",
+    )
+    webrtc_check_parser.set_defaults(func=lambda api, args, kwargs: api.check_webrtc_dependencies())
+    
+    # Start WebRTC stream from IPFS content
+    webrtc_stream_parser = webrtc_subparsers.add_parser(
+        "stream",
+        help="Start WebRTC streaming for IPFS content",
+    )
+    webrtc_stream_parser.add_argument(
+        "cid",
+        help="Content identifier for media to stream",
+    )
+    webrtc_stream_parser.add_argument(
+        "--quality",
+        choices=["low", "medium", "high", "auto"],
+        default="medium",
+        help="Streaming quality preset",
+    )
+    webrtc_stream_parser.add_argument(
+        "--port",
+        type=int,
+        default=8083,
+        help="Port for WebRTC signaling server",
+    )
+    webrtc_stream_parser.add_argument(
+        "--ice-servers",
+        help="JSON array of ICE servers (STUN/TURN)",
+        default=json.dumps([{"urls": ["stun:stun.l.google.com:19302"]}])
+    )
+    webrtc_stream_parser.set_defaults(func=lambda api, args, kwargs: api.start_webrtc_stream(**kwargs))
+    
+    # WebRTC benchmark
+    webrtc_benchmark_parser = webrtc_subparsers.add_parser(
+        "benchmark",
+        help="Run WebRTC streaming benchmark",
+    )
+    webrtc_benchmark_parser.add_argument(
+        "--duration",
+        type=int,
+        default=30,
+        help="Benchmark duration in seconds",
+    )
+    webrtc_benchmark_parser.add_argument(
+        "--bitrates",
+        help="Comma-separated list of bitrates to test (in kbps)",
+        default="500,1000,2000,5000"
+    )
+    webrtc_benchmark_parser.add_argument(
+        "--output",
+        help="Output file for benchmark results (JSON)",
+        default="webrtc_benchmark_results.json"
+    )
+    webrtc_benchmark_parser.set_defaults(func=lambda api, args, kwargs: api.run_webrtc_benchmark(**kwargs))
+    
+    # IPLD commands
+    ipld_parser = subparsers.add_parser(
+        "ipld",
+        help="IPLD operations for content-addressed data structures",
+    )
+    ipld_subparsers = ipld_parser.add_subparsers(dest="ipld_command", help="IPLD command", required=True)
+    
+    # Import IPLD object
+    ipld_import_parser = ipld_subparsers.add_parser(
+        "import",
+        help="Import data as an IPLD object",
+    )
+    ipld_import_parser.add_argument(
+        "file",
+        help="File path to import",
+    )
+    ipld_import_parser.add_argument(
+        "--format",
+        choices=["json", "cbor", "raw"],
+        default="json",
+        help="IPLD format",
+    )
+    ipld_import_parser.add_argument(
+        "--pin",
+        action="store_true",
+        default=True,
+        help="Pin the imported object",
+    )
+    ipld_import_parser.set_defaults(func=lambda api, args, kwargs: api.ipld_import(args.file, **kwargs))
+    
+    # Create IPLD links
+    ipld_link_parser = ipld_subparsers.add_parser(
+        "link",
+        help="Create links between IPLD objects",
+    )
+    ipld_link_parser.add_argument(
+        "from_cid",
+        help="Source CID",
+    )
+    ipld_link_parser.add_argument(
+        "to_cid",
+        help="Target CID",
+    )
+    ipld_link_parser.add_argument(
+        "link_name",
+        help="Link name",
+    )
+    ipld_link_parser.set_defaults(func=lambda api, args, kwargs: api.ipld_link(args.from_cid, args.to_cid, args.link_name))
+    
+    # Get IPLD object
+    ipld_get_parser = ipld_subparsers.add_parser(
+        "get",
+        help="Get IPLD object",
+    )
+    ipld_get_parser.add_argument(
+        "cid",
+        help="Content identifier",
+    )
+    ipld_get_parser.add_argument(
+        "--path",
+        help="Optional path within the object",
+    )
+    ipld_get_parser.set_defaults(func=lambda api, args, kwargs: api.ipld_get(args.cid, path=args.path))
+    
+    # MCP server commands
+    mcp_parser = subparsers.add_parser(
+        "mcp",
+        help="MCP server operations",
+    )
+    mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command", help="MCP command", required=True)
+    
+    # Start MCP server
+    mcp_start_parser = mcp_subparsers.add_parser(
+        "start",
+        help="Start the MCP server",
+    )
+    mcp_start_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind server",
+    )
+    mcp_start_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind server",
+    )
+    mcp_start_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode",
+    )
+    mcp_start_parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Logging level",
+    )
+    mcp_start_parser.set_defaults(func=lambda api, args, kwargs: api.start_mcp_server(**kwargs))
+    
+    # Stop MCP server
+    mcp_stop_parser = mcp_subparsers.add_parser(
+        "stop",
+        help="Stop the MCP server",
+    )
+    mcp_stop_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host of the server",
+    )
+    mcp_stop_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port of the server",
+    )
+    mcp_stop_parser.set_defaults(func=lambda api, args, kwargs: api.stop_mcp_server(**kwargs))
+    
+    # Get MCP server status
+    mcp_status_parser = mcp_subparsers.add_parser(
+        "status",
+        help="Get MCP server status",
+    )
+    mcp_status_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host of the server",
+    )
+    mcp_status_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port of the server",
+    )
+    mcp_status_parser.set_defaults(func=lambda api, args, kwargs: api.get_mcp_server_status(**kwargs))
+    
+    # Filesystem commands
+    filesystem_parser = subparsers.add_parser(
+        "filesystem",
+        help="Filesystem operations with IPFS content",
+    )
+    filesystem_subparsers = filesystem_parser.add_subparsers(dest="fs_command", help="Filesystem command", required=True)
+    
+    # Get filesystem command
+    get_fs_parser = filesystem_subparsers.add_parser(
+        "get",
+        help="Get a FSSpec-compatible filesystem for IPFS content",
+    )
+    get_fs_parser.add_argument(
+        "--cache-dir",
+        help="Directory for caching filesystem data",
+    )
+    get_fs_parser.add_argument(
+        "--cache-size",
+        type=int,
+        default=100 * 1024 * 1024,  # 100MB
+        help="Size of the memory cache in bytes",
+    )
+    get_fs_parser.add_argument(
+        "--use-mmap",
+        action="store_true",
+        default=True,
+        help="Use memory mapping for large files",
+    )
+    get_fs_parser.set_defaults(func=lambda api, args, kwargs: {
+        "success": True, 
+        "message": "Filesystem interface created",
+        "filesystem_info": api.get_filesystem(**kwargs) and {"ready": True}
+    })
+    
+    # Enable journaling command
+    journal_parser = filesystem_subparsers.add_parser(
+        "enable-journal",
+        help="Enable filesystem journaling for data consistency",
+    )
+    journal_parser.add_argument(
+        "--journal-dir",
+        help="Directory for journal files",
+    )
+    journal_parser.add_argument(
+        "--sync-interval",
+        type=int,
+        default=60,
+        help="Journal sync interval in seconds",
+    )
+    journal_parser.add_argument(
+        "--max-entries",
+        type=int,
+        default=1000,
+        help="Maximum entries per journal file",
+    )
+    journal_parser.set_defaults(func=lambda api, args, kwargs: {
+        "success": True,
+        "message": "Filesystem journaling enabled",
+        "journal_info": api.enable_filesystem_journal(**kwargs)
+    })
+    
+    # Disable journaling command
+    disable_journal_parser = filesystem_subparsers.add_parser(
+        "disable-journal",
+        help="Disable filesystem journaling",
+    )
+    disable_journal_parser.set_defaults(func=lambda api, args, kwargs: {
+        "success": True,
+        "message": "Filesystem journaling disabled",
+        "journal_info": api.disable_filesystem_journal()
+    })
+    
+    # Journal status command
+    journal_status_parser = filesystem_subparsers.add_parser(
+        "journal-status",
+        help="Get filesystem journal status",
+    )
+    journal_status_parser.set_defaults(func=lambda api, args, kwargs: {
+        "success": True,
+        "journal_status": api.get_filesystem_journal_status()
+    })
 
 
     # Publish command
@@ -792,10 +1097,24 @@ def handle_version_command(api, args, kwargs):
     except Exception:
         ipfs_version = "unknown (daemon not running)"
     
+    # Component availability
+    components = {}
+    if WAL_CLI_AVAILABLE:
+        components["wal"] = True
+    if FS_JOURNAL_CLI_AVAILABLE:
+        components["filesystem_journal"] = True
+    if hasattr(api, "check_webrtc_dependencies"):
+        try:
+            webrtc_available = api.check_webrtc_dependencies().get("available", False)
+            components["webrtc"] = webrtc_available
+        except Exception:
+            components["webrtc"] = False
+    
     # Return version information
     return {
         "ipfs_kit_py_version": package_version,
         "python_version": python_version,
         "platform": platform_info,
-        "ipfs_daemon_version": ipfs_version
+        "ipfs_daemon_version": ipfs_version,
+        "components": components
     }

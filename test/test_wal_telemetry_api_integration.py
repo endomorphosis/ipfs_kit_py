@@ -367,7 +367,11 @@ else:
         def test_error_handling(self):
             """Test error handling in the WAL telemetry API."""
             # Test telemetry initialization failure
-            with patch.object(WALTelemetry, '__init__', side_effect=Exception("Mocked error")):
+            # Make sure the patched __init__ returns None (as required for __init__ methods)
+            def mock_init_raising_exception(*args, **kwargs):
+                raise Exception("Mocked error")
+                
+            with patch.object(WALTelemetry, '__init__', mock_init_raising_exception):
                 result = self.api.wal_telemetry(enabled=True)
                 self.assertFalse(result["success"])
                 self.assertIn("error", result)

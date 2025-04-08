@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # API base URL with correct prefix from the MCP server example
-base_url = 'http://localhost:8001'  # Using port 8001 for the new server instance
+base_url = 'http://localhost:9999'  # Using port 9999 for our MCP server instance
 mcp_prefix = '/api/v0/mcp'  # This is the prefix used in the example server
 
 def test_health():

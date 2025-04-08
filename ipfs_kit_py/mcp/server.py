@@ -24,6 +24,15 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 # Internal imports
 from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
+from ipfs_kit_py.mcp.controllers.cli_controller import CliController
+
+# Import optional controllers
+try:
+    from ipfs_kit_py.mcp.controllers.fs_journal_controller import FsJournalController
+    HAS_FS_JOURNAL_CONTROLLER = True
+except ImportError:
+    HAS_FS_JOURNAL_CONTROLLER = False
+    
 from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
 
 # Configure logger
@@ -122,7 +131,8 @@ class MCPServer:
             "ipfs": IPFSModel(self.ipfs_kit, self.cache_manager)
         }
         self.controllers = {
-            "ipfs": IPFSController(self.models["ipfs"])
+            "ipfs": IPFSController(self.models["ipfs"]),
+            "cli": CliController(self.models["ipfs"])
         }
         self.persistence = self.cache_manager
     
@@ -135,8 +145,9 @@ class MCPServer:
         router.add_api_route("/debug", self.get_debug_state, methods=["GET"])
         router.add_api_route("/operations", self.get_operation_log, methods=["GET"])
         
-        # Register IPFS controller endpoints
+        # Register controller endpoints
         self.controllers["ipfs"].register_routes(router)
+        self.controllers["cli"].register_routes(router)
         
         # Define debug middleware function to be attached when registering with app
         self.debug_middleware = None
@@ -288,3 +299,91 @@ class MCPServer:
                 model.reset()
         
         logger.info("MCP Server state reset")
+        
+    def shutdown(self):
+        """Shutdown the server and clean up resources."""
+        logger.info("MCP Server shutting down")
+        
+        # Stop cache manager cleanup thread
+        if hasattr(self.cache_manager, 'stop_cleanup_thread'):
+            try:
+                self.cache_manager.stop_cleanup_thread()
+            except Exception as e:
+                logger.error(f"Error stopping cache cleanup thread: {e}")
+                
+        # Save cache metadata
+        try:
+            self.cache_manager._save_metadata()
+        except Exception as e:
+            logger.error(f"Error saving cache metadata during shutdown: {e}")
+            
+        # Shutdown all controllers
+        for controller_name, controller in self.controllers.items():
+            if hasattr(controller, 'shutdown'):
+                try:
+                    controller.shutdown()
+                except Exception as e:
+                    logger.error(f"Error shutting down {controller_name} controller: {e}")
+            
+        # Log final state
+        logger.info("MCP Server shutdown complete")
+        
+    def __del__(self):
+        """Ensure resources are cleaned up when the server is deleted."""
+        self.shutdown()
+        
+# Command-line interface setup (used when running as script and for testing)
+import argparse
+import uvicorn
+
+# Create argument parser (available for tests)
+parser = argparse.ArgumentParser(description="MCP Server for IPFS Kit")
+parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+parser.add_argument("--isolation", action="store_true", help="Enable isolation mode")
+parser.add_argument("--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING, ERROR)")
+parser.add_argument("--port", type=int, default=8000, help="Port to run the server on")
+parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+parser.add_argument("--persistence-path", help="Path for persistence files")
+parser.add_argument("--api-prefix", default="/api/v0/mcp", help="Prefix for API endpoints")
+
+def main(args=None):
+    """
+    Run the MCP server with the specified arguments.
+    
+    Args:
+        args: Command-line arguments (for testing)
+    """
+    # Parse arguments
+    if args is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args)
+    
+    # Create FastAPI app
+    app = FastAPI(
+        title="IPFS MCP Server",
+        description="Model-Controller-Persistence Server for IPFS Kit",
+        version="0.1.0"
+    )
+    
+    # Create MCP server
+    mcp_server = MCPServer(
+        debug_mode=args.debug,
+        log_level=args.log_level,
+        persistence_path=args.persistence_path,
+        isolation_mode=args.isolation
+    )
+    
+    # Register MCP server with app
+    mcp_server.register_with_app(app, prefix=args.api_prefix)
+    
+    # Run the server
+    print(f"Starting MCP server at http://{args.host}:{args.port} with API prefix {args.api_prefix}")
+    print(f"Debug mode: {args.debug}, Isolation mode: {args.isolation}")
+    uvicorn.run(app, host=args.host, port=args.port)
+
+if __name__ == "__main__":
+    """
+    Run the MCP server as a standalone application.
+    """
+    main()

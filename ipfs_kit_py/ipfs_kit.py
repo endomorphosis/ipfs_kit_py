@@ -60,10 +60,16 @@ except ImportError:
 # Try to import libp2p
 try:
     from .libp2p_peer import IPFSLibp2pPeer
-
     HAS_LIBP2P = True
 except ImportError:
     HAS_LIBP2P = False
+
+# Try to import IPLD extension
+try:
+    from .ipld_extension import IPLDExtension
+    HAS_IPLD_EXTENSION = True
+except ImportError:
+    HAS_IPLD_EXTENSION = False
 
 # Try to import cluster management components
 try:
@@ -339,6 +345,10 @@ class ipfs_kit:
         self.llama_index_integration = None
         self.distributed_training = None
         enable_ai_ml = metadata.get("enable_ai_ml", False) if metadata else False
+        
+        # Initialize IPLD extension components
+        self.ipld_extension = None
+        enable_ipld = metadata.get("enable_ipld", False) if metadata else False
 
         # Initialize libp2p peer if enabled
         self.libp2p = None
@@ -392,6 +402,15 @@ class ipfs_kit:
             self.logger.warning("AI/ML integration is not available. Skipping initialization.")
             self.logger.info(
                 "To enable AI/ML integration, make sure ai_ml_integration.py is available."
+            )
+            
+        # Initialize IPLD extension if enabled
+        if enable_ipld and HAS_IPLD_EXTENSION:
+            self._setup_ipld_extension(resources, metadata)
+        elif enable_ipld and not HAS_IPLD_EXTENSION:
+            self.logger.warning("IPLD extension is not available. Skipping initialization.")
+            self.logger.info(
+                "To enable IPLD extension, make sure ipld_extension.py is available."
             )
 
     def _setup_cluster_management(self, resources=None, metadata=None):
@@ -988,6 +1007,245 @@ class ipfs_kit:
             peers_result = self.ipfs.swarm_peers()
             result.update(peers_result)
             result["success"] = peers_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def _setup_ipld_extension(self, resources=None, metadata=None):
+        """Set up the IPLD extension component."""
+        try:
+            self.logger.info("Setting up IPLD extension...")
+            
+            # Create IPLD extension with the IPFS client
+            self.ipld_extension = IPLDExtension(self.ipfs)
+            
+            # Check component availability
+            if not self.ipld_extension.car_handler.available:
+                self.logger.warning("CAR file operations are not available.")
+                self.logger.info("To enable CAR file operations, install py-ipld-car package.")
+            
+            if not self.ipld_extension.dag_pb_handler.available:
+                self.logger.warning("DAG-PB operations are not available.")
+                self.logger.info("To enable DAG-PB operations, install py-ipld-dag-pb package.")
+            
+            if not self.ipld_extension.unixfs_handler.available:
+                self.logger.warning("UnixFS operations are not available.")
+                self.logger.info("To enable UnixFS operations, install py-ipld-unixfs package.")
+            
+            self.logger.info("IPLD extension setup complete.")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to set up IPLD extension: {str(e)}")
+            return False
+    
+    # IPLD Extension Methods
+    
+    def create_car(self, roots, blocks, **kwargs):
+        """Create a CAR file from roots and blocks.
+        
+        Args:
+            roots: List of root CID strings
+            blocks: List of (CID, data) tuples
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result
+        """
+        operation = "create_car"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.car_handler.available:
+                return handle_error(result, IPFSError("CAR file operations not available"))
+            
+            car_result = self.ipld_extension.create_car(roots, blocks)
+            result.update(car_result)
+            result["success"] = car_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def extract_car(self, car_data, **kwargs):
+        """Extract contents of a CAR file.
+        
+        Args:
+            car_data: CAR file data (binary or base64 encoded string)
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result
+        """
+        operation = "extract_car"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.car_handler.available:
+                return handle_error(result, IPFSError("CAR file operations not available"))
+            
+            extract_result = self.ipld_extension.extract_car(car_data)
+            result.update(extract_result)
+            result["success"] = extract_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def save_car(self, car_data, file_path, **kwargs):
+        """Save CAR data to a file.
+        
+        Args:
+            car_data: CAR file data (binary or base64 encoded string)
+            file_path: Path to save the file
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result
+        """
+        operation = "save_car"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.car_handler.available:
+                return handle_error(result, IPFSError("CAR file operations not available"))
+            
+            # Call the extension
+            save_result = self.ipld_extension.save_car(car_data, file_path)
+            
+            # Copy all results
+            for key, value in save_result.items():
+                result[key] = value
+                
+            result["success"] = save_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def load_car(self, file_path, **kwargs):
+        """Load CAR data from a file.
+        
+        Args:
+            file_path: Path to the CAR file
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result, roots and blocks
+        """
+        operation = "load_car"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.car_handler.available:
+                return handle_error(result, IPFSError("CAR file operations not available"))
+            
+            # Call the extension
+            load_result = self.ipld_extension.load_car(file_path)
+            
+            # Copy all results
+            for key, value in load_result.items():
+                result[key] = value
+                
+            result["success"] = load_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def add_car_to_ipfs(self, car_data, **kwargs):
+        """Import a CAR file into IPFS.
+        
+        Args:
+            car_data: CAR file data (binary or base64 encoded string)
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result
+        """
+        operation = "add_car_to_ipfs"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.car_handler.available:
+                return handle_error(result, IPFSError("CAR file operations not available"))
+            
+            add_car_result = self.ipld_extension.add_car_to_ipfs(car_data)
+            result.update(add_car_result)
+            result["success"] = add_car_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def create_dag_node(self, data=None, links=None, **kwargs):
+        """Create a DAG-PB node.
+        
+        Args:
+            data: Optional binary data for the node
+            links: Optional list of links to other nodes
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result
+        """
+        operation = "create_dag_node"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.dag_pb_handler.available:
+                return handle_error(result, IPFSError("DAG-PB operations not available"))
+            
+            node_result = self.ipld_extension.create_node(data, links)
+            result.update(node_result)
+            result["success"] = node_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+    
+    def chunk_file(self, file_path, chunk_size=262144, **kwargs):
+        """Chunk a file using fixed-size chunker.
+        
+        Args:
+            file_path: Path to the file to chunk
+            chunk_size: Size of chunks in bytes (default: 256KB)
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dictionary with operation result
+        """
+        operation = "chunk_file"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
+                return handle_error(result, IPFSError("IPLD extension not initialized"))
+            
+            if not self.ipld_extension.unixfs_handler.available:
+                return handle_error(result, IPFSError("UnixFS operations not available"))
+            
+            chunk_result = self.ipld_extension.chunk_file(file_path, chunk_size)
+            result.update(chunk_result)
+            result["success"] = chunk_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)

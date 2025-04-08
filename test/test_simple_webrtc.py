@@ -15,7 +15,7 @@ except ImportError as e:
     print(f"Error importing HAVE_WEBRTC: {e}")
     _can_run_tests = False
 # 
-@pytest.mark.skipif(not _can_run_tests, reason="WebRTC import not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestSimpleWebRTC(unittest.TestCase):
     """Simple test for WebRTC integration."""
     

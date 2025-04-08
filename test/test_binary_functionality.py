@@ -157,7 +157,7 @@ class TestBinaryFunctionality:
             if os.path.exists(test_file_path):
                 os.unlink(test_file_path)
 # 
-    @pytest.mark.skipif(
+#     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unix socket test not applicable on Windows"
     )
     def test_unix_socket_if_available(self, ensure_binaries):

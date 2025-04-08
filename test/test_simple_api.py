@@ -19,10 +19,10 @@ try:
 
     # If FastAPI is not available, skip all tests
     if not FASTAPI_AVAILABLE:
-        pytestmark = pytest.mark.skip(reason="FastAPI not available, skipping tests")
+#         pytestmark = pytest.mark.skip(reason="FastAPI not available, skipping tests")
 except ImportError:
     FASTAPI_AVAILABLE = False
-    pytestmark = pytest.mark.skip(reason="Could not import api module, skipping tests")
+#     pytestmark = pytest.mark.skip(reason="Could not import api module, skipping tests")
 
 # Import the app from the api module for direct testing
 if FASTAPI_AVAILABLE:
@@ -128,7 +128,7 @@ def test_api_method_error():
     assert result["error_type"] == "IPFSError"
 # 
 
-@pytest.mark.skipif(True, reason="Skipping test when run as part of the full test suite, passes when run individually")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 def test_api_config():
     """Test config endpoint."""
     response = client.get("/api/config")
@@ -139,7 +139,7 @@ def test_api_config():
     assert isinstance(data["features"], dict)
 # 
 
-@pytest.mark.skipif(True, reason="Skipping test when run as part of the full test suite, passes when run individually")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 def test_api_methods():
     """Test methods listing endpoint."""
     response = client.get("/api/methods")
@@ -151,7 +151,7 @@ def test_api_methods():
     assert len(extensions) > 0
 # 
 
-@pytest.mark.skipif(True, reason="Skipping test when run as part of the full test suite, passes when run individually")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 def test_file_download():
     """Test file download endpoint."""
     # Skip the actual content assertions but make sure the endpoints respond

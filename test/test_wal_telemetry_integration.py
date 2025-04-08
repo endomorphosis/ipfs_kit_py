@@ -220,7 +220,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         # Verify telemetry instance is properly created
         self.assertIsInstance(self.telemetry, WALTelemetry)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_metrics_collection(self):
         """Test that metrics are properly collected during WAL operations."""
         # Generate some test operations
@@ -238,7 +238,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         op_count = metrics["operation_count"]
         self.assertGreater(sum(count for count in op_count.values()), 0)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_api_metrics_endpoint(self):
         """Test that metrics are accessible through the API."""
         # Generate some test operations
@@ -256,7 +256,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertIn("operation_count", metrics)
         self.assertIn("operation_latency", metrics)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_realtime_metrics_endpoint(self):
         """Test that real-time metrics are accessible through the API."""
         # Generate some test operations
@@ -274,7 +274,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertIn("success_rate", response)
         self.assertIn("throughput", response)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_filtered_metrics(self):
         """Test that metrics can be filtered."""
         # Generate some test operations
@@ -307,7 +307,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
                 if op_type != "append":
                     self.assertEqual(count, 0)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_report_generation(self):
         """Test report generation through the API."""
         # Generate some test operations
@@ -340,7 +340,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertIn("content", file_response)
         self.assertIn("content_type", file_response)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_visualization_generation(self):
         """Test visualization generation through the API."""
         # Generate some test operations
@@ -370,7 +370,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 #                 
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_time_series_metrics(self):
         """Test retrieving metrics over time."""
         # Generate some test operations
@@ -401,7 +401,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             self.assertIn("timestamp", point)
             self.assertIn("metrics", point)
 #             
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_config_endpoints(self):
         """Test configuration endpoints."""
         # Get current configuration
@@ -437,7 +437,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         verify_config = verify_response["config"]
         self.assertEqual(verify_config["sampling_interval"], new_interval)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_cli_output(self):
         """Test CLI command output."""
         # Generate some test operations
@@ -475,7 +475,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertIn("Current Configuration", result.stdout)
         self.assertIn("enabled", result.stdout)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_error_handling(self):
         """Test error handling in client and API."""
         # Test with invalid URL
@@ -489,7 +489,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.client.get_metrics(metric_type="invalid_metric_type")
 #             
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_metric_validation(self):
         """Test metric validation in the API."""
         # Test with invalid time range
@@ -502,7 +502,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertFalse(response.get("success", True))
         self.assertIn("error", response)
 #         
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_concurrent_operations(self):
         """Test telemetry with concurrent operations."""
         # Number of concurrent threads
@@ -538,7 +538,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
                 thread_count * operations_per_thread
             )
 #             
-    @pytest.mark.skip(reason="Skip for now - needs further refactoring")
+    # # # # # # # # # # # # # @pytest.mark.skip(reason="Skip for now - needs further refactoring") - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py - removed by fix_all_tests.py
     def test_end_to_end_workflow(self):
         """Test a complete end-to-end workflow combining multiple features."""
         # 1. Generate operations

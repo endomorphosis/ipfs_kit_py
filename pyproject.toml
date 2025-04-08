@@ -55,6 +55,11 @@ ai_ml = [
 huggingface = [
     "huggingface_hub>=0.19.0",
 ]
+ipld = [
+    "py-ipld-car>=0.1.0",
+    "py-ipld-dag-pb>=0.1.0",
+    "py-ipld-unixfs>=0.1.0",
+]
 api = [
     "fastapi>=0.100.0",
     "uvicorn>=0.22.0",
@@ -110,6 +115,9 @@ full = [
     "av>=10.0.0",
     "opencv-python>=4.7.0.72",
     "websockets>=10.4",
+    "py-ipld-car>=0.1.0",
+    "py-ipld-dag-pb>=0.1.0",
+    "py-ipld-unixfs>=0.1.0",
 ]
 
 [project.scripts]

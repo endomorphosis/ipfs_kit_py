@@ -45,10 +45,18 @@ class MCPCacheManager:
         self.debug_mode = debug_mode
         
         # Create cache directories
+        # First ensure base path exists
+        os.makedirs(self.base_path, exist_ok=True)
+        
+        # Initialize memory cache
         self.memory_cache = {}
         self.memory_cache_size = 0
+        
+        # Set up disk cache path and ensure it exists
         self.disk_cache_path = os.path.join(self.base_path, "disk_cache")
         os.makedirs(self.disk_cache_path, exist_ok=True)
+        
+        logger.debug(f"Cache directories created at {self.base_path} and {self.disk_cache_path}")
         
         # Metadata for cache entries
         self.metadata = {}
@@ -103,27 +111,76 @@ class MCPCacheManager:
     
     def _cleanup_worker(self):
         """Background thread for cache cleanup."""
-        while True:
-            try:
-                # Sleep for a bit
-                time.sleep(60)  # Check every minute
-                
-                # Check if cleanup is needed
-                with self.lock:
-                    memory_usage = self.memory_cache_size
-                    if memory_usage > self.memory_limit * 0.9:  # 90% full
-                        self._evict_from_memory(memory_usage - self.memory_limit * 0.7)  # Target 70% usage
-                        
-                    # Check disk usage
-                    disk_usage = self._get_disk_cache_size()
-                    if disk_usage > self.disk_limit * 0.9:  # 90% full
-                        self._evict_from_disk(disk_usage - self.disk_limit * 0.7)  # Target 70% usage
-                        
-                    # Save metadata periodically
-                    self._save_metadata()
+        # Flag to indicate if thread should stop
+        self._stop_cleanup = False
+        self._cleanup_thread_running = True
+        
+        try:
+            while not self._stop_cleanup:
+                try:
+                    # Sleep for a bit - use short sleeps to check for stop flag more frequently
+                    for _ in range(60):  # Check every minute in 1-second increments
+                        if self._stop_cleanup:
+                            break
+                        time.sleep(1)
                     
-            except Exception as e:
-                logger.error(f"Error in cache cleanup worker: {e}")
+                    if self._stop_cleanup:
+                        break
+                    
+                    # Check if cleanup is needed and if directories exist
+                    with self.lock:
+                        # Verify that directories exist before attempting cleanup
+                        if not os.path.exists(self.base_path):
+                            logger.warning(f"Cache base path {self.base_path} no longer exists, skipping cleanup")
+                            continue
+                            
+                        if not os.path.exists(self.disk_cache_path):
+                            logger.warning(f"Disk cache path {self.disk_cache_path} no longer exists, skipping cleanup")
+                            continue
+                        
+                        memory_usage = self.memory_cache_size
+                        if memory_usage > self.memory_limit * 0.9:  # 90% full
+                            self._evict_from_memory(memory_usage - self.memory_limit * 0.7)  # Target 70% usage
+                            
+                        # Check disk usage
+                        try:
+                            disk_usage = self._get_disk_cache_size()
+                            if disk_usage > self.disk_limit * 0.9:  # 90% full
+                                self._evict_from_disk(disk_usage - self.disk_limit * 0.7)  # Target 70% usage
+                        except (FileNotFoundError, OSError) as e:
+                            logger.warning(f"Disk cache access error during cleanup: {e}")
+                            
+                        # Save metadata periodically
+                        try:
+                            self._save_metadata()
+                        except (FileNotFoundError, OSError) as e:
+                            logger.warning(f"Metadata save error during cleanup: {e}")
+                        
+                except Exception as e:
+                    logger.error(f"Error in cache cleanup worker: {e}")
+                    # Sleep briefly after an error to avoid tight error loops
+                    for _ in range(5):  # 5-second sleep in 1-second increments
+                        if self._stop_cleanup:
+                            break
+                        time.sleep(1)
+        finally:
+            logger.info("Cache cleanup worker thread exiting")
+            self._cleanup_thread_running = False
+            
+    def stop_cleanup_thread(self):
+        """Stop the cleanup thread gracefully."""
+        if hasattr(self, '_cleanup_thread_running') and self._cleanup_thread_running:
+            logger.info("Stopping cache cleanup thread")
+            self._stop_cleanup = True
+            # Wait for thread to exit (with timeout)
+            start_time = time.time()
+            while self._cleanup_thread_running and time.time() - start_time < 5:
+                time.sleep(0.1)
+            logger.info("Cache cleanup thread stopped")
+            
+    def __del__(self):
+        """Destructor to ensure cleanup resources."""
+        self.stop_cleanup_thread()
     
     def _get_disk_cache_size(self) -> int:
         """Get the current disk cache size in bytes."""
@@ -331,7 +388,12 @@ class MCPCacheManager:
                     logger.debug(f"Stored key {key} in memory, size: {size/1024:.1f} KB")
             
             # Store on disk
+            temp_path = None
             try:
+                # Make sure disk_cache_path exists
+                if not os.path.exists(self.disk_cache_path):
+                    os.makedirs(self.disk_cache_path, exist_ok=True)
+                
                 disk_path = os.path.join(self.disk_cache_path, self._key_to_filename(key))
                 
                 # Check disk cache size
@@ -346,6 +408,7 @@ class MCPCacheManager:
                 
                 # Atomic move to final location
                 os.replace(temp_path, disk_path)
+                temp_path = None  # Mark as moved so we don't try to clean it up
                 self.metadata[key]["on_disk"] = True
                 
                 if self.debug_mode:
@@ -355,6 +418,13 @@ class MCPCacheManager:
                 
             except Exception as e:
                 logger.error(f"Error storing key {key} on disk: {e}")
+                # Clean up temp file if it exists
+                if temp_path and os.path.exists(temp_path):
+                    try:
+                        os.unlink(temp_path)
+                    except Exception as cleanup_error:
+                        logger.error(f"Error cleaning up temporary file {temp_path}: {cleanup_error}")
+                
                 # Still return True if we stored in memory
                 return key in self.memory_cache
     
@@ -386,42 +456,61 @@ class MCPCacheManager:
                 return self.memory_cache[key]
             
             # Check disk cache
-            disk_path = os.path.join(self.disk_cache_path, self._key_to_filename(key))
-            if os.path.exists(disk_path):
-                try:
-                    with open(disk_path, 'rb') as f:
-                        value = pickle.loads(f.read())
+            try:
+                # Make sure disk_cache_path exists
+                if not os.path.exists(self.disk_cache_path):
+                    os.makedirs(self.disk_cache_path, exist_ok=True)
                     
-                    self.stats["disk_hits"] += 1
-                    
-                    # Update metadata
-                    if key in self.metadata:
-                        self.metadata[key]["last_access"] = time.time()
-                        self.metadata[key]["access_count"] = self.metadata[key].get("access_count", 0) + 1
-                    
-                    # Promote to memory if it fits
-                    size = os.path.getsize(disk_path)
-                    if size <= self.memory_limit * 0.1:  # Don't store items > 10% of limit
-                        # Check if we need to make room
-                        if self.memory_cache_size + size > self.memory_limit:
-                            self._evict_from_memory(size)
+                disk_path = os.path.join(self.disk_cache_path, self._key_to_filename(key))
+                if os.path.exists(disk_path):
+                    file_obj = None
+                    try:
+                        file_obj = open(disk_path, 'rb')
+                        file_data = file_obj.read()
+                        value = pickle.loads(file_data)
                         
-                        # Store in memory
-                        self.memory_cache[key] = value
-                        self.memory_cache_size += size
+                        self.stats["disk_hits"] += 1
+                        
+                        # Update metadata
                         if key in self.metadata:
-                            self.metadata[key]["in_memory"] = True
+                            self.metadata[key]["last_access"] = time.time()
+                            self.metadata[key]["access_count"] = self.metadata[key].get("access_count", 0) + 1
+                        
+                        # Promote to memory if it fits
+                        size = len(file_data)
+                        if size <= self.memory_limit * 0.1:  # Don't store items > 10% of limit
+                            # Check if we need to make room
+                            if self.memory_cache_size + size > self.memory_limit:
+                                self._evict_from_memory(size)
+                            
+                            # Store in memory
+                            self.memory_cache[key] = value
+                            self.memory_cache_size += size
+                            if key in self.metadata:
+                                self.metadata[key]["in_memory"] = True
+                            
+                            if self.debug_mode:
+                                logger.debug(f"Promoted key {key} to memory cache, size: {size/1024:.1f} KB")
                         
                         if self.debug_mode:
-                            logger.debug(f"Promoted key {key} to memory cache, size: {size/1024:.1f} KB")
-                    
-                    if self.debug_mode:
-                        logger.debug(f"Disk cache hit for key {key}")
-                    
-                    return value
-                    
-                except Exception as e:
-                    logger.error(f"Error reading cache file {disk_path}: {e}")
+                            logger.debug(f"Disk cache hit for key {key}")
+                        
+                        return value
+                        
+                    except (IOError, pickle.PickleError) as e:
+                        logger.error(f"Error reading/unpickling cache file {disk_path}: {e}")
+                        # Try to remove corrupted file
+                        try:
+                            os.unlink(disk_path)
+                            logger.warning(f"Removed corrupted cache file: {disk_path}")
+                        except Exception as del_error:
+                            logger.error(f"Error removing corrupted cache file: {del_error}")
+                    finally:
+                        # Ensure file is closed
+                        if file_obj:
+                            file_obj.close()
+            except Exception as e:
+                logger.error(f"Unexpected error accessing disk cache for key {key}: {e}")
             
             # Cache miss
             self.stats["misses"] += 1

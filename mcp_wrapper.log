@@ -1,0 +1,953 @@
+2025-04-08 13:26:47,223 - mcp_wrapper - INFO - Starting MCP server on port 9999...
+2025-04-08 13:26:48,697 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:48,697 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:26:51,025 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,025 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-04-08 13:26:51,025 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,025 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-04-08 13:26:51,475 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,475 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:26:51,475 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,475 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:26:51,475 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,475 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:26:51,476 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,475 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:26:51,678 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,678 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:26:51,679 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,679 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:26:51,679 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,679 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:26:51,680 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,680 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:26:51,680 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,680 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:26:51,680 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,680 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:26:51,697 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,697 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:26:51,697 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,697 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:26:51,717 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:26:51,717 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,717 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:26:51,718 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,717 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 0 entries
+2025-04-08 13:26:51,718 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,718 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:26:51,726 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,726 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Failed to connect to IPFS daemon: 'ipfs_py' object has no attribute 'id'
+2025-04-08 13:26:51,726 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,726 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:26:51,727 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,726 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:26:51,736 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,735 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:26:51,736 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 2b491407-ae5d-4189-a1f8-11bd007d7f28
+2025-04-08 13:26:51,736 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,736 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 2b491407-ae5d-4189-a1f8-11bd007d7f28
+2025-04-08 13:26:51,736 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:26:51,736 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,736 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:26:51,736 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:26:51,737 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,736 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:26:51,747 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:26:51,747 - mcp_wrapper - INFO - Server: 2025-04-08 13:26:51,747 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:26:51,747 - mcp_wrapper - INFO - Server: INFO:     Started server process [82397]
+2025-04-08 13:26:51,747 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:26:51,748 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:26:51,748 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:27:55,003 - mcp_wrapper - INFO - Starting MCP server on port 9999...
+2025-04-08 13:27:56,306 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:56,306 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:27:58,356 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,356 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-04-08 13:27:58,357 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,356 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-04-08 13:27:58,792 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,791 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:27:58,795 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,795 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:27:58,797 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,797 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:27:58,797 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,797 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:27:58,797 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:58,797 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:27:59,071 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,071 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:27:59,071 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,071 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:27:59,072 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,072 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:27:59,072 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,072 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:27:59,072 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,072 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:27:59,072 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,072 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:27:59,088 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,088 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:27:59,088 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,088 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:27:59,104 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:27:59,104 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,104 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:27:59,105 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,104 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 1 entries
+2025-04-08 13:27:59,105 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,105 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:27:59,220 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,220 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:27:59,221 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,221 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Failed to connect to IPFS daemon: 'ipfs_py' object has no attribute 'id'
+2025-04-08 13:27:59,221 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,221 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:27:59,222 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,221 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:27:59,250 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,250 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:27:59,250 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: fda36d00-0cd1-40d1-a1b4-72e1b99efee7
+2025-04-08 13:27:59,251 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,250 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: fda36d00-0cd1-40d1-a1b4-72e1b99efee7
+2025-04-08 13:27:59,251 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:27:59,251 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,250 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:27:59,251 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:27:59,252 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,250 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:27:59,276 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:27:59,276 - mcp_wrapper - INFO - Server: 2025-04-08 13:27:59,275 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:27:59,277 - mcp_wrapper - INFO - Server: INFO:     Started server process [82763]
+2025-04-08 13:27:59,277 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:27:59,277 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:27:59,278 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:27:59,279 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:27:59,279 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:27:59,280 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:27:59,504 - mcp_wrapper - INFO - Adding content: Testing the MCP wrapper API...
+2025-04-08 13:27:59,508 - mcp_wrapper - INFO - Added content: {'success': True, 'operation_id': 'add_1744144079507', 'duration_ms': 0.46563148498535156, 'cid': 'Qm6f4270f3a8b1ace39de9cebe49d99a0a21baa8e00d31', 'Hash': 'Qm6f4270f3a8b1ace39de9cebe49d99a0a21baa8e00d31', 'content_size_bytes': 27}
+2025-04-08 13:28:03,960 - mcp_wrapper - INFO - Starting MCP server on port 9999...
+2025-04-08 13:28:05,310 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:05,310 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:28:07,456 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,456 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-04-08 13:28:07,456 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,456 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-04-08 13:28:07,909 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,908 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:28:07,913 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,912 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:28:07,914 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,914 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:28:07,914 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,914 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:28:07,914 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:07,914 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:28:08,187 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,187 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:28:08,188 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,188 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:28:08,189 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,188 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:28:08,189 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,189 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:28:08,189 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,189 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:28:08,189 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,189 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:28:08,208 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,208 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:28:08,208 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,208 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:28:08,225 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:28:08,225 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,225 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:28:08,225 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,225 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 1 entries
+2025-04-08 13:28:08,226 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,226 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:28:08,354 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,353 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:28:08,354 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,354 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Failed to connect to IPFS daemon: 'ipfs_py' object has no attribute 'id'
+2025-04-08 13:28:08,354 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,354 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:28:08,355 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,354 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:28:08,380 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,380 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:28:08,381 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 43a6d05f-e46b-4509-b35e-8583e7165f89
+2025-04-08 13:28:08,381 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,380 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 43a6d05f-e46b-4509-b35e-8583e7165f89
+2025-04-08 13:28:08,381 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:28:08,381 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,380 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:28:08,382 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:28:08,382 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,380 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:28:08,407 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:28:08,407 - mcp_wrapper - INFO - Server: 2025-04-08 13:28:08,406 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:28:08,408 - mcp_wrapper - INFO - Server: INFO:     Started server process [82842]
+2025-04-08 13:28:08,408 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:28:08,408 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:28:08,409 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:28:08,410 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:28:08,410 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:28:08,412 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:28:08,626 - mcp_wrapper - INFO - Getting content for CID: Qm6f4270f3a8b1ace39de9cebe49d99a0a21baa8e00d31...
+2025-04-08 13:28:08,650 - mcp_wrapper - INFO - Retrieved content: This is simulated content for ...
+2025-04-08 13:31:25,762 - mcp_wrapper - INFO - Starting MCP server on port 9999...
+2025-04-08 13:31:27,066 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:27,066 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:31:29,095 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,095 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-04-08 13:31:29,095 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,095 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-04-08 13:31:29,566 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,565 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:31:29,570 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,569 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:31:29,571 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,571 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:31:29,571 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,571 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:31:29,572 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,571 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:31:29,855 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,855 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:31:29,856 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,855 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:31:29,856 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,855 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:31:29,856 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,856 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:31:29,856 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,856 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:31:29,856 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,856 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:31:29,875 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,875 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:31:29,875 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,875 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:31:29,893 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:31:29,893 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,892 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:31:29,893 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,893 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:31:29,893 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:29,893 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:31:30,147 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,147 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:31:30,147 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,147 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Failed to connect to IPFS daemon: 'ipfs_py' object has no attribute 'id'
+2025-04-08 13:31:30,148 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,147 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:31:30,148 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,147 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:31:30,174 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,173 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:31:30,174 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: a941b685-ede5-4b04-8966-ef0d8c818a57
+2025-04-08 13:31:30,174 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,174 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: a941b685-ede5-4b04-8966-ef0d8c818a57
+2025-04-08 13:31:30,175 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:31:30,175 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,174 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:31:30,175 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:31:30,175 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,174 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:31:30,200 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:31:30,200 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:30,199 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:31:30,201 - mcp_wrapper - INFO - Server: INFO:     Started server process [84854]
+2025-04-08 13:31:30,201 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:31:30,201 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:31:30,202 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:31:30,203 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:31:30,203 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:31:30,204 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:31:30,381 - mcp_wrapper - INFO - Adding content: Testing content operation thro...
+2025-04-08 13:31:30,392 - mcp_wrapper - INFO - Added content: {'success': True, 'operation_id': 'add_1744144290391', 'duration_ms': 0.3705024719238281, 'cid': 'Qm54ed72e608da69323888c67756fa46e17af34c29559d', 'Hash': 'Qm54ed72e608da69323888c67756fa46e17af34c29559d', 'content_size_bytes': 45}
+2025-04-08 13:31:34,653 - mcp_wrapper - INFO - Starting MCP server on port 9999...
+2025-04-08 13:31:36,025 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:36,024 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:31:38,033 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,033 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-04-08 13:31:38,033 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,033 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-04-08 13:31:38,475 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,474 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:31:38,478 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,478 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:31:38,480 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,480 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:31:38,480 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,480 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:31:38,481 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,480 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:31:38,758 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,757 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:31:38,758 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,758 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:31:38,758 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,758 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:31:38,759 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,759 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:31:38,759 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,759 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:31:38,759 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,759 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:31:38,776 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,775 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:31:38,776 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,775 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:31:38,793 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:31:38,794 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,793 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:31:38,794 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,794 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:31:38,795 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,794 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:31:38,945 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,945 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:31:38,945 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,945 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Failed to connect to IPFS daemon: 'ipfs_py' object has no attribute 'id'
+2025-04-08 13:31:38,946 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,945 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:31:38,946 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,946 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:31:38,972 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,972 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:31:38,973 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: e752e4c2-307c-4a91-a773-d19595dce37d
+2025-04-08 13:31:38,973 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,972 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: e752e4c2-307c-4a91-a773-d19595dce37d
+2025-04-08 13:31:38,973 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:31:38,974 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,972 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:31:38,974 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:31:38,974 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,973 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:31:38,999 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:31:38,999 - mcp_wrapper - INFO - Server: 2025-04-08 13:31:38,998 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:31:39,000 - mcp_wrapper - INFO - Server: INFO:     Started server process [84932]
+2025-04-08 13:31:39,000 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:31:39,001 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:31:39,001 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:31:39,003 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:31:39,003 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:31:39,004 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:31:39,215 - mcp_wrapper - INFO - Getting content for CID: Qm54ed72e608da69323888c67756fa46e17af34c29559d...
+2025-04-08 13:31:39,240 - mcp_wrapper - INFO - Retrieved content: This is simulated content for ...
+2025-04-08 13:34:33,019 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:34:33,641 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-04-08 13:34:33,666 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-04-08 13:34:33,672 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-04-08 13:34:38,257 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:34:38,448 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:34:38,448 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:34:38,448 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:34:38,448 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:34:38,448 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:34:38,448 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:34:38,449 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:34:38,449 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:34:38,449 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:34:38,450 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:34:38,450 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:34:38,450 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:34:38,452 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:34:38,453 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:34:39,456 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:39,452 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-04-08 13:34:39,470 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:39,470 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-04-08 13:34:39,473 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:39,473 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-04-08 13:34:40,376 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:40.376703: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2025-04-08 13:34:40,390 - mcp_wrapper - INFO - Server: WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+2025-04-08 13:34:40,390 - mcp_wrapper - INFO - Server: E0000 00:00:1744144480.390609   86985 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2025-04-08 13:34:40,395 - mcp_wrapper - INFO - Server: E0000 00:00:1744144480.395091   86985 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2025-04-08 13:34:40,405 - mcp_wrapper - INFO - Server: W0000 00:00:1744144480.405164   86985 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-08 13:34:40,405 - mcp_wrapper - INFO - Server: W0000 00:00:1744144480.405180   86985 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-08 13:34:40,405 - mcp_wrapper - INFO - Server: W0000 00:00:1744144480.405181   86985 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-08 13:34:40,405 - mcp_wrapper - INFO - Server: W0000 00:00:1744144480.405183   86985 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-08 13:34:40,409 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:40.409017: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+2025-04-08 13:34:40,409 - mcp_wrapper - INFO - Server: To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2025-04-08 13:34:43,960 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:43,959 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:34:44,227 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,227 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:34:44,232 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,232 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:34:44,233 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,233 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:34:44,234 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,233 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:34:44,234 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,234 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:34:44,321 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,320 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
+2025-04-08 13:34:44,321 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,321 - ipfs_kit_py.api - INFO - Prometheus metrics enabled at /metrics
+2025-04-08 13:34:44,417 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,416 - ipfs_kit_py.api - INFO - GraphQL API available at /graphql
+2025-04-08 13:34:44,417 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,417 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:34:44,417 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,417 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:34:44,418 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,418 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:34:44,418 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,418 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:34:44,418 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,418 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:34:44,418 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,418 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:34:44,429 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,429 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:34:44,429 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,429 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:34:44,430 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,429 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
+2025-04-08 13:34:44,430 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,430 - ipfs_kit_py.api - INFO - Prometheus metrics endpoint added at /metrics
+2025-04-08 13:34:44,442 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:34:44,442 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,442 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:34:44,443 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,443 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:34:44,444 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,444 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:34:44,708 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,708 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:34:44,709 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,708 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Failed to connect to IPFS daemon: 'ipfs_py' object has no attribute 'id'
+2025-04-08 13:34:44,709 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,709 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:34:44,710 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,709 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:34:44,730 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,730 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:34:44,730 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: e103ab9a-30ed-40c1-af91-1e949e2b0d50
+2025-04-08 13:34:44,731 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,730 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: e103ab9a-30ed-40c1-af91-1e949e2b0d50
+2025-04-08 13:34:44,731 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:34:44,731 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,730 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:34:44,732 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:34:44,732 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,730 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:34:44,749 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:34:44,749 - mcp_wrapper - INFO - Server: 2025-04-08 13:34:44,749 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:34:44,750 - mcp_wrapper - INFO - Server: INFO:     Started server process [86985]
+2025-04-08 13:34:44,750 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:34:44,751 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:34:44,751 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:34:44,752 - mcp_wrapper - INFO - Server: INFO:     Uvicorn running on http://127.0.0.1:9999 (Press CTRL+C to quit)
+2025-04-08 13:41:01,697 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:41:02,523 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:04,584 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:05,183 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:05,183 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:05,184 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:41:05,184 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:41:05,184 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:05,184 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:41:05,184 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:05,185 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:05,185 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:05,185 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:41:05,185 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:41:05,185 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:05,187 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:41:09,628 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:41:10,604 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:12,875 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:13,657 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:13,657 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:13,657 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:41:13,657 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:41:13,657 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:13,657 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:41:13,658 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:13,658 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:13,658 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:13,659 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:41:13,659 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:41:13,659 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:13,662 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:41:13,663 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:41:15,720 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:15,720 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:18,957 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:18,956 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:19,482 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,482 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:41:19,484 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,484 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:41:19,485 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,484 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:41:19,485 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,484 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:41:19,485 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,485 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:41:19,702 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,702 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:41:19,703 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,703 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:41:19,703 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,703 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:41:19,704 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,703 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:41:19,704 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,704 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:41:19,704 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,704 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:41:19,725 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,725 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:41:19,725 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,725 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:41:19,759 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:41:19,760 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,759 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:41:19,760 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,760 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:41:19,760 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,760 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:41:19,907 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,907 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:41:19,933 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,933 - ipfs_kit_py.ipfs - ERROR - Command failed: ipfs id
+2025-04-08 13:41:19,933 - mcp_wrapper - INFO - Server: Return code: 1
+2025-04-08 13:41:19,933 - mcp_wrapper - INFO - Server: Stderr: Error: no IPFS repo found in /home/barberb/.ipfs.
+2025-04-08 13:41:19,933 - mcp_wrapper - INFO - Server: please run: 'ipfs init'
+2025-04-08 13:41:19,933 - mcp_wrapper - INFO - Server: 
+2025-04-08 13:41:19,933 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,933 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS kit doesn't have id or ipfs_id method
+2025-04-08 13:41:19,934 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,933 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS daemon connection test couldn't find a working method
+2025-04-08 13:41:19,934 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,933 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:41:19,934 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,933 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:41:19,942 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,942 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:41:19,942 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 3992310a-eccd-42e5-aa42-29dabe6d9849
+2025-04-08 13:41:19,942 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,942 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 3992310a-eccd-42e5-aa42-29dabe6d9849
+2025-04-08 13:41:19,942 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:41:19,943 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,942 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:41:19,943 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:41:19,943 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,942 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:41:19,951 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:41:19,951 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:19,951 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:41:19,951 - mcp_wrapper - INFO - Server: INFO:     Started server process [90566]
+2025-04-08 13:41:19,951 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:41:19,952 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:41:19,952 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:41:19,953 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:41:32,412 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:41:33,281 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:35,369 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:36,120 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:36,121 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:36,121 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:41:36,121 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:41:36,121 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:36,121 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:41:36,122 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:36,122 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:36,123 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:36,123 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:41:36,123 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:41:36,123 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:36,125 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:41:36,127 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:41:37,525 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:37,525 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:39,549 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:39,549 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:39,551 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:39,551 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:41:39,551 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:39,551 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:41:40,080 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,080 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:41:40,082 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,082 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:41:40,082 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,082 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:41:40,083 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,082 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:41:40,083 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,082 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:41:40,313 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,312 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:41:40,313 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,313 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:41:40,314 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,313 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:41:40,315 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,314 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:41:40,315 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,314 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:41:40,315 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,314 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:41:40,334 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,334 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:41:40,334 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,334 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:41:40,360 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:41:40,360 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,359 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:41:40,360 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,360 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:41:40,361 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,361 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:41:40,554 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,554 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:41:40,579 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,578 - ipfs_kit_py.ipfs - ERROR - Command failed: ipfs id
+2025-04-08 13:41:40,579 - mcp_wrapper - INFO - Server: Return code: 1
+2025-04-08 13:41:40,579 - mcp_wrapper - INFO - Server: Stderr: Error: no IPFS repo found in /home/barberb/.ipfs.
+2025-04-08 13:41:40,579 - mcp_wrapper - INFO - Server: please run: 'ipfs init'
+2025-04-08 13:41:40,579 - mcp_wrapper - INFO - Server: 
+2025-04-08 13:41:40,580 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,579 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS kit doesn't have id or ipfs_id method
+2025-04-08 13:41:40,580 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,579 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS daemon connection test couldn't find a working method
+2025-04-08 13:41:40,580 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,579 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:41:40,580 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,579 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:41:40,588 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,588 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:41:40,588 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 6a0d0978-a1b2-446a-9976-7fddff266d87
+2025-04-08 13:41:40,588 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,588 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 6a0d0978-a1b2-446a-9976-7fddff266d87
+2025-04-08 13:41:40,588 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:41:40,589 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,588 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:41:40,589 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:41:40,589 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,588 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:41:40,597 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:41:40,597 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:40,597 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:41:40,597 - mcp_wrapper - INFO - Server: INFO:     Started server process [90784]
+2025-04-08 13:41:40,597 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:41:40,598 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:41:40,598 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:41:40,598 - mcp_wrapper - INFO - Adding content: Testing Claude CLI MCP integra...
+2025-04-08 13:41:40,600 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:41:40,600 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:41:40,600 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:41:40,608 - mcp_wrapper - INFO - Added content: {'success': True, 'operation_id': 'add_1744144900607', 'duration_ms': 0.5509853363037109, 'cid': 'Qm6f60f9a8cf0ab9b0581772838ede815f5bec2d9a2b02', 'Hash': 'Qm6f60f9a8cf0ab9b0581772838ede815f5bec2d9a2b02', 'content_size_bytes': 34}
+2025-04-08 13:41:48,903 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:41:49,811 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:52,069 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:52,408 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:41:52,408 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:41:52,722 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:52,722 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:52,723 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:41:52,723 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:41:52,723 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:52,723 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:41:52,724 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:52,724 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:41:52,724 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:41:52,724 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:41:52,724 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:41:52,724 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:41:52,726 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:41:52,726 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:41:52,727 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:41:52,728 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:41:54,144 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:54,144 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:41:56,280 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,280 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:41:56,282 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,282 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:41:56,282 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,282 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:41:56,733 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,732 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:41:56,737 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,736 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:41:56,738 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,738 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:41:56,739 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,738 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:41:56,739 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:56,738 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:41:57,022 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,021 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:41:57,022 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,022 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:41:57,023 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,022 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:41:57,023 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,023 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:41:57,023 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,023 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:41:57,023 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,023 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:41:57,040 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,040 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:41:57,041 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,040 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:41:57,058 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:41:57,058 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,057 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:41:57,058 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,058 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:41:57,059 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,059 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:41:57,308 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,308 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:41:57,371 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,371 - ipfs_kit_py.ipfs - ERROR - Command failed: ipfs id
+2025-04-08 13:41:57,372 - mcp_wrapper - INFO - Server: Return code: 1
+2025-04-08 13:41:57,372 - mcp_wrapper - INFO - Server: Stderr: Error: no IPFS repo found in /home/barberb/.ipfs.
+2025-04-08 13:41:57,373 - mcp_wrapper - INFO - Server: please run: 'ipfs init'
+2025-04-08 13:41:57,373 - mcp_wrapper - INFO - Server: 
+2025-04-08 13:41:57,374 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,371 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS kit doesn't have id or ipfs_id method
+2025-04-08 13:41:57,375 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,371 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS daemon connection test couldn't find a working method
+2025-04-08 13:41:57,375 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,372 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-08 13:41:57,375 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,372 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:41:57,399 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,399 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:41:57,400 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 54fb7704-c730-4819-bb93-beb0ef9671b3
+2025-04-08 13:41:57,400 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,399 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 54fb7704-c730-4819-bb93-beb0ef9671b3
+2025-04-08 13:41:57,401 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:41:57,401 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,399 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:41:57,401 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:41:57,402 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,400 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:41:57,426 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:41:57,427 - mcp_wrapper - INFO - Server: 2025-04-08 13:41:57,426 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:41:57,427 - mcp_wrapper - INFO - Server: INFO:     Started server process [91045]
+2025-04-08 13:41:57,428 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:41:57,428 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:41:57,429 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:41:57,430 - mcp_wrapper - INFO - Getting content for CID: Qm6f60f9a8cf0ab9b0581772838ede815f5bec2d9a2b02...
+2025-04-08 13:41:57,430 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:41:57,435 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:41:57,436 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:41:57,503 - mcp_wrapper - INFO - Retrieved content: This is simulated content for ...
+2025-04-08 13:46:05,955 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:46:06,904 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:46:09,058 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:46:09,394 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:46:09,394 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:46:09,673 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:09,673 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:09,673 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:46:09,673 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:46:09,673 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:09,674 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:46:09,674 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:46:09,675 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:09,675 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:09,675 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:46:09,675 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:46:09,675 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:09,677 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:46:09,677 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:46:09,678 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:46:09,679 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:46:09,679 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:09,679 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:09,679 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:46:09,679 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:46:09,680 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:09,681 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:46:09,681 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:46:11,009 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:11,009 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:46:13,102 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,102 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:46:13,103 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,103 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:46:13,103 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,103 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:46:13,634 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,634 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:46:13,638 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,637 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:46:13,639 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,639 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:46:13,640 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,639 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:46:13,640 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,639 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:46:13,921 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,921 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:46:13,922 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,922 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:46:13,922 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,922 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:46:13,923 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,922 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:46:13,923 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,922 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:46:13,923 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,923 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:46:13,937 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,937 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:46:13,937 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:13,937 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:46:13,946 - mcp_wrapper - INFO - Server: INFO:     Started server process [92635]
+2025-04-08 13:46:13,946 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:46:13,946 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:46:13,946 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:46:13,947 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:46:13,947 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:46:21,279 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:46:22,083 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:46:24,134 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:46:24,465 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:46:24,465 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:46:24,733 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:24,734 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:24,734 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:46:24,734 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:46:24,734 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:24,734 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:46:24,735 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:46:24,735 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:24,735 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:24,735 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:46:24,735 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:46:24,735 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:24,737 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:46:24,737 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:46:24,738 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:46:24,739 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:46:24,740 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:46:24,740 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:46:24,740 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:46:24,740 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:46:24,740 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:46:25,996 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:25,996 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:46:27,990 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:27,990 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:46:27,991 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:27,991 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:46:27,992 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:27,991 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:46:28,506 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,506 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:46:28,510 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,510 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:46:28,511 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,511 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:46:28,512 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,511 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:46:28,513 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,511 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:46:28,799 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,799 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:46:28,799 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,799 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:46:28,800 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,800 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:46:28,800 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,800 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:46:28,800 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,800 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:46:28,801 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,800 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:46:28,817 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,816 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:46:28,817 - mcp_wrapper - INFO - Server: 2025-04-08 13:46:28,817 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:46:28,827 - mcp_wrapper - INFO - Server: INFO:     Started server process [92816]
+2025-04-08 13:46:28,827 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:46:28,827 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:46:28,827 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:46:28,827 - mcp_wrapper - INFO - Adding content: Testing explicit operation...
+2025-04-08 13:46:28,828 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:46:28,829 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:46:28,830 - mcp_wrapper - INFO - Server: INFO:     Application shutdown complete.
+2025-04-08 13:46:28,833 - mcp_wrapper - INFO - Added content: {'success': True, 'operation_id': 'add_1744145188831', 'duration_ms': 0.7007122039794922, 'cid': 'QmTest123', 'Hash': 'QmTest123', 'content_size_bytes': 26}
+2025-04-08 13:50:49,143 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:50:50,193 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:50:52,540 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:50:52,908 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:50:52,908 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:50:53,240 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:50:53,240 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:50:53,241 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:50:53,241 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:50:53,241 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:50:53,241 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:50:53,241 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:50:53,242 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:50:53,242 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:50:53,242 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:50:53,242 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:50:53,242 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:50:53,244 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:50:53,244 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:50:53,244 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:50:53,245 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:50:53,245 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:50:53,246 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:50:54,526 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:54,526 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:50:56,568 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:56,567 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:50:56,569 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:56,569 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:50:56,569 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:56,569 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:50:57,022 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,021 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:50:57,025 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,025 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:50:57,027 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,026 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:50:57,027 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,027 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:50:57,027 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,027 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:50:57,310 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,310 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:50:57,310 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,310 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:50:57,311 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,311 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:50:57,311 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,311 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:50:57,311 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,311 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:50:57,312 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,311 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:50:57,329 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,329 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:50:57,330 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,329 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:50:57,348 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:50:57,349 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,348 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:50:57,349 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,349 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:50:57,349 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,349 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:50:57,483 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,483 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:50:57,483 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,483 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
+2025-04-08 13:50:57,484 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,483 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
+2025-04-08 13:50:57,484 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,483 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:50:57,621 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,621 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:50:57,622 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,621 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:50:57,622 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,621 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:50:57,622 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,622 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-08 13:50:57,648 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,648 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:50:57,686 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,685 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-08 13:50:57,686 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: cff6c3e8-f25d-49c9-bed9-cf02e35e6bdd
+2025-04-08 13:50:57,686 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,686 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: cff6c3e8-f25d-49c9-bed9-cf02e35e6bdd
+2025-04-08 13:50:57,687 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:50:57,687 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,686 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:50:57,687 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:50:57,687 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,686 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:50:57,747 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:50:57,748 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,747 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:50:57,748 - mcp_wrapper - INFO - Server: INFO:     Started server process [94234]
+2025-04-08 13:50:57,749 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:50:57,749 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:50:57,749 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:50:57,750 - mcp_wrapper - INFO - Getting IPFS operation statistics...
+2025-04-08 13:50:57,750 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:50:57,753 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:50:57,754 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,750 - run_mcp_server - INFO - FastAPI shutdown event received, cleaning up MCP server
+2025-04-08 13:50:57,754 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-08 13:50:57,754 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,750 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-08 13:50:57,755 - mcp_wrapper - INFO - Server: 2025-04-08 13:50:57,750 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-08 13:50:57,759 - mcp_wrapper - INFO - Retrieved stats: {'operation_stats': {'add_count': 2, 'get_count': 1, 'pin_count': 0, 'unpin_count': 0, 'list_count': 0, 'total_operations': 3, 'success_count': 3, 'failure_count': 0, 'bytes_added': 60, 'bytes_retrieved': 81}, 'timestamp': 1744145457.7557647}
+2025-04-08 13:51:03,084 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:51:03,948 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:51:05,989 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:06,294 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:06,295 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:06,579 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:06,579 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:06,579 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:51:06,579 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:51:06,579 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:06,579 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:51:06,580 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:06,580 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:06,580 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:06,580 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:51:06,581 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:51:06,581 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:06,583 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:06,583 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:06,583 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:51:06,584 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:51:06,584 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:51:06,585 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:51:06,586 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:06,586 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:51:06,586 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:51:07,994 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:07,994 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:51:10,107 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,107 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:10,108 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,108 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:10,109 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,108 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:10,629 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,629 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:10,633 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,633 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:51:10,635 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,634 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:51:10,635 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,635 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:51:10,635 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,635 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:51:10,901 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,901 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:51:10,902 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,901 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:51:10,902 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,902 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:51:10,902 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,902 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:51:10,902 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,902 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:51:10,903 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,902 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:51:10,921 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,921 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:51:10,921 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,921 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:51:10,943 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:51:10,943 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,943 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:51:10,944 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,943 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:51:10,944 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:10,944 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:51:11,076 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,075 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:11,077 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,076 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
+2025-04-08 13:51:11,077 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,076 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
+2025-04-08 13:51:11,078 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,076 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:51:11,214 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,214 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:11,215 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,215 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:51:11,216 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,215 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:51:11,216 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,215 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-08 13:51:11,242 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,241 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:51:11,278 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,278 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-08 13:51:11,279 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: a347202a-a5ae-4862-b59b-159f8866bd70
+2025-04-08 13:51:11,279 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,278 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: a347202a-a5ae-4862-b59b-159f8866bd70
+2025-04-08 13:51:11,279 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:51:11,280 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,278 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:51:11,280 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:51:11,280 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,278 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:51:11,335 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:51:11,336 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,335 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:51:11,336 - mcp_wrapper - INFO - Server: INFO:     Started server process [94365]
+2025-04-08 13:51:11,337 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:51:11,337 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:51:11,337 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:51:11,338 - mcp_wrapper - INFO - Listing pinned content...
+2025-04-08 13:51:11,338 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:51:11,342 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:51:11,343 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,338 - run_mcp_server - INFO - FastAPI shutdown event received, cleaning up MCP server
+2025-04-08 13:51:11,343 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-08 13:51:11,343 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,338 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-08 13:51:11,344 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:11,338 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-08 13:51:11,397 - mcp_wrapper - INFO - Listed pins: 4 pins
+2025-04-08 13:51:17,246 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:51:18,110 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:51:20,168 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:20,490 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:20,491 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:20,804 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:20,804 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:20,804 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:51:20,804 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:51:20,804 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:20,804 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:51:20,805 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:20,805 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:20,805 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:20,805 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:51:20,805 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:51:20,805 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:20,807 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:20,807 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:20,808 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:51:20,809 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:20,810 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:20,810 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:51:20,810 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:51:20,810 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:20,810 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:51:20,810 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:51:22,151 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:22,151 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:51:24,231 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,231 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:24,233 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,233 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:24,233 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,233 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:24,854 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,854 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:24,858 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,857 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:51:24,859 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,859 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:51:24,860 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,859 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:51:24,860 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:24,859 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:51:25,149 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,149 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:51:25,149 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,149 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:51:25,150 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,150 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:51:25,150 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,150 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:51:25,150 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,150 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:51:25,150 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,150 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:51:25,168 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,168 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:51:25,168 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,168 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:51:25,188 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:51:25,188 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,188 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:51:25,189 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,188 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:51:25,189 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,189 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:51:25,468 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,468 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:25,469 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,469 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
+2025-04-08 13:51:25,469 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,469 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
+2025-04-08 13:51:25,470 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,469 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:51:25,676 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,675 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:25,676 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,676 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:51:25,677 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,676 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:51:25,677 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,676 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-08 13:51:25,702 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,702 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:51:25,740 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,740 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-08 13:51:25,740 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 3b8fbd11-0c5c-4396-84d7-1ad25d30fb68
+2025-04-08 13:51:25,741 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,740 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 3b8fbd11-0c5c-4396-84d7-1ad25d30fb68
+2025-04-08 13:51:25,741 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:51:25,741 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,740 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:51:25,742 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:51:25,742 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,740 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:51:25,805 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:51:25,805 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,804 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:51:25,805 - mcp_wrapper - INFO - Server: INFO:     Started server process [94526]
+2025-04-08 13:51:25,805 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:51:25,806 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:51:25,806 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:51:25,806 - mcp_wrapper - INFO - Putting DAG node in format json...
+2025-04-08 13:51:25,807 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:51:25,807 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:51:25,808 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,807 - run_mcp_server - INFO - FastAPI shutdown event received, cleaning up MCP server
+2025-04-08 13:51:25,808 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-08 13:51:25,808 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,807 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-08 13:51:25,809 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:25,807 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-08 13:51:25,846 - mcp_wrapper - ERROR - Error putting DAG node: Error: unknown option "format"
+
+2025-04-08 13:51:36,370 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:51:37,239 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:51:39,374 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:39,693 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:39,693 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:39,973 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:39,974 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:39,974 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:51:39,974 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:51:39,974 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:39,974 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:51:39,975 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:39,975 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:39,975 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:39,975 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:51:39,975 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:51:39,975 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:39,977 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:39,977 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:39,978 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:51:39,979 - mcp_wrapper - INFO - Environment variables set to force WebRTC availability
+2025-04-08 13:51:39,979 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:39,979 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:39,979 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_CV2 = True (was True)
+2025-04-08 13:51:39,979 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AV = True (was True)
+2025-04-08 13:51:39,979 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Set ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_WEBRTC = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_NUMPY = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_CV2 = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AV = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Set ipfs_kit_py.high_level_api.HAVE_AIORTC = True (was True)
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - WebRTC dependencies forced available for MCP server
+2025-04-08 13:51:39,980 - mcp_wrapper - INFO - Starting MCP server on port 9999 with WebRTC support...
+2025-04-08 13:51:41,316 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:41,316 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 13:51:43,334 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,334 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 13:51:43,335 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,335 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 13:51:43,335 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,335 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 13:51:43,798 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,798 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:43,802 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,802 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 13:51:43,803 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,803 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 13:51:43,804 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,803 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:51:43,804 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:43,803 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:51:44,099 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,099 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 13:51:44,100 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,099 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 13:51:44,100 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,100 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 13:51:44,100 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,100 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 13:51:44,101 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,100 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 13:51:44,101 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,101 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 13:51:44,118 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,118 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 13:51:44,118 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,118 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 13:51:44,140 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-08 13:51:44,141 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,140 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-08 13:51:44,141 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,141 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-08 13:51:44,141 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,141 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 13:51:44,306 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,306 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:44,307 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,306 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
+2025-04-08 13:51:44,307 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,307 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
+2025-04-08 13:51:44,307 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,307 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 13:51:44,472 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,472 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 13:51:44,473 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,473 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 13:51:44,473 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,473 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 13:51:44,474 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,473 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-08 13:51:44,514 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,513 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 13:51:44,563 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,563 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-08 13:51:44,563 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: e6f1d454-d784-491b-9ba4-3d338e408d8b
+2025-04-08 13:51:44,564 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,563 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: e6f1d454-d784-491b-9ba4-3d338e408d8b
+2025-04-08 13:51:44,564 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 13:51:44,564 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,563 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 13:51:44,565 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-08 13:51:44,565 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,563 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-08 13:51:44,615 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:51:44,616 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,615 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 13:51:44,616 - mcp_wrapper - INFO - Server: INFO:     Started server process [94708]
+2025-04-08 13:51:44,617 - mcp_wrapper - INFO - Server: INFO:     Waiting for application startup.
+2025-04-08 13:51:44,617 - mcp_wrapper - INFO - Server: INFO:     Application startup complete.
+2025-04-08 13:51:44,617 - mcp_wrapper - INFO - MCP server started successfully
+2025-04-08 13:51:44,617 - mcp_wrapper - INFO - Putting DAG node in format json...
+2025-04-08 13:51:44,618 - mcp_wrapper - INFO - Server: ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+2025-04-08 13:51:44,618 - mcp_wrapper - INFO - Server: INFO:     Waiting for application shutdown.
+2025-04-08 13:51:44,618 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,617 - run_mcp_server - INFO - FastAPI shutdown event received, cleaning up MCP server
+2025-04-08 13:51:44,618 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-08 13:51:44,619 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,617 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-08 13:51:44,619 - mcp_wrapper - INFO - Server: 2025-04-08 13:51:44,617 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-08 13:51:44,641 - mcp_wrapper - ERROR - Error putting DAG node: Error: no IPFS repo found in /home/barberb/.ipfs.
+please run: 'ipfs init'
+

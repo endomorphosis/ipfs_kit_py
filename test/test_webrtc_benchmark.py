@@ -27,7 +27,7 @@ except ImportError:
 _can_test_webrtc = True
 # 
 # 
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC benchmarking not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestWebRTCBenchmark(unittest.TestCase):
     """Test WebRTC benchmarking functionality."""
     
@@ -377,7 +377,7 @@ class TestWebRTCBenchmark(unittest.TestCase):
         self.assertIsNone(self.benchmark._task)
 # 
 # 
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC benchmarking not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestWebRTCStreamingManagerIntegration(unittest.TestCase):
     """Test integrating benchmarking with WebRTCStreamingManager."""
     
@@ -415,7 +415,7 @@ class TestWebRTCStreamingManagerIntegration(unittest.TestCase):
             shutil.rmtree(manager.benchmark_reports_dir, ignore_errors=True)
 # 
 # 
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC benchmarking not available")
+# @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestFrameStats(unittest.TestCase):
     """Test WebRTC frame statistics functionality."""
     

@@ -264,14 +264,65 @@ ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initia
 ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
 ```
 
+## Communication Verification Testing
+
+To ensure that the MCP server and ipfs_kit_py components can properly communicate with each other using all three communication methods (WebRTC, WebSockets, and libp2p), we've implemented comprehensive verification tests:
+
+### Tests Implemented
+
+1. **test_mcp_communication.py**: A comprehensive test suite that verifies all three communication methods:
+   - `test_webrtc_communication`: Tests WebRTC streaming between MCP server and client
+   - `test_websocket_communication`: Tests WebSocket notifications
+   - `test_libp2p_communication`: Tests direct peer-to-peer communication via libp2p
+   - `test_integrated_communication`: Tests protocol fallback mechanisms
+
+2. **run_mcp_communication_test.py**: A utility script for running the communication tests with configurable options.
+
+### Test Approach
+
+Our tests use a combination of real components and mocks to verify communication:
+
+1. A real MCP server is initialized in isolation mode
+2. A real ipfs_kit_py client is created to communicate with the server
+3. External dependencies (WebRTC, libp2p) are mocked when necessary
+4. Communication is verified by checking that messages are correctly exchanged
+
+The tests are designed to be robust against missing dependencies, making them suitable for continuous integration environments.
+
+### Documentation
+
+The complete communication verification process is documented in `COMMUNICATION_VERIFICATION.md`, which includes:
+
+- Detailed descriptions of each test
+- Instructions for running the tests
+- Dependency requirements
+- Troubleshooting guidance
+
+### Running the Communication Tests
+
+```bash
+# Run all communication tests
+./run_mcp_communication_test.py
+
+# Run only specific protocol tests
+./run_mcp_communication_test.py --test-only webrtc
+./run_mcp_communication_test.py --test-only websocket
+./run_mcp_communication_test.py --test-only libp2p
+
+# Force tests to run even with missing dependencies
+./run_mcp_communication_test.py --force-webrtc --force-libp2p
+```
+
 ## Conclusion
 
-This comprehensive fix ensures:
+This comprehensive fix and verification ensures:
 
 1. **Robust Dependency Detection**: Dependencies are properly detected even with module variations or import path differences
 2. **Graceful Degradation**: The system works correctly whether dependencies are available or not
 3. **Consistent Behavior**: All components agree on WebRTC status throughout the codebase
 4. **Clear Installation Instructions**: Users get helpful guidance on how to enable WebRTC
 5. **MCP Server Integration**: WebRTC is properly initialized in the MCP server
+6. **Verified Communication**: All three communication methods (WebRTC, WebSockets, and libp2p) are verified to work between the MCP server and ipfs_kit_py
+7. **Reliable Protocol Fallbacks**: The system properly falls back to alternative protocols when some are unavailable
 
-The fix maintains backward compatibility while significantly improving the reliability of WebRTC functionality detection and initialization.
+The fix maintains backward compatibility while significantly improving the reliability of communication between the MCP server and ipfs_kit_py components.

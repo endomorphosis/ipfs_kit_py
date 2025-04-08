@@ -1,8 +1,15 @@
-# IPFS Kit
+# IPFS Kit Python
 
 IPFS Kit is a comprehensive Python toolkit for working with IPFS (InterPlanetary File System) technologies. It provides a unified interface for IPFS operations, cluster management, tiered storage, and AI/ML integration.
 
 This library installs and configures IPFS services through Kubo and IPFS Cluster based on the contents in the config file. It supports different node roles (master, worker, or leecher) and allows IPFS content to be accessed through multiple backends, including local IPFS node, IPFS Cluster, Storacha (previously Web3.Storage), and S3-compatible storage.
+
+Key components include:
+- **Core IPFS operations**: Content addition, retrieval, and pinning through different storage backends
+- **Tiered Storage System**: Intelligent caching with adaptive replacement policies
+- **MCP Server Architecture**: Structured Model-Controller-Persistence design for clean separation of concerns
+- **FSSpec Integration**: Seamless integration with data science tools via fsspec interface
+- **AI/ML Integration**: Specialized connectors for machine learning frameworks and model distribution
 
 ## Architecture Overview
 
@@ -78,9 +85,11 @@ graph TD
 -   **Role-based Architecture**: Configure nodes as master, worker, or leecher, each optimized for specific tasks (coordination, computation, consumption). ([See Docs](docs/core_concepts.md))
 -   **Tiered Storage & Caching**: Intelligently manage content across multiple storage backends (IPFS, Cluster, S3, Storacha) with a high-performance Adaptive Replacement Cache (ARC) system featuring memory, disk, and memory-mapped tiers. ([See Docs](docs/tiered_cache.md))
 -   **Standard Filesystem Interface**: Use the FSSpec integration (`IPFSFileSystem`) for familiar filesystem-like access to IPFS content, enabling seamless use with data science tools like Pandas and Dask. Features proper inheritance from AbstractFileSystem with graceful fallbacks and comprehensive error handling. ([See Docs](docs/fsspec_integration.md))
+-   **Filesystem Journaling**: Transaction-based filesystem journaling ensures data integrity and protects against power outages and unexpected shutdowns. Works alongside the Write-Ahead Log (WAL) for comprehensive data protection and recovery. ([See Docs](docs/filesystem_journal.md))
 -   **Metadata Indexing**: Efficient Arrow-based metadata index with distributed synchronization (via IPFS PubSub and DAGs) for fast content discovery, querying, and multi-location tracking. ([See Docs](docs/metadata_index.md))
 -   **Direct P2P Communication**: Establish direct peer connections using libp2p for daemon-less content exchange, featuring advanced DHT discovery, provider reputation, and NAT traversal. ([See Docs](docs/libp2p_integration.md))
 -   **Advanced Cluster Management**: Sophisticated cluster coordination including leader election, task distribution, state synchronization (CRDTs, vector clocks), health monitoring, secure authentication (TLS, UCANs), and dynamic role adaptation based on resource availability. ([See Docs](docs/cluster_management.md))
+-   **IPLD Integration**: Work with low-level IPFS data structures including Content Addressable aRchives (CAR), DAG-PB nodes, and UnixFS chunking for advanced content management and DAG operations. Provides full Python implementations of py-ipld-car, py-ipld-dag-pb, and py-ipld-unixfs libraries. ([See Docs](docs/ipld_integration.md))
 -   **Storacha/S3 Integration**: Access content via Storacha (Web3.Storage) and S3-compatible storage as alternative backends. ([See Docs](docs/storage_backends.md))
 -   **Comprehensive Error Handling**: Standardized error classes and detailed result dictionaries for robust application development.
 -   **High Performance**: Optimized for speed with comprehensive profiling and optimization tools. Features include memory-mapped file access, result caching, adaptive replacement cache tuning, chunked uploads for large files, and low-latency Unix socket communication (2-3x faster than HTTP for local daemon). Performance tools in `examples/` provide benchmarking, optimization recommendations, and comparison metrics for measuring improvements.
@@ -112,6 +121,9 @@ pip install ipfs_kit_py[ai_ml]
 
 # With HuggingFace Hub integration for model and dataset access
 pip install ipfs_kit_py[huggingface]
+
+# With IPLD support for low-level IPFS data structures (includes py-ipld-car, py-ipld-dag-pb, and py-ipld-unixfs)
+pip install ipfs_kit_py[ipld]
 
 # With API server support (FastAPI-based HTTP server)
 pip install ipfs_kit_py[api]
@@ -760,6 +772,7 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [Tiered Cache System](docs/tiered_cache.md)
 -   [Probabilistic Data Structures](docs/probabilistic_data_structures.md)
 -   [FSSpec Filesystem Interface](docs/fsspec_integration.md)
+-   [Filesystem Journaling](docs/filesystem_journal.md)
 -   [Metadata Index](docs/metadata_index.md)
 -   [Direct P2P Communication (LibP2P)](docs/libp2p_integration.md)
 -   [Performance Profiling & Optimization](examples/PERFORMANCE_PROFILING.md)
@@ -1376,6 +1389,7 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [Tiered Cache System](docs/tiered_cache.md)
 -   [Probabilistic Data Structures](docs/probabilistic_data_structures.md)
 -   [FSSpec Filesystem Interface](docs/fsspec_integration.md)
+-   [Filesystem Journaling](docs/filesystem_journal.md)
 -   [Metadata Index](docs/metadata_index.md)
 -   [Direct P2P Communication (LibP2P)](docs/libp2p_integration.md)
 -   [Performance Profiling & Optimization](examples/PERFORMANCE_PROFILING.md)
@@ -1392,6 +1406,11 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 -   [API Reference](docs/api_reference.md)
 -   [CLI Reference](docs/cli_reference.md)
 -   [Installation Guide](docs/installation_guide.md)
+-   [MCP Server Architecture](MCP_SERVER_README.md)
+-   [MCP Test Improvements](MCP_TEST_IMPROVEMENTS.md)
+-   [Testing Documentation](TEST_README.md)
+-   [WebRTC Dependency Fix](WEBRTC_DEPENDENCY_FIX.md)
+-   [Communication Verification](COMMUNICATION_VERIFICATION.md)
 
 ## For Developers
 
@@ -1629,23 +1648,34 @@ The benchmarking system provides comprehensive metrics including:
 
 Current development is focused on:
 1.  **API Stability**: Finalizing and stabilizing the High-Level API and REST API interfaces.
-2.  ✅ **PyPI Release Preparation**: Finalized package structure and metadata for publication.
-3.  ✅ **Containerization**: Created comprehensive Docker and Kubernetes deployments with detailed documentation.
-4.  ✅ **CI/CD Pipeline**: Established complete continuous integration and deployment workflows for packages, containers, and documentation.
-5.  ✅ **Observability Stack**: Implemented comprehensive metrics collection and visualization with Prometheus and Grafana.
-6.  ✅ **WebRTC Benchmarking**: Implemented comprehensive performance benchmarking for WebRTC streaming with CI/CD integration.
-7.  **Test Stability and Reliability**: Enhancing test fixtures and mocking systems for consistent test results.
-8.  **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
+2.  ✅ **WebRTC Dependency Fix**: Fixed WebRTC dependency detection to ensure proper functionality even with optional dependencies.
+3.  ✅ **Communication Verification**: Implemented comprehensive tests to verify that MCP server and ipfs_kit_py can communicate via WebRTC, WebSockets, and libp2p.
+4.  ✅ **PyPI Release Preparation**: Finalized package structure and metadata for publication.
+5.  ✅ **Containerization**: Created comprehensive Docker and Kubernetes deployments with detailed documentation.
+6.  ✅ **CI/CD Pipeline**: Established complete continuous integration and deployment workflows for packages, containers, and documentation.
+7.  ✅ **Observability Stack**: Implemented comprehensive metrics collection and visualization with Prometheus and Grafana.
+8.  ✅ **WebRTC Benchmarking**: Implemented comprehensive performance benchmarking for WebRTC streaming with CI/CD integration.
+9.  **Test Stability and Reliability**: Enhancing test fixtures and mocking systems for consistent test results.
+10. **Improving Test Coverage**: Increasing coverage for cluster management, advanced libp2p features, and AI/ML components.
 
 Recent accomplishments:
-1.  ✅ **Automatic Platform-Specific Binary Downloads**: Implemented smart binary installation:
+1.  ✅ **WebRTC Dependency Fix and Communication Verification**:
+   - Fixed WebRTC dependency detection to properly recognize installed dependencies
+   - Implemented comprehensive mocking system for testing WebRTC functionality
+   - Created multiple fallback mechanisms for import variations
+   - Added environment variable control to force WebRTC availability
+   - Implemented verification tests for communication between MCP server and ipfs_kit_py
+   - Created test suite to verify all three communication protocols (WebRTC, WebSockets, libp2p)
+   - Added documentation for communication verification in COMMUNICATION_VERIFICATION.md
+
+2.  ✅ **Automatic Platform-Specific Binary Downloads**: Implemented smart binary installation:
    - Added automatic detection and download of platform-specific binaries on first import
    - Created cross-platform support for Windows, macOS, and Linux architectures
    - Implemented fallback mechanisms when downloads fail
    - Added configuration options to control download behavior
    - Ensured correct binaries are available regardless of the user's platform
 
-2.  ✅ **Graceful Optional Dependency Handling**: Implemented a robust system for optional dependencies:
+3.  ✅ **Graceful Optional Dependency Handling**: Implemented a robust system for optional dependencies:
    - Created graceful degradation patterns for modules with optional dependencies
    - Added helpful error messages suggesting how to install missing dependencies
    - Implemented placeholder variables for missing imports to prevent import-time errors

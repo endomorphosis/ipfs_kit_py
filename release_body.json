@@ -1,0 +1,8 @@
+{
+  "tag_name": "v0.2.0",
+  "name": "Release v0.2.0",
+  "body": "Release v0.2.0 adds WebRTC streaming capabilities, performance optimizations, and several advanced features for improved data handling. See CHANGELOG.md for complete details on all changes.",
+  "draft": false,
+  "prerelease": false,
+  "generate_release_notes": true
+}

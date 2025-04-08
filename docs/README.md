@@ -98,7 +98,13 @@ The documentation is organized into several key sections:
    - Query Capabilities
    - Multi-location Tracking
 
-10. [**IPLD Knowledge Graph**](knowledge_graph.md) - Semantic relationships
+10. [**IPLD Integration**](ipld_integration.md) - Low-level IPFS data structures
+    - CAR (Content Addressable aRchive) Operations
+    - DAG-PB Node Creation and Manipulation
+    - UnixFS Chunking and Assembly
+    - Advanced DAG Operations
+
+11. [**IPLD Knowledge Graph**](knowledge_graph.md) - Semantic relationships
     - Graph Data Modeling
     - Entity Relationships
     - Graph Traversal
@@ -106,14 +112,14 @@ The documentation is organized into several key sections:
 
 ### AI and ML Integration
 
-11. [**AI/ML Integration Guide**](ai_ml_integration_guide.md) - Comprehensive guide to AI/ML components
+12. [**AI/ML Integration Guide**](ai_ml_integration_guide.md) - Comprehensive guide to AI/ML components
     - Architecture Overview
     - Component Interaction Patterns
     - Integration Flow
     - Best Practices
     - Complete End-to-End Examples
 
-12. [**AI/ML Visualization**](ai_ml_visualization.md) - Metrics visualization and reporting
+13. [**AI/ML Visualization**](ai_ml_visualization.md) - Metrics visualization and reporting
     - Training Metrics Visualization
     - Inference Performance Analysis
     - Worker Utilization Visualization
@@ -122,7 +128,7 @@ The documentation is organized into several key sections:
     - Export Capabilities
     - Integration with Data Science Workflows
 
-13. [**AI/ML Integration**](ai_ml_integration.md) - Integration with AI frameworks
+14. [**AI/ML Integration**](ai_ml_integration.md) - Integration with AI frameworks
     - Model Registry
     - Dataset Management
     - LangChain & LlamaIndex Integration
@@ -132,13 +138,13 @@ The documentation is organized into several key sections:
     - Generative Multimodal Workflows
     - Real-world Case Studies
 
-14. [**IPFS DataLoader**](ipfs_dataloader.md) - Efficient data loading for ML
+15. [**IPFS DataLoader**](ipfs_dataloader.md) - Efficient data loading for ML
     - Batch Loading
     - Framework Integration
     - Dataset Versioning
     - Distributed Training Support
 
-15. [**Performance Metrics**](performance_metrics.md) - Comprehensive performance measurement
+16. [**Performance Metrics**](performance_metrics.md) - Comprehensive performance measurement
     - Benchmarking Tools
     - Performance Profiling
     - Optimization Strategies
