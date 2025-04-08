@@ -147,7 +147,7 @@ def test_cli_with_no_color_flag(mock_ipfs_api, cli_main, capsys, mock_version):
     
     # Check operation succeeded
     assert exit_code == 0
-
+# 
 
 @pytest.mark.skip(reason="WAL commands require more complex setup")
 def test_cli_wal_status_command(mock_ipfs_api, cli_main, capsys):
@@ -173,7 +173,7 @@ def test_cli_wal_status_command(mock_ipfs_api, cli_main, capsys):
             # Check output
             captured = capsys.readouterr()
             assert "active" in captured.out
-
+# 
 
 @pytest.mark.skip(reason="WAL commands require more complex setup")
 def test_cli_wal_list_command(mock_ipfs_api, cli_main, capsys):
@@ -253,7 +253,7 @@ def test_cli_error_handling_validation_error(mock_ipfs_api, cli_main, capsys):
     assert "error" in error_output.lower() or "unexpected" in error_output.lower()
     # Just check that the original error is propagated in some form
     assert "invalid" in error_output.lower() or "invalidcid" in error_output.lower()
-
+# 
 
 @pytest.mark.skip(reason="Tests IPFS daemon errors which require complex setup")
 def test_cli_version_ipfs_version_error(mock_ipfs_api, cli_main, capsys, mock_version):

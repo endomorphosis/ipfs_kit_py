@@ -6,8 +6,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-# Skip all tests in this file until they are fixed
-pytestmark = pytest.mark.skip(reason="Tests need updating to match current API")
+# Tests have been updated to match the current API
+# pytestmark = pytest.mark.skip(reason="Tests need updating to match current API")
 
 from ipfs_kit_py.ipfs_kit import IPFSKit
 from ipfs_kit_py.cli import main as cli_main

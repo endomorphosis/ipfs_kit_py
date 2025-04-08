@@ -219,7 +219,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         
         # Verify telemetry instance is properly created
         self.assertIsInstance(self.telemetry, WALTelemetry)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_metrics_collection(self):
         """Test that metrics are properly collected during WAL operations."""
@@ -237,7 +237,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         # Check that operations were recorded
         op_count = metrics["operation_count"]
         self.assertGreater(sum(count for count in op_count.values()), 0)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_api_metrics_endpoint(self):
         """Test that metrics are accessible through the API."""
@@ -255,7 +255,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         metrics = response["metrics"]
         self.assertIn("operation_count", metrics)
         self.assertIn("operation_latency", metrics)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_realtime_metrics_endpoint(self):
         """Test that real-time metrics are accessible through the API."""
@@ -273,7 +273,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertIn("operation_latency", response)
         self.assertIn("success_rate", response)
         self.assertIn("throughput", response)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_filtered_metrics(self):
         """Test that metrics can be filtered."""
@@ -306,7 +306,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             for op_type, count in op_count.items():
                 if op_type != "append":
                     self.assertEqual(count, 0)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_report_generation(self):
         """Test report generation through the API."""
@@ -339,7 +339,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertTrue(file_response["success"])
         self.assertIn("content", file_response)
         self.assertIn("content_type", file_response)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_visualization_generation(self):
         """Test visualization generation through the API."""
@@ -369,7 +369,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
             # Clean up temp file
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
-                
+#                 
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_time_series_metrics(self):
         """Test retrieving metrics over time."""
@@ -400,7 +400,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         for point in time_series:
             self.assertIn("timestamp", point)
             self.assertIn("metrics", point)
-            
+#             
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_config_endpoints(self):
         """Test configuration endpoints."""
@@ -436,7 +436,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         verify_response = self.client.get_config()
         verify_config = verify_response["config"]
         self.assertEqual(verify_config["sampling_interval"], new_interval)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_cli_output(self):
         """Test CLI command output."""
@@ -474,7 +474,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("Current Configuration", result.stdout)
         self.assertIn("enabled", result.stdout)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_error_handling(self):
         """Test error handling in client and API."""
@@ -488,7 +488,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         # Test with invalid metric type
         with self.assertRaises(ValueError):
             self.client.get_metrics(metric_type="invalid_metric_type")
-            
+#             
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_metric_validation(self):
         """Test metric validation in the API."""
@@ -501,7 +501,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
         # Check that error is properly reported
         self.assertFalse(response.get("success", True))
         self.assertIn("error", response)
-        
+#         
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_concurrent_operations(self):
         """Test telemetry with concurrent operations."""
@@ -537,7 +537,7 @@ class WALTelemetryIntegrationTests(unittest.TestCase):
                 metrics["operation_count"]["append"],
                 thread_count * operations_per_thread
             )
-            
+#             
     @pytest.mark.skip(reason="Skip for now - needs further refactoring")
     def test_end_to_end_workflow(self):
         """Test a complete end-to-end workflow combining multiple features."""

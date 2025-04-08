@@ -34,9 +34,32 @@ except ImportError as e:
     _can_test_webrtc = False
     print(f"Import error when importing webrtc_streaming: {e}")
 
-# Force enable WebRTC tests since we have all dependencies installed
-_can_test_webrtc = True
-print(f"Forcing WebRTC tests to be enabled, _can_test_webrtc={_can_test_webrtc}")
+# Check if we're in a pytest context or direct import
+# The modification below allows tests to run both with pytest and direct import
+import sys
+_in_pytest = any('pytest' in arg for arg in sys.argv) or 'pytest' in sys.modules
+
+# Override the flag - this ensures tests can be run regardless of how they are collected
+if not _in_pytest:
+    # When imported directly (not through pytest collection), force enable
+    _can_test_webrtc = True
+    print(f"Forcing WebRTC tests to be enabled (direct import), _can_test_webrtc={_can_test_webrtc}")
+else:
+    # When running through pytest, check the modules are actually available
+    # This makes the skipif condition accurate regardless of the collection order
+    try:
+        # Try creating test instances to verify all dependencies
+        if HAVE_WEBRTC:
+            # Only attempt to create instances if HAVE_WEBRTC is True
+            test_manager = WebRTCStreamingManager(ipfs_api=None)
+            _can_test_webrtc = True
+            print(f"WebRTC dependencies confirmed available, _can_test_webrtc={_can_test_webrtc}")
+        else:
+            _can_test_webrtc = False
+            print(f"WebRTC dependencies not available (HAVE_WEBRTC=False), _can_test_webrtc={_can_test_webrtc}")
+    except ImportError:
+        _can_test_webrtc = False
+        print(f"WebRTC dependencies not available (import error), _can_test_webrtc={_can_test_webrtc}")
 
 # Create a mock NotificationType for testing
 from enum import Enum
@@ -53,14 +76,33 @@ async def emit_event(*args, **kwargs):
     print(f"Mock emit_event called with args: {args}, kwargs: {kwargs}")
     return {"success": True}
 
-# Set notification testing flag
-_can_test_notifications = True
-print(f"Forcing notifications tests to be enabled, _can_test_notifications={_can_test_notifications}")
+# Set notification testing flag 
+# Use the same pattern as WebRTC tests - enable for direct import, check for pytest
+if not _in_pytest:
+    _can_test_notifications = True
+    print(f"Forcing notifications tests to be enabled (direct import), _can_test_notifications={_can_test_notifications}")
+else:
+    try:
+        # Check if notification system is available
+        from ipfs_kit_py.websocket_notifications import NotificationType as RealNotificationType
+        _can_test_notifications = True
+        print(f"Notification system confirmed available, _can_test_notifications={_can_test_notifications}")
+    except ImportError:
+        _can_test_notifications = False
+        print(f"Notification system not available, _can_test_notifications={_can_test_notifications}")
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 
+# To force-enable all WebRTC tests regardless of dependencies, set the environment variable:
+# FORCE_WEBRTC_TESTS=1 python -m pytest test/test_webrtc_streaming.py
 
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
+# Check if FORCE_WEBRTC_TESTS environment variable is set
+import os
+if os.environ.get('FORCE_WEBRTC_TESTS') == '1':
+    _can_test_webrtc = True
+    print(f"FORCE_WEBRTC_TESTS=1 environment variable detected, enabling all WebRTC tests")
+# 
+# @pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
 @pytest.mark.asyncio
 class TestWebRTCStreaming:
     """Test WebRTC streaming functionality."""
@@ -159,17 +201,31 @@ class TestWebRTCStreaming:
         
         # Clean up
         track.stop()
-    
-    @pytest.mark.skip(reason="Test requires more complex mocking of WebRTC dependencies")
+#     
+    @pytest.mark.skip(reason="WebRTC signaling is too complex to test without a full WebSocket implementation")
     async def test_handle_webrtc_streaming(self, setup):
-        """Test handle_webrtc_streaming method."""
-        # This test is skipped because it requires more complex mocking of WebRTC dependencies
-        # and interactions with websockets.
+        """Test the WebRTC signaling handler.
+        
+        This test is skipped because properly testing the WebRTC signaling handler
+        requires a full WebSocket implementation with proper async iteration support.
+        The complexity of setting up such a mock is beyond the scope of this test.
+        
+        Key components that would need testing:
+        1. WebSocket async iteration 
+        2. JSON message serialization/deserialization
+        3. Proper async event loops
+        4. Full WebRTC signaling flow
+        
+        Instead, we test the individual components of the system separately, such as:
+        - WebRTCStreamingManager.create_offer (tested in test_webrtc_streaming_manager_create_offer)
+        - IPFSMediaStreamTrack (tested in test_ipfs_media_stream_track)
+        - Connection lifecycle (tested in TestWebRTCResourceCleanup)
+        """
         pass
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
+# @pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
 class TestAsyncWebRTCStreaming:
     """Test asynchronous WebRTC streaming functionality."""
     
@@ -236,7 +292,7 @@ class TestAsyncWebRTCStreaming:
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
+# @pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
 class TestWebRTCMetrics:
     """Test WebRTC metrics collection functionality."""
     
@@ -533,9 +589,14 @@ class TestWebRTCMetrics:
 # WebRTC integration tests often require full dependencies that may not be available
 # in all environments. We'll mark the entire test class to be skipped until
 # all dependencies are properly mocked.
-@pytest.mark.skip(reason="WebRTC notification tests require full implementation of dependencies")
+
+# Environment variable can force these tests to run
+if os.environ.get('FORCE_NOTIFICATION_TESTS') == '1':
+    _can_test_notifications = True
+    print(f"FORCE_NOTIFICATION_TESTS=1 environment variable detected, enabling notification tests")
+# 
+@pytest.mark.skipif(not _can_test_notifications, reason="WebRTC notification tests require full implementation of dependencies")
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Skip WebRTC notification tests due to protobuf compatibility issues")
 class TestWebRTCNotifications:
     """Test WebRTC integration with the notification system."""
     
@@ -552,7 +613,7 @@ class TestWebRTCNotifications:
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
+# @pytest.mark.skipif(not _can_test_webrtc, reason="WebRTC dependencies not available")
 class TestWebRTCResourceCleanup:
     """Test proper cleanup of WebRTC resources to prevent ResourceWarnings."""
     

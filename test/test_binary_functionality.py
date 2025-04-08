@@ -156,7 +156,7 @@ class TestBinaryFunctionality:
             # Clean up the temporary file
             if os.path.exists(test_file_path):
                 os.unlink(test_file_path)
-
+# 
     @pytest.mark.skipif(
         platform.system() == "Windows", reason="Unix socket test not applicable on Windows"
     )

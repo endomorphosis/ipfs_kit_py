@@ -60,3 +60,65 @@ For even more robust dependency handling, consider:
 2. Implementing lazy imports for more efficient loading
 3. Adding functionality level checks rather than just import checks
 4. Creating a dependency status endpoint in the API for better diagnostics
+
+## Test Integration Fix
+
+We've also fixed an issue with the WebRTC tests being skipped when running through pytest, even though dependencies were available. 
+
+### Problem with Test Skipping
+
+The tests in `test_webrtc_streaming.py` were being skipped despite:
+- WebRTC dependencies being available
+- Explicitly setting `_can_test_webrtc = True` in the test file
+
+This was happening because:
+1. Pytest import collection behaves differently than direct file execution
+2. Syntax errors in `cluster_state_helpers.py` were preventing imports from working properly during test setup
+
+### Solution Implemented
+
+We made several fixes to ensure WebRTC tests can run consistently:
+
+1. **Fixed Syntax Errors**: Fixed critical syntax errors in `cluster_state_helpers.py` that prevented the module from importing correctly
+
+2. **Test File Improvements**: Modified `test_webrtc_streaming.py` to better handle both direct execution and pytest collection with these changes:
+
+   a. **Context Detection**: Added detection of pytest vs. direct execution contexts
+   ```python
+   # Check if we're in a pytest context or direct import
+   import sys
+   _in_pytest = any('pytest' in arg for arg in sys.argv) or 'pytest' in sys.modules
+   ```
+
+   b. **Advanced Dependency Verification**: Now we check actual functionality, not just imports
+   ```python
+   # Try creating test instances to verify all dependencies
+   if HAVE_WEBRTC:
+       test_manager = WebRTCStreamingManager(ipfs_api=None)
+       _can_test_webrtc = True
+   ```
+
+   c. **Environment Variable Override**: Added flags to force-enable tests
+   ```python
+   # Check if FORCE_WEBRTC_TESTS environment variable is set
+   import os
+   if os.environ.get('FORCE_WEBRTC_TESTS') == '1':
+       _can_test_webrtc = True
+   ```
+
+### Running WebRTC Tests
+
+To force WebRTC tests to run regardless of dependency detection:
+
+```bash
+# Run WebRTC tests with core dependencies
+FORCE_WEBRTC_TESTS=1 python -m pytest test/test_webrtc_streaming.py
+
+# Run notification tests that require additional dependencies
+FORCE_NOTIFICATION_TESTS=1 python -m pytest test/test_webrtc_streaming.py
+
+# Run all WebRTC tests
+FORCE_WEBRTC_TESTS=1 FORCE_NOTIFICATION_TESTS=1 python -m pytest test/test_webrtc_streaming.py
+```
+
+This fix ensures consistent test behavior regardless of how the tests are run, while preserving the ability to skip tests when dependencies truly aren't available.

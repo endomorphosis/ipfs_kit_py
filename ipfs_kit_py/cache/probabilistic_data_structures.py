@@ -26,17 +26,154 @@ These data structures are particularly useful for large datasets where exact str
 would be too memory-intensive, but approximate answers are acceptable.
 """
 
-import hashlib
 import math
 import array
 import random
 import struct
 import heapq
-import mmh3  # MurmurHash3 for high-quality hashing
+import hashlib
 import numpy as np
 from enum import Enum, auto
 from typing import List, Set, Dict, Tuple, Optional, Any, Union, Callable
-from bitarray import bitarray  # Efficient bit array implementation
+
+# Try to import optional dependencies with fallbacks
+try:
+    import mmh3  # MurmurHash3 for high-quality hashing
+except ImportError:
+    # Fallback implementation for mmh3
+    mmh3 = None
+    import binascii
+    def mmh3_hash(key, seed=0):
+        """Simple fallback for mmh3.hash when the library is not available."""
+        # Use combination of hash algorithms as a reasonable fallback
+        if isinstance(key, str):
+            key = key.encode('utf-8')
+        hash_value = hashlib.md5(key).digest()
+        # Use hash seed to vary the hash value
+        hash_value = hashlib.md5(hash_value + seed.to_bytes(4, 'little')).digest()
+        # Convert to signed 32-bit integer (similar to mmh3.hash output)
+        return int.from_bytes(hash_value[:4], byteorder='little', signed=True)
+    
+    if mmh3 is None:
+        # Create a module-like object for mmh3
+        class MMH3Fallback:
+            @staticmethod
+            def hash(key, seed=0):
+                return mmh3_hash(key, seed)
+        mmh3 = MMH3Fallback()
+
+try:
+    from bitarray import bitarray  # Efficient bit array implementation
+except ImportError:
+    # Fallback implementation for bitarray
+    class bitarray:
+        """Simple fallback implementation when bitarray is not available."""
+        def __init__(self, size=0):
+            self.size = size
+            self.data = bytearray((size + 7) // 8)
+            
+        def setall(self, val):
+            """Set all bits to val (0 or 1)."""
+            fill_byte = 0xFF if val else 0x00
+            for i in range(len(self.data)):
+                self.data[i] = fill_byte
+                
+        def __getitem__(self, index):
+            """Get bit at index."""
+            if isinstance(index, slice):
+                # Handle slice
+                start, stop, step = index.indices(self.size)
+                result = bitarray(stop - start)
+                for i in range(start, stop):
+                    result[i - start] = self[i]
+                return result
+            byte_index, bit_offset = divmod(index, 8)
+            return (self.data[byte_index] >> bit_offset) & 1
+            
+        def __setitem__(self, index, value):
+            """Set bit at index to value."""
+            if isinstance(index, slice):
+                # Handle slice
+                start, stop, step = index.indices(self.size)
+                for i in range(start, stop):
+                    self[i] = value
+                return
+            byte_index, bit_offset = divmod(index, 8)
+            if value:
+                self.data[byte_index] |= (1 << bit_offset)
+            else:
+                self.data[byte_index] &= ~(1 << bit_offset)
+                
+        def __len__(self):
+            """Return size of bitarray."""
+            return self.size
+            
+        def count(self, val=1):
+            """Count bits set to val."""
+            result = 0
+            for byte in self.data:
+                if val:
+                    result += bin(byte).count('1')
+                else:
+                    result += bin(byte).count('0') + 8 - len(bin(byte)) + 2
+            # Adjust for bits beyond self.size
+            extra_bits = len(self.data) * 8 - self.size
+            if extra_bits > 0 and val == 0:
+                result -= extra_bits
+            return result
+            
+        def buffer_info(self):
+            """Return buffer info similar to array.array.buffer_info()."""
+            # For our fallback, we'll return a tuple containing:
+            # (address as 0 since we don't have a real address, length in items)
+            return (0, len(self.data))
+            
+        def __sum__(self):
+            """Sum of all bits (for compatibility with sum(bit_array))."""
+            return self.count(1)
+            
+        def __or__(self, other):
+            """Bitwise OR operation between two bitarrays."""
+            if self.size != other.size:
+                raise ValueError("Bitarrays must be of same size for OR operation")
+            result = bitarray(self.size)
+            for i in range(len(self.data)):
+                if i < len(other.data):
+                    result.data[i] = self.data[i] | other.data[i]
+                else:
+                    result.data[i] = self.data[i]
+            return result
+            
+        def __and__(self, other):
+            """Bitwise AND operation between two bitarrays."""
+            if self.size != other.size:
+                raise ValueError("Bitarrays must be of same size for AND operation")
+            result = bitarray(self.size)
+            for i in range(len(self.data)):
+                if i < len(other.data):
+                    result.data[i] = self.data[i] & other.data[i]
+                else:
+                    result.data[i] = 0
+            return result
+            
+        def __xor__(self, other):
+            """Bitwise XOR operation between two bitarrays."""
+            if self.size != other.size:
+                raise ValueError("Bitarrays must be of same size for XOR operation")
+            result = bitarray(self.size)
+            for i in range(len(self.data)):
+                if i < len(other.data):
+                    result.data[i] = self.data[i] ^ other.data[i]
+                else:
+                    result.data[i] = self.data[i]
+            return result
+            
+        def __invert__(self):
+            """Bitwise NOT operation."""
+            result = bitarray(self.size)
+            for i in range(len(self.data)):
+                result.data[i] = ~self.data[i] & 0xFF  # Keep within byte range
+            return result
 
 # For type annotations
 from numpy.typing import NDArray

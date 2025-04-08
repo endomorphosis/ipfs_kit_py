@@ -126,7 +126,7 @@ def test_api_method_error():
     assert result["success"] is False
     assert "Test IPFS error" in result["error"]
     assert result["error_type"] == "IPFSError"
-
+# 
 
 @pytest.mark.skipif(True, reason="Skipping test when run as part of the full test suite, passes when run individually")
 def test_api_config():
@@ -137,7 +137,7 @@ def test_api_config():
     assert data["role"] == "master"
     assert "timeouts" in data
     assert isinstance(data["features"], dict)
-
+# 
 
 @pytest.mark.skipif(True, reason="Skipping test when run as part of the full test suite, passes when run individually")
 def test_api_methods():
@@ -149,7 +149,7 @@ def test_api_methods():
     # Check for extensions
     extensions = [m for m in data["methods"] if m.get("type") == "extension"]
     assert len(extensions) > 0
-
+# 
 
 @pytest.mark.skipif(True, reason="Skipping test when run as part of the full test suite, passes when run individually")
 def test_file_download():

@@ -1,0 +1,73 @@
+2025-04-07 22:15:16,000 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-04-07 22:15:16,020 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-04-07 22:15:16,025 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-04-07 22:15:16.891726: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1744089316.906458   54339 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1744089316.910689   54339 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1744089316.920288   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744089316.920330   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744089316.920335   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744089316.920339   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-07 22:15:16.923196: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2025-04-07 22:15:20,290 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-07 22:15:20,291 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-07 22:15:20,291 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-07 22:15:20,291 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-07 22:15:20,309 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
+2025-04-07 22:15:20,309 - ipfs_kit_py.api - INFO - Prometheus metrics enabled at /metrics
+2025-04-07 22:15:20,352 - ipfs_kit_py.api - INFO - GraphQL API available at /graphql
+2025-04-07 22:15:20,353 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-07 22:15:20,353 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-07 22:15:20,353 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-07 22:15:20,354 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-07 22:15:20,354 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-07 22:15:20,354 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-07 22:15:20,363 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-07 22:15:20,364 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-07 22:15:20,364 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
+2025-04-07 22:15:20,364 - ipfs_kit_py.api - INFO - Prometheus metrics endpoint added at /metrics
+2025-04-07 22:15:20,383 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-07 22:15:20,383 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-07 22:15:20,383 - mcp_example - INFO - Created temporary cache directory: /tmp/ipfs_mcp_cache_fanw6smx
+2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-07 22:15:20,383 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS daemon connection test returned failure
+2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
+2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-07 22:15:20,388 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 8d50d3bb-17b2-4bd7-86be-a1d8fa84372d
+2025-04-07 22:15:20,388 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 8d50d3bb-17b2-4bd7-86be-a1d8fa84372d
+2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-07 22:15:20,388 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-07 22:15:20,392 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-07 22:15:20,393 - mcp_example - INFO - Created FastAPI app with MCP server (/api/v0/mcp)
+2025-04-07 22:15:20,393 - mcp_example - INFO - Starting server on http://127.0.0.1:8000
+2025-04-07 22:15:20,393 - mcp_example - INFO - Debug mode: True, Isolation mode: False
+2025-04-07 22:15:20,393 - mcp_example - INFO - API docs available at http://127.0.0.1:8000/docs
+INFO:     Started server process [54339]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36050 - "GET /api/v0/mcp/health HTTP/1.1" 200 OK
+2025-04-07 22:15:28,918 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Error adding content to IPFS: 'ipfs_kit' object has no attribute 'ipfs_add_file'
+INFO:     127.0.0.1:36066 - "POST /api/v0/mcp/ipfs/add/file HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50258 - "GET /api/v0/mcp/health HTTP/1.1" 200 OK
+2025-04-07 22:15:54,937 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Error adding content to IPFS: 'ipfs_kit' object has no attribute 'ipfs_add_file'
+INFO:     127.0.0.1:50272 - "POST /api/v0/mcp/ipfs/add/file HTTP/1.1" 200 OK
+2025-04-07 22:15:54,941 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Error adding content to IPFS: 'ipfs_kit' object has no attribute 'ipfs_add_file'
+INFO:     127.0.0.1:50286 - "POST /api/v0/mcp/ipfs/add HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50288 - "GET /api/v0/mcp/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50296 - "GET /api/v0/mcp/operations HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [54339]
