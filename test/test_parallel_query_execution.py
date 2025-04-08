@@ -446,15 +446,15 @@ class TestThreadPoolManager(unittest.TestCase):
         try:
             # Properly shutdown all thread pools created during tests
             for manager in self.managers:
-                if hasattr(manager, '_pools'):
-                    for pool in manager._pools.values():
+                if hasattr(manager, 'pools'):  # Changed from _pools to pools
+                    for pool in manager.pools.values():
                         if hasattr(pool, 'shutdown'):
                             try:
                                 pool.shutdown(wait=False)
                             except Exception as e:
                                 print(f"Error shutting down thread pool: {e}")
                     # Clear the pools dictionary
-                    manager._pools = {}
+                    manager.pools = {}
         except Exception as e:
             print(f"Error in TestThreadPoolManager.tearDown: {e}")
 
@@ -465,7 +465,7 @@ class TestThreadPoolManager(unittest.TestCase):
             thread_manager = ThreadPoolManager()
             self.managers.append(thread_manager)
             # Also add to global tracking for atexit cleanup
-            _thread_pools.extend(thread_manager._pools.values())
+            _thread_pools.extend(thread_manager.pools.values())  # Changed from _pools to pools
             
             self.assertTrue(thread_manager.min_threads >= 2)
             self.assertTrue(thread_manager.max_threads >= thread_manager.min_threads)
@@ -475,7 +475,7 @@ class TestThreadPoolManager(unittest.TestCase):
             thread_manager = ThreadPoolManager(min_threads=4, max_threads=16, thread_ttl=120.0)
             self.managers.append(thread_manager)
             # Also add to global tracking for atexit cleanup
-            _thread_pools.extend(thread_manager._pools.values())
+            _thread_pools.extend(thread_manager.pools.values())  # Changed from _pools to pools
             
             self.assertEqual(thread_manager.min_threads, 4)
             self.assertEqual(thread_manager.max_threads, 16)
@@ -489,7 +489,7 @@ class TestThreadPoolManager(unittest.TestCase):
             thread_manager = ThreadPoolManager(min_threads=2, max_threads=8)
             self.managers.append(thread_manager)
             # Also add to global tracking for atexit cleanup
-            _thread_pools.extend(thread_manager._pools.values())
+            _thread_pools.extend(thread_manager.pools.values())  # Changed from _pools to pools
             
             # Get pools for different priorities
             high_pool = thread_manager.get_pool("high")
@@ -513,7 +513,7 @@ class TestThreadPoolManager(unittest.TestCase):
             thread_manager = ThreadPoolManager(min_threads=1, max_threads=4)
             self.managers.append(thread_manager)
             # Also add to global tracking for atexit cleanup
-            _thread_pools.extend(thread_manager._pools.values())
+            _thread_pools.extend(thread_manager.pools.values())  # Changed from _pools to pools
             
             # Submit a simple task
             def task():
@@ -531,7 +531,7 @@ class TestThreadPoolManager(unittest.TestCase):
             thread_manager = ThreadPoolManager(min_threads=1, max_threads=4)
             self.managers.append(thread_manager)
             # Also add to global tracking for atexit cleanup
-            _thread_pools.extend(thread_manager._pools.values())
+            _thread_pools.extend(thread_manager.pools.values())  # Changed from _pools to pools
             
             # Map a simple function over an iterable
             def multiply(x):
@@ -888,8 +888,8 @@ class TestParallelQueryManager(unittest.TestCase):
                     if hasattr(self.manager, 'thread_pool_manager'):
                         # Shutdown any ThreadPoolExecutors
                         try:
-                            if hasattr(self.manager.thread_pool_manager, '_pools'):
-                                for pool in self.manager.thread_pool_manager._pools.values():
+                            if hasattr(self.manager.thread_pool_manager, 'pools'):
+                                for pool in self.manager.thread_pool_manager.pools.values():
                                     if pool and hasattr(pool, 'shutdown'):
                                         try:
                                             pool.shutdown(wait=False)
@@ -897,7 +897,7 @@ class TestParallelQueryManager(unittest.TestCase):
                                             print(f"Error shutting down pool: {e}")
                                 
                                 # Clear pool references
-                                self.manager.thread_pool_manager._pools = {}
+                                self.manager.thread_pool_manager.pools = {}
                         except Exception as e:
                             print(f"Error cleaning up thread pools: {e}")
                     
