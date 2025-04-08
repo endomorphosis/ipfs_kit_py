@@ -453,6 +453,7 @@ class WALTelemetry:
             # Write to file
             # Ensure directory exists
             os.makedirs(os.path.dirname(metrics_file), exist_ok=True)
+            
             with open(metrics_file, 'w') as f:
                 json.dump(metrics_data, f)
                 
@@ -669,6 +670,8 @@ class WALTelemetry:
                     
                 # Ensure directory exists
                 os.makedirs(os.path.dirname(metrics_file), exist_ok=True)
+                
+                        # Write the table to parquet file
                 pq.write_table(table, metrics_file)
                 
                 logger.debug(f"Metrics stored to {metrics_file} (Arrow format)")

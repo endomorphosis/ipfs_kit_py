@@ -11,6 +11,14 @@ from typing import Dict, List, Any, Optional, Union, Tuple, Callable, Type, Type
 from datetime import datetime
 from unittest.mock import MagicMock
 
+# Try to import pandas, but make it optional
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    pd = None
+
 
 # Custom JSON encoder to handle MagicMock objects
 class MockAwareJSONEncoder(json.JSONEncoder):
@@ -2830,28 +2838,34 @@ class DatasetManager:
     def _get_csv_stats(self, path):
         """Get statistics for a CSV file."""
         try:
-            import pandas as pd
-
-            # Only read first 1000 rows for stats to avoid memory issues
-            df = pd.read_csv(path, nrows=1000)
-
-            stats = {
-                "num_rows": self._count_lines(path) - 1,  # Subtract header
-                "num_columns": len(df.columns),
-                "columns": list(df.columns),
-                "dtypes": {col: str(df[col].dtype) for col in df.columns},
-            }
+            # Check if pandas is available
+            if PANDAS_AVAILABLE:
+                # Only read first 1000 rows for stats to avoid memory issues
+                df = pd.read_csv(path, nrows=1000)
+                
+                stats = {
+                    "num_rows": self._count_lines(path) - 1,  # Subtract header
+                    "num_columns": len(df.columns),
+                    "columns": list(df.columns),
+                    "dtypes": {col: str(df[col].dtype) for col in df.columns},
+                }
+            else:
+                # Fallback to basic stats when pandas is not available
+                stats = {
+                    "num_rows": self._count_lines(path) - 1,  # Subtract header
+                    "num_columns": len(self._read_csv_header(path)),
+                }
 
             return stats
-        except ImportError:
-            self.logger.warning("pandas not available, using basic CSV stats")
-            return {
-                "num_rows": self._count_lines(path) - 1,  # Subtract header
-                "num_columns": len(self._read_csv_header(path)),
-            }
         except Exception as e:
             self.logger.warning(f"Failed to get CSV stats: {e}")
-            return {}
+            try:
+                return {
+                    "num_rows": self._count_lines(path) - 1 if self._count_lines(path) > 0 else 0,  # Subtract header
+                    "num_columns": len(self._read_csv_header(path)) if os.path.exists(path) else 0,
+                }
+            except Exception:
+                return {}
 
     def _count_lines(self, file_path):
         """Count lines in a file efficiently."""
@@ -3009,7 +3023,7 @@ class DatasetManager:
     def _load_csv(self, path):
         """Load a CSV file into a data structure."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             return pd.read_csv(path)
         except ImportError:
@@ -3030,7 +3044,7 @@ class DatasetManager:
     def _load_parquet(self, path):
         """Load a Parquet file into a data structure."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             return pd.read_parquet(path)
         except ImportError:
@@ -3154,7 +3168,7 @@ class DatasetManager:
     def _csv_to_parquet(self, csv_path, parquet_path):
         """Convert CSV to Parquet format."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             df = pd.read_csv(csv_path)
             df.to_parquet(parquet_path)
@@ -3169,7 +3183,7 @@ class DatasetManager:
     def _csv_to_json(self, csv_path, json_path):
         """Convert CSV to JSON format."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             df = pd.read_csv(csv_path)
             df.to_json(json_path, orient="records")
@@ -3184,7 +3198,7 @@ class DatasetManager:
     def _parquet_to_csv(self, parquet_path, csv_path):
         """Convert Parquet to CSV format."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             df = pd.read_parquet(parquet_path)
             df.to_csv(csv_path, index=False)
@@ -3199,7 +3213,7 @@ class DatasetManager:
     def _parquet_to_json(self, parquet_path, json_path):
         """Convert Parquet to JSON format."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             df = pd.read_parquet(parquet_path)
             df.to_json(json_path, orient="records")
@@ -3214,7 +3228,7 @@ class DatasetManager:
     def _json_to_csv(self, json_path, csv_path):
         """Convert JSON to CSV format."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             df = pd.read_json(json_path)
             df.to_csv(csv_path, index=False)
@@ -3229,7 +3243,7 @@ class DatasetManager:
     def _json_to_parquet(self, json_path, parquet_path):
         """Convert JSON to Parquet format."""
         try:
-            import pandas as pd
+            # Use PANDAS_AVAILABLE flag from module level
 
             df = pd.read_json(json_path)
             df.to_parquet(parquet_path)
@@ -3461,7 +3475,7 @@ class DatasetManager:
                 if not converter_found:
                     # Try generic conversion via pandas
                     try:
-                        import pandas as pd
+                        # Use PANDAS_AVAILABLE flag from module level
                         self.logger.debug(f"Attempting format conversion with pandas")
 
                         # Load with appropriate reader
@@ -4356,7 +4370,7 @@ class DatasetManager:
         # Try standard format handlers
         if ext == ".csv" or format == "csv":
             try:
-                import pandas as pd
+                # Use PANDAS_AVAILABLE flag from module level
                 self.logger.debug("Loading CSV file with pandas")
                 return pd.read_csv(file_path)
             except ImportError:
@@ -4373,7 +4387,7 @@ class DatasetManager:
 
         elif ext == ".parquet" or format == "parquet":
             try:
-                import pandas as pd
+                # Use PANDAS_AVAILABLE flag from module level
                 self.logger.debug("Loading Parquet file with pandas")
                 return pd.read_parquet(file_path)
             except ImportError:
@@ -13211,7 +13225,7 @@ class DistributedTraining:
                         if tracking:
                             tracking["dataset_format"] = "csv"
 
-                        import pandas as pd
+                        # Use PANDAS_AVAILABLE flag from module level
 
                         data = pd.read_csv(dataset_path)
 
