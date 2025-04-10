@@ -10,7 +10,14 @@ config/__pycache__
 *package-lock.json
 __pycache__
 ipfs_kit/bin/
+ipfs_kit_py/bin/
 dist/
+# Large binary files
+random_file.bin
+**/ipfs_kit_py/bin/ipfs
+**/ipfs_kit_py/bin/ipfs.exe
+**/ipfs_kit_py/bin/ipfs-cluster-*
+**/ipfs_kit_py/bin/ipget*
 node_modules/
 *.venv/
 
@@ -26,9 +33,18 @@ node_modules/
 
 # Distribution / packaging
 *.so
+*.so.*
 *.dylib
 *.dll
 MANIFEST
+*.pyc
+*.pyd
+*.a
+*.la
+*.o
+*.obj
+**/dist/**
+**/build/**
 
 # Documentation
 _build/
@@ -39,11 +55,17 @@ site/
 # Environments
 .env
 .venv
+.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+*/venv/
+*/.venv/
+**/*.venv/
+virtualenv/
+**/virtualenv/
 
 # Editor files
 .vscode/
@@ -51,6 +73,18 @@ venv.bak/
 *.swp
 *.swo
 *~
+
+# Log and temporary files
+*.log
+*.log.*
+logs/
+**/logs/
+*.tmp
+*.temp
+*.pid
+*.bak
+*.backup
+*.orig
 
 # CI/CD artifacts
 .coverage
@@ -71,10 +105,18 @@ test_full_env/
 build_full_env/
 test_full_venv/
 build_full_venv/
-test_arrow_env
+test_arrow_env/
 test_no_arrow_env/
 test_release_env/
 test_release_venv/
+**/test_env/
+**/build_env/
+**/test_venv/
+**/build_venv/
+**/test_*_env/
+**/build_*_env/
+**/test_*_venv/
+**/build_*_venv/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
 # Pyre type checker
@@ -89,3 +131,19 @@ test_release_venv/
 .ipfs/
 peerstore/
 datastore/
+
+# No need to ignore .git directories in submodules anymore as they are properly managed
+
+# Binary files that might appear elsewhere
+bin/lotus
+bin/lotus-miner
+bin/lotus-worker
+
+# Large ML library files
+**/torch/lib/libtorch_*.so*
+**/torch/lib/libtorch_*.dylib
+**/tensorflow/libtensorflow_*.so*
+**/tensorflow/libtensorflow_*.dylib
+**/nvidia/cudnn/lib/libcudnn_*.so*
+**/nvidia/cublas/lib/libcublas*.so*
+**/triton/_C/libtriton.so*
