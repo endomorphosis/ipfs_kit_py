@@ -113,12 +113,39 @@ New endpoints added in IPFSController:
 - `POST /ipfs/dht/findpeer`
 - `POST /ipfs/dht/findprovs`
 
+## Recent Test Improvements
+
+1. **Fixed storage_bridge_model tests**:
+   - Fixed incorrect assertions for non-existent 'backend' and 'content_id' fields
+   - Resolved issues with mock expectations for method calls
+   - Improved test approach to handle MagicMock attribute limitations
+   - Fixed statistics assertions in replication tests
+
+2. **Enhanced DHT operations test coverage**:
+   - Added comprehensive error scenario testing for DHT operations
+   - Implemented performance tests for DHT operations measuring response times
+   - Added realistic testing for handling large response sets
+   - Added tests for multiple consecutive calls to simulate caching effects
+   - Enhanced test robustness with improved error message validation
+
+3. **Improved test stability**:
+   - Made tests more resilient to implementation changes
+   - Added proper cleanup of resources in tearDown methods
+   - Improved test independence to prevent interference
+   - Enhanced error message assertions to handle implementation variations
+
 ## Next Steps
 
-1. Complete implementation and testing of:
-   - Remaining core IPFS operations
+1. Complete implementation and testing of additional functionality:
+   - Advanced controller integration tests
+   - Performance optimization
 
-2. Address remaining endpoint failures:
+2. Progress:
+   - ✅ Fixed storage_bridge_model test failures
+   - ✅ Enhanced DHT operations test coverage with performance and error testing
+   - ✅ Added improved error handling in DHT operation tests
+
+3. Address remaining endpoint failures:
 
 ## Core Functionality
 

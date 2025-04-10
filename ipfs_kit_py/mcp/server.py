@@ -32,6 +32,8 @@ from ipfs_kit_py.credential_manager import CredentialManager
 
 # Import storage manager
 from ipfs_kit_py.mcp.models.storage_manager import StorageManager
+from ipfs_kit_py.mcp.models.storage_bridge import StorageBridgeModel
+from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManagerController
 
 # Import storage controllers
 try:
@@ -286,12 +288,29 @@ class MCPServer:
         for name, model in self.storage_manager.get_all_models().items():
             self.models[f"storage_{name}"] = model
             logger.info(f"Storage model {name} added")
+            
+        # Initialize Storage Bridge Model
+        self.storage_bridge = StorageBridgeModel(
+            ipfs_model=self.models["ipfs"],
+            backends=self.storage_manager.get_all_models(),
+            cache_manager=self.cache_manager
+        )
+        
+        # Add storage bridge to the models dictionary
+        self.models["storage_bridge"] = self.storage_bridge
+        logger.info("Storage Bridge Model added")
+        
+        # Integrate the storage bridge with the storage manager
+        self.storage_manager.storage_bridge = self.storage_bridge
+        logger.info("Storage Bridge Model integrated with Storage Manager")
 
         self.controllers = {
             "ipfs": IPFSController(self.models["ipfs"]),
             "cli": CliController(self.models["ipfs"]),
-            "credentials": CredentialController(self.credential_manager)
+            "credentials": CredentialController(self.credential_manager),
+            "storage_manager": StorageManagerController(self.storage_manager)
         }
+        logger.info("Storage Manager Controller added")
 
         # Add storage controllers if available
         if HAS_S3_CONTROLLER and "storage_s3" in self.models:
@@ -407,6 +426,7 @@ class MCPServer:
         self.controllers["ipfs"].register_routes(router)
         self.controllers["cli"].register_routes(router)
         self.controllers["credentials"].register_routes(router)
+        self.controllers["storage_manager"].register_routes(router)
 
         # Register storage controllers
         if "storage_s3" in self.controllers:
@@ -642,6 +662,10 @@ class MCPServer:
         storage_info = {
             "available_backends": getattr(self.storage_manager, "get_available_backends", lambda: {})()
         }
+        
+        # Add storage bridge information if available
+        if hasattr(self, "storage_bridge"):
+            storage_info["storage_bridge"] = self.storage_bridge.get_stats()
 
         # Add credential information (without sensitive data)
         credential_info = {
@@ -1423,6 +1447,15 @@ class MCPServer:
 
                 # Reset all storage models to save their state
                 self.storage_manager.reset()
+                
+                # Reset storage bridge if it exists
+                if hasattr(self, "storage_bridge"):
+                    try:
+                        logger.info("Shutting down storage bridge...")
+                        self.storage_bridge.reset()
+                        logger.info("Storage bridge shutdown complete")
+                    except Exception as e:
+                        logger.error(f"Error shutting down storage bridge: {e}")
 
                 # Close any open connections
                 for name, model in self.storage_manager.get_all_models().items():

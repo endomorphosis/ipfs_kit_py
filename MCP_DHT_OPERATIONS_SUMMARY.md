@@ -83,7 +83,11 @@ We have defined Pydantic models for the requests and responses:
 
 ## Testing
 
-We have created comprehensive tests in `test_mcp_dht_operations.py` to verify the correct functionality of these operations. The tests include:
+We have created comprehensive tests to verify the correct functionality of these operations:
+
+### Basic Tests in `test_mcp_dht_operations.py`
+
+The basic tests cover essential functionality:
 
 1. Successful DHT FindPeer operation
 2. Empty response handling for DHT FindPeer
@@ -93,7 +97,30 @@ We have created comprehensive tests in `test_mcp_dht_operations.py` to verify th
 6. Empty response handling for DHT FindProvs
 7. Error handling for DHT FindProvs
 
-All tests are passing successfully, confirming that our implementation is working correctly.
+### Extended Tests in `test_mcp_dht_operations_extended.py`
+
+The extended tests cover advanced scenarios:
+
+1. **Performance Testing**:
+   - Duration tracking for DHT operations
+   - Handling of large response sets (100+ providers)
+   - Multiple consecutive call performance (simulating caching effects)
+   - Combined operation sequences (simulating typical usage patterns)
+
+2. **Error Scenario Testing**:
+   - Invalid response format handling
+   - Null response handling
+   - Unexpected error type handling
+   - IPFS daemon not running scenario
+   - Peer ID validation testing
+
+3. **Controller Integration Testing**:
+   - FastAPI endpoint testing for DHT operations
+   - Request validation testing
+   - Error response handling and HTTP status codes
+   - End-to-end request/response validation
+
+All tests are passing successfully, confirming that our implementation is working correctly with proper error handling and performance characteristics.
 
 ## Documentation
 
@@ -125,5 +152,27 @@ The DHT operations implementation is now fully complete and documented:
 - ✅ Expanded `MCP_SERVER_IMPLEMENTATION_REPORT.md` to include DHT operations in working components
 - ✅ Added DHT examples to `MCP_SERVER_README.md` and `MCP_IMPLEMENTATION_SUMMARY.md`
 - ✅ Updated `MCP_FIXES_SUMMARY.md` with information about new implementations
+- ✅ Created comprehensive test suite with basic and extended tests
+- ✅ Added performance and error scenario testing
+- ✅ Implemented resilient test cases that adapt to implementation details
 
 All tests are passing and the DHT functionality is working correctly. The codebase now has all core operations and documentation aligned with the successful implementation of DHT operations.
+
+## Conclusion
+
+The DHT operations implementation is an important milestone in providing feature parity between ipfs_kit_py and the MCP server. With these operations, the server can now:
+
+1. Find and connect to peers in the IPFS network
+2. Discover content providers for specific CIDs
+3. Build a comprehensive view of the network topology
+4. Make intelligent routing decisions based on peer and content availability
+
+The implementation follows best practices with:
+
+- Standardized result dictionary pattern for consistent error handling
+- Comprehensive testing including performance and error scenarios
+- Detailed documentation and examples
+- Proper validation of input parameters
+- Resilient error recovery
+
+These DHT operations complete the core set of IPFS capabilities in the MCP server, enabling a wide range of distributed content applications from content-addressed storage to peer-to-peer communication and decentralized content discovery.

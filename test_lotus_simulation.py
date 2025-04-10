@@ -155,6 +155,41 @@ def test_lotus_kit_simulation():
         deal_updates_result = lotus.market_get_deal_updates()
         pretty_print("Deal Updates Result", deal_updates_result)
         
+        # Test newly implemented payment channel methods
+        print("\n💰 Testing payment channel methods...")
+        paych_list_result = lotus.paych_list()
+        pretty_print("Payment Channel List Result", paych_list_result)
+        
+        # If we have any payment channels, test paych_status
+        if paych_list_result.get("success", False) and paych_list_result.get("result"):
+            channel_addr = paych_list_result["result"][0]
+            print(f"\n📊 Testing paych_status for channel: {channel_addr}...")
+            paych_status_result = lotus.paych_status(channel_addr)
+            pretty_print("Payment Channel Status Result", paych_status_result)
+        else:
+            print("\n⚠️ No payment channels found to test paych_status")
+        
+        # Test newly implemented wallet balance
+        if wallets_result.get("success", False) and wallets_result.get("result"):
+            wallet_addr = wallets_result["result"][0]
+            print(f"\n💼 Testing wallet_balance for: {wallet_addr}...")
+            balance_result = lotus.wallet_balance(wallet_addr)
+            pretty_print("Wallet Balance Result", balance_result)
+        
+        # Test newly implemented miner sector methods
+        print("\n⛏️ Testing miner sector methods...")
+        sectors_result = lotus.miner_list_sectors()
+        pretty_print("Miner Sectors List Result", sectors_result)
+        
+        # If we have any sectors, test miner_sector_status
+        if sectors_result.get("success", False) and sectors_result.get("result"):
+            sector_number = sectors_result["result"][0]
+            print(f"\n📊 Testing miner_sector_status for sector: {sector_number}...")
+            sector_status_result = lotus.miner_sector_status(sector_number)
+            pretty_print("Sector Status Result", sector_status_result)
+        else:
+            print("\n⚠️ No sectors found to test miner_sector_status")
+        
         # Test verify that simulation mode was used
         print("\n🔍 Verifying simulation mode was used...")
         print(f"Simulation mode active: {lotus.simulation_mode}")
@@ -169,7 +204,9 @@ def test_lotus_kit_simulation():
             miners_result.get("success", False) and
             storage_deals_result.get("success", False) and
             retrieval_deals_result.get("success", False) and
-            deal_updates_result.get("success", False)
+            deal_updates_result.get("success", False) and
+            paych_list_result.get("success", False) and
+            sectors_result.get("success", False)
         )
         
         print(f"\n✅ Simulation mode testing complete! Overall success: {simulation_success}")

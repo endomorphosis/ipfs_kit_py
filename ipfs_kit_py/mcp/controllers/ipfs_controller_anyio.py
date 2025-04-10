@@ -8,6 +8,7 @@ This implementation uses AnyIO for backend-agnostic async operations.
 """
 
 import logging
+import json
 import time
 from typing import Dict, List, Any, Optional, Union
 from fastapi import APIRouter, HTTPException, Depends, Body, File, UploadFile, Form, Response, Request
@@ -25,6 +26,44 @@ from ipfs_kit_py.mcp.controllers.ipfs_controller import (
     GetContentResponse, PinResponse, ListPinsResponse, ReplicationStatusResponse,
     MakeDirRequest, StatsResponse
 )
+
+# Define new request models for MFS operations
+class WriteFileRequest(BaseModel):
+    """Request model for writing to a file in MFS."""
+    path: str = Field(..., description="Path in MFS to write to")
+    content: str = Field(..., description="Content to write to the file")
+    offset: int = Field(0, description="Offset to write at")
+    create: bool = Field(True, description="Create the file if it doesn't exist")
+    truncate: bool = Field(True, description="Truncate the file before writing")
+    parents: bool = Field(False, description="Create parent directories if they don't exist")
+
+class ReadFileRequest(BaseModel):
+    """Request model for reading from a file in MFS."""
+    path: str = Field(..., description="Path in MFS to read from")
+    offset: int = Field(0, description="Offset to read from")
+    count: int = Field(-1, description="Number of bytes to read (-1 for all)")
+
+class RemoveFileRequest(BaseModel):
+    """Request model for removing a file or directory from MFS."""
+    path: str = Field(..., description="Path in MFS to remove")
+    recursive: bool = Field(False, description="Remove directories recursively")
+    force: bool = Field(False, description="Force removal")
+
+class CopyFileRequest(BaseModel):
+    """Request model for copying files in MFS."""
+    source: str = Field(..., description="Source path in MFS")
+    destination: str = Field(..., description="Destination path in MFS")
+    parents: bool = Field(False, description="Create parent directories if they don't exist")
+
+class MoveFileRequest(BaseModel):
+    """Request model for moving files in MFS."""
+    source: str = Field(..., description="Source path in MFS")
+    destination: str = Field(..., description="Destination path in MFS")
+    parents: bool = Field(False, description="Create parent directories if they don't exist")
+
+class FlushFilesRequest(BaseModel):
+    """Request model for flushing MFS changes."""
+    path: str = Field("/", description="Path in MFS to flush")
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -248,6 +287,55 @@ class IPFSControllerAnyIO:
             description="Create a directory in the MFS (Mutable File System)"
         )
         
+        # Add new MFS operations
+        router.add_api_route(
+            "/ipfs/files/write",
+            self.write_file,
+            methods=["POST"],
+            summary="Write to file",
+            description="Write content to a file in the MFS (Mutable File System)"
+        )
+        
+        router.add_api_route(
+            "/ipfs/files/read",
+            self.read_file,
+            methods=["GET", "POST"],
+            summary="Read file",
+            description="Read content from a file in the MFS (Mutable File System)"
+        )
+        
+        router.add_api_route(
+            "/ipfs/files/rm",
+            self.remove_file,
+            methods=["POST"],
+            summary="Remove file",
+            description="Remove a file or directory from the MFS (Mutable File System)"
+        )
+        
+        router.add_api_route(
+            "/ipfs/files/cp",
+            self.copy_file,
+            methods=["POST"],
+            summary="Copy file",
+            description="Copy a file or directory within the MFS (Mutable File System)"
+        )
+        
+        router.add_api_route(
+            "/ipfs/files/mv",
+            self.move_file,
+            methods=["POST"],
+            summary="Move file",
+            description="Move a file or directory within the MFS (Mutable File System)"
+        )
+        
+        router.add_api_route(
+            "/ipfs/files/flush",
+            self.flush_files,
+            methods=["POST"],
+            summary="Flush files",
+            description="Flush changes in the MFS (Mutable File System) to IPFS"
+        )
+        
         # IPNS endpoints
         router.add_api_route(
             "/ipfs/name/publish",
@@ -345,6 +433,85 @@ class IPFSControllerAnyIO:
             return sniffio.current_async_library()
         except sniffio.AsyncLibraryNotFoundError:
             return None
+    
+    async def handle_add_request(self, request: Request) -> Dict[str, Any]:
+        """
+        Handle combined add request that supports both JSON and form data.
+        
+        This unified endpoint accepts content either as JSON payload or as file upload
+        to simplify client integration.
+        
+        Args:
+            request: The incoming request which may be JSON or form data
+            
+        Returns:
+            Dictionary with operation results
+        """
+        # Determine request content type
+        content_type = request.headers.get("content-type", "")
+        
+        # Handle multipart form data (file upload)
+        if content_type.startswith("multipart/form-data"):
+            # Extract the form data
+            form = await request.form()
+            
+            # Get uploaded file
+            file = form.get("file")
+            if not file:
+                raise HTTPException(status_code=400, detail="Missing file field in form data")
+                
+            # Process the uploaded file
+            return await self.add_file(file)
+            
+        # Handle application/json
+        elif content_type.startswith("application/json"):
+            # Parse JSON body
+            try:
+                data = await request.json()
+                
+                # Create ContentRequest instance
+                content_request = ContentRequest(
+                    content=data.get("content", ""),
+                    filename=data.get("filename")
+                )
+                
+                # Process the JSON content
+                return await self.add_content(content_request)
+                
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid JSON data")
+                
+        # Handle unknown content type
+        else:
+            # Try to parse as JSON first
+            try:
+                data = await request.json()
+                
+                # Create ContentRequest instance
+                content_request = ContentRequest(
+                    content=data.get("content", ""),
+                    filename=data.get("filename")
+                )
+                
+                # Process the JSON content
+                return await self.add_content(content_request)
+                
+            except:
+                # Fall back to form data
+                try:
+                    form = await request.form()
+                    file = form.get("file")
+                    if file:
+                        # Process the uploaded file
+                        return await self.add_file(file)
+                except:
+                    pass
+                    
+            # If all parsing attempts fail, return error
+            raise HTTPException(
+                status_code=400, 
+                detail="Unsupported content type. Use application/json or multipart/form-data"
+            )
     
     async def add_content(self, content_request: ContentRequest) -> Dict[str, Any]:
         """
@@ -796,4 +963,1006 @@ class IPFSControllerAnyIO:
                 "error_type": type(e).__name__,
                 "cid": cid,
                 "pinned": False
+            }
+    
+    async def list_files(self, path: str = "/", long: bool = False) -> Dict[str, Any]:
+        """
+        List files in the MFS (Mutable File System) directory with AnyIO support.
+        
+        Args:
+            path: Path in MFS to list
+            long: Whether to use long listing format
+            
+        Returns:
+            Dictionary with directory listing result
+        """
+        logger.debug(f"Listing files in MFS path: {path}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_ls_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_ls method
+            if hasattr(self.ipfs_model, "files_ls_async") and callable(getattr(self.ipfs_model, "files_ls_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_ls_async(path, long)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_ls_async") and callable(getattr(self.ipfs_model.ipfs, "files_ls_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_ls_async(path, long)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_ls method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_ls") and callable(getattr(self.ipfs_model, "files_ls")):
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.files_ls, path, long)
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.ipfs.files_ls, path, long)
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_ls: {thread_err}")
+                    raise
+            
+            # If result is raw IPFS daemon response, format it consistently
+            if isinstance(result, dict) and "Entries" in result and "success" not in result:
+                # Convert raw IPFS daemon result to standard format
+                formatted_result = {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_ls",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "long": long,
+                    "entries": result.get("Entries", [])
+                }
+                
+                # Add duration if request took time
+                formatted_result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return formatted_result
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_ls: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_ls",
+                "timestamp": time.time(),
+                "path": path,
+                "long": long,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing files in MFS path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_ls",
+                "timestamp": time.time(),
+                "path": path,
+                "long": long,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def stat_file(self, path: str) -> Dict[str, Any]:
+        """
+        Get information about a file or directory in MFS with AnyIO support.
+        
+        Args:
+            path: Path in MFS to stat
+            
+        Returns:
+            Dictionary with file information
+        """
+        logger.debug(f"Getting file information for MFS path: {path}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_stat_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_stat method
+            if hasattr(self.ipfs_model, "files_stat_async") and callable(getattr(self.ipfs_model, "files_stat_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_stat_async(path)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_stat_async") and callable(getattr(self.ipfs_model.ipfs, "files_stat_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_stat_async(path)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_stat method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_stat") and callable(getattr(self.ipfs_model, "files_stat")):
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.files_stat, path)
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.ipfs.files_stat, path)
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_stat: {thread_err}")
+                    raise
+            
+            # If result is raw IPFS daemon response, format it consistently
+            if isinstance(result, dict) and "Hash" in result and "success" not in result:
+                # Convert raw IPFS daemon result to standard format
+                formatted_result = {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_stat",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "hash": result.get("Hash"),
+                    "size": result.get("Size", 0),
+                    "cumulative_size": result.get("CumulativeSize", 0),
+                    "blocks": result.get("Blocks", 0),
+                    "type": result.get("Type", "unknown"),
+                    "with_locality": result.get("WithLocality", False)
+                }
+                
+                # Add duration if request took time
+                formatted_result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return formatted_result
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_stat: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_stat",
+                "timestamp": time.time(),
+                "path": path,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting stat for MFS path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_stat",
+                "timestamp": time.time(),
+                "path": path,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def make_directory(self, request: MakeDirRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Create a directory in the MFS (Mutable File System) with AnyIO support.
+        
+        Args:
+            request: Request containing path and options for directory creation
+            
+        Returns:
+            Dictionary with directory creation result
+        """
+        path = request.path
+        parents = request.parents
+        
+        logger.debug(f"Creating directory in MFS: {path}, parents={parents}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_mkdir_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_mkdir method
+            if hasattr(self.ipfs_model, "files_mkdir_async") and callable(getattr(self.ipfs_model, "files_mkdir_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_mkdir_async(path, parents)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_mkdir_async") and callable(getattr(self.ipfs_model.ipfs, "files_mkdir_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_mkdir_async(path, parents)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_mkdir method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_mkdir") and callable(getattr(self.ipfs_model, "files_mkdir")):
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.files_mkdir, path, parents)
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.ipfs.files_mkdir, path, parents)
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_mkdir: {thread_err}")
+                    raise
+            
+            # Handle empty response (success in the IPFS API)
+            if result is None or (isinstance(result, dict) and len(result) == 0):
+                # Empty response means success for mkdir operation
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_mkdir",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "parents": parents,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "parents" not in result:
+                    result["parents"] = parents
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_mkdir: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_mkdir",
+                "timestamp": time.time(),
+                "path": path,
+                "parents": parents,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating directory at MFS path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_mkdir",
+                "timestamp": time.time(),
+                "path": path,
+                "parents": parents,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def write_file(self, request: WriteFileRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Write content to a file in the MFS (Mutable File System) with AnyIO support.
+        
+        Args:
+            request: Request containing path, content, and options for file writing
+            
+        Returns:
+            Dictionary with file write result
+        """
+        path = request.path
+        content = request.content
+        offset = request.offset
+        create = request.create
+        truncate = request.truncate
+        parents = request.parents
+        
+        logger.debug(f"Writing to file in MFS: {path}, offset={offset}, create={create}, truncate={truncate}, parents={parents}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_write_{int(start_time * 1000)}"
+        
+        try:
+            # Convert content to bytes if it's a string
+            if isinstance(content, str):
+                content_bytes = content.encode('utf-8')
+            else:
+                content_bytes = content
+                
+            # Check if the model has an async files_write method
+            if hasattr(self.ipfs_model, "files_write_async") and callable(getattr(self.ipfs_model, "files_write_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_write_async(path, content_bytes, offset, create, truncate, parents)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_write_async") and callable(getattr(self.ipfs_model.ipfs, "files_write_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_write_async(path, content_bytes, offset, create, truncate, parents)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_write method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_write") and callable(getattr(self.ipfs_model, "files_write")):
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.files_write, 
+                            path, content_bytes, offset, create, truncate, parents
+                        )
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.ipfs.files_write,
+                            path, content_bytes, offset, create, truncate, parents
+                        )
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_write: {thread_err}")
+                    raise
+            
+            # Handle empty response (success in the IPFS API)
+            if result is None or (isinstance(result, dict) and len(result) == 0):
+                # Empty response means success for write operation
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_write",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "size": len(content_bytes),
+                    "offset": offset,
+                    "create": create,
+                    "truncate": truncate,
+                    "parents": parents,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "size" not in result:
+                    result["size"] = len(content_bytes)
+                if "offset" not in result:
+                    result["offset"] = offset
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_write: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_write",
+                "timestamp": time.time(),
+                "path": path,
+                "size": len(content_bytes),
+                "offset": offset,
+                "create": create,
+                "truncate": truncate,
+                "parents": parents,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error writing to file at MFS path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_write",
+                "timestamp": time.time(),
+                "path": path,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+    async def read_file(self, path: str = None, offset: int = 0, count: int = -1, request: ReadFileRequest = None) -> Union[Dict[str, Any], Response]:
+        """
+        Read content from a file in the MFS (Mutable File System) with AnyIO support.
+        
+        Args:
+            path: Path in MFS to read from (for GET requests)
+            offset: Offset to read from (for GET requests)
+            count: Number of bytes to read, -1 for all (for GET requests)
+            request: Request model (for POST requests)
+            
+        Returns:
+            Dictionary with file content or Raw response depending on accept header
+        """
+        # Use request parameters if provided (POST), otherwise use query parameters (GET)
+        if request is not None:
+            path = request.path
+            offset = request.offset
+            count = request.count
+        elif path is None:
+            # Both request and path are None, return error
+            return {
+                "success": False,
+                "error": "Path is required",
+                "error_type": "ValidationError",
+                "timestamp": time.time()
+            }
+        
+        logger.debug(f"Reading file from MFS: {path}, offset={offset}, count={count}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_read_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_read method
+            if hasattr(self.ipfs_model, "files_read_async") and callable(getattr(self.ipfs_model, "files_read_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_read_async(path, offset=offset, count=count)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_read_async") and callable(getattr(self.ipfs_model.ipfs, "files_read_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_read_async(path, offset=offset, count=count)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_read method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_read") and callable(getattr(self.ipfs_model, "files_read")):
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.files_read, 
+                            path, offset=offset, count=count
+                        )
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.ipfs.files_read,
+                            path, offset=offset, count=count
+                        )
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_read: {thread_err}")
+                    raise
+            
+            # Handle binary content (bytes)
+            if isinstance(result, bytes):
+                # Format standard response with content
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_read",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "offset": offset,
+                    "count": count if count != -1 else len(result),
+                    "size": len(result),
+                    "content": result.decode('utf-8', errors='replace'),  # Attempt to decode as UTF-8
+                    "content_binary": True,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "offset" not in result:
+                    result["offset"] = offset
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_read: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_read",
+                "timestamp": time.time(),
+                "path": path,
+                "offset": offset,
+                "count": count,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error reading file from MFS path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_read",
+                "timestamp": time.time(),
+                "path": path,
+                "offset": offset,
+                "count": count,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def remove_file(self, request: RemoveFileRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Remove a file or directory from the MFS (Mutable File System) with AnyIO support.
+        
+        Args:
+            request: Request containing path and options for file removal
+            
+        Returns:
+            Dictionary with file removal result
+        """
+        path = request.path
+        recursive = request.recursive
+        force = request.force
+        
+        logger.debug(f"Removing file/directory from MFS: {path}, recursive={recursive}, force={force}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_rm_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_rm method
+            if hasattr(self.ipfs_model, "files_rm_async") and callable(getattr(self.ipfs_model, "files_rm_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_rm_async(path, recursive, force)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_rm_async") and callable(getattr(self.ipfs_model.ipfs, "files_rm_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_rm_async(path, recursive, force)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_rm method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_rm") and callable(getattr(self.ipfs_model, "files_rm")):
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.files_rm, 
+                            path, recursive, force
+                        )
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.ipfs.files_rm,
+                            path, recursive, force
+                        )
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_rm: {thread_err}")
+                    raise
+            
+            # Handle empty response (success in the IPFS API)
+            if result is None or (isinstance(result, dict) and len(result) == 0):
+                # Empty response means success for rm operation
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_rm",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "recursive": recursive,
+                    "force": force,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "recursive" not in result:
+                    result["recursive"] = recursive
+                if "force" not in result:
+                    result["force"] = force
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_rm: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_rm",
+                "timestamp": time.time(),
+                "path": path,
+                "recursive": recursive,
+                "force": force,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error removing file at MFS path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_rm",
+                "timestamp": time.time(),
+                "path": path,
+                "recursive": recursive,
+                "force": force,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def copy_file(self, request: CopyFileRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Copy a file or directory within the MFS (Mutable File System) with AnyIO support.
+        
+        Args:
+            request: Request containing source, destination, and options for file copying
+            
+        Returns:
+            Dictionary with file copy result
+        """
+        source = request.source
+        destination = request.destination
+        parents = request.parents
+        
+        logger.debug(f"Copying in MFS from {source} to {destination}, parents={parents}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_cp_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_cp method
+            if hasattr(self.ipfs_model, "files_cp_async") and callable(getattr(self.ipfs_model, "files_cp_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_cp_async(source, destination, parents)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_cp_async") and callable(getattr(self.ipfs_model.ipfs, "files_cp_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_cp_async(source, destination, parents)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_cp method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_cp") and callable(getattr(self.ipfs_model, "files_cp")):
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.files_cp, 
+                            source, destination, parents
+                        )
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.ipfs.files_cp,
+                            source, destination, parents
+                        )
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_cp: {thread_err}")
+                    raise
+            
+            # Handle empty response (success in the IPFS API)
+            if result is None or (isinstance(result, dict) and len(result) == 0):
+                # Empty response means success for cp operation
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_cp",
+                    "timestamp": time.time(),
+                    "source": source,
+                    "destination": destination,
+                    "parents": parents,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "source" not in result:
+                    result["source"] = source
+                if "destination" not in result:
+                    result["destination"] = destination
+                if "parents" not in result:
+                    result["parents"] = parents
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_cp: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_cp",
+                "timestamp": time.time(),
+                "source": source,
+                "destination": destination,
+                "parents": parents,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error copying file from {source} to {destination}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_cp",
+                "timestamp": time.time(),
+                "source": source,
+                "destination": destination,
+                "parents": parents,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def move_file(self, request: MoveFileRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Move/rename a file or directory within the MFS (Mutable File System) with AnyIO support.
+        
+        Args:
+            request: Request containing source, destination, and options for file moving
+            
+        Returns:
+            Dictionary with file move result
+        """
+        source = request.source
+        destination = request.destination
+        parents = request.parents
+        
+        logger.debug(f"Moving in MFS from {source} to {destination}, parents={parents}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_mv_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_mv method
+            if hasattr(self.ipfs_model, "files_mv_async") and callable(getattr(self.ipfs_model, "files_mv_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_mv_async(source, destination, parents)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_mv_async") and callable(getattr(self.ipfs_model.ipfs, "files_mv_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_mv_async(source, destination, parents)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_mv method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_mv") and callable(getattr(self.ipfs_model, "files_mv")):
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.files_mv, 
+                            source, destination, parents
+                        )
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.ipfs.files_mv,
+                            source, destination, parents
+                        )
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_mv: {thread_err}")
+                    raise
+            
+            # Handle empty response (success in the IPFS API)
+            if result is None or (isinstance(result, dict) and len(result) == 0):
+                # Empty response means success for mv operation
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_mv",
+                    "timestamp": time.time(),
+                    "source": source,
+                    "destination": destination,
+                    "parents": parents,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "source" not in result:
+                    result["source"] = source
+                if "destination" not in result:
+                    result["destination"] = destination
+                if "parents" not in result:
+                    result["parents"] = parents
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_mv: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_mv",
+                "timestamp": time.time(),
+                "source": source,
+                "destination": destination,
+                "parents": parents,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error moving file from {source} to {destination}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_mv",
+                "timestamp": time.time(),
+                "source": source,
+                "destination": destination,
+                "parents": parents,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+    
+    async def flush_files(self, request: FlushFilesRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Flush changes in the MFS (Mutable File System) to IPFS.
+        
+        Args:
+            request: Request containing path to flush
+            
+        Returns:
+            Dictionary with flush result including the CID of the flushed directory
+        """
+        path = request.path
+        
+        logger.debug(f"Flushing MFS changes for path: {path}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"files_flush_{int(start_time * 1000)}"
+        
+        try:
+            # Check if the model has an async files_flush method
+            if hasattr(self.ipfs_model, "files_flush_async") and callable(getattr(self.ipfs_model, "files_flush_async")):
+                # Use async method directly
+                result = await self.ipfs_model.files_flush_async(path)
+            elif hasattr(self.ipfs_model, "ipfs") and hasattr(self.ipfs_model.ipfs, "files_flush_async") and callable(getattr(self.ipfs_model.ipfs, "files_flush_async")):
+                # Use model.ipfs async method
+                result = await self.ipfs_model.ipfs.files_flush_async(path)
+            else:
+                # Fall back to synchronous method
+                logger.debug("Using synchronous files_flush method with anyio.to_thread.run_sync")
+                try:
+                    # First try model method
+                    if hasattr(self.ipfs_model, "files_flush") and callable(getattr(self.ipfs_model, "files_flush")):
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.files_flush, 
+                            path
+                        )
+                    else:
+                        # Fall back to model.ipfs method
+                        result = await anyio.to_thread.run_sync(
+                            self.ipfs_model.ipfs.files_flush,
+                            path
+                        )
+                except Exception as thread_err:
+                    logger.error(f"Error in thread execution for files_flush: {thread_err}")
+                    raise
+            
+            # If result contains CID directly
+            if isinstance(result, str) and result.startswith("Qm"):
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_flush",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "cid": result,
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If result is a dict with Cid field
+            if isinstance(result, dict) and "Cid" in result:
+                return {
+                    "success": True,
+                    "operation_id": operation_id,
+                    "operation": "files_flush",
+                    "timestamp": time.time(),
+                    "path": path,
+                    "cid": result["Cid"],
+                    "duration_ms": (time.time() - start_time) * 1000
+                }
+                
+            # If already in standard format, ensure it has operation_id
+            if isinstance(result, dict) and "success" in result:
+                if "operation_id" not in result:
+                    result["operation_id"] = operation_id
+                if "timestamp" not in result:
+                    result["timestamp"] = time.time()
+                if "path" not in result:
+                    result["path"] = path
+                if "duration_ms" not in result:
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                return result
+                
+            # If we get here, we have an unexpected result format
+            logger.warning(f"Unexpected result format from files_flush: {type(result)}")
+            
+            # Do best effort to return something useful
+            return {
+                "success": True if result else False,
+                "operation_id": operation_id,
+                "operation": "files_flush",
+                "timestamp": time.time(),
+                "path": path,
+                "raw_result": str(result),
+                "duration_ms": (time.time() - start_time) * 1000
+            }
+            
+        except Exception as e:
+            logger.error(f"Error flushing MFS changes for path {path}: {e}")
+            
+            # Return error in standard format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation": "files_flush",
+                "timestamp": time.time(),
+                "path": path,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
             }

@@ -36,6 +36,9 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
+# For dependency installation
+import importlib
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -82,9 +85,15 @@ class install_lotus:
                     - force: Force reinstallation even if already installed
                     - bin_dir: Custom binary directory path
                     - skip_params: Skip parameter download
+                    - auto_install_deps: Automatically install dependencies (default: True)
         """
+        # Initialize basic properties first
         self.resources = resources or {}
         self.metadata = metadata or {}
+        
+        # Check and install system dependencies if needed
+        if self.metadata.get("auto_install_deps", True):
+            self._install_system_dependencies()
         
         # Setup environment
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
@@ -643,6 +652,721 @@ class install_lotus:
         
         logger.info("Binary installation completed")
         return installed_binaries
+        
+    def _install_system_dependencies(self):
+        """
+        Detect and install system dependencies required by Lotus.
+        
+        This method checks for required system libraries and installs
+        them if missing, using the appropriate package manager for the
+        detected operating system.
+        
+        This implementation includes:
+        - Improved detection of installed libraries
+        - Better handling of package manager locks
+        - Fallback mechanisms when system package managers fail
+        - Comprehensive error handling and retry logic
+        
+        Returns:
+            bool: True if dependencies are available or successfully installed
+        """
+        logger.info("Checking for required system dependencies...")
+        
+        # Detect operating system
+        os_name = platform.system().lower()
+        
+        # Define dependencies by OS
+        dependencies = {
+            "linux": {
+                "ubuntu": {
+                    "packages": ["hwloc", "libhwloc-dev", "mesa-opencl-icd", "ocl-icd-opencl-dev"],
+                    "install_cmd": ["apt-get", "update"],
+                    "package_cmd": ["apt-get", "install", "-y"],
+                    "alternative_package_cmd": ["apt-get", "install", "-y", "--no-install-recommends"],
+                    "lock_files": ["/var/lib/apt/lists/lock", "/var/lib/dpkg/lock", "/var/lib/dpkg/lock-frontend"],
+                    "package_check_cmd": ["dpkg", "-s"]
+                },
+                "debian": {
+                    "packages": ["hwloc", "libhwloc-dev", "mesa-opencl-icd", "ocl-icd-opencl-dev"],
+                    "install_cmd": ["apt-get", "update"],
+                    "package_cmd": ["apt-get", "install", "-y"],
+                    "alternative_package_cmd": ["apt-get", "install", "-y", "--no-install-recommends"],
+                    "lock_files": ["/var/lib/apt/lists/lock", "/var/lib/dpkg/lock", "/var/lib/dpkg/lock-frontend"],
+                    "package_check_cmd": ["dpkg", "-s"]
+                },
+                "fedora": {
+                    "packages": ["hwloc", "hwloc-devel", "opencl-headers", "ocl-icd-devel"],
+                    "install_cmd": ["dnf", "check-update"],
+                    "package_cmd": ["dnf", "install", "-y"],
+                    "alternative_package_cmd": ["dnf", "install", "-y", "--setopt=install_weak_deps=False"],
+                    "lock_files": ["/var/lib/dnf/lock"],
+                    "package_check_cmd": ["rpm", "-q"]
+                },
+                "centos": {
+                    "packages": ["hwloc", "hwloc-devel", "opencl-headers", "ocl-icd-devel"],
+                    "install_cmd": ["yum", "check-update"],
+                    "package_cmd": ["yum", "install", "-y"],
+                    "alternative_package_cmd": ["yum", "install", "-y", "--setopt=install_weak_deps=False"],
+                    "lock_files": ["/var/run/yum.pid"],
+                    "package_check_cmd": ["rpm", "-q"]
+                },
+                "alpine": {
+                    "packages": ["hwloc", "hwloc-dev", "opencl-headers", "opencl-icd-loader-dev"],
+                    "install_cmd": ["apk", "update"],
+                    "package_cmd": ["apk", "add"],
+                    "alternative_package_cmd": ["apk", "add", "--no-cache"],
+                    "lock_files": ["/var/lib/apk/lock"],
+                    "package_check_cmd": ["apk", "info", "-e"]
+                },
+                "arch": {
+                    "packages": ["hwloc", "opencl-headers", "opencl-icd-loader"],
+                    "install_cmd": ["pacman", "-Sy"],
+                    "package_cmd": ["pacman", "-S", "--noconfirm"],
+                    "alternative_package_cmd": ["pacman", "-S", "--noconfirm", "--needed"],
+                    "lock_files": ["/var/lib/pacman/db.lck"],
+                    "package_check_cmd": ["pacman", "-Qi"]
+                }
+            },
+            "darwin": {
+                "packages": ["hwloc"],
+                "install_cmd": ["brew", "update"],
+                "package_cmd": ["brew", "install"],
+                "alternative_package_cmd": ["brew", "install", "--force"],
+                "lock_files": [],  # Homebrew doesn't use lock files in the same way
+                "package_check_cmd": ["brew", "list"]
+            }
+        }
+        
+        # Detect library directly first, regardless of OS - most reliable method
+        # This will work even if package management is broken or unavailable
+        if self._check_hwloc_library_direct():
+            logger.info("Found libhwloc library installed on the system")
+            return True
+            
+        # Continue with OS-specific package management
+        if os_name == "linux":
+            return self._install_linux_dependencies(dependencies)
+        elif os_name == "darwin":
+            return self._install_darwin_dependencies(dependencies)
+        elif os_name == "windows":
+            # Windows doesn't typically need additional dependencies for Lotus
+            # The binary should include all necessary DLLs
+            logger.info("Windows platform detected, no additional dependencies required")
+            return True
+        else:
+            logger.warning(f"Unsupported operating system: {os_name}")
+            logger.warning("Checking for libraries directly...")
+            # Try direct library check again (already did this above, but being explicit)
+            if self._check_hwloc_library_direct():
+                logger.info("Found libhwloc library installed on the system")
+                return True
+            else:
+                logger.warning("You may need to manually install hwloc and OpenCL libraries")
+                return False
+                
+    def _check_hwloc_library_direct(self):
+        """
+        Check for libhwloc library files directly on the system.
+        
+        This is a more reliable method than checking package installation
+        as it directly verifies the library files exist.
+        
+        Returns:
+            bool: True if libhwloc is found, False otherwise
+        """
+        # Common library paths to check
+        lib_paths = [
+            "/usr/lib", 
+            "/usr/local/lib", 
+            "/lib", 
+            "/lib64", 
+            "/usr/lib64",
+            # Add homebrew paths for macOS
+            "/usr/local/opt/hwloc/lib",
+            "/opt/homebrew/lib",
+            # Add common Windows paths
+            "C:\\Windows\\System32",
+            os.path.expanduser("~/.lotus/bin"),
+            os.path.join(self.bin_path),
+        ]
+        
+        # Library name patterns to look for (covering different versions)
+        lib_patterns = [
+            "libhwloc.so",       # Base name
+            "libhwloc.so.15",    # Specific version
+            "libhwloc.so.5",     # Older version
+            "libhwloc.so.15.5.0", # Full versioned name
+            "libhwloc.dylib",    # macOS
+            "libhwloc.15.dylib", # macOS versioned
+            "hwloc.dll",         # Windows
+        ]
+        
+        # Check each path for matching libraries
+        for path in lib_paths:
+            if not os.path.exists(path):
+                continue
+                
+            try:
+                # Look for any matching library in this path
+                for filename in os.listdir(path):
+                    for pattern in lib_patterns:
+                        if filename.startswith(pattern) or filename == pattern:
+                            logger.info(f"Found hwloc library: {os.path.join(path, filename)}")
+                            return True
+            except (PermissionError, OSError) as e:
+                # Skip paths we can't access
+                logger.debug(f"Could not access {path}: {e}")
+                continue
+                
+        # Also try using ldconfig to find the library (Linux only)
+        if platform.system() == "Linux":
+            try:
+                result = subprocess.run(
+                    ["ldconfig", "-p"], 
+                    capture_output=True, 
+                    text=True, 
+                    check=False
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.splitlines():
+                        if "libhwloc.so" in line:
+                            logger.info(f"Found hwloc library via ldconfig: {line.strip()}")
+                            return True
+            except (subprocess.SubprocessError, FileNotFoundError):
+                pass
+                
+        # Library not found
+        return False
+
+    def _check_package_manager_available(self, distro_deps):
+        """
+        Check if package manager is available and not locked.
+        
+        Args:
+            distro_deps: Dictionary with distribution dependencies info
+            
+        Returns:
+            tuple: (bool indicating availability, string with lock info if locked)
+        """
+        # Check if any lock files exist
+        lock_info = []
+        for lock_file in distro_deps.get("lock_files", []):
+            if os.path.exists(lock_file):
+                try:
+                    # Check if the lock is stale by checking process
+                    with open(lock_file, "r") as f:
+                        try:
+                            pid = int(f.read().strip())
+                            # Check if process exists
+                            try:
+                                os.kill(pid, 0)
+                                lock_info.append(f"Lock file {lock_file} is held by active process {pid}")
+                            except OSError:
+                                lock_info.append(f"Lock file {lock_file} exists but process {pid} is not running (stale lock)")
+                        except ValueError:
+                            # Not a PID in the file
+                            lock_info.append(f"Lock file {lock_file} exists")
+                except (PermissionError, IOError):
+                    # Can't read the file
+                    lock_info.append(f"Lock file {lock_file} exists but cannot be read")
+                    
+        if lock_info:
+            return False, ", ".join(lock_info)
+            
+        # Check if package manager commands exist
+        try:
+            if distro_deps.get("package_check_cmd"):
+                check_cmd = distro_deps["package_check_cmd"][0]
+                subprocess.run([check_cmd, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                return True, None
+        except (subprocess.SubprocessError, FileNotFoundError):
+            return False, "Package manager not found or not functioning"
+            
+        return True, None
+        
+    def _wait_for_lock_release(self, distro_deps, timeout=300):
+        """
+        Wait for package manager locks to be released.
+        
+        Args:
+            distro_deps: Dictionary with distribution dependencies info
+            timeout: Maximum time to wait in seconds
+            
+        Returns:
+            bool: True if locks were released, False if timed out
+        """
+        logger.info(f"Waiting for package manager locks to be released (timeout: {timeout}s)...")
+        
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            available, lock_info = self._check_package_manager_available(distro_deps)
+            if available:
+                logger.info("Package manager is now available")
+                return True
+                
+            # Wait before checking again
+            wait_time = min(10, timeout / 10)  # Wait up to 10 seconds between checks
+            logger.debug(f"Package manager still locked: {lock_info}. Waiting {wait_time}s...")
+            time.sleep(wait_time)
+            
+        logger.error(f"Timed out waiting for package manager locks ({timeout}s)")
+        return False
+        
+    def _check_packages_installed(self, distro, distro_deps, packages):
+        """
+        Check which packages are missing using the appropriate package manager.
+        
+        Args:
+            distro: Distribution name
+            distro_deps: Dictionary with distribution dependencies info
+            packages: List of packages to check
+            
+        Returns:
+            list: List of missing packages
+        """
+        missing_packages = []
+        
+        for package in packages:
+            # For hwloc, we can also check for the library directly
+            if package == "hwloc" and self._check_hwloc_library_direct():
+                continue
+                
+            # Check using package manager
+            try:
+                if distro_deps.get("package_check_cmd"):
+                    cmd = distro_deps["package_check_cmd"] + [package]
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    if result.returncode != 0:
+                        missing_packages.append(package)
+            except (subprocess.SubprocessError, FileNotFoundError):
+                # If command fails, assume package is missing
+                missing_packages.append(package)
+                
+        return missing_packages
+        
+    def _try_direct_library_installation(self):
+        """
+        Try to directly download and install the hwloc library without using package managers.
+        This is a fallback method when system package managers fail.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        logger.info("Attempting direct hwloc library installation...")
+        
+        # Create lib directory in bin folder if it doesn't exist
+        lib_dir = os.path.join(self.bin_path, "lib")
+        os.makedirs(lib_dir, exist_ok=True)
+        
+        # HWLoc binary URLs by platform - Using GitHub mirror for reliability
+        hwloc_bins = {
+            "linux-x86_64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-linux-x86_64.tar.gz",
+            "linux-aarch64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-linux-aarch64.tar.gz",
+            "macos-x86_64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-darwin-x86_64.tar.gz",
+            "macos-arm64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-darwin-x86_64.tar.gz",  # Use x86_64 for arm64 too
+        }
+        
+        # Determine platform
+        os_name = platform.system().lower()
+        arch = platform.machine().lower()
+        
+        # Map architecture to expected format
+        if "x86_64" in arch or "amd64" in arch:
+            arch = "x86_64"
+        elif "aarch64" in arch or "arm64" in arch:
+            arch = "aarch64" if os_name == "linux" else "arm64"
+        else:
+            logger.error(f"Unsupported architecture for direct hwloc installation: {arch}")
+            return False
+            
+        # Get download URL
+        platform_key = f"{os_name}-{arch}"
+        if platform_key not in hwloc_bins:
+            logger.error(f"No direct hwloc download available for {platform_key}")
+            return False
+            
+        url = hwloc_bins[platform_key]
+        
+        try:
+            # Download hwloc binary package
+            with tempfile.TemporaryDirectory() as temp_dir:
+                tar_path = os.path.join(temp_dir, "hwloc.tar.gz")
+                
+                # Download file
+                logger.info(f"Downloading hwloc from {url}...")
+                urllib.request.urlretrieve(url, tar_path)
+                
+                # Extract archive
+                logger.info("Extracting hwloc library...")
+                with tarfile.open(tar_path, "r:gz") as tar:
+                    tar.extractall(path=temp_dir)
+                    
+                # Find extracted directory (should be only one)
+                extracted_dirs = [d for d in os.listdir(temp_dir) 
+                                 if os.path.isdir(os.path.join(temp_dir, d)) and d.startswith("hwloc")]
+                if not extracted_dirs:
+                    logger.error("Could not find extracted hwloc directory")
+                    return False
+                    
+                # Copy library files to bin/lib directory
+                extract_path = os.path.join(temp_dir, extracted_dirs[0])
+                lib_src_dir = os.path.join(extract_path, "lib")
+                
+                # Check if the lib directory exists
+                if not os.path.isdir(lib_src_dir):
+                    logger.error(f"Could not find lib directory in extracted hwloc package: {lib_src_dir}")
+                    return False
+                    
+                # Copy all .so files
+                copied_files = []
+                for filename in os.listdir(lib_src_dir):
+                    if filename.endswith(".so") or filename.endswith(".dylib") or filename.endswith(".dll"):
+                        src_path = os.path.join(lib_src_dir, filename)
+                        dst_path = os.path.join(lib_dir, filename)
+                        shutil.copy2(src_path, dst_path)
+                        copied_files.append(filename)
+                        
+                if not copied_files:
+                    logger.error("No library files found to copy")
+                    return False
+                    
+                logger.info(f"Installed hwloc libraries directly: {', '.join(copied_files)}")
+                
+                # Create an LD_LIBRARY_PATH file to help with runtime loading
+                ldpath_script = os.path.join(self.bin_path, "set_lotus_env.sh")
+                with open(ldpath_script, "w") as f:
+                    f.write(f"""#!/bin/bash
+# Set LD_LIBRARY_PATH for Lotus binaries
+export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
+""")
+                os.chmod(ldpath_script, 0o755)
+                
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error during direct hwloc installation: {e}")
+            return False
+            
+    def _install_linux_dependencies(self, dependencies):
+        """
+        Install dependencies on Linux systems.
+        
+        Args:
+            dependencies: Dictionary with dependencies information by OS
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # First try to detect distribution
+            distro = self._detect_linux_distribution()
+            
+            if not distro or distro not in dependencies["linux"]:
+                # Use a fallback if distribution not specifically supported
+                if os.path.exists("/etc/debian_version"):
+                    distro = "debian"
+                elif os.path.exists("/etc/fedora-release"):
+                    distro = "fedora"
+                elif os.path.exists("/etc/centos-release"):
+                    distro = "centos"
+                elif os.path.exists("/etc/alpine-release"):
+                    distro = "alpine"
+                elif os.path.exists("/etc/arch-release"):
+                    distro = "arch"
+                else:
+                    # Default to debian-based if we can't determine
+                    distro = "debian"
+                    logger.warning("Could not determine Linux distribution, assuming Debian-based")
+                    
+            logger.info(f"Detected Linux distribution: {distro}")
+            distro_deps = dependencies["linux"].get(distro, dependencies["linux"]["debian"])
+            
+            # Check if we need to use sudo (if not running as root)
+            sudo_prefix = []
+            if os.geteuid() != 0:
+                sudo_prefix = ["sudo"]
+                
+            # Check for package manager availability and lock status
+            available, lock_info = self._check_package_manager_available(distro_deps)
+            if not available:
+                logger.warning(f"Package manager is not available: {lock_info}")
+                
+                # Wait for locks to be released (only for lock issues, not missing package manager)
+                if "lock" in lock_info.lower() and not "not found" in lock_info.lower():
+                    if not self._wait_for_lock_release(distro_deps):
+                        logger.warning("Could not wait for package manager locks, trying direct library installation")
+                        # Try direct library installation as fallback
+                        if self._try_direct_library_installation():
+                            return True
+                        else:
+                            # Check one more time directly for libraries
+                            if self._check_hwloc_library_direct():
+                                logger.info("Found hwloc library installed on the system")
+                                return True
+                            else:
+                                logger.error("Could not install dependencies via package manager or direct installation")
+                                return False
+                else:
+                    # Package manager not found, try direct installation
+                    logger.warning("Package manager not functional, trying direct library installation")
+                    if self._try_direct_library_installation():
+                        return True
+                    else:
+                        # Check one more time for libraries
+                        if self._check_hwloc_library_direct():
+                            logger.info("Found hwloc library installed on the system")
+                            return True
+                        else:
+                            logger.error("Could not install dependencies via package manager or direct installation")
+                            return False
+                            
+            # Check for missing packages
+            missing_packages = self._check_packages_installed(
+                distro, distro_deps, distro_deps["packages"])
+            
+            # Install missing packages if any
+            if missing_packages:
+                logger.info(f"Missing required packages: {', '.join(missing_packages)}")
+                
+                # Try package manager installation
+                return self._try_package_installation(distro, distro_deps, missing_packages, sudo_prefix)
+            else:
+                logger.info("All required system dependencies are already installed")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error checking/installing Linux dependencies: {e}")
+            logger.warning("Trying direct library installation as fallback...")
+            
+            # Try direct installation as last resort
+            if self._try_direct_library_installation():
+                return True
+            # Check library presence one last time    
+            elif self._check_hwloc_library_direct():
+                logger.info("Found hwloc library installed on the system despite errors")
+                return True
+            else:
+                logger.warning("You may need to manually install hwloc and OpenCL libraries")
+                return False
+                
+    def _detect_linux_distribution(self):
+        """
+        Detect Linux distribution more reliably.
+        
+        Returns:
+            str: Distribution name or None if detection fails
+        """
+        # First check /etc/os-release (most modern distros)
+        if os.path.exists("/etc/os-release"):
+            try:
+                with open("/etc/os-release", "r") as f:
+                    for line in f:
+                        if line.startswith("ID="):
+                            return line.split("=")[1].strip().strip('"\'')
+            except (PermissionError, IOError):
+                pass
+                
+        # Try lsb_release command if available
+        try:
+            result = subprocess.run(
+                ["lsb_release", "-is"], 
+                capture_output=True, 
+                text=True, 
+                check=False
+            )
+            if result.returncode == 0:
+                return result.stdout.strip().lower()
+        except (subprocess.SubprocessError, FileNotFoundError):
+            pass
+            
+        # Try specific distribution files
+        if os.path.exists("/etc/debian_version"):
+            return "debian"
+        elif os.path.exists("/etc/fedora-release"):
+            return "fedora"
+        elif os.path.exists("/etc/centos-release") or os.path.exists("/etc/redhat-release"):
+            return "centos"
+        elif os.path.exists("/etc/alpine-release"):
+            return "alpine"
+        elif os.path.exists("/etc/arch-release"):
+            return "arch"
+            
+        # Could not determine
+        return None
+        
+    def _try_package_installation(self, distro, distro_deps, missing_packages, sudo_prefix):
+        """
+        Try to install packages using package manager with fallback options.
+        
+        Args:
+            distro: Distribution name
+            distro_deps: Dictionary with distribution dependencies info
+            missing_packages: List of packages to install
+            sudo_prefix: List containing "sudo" if needed
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Try standard installation first
+        try:
+            # First update package lists
+            logger.info("Updating package lists...")
+            update_cmd = sudo_prefix + distro_deps["install_cmd"]
+            
+            # Some package managers don't like having their update commands check=True
+            # (e.g., dnf check-update can return 100 for "updates available")
+            try:
+                subprocess.run(update_cmd, check=False, timeout=120)
+            except subprocess.TimeoutExpired:
+                logger.warning("Package manager update timed out, continuing with installation")
+                
+            # Install missing packages
+            logger.info(f"Installing missing packages: {', '.join(missing_packages)}")
+            install_cmd = sudo_prefix + distro_deps["package_cmd"] + missing_packages
+            
+            try:
+                subprocess.run(install_cmd, check=True, timeout=300)
+                logger.info("Required system dependencies installed successfully")
+                return True
+            except subprocess.SubprocessError as e:
+                logger.warning(f"Standard package installation failed: {e}")
+                
+                # Try alternative installation command if available
+                if "alternative_package_cmd" in distro_deps:
+                    logger.info("Trying alternative package installation method...")
+                    alt_install_cmd = sudo_prefix + distro_deps["alternative_package_cmd"] + missing_packages
+                    
+                    try:
+                        subprocess.run(alt_install_cmd, check=True, timeout=300)
+                        logger.info("Required system dependencies installed with alternative method")
+                        return True
+                    except subprocess.SubprocessError as e2:
+                        logger.warning(f"Alternative package installation also failed: {e2}")
+                
+                # If both methods failed, try direct library installation
+                logger.warning("Package manager installation failed, trying direct library installation")
+                if self._try_direct_library_installation():
+                    return True
+                
+                # As a last check, see if the libraries are actually there despite installation errors
+                if self._check_hwloc_library_direct():
+                    logger.info("Found hwloc library installed on the system despite package manager errors")
+                    return True
+                    
+                logger.error("All installation methods failed")
+                logger.warning("You may need to manually install the following packages:")
+                logger.warning(f"  {' '.join(missing_packages)}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error during package installation: {e}")
+            
+            # Try direct installation as last resort
+            logger.warning("Trying direct library installation as fallback...")
+            if self._try_direct_library_installation():
+                return True
+            else:
+                logger.warning("You may need to manually install the following packages:")
+                logger.warning(f"  {' '.join(missing_packages)}")
+                return False
+                
+    def _install_darwin_dependencies(self, dependencies):
+        """
+        Install dependencies on macOS using Homebrew.
+        
+        Args:
+            dependencies: Dictionary with dependencies information by OS
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Check if Homebrew is installed
+            try:
+                subprocess.run(["brew", "--version"], stdout=subprocess.PIPE, check=True)
+            except (subprocess.SubprocessError, FileNotFoundError):
+                logger.warning("Homebrew is required to install dependencies on macOS")
+                logger.warning("Please install Homebrew from https://brew.sh/ and try again")
+                # Try direct library check as fallback
+                if self._check_hwloc_library_direct():
+                    logger.info("Found hwloc library installed without Homebrew")
+                    return True
+                else:
+                    logger.warning("Direct library check also failed")
+                    return False
+            
+            # Check for required packages
+            missing_packages = []
+            for package in dependencies["darwin"]["packages"]:
+                try:
+                    result = subprocess.run(
+                        ["brew", "list", package], 
+                        stdout=subprocess.PIPE, 
+                        stderr=subprocess.PIPE,
+                        check=False
+                    )
+                    if result.returncode != 0:
+                        missing_packages.append(package)
+                except subprocess.SubprocessError:
+                    missing_packages.append(package)
+            
+            # Install missing packages
+            if missing_packages:
+                logger.info(f"Missing required packages: {', '.join(missing_packages)}")
+                
+                try:
+                    # Update Homebrew first (not critical if it fails)
+                    logger.info("Updating Homebrew...")
+                    try:
+                        subprocess.run(dependencies["darwin"]["install_cmd"], check=False, timeout=120)
+                    except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
+                        logger.warning(f"Homebrew update failed but continuing: {e}")
+                    
+                    # Install each package
+                    for package in missing_packages:
+                        logger.info(f"Installing {package}...")
+                        try:
+                            subprocess.run(dependencies["darwin"]["package_cmd"] + [package], check=True, timeout=300)
+                        except subprocess.SubprocessError:
+                            # Try alternative installation if available
+                            logger.warning(f"Standard installation of {package} failed, trying alternative...")
+                            subprocess.run(
+                                dependencies["darwin"]["alternative_package_cmd"] + [package], 
+                                check=True, 
+                                timeout=300
+                            )
+                        
+                    # Verify installation
+                    if self._check_hwloc_library_direct():
+                        logger.info("Required system dependencies installed and verified successfully")
+                        return True
+                    else:
+                        logger.warning("Package installed but library not found, may need a restart")
+                        return True
+                        
+                except Exception as e:
+                    logger.error(f"Failed to install system dependencies: {e}")
+                    # Check library directly one more time
+                    if self._check_hwloc_library_direct():
+                        logger.info("Found hwloc library installed despite errors")
+                        return True
+                    else:
+                        logger.warning("You may need to manually install the following packages:")
+                        logger.warning(f"  brew install {' '.join(missing_packages)}")
+                        return False
+            else:
+                logger.info("All required system dependencies are already installed")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error checking/installing macOS dependencies: {e}")
+            # Try direct library check one more time
+            if self._check_hwloc_library_direct():
+                logger.info("Found hwloc library installed despite errors")
+                return True
+            else:
+                logger.warning("You may need to manually install hwloc using Homebrew")
+                return False
 
     def check_existing_installation(self, bin_dir=None):
         """

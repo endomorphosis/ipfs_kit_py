@@ -118,6 +118,11 @@ class lotus_kit:
         # Auto-start daemon flag
         self.auto_start_daemon = self.metadata.get("auto_start_daemon", False)
         
+        # Check and install dependencies if needed
+        install_deps = self.metadata.get("install_dependencies", True)
+        if install_deps and not LOTUS_AVAILABLE:
+            self._check_and_install_dependencies()
+        
         # Setup simulation mode if Lotus binary is not available or explicitly requested
         self.simulation_mode = self.metadata.get("simulation_mode", not LOTUS_AVAILABLE)
         if self.simulation_mode:
@@ -219,12 +224,62 @@ class lotus_kit:
         Returns:
             bool: True if dependencies are available, False otherwise
         """
-        global LOTUS_KIT_AVAILABLE
+        global LOTUS_KIT_AVAILABLE, LOTUS_AVAILABLE
         
-        if not LOTUS_KIT_AVAILABLE:
-            logger.warning("Lotus functionality not available.")
+        # If already available, no need to install
+        if LOTUS_AVAILABLE:
+            return True
             
-        return LOTUS_KIT_AVAILABLE
+        try:
+            # Try to import and use the install_lotus module
+            from install_lotus import install_lotus
+            
+            # Create installer with auto_install_deps set to True
+            installer_metadata = {
+                "auto_install_deps": True,
+                "force": False,  # Only install if not already installed
+                "skip_params": True,  # Skip parameter download for faster setup
+            }
+            
+            # If we have any relevant metadata in self.metadata, use it
+            if hasattr(self, "metadata") and self.metadata:
+                if "lotus_path" in self.metadata:
+                    installer_metadata["lotus_path"] = self.metadata["lotus_path"]
+                if "version" in self.metadata:
+                    installer_metadata["version"] = self.metadata["version"]
+                    
+            # Create installer with resources and metadata
+            installer = install_lotus(resources=self.resources, metadata=installer_metadata)
+            
+            # Install Lotus daemon
+            install_result = installer.install_lotus_daemon()
+            
+            if install_result:
+                # Update global availability flags
+                try:
+                    result = subprocess.run(["lotus", "--version"], capture_output=True, timeout=2)
+                    LOTUS_AVAILABLE = result.returncode == 0
+                except (subprocess.SubprocessError, FileNotFoundError, OSError):
+                    LOTUS_AVAILABLE = False
+                    
+                LOTUS_KIT_AVAILABLE = True  # Always available due to simulation mode
+                
+                if LOTUS_AVAILABLE:
+                    logger.info("Lotus dependencies installed successfully")
+                    return True
+                else:
+                    logger.warning("Lotus dependencies installed but binary check failed")
+                    return False
+            else:
+                logger.warning("Failed to install Lotus dependencies")
+                return False
+                
+        except ImportError:
+            logger.warning("Could not import install_lotus module")
+            return False
+        except Exception as e:
+            logger.warning(f"Error installing Lotus dependencies: {e}")
+            return False
         
     def check_connection(self) -> Dict[str, Any]:
         """Check connection to the Lotus API.
@@ -942,7 +997,37 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with wallet balance.
         """
+        operation = "wallet_balance"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated wallet balance
+        if self.simulation_mode:
+            try:
+                # Validate input
+                if not address:
+                    return handle_error(result, ValueError("Wallet address is required"))
+                
+                # Generate a deterministic balance based on the address
+                # The balance is based on the hash of the address, but will be consistent
+                # for the same address across calls
+                address_hash = hashlib.sha256(address.encode()).hexdigest()
+                
+                # Convert first 10 characters of hash to integer and use as base balance
+                # Scale to a reasonable FIL amount (between 1-100 FIL)
+                base_balance = int(address_hash[:10], 16) % 10000 / 100
+                
+                # Format as a filecoin balance string (attoFIL)
+                balance = str(int(base_balance * 1e18))
+                
+                result["success"] = True
+                result["simulated"] = True
+                result["result"] = balance
+                return result
+                
+            except Exception as e:
+                return handle_error(result, e, f"Error in simulated wallet_balance: {str(e)}")
+        
         return self._make_request("WalletBalance", params=[address], correlation_id=correlation_id)
     
     def create_wallet(self, wallet_type="bls", **kwargs):
@@ -967,13 +1052,66 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with import information.
         """
+        operation = "client_import"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("client_import", correlation_id)
+        result = create_result_dict(operation, correlation_id)
         
         try:
             # Check if file exists
             if not os.path.isfile(file_path):
                 return handle_error(result, LotusValidationError(f"File not found: {file_path}"))
+            
+            # If in simulation mode, simulate file import
+            if self.simulation_mode:
+                try:
+                    # Get file size and information
+                    file_stat = os.stat(file_path)
+                    file_size = file_stat.st_size
+                    file_name = os.path.basename(file_path)
+                    is_car = file_path.endswith(".car")
+                    
+                    # Generate a deterministic CID based on file path and size
+                    # Create a unique hash based on file path and modification time
+                    file_hash = hashlib.sha256(f"{file_path}_{file_stat.st_mtime}".encode()).hexdigest()
+                    
+                    # Format as a CID (simplified for simulation)
+                    cid = f"bafyrei{file_hash[:38]}"
+                    
+                    # Create import record
+                    import_id = uuid.uuid4()
+                    timestamp = time.time()
+                    
+                    # Initialize imports in simulation cache if it doesn't exist
+                    if "imports" not in self.sim_cache:
+                        self.sim_cache["imports"] = {}
+                        
+                    # Store the import information in simulation cache
+                    self.sim_cache["imports"][cid] = {
+                        "ImportID": import_id,
+                        "CID": {"/" : cid},
+                        "Root": {"/" : cid},
+                        "FilePath": file_path,
+                        "Size": file_size,
+                        "IsCAR": is_car,
+                        "Timestamp": timestamp,
+                        "Created": timestamp,
+                        "Deals": [],
+                        "Status": "complete"
+                    }
+                    
+                    # Return success result
+                    result["success"] = True
+                    result["simulated"] = True
+                    result["result"] = {
+                        "Root": {"/" : cid},
+                        "ImportID": str(import_id),
+                        "Path": file_path
+                    }
+                    return result
+                    
+                except Exception as e:
+                    logger.exception(f"Error in simulated client_import: {str(e)}")
+                    return handle_error(result, e, f"Error in simulated client_import: {str(e)}")
             
             # Create import parameters
             params = [
@@ -1770,7 +1908,64 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with list of channel addresses
         """
+        operation = "paych_list"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated payment channels
+        if self.simulation_mode:
+            try:
+                # Initialize channels list if it doesn't exist in the simulation cache
+                if "channels" not in self.sim_cache:
+                    self.sim_cache["channels"] = {}
+                    
+                    # Create a few simulated payment channels for testing
+                    # with deterministic addresses based on wallet addresses
+                    wallets = []
+                    
+                    # Get wallets from list_wallets if available
+                    wallet_result = self.list_wallets()
+                    if wallet_result.get("success", False) and wallet_result.get("result"):
+                        wallets = wallet_result.get("result", [])
+                    
+                    # If no wallets were found, create some simulated ones
+                    if not wallets:
+                        wallets = [
+                            f"t3{hashlib.sha256(f'wallet_{i}'.encode()).hexdigest()[:40]}" 
+                            for i in range(3)
+                        ]
+                    
+                    # Create simulated channels between wallets
+                    for i in range(min(len(wallets), 2)):
+                        for j in range(i+1, min(len(wallets), 3)):
+                            from_addr = wallets[i]
+                            to_addr = wallets[j]
+                            
+                            # Create deterministic channel address
+                            channel_hash = hashlib.sha256(f"{from_addr}_{to_addr}".encode()).hexdigest()
+                            channel_addr = f"t064{channel_hash[:5]}"
+                            
+                            # Store channel information in simulation cache
+                            self.sim_cache["channels"][channel_addr] = {
+                                "From": from_addr,
+                                "To": to_addr,
+                                "Direction": i % 2,  # 0=outbound, 1=inbound
+                                "CreateMsg": f"bafy2bzace{channel_hash[:40]}",
+                                "Settled": False,
+                                "Amount": str(int(int(channel_hash[:8], 16) % 1000) * 1e15)  # Random amount 0-1000 FIL
+                            }
+                
+                # Return channel addresses
+                channel_addresses = list(self.sim_cache["channels"].keys())
+                
+                result["success"] = True
+                result["simulated"] = True
+                result["result"] = channel_addresses
+                return result
+                
+            except Exception as e:
+                return handle_error(result, e, f"Error in simulated paych_list: {str(e)}")
+        
         return self._make_request("PaychList", correlation_id=correlation_id)
         
     def paych_status(self, ch_addr, **kwargs):
@@ -1782,7 +1977,59 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with channel status
         """
+        operation = "paych_status"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated payment channel status
+        if self.simulation_mode:
+            try:
+                # Validate input
+                if not ch_addr:
+                    return handle_error(result, ValueError("Channel address is required"))
+                
+                # Initialize channels if not already initialized
+                if "channels" not in self.sim_cache:
+                    # Call paych_list to initialize the channels simulation cache
+                    self.paych_list()
+                
+                # Check if the channel exists in our simulation cache
+                if ch_addr in self.sim_cache["channels"]:
+                    channel_info = self.sim_cache["channels"][ch_addr]
+                    
+                    # Create simulated channel status
+                    channel_status = {
+                        "Channel": ch_addr,
+                        "From": channel_info.get("From", ""),
+                        "To": channel_info.get("To", ""),
+                        "ConfirmedAmt": channel_info.get("Amount", "0"),
+                        "PendingAmt": "0",
+                        "NonceHighest": 0,
+                        "Vouchers": [],
+                        "Lanes": [
+                            {
+                                "ID": 0,
+                                "NextNonce": 0,
+                                "AmountRedeemed": "0"
+                            }
+                        ]
+                    }
+                    
+                    result["success"] = True
+                    result["simulated"] = True
+                    result["result"] = channel_status
+                    return result
+                else:
+                    # Channel not found
+                    return handle_error(
+                        result, 
+                        ValueError(f"Channel {ch_addr} not found"), 
+                        f"Simulated channel {ch_addr} not found"
+                    )
+                
+            except Exception as e:
+                return handle_error(result, e, f"Error in simulated paych_status: {str(e)}")
+        
         return self._make_request("PaychAvailableFunds", params=[ch_addr], 
                                  correlation_id=correlation_id)
                                  
@@ -1805,6 +2052,74 @@ class lotus_kit:
             # Convert amount to attoFIL
             amount_attoFIL = self._parse_fil_amount(amount)
             
+            # If in simulation mode, simulate voucher creation
+            if self.simulation_mode:
+                try:
+                    # Validate inputs
+                    if not ch_addr:
+                        return handle_error(result, ValueError("Payment channel address is required"))
+                    if not amount_attoFIL:
+                        return handle_error(result, ValueError("Voucher amount is required"))
+                    
+                    # Create deterministic voucher for consistent testing
+                    # Generate a deterministic voucher ID based on channel address, amount, and lane
+                    import hashlib
+                    import time
+                    
+                    voucher_id = hashlib.sha256(f"{ch_addr}_{amount_attoFIL}_{lane}".encode()).hexdigest()
+                    
+                    # Create a simulated voucher and signature
+                    timestamp = time.time()
+                    nonce = int(timestamp * 1000) % 1000000  # Simple nonce generation
+                    
+                    # Create voucher structure - follows Filecoin PaymentVoucher format
+                    simulated_voucher = {
+                        "ChannelAddr": ch_addr,
+                        "TimeLockMin": 0,
+                        "TimeLockMax": 0,
+                        "SecretPreimage": "",
+                        "Extra": None,
+                        "Lane": lane,
+                        "Nonce": nonce,
+                        "Amount": amount_attoFIL,
+                        "MinSettleHeight": 0,
+                        "Merges": [],
+                        "Signature": {
+                            "Type": 1,  # Secp256k1 signature type
+                            "Data": "Simulated" + voucher_id[:88]  # 44 byte simulated signature
+                        }
+                    }
+                    
+                    # Store in simulation cache for voucher_list and voucher_check
+                    if "vouchers" not in self.sim_cache:
+                        self.sim_cache["vouchers"] = {}
+                    
+                    if ch_addr not in self.sim_cache["vouchers"]:
+                        self.sim_cache["vouchers"][ch_addr] = []
+                    
+                    # Add to channel's vouchers if not already present
+                    voucher_exists = False
+                    for v in self.sim_cache["vouchers"][ch_addr]:
+                        if v["Lane"] == lane and v["Nonce"] == nonce:
+                            voucher_exists = True
+                            break
+                    
+                    if not voucher_exists:
+                        self.sim_cache["vouchers"][ch_addr].append(simulated_voucher)
+                    
+                    # Create result
+                    result["success"] = True
+                    result["simulated"] = True
+                    result["result"] = {
+                        "Voucher": simulated_voucher,
+                        "Shortfall": "0"  # No shortfall in simulation
+                    }
+                    return result
+                    
+                except Exception as e:
+                    logger.exception(f"Error in simulated paych_voucher_create: {str(e)}")
+                    return handle_error(result, e, f"Error in simulated paych_voucher_create: {str(e)}")
+            
             # Call Lotus API
             return self._make_request("PaychVoucherCreate", 
                                      params=[ch_addr, amount_attoFIL, lane],
@@ -1824,7 +2139,54 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with validation result
         """
+        operation = "paych_voucher_check"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, simulate voucher check
+        if self.simulation_mode:
+            try:
+                # Validate inputs
+                if not ch_addr:
+                    return handle_error(result, ValueError("Payment channel address is required"))
+                if not voucher:
+                    return handle_error(result, ValueError("Voucher is required"))
+                
+                # Initialize vouchers dictionary if not exists
+                if "vouchers" not in self.sim_cache:
+                    self.sim_cache["vouchers"] = {}
+                
+                # Parse voucher (in real implementation, this would decode serialized voucher)
+                # For simulation, assume voucher is already a dictionary
+                if isinstance(voucher, str):
+                    # Very basic parsing for simulation
+                    voucher_dict = {"ChannelAddr": ch_addr, "Signature": {"Data": voucher}}
+                else:
+                    voucher_dict = voucher
+                
+                # Check if this voucher exists in our cache
+                voucher_found = False
+                if ch_addr in self.sim_cache["vouchers"]:
+                    for v in self.sim_cache["vouchers"][ch_addr]:
+                        # In a real implementation, more comprehensive matching would be needed
+                        if v.get("Signature", {}).get("Data", "") == voucher_dict.get("Signature", {}).get("Data", ""):
+                            voucher_found = True
+                            # Return the stored voucher amount
+                            result["success"] = True
+                            result["simulated"] = True
+                            result["result"] = {"Amount": v.get("Amount", "0")}
+                            return result
+                
+                # If voucher not found, return dummy result (in real world would be an error)
+                result["success"] = True
+                result["simulated"] = True
+                result["result"] = {"Amount": "0"}
+                return result
+                
+            except Exception as e:
+                logger.exception(f"Error in simulated paych_voucher_check: {str(e)}")
+                return handle_error(result, e, f"Error in simulated paych_voucher_check: {str(e)}")
+                
         return self._make_request("PaychVoucherCheckValid", 
                                  params=[ch_addr, voucher],
                                  correlation_id=correlation_id)
@@ -1838,7 +2200,38 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with voucher list
         """
+        operation = "paych_voucher_list"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated voucher list
+        if self.simulation_mode:
+            try:
+                # Validate input
+                if not ch_addr:
+                    return handle_error(result, ValueError("Payment channel address is required"))
+                
+                # Initialize vouchers dictionary if not exists
+                if "vouchers" not in self.sim_cache:
+                    self.sim_cache["vouchers"] = {}
+                
+                # Return empty list if no vouchers for this channel
+                if ch_addr not in self.sim_cache["vouchers"]:
+                    result["success"] = True
+                    result["simulated"] = True
+                    result["result"] = []
+                    return result
+                
+                # Return list of vouchers for this channel
+                result["success"] = True
+                result["simulated"] = True
+                result["result"] = self.sim_cache["vouchers"][ch_addr]
+                return result
+                
+            except Exception as e:
+                logger.exception(f"Error in simulated paych_voucher_list: {str(e)}")
+                return handle_error(result, e, f"Error in simulated paych_voucher_list: {str(e)}")
+                
         return self._make_request("PaychVoucherList", 
                                  params=[ch_addr],
                                  correlation_id=correlation_id)
@@ -2033,7 +2426,59 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with miner power information.
         """
+        operation = "miner_get_power"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated miner power
+        if self.simulation_mode:
+            try:
+                # Validate input
+                if not miner_address:
+                    return handle_error(result, ValueError("Miner address is required"))
+                
+                # Create deterministic miner power based on the address
+                miner_hash = hashlib.sha256(miner_address.encode()).hexdigest()
+                
+                # Generate sector multiplier from hash (between 1-100)
+                sector_multiplier = int(miner_hash[:4], 16) % 100 + 1
+                
+                # Base sector size: 32 GiB
+                sector_size_bytes = 34359738368
+                
+                # Calculate power based on sectors
+                sector_count = int(miner_hash[4:8], 16) % 1000 + sector_multiplier
+                raw_byte_power = sector_count * sector_size_bytes
+                
+                # Calculate quality-adjusted power (higher for verified deals)
+                quality_multiplier = 10 if int(miner_hash[8:10], 16) % 100 < 40 else 1
+                quality_adjusted_power = raw_byte_power * quality_multiplier
+                
+                # Calculate network percentages (make them realistic)
+                network_raw_power = 100 * raw_byte_power
+                network_qa_power = 100 * quality_adjusted_power
+                
+                # Create simulated result structure
+                simulated_power = {
+                    "MinerPower": {
+                        "RawBytePower": str(raw_byte_power),
+                        "QualityAdjPower": str(quality_adjusted_power)
+                    },
+                    "TotalPower": {
+                        "RawBytePower": str(network_raw_power),
+                        "QualityAdjPower": str(network_qa_power)
+                    },
+                    "HasMinPower": sector_count > 10
+                }
+                
+                result["success"] = True
+                result["simulated"] = True
+                result["result"] = simulated_power
+                return result
+                
+            except Exception as e:
+                return handle_error(result, e, f"Error in simulated miner_get_power: {str(e)}")
+        
         return self._make_request("StateMinerPower", params=[miner_address, []], correlation_id=correlation_id)
 
     # Network methods
@@ -3368,7 +3813,67 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with sector list
         """
+        operation = "miner_list_sectors"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated sector list
+        if self.simulation_mode:
+            try:
+                # Initialize miner sectors if not already in simulation cache
+                if "sectors" not in self.sim_cache:
+                    self.sim_cache["sectors"] = {}
+                    
+                    # Get our miner address or use a default
+                    miner_address = None
+                    try:
+                        miner_addr_result = self.miner_get_address()
+                        if miner_addr_result.get("success", False):
+                            miner_address = miner_addr_result.get("result", "")
+                    except Exception:
+                        pass
+                    
+                    if not miner_address:
+                        # Use a default miner address
+                        miner_address = "t01000"
+                    
+                    # Generate deterministic sector numbers
+                    # We'll create 20 simulated sectors
+                    for i in range(1, 21):
+                        sector_id = i
+                        
+                        # Create a deterministic sector hash based on the sector ID
+                        sector_hash = hashlib.sha256(f"{miner_address}_sector_{sector_id}".encode()).hexdigest()
+                        
+                        # Determine sector state (most active, some in other states)
+                        sector_status = "Active"
+                        if i % 10 == 0:
+                            sector_status = "Proving"
+                        elif i % 7 == 0:
+                            sector_status = "Sealing"
+                        
+                        # Store sector information
+                        self.sim_cache["sectors"][sector_id] = {
+                            "SectorID": sector_id,
+                            "SectorNumber": sector_id,
+                            "SealedCID": {"/" : f"bafy2bzacea{sector_hash[:40]}"},
+                            "DealIDs": [int(sector_hash[:8], 16) % 10000 + i for i in range(3)],
+                            "Activation": int(time.time()) - (i * 86400),  # Staggered activation times
+                            "Expiration": int(time.time()) + (180 * 86400),  # 180 days in the future
+                            "SectorStatus": sector_status
+                        }
+                
+                # Get just the sector numbers for the response
+                sector_numbers = list(self.sim_cache["sectors"].keys())
+                
+                result["success"] = True
+                result["simulated"] = True
+                result["result"] = sector_numbers
+                return result
+                
+            except Exception as e:
+                return handle_error(result, e, f"Error in simulated miner_list_sectors: {str(e)}")
+        
         return self._make_miner_request("SectorsList", correlation_id=correlation_id)
 
     def miner_sector_status(self, sector_number, **kwargs):
@@ -3380,7 +3885,100 @@ class lotus_kit:
         Returns:
             dict: Result dictionary with sector status
         """
+        operation = "miner_sector_status"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict(operation, correlation_id)
+        
+        # If in simulation mode, return simulated sector status
+        if self.simulation_mode:
+            try:
+                # Validate sector number
+                if sector_number is None:
+                    return handle_error(result, ValueError("Sector number is required"))
+                
+                # Ensure sectors cache is initialized
+                if "sectors" not in self.sim_cache:
+                    # Initialize sector cache by calling miner_list_sectors
+                    self.miner_list_sectors()
+                
+                # Check if the sector exists in our simulation cache
+                if sector_number in self.sim_cache["sectors"]:
+                    # Return the sector information
+                    sector_info = self.sim_cache["sectors"][sector_number]
+                    
+                    # Add additional detailed status information
+                    detailed_status = dict(sector_info)
+                    
+                    # Add activation time
+                    if "Activation" in detailed_status:
+                        activation_time = detailed_status["Activation"]
+                        detailed_status["ActivationEpoch"] = activation_time // 30  # Approximate epoch conversion
+                    
+                    # Add detailed state information
+                    base_status = detailed_status.get("SectorStatus", "Active")
+                    detailed_status["State"] = {
+                        "Active": 7,       # Proving
+                        "Proving": 7,      # Proving
+                        "Sealing": 3,      # PreCommit1
+                        "Expired": 9,      # Expired
+                        "Faulty": 8,       # Faulty
+                        "Terminated": 10   # Terminated
+                    }.get(base_status, 7)
+                    
+                    # Add sector size (standard 32GiB)
+                    detailed_status["SectorSize"] = 34359738368
+                    
+                    # Add deal weight info
+                    detailed_status["DealWeight"] = "0"
+                    detailed_status["VerifiedDealWeight"] = "0"
+                    
+                    # Add piece info if deals exist
+                    if "DealIDs" in detailed_status and detailed_status["DealIDs"]:
+                        pieces = []
+                        for deal_id in detailed_status["DealIDs"]:
+                            # Create deterministic piece info for each deal
+                            piece_hash = hashlib.sha256(f"piece_{deal_id}".encode()).hexdigest()
+                            piece_size = 1 << (27 + (deal_id % 5))  # Random size between 128MiB and 2GiB
+                            pieces.append({
+                                "PieceCID": {"/" : f"baga6ea4sea{piece_hash[:40]}"},
+                                "DealInfo": {
+                                    "DealID": deal_id,
+                                    "DealProposal": {
+                                        "PieceCID": {"/" : f"baga6ea4sea{piece_hash[:40]}"},
+                                        "PieceSize": piece_size,
+                                        "VerifiedDeal": bool(deal_id % 2),
+                                        "Client": f"t3{piece_hash[:40]}",
+                                        "Provider": f"t01{1000 + (deal_id % 100)}",
+                                        "StartEpoch": detailed_status.get("ActivationEpoch", 0) - 10,
+                                        "EndEpoch": detailed_status.get("Expiration", 0) // 30 + 10,
+                                        "StoragePricePerEpoch": "0",
+                                        "ProviderCollateral": "0",
+                                        "ClientCollateral": "0"
+                                    },
+                                    "DealState": {
+                                        "SectorStartEpoch": detailed_status.get("ActivationEpoch", 0),
+                                        "LastUpdatedEpoch": int(time.time()) // 30,
+                                        "SlashEpoch": -1
+                                    }
+                                }
+                            })
+                        detailed_status["Pieces"] = pieces
+                    
+                    result["success"] = True
+                    result["simulated"] = True
+                    result["result"] = detailed_status
+                    return result
+                else:
+                    # Sector not found
+                    return handle_error(
+                        result, 
+                        ValueError(f"Sector {sector_number} not found"), 
+                        f"Simulated sector {sector_number} not found"
+                    )
+                
+            except Exception as e:
+                return handle_error(result, e, f"Error in simulated miner_sector_status: {str(e)}")
+        
         return self._make_miner_request("SectorsStatus", 
                                       params=[sector_number],
                                       correlation_id=correlation_id)

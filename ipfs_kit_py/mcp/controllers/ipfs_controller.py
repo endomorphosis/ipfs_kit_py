@@ -48,6 +48,42 @@ class GetContentResponse(OperationResponse):
 class PinResponse(OperationResponse):
     """Response model for pin operations."""
     cid: str = Field(..., description="Content Identifier (CID) of the pinned content")
+
+class FilesLsRequest(BaseModel):
+    """Request model for listing files in MFS."""
+    path: str = Field("/", description="Path to list in MFS")
+    long: bool = Field(False, description="Show detailed file information")
+
+class FilesMkdirRequest(BaseModel):
+    """Request model for creating a directory in MFS."""
+    path: str = Field(..., description="Path of the directory to create")
+    parents: bool = Field(False, description="Create parent directories if they don't exist")
+    flush: bool = Field(True, description="Flush changes to disk immediately")
+
+class FilesStatRequest(BaseModel):
+    """Request model for getting file stats in MFS."""
+    path: str = Field(..., description="Path of the file/directory to stat")
+
+class FilesWriteRequest(BaseModel):
+    """Request model for writing to a file in MFS."""
+    path: str = Field(..., description="Path of the file to write to")
+    content: str = Field(..., description="Content to write")
+    create: bool = Field(True, description="Create the file if it doesn't exist")
+    truncate: bool = Field(True, description="Truncate the file before writing")
+    offset: int = Field(0, description="Offset to start writing at")
+    flush: bool = Field(True, description="Flush changes to disk immediately")
+
+class FilesReadRequest(BaseModel):
+    """Request model for reading a file from MFS."""
+    path: str = Field(..., description="Path of the file to read")
+    offset: int = Field(0, description="Offset to start reading from")
+    count: Optional[int] = Field(None, description="Number of bytes to read")
+
+class FilesRmRequest(BaseModel):
+    """Request model for removing a file/directory from MFS."""
+    path: str = Field(..., description="Path of the file/directory to remove")
+    recursive: bool = Field(False, description="Remove directories recursively")
+    force: bool = Field(False, description="Force removal")
     pinned: Optional[bool] = Field(None, description="Whether the content is now pinned")
 
 class ListPinsResponse(OperationResponse):
@@ -159,6 +195,19 @@ class GetTarResponse(OperationResponse):
     cid: str = Field(..., description="Content Identifier (CID) of the content")
     output_dir: str = Field(..., description="Directory where content was saved")
     files: List[str] = Field([], description="List of files in the archive")
+
+
+class FileUploadForm:
+    """Form model for file uploads."""
+    def __init__(
+        self,
+        file: UploadFile = File(...),
+        pin: bool = Form(False),
+        wrap_with_directory: bool = Form(False)
+    ):
+        self.file = file
+        self.pin = pin
+        self.wrap_with_directory = wrap_with_directory
 
 
 class IPFSController:
@@ -607,26 +656,35 @@ class IPFSController:
             result["cid"] = result["Hash"]
         return result
     
-    async def add_file(self, file: UploadFile = File(...)) -> Dict[str, Any]:
+    async def add_file(self, form_data: FileUploadForm = Depends()) -> Dict[str, Any]:
         """
         Add a file to IPFS.
         
         Args:
-            file: File to upload
+            form_data: Form data with file and options
             
         Returns:
             Dictionary with operation results
         """
-        logger.debug(f"Adding file to IPFS: {file.filename}")
-        content = await file.read()
-        result = self.ipfs_model.add_content(
-            content=content,
-            filename=file.filename
-        )
-        # Ensure the result has the proper Hash and cid fields
-        if result.get("success", False) and "Hash" in result and "cid" not in result:
-            result["cid"] = result["Hash"]
-        return result
+        try:
+            logger.debug(f"Adding file to IPFS: {form_data.file.filename}")
+            content = await form_data.file.read()
+            result = self.ipfs_model.add_content(
+                content=content,
+                filename=form_data.file.filename,
+                pin=form_data.pin,
+                wrap_with_directory=form_data.wrap_with_directory
+            )
+            # Ensure the result has the proper Hash and cid fields
+            if result.get("success", False) and "Hash" in result and "cid" not in result:
+                result["cid"] = result["Hash"]
+            return result
+        except Exception as e:
+            logger.error(f"Error adding file: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error adding file: {str(e)}"
+            )
         
     async def get_content_as_tar(self, cid: str, output_dir: str = None) -> Dict[str, Any]:
         """
@@ -2121,145 +2179,201 @@ class IPFSController:
                 "num_providers": request.num_providers
             }
             
-    async def list_files(self, path: str = "/", long: bool = False) -> Dict[str, Any]:
+    async def list_files(self, request: Request, path: str = "/", long: bool = False) -> Dict[str, Any]:
         """
         List files in the MFS (Mutable File System) directory.
         
         Args:
+            request: FastAPI request object
             path: Path in MFS to list
             long: Whether to use long listing format
             
         Returns:
             Dictionary with directory listing result
         """
-        logger.debug(f"Listing files in MFS path: {path}")
-        
-        # Start timing for operation metrics
-        start_time = time.time()
-        operation_id = f"files_ls_{int(start_time * 1000)}"
+        logger.debug(f"Listing files in MFS path: {path}, long={long}")
         
         try:
-            # Call IPFS model to list files
-            result = self.ipfs_model.ipfs.files_ls(path, long)
+            # Call the model's files_ls method
+            result = self.ipfs_model.files_ls(path=path, long=long)
             
-            # Handle missing fields for test stability
-            if not result.get("success", False):
-                # For testing, provide a simulated response
-                logger.warning(f"Error listing files in MFS: {result.get('error', 'Unknown error')}")
-                
-                # Generate simulated file listing
-                import random
-                import uuid
-                
-                entries = []
-                entry_count = random.randint(3, 8)
-                
-                for i in range(entry_count):
-                    file_type = random.choice(["file", "directory"])
-                    size = random.randint(1024, 1024*1024) if file_type == "file" else 0
-                    name = f"test_{'file' if file_type == 'file' else 'dir'}_{i}_{uuid.uuid4().hex[:8]}"
-                    
-                    if long:
-                        entries.append({
-                            "Name": name,
-                            "Type": file_type,
-                            "Size": size,
-                            "Hash": f"Qm{uuid.uuid4().hex[:38]}"
-                        })
-                    else:
-                        entries.append(name)
-                
-                # Standardized simulated response
-                return {
-                    "success": True,
-                    "operation_id": operation_id,
-                    "duration_ms": (time.time() - start_time) * 1000,
-                    "Entries": entries,
-                    "path": path,
-                    "simulated": True
-                }
-            
-            # Standardize response: ensure "Entries" field exists
-            if "Entries" not in result:
-                # Try to extract from different formats
-                if "entries" in result:
-                    result["Entries"] = result["entries"]
-                elif "files" in result:
-                    result["Entries"] = result["files"]
-                elif "objects" in result:
-                    result["Entries"] = result["objects"]
-                else:
-                    # Create empty list as fallback
-                    result["Entries"] = []
-            
-            # Add path for reference
-            result["path"] = path
-                
-            # Add operation tracking fields for consistency
-            if "operation_id" not in result:
-                result["operation_id"] = operation_id
-                
-            if "duration_ms" not in result:
-                result["duration_ms"] = (time.time() - start_time) * 1000
-                
-            # Ensure success field
-            if "success" not in result:
-                result["success"] = True
-                
-            logger.debug(f"Listed {len(result.get('Entries', []))} entries in MFS path {path}")
+            # Return the result
             return result
         except Exception as e:
-            # Handle unexpected errors
-            logger.exception(f"Unexpected error listing files in MFS path {path}: {e}")
+            logger.error(f"Error listing files in MFS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error listing files in MFS: {str(e)}"
+            )
             
-            # Return error response
-            return {
-                "success": False,
-                "operation_id": operation_id,
-                "duration_ms": (time.time() - start_time) * 1000,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "path": path,
-                "long": long,
-                "Entries": []
-            }
-    
-    async def read_file(self, path: str, offset: int = 0, count: int = None) -> Dict[str, Any]:
+    async def make_directory(self, request: Request, directory_request: FilesMkdirRequest = Body(...)) -> Dict[str, Any]:
         """
-        Read content from a file in the MFS (Mutable File System).
+        Create a directory in the MFS (Mutable File System).
         
         Args:
-            path: Path of the file to read in MFS
-            offset: Offset to start reading from
-            count: Number of bytes to read (if None, read all)
+            request: FastAPI request object
+            directory_request: Request model with directory path and options
             
         Returns:
-            Dictionary with file content and operation result
+            Dictionary with directory creation result
         """
-        logger.debug(f"Reading file from MFS path: {path}, offset={offset}, count={count}")
-        
-        # Start timing for operation metrics
-        start_time = time.time()
-        operation_id = f"files_read_{int(start_time * 1000)}"
+        logger.debug(f"Creating directory in MFS: {directory_request.path}, parents={directory_request.parents}")
         
         try:
-            # Call IPFS model to read file
-            result = self.ipfs_model.files_read(path, offset, count)
+            # Call the model's files_mkdir method
+            result = self.ipfs_model.files_mkdir(
+                path=directory_request.path, 
+                parents=directory_request.parents,
+                flush=directory_request.flush
+            )
             
-            # Handle missing fields for test stability
-            if not result.get("success", False):
-                # For testing, provide a simulated response
-                logger.warning(f"Error reading file in MFS: {result.get('error', 'Unknown error')}")
-                
-                # Generate simulated file content
-                import uuid
-                
-                # Create simulated content
-                simulated_content = f"Simulated content for {path} [id: {uuid.uuid4().hex[:8]}]".encode("utf-8")
-                
-                # Standardized simulated response
-                return {
-                    "success": True,
+            # Return the result
+            return result
+        except Exception as e:
+            logger.error(f"Error creating directory in MFS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error creating directory in MFS: {str(e)}"
+            )
+            
+    async def stat_file(self, request: Request, stat_request: FilesStatRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Get stats about a file or directory in MFS.
+        
+        Args:
+            request: FastAPI request object
+            stat_request: Request model with file path
+            
+        Returns:
+            Dictionary with file/directory stats
+        """
+        logger.debug(f"Getting stats for MFS path: {stat_request.path}")
+        
+        try:
+            # Call the model's files_stat method
+            result = self.ipfs_model.files_stat(path=stat_request.path)
+            
+            # Return the result
+            return result
+        except Exception as e:
+            logger.error(f"Error getting stats for MFS path: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error getting stats for MFS path: {str(e)}"
+            )
+            
+    async def read_file(self, request: Request, read_request: FilesReadRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Read content from a file in MFS.
+        
+        Args:
+            request: FastAPI request object
+            read_request: Request model with file path and read options
+            
+        Returns:
+            Dictionary with file content and metadata
+        """
+        logger.debug(f"Reading file from MFS: {read_request.path}, offset={read_request.offset}, count={read_request.count}")
+        
+        try:
+            # Call the model's files_read method
+            result = self.ipfs_model.files_read(
+                path=read_request.path,
+                offset=read_request.offset,
+                count=read_request.count
+            )
+            
+            # Return the result
+            return result
+        except Exception as e:
+            logger.error(f"Error reading file from MFS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error reading file from MFS: {str(e)}"
+            )
+            
+    async def write_file(self, request: Request, write_request: FilesWriteRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Write content to a file in MFS.
+        
+        Args:
+            request: FastAPI request object
+            write_request: Request model with file path and content
+            
+        Returns:
+            Dictionary with write operation result
+        """
+        logger.debug(f"Writing to file in MFS: {write_request.path}, create={write_request.create}, truncate={write_request.truncate}")
+        
+        try:
+            # Call the model's files_write method
+            result = self.ipfs_model.files_write(
+                path=write_request.path,
+                content=write_request.content,
+                create=write_request.create,
+                truncate=write_request.truncate,
+                offset=write_request.offset,
+                flush=write_request.flush
+            )
+            
+            # Return the result
+            return result
+        except Exception as e:
+            logger.error(f"Error writing to file in MFS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error writing to file in MFS: {str(e)}"
+            )
+            
+    async def remove_file(self, request: Request, rm_request: FilesRmRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Remove a file or directory from MFS.
+        
+        Args:
+            request: FastAPI request object
+            rm_request: Request model with file path and removal options
+            
+        Returns:
+            Dictionary with removal operation result
+        """
+        logger.debug(f"Removing from MFS: {rm_request.path}, recursive={rm_request.recursive}, force={rm_request.force}")
+        
+        try:
+            # Call the model's files_rm method
+            result = self.ipfs_model.files_rm(
+                path=rm_request.path,
+                recursive=rm_request.recursive,
+                force=rm_request.force
+            )
+            
+            # Return the result
+            return result
+        except Exception as e:
+            logger.error(f"Error removing from MFS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error removing from MFS: {str(e)}"
+            )
+            
+    async def get_node_id(self) -> Dict[str, Any]:
+        """
+        Get IPFS node identity information.
+        
+        Returns:
+            Dictionary with node identity information
+        """
+        logger.debug("Getting IPFS node identity")
+        
+        try:
+            # Get node ID from IPFS model
+            result = self.ipfs_model.get_node_id()
+            return result
+        except Exception as e:
+            logger.error(f"Error getting node ID: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error getting node ID: {str(e)}"
+            )
                     "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "path": path,
@@ -3523,24 +3637,20 @@ class IPFSController:
         
     async def handle_add_request(
         self,
-        file: Optional[UploadFile] = File(None),
-        content: Optional[str] = Form(None),
-        filename: Optional[str] = Form(None),
-        content_request: Any = Body(None)
+        request: Request,
+        content_request: Optional[ContentRequest] = None,
+        form_data: Optional[FileUploadForm] = None
     ) -> Dict[str, Any]:
         """
         Handle both JSON and form data for add requests.
         
-        This method provides a unified endpoint that can handle multiple input types:
-        1. File uploads (multipart/form-data with a file field)
-        2. Form-based content (multipart/form-data with content/filename fields)
-        3. JSON content (application/json with content/filename fields)
+        This unified endpoint accepts content either as JSON payload or as file upload
+        to simplify client integration.
         
         Args:
-            file: Optional file upload from multipart form
-            content: Optional content string from form
-            filename: Optional filename from form
-            content_request: Optional JSON content request (raw dictionary or Pydantic model)
+            request: The request object for content negotiation
+            content_request: Optional JSON content request
+            form_data: Optional form data with file upload
             
         Returns:
             Dictionary with operation results
@@ -3550,80 +3660,66 @@ class IPFSController:
         logger.debug(f"Handling add request (operation_id={operation_id})")
         
         try:
-            # Special-case test detection - if this looks like a test request, return a consistent response
-            # This helps make the tests more stable and predictable
-            if (content_request and isinstance(content_request, dict) and
-                content_request.get("content") == "Test JSON content"):
-                logger.info("Detected test JSON content request - returning consistent test response")
-                return {
-                    "success": True,
-                    "operation_id": operation_id,
-                    "duration_ms": 0.5,
-                    "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                    "Hash": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                    "content_size_bytes": 16,
-                    "simulated": True
-                }
+            # Check if form data is provided
+            if form_data and form_data.file:
+                logger.debug(f"Processing file upload form: {form_data.file.filename}")
+                return await self.add_file(form_data)
+                
+            # Check if JSON content is provided
+            elif content_request:
+                logger.debug(f"Processing JSON content request")
+                return await self.add_content(content_request)
             
-            # Case 1: File upload
-            if file is not None:
-                logger.debug(f"Processing file upload: {file.filename}")
-                file_content = await file.read()
-                result = self.ipfs_model.add_content(
-                    content=file_content,
-                    filename=file.filename
+            # Content type detection fallback
+            content_type = request.headers.get("content-type", "")
+            
+            # Handle multipart form data
+            if content_type.startswith("multipart/form-data"):
+                try:
+                    form = await request.form()
+                    file = form.get("file")
+                    if file:
+                        # Create a FileUploadForm and delegate to add_file
+                        form_data = FileUploadForm(
+                            file=file,
+                            pin=form.get("pin", "false").lower() == "true",
+                            wrap_with_directory=form.get("wrap_with_directory", "false").lower() == "true"
+                        )
+                        return await self.add_file(form_data)
+                    else:
+                        raise HTTPException(status_code=400, detail="Missing file field in form data")
+                except Exception as e:
+                    logger.error(f"Error processing form data: {str(e)}")
+                    raise HTTPException(status_code=400, detail=f"Invalid form data: {str(e)}")
+            
+            # Handle JSON content
+            elif content_type.startswith("application/json"):
+                try:
+                    body = await request.json()
+                    content_req = ContentRequest(
+                        content=body.get("content", ""),
+                        filename=body.get("filename")
+                    )
+                    return await self.add_content(content_req)
+                except Exception as e:
+                    logger.error(f"Error processing JSON data: {str(e)}")
+                    raise HTTPException(status_code=400, detail=f"Invalid JSON data: {str(e)}")
+            
+            # Handle unknown content type
+            else:
+                raise HTTPException(
+                    status_code=415,
+                    detail="Unsupported media type. Use application/json or multipart/form-data"
                 )
-                
-                # Ensure Hash and cid fields are present
-                if result.get("success", False) and "Hash" in result and "cid" not in result:
-                    result["cid"] = result["Hash"]
-                
-                return result
-                
-            # Case 2: Form content
-            elif content is not None:
-                logger.debug(f"Processing form content, length: {len(content)} bytes")
-                result = self.ipfs_model.add_content(
-                    content=content,
-                    filename=filename
-                )
-                
-                # Ensure Hash and cid fields are present
-                if result.get("success", False) and "Hash" in result and "cid" not in result:
-                    result["cid"] = result["Hash"]
-                
-                return result
-                
-            # Case 3: JSON content
-            elif content_request is not None:
-                logger.debug(f"Processing JSON content request type: {type(content_request)}")
-                
-                # Extract content and filename from the JSON request
-                # Handle both dictionary and Pydantic model cases
-                if hasattr(content_request, 'dict') and callable(getattr(content_request, 'dict')):
-                    # It's a Pydantic model
-                    content_dict = content_request.dict()
-                    json_content = content_dict.get("content")
-                    json_filename = content_dict.get("filename")
-                elif isinstance(content_request, dict):
-                    # It's already a dictionary
-                    json_content = content_request.get("content")
-                    json_filename = content_request.get("filename")
-                elif isinstance(content_request, str):
-                    # It's a string, assume it's the content
-                    json_content = content_request
-                    json_filename = None
-                else:
-                    # Try to access attributes directly
-                    try:
-                        json_content = getattr(content_request, "content", None)
-                        json_filename = getattr(content_request, "filename", None)
-                    except Exception:
-                        # Last resort - try to convert to string
-                        try:
-                            json_content = str(content_request)
-                            json_filename = None
-                        except:
+        except Exception as e:
+            logger.error(f"Error handling add request: {str(e)}")
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
                             json_content = None
                             json_filename = None
                 

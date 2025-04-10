@@ -2,7 +2,8 @@
 Filecoin (Lotus) Model for MCP Server.
 
 This module provides the business logic for Filecoin operations in the MCP server.
-It relies on the lotus_kit module for underlying functionality.
+It relies on the lotus_kit module for underlying functionality and implements the
+BaseStorageModel interface for consistent operation patterns.
 """
 
 import logging
@@ -12,14 +13,19 @@ import time
 from typing import Dict, List, Optional, Any, Union
 
 from ipfs_kit_py.lotus_kit import lotus_kit
-from ipfs_kit_py.mcp.models.storage import BaseStorageModel
+from ipfs_kit_py.mcp.models.storage.base_storage_model import BaseStorageModel
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 
 class FilecoinModel(BaseStorageModel):
-    """Model for Filecoin (Lotus) operations."""
+    """Model for Filecoin (Lotus) operations.
+    
+    This class implements Filecoin/Lotus storage operations using the BaseStorageModel interface.
+    It provides methods for working with Filecoin storage, including wallet management,
+    deal creation, data import/export, and integration with IPFS for cross-backend operations.
+    """
     
     def __init__(self, lotus_kit_instance=None, ipfs_model=None, cache_manager=None, credential_manager=None):
         """Initialize Filecoin model with dependencies.
@@ -31,9 +37,6 @@ class FilecoinModel(BaseStorageModel):
             credential_manager: Credential manager for authentication
         """
         super().__init__(lotus_kit_instance, cache_manager, credential_manager)
-        
-        # Store the lotus_kit instance
-        self.lotus_kit = lotus_kit_instance
         
         # Store the IPFS model for cross-backend operations
         self.ipfs_model = ipfs_model
@@ -47,12 +50,12 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with connection status
         """
         start_time = time.time()
-        result = self._create_result_dict("check_connection")
+        result = self._create_result_template("check_connection")
         
         try:
             # Use lotus_kit to check connection
-            if self.lotus_kit:
-                connection_result = self.lotus_kit.check_connection()
+            if self.kit:
+                connection_result = self.kit.check_connection()
                 
                 if connection_result.get("success", False):
                     result["success"] = True
@@ -67,16 +70,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "configure", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "check_connection")
     
     def list_wallets(self) -> Dict[str, Any]:
         """List all wallet addresses.
@@ -85,12 +83,12 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with wallet addresses
         """
         start_time = time.time()
-        result = self._create_result_dict("list_wallets")
+        result = self._create_result_template("list_wallets")
         
         try:
             # Use lotus_kit to list wallets
-            if self.lotus_kit:
-                wallet_result = self.lotus_kit.list_wallets()
+            if self.kit:
+                wallet_result = self.kit.list_wallets()
                 
                 if wallet_result.get("success", False):
                     result["success"] = True
@@ -102,16 +100,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "list_wallets")
     
     def get_wallet_balance(self, address: str) -> Dict[str, Any]:
         """Get wallet balance.
@@ -123,7 +116,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with wallet balance
         """
         start_time = time.time()
-        result = self._create_result_dict("get_wallet_balance")
+        result = self._create_result_template("get_wallet_balance")
         
         try:
             # Validate inputs
@@ -133,8 +126,8 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Use lotus_kit to get wallet balance
-            if self.lotus_kit:
-                balance_result = self.lotus_kit.wallet_balance(address)
+            if self.kit:
+                balance_result = self.kit.wallet_balance(address)
                 
                 if balance_result.get("success", False):
                     result["success"] = True
@@ -146,16 +139,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "get_wallet_balance")
     
     def create_wallet(self, wallet_type: str = "bls") -> Dict[str, Any]:
         """Create a new wallet.
@@ -167,7 +155,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with new wallet address
         """
         start_time = time.time()
-        result = self._create_result_dict("create_wallet")
+        result = self._create_result_template("create_wallet")
         
         try:
             # Validate wallet_type
@@ -178,8 +166,8 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Use lotus_kit to create wallet
-            if self.lotus_kit:
-                wallet_result = self.lotus_kit.create_wallet(wallet_type)
+            if self.kit:
+                wallet_result = self.kit.create_wallet(wallet_type)
                 
                 if wallet_result.get("success", False):
                     result["success"] = True
@@ -191,16 +179,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "create", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "create_wallet")
     
     def import_file(self, file_path: str) -> Dict[str, Any]:
         """Import a file into the Lotus client.
@@ -212,7 +195,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with import information
         """
         start_time = time.time()
-        result = self._create_result_dict("import_file")
+        result = self._create_result_template("import_file")
         
         try:
             # Validate inputs
@@ -222,11 +205,11 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Get file size for statistics
-            file_size = os.path.getsize(file_path)
+            file_size = self._get_file_size(file_path)
             
             # Use lotus_kit to import the file
-            if self.lotus_kit:
-                import_result = self.lotus_kit.client_import(file_path)
+            if self.kit:
+                import_result = self.kit.client_import(file_path)
                 
                 if import_result.get("success", False):
                     result["success"] = True
@@ -245,16 +228,16 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result, file_size if result["success"] else None)
+                
+            return self._handle_operation_result(
+                result, 
+                "upload", 
+                start_time, 
+                file_size if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "import_file")
     
     def list_imports(self) -> Dict[str, Any]:
         """List all imported files.
@@ -263,12 +246,12 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with list of imports
         """
         start_time = time.time()
-        result = self._create_result_dict("list_imports")
+        result = self._create_result_template("list_imports")
         
         try:
             # Use lotus_kit to list imports
-            if self.lotus_kit:
-                imports_result = self.lotus_kit.client_list_imports()
+            if self.kit:
+                imports_result = self.kit.client_list_imports()
                 
                 if imports_result.get("success", False):
                     result["success"] = True
@@ -280,16 +263,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "list_imports")
     
     def find_data(self, data_cid: str) -> Dict[str, Any]:
         """Find where data is stored.
@@ -301,7 +279,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with data location information
         """
         start_time = time.time()
-        result = self._create_result_dict("find_data")
+        result = self._create_result_template("find_data")
         
         try:
             # Validate inputs
@@ -311,8 +289,8 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Use lotus_kit to find data
-            if self.lotus_kit:
-                find_result = self.lotus_kit.client_find_data(data_cid)
+            if self.kit:
+                find_result = self.kit.client_find_data(data_cid)
                 
                 if find_result.get("success", False):
                     result["success"] = True
@@ -325,16 +303,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "find_data")
     
     def list_deals(self) -> Dict[str, Any]:
         """List all deals made by the client.
@@ -343,12 +316,12 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with list of deals
         """
         start_time = time.time()
-        result = self._create_result_dict("list_deals")
+        result = self._create_result_template("list_deals")
         
         try:
             # Use lotus_kit to list deals
-            if self.lotus_kit:
-                deals_result = self.lotus_kit.client_list_deals()
+            if self.kit:
+                deals_result = self.kit.client_list_deals()
                 
                 if deals_result.get("success", False):
                     result["success"] = True
@@ -360,16 +333,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "list_deals")
     
     def get_deal_info(self, deal_id: int) -> Dict[str, Any]:
         """Get information about a specific deal.
@@ -381,7 +349,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with deal information
         """
         start_time = time.time()
-        result = self._create_result_dict("get_deal_info")
+        result = self._create_result_template("get_deal_info")
         
         try:
             # Validate inputs
@@ -391,8 +359,8 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Use lotus_kit to get deal info
-            if self.lotus_kit:
-                deal_result = self.lotus_kit.client_deal_info(deal_id)
+            if self.kit:
+                deal_result = self.kit.client_deal_info(deal_id)
                 
                 if deal_result.get("success", False):
                     result["success"] = True
@@ -404,16 +372,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "get_deal_info")
     
     def start_deal(self, data_cid: str, miner: str, price: str, duration: int, wallet: Optional[str] = None,
                  verified: bool = False, fast_retrieval: bool = True) -> Dict[str, Any]:
@@ -432,7 +395,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with deal information
         """
         start_time = time.time()
-        result = self._create_result_dict("start_deal")
+        result = self._create_result_template("start_deal")
         
         try:
             # Validate inputs
@@ -457,14 +420,14 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # If wallet not specified, get default wallet
-            if not wallet and self.lotus_kit:
-                wallet_result = self.lotus_kit.list_wallets()
+            if not wallet and self.kit:
+                wallet_result = self.kit.list_wallets()
                 if wallet_result.get("success", False) and wallet_result.get("result"):
                     wallet = wallet_result["result"][0]
             
             # Use lotus_kit to start deal
-            if self.lotus_kit:
-                deal_result = self.lotus_kit.client_start_deal(
+            if self.kit:
+                deal_result = self.kit.client_start_deal(
                     data_cid=data_cid,
                     miner=miner,
                     price=price,
@@ -492,16 +455,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "create", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "start_deal")
     
     def retrieve_data(self, data_cid: str, out_file: str) -> Dict[str, Any]:
         """Retrieve data from the Filecoin network.
@@ -514,7 +472,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with retrieval information
         """
         start_time = time.time()
-        result = self._create_result_dict("retrieve_data")
+        result = self._create_result_template("retrieve_data")
         
         try:
             # Validate inputs
@@ -532,12 +490,12 @@ class FilecoinModel(BaseStorageModel):
             os.makedirs(os.path.dirname(os.path.abspath(out_file)), exist_ok=True)
             
             # Use lotus_kit to retrieve data
-            if self.lotus_kit:
-                retrieve_result = self.lotus_kit.client_retrieve(data_cid, out_file)
+            if self.kit:
+                retrieve_result = self.kit.client_retrieve(data_cid, out_file)
                 
                 if retrieve_result.get("success", False):
                     # Get file size for statistics
-                    file_size = os.path.getsize(out_file) if os.path.exists(out_file) else 0
+                    file_size = self._get_file_size(out_file)
                     
                     result["success"] = True
                     result["cid"] = data_cid
@@ -550,18 +508,15 @@ class FilecoinModel(BaseStorageModel):
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            if result["success"] and "size_bytes" in result:
-                self._update_stats(result, result["size_bytes"])
-            else:
-                self._update_stats(result)
+            return self._handle_operation_result(
+                result, 
+                "download", 
+                start_time, 
+                result.get("size_bytes") if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "retrieve_data")
     
     def list_miners(self) -> Dict[str, Any]:
         """List all miners in the network.
@@ -570,12 +525,12 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with list of miners
         """
         start_time = time.time()
-        result = self._create_result_dict("list_miners")
+        result = self._create_result_template("list_miners")
         
         try:
             # Use lotus_kit to list miners
-            if self.lotus_kit:
-                miners_result = self.lotus_kit.list_miners()
+            if self.kit:
+                miners_result = self.kit.list_miners()
                 
                 if miners_result.get("success", False):
                     result["success"] = True
@@ -587,16 +542,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "list_miners")
     
     def get_miner_info(self, miner_address: str) -> Dict[str, Any]:
         """Get information about a specific miner.
@@ -608,7 +558,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with miner information
         """
         start_time = time.time()
-        result = self._create_result_dict("get_miner_info")
+        result = self._create_result_template("get_miner_info")
         
         try:
             # Validate inputs
@@ -618,8 +568,8 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Use lotus_kit to get miner info
-            if self.lotus_kit:
-                miner_result = self.lotus_kit.miner_get_info(miner_address)
+            if self.kit:
+                miner_result = self.kit.miner_get_info(miner_address)
                 
                 if miner_result.get("success", False):
                     result["success"] = True
@@ -631,16 +581,11 @@ class FilecoinModel(BaseStorageModel):
             else:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
-            
-            # Update statistics
-            self._update_stats(result)
+                
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "get_miner_info")
     
     def ipfs_to_filecoin(self, cid: str, miner: str, price: str, duration: int, wallet: Optional[str] = None,
                         verified: bool = False, fast_retrieval: bool = True, pin: bool = True) -> Dict[str, Any]:
@@ -660,7 +605,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with operation status and details
         """
         start_time = time.time()
-        result = self._create_result_dict("ipfs_to_filecoin")
+        result = self._create_result_template("ipfs_to_filecoin")
         
         try:
             # Validate inputs
@@ -685,7 +630,7 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Only continue if all dependencies are available
-            if not self.lotus_kit:
+            if not self.kit:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
                 return result
@@ -772,18 +717,15 @@ class FilecoinModel(BaseStorageModel):
                 result["duration"] = duration
                 result["size_bytes"] = import_result.get("size_bytes")
             
-            # Update statistics
-            if result["success"] and "size_bytes" in result:
-                self._update_stats(result, result["size_bytes"])
-            else:
-                self._update_stats(result)
+            return self._handle_operation_result(
+                result, 
+                "transfer", 
+                start_time, 
+                result.get("size_bytes") if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "ipfs_to_filecoin")
     
     def filecoin_to_ipfs(self, data_cid: str, pin: bool = True) -> Dict[str, Any]:
         """Retrieve content from Filecoin and add to IPFS.
@@ -796,7 +738,7 @@ class FilecoinModel(BaseStorageModel):
             Result dictionary with operation status and details
         """
         start_time = time.time()
-        result = self._create_result_dict("filecoin_to_ipfs")
+        result = self._create_result_template("filecoin_to_ipfs")
         
         try:
             # Validate inputs
@@ -806,7 +748,7 @@ class FilecoinModel(BaseStorageModel):
                 return result
             
             # Only continue if all dependencies are available
-            if not self.lotus_kit:
+            if not self.kit:
                 result["error"] = "Lotus kit not available"
                 result["error_type"] = "DependencyError"
                 return result
@@ -831,7 +773,7 @@ class FilecoinModel(BaseStorageModel):
                     return result
                 
                 # Get file size for statistics
-                file_size = os.path.getsize(temp_path)
+                file_size = self._get_file_size(temp_path)
                 
                 # Read the file content
                 with open(temp_path, "rb") as f:
@@ -863,15 +805,12 @@ class FilecoinModel(BaseStorageModel):
                 result["ipfs_cid"] = ipfs_cid
                 result["size_bytes"] = file_size
             
-            # Update statistics
-            if result["success"] and "size_bytes" in result:
-                self._update_stats(result, result["size_bytes"])
-            else:
-                self._update_stats(result)
+            return self._handle_operation_result(
+                result, 
+                "transfer", 
+                start_time, 
+                result.get("size_bytes") if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "filecoin_to_ipfs")

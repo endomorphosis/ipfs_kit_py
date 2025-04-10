@@ -12,14 +12,19 @@ import time
 from typing import Dict, List, Optional, Any, Union
 
 from ipfs_kit_py.storacha_kit import storacha_kit
-from ipfs_kit_py.mcp.models.storage import BaseStorageModel
+from ipfs_kit_py.mcp.models.storage.base_storage_model import BaseStorageModel
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 
 class StorachaModel(BaseStorageModel):
-    """Model for Storacha (Web3.Storage) operations."""
+    """Model for Storacha (Web3.Storage) operations.
+    
+    This class implements Storacha (Web3.Storage) storage operations using the BaseStorageModel interface.
+    It provides methods for uploading files and CAR files, listing spaces and uploads, and
+    cross-backend operations to transfer content between IPFS and Storacha.
+    """
     
     def __init__(self, storacha_kit_instance=None, ipfs_model=None, cache_manager=None, credential_manager=None):
         """Initialize Storacha model with dependencies.
@@ -31,9 +36,6 @@ class StorachaModel(BaseStorageModel):
             credential_manager: Credential manager for authentication
         """
         super().__init__(storacha_kit_instance, cache_manager, credential_manager)
-        
-        # Store the storacha_kit instance
-        self.storacha_kit = storacha_kit_instance
         
         # Store the IPFS model for cross-backend operations
         self.ipfs_model = ipfs_model
@@ -50,12 +52,12 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and space details
         """
         start_time = time.time()
-        result = self._create_result_dict("create_space")
+        result = self._create_result_template("create_space")
         
         try:
-            # Use storacha_kit to create a space
-            if self.storacha_kit:
-                space_result = self.storacha_kit.w3_create(name=name)
+            # Use kit to create a space
+            if self.kit:
+                space_result = self.kit.w3_create(name=name)
                 
                 if space_result.get("success", False):
                     result["success"] = True
@@ -72,15 +74,10 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result)
+            return self._handle_operation_result(result, "create", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "create_space")
     
     def list_spaces(self) -> Dict[str, Any]:
         """List all available spaces.
@@ -89,12 +86,12 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and space list
         """
         start_time = time.time()
-        result = self._create_result_dict("list_spaces")
+        result = self._create_result_template("list_spaces")
         
         try:
-            # Use storacha_kit to list spaces
-            if self.storacha_kit:
-                list_result = self.storacha_kit.w3_list_spaces()
+            # Use kit to list spaces
+            if self.kit:
+                list_result = self.kit.w3_list_spaces()
                 
                 if list_result.get("success", False):
                     result["success"] = True
@@ -107,15 +104,10 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result)
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "list_spaces")
     
     def set_current_space(self, space_did: str) -> Dict[str, Any]:
         """Set the current space for operations.
@@ -127,7 +119,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status
         """
         start_time = time.time()
-        result = self._create_result_dict("set_current_space")
+        result = self._create_result_template("set_current_space")
         
         try:
             # Validate inputs
@@ -136,9 +128,9 @@ class StorachaModel(BaseStorageModel):
                 result["error_type"] = "ValidationError"
                 return result
             
-            # Use storacha_kit to set the current space
-            if self.storacha_kit:
-                space_result = self.storacha_kit.w3_use(space_did)
+            # Use kit to set the current space
+            if self.kit:
+                space_result = self.kit.w3_use(space_did)
                 
                 if space_result.get("success", False):
                     result["success"] = True
@@ -154,15 +146,10 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result)
+            return self._handle_operation_result(result, "configure", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "set_current_space")
     
     def upload_file(self, file_path: str, space_did: Optional[str] = None) -> Dict[str, Any]:
         """Upload a file to Storacha.
@@ -175,7 +162,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and upload details
         """
         start_time = time.time()
-        result = self._create_result_dict("upload_file")
+        result = self._create_result_template("upload_file")
         
         try:
             # Validate inputs
@@ -194,11 +181,11 @@ class StorachaModel(BaseStorageModel):
                     return result
             
             # Get file size for statistics
-            file_size = os.path.getsize(file_path)
+            file_size = self._get_file_size(file_path)
             
-            # Use storacha_kit to upload the file
-            if self.storacha_kit:
-                upload_result = self.storacha_kit.w3_up(file_path)
+            # Use kit to upload the file
+            if self.kit:
+                upload_result = self.kit.w3_up(file_path)
                 
                 if upload_result.get("success", False):
                     result["success"] = True
@@ -220,15 +207,15 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result, file_size if result["success"] else None)
+            return self._handle_operation_result(
+                result, 
+                "upload", 
+                start_time, 
+                file_size if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "upload_file")
     
     def upload_car(self, car_path: str, space_did: Optional[str] = None) -> Dict[str, Any]:
         """Upload a CAR file to Storacha.
@@ -241,7 +228,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and upload details
         """
         start_time = time.time()
-        result = self._create_result_dict("upload_car")
+        result = self._create_result_template("upload_car")
         
         try:
             # Validate inputs
@@ -260,11 +247,11 @@ class StorachaModel(BaseStorageModel):
                     return result
             
             # Get file size for statistics
-            file_size = os.path.getsize(car_path)
+            file_size = self._get_file_size(car_path)
             
-            # Use storacha_kit to upload the CAR file
-            if self.storacha_kit:
-                upload_result = self.storacha_kit.w3_up_car(car_path)
+            # Use kit to upload the CAR file
+            if self.kit:
+                upload_result = self.kit.w3_up_car(car_path)
                 
                 if upload_result.get("success", False):
                     result["success"] = True
@@ -287,15 +274,15 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result, file_size if result["success"] else None)
+            return self._handle_operation_result(
+                result, 
+                "upload", 
+                start_time, 
+                file_size if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "upload_car")
     
     def list_uploads(self, space_did: Optional[str] = None) -> Dict[str, Any]:
         """List uploads in a space.
@@ -307,7 +294,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and upload list
         """
         start_time = time.time()
-        result = self._create_result_dict("list_uploads")
+        result = self._create_result_template("list_uploads")
         
         try:
             # Set space if provided
@@ -319,9 +306,9 @@ class StorachaModel(BaseStorageModel):
                     result["space_result"] = space_result
                     return result
             
-            # Use storacha_kit to list uploads
-            if self.storacha_kit:
-                list_result = self.storacha_kit.w3_list()
+            # Use kit to list uploads
+            if self.kit:
+                list_result = self.kit.w3_list()
                 
                 if list_result.get("success", False):
                     result["success"] = True
@@ -338,15 +325,10 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result)
+            return self._handle_operation_result(result, "list", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "list_uploads")
     
     def delete_upload(self, cid: str, space_did: Optional[str] = None) -> Dict[str, Any]:
         """Delete an upload from Storacha.
@@ -359,7 +341,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status
         """
         start_time = time.time()
-        result = self._create_result_dict("delete_upload")
+        result = self._create_result_template("delete_upload")
         
         try:
             # Validate inputs
@@ -377,9 +359,9 @@ class StorachaModel(BaseStorageModel):
                     result["space_result"] = space_result
                     return result
             
-            # Use storacha_kit to delete the upload
-            if self.storacha_kit:
-                delete_result = self.storacha_kit.w3_remove(cid)
+            # Use kit to delete the upload
+            if self.kit:
+                delete_result = self.kit.w3_remove(cid)
                 
                 if delete_result.get("success", False):
                     result["success"] = True
@@ -395,15 +377,10 @@ class StorachaModel(BaseStorageModel):
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
             
-            # Update statistics
-            self._update_stats(result)
+            return self._handle_operation_result(result, "delete", start_time)
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "delete_upload")
     
     def ipfs_to_storacha(self, cid: str, space_did: Optional[str] = None, pin: bool = True) -> Dict[str, Any]:
         """Get content from IPFS and upload to Storacha.
@@ -417,7 +394,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and details
         """
         start_time = time.time()
-        result = self._create_result_dict("ipfs_to_storacha")
+        result = self._create_result_template("ipfs_to_storacha")
         
         try:
             # Validate inputs
@@ -436,7 +413,7 @@ class StorachaModel(BaseStorageModel):
                     return result
             
             # Only continue if all dependencies are available
-            if not self.storacha_kit:
+            if not self.kit:
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
                 return result
@@ -505,18 +482,15 @@ class StorachaModel(BaseStorageModel):
                 if space_did:
                     result["space_did"] = space_did
             
-            # Update statistics
-            if result["success"] and "size_bytes" in result:
-                self._update_stats(result, result["size_bytes"])
-            else:
-                self._update_stats(result)
+            return self._handle_operation_result(
+                result, 
+                "transfer", 
+                start_time, 
+                result.get("size_bytes") if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "ipfs_to_storacha")
         
     def storacha_to_ipfs(self, cid: str, space_did: Optional[str] = None, pin: bool = True) -> Dict[str, Any]:
         """Get content from Storacha and add to IPFS.
@@ -530,7 +504,7 @@ class StorachaModel(BaseStorageModel):
             Result dictionary with operation status and details
         """
         start_time = time.time()
-        result = self._create_result_dict("storacha_to_ipfs")
+        result = self._create_result_template("storacha_to_ipfs")
         
         try:
             # Validate inputs
@@ -549,7 +523,7 @@ class StorachaModel(BaseStorageModel):
                     return result
             
             # Only continue if all dependencies are available
-            if not self.storacha_kit:
+            if not self.kit:
                 result["error"] = "Storacha kit not available"
                 result["error_type"] = "DependencyError"
                 return result
@@ -568,7 +542,7 @@ class StorachaModel(BaseStorageModel):
                 current_space = space_did
                 if not current_space:
                     # Find current space from Storacha kit
-                    spaces_result = self.storacha_kit.w3_list_spaces()
+                    spaces_result = self.kit.w3_list_spaces()
                     if not spaces_result.get("success", False) or not spaces_result.get("spaces"):
                         result["error"] = "No space available and none provided"
                         result["error_type"] = "NoSpaceError"
@@ -587,7 +561,7 @@ class StorachaModel(BaseStorageModel):
                     current_space = next((space["did"] for space in spaces if space.get("current", False)), spaces[0]["did"])
                 
                 # Download from Storacha
-                download_result = self.storacha_kit.store_get(
+                download_result = self.kit.store_get(
                     space_did=current_space,
                     cid=cid,
                     output_file=temp_path
@@ -601,7 +575,7 @@ class StorachaModel(BaseStorageModel):
                     return result
                 
                 # Get file size for statistics
-                file_size = os.path.getsize(temp_path)
+                file_size = self._get_file_size(temp_path)
                 
                 # Read the file content
                 with open(temp_path, "rb") as f:
@@ -637,15 +611,12 @@ class StorachaModel(BaseStorageModel):
                 if current_space:
                     result["space_did"] = current_space
             
-            # Update statistics
-            if result["success"] and "size_bytes" in result:
-                self._update_stats(result, result["size_bytes"])
-            else:
-                self._update_stats(result)
+            return self._handle_operation_result(
+                result, 
+                "transfer", 
+                start_time, 
+                result.get("size_bytes") if result["success"] else None
+            )
             
         except Exception as e:
-            self._handle_error(result, e)
-            
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        return result
+            return self._handle_exception(e, result, "storacha_to_ipfs")

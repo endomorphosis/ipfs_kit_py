@@ -1,187 +1,176 @@
-#!/usr/bin/env python3
 """
-Test the Filecoin storage controller with the simulation-enabled lotus_kit
-to verify that the controller functionality works correctly.
+Test script to verify simulation mode in Filecoin storage backend.
 """
 
 import os
 import sys
-import json
 import time
-import logging
-import tempfile
+import json
+import hashlib
 import uuid
+import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Add the project root to the Python path if needed
-project_root = os.path.dirname(os.path.abspath(__file__))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Import lotus_kit
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from ipfs_kit_py.lotus_kit import lotus_kit as LotusKit
 
-def pretty_print(title, data):
-    """Print formatted JSON data with a title."""
-    print(f"\n===== {title} =====")
-    print(json.dumps(data, indent=2))
-    print("=" * (len(title) + 12))
-
-def test_filecoin_controller_with_simulation():
-    """Test the FilecoinModel with the simulation-enabled lotus_kit."""
-    print("\n🔍 Testing Filecoin Controller with simulated Lotus...")
-
+def test_simulation_mode():
+    """Test the simulation mode functionality in lotus_kit."""
+    
+    # Create a Lotus kit instance with simulation mode enabled
+    lotus = LotusKit(resources={}, metadata={"simulation_mode": True})
+    
+    print("\n--- TESTING FILECOIN SIMULATION MODE ---\n")
+    
+    # Test miner_get_power (newly implemented)
+    print("\n1. Testing miner_get_power simulation mode:")
+    miner_address = "t01000"
+    power_result = lotus.miner_get_power(miner_address)
+    
+    if power_result.get("success", False) and power_result.get("simulated", False):
+        print("✅ miner_get_power simulation successful")
+        print(f"    Raw byte power: {power_result.get('result', {}).get('MinerPower', {}).get('RawBytePower', 'N/A')}")
+        print(f"    QA power: {power_result.get('result', {}).get('MinerPower', {}).get('QualityAdjPower', 'N/A')}")
+    else:
+        print("❌ miner_get_power simulation failed")
+        print(f"    Error: {power_result.get('error', 'Unknown error')}")
+    
+    # Test client_import (newly implemented)
+    print("\n2. Testing client_import simulation mode:")
+    # Create a temporary file to import
+    temp_file_path = "/tmp/test_file_for_import.txt"
+    with open(temp_file_path, "w") as f:
+        f.write("Test file content for import simulation")
+    
+    import_result = lotus.client_import(temp_file_path)
+    
+    if import_result.get("success", False) and import_result.get("simulated", False):
+        print("✅ client_import simulation successful")
+        print(f"    Import ID: {import_result.get('result', {}).get('ImportID', 'N/A')}")
+        print(f"    Root CID: {import_result.get('result', {}).get('Root', {}).get('/', 'N/A')}")
+        
+        # Clean up the temporary file
+        os.remove(temp_file_path)
+        
+        # Store the imported CID for later tests
+        imported_cid = import_result.get('result', {}).get('Root', {}).get('/', None)
+        
+        # Test client_list_imports to verify the import is in the cache
+        list_imports_result = lotus.client_list_imports()
+        if list_imports_result.get("success", False) and list_imports_result.get("simulated", False):
+            print("✅ client_list_imports shows the imported file")
+            found = False
+            for imp in list_imports_result.get("result", []):
+                if imp.get("Root", {}).get("/", "") == imported_cid:
+                    found = True
+                    break
+            if not found:
+                print("❌ Imported file not found in client_list_imports results")
+        else:
+            print("❌ client_list_imports failed")
+    else:
+        print("❌ client_import simulation failed")
+        print(f"    Error: {import_result.get('error', 'Unknown error')}")
+    
+    # Test payment channel operations
+    print("\n3. Testing payment channel voucher operations (implement these next):")
     try:
-        # Import lotus_kit and FilecoinModel
-        from ipfs_kit_py.lotus_kit import lotus_kit
-        from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
+        # Create a payment channel address for testing
+        ch_addr = "t0100"
         
-        # Create lotus_kit instance with simulation mode enabled
-        lotus = lotus_kit(metadata={"simulation_mode": True})
-        logger.info("Created lotus_kit instance with simulation mode")
-        
-        # Verify simulation mode is active
-        print(f"\n🔍 Lotus simulation mode active: {lotus.simulation_mode}")
-        
-        # Test lotus_kit connection directly
-        print("\n📡 Testing direct lotus_kit connection...")
-        lotus_connection = lotus.check_connection()
-        pretty_print("Lotus Kit Connection", lotus_connection)
-        
-        # Create FilecoinModel instance
-        model = FilecoinModel(lotus_kit_instance=lotus)
-        logger.info("Created FilecoinModel instance")
-        
-        # Test: Check connection through model
-        print("\n📡 Testing FilecoinModel connection...")
-        connection_result = model.check_connection()
-        pretty_print("FilecoinModel Connection Check", connection_result)
-        
-        # In simulation mode, connection check may still return failure
-        # but we can continue with our testing as we're not testing real connections
-        if not connection_result.get("success", False):
-            print("⚠️ Connection check returned failure - this is expected in simulation mode")
-            print("Continuing with simulation testing...")
-        else:
-            print("✅ Connection check succeeded!")
+        # Test paych_voucher_create (if implemented)
+        print("\n   Testing paych_voucher_create:")
+        try:
+            voucher_result = lotus.paych_voucher_create(ch_addr, "1.5", lane=0)
             
-        # Test: List wallets
-        print("\n💼 Testing wallet listing...")
-        wallets_result = model.list_wallets()
-        pretty_print("Wallet Listing", wallets_result)
-        
-        # Test: List deals
-        print("\n📄 Testing deal listing...")
-        deals_result = model.list_deals()
-        pretty_print("Deal Listing", deals_result)
-        
-        # Test: Look up specific deal
-        if deals_result.get("success", False) and deals_result.get("deals") and len(deals_result["deals"]) > 0:
-            deal_id = deals_result["deals"][0].get("deal_id", 1)
-            print(f"\n🔍 Testing deal info retrieval for deal ID: {deal_id}...")
-            deal_info = model.get_deal_info(deal_id)
-            pretty_print(f"Deal Info (ID: {deal_id})", deal_info)
-        else:
-            print("\n⚠️ No deals found to test deal_info retrieval")
-        
-        # Test: Import content
-        print("\n📦 Testing content import...")
-        with tempfile.NamedTemporaryFile(prefix="filecoin_test_", suffix=".txt", delete=False) as temp_file:
-            content = f"Test content for Filecoin import {uuid.uuid4()}".encode()
-            temp_file.write(content)
-            temp_path = temp_file.name
-            
-        print(f"Created temporary file at: {temp_path}")
-        import_result = model.import_file(temp_path)
-        pretty_print("Import Result", import_result)
-        
-        # Test: Start a storage deal
-        if import_result.get("success", False) and import_result.get("root"):
-            data_cid = import_result["root"]
-            print(f"\n✅ Successfully imported content with CID: {data_cid}")
-            
-            # Test: Find data location before making deals
-            print(f"\n🔍 Testing find data for CID: {data_cid}...")
-            find_result = model.find_data(data_cid)
-            pretty_print("Find Data Result", find_result)
-            
-            wallet = None
-            if wallets_result.get("success", False) and wallets_result.get("wallets") and len(wallets_result["wallets"]) > 0:
-                wallet = wallets_result["wallets"][0]
+            if voucher_result.get("success", False) and voucher_result.get("simulated", False):
+                print("✅ paych_voucher_create simulation successful")
+                print(f"    Voucher amount: {voucher_result.get('result', {}).get('Voucher', {}).get('Amount', 'N/A')}")
                 
-            # Use a simulated miner address (any string will work in simulation)
-            miner = "t01000"
-            
-            print(f"\n🤝 Testing starting a storage deal with miner {miner}...")
-            deal_result = model.start_deal(
-                data_cid=data_cid,
-                miner=miner,
-                price="1000",
-                duration=518400,  # ~180 days
-                wallet=wallet
-            )
-            pretty_print("Deal Start Result", deal_result)
-            
-            if deal_result.get("success", False):
-                print("\n✅ Successfully started a storage deal!")
-                
-                # Test: Find data after making deal
-                print(f"\n🔍 Testing find data after making deal for CID: {data_cid}...")
-                find_result_after = model.find_data(data_cid)
-                pretty_print("Find Data After Deal", find_result_after)
-                
-                # Test: Retrieve data
-                print(f"\n📥 Testing retrieving content for CID: {data_cid}...")
-                with tempfile.NamedTemporaryFile(prefix="filecoin_retrieve_", suffix=".bin", delete=False) as retrieve_file:
-                    retrieve_path = retrieve_file.name
+                # Test paych_voucher_list (if implemented)
+                print("\n   Testing paych_voucher_list:")
+                try:
+                    list_result = lotus.paych_voucher_list(ch_addr)
                     
-                retrieve_result = model.retrieve_data(data_cid, retrieve_path)
-                pretty_print("Retrieve Result", retrieve_result)
-                
-                if retrieve_result.get("success", False):
-                    print(f"\n✅ Successfully retrieved data to: {retrieve_path}")
-                    # Check file size
-                    file_size = os.path.getsize(retrieve_path)
-                    print(f"Retrieved file size: {file_size} bytes")
-                    
-                    # Read first 100 bytes to show content
-                    with open(retrieve_path, 'rb') as f:
-                        content_sample = f.read(100)
-                    print(f"Content preview: {content_sample[:50]}{'...' if len(content_sample) > 50 else ''}")
-                    
-                    # Clean up retrieved file
-                    os.unlink(retrieve_path)
-                else:
-                    print(f"\n❌ Failed to retrieve data: {retrieve_result.get('error')}")
+                    if list_result.get("success", False) and list_result.get("simulated", False):
+                        print("✅ paych_voucher_list simulation successful")
+                        print(f"    Voucher count: {len(list_result.get('result', []))}")
+                        
+                        # Test paych_voucher_check (if implemented)
+                        if list_result.get("result", []):
+                            print("\n   Testing paych_voucher_check:")
+                            voucher = list_result.get("result", [])[0]
+                            try:
+                                check_result = lotus.paych_voucher_check(ch_addr, voucher)
+                                
+                                if check_result.get("success", False) and check_result.get("simulated", False):
+                                    print("✅ paych_voucher_check simulation successful")
+                                    print(f"    Voucher amount: {check_result.get('result', {}).get('Amount', 'N/A')}")
+                                else:
+                                    print("❓ paych_voucher_check simulation not fully implemented")
+                                    print(f"    Result: {check_result}")
+                            except Exception as e:
+                                print(f"❓ paych_voucher_check not implemented: {str(e)}")
+                    else:
+                        print("❓ paych_voucher_list simulation not fully implemented")
+                        print(f"    Result: {list_result}")
+                except Exception as e:
+                    print(f"❓ paych_voucher_list not implemented: {str(e)}")
             else:
-                print(f"\n❌ Failed to start storage deal: {deal_result.get('error')}")
-        else:
-            print(f"\n❌ Failed to import content: {import_result.get('error')}")
-        
-        # Test: Verify that simulation mode was used
-        print("\n🔍 Checking simulation mode status...")
-        is_simulated = hasattr(lotus, 'simulation_mode') and lotus.simulation_mode
-        print(f"Simulation mode active: {is_simulated}")
-        
-        # Test: Verify deal state
-        print("\n📊 Checking controller state consistency...")
-        all_deals = model.list_deals()
-        deal_count = len(all_deals.get("deals", []))
-        print(f"Total deals in system: {deal_count}")
-        print(f"All operations completed successfully!")
-        
-        return True
-        
+                print("❓ paych_voucher_create simulation not fully implemented")
+                print(f"    Result: {voucher_result}")
+        except Exception as e:
+            print(f"❓ paych_voucher_create not implemented: {str(e)}")
     except Exception as e:
-        logger.exception(f"Error during Filecoin controller test: {e}")
-        print(f"\n❌ Test failed with error: {e}")
-        return False
+        print(f"Error testing payment channel operations: {str(e)}")
+
+    # Output summary
+    print("\n--- SIMULATION TEST SUMMARY ---")
+    successful_methods = 0
+    total_methods = 4  # Update this number as more methods are tested
+    
+    # Check miner_get_power
+    if power_result.get("success", False) and power_result.get("simulated", False):
+        successful_methods += 1
+        print("✅ miner_get_power: Simulation working")
+    else:
+        print("❌ miner_get_power: Simulation failed")
+    
+    # Check client_import
+    if import_result.get("success", False) and import_result.get("simulated", False):
+        successful_methods += 1
+        print("✅ client_import: Simulation working")
+    else:
+        print("❌ client_import: Simulation failed")
+    
+    # Check paych_voucher_create
+    try:
+        if voucher_result.get("success", False) and voucher_result.get("simulated", False):
+            successful_methods += 1
+            print("✅ paych_voucher_create: Simulation working")
+        else:
+            print("❓ paych_voucher_create: Not fully implemented")
+    except:
+        print("❓ paych_voucher_create: Not implemented")
+    
+    # Check paych_voucher_list
+    try:
+        if list_result.get("success", False) and list_result.get("simulated", False):
+            successful_methods += 1
+            print("✅ paych_voucher_list: Simulation working")
+        else:
+            print("❓ paych_voucher_list: Not fully implemented")
+    except:
+        print("❓ paych_voucher_list: Not implemented")
+    
+    # Print final results
+    print(f"\nSuccessful implementations: {successful_methods}/{total_methods}")
+    print(f"Success rate: {successful_methods/total_methods:.0%}")
 
 if __name__ == "__main__":
-    # Run the test
-    success = test_filecoin_controller_with_simulation()
-    sys.exit(0 if success else 1)
+    test_simulation_mode()

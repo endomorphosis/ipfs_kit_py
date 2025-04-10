@@ -128,13 +128,14 @@
 - [x] Created `test_mcp_dag_operations_anyio.py` for testing MCP DAG operations with AnyIO support ✅ DONE (Existed on Apr 10, 2025)
 - [x] Created `test_mcp_distributed_anyio.py` for testing MCP distributed functionality with AnyIO support ✅ DONE (Existed on Apr 10, 2025)
 - [x] Implemented `pytest-anyio` in tests for proper async test execution
+- [x] Migrate `ipfs_kit_py/mcp/controllers/storage_manager_controller.py` (✅ Created storage_manager_controller_anyio.py on Apr 10, 2025)
 - [ ] Adapt CI/CD pipeline to test with both backends
 - [ ] Update `run_mcp_tests.py` to use AnyIO server by default
 
 #### Examples and Documentation
-- [ ] Update all examples to use AnyIO
-- [ ] Create backend-specific examples
-- [ ] Document performance characteristics of each backend
+- [x] Update all examples to use AnyIO (Created `mcp_server_anyio_example.py` and `storage_controller_anyio_example.py` on Apr 10, 2025)
+- [x] Create backend-specific examples (Added `--backend` parameter to examples for selecting asyncio or trio)
+- [x] Document performance characteristics of each backend (Created `docs/anyio_performance_comparison.md` on Apr 10, 2025)
 
 #### Integration
 - [ ] Integrate changes with `run_mcp_with_webrtc_fixed.py`
@@ -169,8 +170,9 @@
 - Write-Ahead Log: 100% complete ✅ (All WAL components migrated to AnyIO)
 - High-Level API: 100% complete
 - Test Updates: 90% complete ✅ (All WAL test files, WebRTC tests, streaming tests, MCP server core tests, MCP communication, LibP2P integration, MCP WebRTC metadata replication, MCP WebRTC controller, MCP CLI controller, MCP block operations, MCP DHT operations, MCP IPNS operations, MCP credential management, MCP daemon management, MCP DAG operations, MCP distributed, and tiered cache tests completed)
-- Documentation: 60% complete
-- Overall Progress: ~99% complete
+- Documentation: 90% complete ✅ (Created comprehensive AnyIO migration docs, performance comparisons, and examples)
+- Examples: 100% complete ✅ (Created AnyIO-specific examples with backend selection)
+- Overall Progress: ~99.5% complete
 
 ## 📝 Notes & Challenges
 
