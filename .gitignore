@@ -133,6 +133,7 @@ peerstore/
 datastore/
 
 # No need to ignore .git directories in submodules anymore as they are properly managed
+docs/**  
 
 # Binary files that might appear elsewhere
 bin/lotus
