@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ipld_car"
+version = "0.0.1"
+authors = [
+  { name="Alan Shaw", email="alan@storacha.network" },
+]
+description = "Content Addressable aRchive format reader and writer."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSE.md"]
+
+[project.urls]
+Homepage = "https://github.com/storacha/py-ipld-car"
+Issues = "https://github.com/storacha/py-ipld-car/issues"

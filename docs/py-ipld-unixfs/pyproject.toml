@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ipld_unixfs"
+version = "0.0.1"
+authors = [
+  { name="Alan Shaw", email="alan@storacha.network" },
+]
+description = "An implementation of the UnixFS spec in Python."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSE.md"]
+
+[project.urls]
+Homepage = "https://github.com/storacha/py-ipld-unixfs"
+Issues = "https://github.com/storacha/py-ipld-unixfs/issues"

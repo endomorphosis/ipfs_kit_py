@@ -1489,8 +1489,8 @@ class IPFSController:
         operation_id = f"id_{int(start_time * 1000)}"
         
         try:
-            # Get node ID from IPFS model
-            result = self.ipfs_model.ipfs.id()
+            # Get node ID from IPFS model using the new method
+            result = self.ipfs_model.get_node_id()
             
             # Handle missing fields for test stability
             if not result.get("success", False):
@@ -1516,10 +1516,23 @@ class IPFSController:
                     "simulated": True
                 }
             
-            # Standardize response: most implementations return "ID" with capital letters
-            if "id" in result and "ID" not in result:
-                result["ID"] = result["id"]
+            # Standardize response format
+            # The model returns lowercase keys, but some clients expect uppercase
+            if "peer_id" in result and "ID" not in result:
+                result["ID"] = result["peer_id"]
                 
+            if "addresses" in result and "Addresses" not in result:
+                result["Addresses"] = result["addresses"]
+                
+            if "agent_version" in result and "AgentVersion" not in result:
+                result["AgentVersion"] = result["agent_version"]
+                
+            if "protocol_version" in result and "ProtocolVersion" not in result:
+                result["ProtocolVersion"] = result["protocol_version"]
+                
+            if "public_key" in result and "PublicKey" not in result:
+                result["PublicKey"] = result["public_key"]
+            
             # Add operation tracking fields for consistency
             if "operation_id" not in result:
                 result["operation_id"] = operation_id
@@ -1531,7 +1544,7 @@ class IPFSController:
             if "success" not in result:
                 result["success"] = True
                 
-            logger.debug(f"Got node ID: {result.get('ID', 'unknown')}")
+            logger.debug(f"Got node ID: {result.get('ID', result.get('peer_id', 'unknown'))}")
             return result
             
         except Exception as e:
