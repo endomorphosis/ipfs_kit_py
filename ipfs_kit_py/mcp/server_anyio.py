@@ -72,11 +72,31 @@ try:
 except ImportError:
     HAS_DISTRIBUTED_CONTROLLER = False
     
+# Try to import AnyIO version of WebRTC controller first, then fall back to synchronous version
 try:
-    from ipfs_kit_py.mcp.controllers.webrtc_controller import WebRTCController
+    from ipfs_kit_py.mcp.controllers.webrtc_controller_anyio import WebRTCControllerAnyIO as WebRTCController
     HAS_WEBRTC_CONTROLLER = True
+    logger.info("Using AnyIO-compatible WebRTC controller")
 except ImportError:
-    HAS_WEBRTC_CONTROLLER = False
+    try:
+        from ipfs_kit_py.mcp.controllers.webrtc_controller import WebRTCController
+        HAS_WEBRTC_CONTROLLER = True
+        logger.warning("Using synchronous WebRTC controller instead of AnyIO version")
+    except ImportError:
+        HAS_WEBRTC_CONTROLLER = False
+
+# Try to import AnyIO version of LibP2P controller first, then fall back to synchronous version
+try:
+    from ipfs_kit_py.mcp.controllers.libp2p_controller_anyio import LibP2PControllerAnyIO as LibP2PController
+    HAS_LIBP2P_CONTROLLER = True
+    logger.info("Using AnyIO-compatible LibP2P controller")
+except ImportError:
+    try:
+        from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
+        HAS_LIBP2P_CONTROLLER = True
+        logger.warning("Using synchronous LibP2P controller instead of AnyIO version")
+    except ImportError:
+        HAS_LIBP2P_CONTROLLER = False
     
 try:
     from ipfs_kit_py.mcp.controllers.peer_websocket_controller import PeerWebSocketController
@@ -295,6 +315,25 @@ class MCPServer:
             self.controllers["webrtc"] = WebRTCController(self.models["ipfs"])
             logger.info("WebRTC Controller added")
             
+        if HAS_LIBP2P_CONTROLLER:
+            # Initialize LibP2P model if it doesn't exist
+            if "libp2p" not in self.models and hasattr(self.models["ipfs"], "get_libp2p_model"):
+                try:
+                    # Try to get the LibP2P model from the IPFS model if it supports it
+                    libp2p_model = self.models["ipfs"].get_libp2p_model()
+                    if libp2p_model:
+                        self.models["libp2p"] = libp2p_model
+                        logger.info("LibP2P Model initialized from IPFS model")
+                except Exception as e:
+                    logger.error(f"Error initializing LibP2P model: {e}")
+            
+            # Initialize LibP2P controller if the model is available
+            if "libp2p" in self.models:
+                self.controllers["libp2p"] = LibP2PController(self.models["libp2p"])
+                logger.info("LibP2P Controller added")
+            else:
+                logger.warning("LibP2P Controller not added: LibP2P model not available")
+            
         if HAS_PEER_WEBSOCKET_CONTROLLER:
             self.controllers["peer_websocket"] = PeerWebSocketController(self.models["ipfs"])
             logger.info("Peer WebSocket Controller added")
@@ -352,6 +391,9 @@ class MCPServer:
             
         if "webrtc" in self.controllers:
             self.controllers["webrtc"].register_routes(router)
+            
+        if "libp2p" in self.controllers:
+            self.controllers["libp2p"].register_routes(router)
             
         if "peer_websocket" in self.controllers:
             self.controllers["peer_websocket"].register_routes(router)
@@ -913,6 +955,34 @@ class MCPServer:
             
             except Exception as e:
                 logger.error(f"Error during peer WebSocket shutdown: {e}")
+                
+        # Special handling for LibP2P controller to ensure resources are cleaned up
+        if "libp2p" in self.controllers:
+            try:
+                libp2p_controller = self.controllers["libp2p"]
+                
+                # Use the controller's shutdown method if available
+                if hasattr(libp2p_controller, "shutdown"):
+                    logger.info("Shutting down LibP2P controller...")
+                    
+                    try:
+                        # Run the shutdown method with anyio
+                        await anyio.to_thread.run_sync(libp2p_controller.shutdown)
+                        
+                        logger.info("LibP2P controller shutdown complete")
+                    except Exception as e:
+                        logger.error(f"Error in LibP2P controller shutdown: {e}")
+                        
+                        # Try to stop the model directly if controller shutdown failed
+                        if hasattr(self.models, "libp2p") and hasattr(self.models["libp2p"], "stop"):
+                            try:
+                                await anyio.to_thread.run_sync(self.models["libp2p"].stop)
+                                logger.info("LibP2P model stopped directly")
+                            except Exception as model_error:
+                                logger.error(f"Error stopping LibP2P model directly: {model_error}")
+            
+            except Exception as e:
+                logger.error(f"Error during LibP2P shutdown: {e}")
             
         # Shutdown all controllers
         for controller_name, controller in self.controllers.items():
@@ -922,10 +992,11 @@ class MCPServer:
                     
                     # Check if shutdown is an async method or not
                     if hasattr(controller.shutdown, '__await__'):
+                        # This is an async method, call it directly
                         await controller.shutdown()
                     else:
-                        # Run synchronous shutdown method
-                        controller.shutdown()
+                        # For synchronous methods, run them in a thread using anyio
+                        await anyio.to_thread.run_sync(controller.shutdown)
                         
                     logger.info(f"{controller_name} controller shutdown complete")
                 except Exception as e:

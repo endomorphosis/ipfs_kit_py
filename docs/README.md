@@ -39,9 +39,9 @@ The documentation is organized into several key sections:
    - Plugin Architecture
    - SDK Generation
 
-3. [**Async Architecture**](async_architecture.md) - Async design and anyio migration
-   - Anyio Benefits and Features
-   - Migration Strategy from Asyncio
+3. [**Async Architecture**](async_architecture.md) - Async design with AnyIO
+   - AnyIO Benefits and Features
+   - Implementation Patterns and Guidelines
    - Best Practices for Async Code
    - Task and Resource Management
 

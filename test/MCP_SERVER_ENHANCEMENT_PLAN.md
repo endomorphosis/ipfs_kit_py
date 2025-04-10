@@ -18,7 +18,7 @@ After analyzing the MCP reports and implementation documents, we've identified t
 - Distributed Controller (status, peers, ping)
 - WebRTC Controller (status, peers)
 - Filesystem Journal Controller (status, operations, stats, add_entry)
-- Comprehensive AnyIO migration of controllers, models, and tests
+- Comprehensive AnyIO implementation of controllers, models, and tests
 - Integration tests for combined controller workflows
 
 ### Pending Features (High Priority)

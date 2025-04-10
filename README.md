@@ -7,8 +7,9 @@ This library installs and configures IPFS services through Kubo and IPFS Cluster
 Key components include:
 - **Core IPFS operations**: Content addition, retrieval, and pinning through different storage backends
 - **Tiered Storage System**: Intelligent caching with adaptive replacement policies
-- **MCP Server Architecture**: Structured Model-Controller-Persistence design for clean separation of concerns
+- **MCP Server Architecture**: Structured Model-Controller-Persistence design with clean separation of concerns
 - **FSSpec Integration**: Seamless integration with data science tools via fsspec interface
+- **AnyIO Backend Support**: Backend-agnostic async code that works with both asyncio and trio
 - **AI/ML Integration**: Specialized connectors for machine learning frameworks and model distribution
 - **Aria2 Integration**: High-speed downloads with multi-connection and multi-source support
 - **Filecoin/Lotus Integration**: Connect to Filecoin network with Lotus daemon management across platforms
@@ -36,6 +37,7 @@ graph TD
     KnowledgeGraph[Knowledge Graph]
     Utils[Utilities]
     Observability[Prometheus & Grafana]
+    AnyIO[AnyIO Backend asyncio/trio]
 
     CLI --> HLAPI
     HLAPI --> Kit
@@ -53,6 +55,7 @@ graph TD
     Kit --> KnowledgeGraph
     Kit --> Utils
     Kit --> Observability
+    Kit --> AnyIO
 
     ClusterMgmt --> Roles
     ClusterMgmt --> LibP2P
@@ -65,10 +68,14 @@ graph TD
     KnowledgeGraph --> Storage
     Metadata --> Storage
     Observability --> Kit
+    AnyIO --> LibP2P
+    AnyIO --> Storage
+    AnyIO --> APIServer
 ```
 
 -   **User Interfaces**: Provides multiple ways to interact with the kit (CLI, High-Level API, Core API, REST API Server).
 -   **Core `ipfs_kit` Class**: The central orchestrator, managing configuration and initializing role-specific components.
+-   **AnyIO Backend**: Enables backend-agnostic async code that works with both asyncio and trio, providing flexibility and improved error handling.
 -   **Role Management**: Handles the distinct behaviors and component loading for Master, Worker, and Leecher roles, including dynamic role switching.
 -   **Cluster Management**: Advanced features for coordinating multiple nodes, including task distribution, state synchronization, monitoring, and authentication.
 -   **Storage Backends**: Abstracts interactions with various storage systems (local IPFS, IPFS Cluster, S3, Storacha).
@@ -94,6 +101,7 @@ graph TD
 -   **Advanced Cluster Management**: Sophisticated cluster coordination including leader election, task distribution, state synchronization (CRDTs, vector clocks), health monitoring, secure authentication (TLS, UCANs), and dynamic role adaptation based on resource availability. ([See Docs](docs/cluster_management.md))
 -   **IPLD Integration**: Work with low-level IPFS data structures including Content Addressable aRchives (CAR), DAG-PB nodes, and UnixFS chunking for advanced content management and DAG operations. Provides full Python implementations of py-ipld-car, py-ipld-dag-pb, and py-ipld-unixfs libraries. ([See Docs](docs/ipld_integration.md))
 
+-   **Async Backend Flexibility**: Full support for multiple async backends (asyncio and trio) using AnyIO, enabling better compatibility with various Python async frameworks, improved error handling with structured cancellation, and more intuitive concurrency patterns. ([See Docs](docs/async_architecture.md))
 -   **Mutable File System (MFS)**: Complete implementation of IPFS MFS operations providing traditional file system operations (mkdir, ls, stat, read, write, rm) on top of immutable IPFS content. Enables familiar file management workflows while preserving content addressing underneath. ([See Docs](MCP_MFS_OPERATIONS.md))
 -   **Storacha/S3 Integration**: Access content via Storacha (Web3.Storage) and S3-compatible storage as alternative backends. ([See Docs](docs/storage_backends.md), [Verification](STORAGE_BACKENDS_VERIFICATION.md), [Secure Credentials](README_CREDENTIALS.md))
 -   **Comprehensive Error Handling**: Standardized error classes and detailed result dictionaries for robust application development.
@@ -298,7 +306,13 @@ The CLI respects the following environment variables:
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize with default settings (leecher role)
-kit = ipfs_kit()
+kit = ipfs_kit(
+    role="leecher",
+    metadata={
+        "async_backend": "asyncio",  # Use asyncio backend (alternative: 'trio')
+        "num_workers": 4             # Number of worker threads
+    }
+)
 
 # Add a file to IPFS (uses ipfs_add method)
 result = kit.ipfs_add("example.txt")
@@ -348,7 +362,8 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 api = IPFSSimpleAPI(
     config_path="config.yaml",  # Optional: Load from YAML/JSON config
     role="worker",              # Override config settings
-    timeouts={"api": 30}        # Custom timeout settings
+    timeouts={"api": 30},       # Custom timeout settings
+    async_backend="asyncio"     # Use asyncio backend (alternative: 'trio')
 )
 
 # Content operations
@@ -532,6 +547,11 @@ cache:
   disk_size: 5GB
   disk_path: ~/.ipfs_kit/cache
 
+# Async backend
+async:
+  backend: asyncio  # or "trio" - selects which AnyIO backend to use
+  num_workers: 4    # Number of worker threads for background tasks
+
 # Timeouts
 timeouts:
   api: 60
@@ -583,7 +603,8 @@ from ipfs_kit_py.api import run_server
 #     config_path="config.yaml",  # Load configuration from file
 #     log_level="info",           # Logging level
 #     auth_enabled=True,          # Enable authentication
-#     cors_origins=["*"]          # CORS allowed origins
+#     cors_origins=["*"],         # CORS allowed origins
+#     async_backend="asyncio"     # Async backend (asyncio or trio)
 # )
 ```
 
@@ -915,7 +936,13 @@ The CLI respects the following environment variables:
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize with default settings (leecher role)
-kit = ipfs_kit()
+kit = ipfs_kit(
+    role="leecher",
+    metadata={
+        "async_backend": "asyncio",  # Use asyncio backend (alternative: 'trio')
+        "num_workers": 4             # Number of worker threads
+    }
+)
 
 # Add a file to IPFS (uses ipfs_add method)
 result = kit.ipfs_add("example.txt")
@@ -965,7 +992,8 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 api = IPFSSimpleAPI(
     config_path="config.yaml",  # Optional: Load from YAML/JSON config
     role="worker",              # Override config settings
-    timeouts={"api": 30}        # Custom timeout settings
+    timeouts={"api": 30},       # Custom timeout settings
+    async_backend="asyncio"     # Use asyncio backend (alternative: 'trio')
 )
 
 # Content operations
@@ -1149,6 +1177,11 @@ cache:
   disk_size: 5GB
   disk_path: ~/.ipfs_kit/cache
 
+# Async backend
+async:
+  backend: asyncio  # or "trio" - selects which AnyIO backend to use
+  num_workers: 4    # Number of worker threads for background tasks
+
 # Timeouts
 timeouts:
   api: 60
@@ -1200,7 +1233,8 @@ from ipfs_kit_py.api import run_server
 #     config_path="config.yaml",  # Load configuration from file
 #     log_level="info",           # Logging level
 #     auth_enabled=True,          # Enable authentication
-#     cors_origins=["*"]          # CORS allowed origins
+#     cors_origins=["*"],         # CORS allowed origins
+#     async_backend="asyncio"     # Async backend (asyncio or trio)
 # )
 ```
 
@@ -1393,6 +1427,7 @@ Detailed documentation for advanced features can be found in the `docs/` directo
 
 -   [Core Concepts](docs/core_concepts.md)
 -   [High-Level API](docs/high_level_api.md)
+-   [Async Architecture](docs/async_architecture.md)
 -   [Cluster Management](docs/cluster_management.md)
 -   [Cluster State Helpers](docs/cluster_state_helpers.md)
 -   [Tiered Cache System](docs/tiered_cache.md)

@@ -1,0 +1,22 @@
+{
+  "lotus_available": true,
+  "force_actual_daemon": false,
+  "custom_lotus_path": true,
+  "simulation_mode_activated": false,
+  "daemon_running": false,
+  "api_operation_success": false,
+  "daemon_restarted": true,
+  "wallet_operation_success": false,
+  "network_operation_success": false,
+  "api_result": {
+    "success": false,
+    "operation": "ID",
+    "timestamp": 1744305714.4936566,
+    "correlation_id": "766145d2-1452-4fef-b939-f48ae52797cf",
+    "daemon_restarted": true,
+    "retry_error": "HTTPConnectionPool(host='localhost', port=1234): Max retries exceeded with url: /rpc/v0 (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7cd76c44ea50>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+    "error": "Failed to connect to Lotus API: HTTPConnectionPool(host='localhost', port=1234): Max retries exceeded with url: /rpc/v0 (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7cd76c44fce0>: Failed to establish a new connection: [Errno 111] Connection refused')) (retry also failed)",
+    "error_type": "LotusConnectionError"
+  },
+  "overall_success": false
+}

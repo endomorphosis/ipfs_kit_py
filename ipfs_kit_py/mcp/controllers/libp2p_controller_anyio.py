@@ -12,6 +12,7 @@ import logging
 import time
 import warnings
 import sniffio
+import os
 from typing import Dict, List, Any, Optional, Set, Union
 
 # AnyIO import
@@ -38,17 +39,26 @@ except ImportError:
         HTTP_500_INTERNAL_SERVER_ERROR = 500
         HTTP_503_SERVICE_UNAVAILABLE = 503
 
-# Try to import libp2p dependencies
+# Try to import the dependency checker
 try:
-    from ipfs_kit_py.libp2p import HAS_LIBP2P
+    from install_libp2p import ensure_mcp_libp2p_integration, HAS_LIBP2P
+    HAS_INSTALL_LIBP2P = True
 except ImportError:
-    HAS_LIBP2P = False
+    HAS_INSTALL_LIBP2P = False
+    # Fallback to standard import if install_libp2p module is not available
+    try:
+        from ipfs_kit_py.libp2p import HAS_LIBP2P
+    except ImportError:
+        HAS_LIBP2P = False
 
 # Import our controller
 try:
     from ipfs_kit_py.mcp.controllers.libp2p_controller import (
         LibP2PController, HealthResponse, PeerDiscoveryRequest, PeerDiscoveryResponse,
-        PeerConnectionRequest, ContentRequest, ContentDataRequest, ContentProvidersResponse
+        PeerConnectionRequest, ContentRequest, ContentDataRequest, ContentProvidersResponse,
+        DHTFindPeerRequest, DHTProvideRequest, DHTFindProvidersRequest, 
+        PubSubPublishRequest, PubSubSubscribeRequest, PubSubUnsubscribeRequest,
+        MessageHandlerRequest, StartStopResponse
     )
 except ImportError:
     class LibP2PController:
@@ -60,6 +70,14 @@ except ImportError:
     class ContentRequest(BaseModel): pass
     class ContentDataRequest(BaseModel): pass
     class ContentProvidersResponse(BaseModel): pass
+    class DHTFindPeerRequest(BaseModel): pass
+    class DHTProvideRequest(BaseModel): pass
+    class DHTFindProvidersRequest(BaseModel): pass
+    class PubSubPublishRequest(BaseModel): pass
+    class PubSubSubscribeRequest(BaseModel): pass
+    class PubSubUnsubscribeRequest(BaseModel): pass
+    class MessageHandlerRequest(BaseModel): pass
+    class StartStopResponse(BaseModel): pass
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -81,8 +99,43 @@ class LibP2PControllerAnyIO(LibP2PController):
         Args:
             libp2p_model: The libp2p model instance to use
         """
+        # Check for LibP2P dependencies before initializing
+        libp2p_available = False
+        
+        # Try to use the dependency management system if available
+        if HAS_INSTALL_LIBP2P:
+            try:
+                # Check if auto-installation is enabled via environment variable
+                auto_install = os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "0") == "1"
+                
+                if auto_install:
+                    logger.info("Auto-installing LibP2P dependencies for MCP integration...")
+                    libp2p_available = ensure_mcp_libp2p_integration()
+                    if libp2p_available:
+                        logger.info("LibP2P dependencies successfully installed for MCP integration")
+                    else:
+                        logger.warning("Failed to install LibP2P dependencies for MCP integration")
+                else:
+                    # Just check if dependencies are available without installing
+                    libp2p_available = HAS_LIBP2P
+                    if not libp2p_available:
+                        logger.warning("LibP2P dependencies not available and auto-installation is disabled")
+                        logger.warning("Set IPFS_KIT_AUTO_INSTALL_DEPS=1 to enable auto-installation")
+            except Exception as e:
+                logger.error(f"Error checking LibP2P dependencies: {e}")
+                libp2p_available = False
+        else:
+            # Fall back to basic check if dependency management is not available
+            libp2p_available = HAS_LIBP2P
+            if not libp2p_available:
+                logger.warning("LibP2P dependencies not available and install_libp2p module not found")
+        
+        # Store dependency status for health check
+        self.libp2p_dependencies_available = libp2p_available
+        
+        # Initialize the parent class
         super().__init__(libp2p_model)
-        logger.info("LibP2P controller with AnyIO initialized")
+        logger.info(f"LibP2P controller with AnyIO initialized (dependencies available: {libp2p_available})")
     
     @staticmethod
     def get_backend():
@@ -163,6 +216,71 @@ class LibP2PControllerAnyIO(LibP2PController):
         self._warn_if_async_context("reset")
         return super().reset()
     
+    def start_peer(self):
+        """Start peer with warning in async context."""
+        self._warn_if_async_context("start_peer")
+        return super().start_peer()
+    
+    def stop_peer(self):
+        """Stop peer with warning in async context."""
+        self._warn_if_async_context("stop_peer")
+        return super().stop_peer()
+    
+    def dht_find_peer(self, request):
+        """Find peer in DHT with warning in async context."""
+        self._warn_if_async_context("dht_find_peer")
+        return super().dht_find_peer(request)
+    
+    def dht_provide(self, request):
+        """Provide in DHT with warning in async context."""
+        self._warn_if_async_context("dht_provide")
+        return super().dht_provide(request)
+    
+    def dht_find_providers(self, request):
+        """Find providers in DHT with warning in async context."""
+        self._warn_if_async_context("dht_find_providers")
+        return super().dht_find_providers(request)
+    
+    def pubsub_publish(self, request):
+        """Publish to pubsub with warning in async context."""
+        self._warn_if_async_context("pubsub_publish")
+        return super().pubsub_publish(request)
+    
+    def pubsub_subscribe(self, request):
+        """Subscribe to pubsub with warning in async context."""
+        self._warn_if_async_context("pubsub_subscribe")
+        return super().pubsub_subscribe(request)
+    
+    def pubsub_unsubscribe(self, request):
+        """Unsubscribe from pubsub with warning in async context."""
+        self._warn_if_async_context("pubsub_unsubscribe")
+        return super().pubsub_unsubscribe(request)
+    
+    def pubsub_get_topics(self):
+        """Get pubsub topics with warning in async context."""
+        self._warn_if_async_context("pubsub_get_topics")
+        return super().pubsub_get_topics()
+    
+    def pubsub_get_peers(self, topic=None):
+        """Get pubsub peers with warning in async context."""
+        self._warn_if_async_context("pubsub_get_peers")
+        return super().pubsub_get_peers(topic)
+    
+    def register_message_handler(self, request):
+        """Register message handler with warning in async context."""
+        self._warn_if_async_context("register_message_handler")
+        return super().register_message_handler(request)
+    
+    def unregister_message_handler(self, request):
+        """Unregister message handler with warning in async context."""
+        self._warn_if_async_context("unregister_message_handler")
+        return super().unregister_message_handler(request)
+    
+    def list_message_handlers(self):
+        """List message handlers with warning in async context."""
+        self._warn_if_async_context("list_message_handlers")
+        return super().list_message_handlers()
+    
     # Async implementation of methods
     async def health_check_async(self):
         """
@@ -181,19 +299,62 @@ class LibP2PControllerAnyIO(LibP2PController):
                 "error_type": "initialization_error"
             }
         
-        # Get health from model using anyio
-        result = await anyio.to_thread.run_sync(
-            self.libp2p_model.get_health
-        )
+        # Get detailed dependency status
+        dependency_status = {
+            "libp2p_available": hasattr(self, "libp2p_dependencies_available") and self.libp2p_dependencies_available,
+            "install_libp2p_available": HAS_INSTALL_LIBP2P,
+            "auto_install_enabled": os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "0") == "1"
+        }
         
-        # If not successful, raise HTTP exception
-        if not result.get("success") and not result.get("peer_initialized"):
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=result.get("error", "libp2p service unavailable")
+        # If dependencies are missing but installation is possible, include that info
+        if not dependency_status["libp2p_available"] and dependency_status["install_libp2p_available"]:
+            dependency_status["installation_hint"] = "Set IPFS_KIT_AUTO_INSTALL_DEPS=1 to enable auto-installation"
+        
+        try:
+            # Get health from model using anyio
+            result = await anyio.to_thread.run_sync(
+                self.libp2p_model.get_health
             )
             
-        return result
+            # Add our enhanced dependency status to the result
+            result["dependencies"] = dependency_status
+            
+            # If not successful due to missing dependencies, enhance the error message
+            if not result.get("success") and not result.get("peer_initialized"):
+                # Check if it's specifically a dependency issue
+                if not dependency_status["libp2p_available"]:
+                    result["error_type"] = "dependency_error"
+                    
+                    # Provide more helpful error message
+                    if dependency_status["install_libp2p_available"] and not dependency_status["auto_install_enabled"]:
+                        result["error"] = "LibP2P dependencies not available. Set IPFS_KIT_AUTO_INSTALL_DEPS=1 to enable auto-installation."
+                    else:
+                        result["error"] = "LibP2P dependencies not available."
+                        
+                # Still raise HTTP exception for API consistency
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=result.get("error", "libp2p service unavailable")
+                )
+                
+            return result
+            
+        except Exception as e:
+            # If we can't even check health, create a basic status response
+            if isinstance(e, HTTPException):
+                # Re-raise HTTP exceptions
+                raise
+                
+            # For other errors, return a detailed error response
+            logger.error(f"Error checking libp2p health: {e}")
+            return {
+                "success": False,
+                "libp2p_available": dependency_status["libp2p_available"],
+                "peer_initialized": False,
+                "error": f"Error checking libp2p health: {str(e)}",
+                "error_type": "health_check_error",
+                "dependencies": dependency_status
+            }
     
     async def discover_peers_async(self, request: PeerDiscoveryRequest):
         """
@@ -639,6 +800,451 @@ class LibP2PControllerAnyIO(LibP2PController):
             
         return result
     
+    async def start_peer_async(self):
+        """
+        Start the libp2p peer if it's not already running asynchronously.
+        
+        Returns:
+            dict: Start status
+        """
+        # Check if libp2p model is initialized
+        if not self.libp2p_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p model not initialized"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.start
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to start libp2p peer")
+            )
+            
+        return result
+    
+    async def stop_peer_async(self):
+        """
+        Stop the libp2p peer if it's running asynchronously.
+        
+        Returns:
+            dict: Stop status
+        """
+        # Check if libp2p model is initialized
+        if not self.libp2p_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p model not initialized"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.stop
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to stop libp2p peer")
+            )
+            
+        return result
+    
+    async def dht_find_peer_async(self, request: DHTFindPeerRequest):
+        """
+        Find a peer's addresses using the DHT asynchronously.
+        
+        Args:
+            request: DHT find peer request parameters
+        
+        Returns:
+            dict: Peer addresses information
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.dht_find_peer,
+            peer_id=request.peer_id,
+            timeout=request.timeout
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to find peer in DHT")
+            )
+            
+        return result
+    
+    async def dht_provide_async(self, request: DHTProvideRequest):
+        """
+        Announce to the DHT that we are providing a CID asynchronously.
+        
+        Args:
+            request: DHT provide request parameters
+        
+        Returns:
+            dict: Provide status
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.dht_provide,
+            cid=request.cid
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to provide content in DHT")
+            )
+            
+        return result
+    
+    async def dht_find_providers_async(self, request: DHTFindProvidersRequest):
+        """
+        Find providers for a CID using the DHT asynchronously.
+        
+        Args:
+            request: DHT find providers request parameters
+        
+        Returns:
+            dict: Provider information
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.dht_find_providers,
+            cid=request.cid,
+            timeout=request.timeout,
+            limit=request.limit
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to find providers in DHT")
+            )
+            
+        return result
+    
+    async def pubsub_publish_async(self, request: PubSubPublishRequest):
+        """
+        Publish a message to a PubSub topic asynchronously.
+        
+        Args:
+            request: PubSub publish request parameters
+        
+        Returns:
+            dict: Publish status
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.pubsub_publish,
+            topic=request.topic,
+            message=request.message
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to publish message")
+            )
+            
+        return result
+    
+    async def pubsub_subscribe_async(self, request: PubSubSubscribeRequest):
+        """
+        Subscribe to a PubSub topic asynchronously.
+        
+        Args:
+            request: PubSub subscribe request parameters
+        
+        Returns:
+            dict: Subscription status
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.pubsub_subscribe,
+            topic=request.topic,
+            handler_id=request.handler_id
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to subscribe to topic")
+            )
+            
+        return result
+    
+    async def pubsub_unsubscribe_async(self, request: PubSubUnsubscribeRequest):
+        """
+        Unsubscribe from a PubSub topic asynchronously.
+        
+        Args:
+            request: PubSub unsubscribe request parameters
+        
+        Returns:
+            dict: Unsubscription status
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.pubsub_unsubscribe,
+            topic=request.topic,
+            handler_id=request.handler_id
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to unsubscribe from topic")
+            )
+            
+        return result
+    
+    async def pubsub_get_topics_async(self):
+        """
+        Get list of subscribed PubSub topics asynchronously.
+        
+        Returns:
+            dict: Topic list
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.pubsub_get_topics
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to get topics")
+            )
+            
+        return result
+    
+    async def pubsub_get_peers_async(
+        self,
+        topic: str = Query(None, description="Optional topic to filter peers by")
+    ):
+        """
+        Get list of peers in the PubSub mesh asynchronously.
+        
+        Args:
+            topic: Optional topic to filter peers by
+            
+        Returns:
+            dict: Peer list
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.pubsub_get_peers,
+            topic=topic
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to get pubsub peers")
+            )
+            
+        return result
+    
+    async def register_message_handler_async(self, request: MessageHandlerRequest):
+        """
+        Register a new protocol message handler asynchronously.
+        
+        Args:
+            request: Message handler registration request parameters
+        
+        Returns:
+            dict: Registration status
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.register_message_handler,
+            handler_id=request.handler_id,
+            protocol_id=request.protocol_id,
+            description=request.description
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to register message handler")
+            )
+            
+        return result
+    
+    async def unregister_message_handler_async(self, request: MessageHandlerRequest):
+        """
+        Unregister a protocol message handler asynchronously.
+        
+        Args:
+            request: Message handler unregistration request parameters
+        
+        Returns:
+            dict: Unregistration status
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.unregister_message_handler,
+            handler_id=request.handler_id,
+            protocol_id=request.protocol_id
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to unregister message handler")
+            )
+            
+        return result
+    
+    async def list_message_handlers_async(self):
+        """
+        List all registered protocol message handlers asynchronously.
+        
+        Returns:
+            dict: Handler list
+        """
+        # Check if libp2p is available
+        is_available = await anyio.to_thread.run_sync(
+            self.libp2p_model.is_available
+        )
+        if not is_available:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method using anyio
+        result = await anyio.to_thread.run_sync(
+            self.libp2p_model.list_message_handlers
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to list message handlers")
+            )
+            
+        return result
+    
     def register_routes(self, router: APIRouter):
         """
         Register routes with the API router. Overrides base method to use async versions.
@@ -794,5 +1400,154 @@ class LibP2PControllerAnyIO(LibP2PController):
                 tags=["libp2p"]
             )
             self.initialized_endpoints.add("/libp2p/reset")
+            
+        # Add lifecycle management endpoints
+        if "/libp2p/start" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/start",
+                self.start_peer_async,
+                methods=["POST"],
+                response_model=StartStopResponse,
+                summary="Start peer",
+                description="Start the libp2p peer if it's not already running",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/start")
+
+        if "/libp2p/stop" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/stop",
+                self.stop_peer_async,
+                methods=["POST"],
+                response_model=StartStopResponse,
+                summary="Stop peer",
+                description="Stop the libp2p peer if it's running",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/stop")
+
+        # Add DHT operation endpoints
+        if "/libp2p/dht/find_peer" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/dht/find_peer",
+                self.dht_find_peer_async,
+                methods=["POST"],
+                summary="Find peer in DHT",
+                description="Find a peer's addresses using the DHT",
+                tags=["libp2p-dht"]
+            )
+            self.initialized_endpoints.add("/libp2p/dht/find_peer")
+
+        if "/libp2p/dht/provide" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/dht/provide",
+                self.dht_provide_async,
+                methods=["POST"],
+                summary="Provide content in DHT",
+                description="Announce to the DHT that we are providing a CID",
+                tags=["libp2p-dht"]
+            )
+            self.initialized_endpoints.add("/libp2p/dht/provide")
+
+        if "/libp2p/dht/find_providers" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/dht/find_providers",
+                self.dht_find_providers_async,
+                methods=["POST"],
+                summary="Find providers in DHT",
+                description="Find providers for a CID using the DHT",
+                tags=["libp2p-dht"]
+            )
+            self.initialized_endpoints.add("/libp2p/dht/find_providers")
+
+        # Add PubSub operation endpoints
+        if "/libp2p/pubsub/publish" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/pubsub/publish",
+                self.pubsub_publish_async,
+                methods=["POST"],
+                summary="Publish message",
+                description="Publish a message to a PubSub topic",
+                tags=["libp2p-pubsub"]
+            )
+            self.initialized_endpoints.add("/libp2p/pubsub/publish")
+
+        if "/libp2p/pubsub/subscribe" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/pubsub/subscribe",
+                self.pubsub_subscribe_async,
+                methods=["POST"],
+                summary="Subscribe to topic",
+                description="Subscribe to a PubSub topic",
+                tags=["libp2p-pubsub"]
+            )
+            self.initialized_endpoints.add("/libp2p/pubsub/subscribe")
+
+        if "/libp2p/pubsub/unsubscribe" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/pubsub/unsubscribe",
+                self.pubsub_unsubscribe_async,
+                methods=["POST"],
+                summary="Unsubscribe from topic",
+                description="Unsubscribe from a PubSub topic",
+                tags=["libp2p-pubsub"]
+            )
+            self.initialized_endpoints.add("/libp2p/pubsub/unsubscribe")
+
+        if "/libp2p/pubsub/topics" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/pubsub/topics",
+                self.pubsub_get_topics_async,
+                methods=["GET"],
+                summary="Get topics",
+                description="Get list of subscribed PubSub topics",
+                tags=["libp2p-pubsub"]
+            )
+            self.initialized_endpoints.add("/libp2p/pubsub/topics")
+
+        if "/libp2p/pubsub/peers" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/pubsub/peers",
+                self.pubsub_get_peers_async,
+                methods=["GET"],
+                summary="Get pubsub peers",
+                description="Get list of peers in the PubSub mesh",
+                tags=["libp2p-pubsub"]
+            )
+            self.initialized_endpoints.add("/libp2p/pubsub/peers")
+
+        # Add message handler management endpoints
+        if "/libp2p/handlers/register" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/handlers/register",
+                self.register_message_handler_async,
+                methods=["POST"],
+                summary="Register handler",
+                description="Register a new protocol message handler",
+                tags=["libp2p-handlers"]
+            )
+            self.initialized_endpoints.add("/libp2p/handlers/register")
+
+        if "/libp2p/handlers/unregister" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/handlers/unregister",
+                self.unregister_message_handler_async,
+                methods=["POST"],
+                summary="Unregister handler",
+                description="Unregister a protocol message handler",
+                tags=["libp2p-handlers"]
+            )
+            self.initialized_endpoints.add("/libp2p/handlers/unregister")
+
+        if "/libp2p/handlers/list" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/handlers/list",
+                self.list_message_handlers_async,
+                methods=["GET"],
+                summary="List handlers",
+                description="List all registered protocol message handlers",
+                tags=["libp2p-handlers"]
+            )
+            self.initialized_endpoints.add("/libp2p/handlers/list")
             
         logger.info(f"Registered libp2p controller routes with AnyIO support: {len(self.initialized_endpoints)} endpoints")

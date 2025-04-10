@@ -208,18 +208,18 @@ class StorageManagerAnyIO:
         backend = self.get_backend()
         if backend:
             # We're in an async context, run the async version
-            async def run_async():
-                await self._init_storage_models_async()
+            import anyio
             
-            # Run the async function in the appropriate event loop
-            if backend == "asyncio":
-                import asyncio
-                asyncio.run(run_async())
-            elif backend == "trio":
-                import trio
-                trio.run(run_async)
-            else:
-                logger.warning(f"Unknown async backend: {backend}")
+            async def run_init():
+                await self._init_storage_models_async()
+                
+            # Create a task with anyio instead of trying to create a new event loop
+            try:
+                # Use anyio.create_task if available (safer in running loop)
+                anyio.create_task(run_init())
+                logger.info("Created async task for storage model initialization")
+            except (AttributeError, RuntimeError) as e:
+                logger.warning(f"Could not create async task: {e}")
                 # Fall back to synchronous initialization
                 self._init_storage_models_sync()
         else:

@@ -19,7 +19,7 @@ The IPFS Kit project now has a comprehensive documentation suite:
 - **ipfs_dataloader.md**: Documentation of DataLoader for AI/ML integrations
 - **storage_backends.md**: Documentation of storage backend implementations
 - **metadata_index.md**: Documentation of Arrow-based metadata indexing
-- **async_architecture.md**: Documentation of async architecture and migration strategy from asyncio to anyio
+- **async_architecture.md**: Documentation of async architecture using anyio for backend-agnostic async code
 
 ### Supporting Documentation
 - **Performance Documentation**: 

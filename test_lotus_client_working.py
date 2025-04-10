@@ -85,7 +85,7 @@ def test_lotus_functionality():
     # Initialize lotus_kit with dependency installation
     kit = lotus_kit(metadata={
         "install_dependencies": True,  # Install dependencies if needed
-        "simulation_mode": False,      # Try to use real Lotus
+        "filecoin_simulation": True,   # Enable simulation mode for Filecoin
         "auto_start_daemon": False     # We'll handle the daemon manually
     })
     
@@ -107,7 +107,7 @@ def test_lotus_functionality():
     
     # Test chain head
     logger.info("Testing chain head retrieval...")
-    chain_head = kit.chain_head()
+    chain_head = kit.get_chain_head()
     if chain_head["success"]:
         logger.info(f"Chain head height: {chain_head.get('Height', 'unknown')}")
         logger.info(f"Chain head CIDs: {len(chain_head.get('Cids', []))}")
@@ -116,7 +116,7 @@ def test_lotus_functionality():
     
     # Test wallet operations
     logger.info("Testing wallet operations...")
-    wallet_list = kit.wallet_list()
+    wallet_list = kit.list_wallets()
     if wallet_list["success"]:
         wallets = wallet_list.get("result", [])
         logger.info(f"Found {len(wallets)} wallet(s)")

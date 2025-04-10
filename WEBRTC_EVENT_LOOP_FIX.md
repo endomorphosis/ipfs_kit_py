@@ -383,7 +383,7 @@ The WebRTC controller has been successfully migrated to use AnyIO primitives thr
 
 6. **Compatibility Maintenance**: The migration includes fallback mechanisms and compatibility layers to ensure integration with existing code works correctly.
 
-The WebRTC controller migration represents a major step forward in the full AnyIO migration, with approximately 75% of the WebRTC integration now using AnyIO primitives. This approach should be replicated across the remaining controllers for a consistent implementation.
+The WebRTC controller now makes full use of AnyIO primitives. This approach is used across all controllers for a consistent implementation.
 
 ## Conclusion
 

@@ -91,13 +91,20 @@ class install_lotus:
         self.resources = resources or {}
         self.metadata = metadata or {}
         
-        # Check and install system dependencies if needed
-        if self.metadata.get("auto_install_deps", True):
-            self._install_system_dependencies()
-        
         # Setup environment
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.env_path = os.environ.get("PATH", "")
+        
+        # Bin directory setup - MUST be before _install_system_dependencies
+        self.bin_path = os.path.join(self.this_dir, "bin")
+        self.bin_path = self.bin_path.replace("\\", "/")
+        self.bin_path = self.bin_path.split("/")
+        self.bin_path = "/".join(self.bin_path)
+        os.makedirs(self.bin_path, exist_ok=True)
+        
+        # Check and install system dependencies if needed
+        if self.metadata.get("auto_install_deps", True):
+            self._install_system_dependencies()
         
         # Import multiformat handler if available
         if "ipfs_multiformats" in list(self.resources.keys()):
@@ -126,12 +133,7 @@ class install_lotus:
             self.path = self.path + ":" + os.path.join(self.this_dir, "bin")
             self.path_string = "PATH=" + self.path
             
-        # Bin directory setup
-        self.bin_path = os.path.join(self.this_dir, "bin")
-        self.bin_path = self.bin_path.replace("\\", "/")
-        self.bin_path = self.bin_path.split("/")
-        self.bin_path = "/".join(self.bin_path)
-        os.makedirs(self.bin_path, exist_ok=True)
+        # Bin directory is already set up above
         
         # Temporary directory setup
         if platform.system() == "Windows":

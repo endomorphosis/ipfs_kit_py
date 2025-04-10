@@ -27,7 +27,11 @@ from importlib.util import find_spec
 from typing import Any, Callable, Dict, List, Optional, Union, Type, Tuple
 
 # Import hooks to automatically apply protocol extensions
-import ipfs_kit_py.libp2p.hooks
+try:
+    import ipfs_kit_py.libp2p.hooks
+except ImportError:
+    # This is fine if hooks aren't yet available
+    pass
 
 # Configure logger with proper name
 logger = logging.getLogger(__name__)
@@ -42,8 +46,27 @@ REQUIRED_DEPENDENCIES = [
 
 # Optional dependencies
 OPTIONAL_DEPENDENCIES = [
-    "google-protobuf"
+    "google-protobuf",
+    "eth-hash",
+    "eth-keys"
 ]
+
+# Check if we're installed with the libp2p extra
+try:
+    # Try to import pkg_resources which can check for extras
+    import pkg_resources
+    pkg = pkg_resources.working_set.by_key.get('ipfs_kit_py')
+    if pkg:
+        # Check if the libp2p extra is installed
+        extras = pkg.extras if hasattr(pkg, 'extras') else []
+        HAS_LIBP2P_EXTRA = 'libp2p' in extras
+    else:
+        HAS_LIBP2P_EXTRA = False
+except (ImportError, AttributeError):
+    # If pkg_resources isn't available or there's any error, assume no extras
+    HAS_LIBP2P_EXTRA = False
+
+logger.debug(f"libp2p extra detected: {HAS_LIBP2P_EXTRA}")
 
 # Module-level state
 HAS_LIBP2P = False  # Flag indicating if libp2p is available
@@ -70,6 +93,11 @@ def check_dependencies() -> bool:
         logger.debug("Dependencies already checked, returning cached result")
         return HAS_LIBP2P
 
+    # If we've detected that the libp2p extra is installed, we can assume all 
+    # required dependencies are available, but still verify to be sure
+    if HAS_LIBP2P_EXTRA:
+        logger.debug("libp2p extra detected, dependencies should be available")
+    
     all_available = True
     missing_deps = []
 
@@ -89,14 +117,29 @@ def check_dependencies() -> bool:
     DEPENDENCIES_CHECKED = True
 
     if not all_available:
-        logger.warning(f"Missing libp2p dependencies: {', '.join(missing_deps)}")
+        # If libp2p extra is installed but dependencies are missing, this is unexpected
+        if HAS_LIBP2P_EXTRA:
+            logger.warning(f"Missing libp2p dependencies despite libp2p extra being installed: {', '.join(missing_deps)}")
+            # This might indicate an installation issue or version mismatch
+            logger.warning("Try reinstalling the package with `pip install -e .[libp2p]` or check for version conflicts")
+        else:
+            logger.warning(f"Missing libp2p dependencies: {', '.join(missing_deps)}")
+            logger.warning("Install with `pip install ipfs_kit_py[libp2p]` to enable libp2p functionality")
 
         # Attempt auto-installation if enabled
         if AUTO_INSTALL:
             logger.info("Auto-install enabled, attempting to install missing dependencies")
             try:
-                logger.info("Attempting to auto-install missing dependencies...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", *missing_deps])
+                if HAS_LIBP2P_EXTRA:
+                    # If libp2p extra is installed but dependencies are missing, try reinstalling
+                    logger.info("Reinstalling ipfs_kit_py with libp2p extras...")
+                    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "ipfs_kit_py[libp2p]"]
+                else:
+                    # Otherwise just install the missing dependencies directly
+                    logger.info("Attempting to auto-install missing dependencies...")
+                    cmd = [sys.executable, "-m", "pip", "install", *missing_deps]
+                
+                subprocess.check_call(cmd)
 
                 # Force recheck after installation
                 DEPENDENCIES_CHECKED = False
@@ -108,13 +151,32 @@ def check_dependencies() -> bool:
         else:
             logger.debug("Auto-install disabled, skipping installation attempt")
 
+    # Check optional dependencies if required ones are available
+    if all_available:
+        optional_available = []
+        optional_missing = []
+        
+        for dep in OPTIONAL_DEPENDENCIES:
+            try:
+                importlib.import_module(dep)
+                optional_available.append(dep)
+                logger.debug(f"Optional dependency {dep} is available")
+            except (ImportError, ModuleNotFoundError):
+                optional_missing.append(dep)
+                logger.debug(f"Optional dependency {dep} is missing")
+                
+        if optional_missing:
+            logger.info(f"Optional dependencies missing: {', '.join(optional_missing)}")
+            logger.info("Some advanced functionality may be limited")
+
     return all_available
 
 def install_dependencies(force: bool = False) -> bool:
     """
     Attempt to install required dependencies for libp2p functionality.
     
-    This function tries to install all the required dependencies using pip.
+    This function first tries to install the libp2p extras package,
+    and if that fails, falls back to installing individual dependencies.
     It also attempts to install optional dependencies, but doesn't fail if
     those installations don't succeed.
     
@@ -125,7 +187,7 @@ def install_dependencies(force: bool = False) -> bool:
     Returns:
         bool: True if installation succeeded, False otherwise
     """
-    global HAS_LIBP2P, _attempted_install, DEPENDENCIES_CHECKED
+    global HAS_LIBP2P, _attempted_install, DEPENDENCIES_CHECKED, HAS_LIBP2P_EXTRA
 
     # Skip if we've already tried or dependencies are available and not forcing
     if (_attempted_install and not force) or (HAS_LIBP2P and not force):
@@ -136,20 +198,48 @@ def install_dependencies(force: bool = False) -> bool:
         return HAS_LIBP2P
 
     _attempted_install = True
-    logger.info(f"Installing libp2p dependencies: {', '.join(REQUIRED_DEPENDENCIES)}")
-
+    
+    # First, check if we're in a pip-installable package
+    # Try to get the package location to determine if we're in development mode
+    package_location = None
     try:
-        # Install required dependencies with pip upgrade
-        install_cmd = [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--upgrade"  # Ensure we get the latest versions
-        ]
-        
-        # Add dependencies
-        install_cmd.extend(REQUIRED_DEPENDENCIES)
+        import ipfs_kit_py
+        package_location = os.path.dirname(os.path.dirname(ipfs_kit_py.__file__))
+        logger.debug(f"Package location: {package_location}")
+    except (ImportError, AttributeError):
+        # Package not installed, likely in development mode
+        package_location = os.getcwd()
+        logger.debug(f"Assuming development mode in: {package_location}")
+    
+    # Try to detect if we're in a git repository (development mode)
+    in_dev_mode = os.path.exists(os.path.join(package_location, '.git'))
+    logger.debug(f"Development mode detected: {in_dev_mode}")
+    
+    # Try to install using extras first
+    logger.info("Attempting to install libp2p dependencies via package extras")
+    
+    try:
+        if in_dev_mode:
+            # If in development mode, install with -e flag
+            install_cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-e", 
+                f"{package_location}[libp2p]",
+                "--upgrade"
+            ]
+        else:
+            # Normal installation
+            install_cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "ipfs_kit_py[libp2p]",
+                "--upgrade"
+            ]
         
         # Run the installation
         logger.debug(f"Running: {' '.join(install_cmd)}")
@@ -163,13 +253,41 @@ def install_dependencies(force: bool = False) -> bool:
         
         # Log detailed output for debugging
         if result.returncode == 0:
-            logger.debug("Required dependencies installed successfully")
+            logger.debug("Installation with extras succeeded")
+            HAS_LIBP2P_EXTRA = True
             for line in result.stdout.splitlines():
                 if "Installing" in line or "Requirement already satisfied" in line:
                     logger.debug(f"Pip: {line.strip()}")
         else:
-            logger.error(f"Failed to install required dependencies: {result.stderr.strip()}")
-            return False
+            # If extras installation fails, fall back to individual dependencies
+            logger.warning(f"Failed to install with extras: {result.stderr.strip()}")
+            logger.info(f"Falling back to installing individual dependencies: {', '.join(REQUIRED_DEPENDENCIES)}")
+            
+            # Install required dependencies with pip upgrade
+            dep_install_cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--upgrade"
+            ]
+            
+            # Add dependencies
+            dep_install_cmd.extend(REQUIRED_DEPENDENCIES)
+            
+            # Run the installation
+            logger.debug(f"Running: {' '.join(dep_install_cmd)}")
+            dep_result = subprocess.run(
+                dep_install_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False
+            )
+            
+            if dep_result.returncode != 0:
+                logger.error(f"Failed to install dependencies: {dep_result.stderr.strip()}")
+                return False
 
         # Try installing optional dependencies
         try:

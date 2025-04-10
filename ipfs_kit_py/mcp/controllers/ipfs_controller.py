@@ -2469,60 +2469,6 @@ class IPFSController:
                 status_code=500,
                 detail=f"Error getting node ID: {str(e)}"
             )
-                    "operation_id": operation_id,
-                    "duration_ms": (time.time() - start_time) * 1000,
-                    "path": path,
-                    "content": simulated_content,
-                    "data": simulated_content,  # Include both field names for compatibility
-                    "size": len(simulated_content),
-                    "offset": offset,
-                    "count": count,
-                    "simulated": True
-                }
-            
-            # Standardize response: ensure content field exists (might be 'data' in some responses)
-            if "content" not in result and "data" in result:
-                result["content"] = result["data"]
-            elif "data" not in result and "content" in result:
-                result["data"] = result["content"]
-            
-            # Add metadata for reference
-            result["path"] = path
-            result["offset"] = offset
-            result["count"] = count
-                
-            # Add operation tracking fields for consistency
-            if "operation_id" not in result:
-                result["operation_id"] = operation_id
-                
-            if "duration_ms" not in result:
-                result["duration_ms"] = (time.time() - start_time) * 1000
-                
-            # Ensure success field
-            if "success" not in result:
-                result["success"] = True
-                
-            # Add size information if not present
-            if "size" not in result and "content" in result:
-                result["size"] = len(result["content"]) if result["content"] else 0
-                
-            logger.debug(f"Read file from MFS path {path}: size={result.get('size', 'unknown')}")
-            return result
-        except Exception as e:
-            # Handle unexpected errors
-            logger.exception(f"Unexpected error reading file from MFS path {path}: {e}")
-            
-            # Return error response
-            return {
-                "success": False,
-                "operation_id": operation_id,
-                "duration_ms": (time.time() - start_time) * 1000,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "path": path,
-                "offset": offset,
-                "count": count
-            }
     
     async def write_file(self, path: str, content: Union[str, bytes] = Body(...), 
                         create: bool = True, truncate: bool = True,
@@ -3815,61 +3761,6 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__
             }
-                            json_content = None
-                            json_filename = None
-                
-                logger.debug(f"Extracted JSON content: {json_content is not None}, filename: {json_filename}")
-                
-                if json_content is None:
-                    # For testing - return a simulated success response with a test CID
-                    # This helps make tests pass reliably
-                    if 'test' in str(content_request).lower():
-                        logger.info("Detected possible test request with no content - returning simulated response")
-                        return {
-                            "success": True,
-                            "operation_id": operation_id,
-                            "duration_ms": 0.5,
-                            "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                            "Hash": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                            "content_size_bytes": 16,
-                            "simulated": True
-                        }
-                    
-                    return {
-                        "success": False,
-                        "operation_id": operation_id,
-                        "duration_ms": (time.time() - start_time) * 1000,
-                        "error": "Missing 'content' field in JSON request",
-                        "error_type": "ValidationError",
-                        "cid": None,
-                        "Hash": None,
-                        "content_size_bytes": None
-                    }
-                
-                result = self.ipfs_model.add_content(
-                    content=json_content,
-                    filename=json_filename
-                )
-                
-                # Ensure Hash and cid fields are present
-                if result.get("success", False) and "Hash" in result and "cid" not in result:
-                    result["cid"] = result["Hash"]
-                
-                return result
-                
-            # Case 4: No content available - for testing we'll return a simulated response
-            # This makes tests more reliable
-            logger.debug("No standard content found, returning simulated response for testing")
-            return {
-                "success": True,
-                "operation_id": operation_id,
-                "duration_ms": 0.5,
-                "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                "Hash": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                "content_size_bytes": 16,
-                "simulated": True
-            }
-                
         except Exception as e:
             logger.error(f"Error handling add request: {e}")
             duration_ms = (time.time() - start_time) * 1000
@@ -3884,6 +3775,7 @@ class IPFSController:
                 "content_size_bytes": 16,
                 "simulated": True
             }
+            
     def dag_put(self, dag_request: DAGPutRequest) -> DAGPutResponse:
         """
         Add a DAG node to IPFS.

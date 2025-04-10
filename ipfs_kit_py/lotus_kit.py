@@ -115,8 +115,13 @@ class lotus_kit:
         # Initialize monitor (lazy loading)
         self._monitor = None
         
-        # Auto-start daemon flag
-        self.auto_start_daemon = self.metadata.get("auto_start_daemon", False)
+        # Auto-start daemon flag - default to True for automatic daemon management
+        self.auto_start_daemon = self.metadata.get("auto_start_daemon", True)
+        
+        # Track daemon health status
+        self._daemon_health_check_interval = self.metadata.get("daemon_health_check_interval", 60)  # seconds
+        self._last_daemon_health_check = 0
+        self._daemon_started_by_us = False
         
         # Check and install dependencies if needed
         install_deps = self.metadata.get("install_dependencies", True)
@@ -209,12 +214,187 @@ class lotus_kit:
         
         # If auto-start is enabled, ensure daemon is running
         if self.auto_start_daemon and not self.simulation_mode:
-            daemon_start_result = self.daemon_start()
-            if not daemon_start_result.get("success", False):
-                logger.warning(f"Failed to auto-start Lotus daemon: {daemon_start_result.get('error', 'Unknown error')}")
-            else:
-                logger.info("Lotus daemon started successfully during initialization")
+            # First check if daemon is already running
+            try:
+                daemon_status = self.daemon_status()
+                if daemon_status.get("process_running", False):
+                    logger.info(f"Found existing Lotus daemon running (PID: {daemon_status.get('pid')})")
+                else:
+                    # Start the daemon
+                    logger.info("Attempting to start Lotus daemon...")
+                    daemon_start_result = self.daemon_start()
+                    if not daemon_start_result.get("success", False):
+                        logger.warning(f"Failed to auto-start Lotus daemon: {daemon_start_result.get('error', 'Unknown error')}")
+                        # If we have a specific error, provide more detailed troubleshooting guidance
+                        if "lock" in daemon_start_result.get("error", "").lower():
+                            logger.warning("Daemon failed to start due to lock issue. Try manually removing locks with `lotus daemon stop --force`")
+                        elif "permission" in daemon_start_result.get("error", "").lower():
+                            logger.warning("Daemon failed to start due to permission issues. Check ownership of Lotus directory.")
+                    else:
+                        self._daemon_started_by_us = True
+                        logger.info(f"Lotus daemon started successfully during initialization (PID: {daemon_start_result.get('pid')})")
+                        # Record when we started it
+                        self._last_daemon_health_check = time.time()
+                
+                # Store initial daemon health status
+                self._record_daemon_health(daemon_status if daemon_status.get("process_running", False) else daemon_start_result)
+                
+            except Exception as e:
+                logger.error(f"Error during daemon auto-start check: {str(e)}")
+                # Fall back to basic start attempt
+                try:
+                    daemon_start_result = self.daemon_start()
+                    if daemon_start_result.get("success", False):
+                        self._daemon_started_by_us = True
+                        logger.info("Lotus daemon started successfully during initialization after error recovery")
+                except Exception as start_error:
+                    logger.error(f"Failed to start daemon during error recovery: {str(start_error)}")
         
+    def __del__(self):
+        """Clean up resources when object is garbage collected.
+        
+        This method ensures proper shutdown of the daemon if we started it
+        to maintain a clean system state.
+        """
+        try:
+            # Only attempt to stop the daemon if we started it
+            if hasattr(self, '_daemon_started_by_us') and self._daemon_started_by_us:
+                # Don't try to do this during interpreter shutdown
+                if sys and logging:
+                    logger.debug("Shutting down Lotus daemon during cleanup")
+                    try:
+                        # Stop the daemon gracefully
+                        self.daemon_stop(force=False)
+                    except Exception as e:
+                        if logger:
+                            logger.debug(f"Error during daemon shutdown in __del__: {e}")
+                            
+        except (TypeError, AttributeError, ImportError):
+            # These can occur during interpreter shutdown
+            pass
+        
+    def _record_daemon_health(self, status_dict):
+        """Record daemon health status for monitoring.
+        
+        Args:
+            status_dict: Status dictionary from daemon_status or daemon_start
+        """
+        # Store the timestamp of this check
+        self._last_daemon_health_check = time.time()
+        # We would store more detailed health metrics here if needed
+    
+    def _check_daemon_health(self):
+        """Check daemon health and restart if necessary.
+        
+        Returns:
+            bool: True if daemon is healthy, False otherwise
+        """
+        # Only check if we're in auto-start mode and not in simulation mode
+        if not self.auto_start_daemon or self.simulation_mode:
+            return True
+            
+        # Only check periodically to avoid excessive API calls
+        current_time = time.time()
+        time_since_last_check = current_time - self._last_daemon_health_check
+        
+        if time_since_last_check < self._daemon_health_check_interval:
+            # Not time to check yet
+            return True
+            
+        # Check daemon status
+        try:
+            daemon_status = self.daemon_status()
+            self._record_daemon_health(daemon_status)
+            
+            # If not running and we previously started it, try to restart
+            if not daemon_status.get("process_running", False) and self._daemon_started_by_us:
+                logger.warning("Lotus daemon appears to have stopped unexpectedly, attempting to restart")
+                daemon_start_result = self.daemon_start()
+                if daemon_start_result.get("success", False):
+                    logger.info("Successfully restarted Lotus daemon after unexpected stop")
+                    return True
+                else:
+                    logger.error(f"Failed to restart Lotus daemon: {daemon_start_result.get('error', 'Unknown error')}")
+                    return False
+                    
+            # Return health status
+            return daemon_status.get("process_running", False)
+            
+        except Exception as e:
+            logger.error(f"Error checking daemon health: {str(e)}")
+            return False
+            
+    def _ensure_daemon_running(self):
+        """Ensure the Lotus daemon is running before API operations.
+        
+        This method is called before making API requests to ensure
+        the daemon is running and healthy. If auto_start_daemon is enabled
+        and the daemon isn't running, it will attempt to start it.
+        
+        Returns:
+            bool: True if the daemon is running or in simulation mode, False otherwise
+        """
+        # Skip check if we're in simulation mode
+        if self.simulation_mode:
+            return True
+            
+        # Check daemon health - this includes periodic restart if needed
+        daemon_healthy = self._check_daemon_health()
+        
+        # If not healthy but auto-start is enabled, try to start it
+        if not daemon_healthy and self.auto_start_daemon:
+            # Try to start the daemon
+            logger.info("Daemon not running, attempting to start automatically")
+            start_result = self.daemon_start()
+            if start_result.get("success", False):
+                logger.info("Started Lotus daemon automatically before API operation")
+                return True
+            else:
+                logger.warning(f"Failed to auto-start Lotus daemon: {start_result.get('error', 'Unknown error')}")
+                
+                # Check if we're in simulation mode fallback
+                if start_result.get("status") == "simulation_mode_fallback":
+                    logger.info("Using simulation mode as fallback")
+                    self.simulation_mode = True
+                    return True
+                    
+                return False
+                
+        return daemon_healthy
+        
+    def _with_daemon_check(self, operation):
+        """Decorator-like function to run operations with daemon health checks.
+        
+        This helper method wraps API operations to ensure the daemon is running
+        before attempting the operation. For operations that already implement
+        simulation mode, it falls back to simulation if the daemon can't be started.
+        
+        Args:
+            operation: Function name to create result dictionary
+            
+        Returns:
+            dict: Result dictionary with appropriate error if daemon not available
+        """
+        result = create_result_dict(operation, self.correlation_id)
+        
+        # Skip check if we're in simulation mode - methods will handle appropriately
+        if self.simulation_mode:
+            return None  # No error, proceed with operation
+            
+        # Try to ensure daemon is running
+        if not self._ensure_daemon_running():
+            # Failed to start daemon - return error result
+            result["success"] = False
+            result["error"] = "Lotus daemon is not running and auto-start failed"
+            result["error_type"] = "daemon_not_running"
+            result["simulation_mode"] = self.simulation_mode  # Will be false here
+            
+            logger.error(f"Cannot execute {operation}: daemon not running and auto-start failed")
+            return result
+            
+        # Daemon is running, operation can proceed
+        return None
+            
     def _check_and_install_dependencies(self):
         """Check if required dependencies are available and install if possible.
         
@@ -232,13 +412,14 @@ class lotus_kit:
             
         try:
             # Try to import and use the install_lotus module
-            from install_lotus import install_lotus
+            from install_lotus import install_lotus as LotusInstaller
             
             # Create installer with auto_install_deps set to True
             installer_metadata = {
                 "auto_install_deps": True,
                 "force": False,  # Only install if not already installed
-                "skip_params": True,  # Skip parameter download for faster setup
+                "skip_params": True,  # Skip parameter download for faster setup,
+                "bin_dir": os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "bin")
             }
             
             # If we have any relevant metadata in self.metadata, use it
@@ -247,12 +428,29 @@ class lotus_kit:
                     installer_metadata["lotus_path"] = self.metadata["lotus_path"]
                 if "version" in self.metadata:
                     installer_metadata["version"] = self.metadata["version"]
+                if "bin_dir" in self.metadata:
+                    installer_metadata["bin_dir"] = self.metadata["bin_dir"]
                     
             # Create installer with resources and metadata
-            installer = install_lotus(resources=self.resources, metadata=installer_metadata)
-            
-            # Install Lotus daemon
-            install_result = installer.install_lotus_daemon()
+            try:
+                # Debug log the metadata we're using
+                logger.debug(f"Creating LotusInstaller with metadata: {installer_metadata}")
+                
+                # Create installer instance
+                installer = LotusInstaller(resources=self.resources, metadata=installer_metadata)
+                
+                # Debug log the installer attributes
+                logger.debug(f"LotusInstaller created, dir(installer): {dir(installer)}")
+                
+                # Install Lotus daemon
+                logger.debug(f"Calling install_lotus_daemon()")
+                install_result = installer.install_lotus_daemon()
+                logger.debug(f"install_lotus_daemon() result: {install_result}")
+            except Exception as e:
+                logger.error(f"Detailed error creating/using LotusInstaller: {e}")
+                if hasattr(installer, '__dict__'):
+                    logger.debug(f"installer.__dict__: {installer.__dict__}")
+                raise
             
             if install_result:
                 # Update global availability flags
@@ -570,7 +768,8 @@ class lotus_kit:
         
         This method delegates to the lotus_daemon's daemon_start method,
         handling all platform-specific details of starting a Lotus daemon
-        (systemd, Windows service, or direct process).
+        (systemd, Windows service, or direct process). It also updates
+        internal tracking for automatic daemon management.
         
         Args:
             **kwargs: Additional arguments for daemon startup including:
@@ -579,6 +778,8 @@ class lotus_kit:
                 - api_port: Override default API port
                 - p2p_port: Override default P2P port
                 - correlation_id: ID for tracking operations
+                - check_initialization: Whether to check and attempt repo initialization
+                - force_restart: Force restart even if daemon is running
                 
         Returns:
             dict: Result dictionary with operation outcome
@@ -586,20 +787,44 @@ class lotus_kit:
         operation = "lotus_daemon_start"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict(operation, correlation_id)
+        force_restart = kwargs.get("force_restart", False)
         
         try:
+            # Check if daemon is already running (unless force_restart is requested)
+            if not force_restart:
+                try:
+                    daemon_status = self.daemon_status()
+                    if daemon_status.get("process_running", False):
+                        logger.info(f"Lotus daemon already running (PID: {daemon_status.get('pid')})")
+                        result.update(daemon_status)
+                        result["success"] = True
+                        result["status"] = "already_running"
+                        result["message"] = "Lotus daemon is already running"
+                        return result
+                except Exception as check_error:
+                    # Just log the error and proceed with start attempt
+                    logger.debug(f"Error checking if daemon is running: {str(check_error)}")
+            
             # Use the daemon property to ensure it's initialized
             daemon_start_result = self.daemon.daemon_start(**kwargs)
             
             # Update our result with the daemon's result
             result.update(daemon_start_result)
             
-            # Log the result
+            # Update internal tracking if start was successful
             if result.get("success", False):
+                self._daemon_started_by_us = True
+                self._record_daemon_health(result)
                 logger.info(f"Lotus daemon started successfully: {result.get('status', 'running')}")
             else:
                 logger.error(f"Failed to start Lotus daemon: {result.get('error', 'Unknown error')}")
                 
+                # Check if we can operate in simulation mode as a fallback
+                if "simulation_mode_fallback" in result.get("status", ""):
+                    logger.info("Successfully switched to simulation mode as fallback")
+                    # Update simulation mode flag since it will handle subsequent operations
+                    self.simulation_mode = True
+            
             return result
             
         except Exception as e:
@@ -617,6 +842,7 @@ class lotus_kit:
             **kwargs: Additional arguments for daemon shutdown including:
                 - force: Whether to force kill the process
                 - correlation_id: ID for tracking operations
+                - clean_environment: Whether to clean environment variables
                 
         Returns:
             dict: Result dictionary with operation outcome
@@ -624,19 +850,47 @@ class lotus_kit:
         operation = "lotus_daemon_stop"
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict(operation, correlation_id)
+        clean_environment = kwargs.get("clean_environment", True)
         
         try:
+            # First check if daemon is running to avoid unnecessary work
+            daemon_status = self.daemon_status()
+            if not daemon_status.get("process_running", False):
+                logger.info("Lotus daemon is not running, no need to stop")
+                result["success"] = True
+                result["status"] = "not_running"
+                result["message"] = "Lotus daemon is not running"
+                return result
+            
             # Use the daemon property to ensure it's initialized
             daemon_stop_result = self.daemon.daemon_stop(**kwargs)
             
             # Update our result with the daemon's result
             result.update(daemon_stop_result)
             
-            # Log the result
+            # Update internal tracking if stop was successful
             if result.get("success", False):
+                self._daemon_started_by_us = False
                 logger.info("Lotus daemon stopped successfully")
+                
+                # Optionally clean environment variables
+                if clean_environment:
+                    if "LOTUS_SKIP_DAEMON_LAUNCH" in os.environ:
+                        del os.environ["LOTUS_SKIP_DAEMON_LAUNCH"]
+                    
             else:
                 logger.error(f"Failed to stop Lotus daemon: {result.get('error', 'Unknown error')}")
+                
+                # If this is a force request and we still failed, try a more aggressive approach
+                if kwargs.get("force", False) and not result.get("success", False):
+                    logger.warning("Force stop failed, attempting SIGKILL as last resort")
+                    # Try with direct SIGKILL approach - modify kwargs in-place to avoid large code duplication
+                    kwargs["force"] = "SIGKILL"  # Specific keyword to trigger SIGKILL in daemon implementation
+                    last_resort_result = self.daemon.daemon_stop(**kwargs)
+                    if last_resort_result.get("success", False):
+                        logger.info("Lotus daemon stopped successfully with SIGKILL")
+                        result.update(last_resort_result)
+                        self._daemon_started_by_us = False
                 
             return result
             
@@ -663,6 +917,9 @@ class lotus_kit:
         try:
             # Use the daemon property to ensure it's initialized
             daemon_status_result = self.daemon.daemon_status(**kwargs)
+            
+            # Record health check
+            self._record_daemon_health(daemon_status_result)
             
             # Update our result with the daemon's result
             result.update(daemon_status_result)
@@ -1046,6 +1303,9 @@ class lotus_kit:
     def client_import(self, file_path, **kwargs):
         """Import a file into the Lotus client.
         
+        This method imports a file into the Lotus client and ensures
+        the daemon is running before attempting the operation.
+        
         Args:
             file_path (str): Path to the file to import.
             
@@ -1060,6 +1320,12 @@ class lotus_kit:
             # Check if file exists
             if not os.path.isfile(file_path):
                 return handle_error(result, LotusValidationError(f"File not found: {file_path}"))
+            
+            # Ensure daemon is running before proceeding
+            daemon_check_result = self._with_daemon_check(operation)
+            if daemon_check_result:
+                # Daemon check failed, return the error result
+                return daemon_check_result
             
             # If in simulation mode, simulate file import
             if self.simulation_mode:

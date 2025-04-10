@@ -1,8 +1,8 @@
-# Async Architecture and Anyio Migration Guide
+# Async Architecture Guide
 
 ## Overview
 
-This document outlines the async architecture of the ipfs_kit_py project and the migration strategy from asyncio to anyio. The goal is to provide a more flexible async runtime that can work with multiple backends (asyncio, trio, curio) while simplifying the async code.
+This document outlines the async architecture of the ipfs_kit_py project, which uses anyio to provide a flexible async runtime that works with multiple backends (asyncio, trio, curio) while simplifying the async code.
 
 ## Why Anyio?
 
@@ -17,38 +17,37 @@ This document outlines the async architecture of the ipfs_kit_py project and the
 
 By adopting anyio, we enhance the flexibility of ipfs_kit_py while making the async code more robust and maintainable.
 
-## Migration Strategy
+## AnyIO Architecture Components
 
-### Phase 1: Dependency and Infrastructure Setup ✅
+IPFS Kit uses AnyIO throughout its codebase to enable flexible async backends. The key architectural components include:
 
-- Add anyio as a project dependency ✅
-- Create documentation for anyio migration (this document)
-- Update development guidelines to promote anyio usage
+### Core Async Utilities
 
-### Phase 2: Core Infrastructure Migration
+- Base async utilities and helper functions
+- Common patterns for cancellation, timeout handling, and resource management
+- Backend-agnostic task creation and management
 
-- Update base async utilities and helper functions
-- Migrate the following core components first:
-  - WebSocket peer discovery
-  - Async HTTP clients
-  - Event handling systems
-  - Connection management
+### Networking Components
 
-### Phase 3: Feature Migration
+- WebSocket-based peer discovery using AnyIO
+- Async HTTP clients with proper cancelation and timeout handling
+- Event handling systems for async notifications
+- Connection management with proper cleanup
 
-- Migrate remaining async features:
-  - Streaming components
-  - Async filesystem operations
-  - Resource management
-  - Task scheduling
+### Feature Implementation
 
-### Phase 4: Tooling and Testing
+- Streaming components for efficient content transfer
+- Async filesystem operations with proper resource handling
+- Resource management with structured cleanup
+- Task scheduling with cancellation support
 
-- Update testing infrastructure for anyio compatibility
-- Add anyio-specific testing utilities
-- Create benchmarks to compare performance
+### Testing Infrastructure
 
-## Migration Guidelines
+- AnyIO-compatible testing utilities
+- Support for both asyncio and trio backends in tests
+- Performance benchmarking across different backends
+
+## Implementation Guidelines
 
 ### Direct Replacements
 
@@ -322,7 +321,27 @@ Similar patterns were applied when migrating the Write-Ahead Log WebSocket imple
    - Implementing proper cancellation handling with task groups.
    - Using `task_group.__aenter__()` and `task_group.__aexit__()` for explicit control when needed.
 
-These implementation examples demonstrate how the migration to anyio improves code readability, robustness, and maintainability while enabling backend flexibility.
+These implementation examples demonstrate how using anyio improves code readability, robustness, and maintainability while enabling backend flexibility.
+
+## AnyIO Implementation Examples
+
+The WebRTC controller demonstrates effective use of AnyIO primitives throughout its implementation.
+
+### Key Implementation Patterns:
+
+1. **Full AnyIO Implementation**: The WebRTC controller (`ipfs_kit_py/mcp/controllers/webrtc_controller.py`) exclusively uses AnyIO for asynchronous operations instead of asyncio.
+
+2. **Thread Safety**: All synchronous operations use `anyio.to_thread.run_sync()` for proper thread handling, which works in both asyncio and trio contexts.
+
+3. **Simplified Task Management**: Task creation and cancellation use straightforward AnyIO patterns that work across backends.
+
+4. **Structured Error Handling**: AnyIO's cancellation handling provides cleaner error recovery.
+
+5. **Controller-Level Async Methods**: All controller methods natively support async/await patterns for better integration with FastAPI.
+
+6. **Backward Compatibility**: Where needed, compatibility layers ensure integration with existing code works correctly.
+
+These patterns are replicated across controllers for a consistent implementation.
 
 ## References
 
