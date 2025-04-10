@@ -6,7 +6,7 @@ cache operations using asyncio. It demonstrates basic operations, batch processi
 and typical usage patterns in an asyncio-based application.
 """
 
-import asyncio
+import anyio
 import time
 import os
 import logging

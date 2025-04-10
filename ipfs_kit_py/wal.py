@@ -957,6 +957,20 @@ class WAL:
             }
 
 
+    def process_operation(self, operation_id: str) -> Dict[str, Any]:
+        """
+        Process a specific operation (alias for execute_operation).
+        This method is provided for compatibility with tests and external integrations.
+        
+        Args:
+            operation_id: ID of the operation to process
+            
+        Returns:
+            Dictionary with processing results
+        """
+        return self.execute_operation(operation_id)
+
+
 # Export key classes and enums
 __all__ = [
     'WAL',

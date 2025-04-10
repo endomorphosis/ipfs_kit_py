@@ -15,7 +15,7 @@ Requirements:
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import mimetypes
 import os

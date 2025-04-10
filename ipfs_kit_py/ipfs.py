@@ -318,10 +318,12 @@ class ipfs_py:
         """Start the IPFS daemon with standardized error handling.
 
         Attempts to start the daemon first via systemctl (if running as root)
-        and falls back to direct daemon invocation if needed.
+        and falls back to direct daemon invocation if needed. Now includes
+        lock file detection and handling to prevent startup failures.
 
         Args:
             **kwargs: Additional arguments for daemon startup
+            remove_stale_lock: Boolean indicating whether to remove stale lock files (default: True)
 
         Returns:
             Result dictionary with operation outcome
@@ -329,6 +331,7 @@ class ipfs_py:
         operation = "daemon_start"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
+        remove_stale_lock = kwargs.get("remove_stale_lock", True)
 
         # Get cluster name if applicable
         cluster_name = None
@@ -356,6 +359,64 @@ class ipfs_py:
         except Exception as e:
             # Not critical if this fails, continue with starting attempts
             logger.debug(f"Error checking if daemon is already running: {str(e)}")
+
+        # Check for lock file and handle it if needed
+        repo_lock_path = os.path.join(os.path.expanduser(self.ipfs_path), "repo.lock")
+        lock_file_exists = os.path.exists(repo_lock_path)
+        
+        if lock_file_exists:
+            logger.info(f"IPFS lock file detected at {repo_lock_path}")
+            
+            # Check if lock file is stale (no corresponding process running)
+            lock_is_stale = True
+            try:
+                with open(repo_lock_path, 'r') as f:
+                    lock_content = f.read().strip()
+                    # Lock file typically contains the PID of the locking process
+                    if lock_content and lock_content.isdigit():
+                        pid = int(lock_content)
+                        # Check if process with this PID exists
+                        try:
+                            # Sending signal 0 checks if process exists without actually sending a signal
+                            os.kill(pid, 0)
+                            # If we get here, process exists, so lock is NOT stale
+                            lock_is_stale = False
+                            logger.info(f"Lock file belongs to active process with PID {pid}")
+                        except OSError:
+                            # Process does not exist, lock is stale
+                            logger.info(f"Stale lock file detected - no process with PID {pid} is running")
+                    else:
+                        logger.debug(f"Lock file doesn't contain a valid PID: {lock_content}")
+            except Exception as e:
+                logger.warning(f"Error reading lock file: {str(e)}")
+            
+            result["lock_file_detected"] = True
+            result["lock_file_path"] = repo_lock_path
+            result["lock_is_stale"] = lock_is_stale
+            
+            # Remove stale lock file if requested
+            if lock_is_stale and remove_stale_lock:
+                try:
+                    os.remove(repo_lock_path)
+                    logger.info(f"Removed stale lock file: {repo_lock_path}")
+                    result["lock_file_removed"] = True
+                    result["success"] = True  # Mark as success when handling stale lock
+                except Exception as e:
+                    logger.error(f"Failed to remove stale lock file: {str(e)}")
+                    result["lock_file_removed"] = False
+                    result["lock_removal_error"] = str(e)
+            elif not lock_is_stale:
+                # Lock file belongs to a running process, daemon is likely running
+                result["success"] = True
+                result["status"] = "already_running" 
+                result["message"] = "IPFS daemon appears to be running (active lock file found)"
+                return result
+            elif lock_is_stale and not remove_stale_lock:
+                # Stale lock file exists but we're not removing it
+                result["success"] = False
+                result["error"] = "Stale lock file detected but removal not requested"
+                result["error_type"] = "stale_lock_file"
+                return result
 
         # Track which methods we attempt and their results
         start_attempts = {}
@@ -430,15 +491,40 @@ class ipfs_py:
 
                 # Check if process is still running
                 if daemon_process.poll() is None:
-                    # Process is still running, assume success
-                    start_attempts["direct"] = {"success": True, "pid": daemon_process.pid}
-
-                    result["success"] = True
-                    result["status"] = "started_via_direct_invocation"
-                    result["message"] = "IPFS daemon started via direct invocation"
-                    result["method"] = "direct"
-                    result["pid"] = daemon_process.pid
-                    result["attempts"] = start_attempts
+                    # Wait a bit longer to see if it stays running
+                    extra_wait_time = 3  # seconds
+                    logger.info(f"IPFS daemon process started, waiting {extra_wait_time} seconds to verify stability")
+                    time.sleep(extra_wait_time)
+                    
+                    # Check again if process is still running
+                    if daemon_process.poll() is None:
+                        # Process is still running, it's stable
+                        start_attempts["direct"] = {"success": True, "pid": daemon_process.pid}
+    
+                        result["success"] = True
+                        result["status"] = "started_via_direct_invocation"
+                        result["message"] = "IPFS daemon started via direct invocation"
+                        result["method"] = "direct"
+                        result["pid"] = daemon_process.pid
+                        result["attempts"] = start_attempts
+                        
+                        # If we successfully started, check that the lock file exists and is valid
+                        repo_lock_path = os.path.join(os.path.expanduser(self.ipfs_path), "repo.lock")
+                        if not os.path.exists(repo_lock_path):
+                            logger.warning(f"IPFS daemon started but no lock file was created at {repo_lock_path}")
+                    else:
+                        # Process initially started but exited after the first check
+                        stderr = daemon_process.stderr.read().decode("utf-8", errors="replace")
+                        start_attempts["direct"] = {
+                            "success": False,
+                            "returncode": daemon_process.returncode,
+                            "stderr": stderr,
+                            "note": "Process exited after initial startup"
+                        }
+                        
+                        error_msg = f"IPFS daemon exited shortly after startup: {stderr}"
+                        logger.error(error_msg)
+                        return handle_error(result, IPFSError(error_msg))
                 else:
                     # Process exited immediately, check error
                     stderr = daemon_process.stderr.read().decode("utf-8", errors="replace")
@@ -448,8 +534,15 @@ class ipfs_py:
                         "stderr": stderr,
                     }
 
-                    # Propagate the error
-                    return handle_error(result, IPFSError(f"Daemon failed to start: {stderr}"))
+                    # Check for lock file error messages
+                    if "lock" in stderr.lower() or "already running" in stderr.lower():
+                        # This could be a lock file issue that we missed or couldn't resolve
+                        lock_error_msg = "IPFS daemon failed to start due to lock file issue: " + stderr
+                        result["error_type"] = "lock_file_error"
+                        return handle_error(result, IPFSError(lock_error_msg))
+                    else:
+                        # Propagate the general error
+                        return handle_error(result, IPFSError(f"Daemon failed to start: {stderr}"))
 
             except Exception as e:
                 start_attempts["direct"] = {
@@ -2605,6 +2698,359 @@ class ipfs_py:
             result["peer"] = addr
             result["disconnected"] = True
         return result
+        
+    def dht_findpeer(self, peer_id):
+        """Find a specific peer via the DHT and retrieve addresses.
+        
+        Args:
+            peer_id: The ID of the peer to find
+            
+        Returns:
+            Dict with operation result containing peer multiaddresses
+        """
+        operation = "dht_findpeer"
+        result = {
+            "success": False,
+            "operation": operation,
+            "timestamp": time.time(),
+            "peer_id": peer_id
+        }
+        
+        try:
+            # Validate the peer ID format
+            if not peer_id or not isinstance(peer_id, str):
+                raise ValueError(f"Invalid peer ID: {peer_id}")
+                
+            # Run the DHT findpeer command
+            cmd_result = self.run_ipfs_command(["ipfs", "dht", "findpeer", peer_id])
+            
+            if not cmd_result.get("success", False):
+                # Command failed
+                return {
+                    **result,
+                    "error": cmd_result.get("error", "Failed to find peer"),
+                    "error_type": "dht_error"
+                }
+                
+            # Parse the output - typically newline-separated multiaddresses
+            stdout = cmd_result.get("stdout", b"").decode("utf-8", errors="replace").strip()
+            addrs = [addr.strip() for addr in stdout.split("\n") if addr.strip()]
+            
+            # Format the response in a standard way similar to the model's expectations
+            formatted_response = {
+                "Responses": [
+                    {
+                        "ID": peer_id,
+                        "Addrs": addrs
+                    }
+                ]
+            }
+            
+            # Update result with success information
+            result["success"] = True
+            result["Responses"] = formatted_response["Responses"]
+            result["found"] = len(addrs) > 0
+            result["addresses"] = addrs
+            
+        except Exception as e:
+            # Handle any errors
+            result["error"] = f"Error finding peer: {str(e)}"
+            result["error_type"] = "dht_error"
+            
+        return result
+        
+    def dht_findprovs(self, cid, num_providers=None):
+        """Find providers for a specific CID via the DHT.
+        
+        Args:
+            cid: The CID to find providers for
+            num_providers: Optional limit for the number of providers to find
+            
+        Returns:
+            Dict with operation result containing provider information
+        """
+        operation = "dht_findprovs"
+        result = {
+            "success": False,
+            "operation": operation,
+            "timestamp": time.time(),
+            "cid": cid
+        }
+        
+        try:
+            # Validate the CID format
+            if not cid or not isinstance(cid, str):
+                raise ValueError(f"Invalid CID: {cid}")
+                
+            # Build the command
+            cmd = ["ipfs", "dht", "findprovs", cid]
+            
+            # Add num_providers if specified, using -n flag
+            if num_providers is not None:
+                cmd.extend(["-n", str(num_providers)])
+                result["num_providers"] = num_providers
+                
+            # Run the DHT findprovs command
+            cmd_result = self.run_ipfs_command(cmd)
+            
+            if not cmd_result.get("success", False):
+                # Command failed
+                return {
+                    **result,
+                    "error": cmd_result.get("error", "Failed to find providers"),
+                    "error_type": "dht_error"
+                }
+                
+            # Parse the output - typically newline-separated peer IDs
+            stdout = cmd_result.get("stdout", b"").decode("utf-8", errors="replace").strip()
+            provider_ids = [p_id.strip() for p_id in stdout.split("\n") if p_id.strip()]
+            
+            # Format providers in the expected response format
+            providers = []
+            for p_id in provider_ids:
+                # For each provider ID, we create a standardized entry
+                providers.append({
+                    "ID": p_id,
+                    "Addrs": []  # IPFS CLI doesn't return addresses, just IDs
+                })
+                
+            # Format the response in a standard way similar to the model's expectations
+            formatted_response = {
+                "Responses": providers
+            }
+            
+            # Update result with success information
+            result["success"] = True
+            result["Responses"] = formatted_response["Responses"]
+            result["count"] = len(providers)
+            result["providers"] = provider_ids
+            
+        except Exception as e:
+            # Handle any errors
+            result["error"] = f"Error finding providers: {str(e)}"
+            result["error_type"] = "dht_error"
+            
+        return result
+        
+    def files_mkdir(self, path, parents=False):
+        """Create a directory in the MFS (Mutable File System).
+        
+        Args:
+            path: Path of the directory to create in MFS
+            parents: Whether to create parent directories if they don't exist
+            
+        Returns:
+            Dict with operation result
+        """
+        operation = "files_mkdir"
+        result = {
+            "success": False,
+            "operation": operation,
+            "timestamp": time.time(),
+            "path": path
+        }
+        
+        try:
+            # Validate the path
+            if not path or not isinstance(path, str):
+                raise ValueError(f"Invalid path: {path}")
+                
+            # Build the command
+            cmd = ["ipfs", "files", "mkdir"]
+            
+            # Add parents flag if needed
+            if parents:
+                cmd.append("--parents")
+                result["parents"] = True
+                
+            # Add the path - ensure it starts with /
+            if not path.startswith("/"):
+                path = f"/{path}"
+            cmd.append(path)
+                
+            # Run the files mkdir command
+            cmd_result = self.run_ipfs_command(cmd)
+            
+            if not cmd_result.get("success", False):
+                # Command failed
+                return {
+                    **result,
+                    "error": cmd_result.get("error", f"Failed to create directory {path}"),
+                    "error_type": "files_error"
+                }
+                
+            # Update result with success information
+            result["success"] = True
+            result["created"] = True
+            
+        except Exception as e:
+            # Handle any errors
+            result["error"] = f"Error creating directory: {str(e)}"
+            result["error_type"] = "files_error"
+            
+        return result
+        
+    def files_ls(self, path="/", long=False):
+        """List directory contents in the MFS (Mutable File System).
+        
+        Args:
+            path: Path to list in MFS (defaults to root)
+            long: Whether to use a long listing format with details
+            
+        Returns:
+            Dict with operation result containing directory entries
+        """
+        operation = "files_ls"
+        result = {
+            "success": False,
+            "operation": operation,
+            "timestamp": time.time(),
+            "path": path
+        }
+        
+        try:
+            # Validate the path
+            if not isinstance(path, str):
+                raise ValueError(f"Invalid path type: {type(path)}")
+                
+            # Build the command
+            cmd = ["ipfs", "files", "ls"]
+            
+            # Add long flag if needed
+            if long:
+                cmd.append("-l")
+                result["long"] = True
+                
+            # Add the path - ensure it starts with / if not empty
+            if path and not path.startswith("/"):
+                path = f"/{path}"
+            cmd.append(path)
+                
+            # Run the files ls command
+            cmd_result = self.run_ipfs_command(cmd)
+            
+            if not cmd_result.get("success", False):
+                # Command failed
+                return {
+                    **result,
+                    "error": cmd_result.get("error", f"Failed to list directory {path}"),
+                    "error_type": "files_error",
+                    "Entries": []
+                }
+                
+            # Parse the output based on long format
+            stdout = cmd_result.get("stdout", b"").decode("utf-8", errors="replace").strip()
+            
+            if long:
+                # Parse long format output with details
+                entries = []
+                for line in stdout.split("\n"):
+                    if not line.strip():
+                        continue
+                        
+                    try:
+                        # Format is typically: Size Name Hash Type (might vary)
+                        parts = line.split()
+                        if len(parts) >= 4:
+                            size = parts[0]
+                            name = parts[1]
+                            hash_val = parts[2]
+                            entry_type = parts[3]
+                            
+                            entries.append({
+                                "Name": name,
+                                "Hash": hash_val,
+                                "Size": size,
+                                "Type": entry_type
+                            })
+                    except Exception as parse_error:
+                        logger.warning(f"Error parsing directory entry: {line} - {parse_error}")
+            else:
+                # Simple format - just names
+                entries = [name for name in stdout.split("\n") if name.strip()]
+                
+            # Update result with success information
+            result["success"] = True
+            result["Entries"] = entries
+            
+        except Exception as e:
+            # Handle any errors
+            result["error"] = f"Error listing directory: {str(e)}"
+            result["error_type"] = "files_error"
+            result["Entries"] = []
+            
+        return result
+        
+    def files_stat(self, path):
+        """Get file or directory information in the MFS (Mutable File System).
+        
+        Args:
+            path: Path to stat in MFS
+            
+        Returns:
+            Dict with operation result containing file/directory information
+        """
+        operation = "files_stat"
+        result = {
+            "success": False,
+            "operation": operation,
+            "timestamp": time.time(),
+            "path": path
+        }
+        
+        try:
+            # Validate the path
+            if not path or not isinstance(path, str):
+                raise ValueError(f"Invalid path: {path}")
+                
+            # Ensure path starts with /
+            if not path.startswith("/"):
+                path = f"/{path}"
+                
+            # Run the files stat command
+            cmd_result = self.run_ipfs_command(["ipfs", "files", "stat", path])
+            
+            if not cmd_result.get("success", False):
+                # Command failed
+                return {
+                    **result,
+                    "error": cmd_result.get("error", f"Failed to stat {path}"),
+                    "error_type": "files_error"
+                }
+                
+            # Parse the output
+            stdout = cmd_result.get("stdout", b"").decode("utf-8", errors="replace").strip()
+            
+            # Parse the stat output - format varies but often like:
+            # CumulativeSize: 123
+            # Size: 123
+            # ...
+            stat_info = {}
+            for line in stdout.split("\n"):
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    stat_info[key.strip()] = value.strip()
+                    
+            # Convert known numeric fields
+            for field in ["Size", "CumulativeSize", "Blocks"]:
+                if field in stat_info:
+                    try:
+                        stat_info[field] = int(stat_info[field])
+                    except (ValueError, TypeError):
+                        pass
+                        
+            # Update result with success information and stat data
+            result["success"] = True
+            # Add all stat fields to the result
+            for key, value in stat_info.items():
+                result[key] = value
+            
+        except Exception as e:
+            # Handle any errors
+            result["error"] = f"Error getting file info: {str(e)}"
+            result["error_type"] = "files_error"
+            
+        return result
 
     def ipfs_set_listen_addrs(self, listen_addrs):
         """Set listen addresses.
@@ -2618,3 +3064,298 @@ class ipfs_py:
         args = ["ipfs", "config", "Addresses.Swarm", "--json"]
         result = self.run_ipfs_command(args + [json.dumps(listen_addrs)])
         return result
+        
+    def daemon_start(self):
+        """Start the IPFS daemon.
+        
+        Returns:
+            Result dictionary with status of daemon start operation
+        """
+        result = {
+            "success": False,
+            "operation": "daemon_start",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if daemon is already running
+            daemon_status = self.daemon_status()
+            if daemon_status.get("running", False):
+                result["success"] = True
+                result["status"] = "already_running"
+                result["message"] = "IPFS daemon is already running"
+                result["pid"] = daemon_status.get("pid")
+                return result
+            
+            # Check for lock file
+            lock_path = os.path.join(self.ipfs_path, "repo.lock")
+            if os.path.exists(lock_path):
+                # Read the lock file to get PID
+                try:
+                    with open(lock_path, 'r') as f:
+                        pid = int(f.read().strip())
+                        
+                    # Check if process is actually running
+                    try:
+                        os.kill(pid, 0)  # This will raise an error if process doesn't exist
+                        # Process actually exists, can't start daemon
+                        result["lock_file_detected"] = True
+                        result["lock_pid"] = pid
+                        result["lock_is_stale"] = False
+                        result["message"] = f"Daemon cannot start because lock file exists with active PID: {pid}"
+                        return result
+                    except OSError:
+                        # Process doesn't exist, lock is stale
+                        logger.info(f"Removing stale lock file for PID {pid}")
+                        os.remove(lock_path)
+                        result["success"] = True  # Mark as success when handling stale lock
+                        result["lock_file_removed"] = True
+                        result["lock_was_stale"] = True
+                except (ValueError, IOError) as e:
+                    # Invalid PID in lock file, remove it
+                    logger.info(f"Removing invalid lock file: {e}")
+                    os.remove(lock_path)
+                    result["lock_file_removed"] = True
+                    result["lock_was_invalid"] = True
+            
+            # Start the daemon
+            cmd = ["ipfs", "daemon"]
+            
+            # Run as background process
+            daemon_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env={"PATH": self.path, "IPFS_PATH": self.ipfs_path},
+                start_new_session=True  # To prevent signal propagation
+            )
+            
+            # Wait a moment for daemon to initialize
+            for _ in range(10):  # Try for up to 5 seconds
+                time.sleep(0.5)
+                if self.daemon_status().get("running", False):
+                    break
+            
+            # Check if daemon started successfully
+            daemon_status = self.daemon_status()
+            if daemon_status.get("running", False):
+                result["success"] = True
+                result["pid"] = daemon_status.get("pid")
+                result["message"] = "IPFS daemon started successfully"
+            else:
+                result["success"] = False
+                result["error"] = "Daemon failed to start"
+                result["error_type"] = "DaemonStartError"
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error starting daemon: {e}")
+            result["error"] = f"Error starting daemon: {str(e)}"
+            result["error_type"] = "DaemonStartError"
+            return result
+            
+    def daemon_stop(self):
+        """Stop the IPFS daemon.
+        
+        Returns:
+            Result dictionary with status of daemon stop operation
+        """
+        current_time = time.time()
+        result = {
+            "success": False,
+            "operation": "daemon_stop",
+            "timestamp": current_time
+        }
+        
+        try:
+            # Check if daemon is running
+            daemon_status = self.daemon_status()
+            if not daemon_status.get("running", False):
+                result["success"] = True
+                result["status"] = "not_running"
+                result["message"] = "IPFS daemon is not running"
+                return result
+            
+            # Get PID from status
+            pid = daemon_status.get("pid")
+            if not pid:
+                result["error"] = "Cannot stop daemon: PID unknown"
+                result["error_type"] = "DaemonStopError"
+                return result
+            
+            # Try graceful shutdown first
+            cmd = ["ipfs", "shutdown"]
+            try:
+                shutdown_process = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env={"PATH": self.path, "IPFS_PATH": self.ipfs_path},
+                    timeout=10
+                )
+                
+                if shutdown_process.returncode == 0:
+                    # Wait a moment for the daemon to shut down
+                    time.sleep(2)
+                    
+                    # Check if it's still running
+                    if not self.daemon_status().get("running", False):
+                        result["success"] = True
+                        result["message"] = "IPFS daemon stopped successfully"
+                        return result
+            except subprocess.TimeoutExpired:
+                logger.warning("Shutdown command timed out, trying to kill process")
+            
+            # If we get here, graceful shutdown failed or timed out
+            # Try to kill the process directly
+            try:
+                # Send SIGTERM
+                logger.info(f"Sending SIGTERM to IPFS daemon (PID: {pid})")
+                os.kill(pid, 15)  # SIGTERM
+                
+                # Wait a moment for process to end
+                for _ in range(10):  # Wait up to 5 seconds
+                    time.sleep(0.5)
+                    try:
+                        os.kill(pid, 0)  # Check if process exists
+                    except OSError:
+                        # Process no longer exists
+                        result["success"] = True
+                        result["message"] = "IPFS daemon stopped by SIGTERM"
+                        return result
+                
+                # If still running, send SIGKILL
+                logger.info(f"Sending SIGKILL to IPFS daemon (PID: {pid})")
+                os.kill(pid, 9)  # SIGKILL
+                time.sleep(1)
+                
+                # Check if it's really gone
+                try:
+                    os.kill(pid, 0)
+                    result["error"] = f"Failed to kill daemon process (PID: {pid})"
+                    result["error_type"] = "DaemonStopError"
+                except OSError:
+                    # Process is gone
+                    result["success"] = True
+                    result["message"] = "IPFS daemon stopped by SIGKILL"
+                    
+            except Exception as e:
+                result["error"] = f"Error killing daemon process: {str(e)}"
+                result["error_type"] = "ProcessKillError"
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error stopping ipfs daemon: {e}")
+            result["error"] = f"Error stopping ipfs daemon: {str(e)}"
+            result["error_type"] = "DaemonStopError"
+            return result
+            
+    def daemon_status(self):
+        """Check if IPFS daemon is running.
+        
+        Returns:
+            Dictionary with daemon status information
+        """
+        result = {
+            "success": False,
+            "running": False,
+            "operation": "daemon_status",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Try to get daemon PID by checking if we can communicate with it
+            cmd = ["ipfs", "id"]
+            try:
+                id_process = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env={"PATH": self.path, "IPFS_PATH": self.ipfs_path},
+                    timeout=5
+                )
+                
+                if id_process.returncode == 0:
+                    # Daemon is running
+                    result["success"] = True
+                    result["running"] = True
+                    
+                    # Try to get PID from daemon PID file
+                    pid_file = os.path.join(self.ipfs_path, "daemon.pid")
+                    if os.path.exists(pid_file):
+                        try:
+                            with open(pid_file, 'r') as f:
+                                pid = int(f.read().strip())
+                                result["pid"] = pid
+                        except (ValueError, IOError):
+                            pass
+                    
+                    # If we couldn't get PID from file, try process list
+                    if "pid" not in result:
+                        try:
+                            # Use pgrep to find the process
+                            pgrep_cmd = ["pgrep", "-f", "ipfs daemon"]
+                            pgrep_process = subprocess.run(
+                                pgrep_cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                shell=True
+                            )
+                            
+                            if pgrep_process.returncode == 0:
+                                pids = pgrep_process.stdout.decode().strip().split("\n")
+                                if pids:
+                                    result["pid"] = int(pids[0])
+                        except Exception:
+                            pass
+                    
+                    # Add additional node information if available
+                    try:
+                        id_data = json.loads(id_process.stdout)
+                        result["peer_id"] = id_data.get("ID")
+                        result["addresses"] = id_data.get("Addresses", [])
+                    except Exception:
+                        pass
+                    
+                    # Path information
+                    result["ipfs_path"] = self.ipfs_path
+                else:
+                    # Command exited with error, daemon probably not running
+                    result["success"] = True  # Success at checking, not running
+                    result["running"] = False
+                    result["ipfs_path"] = self.ipfs_path
+            except subprocess.TimeoutExpired:
+                # Command timed out, daemon probably not responding
+                result["success"] = False
+                result["running"] = False
+                result["error"] = "Command timed out when checking daemon status"
+                result["error_type"] = "CommandTimeoutError"
+                result["ipfs_path"] = self.ipfs_path
+                
+            # Check lock file
+            lock_path = os.path.join(self.ipfs_path, "repo.lock")
+            if os.path.exists(lock_path):
+                try:
+                    with open(lock_path, 'r') as f:
+                        lock_pid = int(f.read().strip())
+                        result["lock_file_pid"] = lock_pid
+                        
+                        # Check if the lock PID is actually running
+                        try:
+                            os.kill(lock_pid, 0)  # Check if process exists
+                            result["lock_is_stale"] = False
+                        except OSError:
+                            result["lock_is_stale"] = True
+                except (ValueError, IOError):
+                    result["lock_is_invalid"] = True
+                    
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error checking daemon status: {e}")
+            result["error"] = f"Error checking daemon status: {str(e)}"
+            result["error_type"] = "StatusCheckError"
+            result["ipfs_path"] = self.ipfs_path
+            return result

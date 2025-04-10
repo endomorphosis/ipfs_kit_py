@@ -9,7 +9,7 @@ import time
 import json
 import logging
 import tempfile
-import asyncio
+import anyio
 
 # Ensure ipfs_kit_py is in the path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -113,8 +113,8 @@ async def test_mcp_server_async():
     }
 
 def test_mcp_server():
-    """Run the async test function using asyncio."""
-    return asyncio.run(test_mcp_server_async())
+    """Run the async test function using anyio."""
+    return anyio.run(test_mcp_server_async())
 
 if __name__ == "__main__":
     result = test_mcp_server()

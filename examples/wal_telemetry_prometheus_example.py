@@ -20,7 +20,7 @@ import time
 import sys
 import random
 import logging
-import asyncio
+import anyio
 import threading
 import argparse
 from datetime import datetime, timedelta

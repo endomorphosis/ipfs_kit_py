@@ -16,6 +16,11 @@ setup(
         'psutil>=5.9.0',
         'pyyaml>=6.0',
         'base58>=2.1.1',
+        'multiaddr>=0.0.9',  # Added for libp2p multiaddress support
+        'libp2p>=0.1.5',  # Added for peer-to-peer communication
+        'python-magic>=0.4.27',  # Added for file type detection
+        'anyio>=3.7.0',  # For async operations with backend flexibility
+        'trio>=0.22.0',  # Optional backend for anyio
     ],
     # All other configurations come from pyproject.toml
 )

@@ -1,0 +1,1091 @@
+{
+  "core": {
+    "health": {
+      "success": true,
+      "status_code": 200,
+      "data": {
+        "success": true,
+        "status": "ok",
+        "timestamp": 1744153864.9992733,
+        "server_id": "de67e21a-7dc7-4a22-beea-94def77283a4",
+        "debug_mode": true,
+        "isolation_mode": true,
+        "ipfs_daemon_running": true,
+        "auto_start_daemons_enabled": true
+      },
+      "headers": {
+        "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+        "server": "uvicorn",
+        "content-length": "213",
+        "content-type": "application/json",
+        "x-mcp-session-id": "1cefa762-a459-4ae0-acf5-70c1abe2077e",
+        "x-mcp-process-time": "0.028467"
+      }
+    },
+    "debug": {
+      "success": true,
+      "status_code": 200,
+      "data": {
+        "success": true,
+        "server_info": {
+          "server_id": "de67e21a-7dc7-4a22-beea-94def77283a4",
+          "debug_mode": true,
+          "isolation_mode": true,
+          "start_time": 1744153423.1051955,
+          "operation_count": 65,
+          "session_count": 0,
+          "persistence_path": "/home/barberb/.ipfs_kit/mcp_debug",
+          "daemon_management": {
+            "auto_start_daemons": true,
+            "daemon_status": {
+              "ipfs": {
+                "running": true,
+                "type": "ipfs_daemon"
+              }
+            }
+          }
+        },
+        "models": {
+          "ipfs": {
+            "model_operation_stats": {
+              "add_count": 1,
+              "get_count": 1,
+              "pin_count": 0,
+              "unpin_count": 0,
+              "list_count": 1,
+              "total_operations": 3,
+              "success_count": 1,
+              "failure_count": 2,
+              "bytes_added": 39,
+              "bytes_retrieved": 0,
+              "add": {
+                "count": 0,
+                "bytes": 0,
+                "errors": 0
+              },
+              "get": {
+                "count": 0,
+                "bytes": 0,
+                "errors": 0
+              },
+              "pin": {
+                "count": 0,
+                "errors": 0
+              },
+              "unpin": {
+                "count": 0,
+                "errors": 0
+              }
+            },
+            "normalized_ipfs_stats": {
+              "operations": {
+                "add_file": {
+                  "count": 1,
+                  "success_count": 1,
+                  "failure_count": 0,
+                  "total_duration": 0.000102996826171875,
+                  "average_duration": 0.000102996826171875
+                },
+                "cat": {
+                  "count": 1,
+                  "success_count": 0,
+                  "failure_count": 1,
+                  "total_duration": 0.01910996437072754,
+                  "average_duration": 0.01910996437072754
+                },
+                "list_pins": {
+                  "count": 1,
+                  "success_count": 0,
+                  "failure_count": 1,
+                  "total_duration": 0,
+                  "average_duration": 0
+                }
+              },
+              "total_operations": 3,
+              "success_count": 1,
+              "failure_count": 2,
+              "bytes_added": 39,
+              "bytes_retrieved": 0,
+              "simulated_operations": 1
+            },
+            "timestamp": 1744153865.0574677,
+            "aggregate": {
+              "total_operations": 6,
+              "success_count": 2,
+              "failure_count": 4,
+              "bytes_added": 78,
+              "bytes_retrieved": 0,
+              "simulated_operations": 1
+            }
+          }
+        },
+        "persistence": {
+          "cache_info": {
+            "stats": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "misses": 1,
+              "memory_evictions": 0,
+              "disk_evictions": 0,
+              "put_operations": 0,
+              "get_operations": 1,
+              "memory_size": 0,
+              "disk_size": 547
+            },
+            "memory_hit_rate": 0.0,
+            "disk_hit_rate": 0.0,
+            "overall_hit_rate": 0.0,
+            "memory_usage": 0,
+            "memory_limit": 104857600,
+            "memory_usage_percent": 0.0,
+            "disk_usage": 547,
+            "disk_limit": 1073741824,
+            "disk_usage_percent": 5.0943344831466675e-05,
+            "item_count": 2,
+            "memory_item_count": 0,
+            "timestamp": 1744153865.057538
+          }
+        },
+        "credentials": {
+          "enabled": true,
+          "services": [
+            {
+              "service": "ipfs",
+              "credential_count": 1
+            }
+          ],
+          "total_count": 1,
+          "store_type": "file"
+        },
+        "timestamp": 1744153865.057619
+      },
+      "headers": {
+        "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+        "server": "uvicorn",
+        "content-length": "2030",
+        "content-type": "application/json",
+        "x-mcp-session-id": "7439d3bd-8dc2-4d5a-aecd-64220f77a4d1",
+        "x-mcp-process-time": "0.028557"
+      }
+    },
+    "operations": {
+      "success": true,
+      "status_code": 200,
+      "data": {
+        "success": true,
+        "operations": [
+          {
+            "type": "request",
+            "session_id": "778b1042-56de-4336-ba99-760b9e61fd7d",
+            "path": "/",
+            "method": "GET",
+            "timestamp": 1744153423.1051955
+          },
+          {
+            "type": "response",
+            "session_id": "778b1042-56de-4336-ba99-760b9e61fd7d",
+            "path": "/",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.0006489753723144531,
+            "timestamp": 1744153423.1058474
+          },
+          {
+            "type": "request",
+            "session_id": "865c9de0-4ce8-43f6-9db9-e42d75080725",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "timestamp": 1744153486.634781
+          },
+          {
+            "type": "response",
+            "session_id": "865c9de0-4ce8-43f6-9db9-e42d75080725",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.058617591857910156,
+            "timestamp": 1744153486.693404
+          },
+          {
+            "type": "request",
+            "session_id": "df6f1de8-b4d6-4bbc-a7bf-9027ab8b23a3",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "timestamp": 1744153498.7490268
+          },
+          {
+            "type": "response",
+            "session_id": "df6f1de8-b4d6-4bbc-a7bf-9027ab8b23a3",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.06781268119812012,
+            "timestamp": 1744153498.8168435
+          },
+          {
+            "type": "request",
+            "session_id": "af18a3fc-66f2-4160-b7f0-63fbb7b85152",
+            "path": "/api/v0/mcp/daemon/status",
+            "method": "GET",
+            "timestamp": 1744153498.8186405
+          },
+          {
+            "type": "response",
+            "session_id": "af18a3fc-66f2-4160-b7f0-63fbb7b85152",
+            "path": "/api/v0/mcp/daemon/status",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.00026988983154296875,
+            "timestamp": 1744153498.8189118
+          },
+          {
+            "type": "request",
+            "session_id": "1d95dbce-21cf-46c2-a736-46dd1b764132",
+            "path": "/api/v0/mcp/ipfs/add",
+            "method": "POST",
+            "timestamp": 1744153498.8205643
+          },
+          {
+            "type": "response",
+            "session_id": "1d95dbce-21cf-46c2-a736-46dd1b764132",
+            "path": "/api/v0/mcp/ipfs/add",
+            "method": "POST",
+            "status_code": 422,
+            "process_time": 0.0011534690856933594,
+            "timestamp": 1744153498.821719
+          },
+          {
+            "type": "request",
+            "session_id": "fe2a8307-fea8-45f1-b75e-d256eb70d0c1",
+            "path": "/api/v0/mcp/ipfs/add_string",
+            "method": "POST",
+            "timestamp": 1744153498.8229694
+          },
+          {
+            "type": "response",
+            "session_id": "fe2a8307-fea8-45f1-b75e-d256eb70d0c1",
+            "path": "/api/v0/mcp/ipfs/add_string",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.00047397613525390625,
+            "timestamp": 1744153498.8234448
+          },
+          {
+            "type": "request",
+            "session_id": "7f2576e0-1653-4b4c-ac32-a3ab4c137116",
+            "path": "/api/v0/mcp/cli/version",
+            "method": "GET",
+            "timestamp": 1744153498.824608
+          },
+          {
+            "type": "response",
+            "session_id": "7f2576e0-1653-4b4c-ac32-a3ab4c137116",
+            "path": "/api/v0/mcp/cli/version",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.0016429424285888672,
+            "timestamp": 1744153498.8262522
+          },
+          {
+            "type": "request",
+            "session_id": "4b2206b1-c02d-4b75-bef0-3b0eac9c663a",
+            "path": "/api/v0/mcp/cli/command",
+            "method": "POST",
+            "timestamp": 1744153498.8273444
+          },
+          {
+            "type": "response",
+            "session_id": "4b2206b1-c02d-4b75-bef0-3b0eac9c663a",
+            "path": "/api/v0/mcp/cli/command",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0002932548522949219,
+            "timestamp": 1744153498.8276389
+          },
+          {
+            "type": "request",
+            "session_id": "b8570557-dfd9-4f37-a4d0-5258a4c847fb",
+            "path": "/api/v0/mcp/credentials/list",
+            "method": "GET",
+            "timestamp": 1744153498.8288033
+          },
+          {
+            "type": "response",
+            "session_id": "b8570557-dfd9-4f37-a4d0-5258a4c847fb",
+            "path": "/api/v0/mcp/credentials/list",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.0003237724304199219,
+            "timestamp": 1744153498.8291283
+          },
+          {
+            "type": "request",
+            "session_id": "7ec32b07-a674-4b57-8568-4c82070e0cf0",
+            "path": "/api/v0/mcp/distributed/status",
+            "method": "GET",
+            "timestamp": 1744153498.8303268
+          },
+          {
+            "type": "response",
+            "session_id": "7ec32b07-a674-4b57-8568-4c82070e0cf0",
+            "path": "/api/v0/mcp/distributed/status",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.00026035308837890625,
+            "timestamp": 1744153498.830588
+          },
+          {
+            "type": "request",
+            "session_id": "37485b88-07c4-47d8-a70a-5c0ea0deaa03",
+            "path": "/api/v0/mcp/webrtc/capabilities",
+            "method": "GET",
+            "timestamp": 1744153498.831672
+          },
+          {
+            "type": "response",
+            "session_id": "37485b88-07c4-47d8-a70a-5c0ea0deaa03",
+            "path": "/api/v0/mcp/webrtc/capabilities",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.0002548694610595703,
+            "timestamp": 1744153498.831928
+          },
+          {
+            "type": "request",
+            "session_id": "573420ac-2417-4dc7-b961-28acb7db4826",
+            "path": "/api/v0/mcp/fs_journal/status",
+            "method": "GET",
+            "timestamp": 1744153498.8331532
+          },
+          {
+            "type": "response",
+            "session_id": "573420ac-2417-4dc7-b961-28acb7db4826",
+            "path": "/api/v0/mcp/fs_journal/status",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.0002551078796386719,
+            "timestamp": 1744153498.8334093
+          },
+          {
+            "type": "request",
+            "session_id": "8d7bd94b-67db-4188-a589-4ab60dd18282",
+            "path": "/api/v0/mcp/debug",
+            "method": "GET",
+            "timestamp": 1744153498.8344898
+          },
+          {
+            "type": "response",
+            "session_id": "8d7bd94b-67db-4188-a589-4ab60dd18282",
+            "path": "/api/v0/mcp/debug",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.02958083152770996,
+            "timestamp": 1744153498.8640742
+          },
+          {
+            "type": "request",
+            "session_id": "d0f39877-cd94-4597-b27e-10aa79c4986e",
+            "path": "/api/v0/mcp/operations",
+            "method": "GET",
+            "timestamp": 1744153498.8657193
+          },
+          {
+            "type": "response",
+            "session_id": "d0f39877-cd94-4597-b27e-10aa79c4986e",
+            "path": "/api/v0/mcp/operations",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.0005872249603271484,
+            "timestamp": 1744153498.8663077
+          },
+          {
+            "type": "request",
+            "session_id": "ed286f51-b6ba-475e-9397-166ccd6b4fa5",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "timestamp": 1744153559.485421
+          },
+          {
+            "type": "response",
+            "session_id": "ed286f51-b6ba-475e-9397-166ccd6b4fa5",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.028913497924804688,
+            "timestamp": 1744153559.514338
+          },
+          {
+            "type": "request",
+            "session_id": "d5604bd3-6986-4593-b6ab-20e31d00ed11",
+            "path": "/",
+            "method": "GET",
+            "timestamp": 1744153559.5161371
+          },
+          {
+            "type": "response",
+            "session_id": "d5604bd3-6986-4593-b6ab-20e31d00ed11",
+            "path": "/",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.00035691261291503906,
+            "timestamp": 1744153559.5164955
+          },
+          {
+            "type": "request",
+            "session_id": "a1fcc47a-fc7c-482f-b1eb-0bfe4ad257ab",
+            "path": "/api/v0/mcp/ipfs/add-string",
+            "method": "POST",
+            "timestamp": 1744153559.5177119
+          },
+          {
+            "type": "response",
+            "session_id": "a1fcc47a-fc7c-482f-b1eb-0bfe4ad257ab",
+            "path": "/api/v0/mcp/ipfs/add-string",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0003147125244140625,
+            "timestamp": 1744153559.5180275
+          },
+          {
+            "type": "request",
+            "session_id": "1200a13c-54aa-45e8-a458-6f94a3f3eb21",
+            "path": "/api/v0/mcp/ipfs/add_string",
+            "method": "POST",
+            "timestamp": 1744153559.5192072
+          },
+          {
+            "type": "response",
+            "session_id": "1200a13c-54aa-45e8-a458-6f94a3f3eb21",
+            "path": "/api/v0/mcp/ipfs/add_string",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.000316619873046875,
+            "timestamp": 1744153559.5195248
+          },
+          {
+            "type": "request",
+            "session_id": "7e83c9fb-49ac-47b5-97b0-3998f0c38eb9",
+            "path": "/api/v0/mcp/ipfs/addString",
+            "method": "POST",
+            "timestamp": 1744153559.5208805
+          },
+          {
+            "type": "response",
+            "session_id": "7e83c9fb-49ac-47b5-97b0-3998f0c38eb9",
+            "path": "/api/v0/mcp/ipfs/addString",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0004448890686035156,
+            "timestamp": 1744153559.5213263
+          },
+          {
+            "type": "request",
+            "session_id": "6ad0d254-3668-4d34-afbd-76ac04692300",
+            "path": "/api/v0/mcp/ipfs/add",
+            "method": "POST",
+            "timestamp": 1744153559.524787
+          },
+          {
+            "type": "response",
+            "session_id": "6ad0d254-3668-4d34-afbd-76ac04692300",
+            "path": "/api/v0/mcp/ipfs/add",
+            "method": "POST",
+            "status_code": 422,
+            "process_time": 0.00042819976806640625,
+            "timestamp": 1744153559.5252166
+          },
+          {
+            "type": "request",
+            "session_id": "000547ff-55d2-4f12-a9a9-495a11f8dcc5",
+            "path": "/api/v0/mcp/ipfs/upload",
+            "method": "POST",
+            "timestamp": 1744153559.5265858
+          },
+          {
+            "type": "response",
+            "session_id": "000547ff-55d2-4f12-a9a9-495a11f8dcc5",
+            "path": "/api/v0/mcp/ipfs/upload",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.00033020973205566406,
+            "timestamp": 1744153559.5269175
+          },
+          {
+            "type": "request",
+            "session_id": "2f846410-7288-42d8-b7e5-44db7fe61431",
+            "path": "/api/v0/mcp/ipfs/add",
+            "method": "POST",
+            "timestamp": 1744153559.528223
+          },
+          {
+            "type": "response",
+            "session_id": "2f846410-7288-42d8-b7e5-44db7fe61431",
+            "path": "/api/v0/mcp/ipfs/add",
+            "method": "POST",
+            "status_code": 200,
+            "process_time": 0.0007238388061523438,
+            "timestamp": 1744153559.5289485
+          },
+          {
+            "type": "request",
+            "session_id": "b3e8ec42-ab59-4140-9ead-a397f0bc5d78",
+            "path": "/api/v0/mcp/ipfs/cat/Qmaaacc652cf28a1f16993793dee1368bd5c23b4e66d94",
+            "method": "GET",
+            "timestamp": 1744153559.530205
+          },
+          {
+            "type": "response",
+            "session_id": "b3e8ec42-ab59-4140-9ead-a397f0bc5d78",
+            "path": "/api/v0/mcp/ipfs/cat/Qmaaacc652cf28a1f16993793dee1368bd5c23b4e66d94",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.019454240798950195,
+            "timestamp": 1744153559.5496638
+          },
+          {
+            "type": "request",
+            "session_id": "a4883ff9-946e-47a3-a716-2c1220bef67c",
+            "path": "/api/v0/mcp/ipfs/get/Qmaaacc652cf28a1f16993793dee1368bd5c23b4e66d94",
+            "method": "GET",
+            "timestamp": 1744153559.5512335
+          },
+          {
+            "type": "response",
+            "session_id": "a4883ff9-946e-47a3-a716-2c1220bef67c",
+            "path": "/api/v0/mcp/ipfs/get/Qmaaacc652cf28a1f16993793dee1368bd5c23b4e66d94",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.0003705024719238281,
+            "timestamp": 1744153559.5516052
+          },
+          {
+            "type": "request",
+            "session_id": "51998310-787b-4075-acef-d1a8070153ec",
+            "path": "/api/v0/mcp/ipfs/pin",
+            "method": "POST",
+            "timestamp": 1744153559.5529256
+          },
+          {
+            "type": "response",
+            "session_id": "51998310-787b-4075-acef-d1a8070153ec",
+            "path": "/api/v0/mcp/ipfs/pin",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0003180503845214844,
+            "timestamp": 1744153559.5532446
+          },
+          {
+            "type": "request",
+            "session_id": "c9550cb4-e62b-486d-bf43-2cbea4c906f6",
+            "path": "/api/v0/mcp/ipfs/pins/add",
+            "method": "POST",
+            "timestamp": 1744153559.5544353
+          },
+          {
+            "type": "response",
+            "session_id": "c9550cb4-e62b-486d-bf43-2cbea4c906f6",
+            "path": "/api/v0/mcp/ipfs/pins/add",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0002789497375488281,
+            "timestamp": 1744153559.5547154
+          },
+          {
+            "type": "request",
+            "session_id": "70fe4b62-27a9-4539-8b2d-d7ccd488f754",
+            "path": "/api/v0/mcp/ipfs/pins",
+            "method": "GET",
+            "timestamp": 1744153559.5558748
+          },
+          {
+            "type": "response",
+            "session_id": "70fe4b62-27a9-4539-8b2d-d7ccd488f754",
+            "path": "/api/v0/mcp/ipfs/pins",
+            "method": "GET",
+            "status_code": 404,
+            "process_time": 0.0003647804260253906,
+            "timestamp": 1744153559.5562408
+          },
+          {
+            "type": "request",
+            "session_id": "ff4a4d5a-b1a9-4de7-a3c9-29e34f856600",
+            "path": "/api/v0/mcp/ipfs/pin/ls",
+            "method": "GET",
+            "timestamp": 1744153559.5574412
+          },
+          {
+            "type": "response",
+            "session_id": "ff4a4d5a-b1a9-4de7-a3c9-29e34f856600",
+            "path": "/api/v0/mcp/ipfs/pin/ls",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.0003199577331542969,
+            "timestamp": 1744153559.5577626
+          },
+          {
+            "type": "request",
+            "session_id": "7b83ff4e-dbc0-4436-83dd-53e7c37eb5ea",
+            "path": "/api/v0/mcp/ipfs/unpin",
+            "method": "POST",
+            "timestamp": 1744153559.5589497
+          },
+          {
+            "type": "response",
+            "session_id": "7b83ff4e-dbc0-4436-83dd-53e7c37eb5ea",
+            "path": "/api/v0/mcp/ipfs/unpin",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0002956390380859375,
+            "timestamp": 1744153559.5592468
+          },
+          {
+            "type": "request",
+            "session_id": "3199fe33-6a4f-46b1-917a-44bca8e39192",
+            "path": "/api/v0/mcp/ipfs/pins/remove",
+            "method": "POST",
+            "timestamp": 1744153559.5605612
+          },
+          {
+            "type": "response",
+            "session_id": "3199fe33-6a4f-46b1-917a-44bca8e39192",
+            "path": "/api/v0/mcp/ipfs/pins/remove",
+            "method": "POST",
+            "status_code": 404,
+            "process_time": 0.0002963542938232422,
+            "timestamp": 1744153559.560859
+          },
+          {
+            "type": "request",
+            "session_id": "8751ba81-9e9f-4579-b73b-a73750956489",
+            "path": "/api/v0/mcp/debug",
+            "method": "GET",
+            "timestamp": 1744153816.9524682
+          },
+          {
+            "type": "response",
+            "session_id": "8751ba81-9e9f-4579-b73b-a73750956489",
+            "path": "/api/v0/mcp/debug",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.027988195419311523,
+            "timestamp": 1744153816.9804592
+          },
+          {
+            "type": "request",
+            "session_id": "1cefa762-a459-4ae0-acf5-70c1abe2077e",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "timestamp": 1744153864.9991586
+          },
+          {
+            "type": "response",
+            "session_id": "1cefa762-a459-4ae0-acf5-70c1abe2077e",
+            "path": "/api/v0/mcp/health",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.028467416763305664,
+            "timestamp": 1744153865.0276303
+          },
+          {
+            "type": "request",
+            "session_id": "7439d3bd-8dc2-4d5a-aecd-64220f77a4d1",
+            "path": "/api/v0/mcp/debug",
+            "method": "GET",
+            "timestamp": 1744153865.029418
+          },
+          {
+            "type": "response",
+            "session_id": "7439d3bd-8dc2-4d5a-aecd-64220f77a4d1",
+            "path": "/api/v0/mcp/debug",
+            "method": "GET",
+            "status_code": 200,
+            "process_time": 0.02855658531188965,
+            "timestamp": 1744153865.0579784
+          },
+          {
+            "type": "request",
+            "session_id": "53b0dd17-440b-46f6-904c-e2bb72beff87",
+            "path": "/api/v0/mcp/operations",
+            "method": "GET",
+            "timestamp": 1744153865.059517
+          }
+        ],
+        "count": 67,
+        "timestamp": 1744153865.0596159
+      },
+      "headers": {
+        "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+        "server": "uvicorn",
+        "content-length": "12055",
+        "content-type": "application/json",
+        "x-mcp-session-id": "53b0dd17-440b-46f6-904c-e2bb72beff87",
+        "x-mcp-process-time": "0.000980"
+      }
+    },
+    "daemon_status": {
+      "success": true,
+      "status_code": 200,
+      "data": {
+        "success": true,
+        "daemon_status": {
+          "ipfs": {
+            "success": false,
+            "error": "ipfs_kit.check_daemon_status() takes 1 positional argument but 2 were given",
+            "error_type": "StatusCheckError"
+          },
+          "ipfs_cluster_service": {
+            "success": false,
+            "error": "ipfs_kit.check_daemon_status() takes 1 positional argument but 2 were given",
+            "error_type": "StatusCheckError"
+          },
+          "ipfs_cluster_follow": {
+            "success": false,
+            "error": "ipfs_kit.check_daemon_status() takes 1 positional argument but 2 were given",
+            "error_type": "StatusCheckError"
+          }
+        },
+        "daemon_monitor_running": false,
+        "auto_start_daemons": true,
+        "timestamp": 1744153865.0618467
+      },
+      "headers": {
+        "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+        "server": "uvicorn",
+        "content-length": "582",
+        "content-type": "application/json",
+        "x-mcp-session-id": "39f081d2-d5cd-4e06-a617-47795c152608",
+        "x-mcp-process-time": "0.000196"
+      }
+    },
+    "daemon_operations": {
+      "start_daemon": {
+        "success": true,
+        "status_code": 200,
+        "data": {
+          "success": false,
+          "error": "This version of ipfs_kit does not support manual daemon control",
+          "error_type": "UnsupportedOperation"
+        },
+        "headers": {
+          "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+          "server": "uvicorn",
+          "content-length": "127",
+          "content-type": "application/json",
+          "x-mcp-session-id": "d1e3bf5e-8c68-4b19-a977-26ac0ac7693f",
+          "x-mcp-process-time": "0.000229"
+        }
+      },
+      "stop_daemon": {
+        "success": true,
+        "status_code": 200,
+        "data": {
+          "success": false,
+          "error": "This version of ipfs_kit does not support manual daemon control",
+          "error_type": "UnsupportedOperation"
+        },
+        "headers": {
+          "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+          "server": "uvicorn",
+          "content-length": "127",
+          "content-type": "application/json",
+          "x-mcp-session-id": "47587ba8-a7da-4814-ad69-6d86a0db5299",
+          "x-mcp-process-time": "0.000212"
+        }
+      },
+      "start_monitor": {
+        "success": true,
+        "status_code": 200,
+        "data": {
+          "success": false,
+          "error": "This version of ipfs_kit does not support daemon health monitoring",
+          "error_type": "UnsupportedOperation"
+        },
+        "headers": {
+          "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+          "server": "uvicorn",
+          "content-length": "130",
+          "content-type": "application/json",
+          "x-mcp-session-id": "2e24b645-afc5-4379-b197-e005f182cd8b",
+          "x-mcp-process-time": "0.000216"
+        }
+      },
+      "stop_monitor": {
+        "success": true,
+        "status_code": 200,
+        "data": {
+          "success": false,
+          "error": "This version of ipfs_kit does not support daemon health monitoring",
+          "error_type": "UnsupportedOperation"
+        },
+        "headers": {
+          "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+          "server": "uvicorn",
+          "content-length": "130",
+          "content-type": "application/json",
+          "x-mcp-session-id": "1dc64165-923b-421c-a9f2-7396927aac06",
+          "x-mcp-process-time": "0.000166"
+        }
+      }
+    }
+  },
+  "ipfs": {
+    "endpoints": {
+      "add_json": {
+        "success": true,
+        "status_code": 200,
+        "data": {
+          "success": true,
+          "operation_id": "add_1744153865068",
+          "duration_ms": 0.09036064147949219,
+          "cid": "Qmb0518b9d879cdf04f721829e106d1216eb75b3002eb9",
+          "Hash": "Qmb0518b9d879cdf04f721829e106d1216eb75b3002eb9",
+          "content_size_bytes": 71
+        },
+        "headers": {
+          "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+          "server": "uvicorn",
+          "content-length": "220",
+          "content-type": "application/json",
+          "x-mcp-session-id": "d6e4a7c4-09ac-43b6-8b32-227e9ddeee0a",
+          "x-mcp-process-time": "0.000699"
+        }
+      },
+      "cat": {
+        "success": false,
+        "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/ipfs/cat/Qmb0518b9d879cdf04f721829e106d1216eb75b3002eb9",
+        "status_code": 404,
+        "response": {
+          "detail": "Content not found: Command failed with return code 1"
+        }
+      },
+      "get": {
+        "success": false,
+        "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/ipfs/get/Qmb0518b9d879cdf04f721829e106d1216eb75b3002eb9",
+        "status_code": 404,
+        "response": {
+          "detail": "Not Found"
+        }
+      },
+      "pin": {
+        "success": false,
+        "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/ipfs/pin",
+        "status_code": 404,
+        "response": {
+          "detail": "Not Found"
+        }
+      },
+      "pins_list": {
+        "success": false,
+        "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/ipfs/pins",
+        "status_code": 404,
+        "response": {
+          "detail": "Not Found"
+        }
+      },
+      "unpin": {
+        "success": false,
+        "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/ipfs/unpin",
+        "status_code": 404,
+        "response": {
+          "detail": "Not Found"
+        }
+      },
+      "add_form": {
+        "success": false,
+        "status_code": 422,
+        "error": "Form upload failed",
+        "response": {
+          "detail": [
+            {
+              "type": "model_attributes_type",
+              "loc": [
+                "body"
+              ],
+              "msg": "Input should be a valid dictionary or object to extract fields from",
+              "input": "--e9d521dcc9c8625dade19533f6f7f44f\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\nContent-Type: text/plain\r\n\r\nTest file content: csoULGSkqfcgjWFMjROo\r\n--e9d521dcc9c8625dade19533f6f7f44f--\r\n"
+            }
+          ]
+        }
+      }
+    },
+    "test_cid": "Qmb0518b9d879cdf04f721829e106d1216eb75b3002eb9"
+  },
+  "cli": {
+    "version": {
+      "success": true,
+      "status_code": 200,
+      "data": {
+        "ipfs_kit_py_version": "0.2.0",
+        "python_version": "3.12.3",
+        "platform": "Linux 6.8.0-11-generic",
+        "ipfs_daemon_version": "unknown"
+      },
+      "headers": {
+        "date": "Tue, 08 Apr 2025 23:11:04 GMT",
+        "server": "uvicorn",
+        "content-length": "125",
+        "content-type": "application/json",
+        "x-mcp-session-id": "c2077510-5993-4265-8039-5caf3d27f70a",
+        "x-mcp-process-time": "0.001552"
+      }
+    },
+    "command": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/cli/command",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "help": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/cli/help",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "commands": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/cli/commands",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "status": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/cli/status",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    }
+  },
+  "credentials": {
+    "list": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/credentials/list",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "info": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/credentials/info",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "types": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/credentials/types",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "add": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/credentials/add",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    }
+  },
+  "distributed": {
+    "status": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/distributed/status",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "peers": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/distributed/peers",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "ping": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/distributed/ping",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    }
+  },
+  "webrtc": {
+    "capabilities": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/webrtc/capabilities",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "status": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/webrtc/status",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "peers": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/webrtc/peers",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    }
+  },
+  "fs_journal": {
+    "status": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/fs_journal/status",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "operations": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/fs_journal/operations",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "stats": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/fs_journal/stats",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "add_entry": {
+      "success": false,
+      "error": "404 Client Error: Not Found for url: http://localhost:8000/api/v0/mcp/fs_journal/add",
+      "status_code": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    }
+  },
+  "timestamp": 1744153865.1287227,
+  "success_rate": {
+    "successful": 15,
+    "total": 46,
+    "percentage": 32.61
+  }
+}

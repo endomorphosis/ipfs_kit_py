@@ -142,12 +142,20 @@ The MCP test suite includes several types of tests:
 2. **Integration Tests**: Test component interactions
    - `TestMCPServerIntegration`: Tests the entire server with FastAPI
    - `TestIPFSModelSimulatedResponses`: Tests simulation capabilities
+   - `TestMCPControllerIntegration`: Tests interactions between multiple controllers
+   - `TestMCPControllerMockedIntegration`: Tests controller interactions with mocks
 
-3. **HTTP Tests**: Test HTTP endpoints
+3. **Controller Integration Tests**: Test interactions between controllers
+   - `TestMCPControllerIntegration`: Tests real controller implementations
+   - `TestMCPControllerMockedIntegration`: Tests with mock implementations
+   - `TestMCPControllerIntegrationAnyIO`: Tests async controller implementations
+   - `TestMCPControllerMockedIntegrationAnyIO`: Tests async versions with mocks
+
+4. **HTTP Tests**: Test HTTP endpoints
    - `TestMCPServerHTTP`: Tests HTTP-specific behavior
    - `TestCORSSupport`: Tests browser CORS support
 
-4. **CLI Tests**: Test command-line interface
+5. **CLI Tests**: Test command-line interface
    - `TestMCPServerCLI`: Tests CLI argument parsing and execution
 
 ### Key Testing Patterns
@@ -399,6 +407,31 @@ To run a single test:
 python -m pytest test/test_mcp_server.py::TestMCPCacheManager::test_memory_cache -v
 ```
 
+### Running Integration Tests
+
+To run the integration tests, use the dedicated runner script:
+
+```bash
+# Run all integration tests
+python -m test.integration.run_integration_tests --all
+
+# Run only mocked integration tests
+python -m test.integration.run_integration_tests --mocked
+
+# Run only standard integration tests
+python -m test.integration.run_integration_tests --standard
+
+# Run only AnyIO integration tests
+python -m test.integration.run_integration_tests --anyio
+
+# Run with verbose output
+python -m test.integration.run_integration_tests --all --verbose
+```
+
+The integration test runner provides detailed results and summary information, and properly handles skipped tests when dependencies aren't available.
+
+For more detailed information about the integration tests, see the [INTEGRATION_TESTING.md](/home/barberb/ipfs_kit_py/INTEGRATION_TESTING.md) file.
+
 ## MCP Test Coverage
 
 The MCP server test suite now includes:
@@ -422,27 +455,37 @@ The only areas with limited coverage are some edge cases in the simulation syste
    - Improved mocking to handle both low-level and high-level methods
    - Added direct method patching for more consistent test behavior
    - Fixed mock implementations for controllers to properly track method calls
+   - Created comprehensive mock implementations for integration tests
 
 2. **HTTP Testing Improvements**:
    - Added explicit CORS middleware for preflight request tests
    - Implemented comprehensive HTTP endpoint testing
    - Added binary response handling tests
+   - Enhanced test client usage for integration testing
 
-3. **Robustness Enhancements**:
+3. **Integration Testing Framework**:
+   - Created dedicated integration test framework for controller interactions
+   - Implemented mocked integration tests that work without dependencies
+   - Developed AnyIO versions for testing asynchronous controller implementations
+   - Added test runner with flexible options for different test types
+
+4. **Robustness Enhancements**:
    - Added proper skip annotations for tests requiring external dependencies
    - Enhanced error messages to provide better debugging context
    - Fixed test cleanup to properly handle temporary directories and resources
    - Added proper handling for asynchronous operations in tests
 
-4. **Import and Dependency Fixes**:
+5. **Import and Dependency Fixes**:
    - Fixed missing imports for proper test execution
    - Added proper asyncio handling for asynchronous tests
    - Updated FastAPI imports to include all required components
+   - Implemented fallback paths for optional dependencies
 
-5. **Test Flexibility Improvements**:
+6. **Test Flexibility Improvements**:
    - Made tests more adaptable to different response formats
    - Enhanced test assertions to be more resilient to implementation changes
    - Updated tests to match actual implementation behavior
+   - Added cross-controller workflow tests
 
 ## New Test Classes Added (April 2025)
 
@@ -526,6 +569,23 @@ This update completes all test implementations for the MCP Server, resulting in 
    - Added specific test cases for boundary conditions and edge cases
    - Enhanced validation of error response formats
 
+6. **Integration Testing Framework**:
+   - Created new integration test framework for testing controller interactions
+   - Developed standard integration tests with real controller implementations
+   - Implemented mocked integration tests that work without external dependencies
+   - Created AnyIO versions for testing asynchronous controller implementations
+   - Added test runner with flexible options for different test types
+   - Documented integration testing approach in separate INTEGRATION_TESTING.md file
+
+7. **Controller Interaction Testing**:
+   - Added tests for IPFS + FS Journal controller interactions
+   - Implemented tests for IPFS + WebRTC controller interactions
+   - Created tests for CLI + IPFS controller interactions
+   - Developed comprehensive tests for complete multi-controller workflows
+   - Added verification of data consistency across controller boundaries
+
 ### Results
 
-The MCP Server test suite is now complete with 82 passing tests providing thorough coverage of all components. The test suite properly handles asynchronous code, HTTP request/response patterns, caching behaviors, and error conditions throughout the system. The documentation has been enhanced to capture best practices and common pitfalls to help future developers maintain and extend the test suite effectively.
+The MCP Server test suite is now complete with 82 passing unit tests plus additional integration tests, providing thorough coverage of all components and their interactions. The test suite properly handles asynchronous code, HTTP request/response patterns, caching behaviors, error conditions, and cross-controller workflows throughout the system. The documentation has been enhanced to capture best practices and common pitfalls to help future developers maintain and extend the test suite effectively.
+
+The new integration testing framework provides comprehensive coverage of controller interactions, with both standard and mocked implementation options, ensuring that the MCP server works correctly as a cohesive system.

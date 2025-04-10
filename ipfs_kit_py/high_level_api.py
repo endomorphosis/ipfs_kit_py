@@ -28,12 +28,13 @@ import inspect
 import json
 import logging
 import warnings
+import uuid
 import os
 import sys
 import tempfile
 import time
 import mimetypes
-import asyncio
+import anyio
 from pathlib import Path
 from io import IOBase, BytesIO
 from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator
@@ -49,6 +50,7 @@ try:
     from .error import IPFSConfigurationError, IPFSError, IPFSValidationError
     from .ipfs_kit import IPFSKit, ipfs_kit  # Import both the function and the class
     from .fs_journal_integration import enable_filesystem_journaling, FilesystemJournalIntegration
+    from .fs_journal_monitor import JournalHealthMonitor, JournalVisualization
     from .validation import validate_parameters
     from .api_stability import stable_api, beta_api, experimental_api, deprecated
 except ImportError:
@@ -56,6 +58,8 @@ except ImportError:
     logger.warning("Relative imports failed. Trying absolute imports.")
     from ipfs_kit_py.error import IPFSConfigurationError, IPFSError, IPFSValidationError
     from ipfs_kit_py.ipfs_kit import IPFSKit, ipfs_kit
+    from ipfs_kit_py.fs_journal_integration import enable_filesystem_journaling, FilesystemJournalIntegration
+    from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor, JournalVisualization
     from ipfs_kit_py.validation import validate_parameters
     from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
 
@@ -63,6 +67,32 @@ except ImportError:
 HAVE_FSSPEC = False
 IPFSFileSystem = None
 # These will be properly set when get_filesystem is called
+
+# Function to get appropriate benchmark helper based on backend
+def get_benchmark_helper():
+    """
+    Get appropriate WebRTC benchmark helper based on current async backend.
+    
+    Returns:
+        Appropriate benchmark helper: AnyIO if available and in an async context, 
+        otherwise standard version
+    """
+    if not HAVE_ANYIO_BENCHMARK:
+        return WebRTCBenchmarkIntegration
+        
+    try:
+        # Check if we're in an async context and which backend
+        import sniffio
+        try:
+            backend = sniffio.current_async_library()
+            # Use AnyIO version if in async context
+            return WebRTCBenchmarkIntegrationAnyIO
+        except sniffio.AsyncLibraryNotFoundError:
+            # Not in async context, use standard version
+            return WebRTCBenchmarkIntegration
+    except ImportError:
+        # sniffio not available, use standard version
+        return WebRTCBenchmarkIntegration
         
 # Try to import WebRTC streaming
 try:
@@ -92,6 +122,28 @@ except ImportError:
     HAVE_NUMPY = False
     HAVE_AIORTC = False
     logger.warning("WebRTC streaming module could not be imported")
+    
+# Import WebRTC benchmark helpers with anyio support detection
+try:
+    from .high_level_api import WebRTCBenchmarkIntegration
+    from .high_level_api import WebRTCBenchmarkIntegrationAnyIO, HAVE_ANYIO_BENCHMARK
+    logger.info(f"WebRTC benchmark helpers: anyio_support={HAVE_ANYIO_BENCHMARK}")
+except ImportError:
+    try:
+        from .high_level_api.webrtc_benchmark_helpers import WebRTCBenchmarkIntegration
+        try:
+            from .high_level_api.webrtc_benchmark_helpers_anyio import WebRTCBenchmarkIntegrationAnyIO
+            HAVE_ANYIO_BENCHMARK = True
+            logger.info("Successfully imported WebRTCBenchmarkIntegrationAnyIO")
+        except ImportError:
+            WebRTCBenchmarkIntegrationAnyIO = None
+            HAVE_ANYIO_BENCHMARK = False
+            logger.warning("WebRTCBenchmarkIntegrationAnyIO not available")
+    except ImportError:
+        WebRTCBenchmarkIntegration = None
+        WebRTCBenchmarkIntegrationAnyIO = None
+        HAVE_ANYIO_BENCHMARK = False
+        logger.warning("WebRTC benchmark helpers could not be imported")
     
     # Create stub for handle_webrtc_signaling
     async def handle_webrtc_signaling(*args, **kwargs):
@@ -192,7 +244,21 @@ class IPFSSimpleAPI:
         metadata["role"] = self.config.get("role", "leecher")
 
         self.kit = ipfs_kit(resources=resources, metadata=metadata)
-
+        self.role = metadata["role"]
+        
+        # Set up logger
+        self.logger = logging.getLogger(__name__)
+        
+        # Apply libp2p integration if available
+        try:
+            # Using dependency injection to avoid circular imports
+            from ipfs_kit_py.high_level_api.libp2p_integration import inject_libp2p_into_high_level_api
+            inject_libp2p_into_high_level_api(self.__class__)
+            self.logger.info("LibP2P integration applied to IPFSSimpleAPI")
+        except ImportError as e:
+            self.logger.warning(f"Could not apply LibP2P integration: {e}")
+        except Exception as e:
+            self.logger.error(f"Error applying LibP2P integration: {e}")
         
         # Initialize metrics tracking
         self.enable_metrics = kwargs.get('enable_metrics', True)
@@ -226,6 +292,10 @@ class IPFSSimpleAPI:
         # Initialize filesystem access through the get_filesystem method
         self.fs = self.get_filesystem()
 
+        # Initialize metadata replication if enabled
+        if self.config.get("metadata_replication", {}).get("enabled", False):
+            self._init_metadata_replication()
+        
         # Load plugins
         self.plugins = {}
         if "plugins" in self.config:
@@ -237,6 +307,278 @@ class IPFSSimpleAPI:
         logger.info(f"IPFSSimpleAPI initialized with role: {self.config.get('role', 'leecher')}")
         
 
+    def _init_metadata_replication(self):
+        """Initialize the metadata replication system.
+        
+        Sets up the replication manager based on configuration settings,
+        ensuring proper replication factors are enforced.
+        """
+        try:
+            from ipfs_kit_py.fs_journal_replication import create_replication_manager, ReplicationLevel
+            
+            repl_config = self.config.get("metadata_replication", {})
+            
+            # Set minimum replication factor with default of 3
+            min_factor = repl_config.get("min_replication_factor", 3)
+            
+            # Ensure minimum is at least 3 for fault tolerance
+            min_factor = max(3, min_factor)
+            
+            # Set target and max factors with defaults
+            target_factor = repl_config.get("target_replication_factor", 4)
+            max_factor = repl_config.get("max_replication_factor", 5)
+            
+            # Ensure target is at least min and max is at least target
+            target_factor = max(min_factor, target_factor)
+            max_factor = max(target_factor, max_factor)
+            
+            # Get replication level
+            level_str = repl_config.get("replication_level", "QUORUM")
+            try:
+                level = ReplicationLevel[level_str]
+            except (KeyError, TypeError):
+                level = ReplicationLevel.QUORUM
+                
+            # Create the replication manager
+            self.replication_manager = create_replication_manager(
+                role=self.config.get("role", "leecher"),
+                quorum_size=min_factor,
+                config={
+                    "min_replication_factor": min_factor,
+                    "target_replication_factor": target_factor,
+                    "max_replication_factor": max_factor,
+                    "replication_level": level,
+                    "progressive_replication": repl_config.get("progressive_replication", False)
+                }
+            )
+            
+            logger.info(f"Metadata replication initialized with factors: min={min_factor}, "
+                       f"target={target_factor}, max={max_factor}, level={level_str}")
+                       
+        except ImportError:
+            logger.warning("Could not import replication manager - metadata replication disabled")
+            self.replication_manager = None
+        except Exception as e:
+            logger.error(f"Error initializing metadata replication: {str(e)}")
+            self.replication_manager = None
+    
+    def register_peer(self, peer_id, peer_address, capabilities=None):
+        """Register a new peer for metadata replication.
+        
+        Args:
+            peer_id: Unique identifier for the peer
+            peer_address: Network address for the peer
+            capabilities: List of peer capabilities
+            
+        Returns:
+            Dict with registration result
+        """
+        result = {
+            "success": False,
+            "operation": "register_peer",
+            "peer_id": peer_id,
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if replication manager is initialized
+            if not hasattr(self, "replication_manager") or self.replication_manager is None:
+                result["error"] = "Replication manager not initialized"
+                result["error_type"] = "not_initialized"
+                return result
+                
+            # Register the peer
+            reg_result = self.replication_manager.register_peer(
+                peer_id=peer_id,
+                address=peer_address,
+                capabilities=capabilities or []
+            )
+            
+            # Copy result fields
+            for key, value in reg_result.items():
+                result[key] = value
+                
+            return result
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            logger.error(f"Error registering peer {peer_id}: {e}")
+            return result
+            
+    def unregister_peer(self, peer_id):
+        """Unregister a peer from metadata replication.
+        
+        Args:
+            peer_id: Unique identifier for the peer
+            
+        Returns:
+            Dict with unregistration result
+        """
+        result = {
+            "success": False,
+            "operation": "unregister_peer",
+            "peer_id": peer_id,
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if replication manager is initialized
+            if not hasattr(self, "replication_manager") or self.replication_manager is None:
+                result["error"] = "Replication manager not initialized"
+                result["error_type"] = "not_initialized"
+                return result
+                
+            # Unregister the peer
+            unreg_result = self.replication_manager.unregister_peer(peer_id=peer_id)
+            
+            # Copy result fields
+            for key, value in unreg_result.items():
+                result[key] = value
+                
+            return result
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            logger.error(f"Error unregistering peer {peer_id}: {e}")
+            return result
+            
+    def store_metadata(self, metadata, replicate=True, replication_level=None, importance_level=None):
+        """Store metadata with optional replication.
+        
+        Args:
+            metadata: Dictionary of metadata to store
+            replicate: Whether to replicate the metadata
+            replication_level: Level of replication consistency ("SINGLE", "QUORUM", "ALL", "TIERED", "PROGRESSIVE")
+            importance_level: Importance level for progressive replication (0-2)
+            
+        Returns:
+            Dict with storage and replication result
+        """
+        result = {
+            "success": False,
+            "operation": "store_metadata",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Store metadata locally first
+            metadata_id = metadata.get("id", str(uuid.uuid4()))
+            
+            # Add metadata ID if missing
+            if "id" not in metadata:
+                metadata["id"] = metadata_id
+                
+            result["metadata_id"] = metadata_id
+                
+            # Store locally (implementation depends on storage backend)
+            # For this example, we'll just simulate storage
+            store_result = {
+                "success": True,
+                "metadata_id": metadata_id
+            }
+            
+            # Update result with storage information
+            result.update(store_result)
+            
+            # Replicate if requested and replication manager exists
+            if replicate and hasattr(self, "replication_manager") and self.replication_manager is not None:
+                repl_params = {
+                    "metadata_id": metadata_id,
+                    "metadata": metadata
+                }
+                
+                # Add optional parameters if provided
+                if replication_level:
+                    repl_params["level"] = replication_level
+                    
+                if importance_level is not None:
+                    repl_params["importance"] = importance_level
+                    
+                # Perform replication
+                repl_result = self.replication_manager.replicate_metadata(**repl_params)
+                
+                # Update result with replication information
+                result["replication_status"] = repl_result.get("status", "unknown")
+                result["successful_replications"] = repl_result.get("successful_replications", 0)
+                result["target_nodes_count"] = repl_result.get("target_nodes_count", 0)
+                result["success_level"] = repl_result.get("success_level", "UNKNOWN")
+                
+                # Overall success is both storage and replication
+                result["success"] = result.get("success", False) and repl_result.get("success", False)
+            else:
+                # No replication requested or available
+                result["replication_status"] = "SKIPPED"
+                result["success"] = result.get("success", False)
+            
+            return result
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            logger.error(f"Error storing metadata: {e}")
+            return result
+            
+    def get_metadata(self, metadata_id):
+        """Retrieve metadata by ID.
+        
+        Args:
+            metadata_id: Unique identifier for the metadata
+            
+        Returns:
+            Metadata dictionary or None if not found
+        """
+        try:
+            # Implementation depends on storage backend
+            # For this example, we'll just return a simulated result
+            return {
+                "id": metadata_id,
+                "name": f"Simulated metadata {metadata_id}",
+                "timestamp": time.time()
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving metadata {metadata_id}: {e}")
+            return None
+            
+    def verify_metadata_replication(self, metadata_id):
+        """Verify the replication status of metadata.
+        
+        Args:
+            metadata_id: Unique identifier for the metadata
+            
+        Returns:
+            Dict with verification result
+        """
+        result = {
+            "success": False,
+            "operation": "verify_metadata_replication",
+            "metadata_id": metadata_id,
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if replication manager is initialized
+            if not hasattr(self, "replication_manager") or self.replication_manager is None:
+                result["error"] = "Replication manager not initialized"
+                result["error_type"] = "not_initialized"
+                return result
+                
+            # Verify replication
+            verify_result = self.replication_manager.verify_replication(metadata_id)
+            
+            # Copy result fields
+            for key, value in verify_result.items():
+                result[key] = value
+                
+            return result
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            logger.error(f"Error verifying metadata replication {metadata_id}: {e}")
+            return result
+            
     def ai_register_model(self, model_cid, metadata, *, allow_simulation=True, **kwargs):
         '''Register a model.'''
         result = {
@@ -967,6 +1309,601 @@ export class IPFSClient {
 }
 """
         
+    def find_peers_websocket(
+        self, 
+        *,
+        discovery_servers: List[str] = None,
+        max_peers: int = 20,
+        timeout: int = 30,
+        filter_role: str = None,
+        filter_capabilities: List[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Find other peers using WebSocket-based peer discovery.
+        
+        This method connects to one or more WebSocket discovery servers
+        to find and exchange peer information. WebSockets can be used for 
+        peer discovery in environments where traditional IPFS peer discovery
+        methods might be limited (e.g., browser environments, restricted networks).
+        
+        Args:
+            discovery_servers: List of WebSocket server URLs (e.g., "ws://example.com:8765")
+                If not provided, uses default local server (ws://localhost:8765)
+            max_peers: Maximum number of peers to discover
+            timeout: Maximum time in seconds to spend on discovery
+            filter_role: Only return peers with this role (e.g., "master", "worker")
+            filter_capabilities: Only return peers with these capabilities
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results and found peers
+        """
+        operation_id = f"find_peers_ws_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        # Initialize result dictionary
+        result = {
+            "success": False,
+            "operation_id": operation_id,
+            "operation": "find_peers_websocket",
+            "max_peers": max_peers,
+            "timeout": timeout,
+            "start_time": start_time,
+            "peers": []
+        }
+        
+        if filter_role:
+            result["filter_role"] = filter_role
+            
+        if filter_capabilities:
+            result["filter_capabilities"] = filter_capabilities
+            
+        try:
+            # Check for WebSockets support
+            if not self._check_websocket_available():
+                result["error"] = "websockets library not available"
+                result["error_type"] = "dependency_error"
+                result["installation_command"] = "pip install websockets>=10.4"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Import required modules
+            try:
+                from .peer_websocket import (
+                    PeerWebSocketClient, PeerInfo, PeerRole, 
+                    create_peer_info_from_ipfs_kit
+                )
+            except ImportError:
+                # Try absolute import
+                from ipfs_kit_py.peer_websocket import (
+                    PeerWebSocketClient, PeerInfo, PeerRole, 
+                    create_peer_info_from_ipfs_kit
+                )
+                
+            # Default discovery servers if none provided
+            if not discovery_servers:
+                # Use cached servers if available
+                if hasattr(self, "_websocket_discovery_servers"):
+                    discovery_servers = self._websocket_discovery_servers
+                else:
+                    # Default to local server if available
+                    discovery_servers = ["ws://localhost:8765"]
+                    
+            # Store for future use
+            self._websocket_discovery_servers = discovery_servers
+            result["discovery_servers"] = discovery_servers
+            
+            # Create or get client
+            if not hasattr(self, "_websocket_client"):
+                # Create local peer info from our IPFS instance
+                local_peer_info = create_peer_info_from_ipfs_kit(self.kit)
+                
+                # Initialize discovered peers list
+                discovered_peers = []
+                
+                # Callback when a peer is discovered
+                def on_peer_discovered(peer_info):
+                    """Callback function when a peer is discovered."""
+                    discovered_peers.append(peer_info)
+                    self.logger.debug(f"Discovered peer: {peer_info.peer_id}")
+                    
+                # Create client
+                self._websocket_client = PeerWebSocketClient(
+                    local_peer_info=local_peer_info,
+                    on_peer_discovered=on_peer_discovered,
+                    auto_connect=False,  # Don't automatically connect
+                    reconnect_interval=10,
+                    max_reconnect_attempts=3
+                )
+                
+                # Initialize list of discovered peers
+                self._websocket_discovered_peers = {}
+                
+            # Set up async operations with anyio
+            
+            # Discovery task
+            async def do_discovery():
+                # Start client if not running
+                if not self._websocket_client.running:
+                    await self._websocket_client.start()
+                    
+                # Connect to each discovery server
+                for server_url in discovery_servers:
+                    if server_url not in self._websocket_client.discovery_servers:
+                        await self._websocket_client.connect_to_discovery_server(server_url)
+                        
+                # Allow time for discovery to work
+                await anyio.sleep(min(5, timeout))
+                
+                # Get discovered peers with filtering
+                return self._websocket_client.get_discovered_peers(
+                    filter_role=filter_role, 
+                    filter_capabilities=filter_capabilities
+                )
+                
+            # Run discovery with timeout
+            try:
+                # Use anyio's run function with timeout
+                async def _run_discovery_with_timeout():
+                    with anyio.move_on_after(timeout) as scope:
+                        return await do_discovery()
+                    if scope.cancel_called:
+                        raise TimeoutError(f"Discovery timed out after {timeout} seconds")
+                
+                discovered_peers = anyio.run(_run_discovery_with_timeout)
+                
+                # Convert PeerInfo objects to dictionaries
+                peer_list = []
+                for peer in discovered_peers[:max_peers]:
+                    peer_dict = peer.to_dict()
+                    
+                    # Store in internal cache for future connections
+                    self._websocket_discovered_peers[peer.peer_id] = peer
+                    
+                    peer_list.append(peer_dict)
+                    
+                # Update result
+                result["peers"] = peer_list
+                result["peer_count"] = len(peer_list)
+                result["success"] = True
+                
+                self.logger.info(f"Found {len(peer_list)} peers via WebSockets")
+                
+            except TimeoutError:
+                self.logger.warning(f"WebSocket peer discovery timed out after {timeout} seconds")
+                
+                result["error"] = f"Discovery timed out after {timeout} seconds"
+                result["error_type"] = "timeout"
+                result["partial_results"] = True
+                
+                # Get any peers that were discovered before timeout
+                partial_peers = []
+                for peer in self._websocket_client.get_discovered_peers(
+                    filter_role=filter_role,
+                    filter_capabilities=filter_capabilities
+                )[:max_peers]:
+                    partial_peers.append(peer.to_dict())
+                    
+                result["peers"] = partial_peers
+                result["peer_count"] = len(partial_peers)
+                result["success"] = len(partial_peers) > 0
+                
+        except Exception as e:
+            self.logger.error(f"Error in WebSocket peer discovery: {e}")
+            
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+        # Add duration
+        result["duration_ms"] = (time.time() - start_time) * 1000
+        return result
+        
+    def connect_to_websocket_peer(self, peer_id: str, timeout: int = 30) -> Dict[str, Any]:
+        """
+        Connect to a peer that was discovered via WebSocket.
+        
+        Args:
+            peer_id: ID of the peer to connect to
+            timeout: Connection timeout in seconds
+            
+        Returns:
+            Dict[str, Any]: Dictionary with connection result
+        """
+        operation_id = f"connect_peer_ws_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation_id": operation_id,
+            "operation": "connect_to_websocket_peer",
+            "peer_id": peer_id,
+            "timeout": timeout,
+            "start_time": start_time
+        }
+        
+        try:
+            # Check if we have the WebSocket client
+            if not hasattr(self, "_websocket_client"):
+                result["error"] = "WebSocket client not initialized"
+                result["error_type"] = "initialization_error"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Check if we know about this peer
+            if not hasattr(self, "_websocket_discovered_peers"):
+                result["error"] = "No peers discovered yet"
+                result["error_type"] = "not_found"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            if peer_id not in self._websocket_discovered_peers:
+                result["error"] = f"Unknown peer: {peer_id}"
+                result["error_type"] = "not_found"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Get peer info
+            peer_info = self._websocket_discovered_peers[peer_id]
+            
+            # Check if peer has any addresses
+            if not peer_info.multiaddrs:
+                result["error"] = "Peer has no addresses for connection"
+                result["error_type"] = "missing_address"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Try to connect to the peer via IPFS
+            connect_result = self.kit.ipfs_swarm_connect(peer_info.multiaddrs[0], timeout=timeout)
+            
+            if connect_result.get("success", False):
+                result["success"] = True
+                result["connected_address"] = peer_info.multiaddrs[0]
+                self.logger.info(f"Successfully connected to peer {peer_id} at {peer_info.multiaddrs[0]}")
+                
+                # Record connection success
+                peer_info.record_connection_attempt(True)
+                
+            else:
+                # Connection failed
+                result["error"] = connect_result.get("error", "Unknown connection error")
+                result["error_type"] = "connection_failed"
+                
+                # Record connection failure
+                peer_info.record_connection_attempt(False)
+                self.logger.warning(f"Failed to connect to peer {peer_id}: {result['error']}")
+                
+        except Exception as e:
+            self.logger.error(f"Error connecting to WebSocket peer: {e}")
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+        # Add duration
+        result["duration_ms"] = (time.time() - start_time) * 1000
+        return result
+            
+    def get_websocket_peer_info(self, peer_id: str = None) -> Dict[str, Any]:
+        """
+        Get information about peers discovered via WebSocket.
+        
+        Args:
+            peer_id: Optional specific peer ID to get info for. If not provided,
+                    returns information about all discovered peers.
+            
+        Returns:
+            Dict[str, Any]: Dictionary with peer information
+        """
+        operation_id = f"peer_info_ws_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation_id": operation_id,
+            "operation": "get_websocket_peer_info",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if we have discovered peers
+            if not hasattr(self, "_websocket_discovered_peers"):
+                result["error"] = "No peers discovered yet"
+                result["error_type"] = "not_initialized"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                return result
+            
+            # If peer_id is specified, get info for that peer
+            if peer_id:
+                if peer_id in self._websocket_discovered_peers:
+                    peer_info = self._websocket_discovered_peers[peer_id]
+                    result["peer"] = peer_info.to_dict()
+                    result["success"] = True
+                else:
+                    result["error"] = f"Peer {peer_id} not found"
+                    result["error_type"] = "not_found"
+            else:
+                # Get info for all peers
+                peers_info = {}
+                for pid, pinfo in self._websocket_discovered_peers.items():
+                    peers_info[pid] = pinfo.to_dict()
+                
+                result["peers"] = peers_info
+                result["peer_count"] = len(peers_info)
+                result["success"] = True
+        
+        except Exception as e:
+            self.logger.error(f"Error getting WebSocket peer info: {e}")
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+        # Add duration
+        result["duration_ms"] = (time.time() - start_time) * 1000
+        return result
+        
+    def find_libp2p_peers(
+        self, 
+        *,
+        discovery_method: str = "all",
+        max_peers: int = 20,
+        timeout: int = 30,
+        topic: str = None
+    ) -> Dict[str, Any]:
+        """
+        Find other peers on the libp2p network using various discovery methods.
+        
+        This method searches for peers using different discovery mechanisms
+        like DHT (Distributed Hash Table), mDNS (local network discovery),
+        and PubSub (topic-based discovery). It provides a more direct and
+        flexible peer discovery process compared to traditional IPFS daemon
+        methods.
+        
+        Args:
+            discovery_method: Method to use for finding peers ('dht', 'mdns', 'pubsub', 'all')
+            max_peers: Maximum number of peers to find
+            timeout: Maximum time in seconds to spend searching
+            topic: Optional topic to use for pubsub discovery
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results and found peers
+        """
+        operation_id = f"find_peers_libp2p_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        # Initialize result dictionary
+        result = {
+            "success": False,
+            "operation_id": operation_id,
+            "operation": "find_libp2p_peers",
+            "discovery_method": discovery_method,
+            "max_peers": max_peers,
+            "timeout": timeout,
+            "start_time": start_time,
+            "peers": []
+        }
+        
+        if topic:
+            result["topic"] = topic
+            
+        try:
+            # Check for libp2p support
+            if not self._check_libp2p_available():
+                result["error"] = "libp2p dependencies not available"
+                result["error_type"] = "dependency_error"
+                result["installation_command"] = "pip install ipfs_kit_py[libp2p]"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Call the ipfs_kit method to find peers
+            find_result = self.kit.find_libp2p_peers(
+                discovery_method=discovery_method,
+                max_peers=max_peers,
+                timeout=timeout,
+                topic=topic
+            )
+            
+            # Extract peers from the result
+            if find_result.get("success", False):
+                result["success"] = True
+                result["peers"] = find_result.get("peers", [])
+                result["peer_count"] = len(result["peers"])
+                result["self"] = find_result.get("self", {})
+                self.logger.info(f"Found {result['peer_count']} peers via libp2p")
+                
+                # Store discovered peers for future reference
+                self._libp2p_discovered_peers = {}
+                for peer in result["peers"]:
+                    peer_id = peer.get("peer_id")
+                    if peer_id:
+                        self._libp2p_discovered_peers[peer_id] = peer
+            else:
+                result["error"] = find_result.get("error", "Unknown error in libp2p peer discovery")
+                result["error_type"] = find_result.get("error_type", "discovery_error")
+                self.logger.warning(f"Failed to find libp2p peers: {result['error']}")
+                
+        except Exception as e:
+            self.logger.error(f"Error in libp2p peer discovery: {e}")
+            
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+        # Add duration
+        result["duration_ms"] = (time.time() - start_time) * 1000
+        return result
+        
+    def connect_to_libp2p_peer(self, peer_id: str, timeout: int = 30) -> Dict[str, Any]:
+        """
+        Connect to a peer discovered via libp2p.
+        
+        Args:
+            peer_id: ID of the peer to connect to
+            timeout: Connection timeout in seconds
+            
+        Returns:
+            Dict[str, Any]: Dictionary with connection result
+        """
+        operation_id = f"connect_peer_libp2p_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation_id": operation_id,
+            "operation": "connect_to_libp2p_peer",
+            "peer_id": peer_id,
+            "timeout": timeout,
+            "start_time": start_time
+        }
+        
+        try:
+            # Check if libp2p is available
+            if not self._check_libp2p_available():
+                result["error"] = "libp2p dependencies not available"
+                result["error_type"] = "dependency_error"
+                result["installation_command"] = "pip install ipfs_kit_py[libp2p]"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Check if we know about this peer
+            if not hasattr(self, "_libp2p_discovered_peers"):
+                # Try to discover peers first
+                self.logger.info("No libp2p peers discovered yet. Running discovery first.")
+                discover_result = self.find_libp2p_peers(timeout=min(10, timeout))
+                if not discover_result.get("success", False):
+                    result["error"] = "No peers discovered"
+                    result["error_type"] = "not_found"
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    self.logger.warning(result["error"])
+                    return result
+            
+            # Check if we know this specific peer
+            if hasattr(self, "_libp2p_discovered_peers") and peer_id in self._libp2p_discovered_peers:
+                peer_info = self._libp2p_discovered_peers[peer_id]
+                
+                # Get any addresses for the peer
+                addrs = peer_info.get("addrs", [])
+                if not addrs:
+                    result["error"] = "Peer has no addresses for connection"
+                    result["error_type"] = "missing_address"
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    self.logger.warning(result["error"])
+                    return result
+                    
+                # Try connecting to the peer
+                for addr in addrs:
+                    connect_result = self.kit.ipfs_swarm_connect(addr, timeout=timeout)
+                    
+                    if connect_result.get("success", False):
+                        result["success"] = True
+                        result["connected_address"] = addr
+                        self.logger.info(f"Successfully connected to peer {peer_id} at {addr}")
+                        break
+                
+                if not result["success"]:
+                    result["error"] = "Failed to connect to any of the peer's addresses"
+                    result["error_type"] = "connection_failed"
+                    result["addresses_tried"] = addrs
+                    self.logger.warning(f"Failed to connect to peer {peer_id}")
+            else:
+                # Try connecting directly with the peer ID
+                connect_result = self.kit.libp2p_connect_peer(peer_id, timeout=timeout)
+                
+                if connect_result.get("success", False):
+                    result["success"] = True
+                    result["connected_address"] = connect_result.get("address", "unknown")
+                    self.logger.info(f"Successfully connected to peer {peer_id}")
+                else:
+                    result["error"] = connect_result.get("error", "Unknown connection error")
+                    result["error_type"] = "connection_failed"
+                    self.logger.warning(f"Failed to connect to peer {peer_id}: {result['error']}")
+                
+        except Exception as e:
+            self.logger.error(f"Error connecting to libp2p peer: {e}")
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+        # Add duration
+        result["duration_ms"] = (time.time() - start_time) * 1000
+        return result
+            
+    def get_libp2p_peer_info(self, peer_id: str = None) -> Dict[str, Any]:
+        """
+        Get information about peers discovered via libp2p.
+        
+        Args:
+            peer_id: Optional specific peer ID to get info for. If not provided,
+                    returns information about all discovered peers.
+            
+        Returns:
+            Dict[str, Any]: Dictionary with peer information
+        """
+        operation_id = f"peer_info_libp2p_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation_id": operation_id,
+            "operation": "get_libp2p_peer_info",
+            "timestamp": time.time()
+        }
+        
+        if peer_id:
+            result["peer_id"] = peer_id
+        
+        try:
+            # Check if libp2p is available
+            if not self._check_libp2p_available():
+                result["error"] = "libp2p dependencies not available"
+                result["error_type"] = "dependency_error"
+                result["installation_command"] = "pip install ipfs_kit_py[libp2p]"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # Check if we have discovered any peers
+            if not hasattr(self, "_libp2p_discovered_peers"):
+                result["error"] = "No peers discovered yet"
+                result["error_type"] = "not_found"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                self.logger.warning(result["error"])
+                return result
+                
+            # If peer_id specified, get just that peer
+            if peer_id:
+                if peer_id not in self._libp2p_discovered_peers:
+                    result["error"] = f"Unknown peer: {peer_id}"
+                    result["error_type"] = "not_found"
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    self.logger.warning(result["error"])
+                    return result
+                    
+                result["peer"] = self._libp2p_discovered_peers[peer_id]
+                result["success"] = True
+                
+            # Otherwise, get all peers
+            else:
+                peers = {}
+                for pid, peer in self._libp2p_discovered_peers.items():
+                    peers[pid] = peer
+                    
+                result["peers"] = peers
+                result["peer_count"] = len(peers)
+                result["success"] = True
+                
+                self.logger.info(f"Returning info for {len(peers)} libp2p peers")
+                
+        except Exception as e:
+            self.logger.error(f"Error getting libp2p peer info: {e}")
+            
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            
+        # Add duration
+        result["duration_ms"] = (time.time() - start_time) * 1000
+        return result
+    
     def _generate_readme(self, language: str) -> str:
         """Generate README.md file."""
         return f"""# IPFS Client for {language.capitalize()}
@@ -1187,6 +2124,35 @@ MIT
         try:
             import fsspec
             return True
+        except ImportError:
+            return False
+            
+    def _check_websocket_available(self):
+        """
+        Check if websockets library is available.
+        
+        Returns:
+            bool: True if websockets is available, False otherwise
+        """
+        try:
+            import websockets
+            return True
+        except ImportError:
+            return False
+            
+    def _check_libp2p_available(self):
+        """
+        Check if libp2p dependencies are available.
+        
+        Returns:
+            bool: True if libp2p dependencies are available, False otherwise
+        """
+        try:
+            # Try to import the libp2p peer module
+            # This will raise ImportError if not available
+            from ipfs_kit_py import libp2p_peer
+            from ipfs_kit_py.libp2p_peer import HAS_LIBP2P
+            return HAS_LIBP2P
         except ImportError:
             return False
     
@@ -1784,7 +2750,7 @@ MIT
         # Convert to async iterator
         for chunk in sync_iterator:
             # Allow other async tasks to run between chunks
-            await asyncio.sleep(0)
+            await anyio.sleep(0)
             yield chunk
             
     @beta_api
@@ -9604,6 +10570,10 @@ if (typeof module !== "undefined") {
                 result["error_type"] = kg_result.get("error_type", "UnknownError")
                 
         except Exception as e:
+                result["error"] = kg_result.get("error", "Unknown error")
+                result["error_type"] = kg_result.get("error_type", "UnknownError")
+                
+        except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error creating knowledge graph: {e}")
@@ -11335,7 +12305,259 @@ if (typeof module !== "undefined") {
             self.logger.error(f"Error registering model: {e}")
             
         return result
+        
+    @beta_api
+    def create_journal_monitor(
+        self,
+        journal_path: Optional[str] = None,
+        check_interval: int = 60,
+        alert_callback: Optional[callable] = None,
+        stats_dir: str = "~/.ipfs_kit/journal_stats"
+    ) -> Dict[str, Any]:
+        """
+        Create a health monitor for the filesystem journal.
+        
+        This method creates a JournalHealthMonitor instance to track and analyze
+        the health of the filesystem journal, providing metrics on journal growth,
+        error rates, and operation performance.
+        
+        Args:
+            journal_path: Path to the journal directory (defaults to current journal)
+            check_interval: How often to check health in seconds (default: 60)
+            alert_callback: Function to call when alerts are generated
+            stats_dir: Directory to store statistics
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "monitor": JournalHealthMonitor instance if successful
+                - "error": Error message if unsuccessful
+                - "error_type": Type of error if unsuccessful
+        """
+        result = {
+            "success": False,
+            "operation": "create_journal_monitor",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Get the filesystem journal from integration if available
+            journal = None
+            backend = None
+            
+            # Check if journaling is enabled
+            if hasattr(self, "_journal_integration"):
+                # Use the journal from the integration
+                if hasattr(self._journal_integration, "journal"):
+                    journal = self._journal_integration.journal
+                if hasattr(self._journal_integration, "backend"):
+                    backend = self._journal_integration.backend
+            
+            # Create the monitor
+            monitor = JournalHealthMonitor(
+                journal=journal,
+                backend=backend,
+                check_interval=check_interval,
+                alert_callback=alert_callback,
+                stats_dir=stats_dir
+            )
+            
+            # Store the monitor for later use
+            self._journal_monitor = monitor
+            
+            result["success"] = True
+            result["monitor"] = monitor
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error creating journal monitor: {e}")
+        
+        return result
+    
+    @beta_api
+    def create_journal_visualization(
+        self,
+        output_dir: str = "~/.ipfs_kit/journal_visualizations",
+        journal_path: Optional[str] = None,
+        use_monitor: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Create visualization tools for the filesystem journal.
+        
+        This method creates a JournalVisualization instance to generate
+        visualizations and dashboards for the filesystem journal.
+        
+        Args:
+            output_dir: Directory to save visualizations
+            journal_path: Path to the journal directory (defaults to current journal)
+            use_monitor: Whether to use the existing monitor (if available)
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "visualization": JournalVisualization instance if successful
+                - "error": Error message if unsuccessful
+                - "error_type": Type of error if unsuccessful
+        """
+        result = {
+            "success": False,
+            "operation": "create_journal_visualization",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Get the filesystem journal from integration if available
+            journal = None
+            backend = None
+            monitor = None
+            
+            # Check if journaling is enabled
+            if hasattr(self, "_journal_integration"):
+                # Use the journal from the integration
+                if hasattr(self._journal_integration, "journal"):
+                    journal = self._journal_integration.journal
+                if hasattr(self._journal_integration, "backend"):
+                    backend = self._journal_integration.backend
+            
+            # Use existing monitor if available and requested
+            if use_monitor and hasattr(self, "_journal_monitor"):
+                monitor = self._journal_monitor
+            
+            # Create the visualization
+            visualization = JournalVisualization(
+                journal=journal,
+                backend=backend,
+                monitor=monitor,
+                output_dir=output_dir
+            )
+            
+            # Store for later use
+            self._journal_visualization = visualization
+            
+            result["success"] = True
+            result["visualization"] = visualization
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error creating journal visualization: {e}")
+        
+        return result
+    
+    @beta_api
+    def get_journal_health_status(self) -> Dict[str, Any]:
+        """
+        Get the current health status of the filesystem journal.
+        
+        This method returns detailed information about the health of the
+        journal, including any active issues, alerts, and threshold values.
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing health status information with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "status": Health status string ("healthy", "warning", "critical")
+                - "issues": List of active issues with severity and messages
+                - "threshold_values": Current threshold values for alerts
+                - "active_transactions": Number of active transactions
+                - "error": Error message if unsuccessful
+                - "error_type": Type of error if unsuccessful
+        """
+        result = {
+            "success": False,
+            "operation": "get_journal_health_status",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if monitor exists
+            if not hasattr(self, "_journal_monitor"):
+                # Create a monitor if not exists
+                monitor_result = self.create_journal_monitor()
+                if not monitor_result["success"]:
+                    result["error"] = "Failed to create journal monitor"
+                    result["error_type"] = "JournalMonitorError"
+                    return result
+            
+            # Get health status from monitor
+            monitor = self._journal_monitor
+            health_status = monitor.get_health_status()
+            
+            # Add to result
+            result["success"] = True
+            result["status"] = health_status["status"]
+            result["issues"] = health_status["issues"]
+            result["threshold_values"] = health_status["threshold_values"]
+            result["active_transactions"] = health_status["active_transactions"]
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error getting journal health status: {e}")
+        
+        return result
+    
+    @beta_api
+    def generate_journal_dashboard(
+        self,
+        timeframe_hours: int = 24,
+        output_dir: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate a comprehensive dashboard for the filesystem journal.
+        
+        This method creates visualizations for journal operations, error rates,
+        storage metrics, and performance analysis, combining them into an
+        interactive HTML dashboard.
+        
+        Args:
+            timeframe_hours: Number of hours of data to include (default: 24)
+            output_dir: Directory to save dashboard (default: auto-generated)
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing operation results with these keys:
+                - "success": bool indicating if the operation succeeded
+                - "dashboard_path": Path to the HTML dashboard
+                - "plots": Dictionary of paths to individual plots
+                - "stats_path": Path to the raw stats file
+                - "error": Error message if unsuccessful
+                - "error_type": Type of error if unsuccessful
+        """
+        result = {
+            "success": False,
+            "operation": "generate_journal_dashboard",
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if visualization exists
+            if not hasattr(self, "_journal_visualization"):
+                # Create visualization if not exists
+                vis_result = self.create_journal_visualization()
+                if not vis_result["success"]:
+                    result["error"] = "Failed to create journal visualization"
+                    result["error_type"] = "JournalVisualizationError"
+                    return result
+            
+            # Generate dashboard
+            visualization = self._journal_visualization
+            plots = visualization.create_dashboard(timeframe_hours=timeframe_hours, output_dir=output_dir)
+            
+            # Add to result
+            result["success"] = True
+            result["plots"] = plots
+            
+            if "html_report" in plots:
+                result["dashboard_path"] = plots["html_report"]
+            
+        except Exception as e:
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error generating journal dashboard: {e}")
+        
+        return result
+
 # Create a singleton instance for easy import
 # This is disabled during import to prevent test failures
 # Applications should create their own instance when needed
-# ipfs = IPFSSimpleAPI()
+ipfs = IPFSSimpleAPI()

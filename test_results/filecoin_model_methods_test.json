@@ -1,0 +1,93 @@
+{
+  "timestamp": 1744276850.5950086,
+  "tests": {
+    "initialization": {
+      "success": true,
+      "message": "FilecoinModel instances initialized successfully"
+    },
+    "failing_methods": {
+      "check_connection": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      },
+      "list_wallets": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      },
+      "get_wallet_balance": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      },
+      "create_wallet": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      },
+      "list_miners": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      },
+      "list_deals": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      },
+      "list_imports": {
+        "success": true,
+        "has_proper_error_structure": true,
+        "error_type": "LotusConnectionError"
+      }
+    },
+    "working_methods": {
+      "check_connection": {
+        "success": true,
+        "has_proper_structure": true
+      },
+      "list_wallets": {
+        "success": true,
+        "has_proper_structure": true
+      },
+      "get_wallet_balance": {
+        "success": true,
+        "has_proper_structure": true
+      },
+      "create_wallet": {
+        "success": true,
+        "has_proper_structure": true
+      },
+      "list_miners": {
+        "success": true,
+        "has_proper_structure": true
+      },
+      "list_deals": {
+        "success": true,
+        "has_proper_structure": true
+      },
+      "list_imports": {
+        "success": true,
+        "has_proper_structure": true
+      }
+    },
+    "cross_backend": {
+      "success": true,
+      "has_ipfs_cid": true,
+      "has_filecoin_cid": true,
+      "has_deal_cid": true
+    },
+    "dependency_check": {
+      "success": true,
+      "error_type": "DependencyError",
+      "has_proper_error": true
+    },
+    "validation_check": {
+      "success": true,
+      "error_type": "ValidationError",
+      "has_proper_error": true
+    }
+  },
+  "success": true
+}

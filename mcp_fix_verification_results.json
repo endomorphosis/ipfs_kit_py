@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "tests": {
+    "health": true,
+    "json_add": true,
+    "form_add": true,
+    "file_upload": true,
+    "get_content": true,
+    "pin_operations": true
+  },
+  "timestamp": 1744157766.3261085
+}

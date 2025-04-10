@@ -32,6 +32,91 @@ from .error import (
     handle_error,
     perform_with_retry,
 )
+import functools
+from typing import Callable, TypeVar, Optional, Any
+
+# Define a generic type variable for the return type
+RT = TypeVar('RT')
+
+def auto_retry_on_daemon_failure(daemon_type: str = "ipfs", max_retries: int = 3):
+    """
+    Decorator that automatically retries operations when they fail due to a daemon not running.
+
+    This decorator will:
+    1. Check if the operation fails due to daemon not running
+    2. Attempt to start the required daemon
+    3. Retry the operation
+
+    Args:
+        daemon_type (str): Type of daemon required ("ipfs", "ipfs_cluster_service", or "ipfs_cluster_follow")
+        max_retries (int): Maximum number of retry attempts
+
+    Returns:
+        Decorated function with automatic daemon startup and retry capability
+    """
+    def decorator(func: Callable[..., RT]) -> Callable[..., RT]:
+        @functools.wraps(func)
+        def wrapper(self, *args: Any, **kwargs: Any) -> RT:
+            retry_count = 0
+
+            while retry_count <= max_retries:
+                # Attempt the operation
+                result = func(self, *args, **kwargs)
+
+                # Check if operation failed due to daemon not running
+                if (not result.get("success", False) and
+                    result.get("error", "").lower().find("daemon") >= 0 and
+                    "not running" in result.get("error", "").lower()):
+
+                    # Only retry if automatic daemon startup is enabled
+                    if not getattr(self, "auto_start_daemons", False):
+                        # Add note that automatic retry is disabled
+                        result["daemon_retry_disabled"] = True
+                        return result
+
+                    # Increment retry counter
+                    retry_count += 1
+
+                    # Log the retry attempt
+                    self.logger.info(f"Operation failed due to {daemon_type} daemon not running. "
+                                     f"Attempt {retry_count}/{max_retries} to start daemon and retry.")
+
+                    # Try to start the daemon
+                    daemon_result = self._ensure_daemon_running(daemon_type)
+
+                    if not daemon_result.get("success", False):
+                        # Failed to start daemon, add details and return
+                        result["daemon_start_attempted"] = True
+                        result["daemon_start_failed"] = True
+                        result["daemon_start_error"] = daemon_result.get("error")
+                        return result
+
+                    # Daemon started successfully, retry operation
+                    self.logger.info(f"Successfully started {daemon_type} daemon, retrying operation.")
+                    result["daemon_restarted"] = True
+
+                    # If this is the last retry, break to avoid exceeding max_retries
+                    if retry_count >= max_retries:
+                        break
+
+                    # Add a small delay to ensure daemon is fully up
+                    time.sleep(1)
+
+                    # Continue loop to retry operation
+                    continue
+
+                # Operation succeeded or failed for reasons other than daemon not running
+                return result
+
+            # If we get here, we've used all our retries
+            if not result.get("success", False):
+                result["max_retries_exceeded"] = True
+
+            return result
+
+        return wrapper
+
+    return decorator
 
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 ipfs_lib_dir = os.path.join(parent_dir, "ipfs_kit_py")
@@ -50,6 +135,13 @@ from .s3_kit import s3_kit
 from .storacha_kit import storacha_kit
 from .test_fio import test_fio
 
+# Try to import lotus_kit
+try:
+    from .lotus_kit import lotus_kit
+    HAS_LOTUS = True
+except ImportError:
+    HAS_LOTUS = False
+
 # Try to import huggingface_kit
 try:
     from .huggingface_kit import huggingface_kit
@@ -63,6 +155,9 @@ try:
     HAS_LIBP2P = True
 except ImportError:
     HAS_LIBP2P = False
+
+# Make HAS_LIBP2P a global variable
+__all__ = ['HAS_LIBP2P']
 
 # Try to import IPLD extension
 try:
@@ -132,6 +227,17 @@ try:
     FSSPEC_AVAILABLE = True
 except ImportError:
     FSSPEC_AVAILABLE = False
+
+# Import WebSocket peer discovery components (with fallback if not available)
+try:
+    from .peer_websocket import (
+        PeerInfo, PeerWebSocketServer, PeerWebSocketClient,
+        create_peer_info_from_ipfs_kit, PeerRole, WEBSOCKET_AVAILABLE
+    )
+
+    HAS_WEBSOCKET_PEER_DISCOVERY = True
+except ImportError:
+    HAS_WEBSOCKET_PEER_DISCOVERY = False
 import json
 import os
 import subprocess
@@ -156,6 +262,79 @@ class ipfs_kit:
     during initialization.
     """
 
+    @classmethod
+    def create(cls, role="leecher", auto_start_daemons=True, **kwargs):
+        """
+        Create and initialize an ipfs_kit instance with the specified role.
+
+        This convenience method creates an instance and ensures all required
+        daemons are running before returning it to the caller.
+
+        Args:
+            role (str): Node role ('master', 'worker', or 'leecher')
+            auto_start_daemons (bool): Whether to automatically start required daemons
+            **kwargs: Additional parameters to pass to the constructor
+
+        Returns:
+            ipfs_kit: Initialized instance ready for use
+
+        Raises:
+            IPFSError: If initialization fails with auto_start_daemons=True
+        """
+        # Create metadata dictionary if not provided
+        metadata = kwargs.get("metadata", {})
+        metadata["role"] = role
+        metadata["auto_start_daemons"] = auto_start_daemons
+
+        # Create instance
+        instance = cls(metadata=metadata, **kwargs)
+
+        # Initialize and start daemons if requested
+        if auto_start_daemons:
+            init_result = instance.initialize(start_daemons=auto_start_daemons)
+            if not init_result.get("success", False):
+                from .error import IPFSError
+                error_msg = init_result.get("error", "Unknown initialization error")
+                raise IPFSError(f"Failed to initialize IPFS Kit: {error_msg}")
+
+            # Set initialization state
+            instance._initialized = True
+        else:
+            instance._initialized = False
+
+        return instance
+
+    @property
+    def is_initialized(self):
+        """
+        Check if the SDK has been properly initialized and daemons are running.
+
+        Returns:
+            bool: True if initialized and daemons are running, False otherwise
+        """
+        if not hasattr(self, "_initialized") or not self._initialized:
+            return False
+
+        # Check daemon status
+        daemon_status = self.check_daemon_status()
+        if not daemon_status.get("success", False):
+            return False
+
+        # Check if required daemons are running
+        daemons = daemon_status.get("daemons", {})
+        if not daemons.get("ipfs", {}).get("running", False):
+            return False
+
+        # Check role-specific daemons
+        if self.role == "master":
+            if not daemons.get("ipfs_cluster_service", {}).get("running", False):
+                return False
+        elif self.role == "worker":
+            if not daemons.get("ipfs_cluster_follow", {}).get("running", False):
+                return False
+
+        return True
+
     def __init__(
         self,
         resources=None,
@@ -163,6 +342,7 @@ class ipfs_kit:
         enable_libp2p=False,
         enable_cluster_management=False,
         enable_metadata_index=False,
+        auto_start_daemons=True,
     ):
         """
         Initializes the IPFS Kit instance.
@@ -186,6 +366,7 @@ class ipfs_kit:
                 - 'enable_metadata_index' (bool): Overrides enable_metadata_index parameter.
                 - 'enable_monitoring' (bool): Enables cluster monitoring features.
                 - 'auto_download_binaries' (bool): Controls automatic binary downloads.
+                - 'auto_start_daemons' (bool): Controls automatic daemon initialization.
                 Defaults to None.
             enable_libp2p (bool, optional): Explicitly enable libp2p features.
                 Defaults to False. Can be overridden by `metadata['enable_libp2p']`.
@@ -195,6 +376,9 @@ class ipfs_kit:
             enable_metadata_index (bool, optional): Explicitly enable the Arrow
                 metadata index. Defaults to False. Can be overridden by
                 `metadata['enable_metadata_index']`.
+            auto_start_daemons (bool, optional): Automatically start all required
+                daemons (IPFS, IPFS Cluster, etc.) based on the node's role.
+                Defaults to True. Can be overridden by `metadata['auto_start_daemons']`.
         """
         # Initialize logger
         self.logger = logger
@@ -255,6 +439,9 @@ class ipfs_kit:
         # Default configuration
         self.config = {}
 
+        # Check if we should auto-start daemons
+        self.auto_start_daemons = auto_start_daemons
+
         # Process metadata
         if metadata is not None:
             if "config" in metadata:
@@ -278,6 +465,9 @@ class ipfs_kit:
             if "enable_metadata_index" in metadata:
                 enable_metadata_index = metadata["enable_metadata_index"]
 
+            if "auto_start_daemons" in metadata:
+                self.auto_start_daemons = metadata["auto_start_daemons"]
+
             # Initialize components based on role
             if self.role == "leecher":
                 # Leecher only needs IPFS daemon
@@ -290,6 +480,13 @@ class ipfs_kit:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
+                # Initialize Lotus Kit if available
+                if HAS_LOTUS:
+                    # Auto-start is opted into based on metadata
+                    lotus_metadata = self.metadata.copy()
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", False)
+                    self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
+                    self.logger.info("Initialized Lotus Kit for Filecoin integration")
 
             elif self.role == "worker":
                 # Worker needs IPFS daemon and cluster-follow
@@ -306,6 +503,13 @@ class ipfs_kit:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
+                # Initialize Lotus Kit if available
+                if HAS_LOTUS:
+                    # Auto-start is opted into based on metadata
+                    lotus_metadata = self.metadata.copy()
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", False)
+                    self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
+                    self.logger.info("Initialized Lotus Kit for Filecoin integration")
 
             elif self.role == "master":
                 # Master needs IPFS daemon, cluster-service, and cluster-ctl
@@ -324,6 +528,13 @@ class ipfs_kit:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
+                # Initialize Lotus Kit if available
+                if HAS_LOTUS:
+                    # Auto-start is opted into based on metadata, but default to true for master role
+                    lotus_metadata = self.metadata.copy()
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
+                    self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
+                    self.logger.info("Initialized Lotus Kit for Filecoin integration")
 
         # Initialize monitoring components
         self.monitoring = None
@@ -345,20 +556,31 @@ class ipfs_kit:
         self.llama_index_integration = None
         self.distributed_training = None
         enable_ai_ml = metadata.get("enable_ai_ml", False) if metadata else False
-        
+
         # Initialize IPLD extension components
         self.ipld_extension = None
         enable_ipld = metadata.get("enable_ipld", False) if metadata else False
 
         # Initialize libp2p peer if enabled
         self.libp2p = None
-        if enable_libp2p and HAS_LIBP2P:
-            self._setup_libp2p(resources, metadata)
-        elif enable_libp2p and not HAS_LIBP2P:
-            self.logger.warning("libp2p is not available. Skipping initialization.")
-            self.logger.info(
-                "To enable libp2p direct P2P communication, make sure libp2p_py is installed."
-            )
+        
+        # Check if libp2p is enabled and try to initialize it if so
+        if enable_libp2p:
+            # Try to import libp2p directly to check availability
+            try:
+                import libp2p
+                libp2p_installed = True
+            except ImportError:
+                libp2p_installed = False
+                
+            # Only attempt setup if it's actually installed
+            if libp2p_installed:
+                self._setup_libp2p(resources, metadata)
+            else:
+                self.logger.warning("libp2p package is not installed. Skipping initialization.")
+                self.logger.info(
+                    "To enable libp2p direct P2P communication, install it with: pip install libp2p"
+                )
 
         # Initialize cluster management if enabled
         self.cluster_manager = None
@@ -403,7 +625,7 @@ class ipfs_kit:
             self.logger.info(
                 "To enable AI/ML integration, make sure ai_ml_integration.py is available."
             )
-            
+
         # Initialize IPLD extension if enabled
         if enable_ipld and HAS_IPLD_EXTENSION:
             self._setup_ipld_extension(resources, metadata)
@@ -412,6 +634,10 @@ class ipfs_kit:
             self.logger.info(
                 "To enable IPLD extension, make sure ipld_extension.py is available."
             )
+
+        # Start all required daemons based on role if auto-start is enabled
+        if self.auto_start_daemons:
+            self._start_required_daemons()
 
     def _setup_cluster_management(self, resources=None, metadata=None):
         """Set up the cluster management component with standardized error handling."""
@@ -543,6 +769,365 @@ class ipfs_kit:
             handle_error(result, e, "Failed to initialize Arrow metadata index")
             self.logger.error(f"Error initializing Arrow metadata index: {str(e)}")
         return result
+
+    def _start_required_daemons(self):
+        """Start all required daemon processes based on the node's role.
+
+        Initializes and starts the appropriate daemon processes according to
+        the configured node role (master, worker, or leecher).
+
+        Returns:
+            bool: True if all required daemons were started successfully, False otherwise.
+        """
+        self.logger.info(f"Starting required daemons for role: {self.role}")
+
+        try:
+            # All roles need the IPFS daemon
+            if hasattr(self, 'ipfs'):
+                ipfs_result = self.ipfs.daemon_start()
+                if not ipfs_result.get("success", False):
+                    self.logger.error(f"Failed to start IPFS daemon: {ipfs_result.get('error', 'Unknown error')}")
+                else:
+                    self.logger.info(f"IPFS daemon started successfully: {ipfs_result.get('status', 'running')}")
+                    
+            # Start Lotus daemon if available and auto-start is configured
+            if hasattr(self, 'lotus_kit'):
+                # Check if auto-start is enabled for lotus daemon
+                should_start_lotus = False
+                if hasattr(self.lotus_kit, 'auto_start_daemon'):
+                    should_start_lotus = self.lotus_kit.auto_start_daemon
+                
+                if should_start_lotus:
+                    lotus_result = self.lotus_kit.daemon_start()
+                    if not lotus_result.get("success", False):
+                        self.logger.error(f"Failed to start Lotus daemon: {lotus_result.get('error', 'Unknown error')}")
+                    else:
+                        self.logger.info(f"Lotus daemon started successfully: {lotus_result.get('status', 'running')}")
+
+            # Master role needs IPFS Cluster Service
+            if self.role == "master" and hasattr(self, 'ipfs_cluster_service'):
+                cluster_service_result = self.ipfs_cluster_service.ipfs_cluster_service_start()
+                if not cluster_service_result.get("success", False):
+                    self.logger.error(f"Failed to start IPFS Cluster Service: {cluster_service_result.get('error', 'Unknown error')}")
+                else:
+                    self.logger.info("IPFS Cluster Service started successfully")
+
+            # Worker role needs IPFS Cluster Follow
+            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow'):
+                # Get cluster name from metadata
+                cluster_name = None
+                if hasattr(self, "cluster_name"):
+                    cluster_name = self.cluster_name
+                elif hasattr(self, "metadata") and "cluster_name" in self.metadata:
+                    cluster_name = self.metadata["cluster_name"]
+
+                if cluster_name:
+                    cluster_follow_result = self.ipfs_cluster_follow.ipfs_follow_start(cluster_name=cluster_name)
+                    if not cluster_follow_result.get("success", False):
+                        self.logger.error(f"Failed to start IPFS Cluster Follow: {cluster_follow_result.get('error', 'Unknown error')}")
+                    else:
+                        self.logger.info("IPFS Cluster Follow started successfully")
+                else:
+                    self.logger.error("Cannot start IPFS Cluster Follow: No cluster name provided")
+
+            # Verify daemon status
+            status = self.check_daemon_status()
+            if status.get("success", False):
+                daemon_status = status.get("daemons", {})
+                all_running = all(daemon.get("running", False) for daemon in daemon_status.values())
+                if all_running:
+                    self.logger.info("All required daemons are running")
+                    return True
+                else:
+                    # List daemons that aren't running
+                    not_running = [name for name, info in daemon_status.items() if not info.get("running", False)]
+                    self.logger.warning(f"Not all daemons are running. Non-running daemons: {', '.join(not_running)}")
+                    return False
+            else:
+                self.logger.warning("Could not verify daemon status")
+                return False
+
+        except Exception as e:
+            self.logger.error(f"Error starting daemons: {str(e)}")
+            return False
+
+    def check_daemon_status(self):
+        """Check the status of all daemon processes required for this node's role.
+
+        Returns:
+            dict: A dictionary containing status information for all daemons.
+        """
+        from .error import create_result_dict
+
+        result = create_result_dict("check_daemon_status")
+        result["daemons"] = {}
+
+        try:
+            # Check IPFS daemon
+            if hasattr(self, 'ipfs'):
+                # Use ps command to check if daemon is running
+                ps_result = self.ipfs.run_ipfs_command(["ps", "-ef"], check=False)
+                ipfs_running = False
+
+                if ps_result.get("success", False) and "stdout" in ps_result:
+                    # Look for ipfs daemon process
+                    for line in ps_result["stdout"].splitlines():
+                        if "ipfs daemon" in line and "grep" not in line:
+                            ipfs_running = True
+                            break
+
+                result["daemons"]["ipfs"] = {
+                    "running": ipfs_running,
+                    "type": "ipfs_daemon"
+                }
+
+            # Check IPFS Cluster Service (master only)
+            if self.role == "master" and hasattr(self, 'ipfs_cluster_service'):
+                ps_result = self.ipfs_cluster_service.run_cluster_service_command(["ps", "-ef"], check=False)
+                cluster_running = False
+
+                if ps_result.get("success", False) and "stdout" in ps_result:
+                    # Look for ipfs-cluster-service daemon process
+                    for line in ps_result["stdout"].splitlines():
+                        if "ipfs-cluster-service daemon" in line and "grep" not in line:
+                            cluster_running = True
+                            break
+
+                result["daemons"]["ipfs_cluster_service"] = {
+                    "running": cluster_running,
+                    "type": "cluster_service"
+                }
+
+            # Check IPFS Cluster Follow (worker only)
+            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow'):
+                ps_result = self.ipfs_cluster_follow.run_cluster_follow_command(["ps", "-ef"], check=False)
+                follow_running = False
+
+                if ps_result.get("success", False) and "stdout" in ps_result:
+                    # Look for ipfs-cluster-follow process
+                    for line in ps_result["stdout"].splitlines():
+                        if "ipfs-cluster-follow" in line and "grep" not in line:
+                            follow_running = True
+                            break
+
+                result["daemons"]["ipfs_cluster_follow"] = {
+                    "running": follow_running,
+                    "type": "cluster_follow"
+                }
+                
+            # Check Lotus daemon if available
+            if hasattr(self, 'lotus_kit'):
+                lotus_status = self.lotus_kit.daemon_status()
+                
+                # Extract information from the lotus daemon status
+                lotus_running = lotus_status.get("process_running", False)
+                lotus_pid = lotus_status.get("pid", None)
+                lotus_api_ready = lotus_status.get("api_ready", False)
+                
+                result["daemons"]["lotus"] = {
+                    "running": lotus_running,
+                    "type": "lotus_daemon",
+                    "pid": lotus_pid,
+                    "api_ready": lotus_api_ready
+                }
+
+            result["success"] = True
+            return result
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error checking daemon status: {str(e)}")
+            return result
+
+    def stop_daemons(self):
+        """Stop all running daemon processes.
+
+        Returns:
+            dict: A dictionary containing the results of stopping each daemon.
+        """
+        from .error import create_result_dict
+
+        result = create_result_dict("stop_daemons")
+        result["stopped"] = {}
+
+        try:
+            # Stop in reverse order of starting
+
+            # Stop IPFS Cluster Follow (worker only)
+            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow'):
+                cluster_name = None
+                if hasattr(self, "cluster_name"):
+                    cluster_name = self.cluster_name
+                elif hasattr(self, "metadata") and "cluster_name" in self.metadata:
+                    cluster_name = self.metadata["cluster_name"]
+
+                if cluster_name:
+                    follow_stopped = self.ipfs_cluster_follow.ipfs_follow_stop(cluster_name=cluster_name)
+                    result["stopped"]["ipfs_cluster_follow"] = follow_stopped
+                    self.logger.info(f"IPFS Cluster Follow stopped: {follow_stopped.get('success', False)}")
+
+            # Stop IPFS Cluster Service (master only)
+            if self.role == "master" and hasattr(self, 'ipfs_cluster_service'):
+                service_stopped = self.ipfs_cluster_service.ipfs_cluster_service_stop()
+                result["stopped"]["ipfs_cluster_service"] = service_stopped
+                self.logger.info(f"IPFS Cluster Service stopped: {service_stopped.get('success', False)}")
+                
+            # Stop Lotus daemon if available (lotus should be stopped before IPFS)
+            if hasattr(self, 'lotus_kit'):
+                lotus_stopped = self.lotus_kit.daemon_stop()
+                result["stopped"]["lotus"] = lotus_stopped
+                self.logger.info(f"Lotus daemon stopped: {lotus_stopped.get('success', False)}")
+
+            # Stop IPFS daemon (all roles)
+            if hasattr(self, 'ipfs'):
+                ipfs_stopped = self.ipfs.daemon_stop()
+                result["stopped"]["ipfs"] = ipfs_stopped
+                self.logger.info(f"IPFS daemon stopped: {ipfs_stopped.get('success', False)}")
+
+            result["success"] = True
+            return result
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error stopping daemons: {str(e)}")
+            return result
+
+    def initialize(self, start_daemons=True):
+        """
+        Initialize the SDK and ensure all required daemons are running.
+
+        This is a convenience method to ensure the SDK is fully initialized and ready for use.
+        It will start all required daemons based on the node's role if start_daemons is True.
+
+        Args:
+            start_daemons (bool): Whether to start the daemons automatically
+
+        Returns:
+            dict: Result dictionary with initialization status and daemon information
+        """
+        from .error import create_result_dict
+
+        # Create result dictionary
+        result = create_result_dict("initialize")
+        result["daemons_started"] = []
+        result["daemons_status"] = {}
+
+        try:
+            # If auto-start is enabled, start required daemons
+            if start_daemons:
+                self.auto_start_daemons = True
+                daemon_result = self._start_required_daemons()
+                result["daemons_started_result"] = daemon_result
+
+            # Check status of all daemons
+            status_result = self.check_daemon_status()
+            result["daemons_status"] = status_result.get("daemons", {})
+
+            # Overall success if all required daemons are running or if we're not starting daemons
+            all_running = all(daemon.get("running", False) for daemon in result["daemons_status"].values())
+            result["all_daemons_running"] = all_running
+
+            if start_daemons and not all_running:
+                result["success"] = False
+                result["error"] = "Not all required daemons are running after initialization"
+            else:
+                result["success"] = True
+
+            return result
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error initializing SDK: {str(e)}")
+            return result
+
+    def _ensure_daemon_running(self, daemon_type="ipfs"):
+        """
+        Ensures a specific daemon is running, starting it if necessary and if auto_start_daemons is True.
+
+        Args:
+            daemon_type (str): Type of daemon to check ("ipfs", "ipfs_cluster_service", "ipfs_cluster_follow", or "lotus")
+
+        Returns:
+            dict: Result dictionary with success status and error information if applicable
+        """
+        from .error import create_result_dict
+
+        result = create_result_dict(f"ensure_{daemon_type}_running")
+
+        try:
+            # Check current daemon status
+            daemon_status = self.check_daemon_status()
+            if not daemon_status.get("success", False):
+                result["success"] = False
+                result["error"] = "Failed to check daemon status"
+                result["original_error"] = daemon_status.get("error")
+                return result
+
+            # Check if the requested daemon is running
+            is_running = daemon_status.get("daemons", {}).get(daemon_type, {}).get("running", False)
+            result["was_running"] = is_running
+
+            if is_running:
+                result["success"] = True
+                result["message"] = f"{daemon_type} daemon already running"
+                return result
+
+            # Daemon is not running, check if we should auto-start it
+            if not self.auto_start_daemons:
+                result["success"] = False
+                result["error"] = f"{daemon_type} daemon is not running and auto_start_daemons is disabled"
+                return result
+
+            # Start the requested daemon
+            self.logger.info(f"{daemon_type} daemon not running, attempting to start it automatically")
+
+            if daemon_type == "ipfs" and hasattr(self, "ipfs"):
+                start_result = self.ipfs.daemon_start()
+            elif daemon_type == "ipfs_cluster_service" and hasattr(self, "ipfs_cluster_service"):
+                start_result = self.ipfs_cluster_service.ipfs_cluster_service_start()
+            elif daemon_type == "ipfs_cluster_follow" and hasattr(self, "ipfs_cluster_follow"):
+                # Need cluster name for this one
+                cluster_name = None
+                if hasattr(self, "cluster_name"):
+                    cluster_name = self.cluster_name
+                elif hasattr(self, "metadata") and "cluster_name" in self.metadata:
+                    cluster_name = self.metadata["cluster_name"]
+
+                if not cluster_name:
+                    result["success"] = False
+                    result["error"] = "Cannot start IPFS Cluster Follow: No cluster name provided"
+                    return result
+
+                start_result = self.ipfs_cluster_follow.ipfs_follow_start(cluster_name=cluster_name)
+            elif daemon_type == "lotus" and hasattr(self, "lotus_kit"):
+                # Start Lotus daemon
+                start_result = self.lotus_kit.daemon_start()
+            else:
+                result["success"] = False
+                result["error"] = f"Unknown daemon type '{daemon_type}' or component not initialized"
+                return result
+
+            if not start_result.get("success", False):
+                result["success"] = False
+                result["error"] = f"Failed to start {daemon_type} daemon"
+                result["start_result"] = start_result
+                return result
+
+            # Daemon started successfully
+            result["success"] = True
+            result["message"] = f"{daemon_type} daemon started automatically"
+            result["start_result"] = start_result
+            return result
+
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            result["error_type"] = type(e).__name__
+            self.logger.error(f"Error ensuring {daemon_type} daemon is running: {str(e)}")
+            return result
 
     def get_metadata_index(self, index_dir=None, **kwargs):
         """Get or initialize the Arrow-based metadata index.
@@ -713,6 +1298,19 @@ class ipfs_kit:
     def _setup_libp2p(self, resources=None, metadata=None):
         """Set up the libp2p direct peer-to-peer communication component."""
         try:
+            # Check if libp2p is available before importing
+            # This prevents circular imports and provides better error messages
+            try:
+                import libp2p
+                libp2p_available = True
+            except ImportError:
+                self.logger.warning("libp2p package is not installed. Skipping libp2p setup.")
+                self.logger.info("To enable libp2p, install it with: pip install libp2p")
+                return False
+                
+            # Now that we've verified libp2p is available, import our peer implementation
+            from .libp2p_peer import IPFSLibp2pPeer
+            
             self.logger.info("Setting up libp2p peer for direct P2P communication...")
             libp2p_config = metadata.get("libp2p_config", {}) if metadata else {}
             identity_path = libp2p_config.get("identity_path")
@@ -737,27 +1335,40 @@ class ipfs_kit:
                 if hasattr(self, "_filesystem") and self._filesystem is not None
                 else None
             )
-            self.libp2p = IPFSLibp2pPeer(
-                identity_path=identity_path,
-                bootstrap_peers=bootstrap_peers,
-                listen_addrs=listen_addrs,
-                role=self.role,
-                enable_mdns=enable_mdns,
-                enable_hole_punching=enable_hole_punching,
-                enable_relay=enable_relay,
-                tiered_storage_manager=tiered_storage_manager,
-            )
-            if libp2p_config.get("auto_start_discovery", True):
-                cluster_name = (
-                    metadata.get("cluster_name", "ipfs-kit-cluster")
-                    if metadata
-                    else "ipfs-kit-cluster"
+            
+            # Create the libp2p peer instance
+            try:
+                self.libp2p = IPFSLibp2pPeer(
+                    identity_path=identity_path,
+                    bootstrap_peers=bootstrap_peers,
+                    listen_addrs=listen_addrs,
+                    role=self.role,
+                    enable_mdns=enable_mdns,
+                    enable_hole_punching=enable_hole_punching,
+                    enable_relay=enable_relay,
+                    tiered_storage_manager=tiered_storage_manager,
                 )
-                self.libp2p.start_discovery(rendezvous_string=cluster_name)
-            if enable_relay:
-                self.libp2p.enable_relay()
-            self.logger.info(f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}")
-            return True
+                
+                # Start discovery if configured
+                if libp2p_config.get("auto_start_discovery", True):
+                    cluster_name = (
+                        metadata.get("cluster_name", "ipfs-kit-cluster")
+                        if metadata
+                        else "ipfs-kit-cluster"
+                    )
+                    self.libp2p.start_discovery(rendezvous_string=cluster_name)
+                    
+                # Enable relay if configured
+                if enable_relay:
+                    self.libp2p.enable_relay()
+                    
+                self.logger.info(f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}")
+                return True
+                
+            except ImportError as e:
+                self.logger.error(f"Failed to create libp2p peer due to missing dependencies: {str(e)}")
+                self.logger.info("Make sure all required libp2p dependencies are installed")
+                return False
         except Exception as e:
             self.logger.error(f"Failed to set up libp2p peer: {str(e)}")
             return False
@@ -793,7 +1404,15 @@ class ipfs_kit:
         operation = f"libp2p_{method_name}"
         correlation_id = kwargs.pop("correlation_id", None)
         result = create_result_dict(operation, correlation_id)
-        if not HAS_LIBP2P:
+        
+        # Check if libp2p is installed
+        try:
+            import libp2p
+            libp2p_installed = True
+        except ImportError:
+            libp2p_installed = False
+        
+        if not libp2p_installed:
             return handle_error(
                 result, IPFSError("libp2p is not available. Install with pip install libp2p")
             )
@@ -848,6 +1467,7 @@ class ipfs_kit:
     def libp2p_connect_via_relay(self, peer_id, relay_addr, **kwargs):
         return self._check_libp2p_and_call("connect_via_relay", peer_id, relay_addr, **kwargs)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_add(self, file_path, recursive=False, **kwargs):
         """Add content to IPFS.
 
@@ -858,6 +1478,11 @@ class ipfs_kit:
 
         Returns:
             Dictionary with operation result information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
         """
         operation = "ipfs_add"
         correlation_id = kwargs.get("correlation_id")
@@ -876,6 +1501,7 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_cat(self, cid, **kwargs):
         """Retrieve content from IPFS by CID.
 
@@ -885,6 +1511,11 @@ class ipfs_kit:
 
         Returns:
             Dictionary with operation result information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
         """
         operation = "ipfs_cat"
         correlation_id = kwargs.get("correlation_id")
@@ -903,6 +1534,7 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_pin_add(self, cid, recursive=True, **kwargs):
         """Pin content by CID to the local IPFS node.
 
@@ -913,6 +1545,11 @@ class ipfs_kit:
 
         Returns:
             Dictionary with operation result information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
         """
         operation = "ipfs_pin_add"
         correlation_id = kwargs.get("correlation_id")
@@ -931,6 +1568,7 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_pin_ls(self, **kwargs):
         """List pinned content on the local IPFS node.
 
@@ -939,6 +1577,11 @@ class ipfs_kit:
 
         Returns:
             Dictionary with operation result information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
         """
         operation = "ipfs_pin_ls"
         correlation_id = kwargs.get("correlation_id")
@@ -957,6 +1600,7 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_pin_rm(self, cid, recursive=True, **kwargs):
         """Remove pinned content from the local IPFS node.
 
@@ -967,6 +1611,11 @@ class ipfs_kit:
 
         Returns:
             Dictionary with operation result information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
         """
         operation = "ipfs_pin_rm"
         correlation_id = kwargs.get("correlation_id")
@@ -985,6 +1634,7 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_swarm_peers(self, **kwargs):
         """Get the list of connected peers.
 
@@ -993,6 +1643,11 @@ class ipfs_kit:
 
         Returns:
             Dictionary with operation result information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
         """
         operation = "ipfs_swarm_peers"
         correlation_id = kwargs.get("correlation_id")
@@ -1010,239 +1665,239 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def _setup_ipld_extension(self, resources=None, metadata=None):
         """Set up the IPLD extension component."""
         try:
             self.logger.info("Setting up IPLD extension...")
-            
+
             # Create IPLD extension with the IPFS client
             self.ipld_extension = IPLDExtension(self.ipfs)
-            
+
             # Check component availability
             if not self.ipld_extension.car_handler.available:
                 self.logger.warning("CAR file operations are not available.")
                 self.logger.info("To enable CAR file operations, install py-ipld-car package.")
-            
+
             if not self.ipld_extension.dag_pb_handler.available:
                 self.logger.warning("DAG-PB operations are not available.")
                 self.logger.info("To enable DAG-PB operations, install py-ipld-dag-pb package.")
-            
+
             if not self.ipld_extension.unixfs_handler.available:
                 self.logger.warning("UnixFS operations are not available.")
                 self.logger.info("To enable UnixFS operations, install py-ipld-unixfs package.")
-            
+
             self.logger.info("IPLD extension setup complete.")
             return True
         except Exception as e:
             self.logger.error(f"Failed to set up IPLD extension: {str(e)}")
             return False
-    
+
     # IPLD Extension Methods
-    
+
     def create_car(self, roots, blocks, **kwargs):
         """Create a CAR file from roots and blocks.
-        
+
         Args:
             roots: List of root CID strings
             blocks: List of (CID, data) tuples
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result
         """
         operation = "create_car"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.car_handler.available:
                 return handle_error(result, IPFSError("CAR file operations not available"))
-            
+
             car_result = self.ipld_extension.create_car(roots, blocks)
             result.update(car_result)
             result["success"] = car_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def extract_car(self, car_data, **kwargs):
         """Extract contents of a CAR file.
-        
+
         Args:
             car_data: CAR file data (binary or base64 encoded string)
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result
         """
         operation = "extract_car"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.car_handler.available:
                 return handle_error(result, IPFSError("CAR file operations not available"))
-            
+
             extract_result = self.ipld_extension.extract_car(car_data)
             result.update(extract_result)
             result["success"] = extract_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def save_car(self, car_data, file_path, **kwargs):
         """Save CAR data to a file.
-        
+
         Args:
             car_data: CAR file data (binary or base64 encoded string)
             file_path: Path to save the file
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result
         """
         operation = "save_car"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.car_handler.available:
                 return handle_error(result, IPFSError("CAR file operations not available"))
-            
+
             # Call the extension
             save_result = self.ipld_extension.save_car(car_data, file_path)
-            
+
             # Copy all results
             for key, value in save_result.items():
                 result[key] = value
-                
+
             result["success"] = save_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def load_car(self, file_path, **kwargs):
         """Load CAR data from a file.
-        
+
         Args:
             file_path: Path to the CAR file
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result, roots and blocks
         """
         operation = "load_car"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.car_handler.available:
                 return handle_error(result, IPFSError("CAR file operations not available"))
-            
+
             # Call the extension
             load_result = self.ipld_extension.load_car(file_path)
-            
+
             # Copy all results
             for key, value in load_result.items():
                 result[key] = value
-                
+
             result["success"] = load_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def add_car_to_ipfs(self, car_data, **kwargs):
         """Import a CAR file into IPFS.
-        
+
         Args:
             car_data: CAR file data (binary or base64 encoded string)
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result
         """
         operation = "add_car_to_ipfs"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.car_handler.available:
                 return handle_error(result, IPFSError("CAR file operations not available"))
-            
+
             add_car_result = self.ipld_extension.add_car_to_ipfs(car_data)
             result.update(add_car_result)
             result["success"] = add_car_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def create_dag_node(self, data=None, links=None, **kwargs):
         """Create a DAG-PB node.
-        
+
         Args:
             data: Optional binary data for the node
             links: Optional list of links to other nodes
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result
         """
         operation = "create_dag_node"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.dag_pb_handler.available:
                 return handle_error(result, IPFSError("DAG-PB operations not available"))
-            
+
             node_result = self.ipld_extension.create_node(data, links)
             result.update(node_result)
             result["success"] = node_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
-    
+
     def chunk_file(self, file_path, chunk_size=262144, **kwargs):
         """Chunk a file using fixed-size chunker.
-        
+
         Args:
             file_path: Path to the file to chunk
             chunk_size: Size of chunks in bytes (default: 256KB)
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dictionary with operation result
         """
         operation = "chunk_file"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
-            
+
             if not self.ipld_extension.unixfs_handler.available:
                 return handle_error(result, IPFSError("UnixFS operations not available"))
-            
+
             chunk_result = self.ipld_extension.chunk_file(file_path, chunk_size)
             result.update(chunk_result)
             result["success"] = chunk_result.get("success", False)
@@ -1483,7 +2138,7 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def _check_huggingface_and_call(self, method_name, *args, **kwargs):
         """Helper to check and call Hugging Face Hub methods."""
         operation = f"huggingface_{method_name}"
@@ -1715,7 +2370,7 @@ class ipfs_kit:
                 return {"success": True, "operation": "get_data_loader", "data_loader": data_loader}
             else:
                 raise NotImplementedError("get_data_loader not implemented or available")
-                
+
         # Hugging Face Hub operations
         if method.startswith("huggingface_"):
             # Extract the actual method name (remove the huggingface_ prefix)
@@ -2402,6 +3057,142 @@ class ipfs_kit:
                 **kwargs
             )  # Assuming list gives pinset for worker
         return {"ipfs_cluster": ipfs_cluster, "ipfs": ipfs_pinset}
+        
+    def dht_findpeer(self, peer_id, **kwargs):
+        """Find a specific peer via the DHT and retrieve addresses.
+        
+        Args:
+            peer_id: The ID of the peer to find
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result containing peer multiaddresses
+        """
+        operation = "dht_findpeer"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Delegate to the ipfs instance
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+                
+            # Call the ipfs module's implementation
+            response = self.ipfs.dht_findpeer(peer_id)
+            result.update(response)
+            result["success"] = response.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+            
+    def dht_findprovs(self, cid, num_providers=None, **kwargs):
+        """Find providers for content via the DHT.
+        
+        Args:
+            cid: The content ID to find providers for
+            num_providers: Maximum number of providers to find (optional)
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result containing provider information
+        """
+        operation = "dht_findprovs"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Delegate to the ipfs instance
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+                
+            # Call the ipfs module's implementation
+            response = self.ipfs.dht_findprovs(cid, num_providers=num_providers)
+            result.update(response)
+            result["success"] = response.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+            
+    def files_mkdir(self, path, **kwargs):
+        """Create a directory in the MFS (Mutable File System).
+        
+        Args:
+            path: Path to create in the MFS
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result
+        """
+        operation = "files_mkdir"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Delegate to the ipfs instance
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+                
+            # Call the ipfs module's implementation
+            response = self.ipfs.files_mkdir(path, **kwargs)
+            result.update(response)
+            result["success"] = response.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+            
+    def files_ls(self, path=None, **kwargs):
+        """List directory contents in the MFS (Mutable File System).
+        
+        Args:
+            path: Path to list (optional, defaults to root)
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result containing directory contents
+        """
+        operation = "files_ls"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Delegate to the ipfs instance
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+                
+            # Call the ipfs module's implementation
+            response = self.ipfs.files_ls(path, **kwargs)
+            result.update(response)
+            result["success"] = response.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+            
+    def files_stat(self, path, **kwargs):
+        """Get file or directory information in the MFS (Mutable File System).
+        
+        Args:
+            path: Path to stat in the MFS
+            **kwargs: Additional parameters for the operation
+            
+        Returns:
+            Dict with operation result containing file/directory information
+        """
+        operation = "files_stat"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+        
+        try:
+            # Delegate to the ipfs instance
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+                
+            # Call the ipfs module's implementation
+            response = self.ipfs.files_stat(path, **kwargs)
+            result.update(response)
+            result["success"] = response.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
 
     def ipfs_follow_sync(self, **kwargs):
         """Synchronize worker node's pinset with the master node.
@@ -2833,7 +3624,10 @@ class ipfs_kit:
                 except Exception as e:
                     results["ipfs"] = str(e)
 
-        if enable_libp2p and HAS_LIBP2P:
+        # Access the module-level HAS_LIBP2P variable
+        from ipfs_kit_py.ipfs_kit import HAS_LIBP2P as has_libp2p_module
+        
+        if enable_libp2p and has_libp2p_module:
             try:
                 if hasattr(self, "libp2p") and self.libp2p:
                     self.libp2p.close()  # Close existing first
@@ -2841,7 +3635,7 @@ class ipfs_kit:
                 results["libp2p"] = "Started" if success else "Failed to start"
             except Exception as e:
                 results["libp2p"] = str(e)
-        elif enable_libp2p and not HAS_LIBP2P:
+        elif enable_libp2p and not has_libp2p_module:
             results["libp2p"] = "Not available"
 
         if hasattr(self, "cluster_manager") and self.cluster_manager is not None:
@@ -3600,7 +4394,7 @@ class ipfs_kit:
 
         return result
 
-    def ipfs_swarm_connect(self, peer_addr, **kwargs):
+    def ipfs_swarm_connect(self, peer_addr=None, **kwargs):
         """Connect to a peer at the specified multiaddress.
 
         Args:
@@ -3610,6 +4404,13 @@ class ipfs_kit:
         Returns:
             Result dictionary with operation outcome
         """
+        if not peer_addr:
+            # Return a default response when no peer address is provided
+            return {
+                "success": False,
+                "error": "Missing required peer address",
+                "error_type": "ValidationError"
+            }
         return self.ipfs.ipfs_swarm_connect(peer_addr) if hasattr(self, "ipfs") else None
 
     def ipfs_swarm_disconnect(self, peer_addr, **kwargs):
@@ -4567,10 +5368,1085 @@ class IPFSKit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
     def ipfs_add_file(self, file_path, **kwargs):
-        """Alias for ipfs_add for compatibility with high-level API."""
-        return self.ipfs_add(file_path, **kwargs)
+        """Alias for ipfs_add for compatibility with high-level API.
 
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS daemon and retry the operation if it fails due to the
+            daemon not running.
+        """
+        operation = "ipfs_add_file"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            # Delegate to the ipfs instance
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+
+            # Call the ipfs module's implementation
+            add_result = self.ipfs.add(file_path, **kwargs)
+            result.update(add_result)
+            result["success"] = add_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+
+# IPFS Cluster Methods with Auto-Retry
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
+    def cluster_pin_add(self, cid=None, path=None, name=None, replication=None, metadata=None, **kwargs):
+        """
+        Pin content to IPFS cluster.
+
+        Pins a CID or a local file path to the IPFS cluster with automatic
+        daemon restart if needed. This method requires the IPFS Cluster daemon to be running.
+
+        Args:
+            cid (str): Content identifier to pin (if content is already in IPFS)
+            path (str): Path to local file or directory to add and pin
+            name (str): Optional custom name for the pin
+            replication (int): Replication factor for the pin
+            metadata (dict): Custom metadata for the pin
+            **kwargs: Additional parameters for the operation
+
+        Returns:
+            Dictionary with operation result and cluster status information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS Cluster daemon and retry the operation if it fails due to the
+            daemon not running.
+        """
+        operation = "cluster_pin_add"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            # Check if IPFS Cluster is initialized
+            if not hasattr(self, "ipfs_cluster_ctl"):
+                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
+
+            # Validate that either cid or path is provided
+            if cid is None and path is None:
+                return handle_error(result, IPFSValidationError("Either cid or path must be provided"))
+
+            # Prepare parameters
+            pin_kwargs = {}
+            if name:
+                pin_kwargs["name"] = name
+            if replication:
+                pin_kwargs["replication"] = replication
+            if metadata:
+                # Convert metadata dict to JSON string if needed
+                if isinstance(metadata, dict):
+                    metadata = json.dumps(metadata)
+                pin_kwargs["metadata"] = metadata
+
+            # Add correlation ID for tracing
+            pin_kwargs["correlation_id"] = correlation_id
+
+            # Pin the CID or path
+            if path is not None:
+                # Add and pin a file or directory
+                pin_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(path=path, **pin_kwargs)
+            else:
+                # Pin an existing CID
+                pin_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(path=cid, **pin_kwargs)
+
+            # Update result
+            result.update(pin_result)
+            result["success"] = pin_result.get("success", False)
+
+            # Extract CID from stdout if available
+            if pin_result.get("success", False) and pin_result.get("stdout"):
+                # Try to extract CID from output
+                stdout = pin_result.get("stdout", "")
+                cid_pattern = r"(Qm[a-zA-Z0-9]{44}|bafy[a-zA-Z0-9]+)"
+                cid_match = re.search(cid_pattern, stdout)
+                if cid_match:
+                    result["cid"] = cid_match.group(1)
+
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
+    def cluster_pin_rm(self, cid, **kwargs):
+        """
+        Remove a pin from IPFS cluster.
+
+        Unpins a CID from the IPFS cluster with automatic daemon restart if needed.
+        This method requires the IPFS Cluster daemon to be running.
+
+        Args:
+            cid (str): Content identifier to unpin
+            **kwargs: Additional parameters for the operation
+
+        Returns:
+            Dictionary with operation result
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS Cluster daemon and retry the operation if it fails due to the
+            daemon not running.
+        """
+        operation = "cluster_pin_rm"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            # Check if IPFS Cluster is initialized
+            if not hasattr(self, "ipfs_cluster_ctl"):
+                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
+
+            # Validate CID
+            if not cid:
+                return handle_error(result, IPFSValidationError("CID must be provided"))
+
+            # Unpin the CID
+            unpin_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_remove_pin(cid=cid, correlation_id=correlation_id)
+
+            # Update result
+            result.update(unpin_result)
+            result["success"] = unpin_result.get("success", False)
+
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
+    def cluster_pin_ls(self, cid=None, **kwargs):
+        """
+        List pins in IPFS cluster.
+
+        Lists all pins in the cluster or details for a specific CID with automatic
+        daemon restart if needed. This method requires the IPFS Cluster daemon to be running.
+
+        Args:
+            cid (str): Optional content identifier to get pin status for
+            **kwargs: Additional parameters for the operation
+
+        Returns:
+            Dictionary with operation result and pin list
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS Cluster daemon and retry the operation if it fails due to the
+            daemon not running.
+        """
+        operation = "cluster_pin_ls"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            # Check if IPFS Cluster is initialized
+            if not hasattr(self, "ipfs_cluster_ctl"):
+                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
+
+            # Get pin list
+            pin_result = self.ipfs_cluster_ctl.ipfs_cluster_get_pinset(cid=cid, correlation_id=correlation_id)
+
+            # Update result
+            result.update(pin_result)
+            result["success"] = pin_result.get("success", False)
+
+            # Parse pins from output if available
+            if pin_result.get("success", False) and pin_result.get("stdout_json"):
+                result["pins"] = pin_result.get("stdout_json")
+
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
+    def cluster_status(self, cid=None, **kwargs):
+        """
+        Get status of pins in IPFS cluster.
+
+        Gets detailed status for all pins or a specific CID in the cluster with
+        automatic daemon restart if needed. This method requires the IPFS Cluster daemon to be running.
+
+        Args:
+            cid (str): Optional content identifier to get status for
+            **kwargs: Additional parameters for the operation
+
+        Returns:
+            Dictionary with operation result and status information
+
+        Note:
+            This method uses auto_retry_on_daemon_failure decorator to automatically
+            start the IPFS Cluster daemon and retry the operation if it fails due to the
+            daemon not running.
+        """
+        operation = "cluster_status"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            # Check if IPFS Cluster is initialized
+            if not hasattr(self, "ipfs_cluster_ctl"):
+                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
+
+            # Get status
+            status_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_status(cid=cid, correlation_id=correlation_id)
+
+            # Update result
+            result.update(status_result)
+            result["success"] = status_result.get("success", False)
+
+            # Parse status from output if available
+            if status_result.get("success", False) and status_result.get("stdout_json"):
+                result["status"] = status_result.get("stdout_json")
+
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+# Add a demo method to show daemon auto-restart capability
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
+    def perform_operation_with_retry(self, operation_type="add", content=None, **kwargs):
+        """
+        Perform IPFS operations with automatic daemon restart if needed.
+
+        This method demonstrates the auto_retry_on_daemon_failure decorator's capabilities
+        by performing an operation that requires the IPFS daemon, handling failures,
+        auto-restarting the daemon if it's not running, and retrying the operation.
+
+        Args:
+            operation_type (str): Type of operation to perform ('add', 'cat', 'pin')
+            content (str, bytes, or file path): Content or CID to operate on
+            **kwargs: Additional parameters for the operation
+
+        Returns:
+            Dictionary with operation result and daemon status information
+        """
+        operation = f"perform_operation_with_retry_{operation_type}"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            # Check if IPFS instance is available
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+
+            # Perform the requested operation
+            if operation_type == "add":
+                if isinstance(content, str) and os.path.exists(content):
+                    # String is a file path
+                    op_result = self.ipfs.add(content)
+                else:
+                    # Content is actual data
+                    temp_file = None
+                    try:
+                        temp_file = tempfile.NamedTemporaryFile(delete=False)
+                        if isinstance(content, str):
+                            temp_file.write(content.encode('utf-8'))
+                        elif isinstance(content, bytes):
+                            temp_file.write(content)
+                        else:
+                            return handle_error(
+                                result,
+                                IPFSValidationError("Content must be string, bytes, or file path")
+                            )
+                        temp_file.close()
+                        op_result = self.ipfs.add(temp_file.name)
+                    finally:
+                        if temp_file and os.path.exists(temp_file.name):
+                            os.unlink(temp_file.name)
+            elif operation_type == "cat":
+                if not content:
+                    return handle_error(result, IPFSValidationError("CID must be provided for 'cat' operation"))
+                op_result = self.ipfs.cat(content)
+            elif operation_type == "pin":
+                if not content:
+                    return handle_error(result, IPFSValidationError("CID must be provided for 'pin' operation"))
+                op_result = self.ipfs.pin_add(content)
+            else:
+                return handle_error(result, IPFSValidationError(f"Unsupported operation type: {operation_type}"))
+
+            # Update result with operation outcome
+            result.update(op_result)
+            result["success"] = op_result.get("success", False)
+
+            # Add daemon status information
+            daemon_status = self.check_daemon_status()
+            result["daemon_status"] = daemon_status.get("daemons", {}).get("ipfs", {})
+
+            return result
+
+        except Exception as e:
+            return handle_error(result, e)
+
+# Add daemon health monitoring
+    def start_daemon_health_monitor(self, check_interval=60, auto_restart=True):
+        """
+        Start a background thread to monitor daemon health and restart if needed.
+
+        This method creates a background thread that periodically checks if
+        required daemons are running and automatically restarts them if they
+        have crashed or stopped unexpectedly.
+
+        Args:
+            check_interval (int): Time in seconds between daemon status checks
+            auto_restart (bool): Whether to automatically restart failed daemons
+
+        Returns:
+            Dictionary with information about the monitor thread
+        """
+        import threading
+
+        # Define the monitoring function
+        def daemon_monitor():
+            """Background thread function to monitor daemon health."""
+            self.logger.info(f"Starting daemon health monitor (interval: {check_interval}s)")
+
+            # Keep track of restart attempts to avoid constant restarts if daemon can't start
+            restart_attempts = {
+                "ipfs": 0,
+                "ipfs_cluster_service": 0,
+                "ipfs_cluster_follow": 0
+            }
+            max_restart_attempts = 3
+            restart_reset_time = 600  # Reset attempt counter after 10 minutes
+            last_restart_time = {
+                "ipfs": 0,
+                "ipfs_cluster_service": 0,
+                "ipfs_cluster_follow": 0
+            }
+
+            # Boolean to control thread termination
+            monitor_running = True
+            self._daemon_monitor_running = True
+
+            while monitor_running and self._daemon_monitor_running:
+                try:
+                    # Check daemon status
+                    status = self.check_daemon_status()
+
+                    if status.get("success", False):
+                        daemon_statuses = status.get("daemons", {})
+
+                        # Check each daemon type
+                        for daemon_type, daemon_info in daemon_statuses.items():
+                            # Reset restart attempts if it's been a while
+                            current_time = time.time()
+                            if current_time - last_restart_time.get(daemon_type, 0) > restart_reset_time:
+                                restart_attempts[daemon_type] = 0
+
+                            # Check if daemon should be running but isn't
+                            required_daemon = (
+                                (daemon_type == "ipfs") or
+                                (daemon_type == "ipfs_cluster_service" and self.role == "master") or
+                                (daemon_type == "ipfs_cluster_follow" and self.role == "worker")
+                            )
+
+                            if required_daemon and not daemon_info.get("running", False):
+                                self.logger.warning(f"{daemon_type} daemon not running but should be!")
+
+                                # Check if we should restart
+                                if auto_restart and restart_attempts.get(daemon_type, 0) < max_restart_attempts:
+                                    self.logger.info(f"Attempting to restart {daemon_type} daemon...")
+                                    restart_result = self._ensure_daemon_running(daemon_type)
+
+                                    # Update tracking variables
+                                    restart_attempts[daemon_type] += 1
+                                    last_restart_time[daemon_type] = current_time
+
+                                    # Log result
+                                    if restart_result.get("success", False):
+                                        self.logger.info(f"Successfully restarted {daemon_type} daemon")
+                                    else:
+                                        self.logger.error(
+                                            f"Failed to restart {daemon_type} daemon: "
+                                            f"{restart_result.get('error', 'Unknown error')}"
+                                        )
+                                else:
+                                    if restart_attempts.get(daemon_type, 0) >= max_restart_attempts:
+                                        self.logger.error(
+                                            f"Maximum restart attempts ({max_restart_attempts}) "
+                                            f"reached for {daemon_type}. Not attempting restart."
+                                        )
+                    else:
+                        self.logger.warning(f"Failed to check daemon status: {status.get('error', 'Unknown error')}")
+
+                except Exception as e:
+                    self.logger.error(f"Error in daemon health monitor: {str(e)}")
+
+                # Sleep until next check
+                for _ in range(check_interval):
+                    if not self._daemon_monitor_running:
+                        break
+                    time.sleep(1)
+
+        # Create and start monitor thread
+        self._daemon_monitor_running = True
+        self._daemon_monitor_thread = threading.Thread(
+            target=daemon_monitor,
+            name="daemon_health_monitor",
+            daemon=True  # Thread will terminate when main program exits
+        )
+        self._daemon_monitor_thread.start()
+
+        return {
+            "success": True,
+            "message": f"Daemon health monitor started with {check_interval}s interval",
+            "auto_restart": auto_restart,
+            "thread_name": self._daemon_monitor_thread.name
+        }
+
+    def stop_daemon_health_monitor(self):
+        """
+        Stop the daemon health monitoring thread.
+
+        Returns:
+            Dictionary with operation status
+        """
+        if hasattr(self, "_daemon_monitor_running") and self._daemon_monitor_running:
+            self._daemon_monitor_running = False
+
+            # Wait for thread to terminate (with timeout)
+            if hasattr(self, "_daemon_monitor_thread"):
+                self._daemon_monitor_thread.join(timeout=5)
+
+            return {
+                "success": True,
+                "message": "Daemon health monitor stopped"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Daemon health monitor not running"
+            }
+
+    def is_daemon_health_monitor_running(self):
+        """
+        Check if daemon health monitor is currently running.
+
+        Returns:
+            bool: True if monitor is running, False otherwise
+        """
+        return hasattr(self, "_daemon_monitor_running") and self._daemon_monitor_running
+
+    # WebSocket peer discovery methods
+    def start_websocket_peer_discovery_server(self, host="0.0.0.0", port=8765, **kwargs):
+        """
+        Start a WebSocket server for peer discovery.
+
+        This server allows other peers to discover this node over WebSockets,
+        which can be useful in environments where traditional IPFS discovery
+        mechanisms (mDNS, DHT) are restricted by firewalls or NAT.
+
+        Args:
+            host (str): Host address to bind the server to
+            port (int): Port number to listen on
+            max_peers (int): Maximum number of peers to track
+            heartbeat_interval (int): Interval in seconds between heartbeats
+            peer_ttl (int): Time-to-live for peer information in seconds
+            role (str): Override default peer role
+            capabilities (list): Override default peer capabilities
+
+        Returns:
+            dict: Result dictionary with server status
+        """
+        result = {
+            "success": False,
+            "operation": "start_websocket_peer_discovery_server",
+            "timestamp": time.time()
+        }
+
+        # Check if WebSocket peer discovery is available
+        if not HAS_WEBSOCKET_PEER_DISCOVERY:
+            return handle_error(
+                result,
+                ImportError("WebSocket peer discovery support is not available")
+            )
+
+        # Check if WebSockets are available
+        if not WEBSOCKET_AVAILABLE:
+            return handle_error(
+                result,
+                ImportError("WebSockets library not available. Install with: pip install websockets")
+            )
+
+        try:
+            # Create local peer info if not already present
+            if not hasattr(self, "_websocket_peer_info") or self._websocket_peer_info is None:
+                self._websocket_peer_info = create_peer_info_from_ipfs_kit(
+                    self,
+                    role=kwargs.get("role"),
+                    capabilities=kwargs.get("capabilities")
+                )
+
+            # Extract server parameters
+            max_peers = kwargs.get("max_peers", 100)
+            heartbeat_interval = kwargs.get("heartbeat_interval", 30)
+            peer_ttl = kwargs.get("peer_ttl", 300)
+
+            # Create server if not already present
+            if not hasattr(self, "_websocket_peer_server") or self._websocket_peer_server is None:
+                self._websocket_peer_server = PeerWebSocketServer(
+                    local_peer_info=self._websocket_peer_info,
+                    max_peers=max_peers,
+                    heartbeat_interval=heartbeat_interval,
+                    peer_ttl=peer_ttl
+                )
+
+                # Start server
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self._websocket_peer_server.start(host=host, port=port))
+
+                # Create server URL
+                server_url = f"ws://{host}:{port}"
+
+                # Update result
+                result["success"] = True
+                result["message"] = f"WebSocket peer discovery server started at {server_url}"
+                result["server_url"] = server_url
+                result["peer_info"] = self._websocket_peer_info.to_dict()
+
+                self.logger.info(f"WebSocket peer discovery server started at {server_url}")
+            else:
+                result["success"] = True
+                result["message"] = "WebSocket peer discovery server already running"
+                result["already_running"] = True
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def stop_websocket_peer_discovery_server(self, **kwargs):
+        """
+        Stop the WebSocket peer discovery server.
+
+        Returns:
+            dict: Result dictionary with operation status
+        """
+        result = {
+            "success": False,
+            "operation": "stop_websocket_peer_discovery_server",
+            "timestamp": time.time()
+        }
+
+        # Check if WebSocket peer discovery is available
+        if not HAS_WEBSOCKET_PEER_DISCOVERY:
+            return handle_error(
+                result,
+                ImportError("WebSocket peer discovery support is not available")
+            )
+
+        # Check if server is running
+        if not hasattr(self, "_websocket_peer_server") or self._websocket_peer_server is None:
+            result["success"] = True
+            result["message"] = "WebSocket peer discovery server not running"
+            result["already_stopped"] = True
+            return result
+
+        try:
+            # Stop server
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self._websocket_peer_server.stop())
+
+            # Clear server reference
+            self._websocket_peer_server = None
+
+            # Update result
+            result["success"] = True
+            result["message"] = "WebSocket peer discovery server stopped"
+
+            self.logger.info("WebSocket peer discovery server stopped")
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def connect_to_websocket_peer_discovery(self, server_url, **kwargs):
+        """
+        Connect to a WebSocket peer discovery server.
+
+        This method allows discovering peers through a WebSocket server,
+        which can be useful in environments where traditional IPFS discovery
+        mechanisms (mDNS, DHT) are restricted by firewalls or NAT.
+
+        Args:
+            server_url (str): WebSocket URL of the discovery server
+            auto_connect (bool): Whether to automatically connect to discovered peers
+            reconnect_interval (int): Reconnect interval in seconds
+            max_reconnect_attempts (int): Maximum number of reconnect attempts
+
+        Returns:
+            dict: Result dictionary with connection status
+        """
+        result = {
+            "success": False,
+            "operation": "connect_to_websocket_peer_discovery",
+            "timestamp": time.time()
+        }
+
+        # Check if WebSocket peer discovery is available
+        if not HAS_WEBSOCKET_PEER_DISCOVERY:
+            return handle_error(
+                result,
+                ImportError("WebSocket peer discovery support is not available")
+            )
+
+        # Check if WebSockets are available
+        if not WEBSOCKET_AVAILABLE:
+            return handle_error(
+                result,
+                ImportError("WebSockets library not available. Install with: pip install websockets")
+            )
+
+        try:
+            # Create local peer info if not already present
+            if not hasattr(self, "_websocket_peer_info") or self._websocket_peer_info is None:
+                self._websocket_peer_info = create_peer_info_from_ipfs_kit(self)
+
+            # Extract client parameters
+            auto_connect = kwargs.get("auto_connect", True)
+            reconnect_interval = kwargs.get("reconnect_interval", 30)
+            max_reconnect_attempts = kwargs.get("max_reconnect_attempts", 5)
+
+            # Create client if not already present
+            if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
+                # Define callback for newly discovered peers
+                def on_peer_discovered(peer_info):
+                    self.logger.info(f"New peer discovered via WebSocket: {peer_info.peer_id}")
+
+                    # Auto-connect to the peer if enabled
+                    if auto_connect:
+                        for addr in peer_info.multiaddrs:
+                            try:
+                                connect_result = self.ipfs_swarm_connect(addr)
+                                if connect_result.get("success", False):
+                                    self.logger.info(f"Successfully connected to peer {peer_info.peer_id} at {addr}")
+                                    break
+                            except Exception as connect_err:
+                                self.logger.debug(f"Failed to connect to peer {peer_info.peer_id} at {addr}: {connect_err}")
+
+                # Create client
+                self._websocket_peer_client = PeerWebSocketClient(
+                    local_peer_info=self._websocket_peer_info,
+                    on_peer_discovered=on_peer_discovered,
+                    auto_connect=auto_connect,
+                    reconnect_interval=reconnect_interval,
+                    max_reconnect_attempts=max_reconnect_attempts
+                )
+
+                # Start client
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self._websocket_peer_client.start())
+
+            # Connect to server
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            connection_result = loop.run_until_complete(
+                self._websocket_peer_client.connect_to_discovery_server(server_url)
+            )
+
+            # Update result
+            result["success"] = True
+            result["connected"] = connection_result
+            result["server_url"] = server_url
+
+            self.logger.info(f"Connected to WebSocket peer discovery server at {server_url}")
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def disconnect_from_websocket_peer_discovery(self, **kwargs):
+        """
+        Disconnect from WebSocket peer discovery.
+
+        This stops the WebSocket peer discovery client and closes all connections.
+
+        Returns:
+            dict: Result dictionary with operation status
+        """
+        result = {
+            "success": False,
+            "operation": "disconnect_from_websocket_peer_discovery",
+            "timestamp": time.time()
+        }
+
+        # Check if WebSocket peer discovery is available
+        if not HAS_WEBSOCKET_PEER_DISCOVERY:
+            return handle_error(
+                result,
+                ImportError("WebSocket peer discovery support is not available")
+            )
+
+        # Check if client is running
+        if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
+            result["success"] = True
+            result["message"] = "WebSocket peer discovery client not running"
+            result["already_stopped"] = True
+            return result
+
+        try:
+            # Stop client
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self._websocket_peer_client.stop())
+
+            # Clear client reference
+            self._websocket_peer_client = None
+
+            # Update result
+            result["success"] = True
+            result["message"] = "WebSocket peer discovery client stopped"
+
+            self.logger.info("WebSocket peer discovery client stopped")
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def get_websocket_discovered_peers(self, filter_role=None, filter_capabilities=None, **kwargs):
+        """
+        Get list of peers discovered via WebSocket.
+
+        Args:
+            filter_role (str): Filter peers by role
+            filter_capabilities (list): Filter peers by required capabilities
+
+        Returns:
+            dict: Result dictionary with discovered peers
+        """
+        result = {
+            "success": False,
+            "operation": "get_websocket_discovered_peers",
+            "timestamp": time.time()
+        }
+
+        # Check if WebSocket peer discovery is available
+        if not HAS_WEBSOCKET_PEER_DISCOVERY:
+            return handle_error(
+                result,
+                ImportError("WebSocket peer discovery support is not available")
+            )
+
+        # Check if client is running
+        if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
+            result["success"] = True
+            result["message"] = "WebSocket peer discovery client not running"
+            result["peers"] = []
+            result["count"] = 0
+            return result
+
+        try:
+            # Process capabilities filter
+            capabilities_list = filter_capabilities
+            if isinstance(filter_capabilities, str):
+                capabilities_list = filter_capabilities.split(',')
+
+            # Get peers
+            peers = self._websocket_peer_client.get_discovered_peers(
+                filter_role=filter_role,
+                filter_capabilities=capabilities_list
+            )
+
+            # Convert to dictionary representation
+            peer_dicts = [peer.to_dict() for peer in peers]
+
+            # Update result
+            result["success"] = True
+            result["peers"] = peer_dicts
+            result["count"] = len(peer_dicts)
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def get_websocket_peer_by_id(self, peer_id, **kwargs):
+        """
+        Get information about a specific peer discovered via WebSocket.
+
+        Args:
+            peer_id (str): Peer identifier
+
+        Returns:
+            dict: Result dictionary with peer information
+        """
+        result = {
+            "success": False,
+            "operation": "get_websocket_peer_by_id",
+            "timestamp": time.time()
+        }
+
+        # Check if WebSocket peer discovery is available
+        if not HAS_WEBSOCKET_PEER_DISCOVERY:
+            return handle_error(
+                result,
+                ImportError("WebSocket peer discovery support is not available")
+            )
+
+        # Check if client is running
+        if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
+            return handle_error(
+                result,
+                ValueError("WebSocket peer discovery client not running")
+            )
+
+        try:
+            # Get peer
+            peer = self._websocket_peer_client.get_peer_by_id(peer_id)
+            if not peer:
+                return handle_error(
+                    result,
+                    ValueError(f"Peer not found: {peer_id}")
+                )
+
+            # Update result
+            result["success"] = True
+            result["peer"] = peer.to_dict()
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def shutdown(self, **kwargs):
+        """
+        Shutdown the ipfs_kit instance and clean up resources.
+
+        This method ensures proper cleanup of all resources created by this instance,
+        including WebSocket peer discovery servers and clients.
+
+        Args:
+            **kwargs: Additional arguments for future extensions
+
+        Returns:
+            dict: Result dictionary with shutdown status
+        """
+        result = {
+            "success": False,
+            "operation": "shutdown",
+            "timestamp": time.time(),
+            "components_shutdown": []
+        }
+
+        try:
+            # Shutdown WebSocket peer discovery if active
+            if HAS_WEBSOCKET_PEER_DISCOVERY:
+                # Stop server if running
+                if hasattr(self, "_websocket_peer_server") and self._websocket_peer_server is not None:
+                    try:
+                        self._websocket_peer_server.stop()
+                        self._websocket_peer_server = None
+                        result["components_shutdown"].append("websocket_peer_server")
+                    except Exception as e:
+                        self.logger.warning(f"Error stopping WebSocket peer server: {str(e)}")
+
+                # Disconnect client if running
+                if hasattr(self, "_websocket_peer_client") and self._websocket_peer_client is not None:
+                    try:
+                        self._websocket_peer_client.disconnect()
+                        self._websocket_peer_client = None
+                        result["components_shutdown"].append("websocket_peer_client")
+                    except Exception as e:
+                        self.logger.warning(f"Error disconnecting WebSocket peer client: {str(e)}")
+
+            # Add other component cleanup as needed (IPFS daemon, etc.)
+            # ...
+
+            # Mark success
+            result["success"] = True
+            self.logger.info("ipfs_kit instance shutdown complete")
+
+        except Exception as e:
+            return handle_error(result, e)
+
+        return result
+
+    def __del__(self):
+        """
+        Destructor to ensure resources are cleaned up when the instance is garbage collected.
+        """
+        try:
+            self.shutdown()
+        except Exception as e:
+            # Can't use logger here as it might already be destroyed
+            if hasattr(self, 'logger'):
+                self.logger.warning(f"Error during cleanup in __del__: {str(e)}")
 
 # Extend the class with methods from ipfs_kit_extensions
 extend_ipfs_kit(ipfs_kit)
+
+# Define DHT methods that will be added to the ipfs_kit class
+def dht_findpeer(self, peer_id, **kwargs):
+    """Find a specific peer via the DHT and retrieve addresses.
+    
+    Args:
+        peer_id: The ID of the peer to find
+        **kwargs: Additional parameters for the operation
+            
+    Returns:
+        Dict with operation result containing peer multiaddresses
+    """
+    from .error import create_result_dict, handle_error, IPFSError
+    
+    operation = "dht_findpeer"
+    correlation_id = kwargs.get("correlation_id")
+    result = create_result_dict(operation, correlation_id)
+    
+    try:
+        # Delegate to the ipfs instance
+        if not hasattr(self, "ipfs"):
+            return handle_error(result, IPFSError("IPFS instance not initialized"))
+            
+        # Call the ipfs module's implementation
+        response = self.ipfs.dht_findpeer(peer_id)
+        result.update(response)
+        result["success"] = response.get("success", False)
+        return result
+    except Exception as e:
+        return handle_error(result, e)
+
+def dht_findprovs(self, cid, num_providers=None, **kwargs):
+    """Find providers for a CID via the DHT.
+    
+    Args:
+        cid: The Content ID to find providers for
+        num_providers: Maximum number of providers to find
+        **kwargs: Additional parameters for the operation
+        
+    Returns:
+        Dict with operation result containing provider information
+    """
+    from .error import create_result_dict, handle_error, IPFSError
+    
+    operation = "dht_findprovs"
+    correlation_id = kwargs.get("correlation_id")
+    result = create_result_dict(operation, correlation_id)
+    
+    try:
+        # Delegate to the ipfs instance
+        if not hasattr(self, "ipfs"):
+            return handle_error(result, IPFSError("IPFS instance not initialized"))
+            
+        # Build kwargs to pass to ipfs
+        ipfs_kwargs = {}
+        if num_providers is not None:
+            ipfs_kwargs["num_providers"] = num_providers
+            
+        # Call the ipfs module's implementation
+        response = self.ipfs.dht_findprovs(cid, **ipfs_kwargs)
+        result.update(response)
+        result["success"] = response.get("success", False)
+        return result
+    except Exception as e:
+        return handle_error(result, e)
+
+# IPFS MFS (Mutable File System) Methods
+def files_mkdir(self, path, parents=False, **kwargs):
+    """Create a directory in the MFS.
+    
+    Args:
+        path: Path to create in the MFS
+        parents: Whether to create parent directories if they don't exist
+        **kwargs: Additional parameters for the operation
+        
+    Returns:
+        Dict with operation result
+    """
+    from .error import create_result_dict, handle_error, IPFSError
+    
+    operation = "files_mkdir"
+    correlation_id = kwargs.get("correlation_id")
+    result = create_result_dict(operation, correlation_id)
+    
+    try:
+        # Delegate to the ipfs instance
+        if not hasattr(self, "ipfs"):
+            return handle_error(result, IPFSError("IPFS instance not initialized"))
+            
+        # Call the ipfs module's implementation
+        response = self.ipfs.files_mkdir(path, parents)
+        result.update(response)
+        result["success"] = response.get("success", False)
+        return result
+    except Exception as e:
+        return handle_error(result, e)
+        
+def files_ls(self, path="/", **kwargs):
+    """List directory contents in the MFS.
+    
+    Args:
+        path: Directory path in the MFS to list
+        **kwargs: Additional parameters for the operation
+        
+    Returns:
+        Dict with operation result containing directory entries
+    """
+    from .error import create_result_dict, handle_error, IPFSError
+    
+    operation = "files_ls"
+    correlation_id = kwargs.get("correlation_id")
+    result = create_result_dict(operation, correlation_id)
+    
+    try:
+        # Delegate to the ipfs instance
+        if not hasattr(self, "ipfs"):
+            return handle_error(result, IPFSError("IPFS instance not initialized"))
+            
+        # Call the ipfs module's implementation
+        response = self.ipfs.files_ls(path)
+        result.update(response)
+        result["success"] = response.get("success", False)
+        return result
+    except Exception as e:
+        return handle_error(result, e)
+        
+def files_stat(self, path, **kwargs):
+    """Get file information from the MFS.
+    
+    Args:
+        path: Path to file or directory in the MFS
+        **kwargs: Additional parameters for the operation
+        
+    Returns:
+        Dict with operation result containing file statistics
+    """
+    from .error import create_result_dict, handle_error, IPFSError
+    
+    operation = "files_stat"
+    correlation_id = kwargs.get("correlation_id")
+    result = create_result_dict(operation, correlation_id)
+    
+    try:
+        # Delegate to the ipfs instance
+        if not hasattr(self, "ipfs"):
+            return handle_error(result, IPFSError("IPFS instance not initialized"))
+            
+        # Call the ipfs module's implementation
+        response = self.ipfs.files_stat(path)
+        result.update(response)
+        result["success"] = response.get("success", False)
+        return result
+    except Exception as e:
+        return handle_error(result, e)
+
+# Add all extension methods to the ipfs_kit class
+setattr(ipfs_kit, "dht_findpeer", dht_findpeer)
+setattr(ipfs_kit, "dht_findprovs", dht_findprovs)
+setattr(ipfs_kit, "files_mkdir", files_mkdir)
+setattr(ipfs_kit, "files_ls", files_ls)
+setattr(ipfs_kit, "files_stat", files_stat)

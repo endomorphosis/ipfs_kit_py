@@ -1,0 +1,47 @@
+{
+  "dependency_check": {
+    "success": true,
+    "operation_id": "check_webrtc_1744170779567",
+    "dependencies": {
+      "numpy": true,
+      "opencv": true,
+      "av": true,
+      "aiortc": true,
+      "websockets": true,
+      "notifications": true
+    },
+    "webrtc_available": true,
+    "installation_command": "pip install ipfs_kit_py[webrtc]"
+  },
+  "stream_content": {
+    "success": true,
+    "operation_id": "stream_webrtc_1744170779571",
+    "server_id": "stream-QmTkzDwW-0d5f9780",
+    "url": "http://127.0.0.1:8081/webrtc/stream-QmTkzDwW-0d5f9780"
+  },
+  "list_connections": {
+    "success": true,
+    "operation_id": "list_webrtc_1744170779573",
+    "connections": []
+  },
+  "benchmark": {
+    "success": true,
+    "operation_id": "webrtc_benchmark_1744170779576",
+    "benchmark_id": "benchmark-QmTkzDwW-1744170779",
+    "report_path": "/tmp/webrtc_benchmark_5ebxgsfi/webrtc_benchmark_20250408-205259.json",
+    "summary": {
+      "bitrate_avg_kbps": 1727,
+      "fps_avg": 27,
+      "latency_ms": 123,
+      "duration_seconds": 10
+    }
+  },
+  "close_all_connections": {
+    "success": true,
+    "operation_id": "close_all_webrtc_1744170779579"
+  },
+  "stop_streaming": {
+    "success": true,
+    "operation_id": "stop_webrtc_1744170779581"
+  }
+}

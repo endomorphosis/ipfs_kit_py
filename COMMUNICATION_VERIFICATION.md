@@ -1,14 +1,65 @@
 # MCP Communication Verification
 
-This document describes how to verify communication between the MCP server and ipfs_kit_py components using three communication methods:
+This document describes how to verify the MCP server functionality after the fixes we've implemented, as well as communication between the MCP server and ipfs_kit_py components using various methods:
 
-1. **WebRTC** for media streaming
-2. **WebSockets** for notifications
-3. **libp2p** for direct peer-to-peer communication
+1. **API Endpoint Communication** for core IPFS operations
+2. **WebRTC** for media streaming
+3. **WebSockets** for notifications
+4. **libp2p** for direct peer-to-peer communication
 
-## Overview
+## MCP Server Fix Verification
 
-The verification tests ensure that the MCP server and ipfs_kit_py client components can properly communicate with each other. These tests validate:
+We've made significant improvements to the MCP server, particularly the IPFS controller. To verify these fixes, use the following approaches:
+
+### Running the API Fix Verification
+
+```bash
+# Automated test script - starts server, runs tests, and stops server
+./test_mcp_server_fixes.sh
+
+# Manual testing - after starting the server separately
+python test_mcp_fixes.py
+```
+
+This test verifies the fixes we've made to the IPFS controller:
+- Route registration with support for multiple path formats
+- Form data handling for content uploads
+- Content retrieval via multiple endpoint patterns
+- Pin operations (pin, unpin, list) via multiple endpoint patterns
+
+### Sample API Test Commands
+
+You can manually test the fixed endpoints with these curl commands:
+
+```bash
+# Test JSON-based content addition
+curl -X POST "http://localhost:8000/api/v0/mcp/ipfs/add" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello, IPFS!", "filename": "test.txt"}'
+
+# Test form-based content addition
+curl -X POST "http://localhost:8000/api/v0/mcp/ipfs/add" \
+  -F "content=Hello from form data" \
+  -F "filename=form_test.txt"
+
+# Test file upload
+curl -X POST "http://localhost:8000/api/v0/mcp/ipfs/add" \
+  -F "file=@test_file.txt"
+
+# Test content retrieval (replace QmHash with actual CID)
+curl -X GET "http://localhost:8000/api/v0/mcp/ipfs/cat/QmHash"
+curl -X GET "http://localhost:8000/api/v0/mcp/ipfs/get/QmHash"  # Alias path
+
+# Test pin operations
+curl -X POST "http://localhost:8000/api/v0/mcp/ipfs/pin" \
+  -H "Content-Type: application/json" \
+  -d '{"cid": "QmHash"}'
+curl -X GET "http://localhost:8000/api/v0/mcp/ipfs/pins"
+```
+
+## Communication Protocol Tests
+
+The following tests verify that the MCP server and ipfs_kit_py client components can properly communicate with each other. These tests validate:
 
 - WebRTC dependency detection functions correctly
 - WebRTC streaming connections can be established

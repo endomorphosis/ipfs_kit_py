@@ -1,0 +1,42 @@
+[submodule "docs/ipfs-docs"]
+	path = docs/ipfs-docs
+	url = https://github.com/ipfs/ipfs-docs.git
+[submodule "docs/libp2p_docs"]
+	path = docs/libp2p_docs
+	url = https://github.com/libp2p/docs.git
+[submodule "docs/ipfs_cluster"]
+	path = docs/ipfs_cluster
+	url = https://github.com/ipfs-cluster/ipfs-cluster-website.git
+[submodule "docs/filesystem_spec"]
+	path = docs/filesystem_spec
+	url = https://github.com/fsspec/filesystem_spec.git
+[submodule "docs/libp2p-universal-connectivity"]
+	path = docs/libp2p-universal-connectivity
+	url = https://github.com/libp2p/universal-connectivity.git
+[submodule "docs/lotus"]
+	path = docs/lotus
+	url = https://github.com/filecoin-project/lotus.git
+[submodule "docs/filecoin-address-python"]
+	path = docs/filecoin-address-python
+	url = https://github.com/ciknight/filecoin-address-python.git
+[submodule "docs/ipfsspec"]
+	path = docs/ipfsspec
+	url = https://github.com/fsspec/ipfsspec.git
+[submodule "docs/lassie"]
+	path = docs/lassie
+	url = https://github.com/filecoin-project/lassie
+[submodule "docs/lighthouse-python-sdk"]
+	path = docs/lighthouse-python-sdk
+	url = https://github.com/lighthouse-web3/lighthouse-python-sdk.git
+[submodule "docs/storacha_specs"]
+	path = docs/storacha_specs
+	url = https://github.com/storacha/specs.git
+[submodule "py-ipld-car"]
+	path = py-ipld-car
+	url = https://github.com/storacha/py-ipld-car.git
+[submodule "py-ipld-dag-pb"]
+	path = py-ipld-dag-pb
+	url = https://github.com/storacha/py-ipld-dag-pb.git
+[submodule "py-ipld-unixfs"]
+	path = py-ipld-unixfs
+	url = https://github.com/storacha/py-ipld-unixfs.git

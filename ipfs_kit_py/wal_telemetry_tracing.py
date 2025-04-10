@@ -850,10 +850,12 @@ def add_tracing_middleware(app, tracer: WALTracing, service_name: str = "ipfs-ki
     logger.info(f"Tracing middleware added to {service_name}")
 
 
-# Example async HTTP client tracing
-def trace_aiohttp_request(tracer: WALTracing, method: str, url: str, **kwargs):
+# Example async HTTP client tracing (anyio compatible)
+def trace_http_request(tracer: WALTracing, method: str, url: str, **kwargs):
     """
-    Trace an aiohttp request with OpenTelemetry.
+    Trace an HTTP request with OpenTelemetry.
+    This function works with any async HTTP client (aiohttp, httpx, etc.)
+    and is compatible with both asyncio and trio backends through anyio.
     
     Args:
         tracer: WALTracing instance
@@ -881,6 +883,9 @@ def trace_aiohttp_request(tracer: WALTracing, method: str, url: str, **kwargs):
         name=f"http.client.{method.lower()}",
         attributes=attributes
     )
+
+# Alias for backwards compatibility
+trace_aiohttp_request = trace_http_request
 
 
 # Example usage

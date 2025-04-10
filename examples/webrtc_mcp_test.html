@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS WebRTC MCP Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2962FF;
+            margin-top: 0;
+        }
+        .control-panel {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            margin-bottom: 15px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        input[type="text"] {
+            width: 300px;
+        }
+        button {
+            background-color: #2962FF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0D47A1;
+        }
+        button:disabled {
+            background-color: #B0BEC5;
+            cursor: not-allowed;
+        }
+        .stream-container {
+            margin-top: 20px;
+        }
+        video {
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid #ddd;
+            background-color: #000;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background-color: #E8F5E9;
+            color: #1B5E20;
+        }
+        .status.error {
+            background-color: #FFEBEE;
+            color: #B71C1C;
+        }
+        .status.info {
+            background-color: #E3F2FD;
+            color: #0D47A1;
+        }
+        .connections-list {
+            margin-top: 20px;
+        }
+        .connection-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .stats-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: none;
+        }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats-table th, .stats-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .stats-table th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IPFS WebRTC MCP Test</h1>
+        
+        <div class="control-panel">
+            <h2>Server Configuration</h2>
+            <label for="server-url">MCP Server URL:</label>
+            <input type="text" id="server-url" value="http://localhost:9999/api/v0/mcp" placeholder="Enter MCP server URL">
+            
+            <button id="check-webrtc">Check WebRTC Availability</button>
+            <div id="webrtc-status" class="status info">WebRTC status unknown. Click "Check WebRTC Availability" to verify.</div>
+        </div>
+        
+        <div class="control-panel">
+            <h2>Stream Configuration</h2>
+            <label for="cid">Content ID (CID):</label>
+            <input type="text" id="cid" placeholder="Enter IPFS Content ID to stream">
+            
+            <label for="quality">Streaming Quality:</label>
+            <select id="quality">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="auto">Auto (Adaptive)</option>
+            </select>
+            
+            <label for="port">Signaling Port:</label>
+            <input type="number" id="port" value="8080" min="1024" max="65535">
+            
+            <button id="start-stream" disabled>Start Streaming</button>
+            <button id="stop-stream" disabled>Stop Streaming</button>
+            
+            <div id="stream-status" class="status info">No active stream.</div>
+        </div>
+        
+        <div class="stream-container">
+            <h2>Video Stream</h2>
+            <video id="video-stream" autoplay controls playsinline></video>
+        </div>
+        
+        <div class="control-panel connections-list">
+            <h2>Active Connections</h2>
+            <button id="list-connections">Refresh Connections</button>
+            <button id="close-all-connections">Close All Connections</button>
+            <div id="connections-container"></div>
+        </div>
+        
+        <div class="stats-panel" id="stats-panel">
+            <h2>Connection Statistics</h2>
+            <div id="stats-container">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-body">
+                        <tr>
+                            <td>No statistics available</td>
+                            <td>--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button id="refresh-stats">Refresh Statistics</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const serverUrlInput = document.getElementById('server-url');
+        const cidInput = document.getElementById('cid');
+        const qualitySelect = document.getElementById('quality');
+        const portInput = document.getElementById('port');
+        const checkWebrtcBtn = document.getElementById('check-webrtc');
+        const startStreamBtn = document.getElementById('start-stream');
+        const stopStreamBtn = document.getElementById('stop-stream');
+        const listConnectionsBtn = document.getElementById('list-connections');
+        const closeAllConnectionsBtn = document.getElementById('close-all-connections');
+        const refreshStatsBtn = document.getElementById('refresh-stats');
+        const webrtcStatusDiv = document.getElementById('webrtc-status');
+        const streamStatusDiv = document.getElementById('stream-status');
+        const connectionsContainer = document.getElementById('connections-container');
+        const statsPanel = document.getElementById('stats-panel');
+        const statsBody = document.getElementById('stats-body');
+        const videoElement = document.getElementById('video-stream');
+        
+        // State variables
+        let currentServerId = null;
+        let currentConnectionId = null;
+        let webrtcAvailable = false;
+        let peerConnection = null;
+        
+        // Event Listeners
+        checkWebrtcBtn.addEventListener('click', checkWebrtcAvailability);
+        startStreamBtn.addEventListener('click', startStream);
+        stopStreamBtn.addEventListener('click', stopStream);
+        listConnectionsBtn.addEventListener('click', listConnections);
+        closeAllConnectionsBtn.addEventListener('click', closeAllConnections);
+        refreshStatsBtn.addEventListener('click', refreshConnectionStats);
+        
+        // Functions
+        async function checkWebrtcAvailability() {
+            webrtcStatusDiv.className = 'status info';
+            webrtcStatusDiv.textContent = 'Checking WebRTC availability...';
+            
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/check`);
+                const data = await response.json();
+                
+                webrtcAvailable = data.webrtc_available;
+                
+                if (webrtcAvailable) {
+                    webrtcStatusDiv.className = 'status success';
+                    webrtcStatusDiv.textContent = 'WebRTC is available! You can start streaming.';
+                    startStreamBtn.disabled = false;
+                } else {
+                    webrtcStatusDiv.className = 'status error';
+                    webrtcStatusDiv.textContent = `WebRTC is not available. Missing dependencies: ${Object.entries(data.dependencies)
+                        .filter(([_, available]) => !available)
+                        .map(([dep, _]) => dep)
+                        .join(', ')}`;
+                    webrtcStatusDiv.textContent += `\nInstallation command: ${data.installation_command}`;
+                    startStreamBtn.disabled = true;
+                }
+            } catch (error) {
+                webrtcStatusDiv.className = 'status error';
+                webrtcStatusDiv.textContent = `Error checking WebRTC availability: ${error.message}`;
+                startStreamBtn.disabled = true;
+            }
+        }
+        
+        async function startStream() {
+            if (!cidInput.value) {
+                streamStatusDiv.className = 'status error';
+                streamStatusDiv.textContent = 'Please enter a CID to stream';
+                return;
+            }
+            
+            streamStatusDiv.className = 'status info';
+            streamStatusDiv.textContent = `Starting stream for CID: ${cidInput.value}...`;
+            
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cid: cidInput.value,
+                        address: window.location.hostname,
+                        port: parseInt(portInput.value),
+                        quality: qualitySelect.value,
+                        ice_servers: [
+                            {
+                                urls: ['stun:stun.l.google.com:19302']
+                            }
+                        ],
+                        benchmark: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentServerId = data.server_id;
+                    streamStatusDiv.className = 'status success';
+                    streamStatusDiv.textContent = `Stream started successfully. Server ID: ${data.server_id}`;
+                    stopStreamBtn.disabled = false;
+                    startStreamBtn.disabled = true;
+                    
+                    // In a real implementation, you would set up WebRTC connection here
+                    // For this test page, we'll just update the UI and wait for the user to manually connect
+                    
+                    // For demonstration, set up a simulated stream connection
+                    setupTestConnection(data.server_id, cidInput.value);
+                } else {
+                    streamStatusDiv.className = 'status error';
+                    streamStatusDiv.textContent = `Failed to start stream: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                streamStatusDiv.className = 'status error';
+                streamStatusDiv.textContent = `Error starting stream: ${error.message}`;
+            }
+        }
+        
+        async function stopStream() {
+            if (!currentServerId) {
+                streamStatusDiv.className = 'status error';
+                streamStatusDiv.textContent = 'No active stream to stop';
+                return;
+            }
+            
+            streamStatusDiv.className = 'status info';
+            streamStatusDiv.textContent = `Stopping stream for server ID: ${currentServerId}...`;
+            
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/stream/stop/${currentServerId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    streamStatusDiv.className = 'status success';
+                    streamStatusDiv.textContent = `Stream stopped successfully.`;
+                    stopStreamBtn.disabled = true;
+                    startStreamBtn.disabled = false;
+                    currentServerId = null;
+                    
+                    // Close the peer connection if it exists
+                    if (peerConnection) {
+                        peerConnection.close();
+                        peerConnection = null;
+                    }
+                    
+                    // Stop the video
+                    videoElement.srcObject = null;
+                    
+                    // Hide stats panel
+                    statsPanel.style.display = 'none';
+                } else {
+                    streamStatusDiv.className = 'status error';
+                    streamStatusDiv.textContent = `Failed to stop stream: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                streamStatusDiv.className = 'status error';
+                streamStatusDiv.textContent = `Error stopping stream: ${error.message}`;
+            }
+        }
+        
+        async function listConnections() {
+            connectionsContainer.innerHTML = '<p>Loading connections...</p>';
+            
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/connections`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.connections && data.connections.length > 0) {
+                        connectionsContainer.innerHTML = '';
+                        
+                        data.connections.forEach(conn => {
+                            const connDiv = document.createElement('div');
+                            connDiv.className = 'connection-item';
+                            
+                            const connId = document.createElement('h3');
+                            connId.textContent = `Connection ID: ${conn.connection_id || conn.id}`;
+                            connDiv.appendChild(connId);
+                            
+                            const connDetails = document.createElement('p');
+                            connDetails.innerHTML = `
+                                Status: ${conn.connection_state || conn.status || 'N/A'}<br>
+                                ICE State: ${conn.ice_state || 'N/A'}<br>
+                                CID: ${conn.cid || 'N/A'}<br>
+                                Quality: ${conn.quality || 'N/A'}<br>
+                            `;
+                            connDiv.appendChild(connDetails);
+                            
+                            const statsButton = document.createElement('button');
+                            statsButton.textContent = 'View Statistics';
+                            statsButton.onclick = () => getConnectionStats(conn.connection_id || conn.id);
+                            connDiv.appendChild(statsButton);
+                            
+                            const closeButton = document.createElement('button');
+                            closeButton.textContent = 'Close Connection';
+                            closeButton.onclick = () => closeConnection(conn.connection_id || conn.id);
+                            connDiv.appendChild(closeButton);
+                            
+                            connectionsContainer.appendChild(connDiv);
+                        });
+                    } else {
+                        connectionsContainer.innerHTML = '<p>No active connections found.</p>';
+                    }
+                } else {
+                    connectionsContainer.innerHTML = `<p class="status error">Failed to list connections: ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                connectionsContainer.innerHTML = `<p class="status error">Error listing connections: ${error.message}</p>`;
+            }
+        }
+        
+        async function closeConnection(connectionId) {
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/connections/${connectionId}/close`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Refresh the connections list
+                    listConnections();
+                    
+                    // If this was our current connection, update the UI
+                    if (connectionId === currentConnectionId) {
+                        currentConnectionId = null;
+                        videoElement.srcObject = null;
+                        statsPanel.style.display = 'none';
+                    }
+                } else {
+                    alert(`Failed to close connection: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`Error closing connection: ${error.message}`);
+            }
+        }
+        
+        async function closeAllConnections() {
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/connections/close-all`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Closed ${data.closed_count || 'all'} connections successfully.`);
+                    
+                    // Refresh the connections list
+                    listConnections();
+                    
+                    // Reset UI state
+                    currentConnectionId = null;
+                    videoElement.srcObject = null;
+                    statsPanel.style.display = 'none';
+                } else {
+                    alert(`Failed to close connections: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`Error closing connections: ${error.message}`);
+            }
+        }
+        
+        async function getConnectionStats(connectionId) {
+            try {
+                const response = await fetch(`${serverUrlInput.value}/webrtc/connections/${connectionId}/stats`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show stats panel
+                    statsPanel.style.display = 'block';
+                    
+                    // Store current connection ID for refresh
+                    currentConnectionId = connectionId;
+                    
+                    // Update stats table
+                    updateStatsTable(data.stats);
+                } else {
+                    alert(`Failed to get connection stats: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`Error getting connection stats: ${error.message}`);
+            }
+        }
+        
+        async function refreshConnectionStats() {
+            if (!currentConnectionId) {
+                alert('No active connection selected.');
+                return;
+            }
+            
+            getConnectionStats(currentConnectionId);
+        }
+        
+        function updateStatsTable(stats) {
+            // Clear current stats
+            statsBody.innerHTML = '';
+            
+            // Helper function to add a row
+            function addStatRow(metric, value) {
+                const row = document.createElement('tr');
+                
+                const metricCell = document.createElement('td');
+                metricCell.textContent = metric;
+                row.appendChild(metricCell);
+                
+                const valueCell = document.createElement('td');
+                valueCell.textContent = value;
+                row.appendChild(valueCell);
+                
+                statsBody.appendChild(row);
+            }
+            
+            // Add each stat to the table
+            if (stats) {
+                if (typeof stats === 'object') {
+                    Object.entries(stats).forEach(([key, value]) => {
+                        // Format value appropriately
+                        let formattedValue = value;
+                        
+                        if (key === 'bandwidth' || key.includes('bitrate')) {
+                            formattedValue = `${(value / 1000).toFixed(2)} Kbps`;
+                        } else if (key.includes('bytes')) {
+                            formattedValue = `${(value / 1024).toFixed(2)} KB`;
+                        } else if (key.includes('time') && typeof value === 'number') {
+                            formattedValue = `${value.toFixed(2)} ms`;
+                        } else if (typeof value === 'object' && value !== null) {
+                            formattedValue = JSON.stringify(value);
+                        }
+                        
+                        // Format key for display
+                        const formattedKey = key
+                            .replace(/_/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        
+                        addStatRow(formattedKey, formattedValue);
+                    });
+                } else {
+                    addStatRow('Error', 'Invalid statistics format');
+                }
+            } else {
+                addStatRow('No statistics available', '--');
+            }
+        }
+        
+        // For demonstration purposes only - in a real app, this would use actual WebRTC
+        function setupTestConnection(serverId, cid) {
+            // Simulate an RTC connection
+            setTimeout(() => {
+                // Generate a fake connection ID
+                const connectionId = `conn-${Math.floor(Math.random() * 10000)}`;
+                currentConnectionId = connectionId;
+                
+                // Show a test pattern or media element
+                if (videoElement) {
+                    // In a real implementation, this would be set to the MediaStream from WebRTC
+                    // For now, just show a message on the video element
+                    videoElement.poster = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+                            <rect width="800" height="450" fill="#1a1a1a"/>
+                            <text x="400" y="200" font-family="Arial" font-size="24" fill="white" text-anchor="middle">
+                                Simulated WebRTC Stream
+                            </text>
+                            <text x="400" y="240" font-family="Arial" font-size="20" fill="#2962FF" text-anchor="middle">
+                                CID: ${cid}
+                            </text>
+                            <text x="400" y="280" font-family="Arial" font-size="18" fill="#e0e0e0" text-anchor="middle">
+                                Connection ID: ${connectionId}
+                            </text>
+                            <text x="400" y="320" font-family="Arial" font-size="16" fill="#e0e0e0" text-anchor="middle">
+                                (This is a placeholder - actual WebRTC implementation would show a real stream)
+                            </text>
+                        </svg>
+                    `);
+                }
+                
+                // Update UI
+                streamStatusDiv.textContent = `Connected! Connection ID: ${connectionId}`;
+                
+                // Refresh the connections list
+                listConnections();
+            }, 1500);
+        }
+        
+        // Initialize by checking WebRTC availability
+        checkWebrtcAvailability();
+    </script>
+</body>
+</html>

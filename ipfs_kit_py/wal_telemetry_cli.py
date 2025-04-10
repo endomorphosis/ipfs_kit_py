@@ -837,6 +837,352 @@ def handle_analyze_command(args: argparse.Namespace, client: WALTelemetryClient)
     except Exception as e:
         print(f"{Colors.RED}Error retrieving time series data: {str(e)}{Colors.ENDC}")
 
+def register_wal_telemetry_commands(subparsers):
+    """
+    Register WAL Telemetry-related commands with the CLI parser.
+    
+    Args:
+        subparsers: Subparser object from argparse
+    """
+    # WAL Telemetry command group
+    telemetry_parser = subparsers.add_parser(
+        "telemetry",
+        help="WAL Telemetry system operations",
+    )
+    telemetry_subparsers = telemetry_parser.add_subparsers(
+        dest="telemetry_command", 
+        help="Telemetry command to execute", 
+        required=True
+    )
+    
+    # Initialize telemetry
+    init_parser = telemetry_subparsers.add_parser(
+        "init",
+        help="Initialize WAL telemetry system",
+    )
+    init_parser.add_argument(
+        "--enabled",
+        action="store_true",
+        default=True,
+        help="Enable telemetry collection",
+    )
+    init_parser.add_argument(
+        "--aggregation-interval",
+        type=int,
+        default=60,
+        help="Interval in seconds for metric aggregation",
+    )
+    init_parser.add_argument(
+        "--max-history",
+        type=int,
+        default=100,
+        help="Maximum number of historical entries to keep",
+    )
+    init_parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Logging level for telemetry events",
+    )
+    init_parser.set_defaults(func=lambda api, args, kwargs: api.initialize_telemetry(**kwargs))
+    
+    # Get metrics
+    metrics_parser = telemetry_subparsers.add_parser(
+        "metrics",
+        help="Get WAL telemetry metrics",
+    )
+    metrics_parser.add_argument(
+        "--metric-type",
+        choices=["operation_count", "operation_latency", "success_rate", 
+                "error_rate", "backend_health", "throughput", "queue_size", 
+                "retry_count", "all"],
+        default="all",
+        help="Type of metric to retrieve",
+    )
+    metrics_parser.add_argument(
+        "--aggregation",
+        choices=["sum", "average", "minimum", "maximum", 
+                "percentile_95", "percentile_99", "count", "rate"],
+        default="average",
+        help="Type of aggregation to apply",
+    )
+    metrics_parser.add_argument(
+        "--interval",
+        type=int,
+        default=60,
+        help="Time interval in seconds for metrics aggregation",
+    )
+    metrics_parser.add_argument(
+        "--operation",
+        help="Filter by operation type",
+    )
+    metrics_parser.add_argument(
+        "--backend",
+        help="Filter by backend type",
+    )
+    metrics_parser.add_argument(
+        "--since",
+        help="Start time for metrics query (e.g., '10m', '2h', '1d')",
+    )
+    metrics_parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Watch metrics in real-time with periodic updates",
+    )
+    metrics_parser.add_argument(
+        "--watch-interval",
+        type=int,
+        default=2,
+        help="Interval in seconds for watch updates",
+    )
+    metrics_parser.set_defaults(func=lambda api, args, kwargs: api.get_telemetry_metrics(**kwargs))
+    
+    # Generate report
+    report_parser = telemetry_subparsers.add_parser(
+        "report",
+        help="Generate WAL telemetry report",
+    )
+    report_parser.add_argument(
+        "--output",
+        required=True,
+        help="Output file path for the report",
+    )
+    report_parser.add_argument(
+        "--report-type",
+        choices=["summary", "detailed", "operations", "backends", "performance"],
+        default="summary",
+        help="Type of report to generate",
+    )
+    report_parser.add_argument(
+        "--time-range",
+        choices=["hour", "day", "week", "month", "all"],
+        default="day",
+        help="Time range for the report",
+    )
+    report_parser.add_argument(
+        "--include-visualizations",
+        action="store_true",
+        default=False,
+        help="Include visualizations in the report",
+    )
+    report_parser.add_argument(
+        "--open-browser",
+        action="store_true",
+        help="Open the report in a browser after generation",
+    )
+    report_parser.set_defaults(func=lambda api, args, kwargs: api.generate_telemetry_report(**kwargs))
+    
+    # Prometheus integration
+    prometheus_parser = telemetry_subparsers.add_parser(
+        "prometheus",
+        help="Manage Prometheus integration for telemetry metrics",
+    )
+    prometheus_subparsers = prometheus_parser.add_subparsers(
+        dest="prometheus_command",
+        help="Prometheus command",
+        required=True
+    )
+    
+    # Start Prometheus exporter
+    prometheus_start_parser = prometheus_subparsers.add_parser(
+        "start",
+        help="Start Prometheus metrics exporter",
+    )
+    prometheus_start_parser.add_argument(
+        "--port",
+        type=int,
+        default=9095,
+        help="Port for Prometheus metrics server",
+    )
+    prometheus_start_parser.add_argument(
+        "--address",
+        default="127.0.0.1",
+        help="Address to bind the server",
+    )
+    prometheus_start_parser.add_argument(
+        "--metrics-path",
+        default="/metrics",
+        help="HTTP path for metrics endpoint",
+    )
+    prometheus_start_parser.set_defaults(func=lambda api, args, kwargs: api.start_prometheus_exporter(**kwargs))
+    
+    # Stop Prometheus exporter
+    prometheus_stop_parser = prometheus_subparsers.add_parser(
+        "stop",
+        help="Stop Prometheus metrics exporter",
+    )
+    prometheus_stop_parser.set_defaults(func=lambda api, args, kwargs: api.stop_prometheus_exporter(**kwargs))
+    
+    # Grafana dashboard operations
+    grafana_parser = telemetry_subparsers.add_parser(
+        "grafana",
+        help="Manage Grafana dashboards for telemetry",
+    )
+    grafana_subparsers = grafana_parser.add_subparsers(
+        dest="grafana_command",
+        help="Grafana command",
+        required=True
+    )
+    
+    # Generate Grafana dashboard
+    grafana_generate_parser = grafana_subparsers.add_parser(
+        "generate",
+        help="Generate Grafana dashboard for telemetry",
+    )
+    grafana_generate_parser.add_argument(
+        "--output",
+        required=True,
+        help="Output file path for the dashboard JSON",
+    )
+    grafana_generate_parser.add_argument(
+        "--dashboard-title",
+        default="IPFS Kit WAL Telemetry",
+        help="Title for the dashboard",
+    )
+    grafana_generate_parser.add_argument(
+        "--prometheus-datasource",
+        default="Prometheus",
+        help="Name of the Prometheus data source in Grafana",
+    )
+    grafana_generate_parser.set_defaults(func=lambda api, args, kwargs: api.generate_grafana_dashboard(**kwargs))
+    
+    # Distributed tracing commands
+    tracing_parser = telemetry_subparsers.add_parser(
+        "tracing",
+        help="Manage distributed tracing for WAL operations",
+    )
+    tracing_subparsers = tracing_parser.add_subparsers(
+        dest="tracing_command",
+        help="Tracing command",
+        required=True
+    )
+    
+    # Initialize tracing
+    tracing_init_parser = tracing_subparsers.add_parser(
+        "init",
+        help="Initialize distributed tracing system",
+    )
+    tracing_init_parser.add_argument(
+        "--exporter-type",
+        choices=["jaeger", "zipkin", "otlp", "console", "none"],
+        default="console",
+        help="Type of tracing exporter to use",
+    )
+    tracing_init_parser.add_argument(
+        "--endpoint",
+        help="Endpoint for the tracing collector/exporter",
+    )
+    tracing_init_parser.add_argument(
+        "--service-name",
+        default="ipfs-kit-wal",
+        help="Service name for traces",
+    )
+    tracing_init_parser.set_defaults(func=lambda api, args, kwargs: api.initialize_tracing(**kwargs))
+    
+    # Start trace session
+    tracing_start_parser = tracing_subparsers.add_parser(
+        "start",
+        help="Start a new trace session",
+    )
+    tracing_start_parser.add_argument(
+        "--session-name",
+        required=True,
+        help="Name for the trace session",
+    )
+    tracing_start_parser.add_argument(
+        "--correlate-with",
+        help="Optional correlation ID to relate to other trace sessions",
+    )
+    tracing_start_parser.set_defaults(func=lambda api, args, kwargs: api.start_trace_session(**kwargs))
+    
+    # Stop trace session
+    tracing_stop_parser = tracing_subparsers.add_parser(
+        "stop",
+        help="Stop an active trace session",
+    )
+    tracing_stop_parser.add_argument(
+        "--session-name",
+        required=True,
+        help="Name of the trace session to stop",
+    )
+    tracing_stop_parser.set_defaults(func=lambda api, args, kwargs: api.stop_trace_session(**kwargs))
+    
+    # Export trace results
+    tracing_export_parser = tracing_subparsers.add_parser(
+        "export",
+        help="Export trace results to a file",
+    )
+    tracing_export_parser.add_argument(
+        "--output",
+        required=True,
+        help="Output file path for the trace export",
+    )
+    tracing_export_parser.add_argument(
+        "--format",
+        choices=["json", "zipkin", "jaeger", "otlp"],
+        default="json",
+        help="Format for the trace export",
+    )
+    tracing_export_parser.add_argument(
+        "--session-name",
+        help="Optional trace session name to export",
+    )
+    tracing_export_parser.set_defaults(func=lambda api, args, kwargs: api.export_traces(**kwargs))
+    
+    # Visualize trace results
+    tracing_visualize_parser = tracing_subparsers.add_parser(
+        "visualize",
+        help="Visualize trace results as a flamegraph",
+    )
+    tracing_visualize_parser.add_argument(
+        "--output",
+        required=True,
+        help="Output file path for the visualization",
+    )
+    tracing_visualize_parser.add_argument(
+        "--session-name",
+        help="Optional trace session name to visualize",
+    )
+    tracing_visualize_parser.add_argument(
+        "--format",
+        choices=["svg", "html", "pdf"],
+        default="html",
+        help="Format for the visualization",
+    )
+    tracing_visualize_parser.set_defaults(func=lambda api, args, kwargs: api.visualize_traces(**kwargs))
+    
+    # Analysis commands
+    analysis_parser = telemetry_subparsers.add_parser(
+        "analyze",
+        help="Analyze telemetry metrics and trends",
+    )
+    analysis_parser.add_argument(
+        "--metric-type",
+        required=True,
+        choices=["operation_latency", "success_rate", "error_rate", "throughput", "queue_size"],
+        help="Type of metric to analyze",
+    )
+    analysis_parser.add_argument(
+        "--operation",
+        help="Filter by operation type",
+    )
+    analysis_parser.add_argument(
+        "--backend",
+        help="Filter by backend type",
+    )
+    analysis_parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Number of days to analyze",
+    )
+    analysis_parser.add_argument(
+        "--output",
+        help="Output file for analysis report",
+    )
+    analysis_parser.set_defaults(func=lambda api, args, kwargs: api.analyze_metrics(**kwargs))
+
+
 def main():
     """Main entry point for the CLI."""
     # Check for environment variables

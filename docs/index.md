@@ -29,6 +29,7 @@ IPFS Kit is a comprehensive toolkit for IPFS with tiered storage, advanced netwo
 - [Tiered Storage System](tiered_cache.md) - Multi-tiered caching architecture
 - [FSSpec Integration](fsspec_integration.md) - Using IPFS Kit with data science tools
 - [Arrow Metadata Index](metadata_index.md) - High-performance metadata indexing
+- [Metadata Replication](metadata_replication.md) - Fault-tolerant metadata backup
 
 ### Advanced Features
 

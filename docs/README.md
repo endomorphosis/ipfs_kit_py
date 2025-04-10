@@ -39,15 +39,28 @@ The documentation is organized into several key sections:
    - Plugin Architecture
    - SDK Generation
 
+3. [**Async Architecture**](async_architecture.md) - Async design and anyio migration
+   - Anyio Benefits and Features
+   - Migration Strategy from Asyncio
+   - Best Practices for Async Code
+   - Task and Resource Management
+
 ### Storage and Access
 
-3. [**Tiered Cache System**](tiered_cache.md) - High-performance multi-tier caching
+4. [**Tiered Cache System**](tiered_cache.md) - High-performance multi-tier caching
    - Adaptive Replacement Cache (ARC)
    - Cache Tiers (Memory, Disk, IPFS)
    - Heat Scoring Algorithm
    - Cache Migration
 
-4. [**Probabilistic Data Structures**](probabilistic_data_structures.md) - Memory-efficient approximation algorithms
+5. [**Filesystem Journal**](filesystem_journal.md) - Transaction-based filesystem safety
+   - Path-to-CID Mapping
+   - Transaction Safety with Commit/Rollback
+   - Recovery from Unexpected Shutdowns
+   - Integration with Tiered Storage
+   - Health Monitoring and Visualization
+
+6. [**Probabilistic Data Structures**](probabilistic_data_structures.md) - Memory-efficient approximation algorithms
    - Bloom Filter for Membership Testing
    - HyperLogLog for Cardinality Estimation
    - Count-Min Sketch for Frequency Estimation
@@ -57,13 +70,13 @@ The documentation is organized into several key sections:
    - Memory/Accuracy Tradeoffs
    - Practical Integration Examples
 
-5. [**FSSpec Filesystem Interface**](fsspec_integration.md) - Standard filesystem interface
+7. [**FSSpec Filesystem Interface**](fsspec_integration.md) - Standard filesystem interface
    - File-like Operations
    - Integration with Data Science Tools
    - Performance Optimizations
    - Gateway Support
 
-6. [**Storage Backends**](storage_backends.md) - External storage integrations
+8. [**Storage Backends**](storage_backends.md) - External storage integrations
    - Storacha/Web3.Storage Integration
    - S3-Compatible Storage
    - Multi-backend Content Management
@@ -71,40 +84,40 @@ The documentation is organized into several key sections:
 
 ### Distributed Systems
 
-6. [**Cluster Management**](cluster_management.md) - Advanced cluster coordination
+9. [**Cluster Management**](cluster_management.md) - Advanced cluster coordination
    - Cluster Setup and Configuration
    - Task Distribution
    - State Synchronization
    - Health Monitoring
    - Security Features
 
-7. [**Cluster State Helpers**](cluster_state_helpers.md) - Arrow-based cluster state
-   - Zero-copy State Management
-   - External Process Access
-   - Multi-language Interoperability
-   - Distributed State Synchronization
+10. [**Cluster State Helpers**](cluster_state_helpers.md) - Arrow-based cluster state
+    - Zero-copy State Management
+    - External Process Access
+    - Multi-language Interoperability
+    - Distributed State Synchronization
 
-8. [**Direct P2P Communication**](libp2p_integration.md) - LibP2P integration
-   - Direct Peer Connections
-   - NAT Traversal
-   - Content Discovery
-   - Peer Management
+11. [**Direct P2P Communication**](libp2p_integration.md) - LibP2P integration
+    - Direct Peer Connections
+    - NAT Traversal
+    - Content Discovery
+    - Peer Management
 
 ### Data Management
 
-9. [**Metadata Index**](metadata_index.md) - Arrow-based metadata indexing
-   - Content Discovery
-   - Distributed Indexing
-   - Query Capabilities
-   - Multi-location Tracking
+12. [**Metadata Index**](metadata_index.md) - Arrow-based metadata indexing
+    - Content Discovery
+    - Distributed Indexing
+    - Query Capabilities
+    - Multi-location Tracking
 
-10. [**IPLD Integration**](ipld_integration.md) - Low-level IPFS data structures
+13. [**IPLD Integration**](ipld_integration.md) - Low-level IPFS data structures
     - CAR (Content Addressable aRchive) Operations
     - DAG-PB Node Creation and Manipulation
     - UnixFS Chunking and Assembly
     - Advanced DAG Operations
 
-11. [**IPLD Knowledge Graph**](knowledge_graph.md) - Semantic relationships
+14. [**IPLD Knowledge Graph**](knowledge_graph.md) - Semantic relationships
     - Graph Data Modeling
     - Entity Relationships
     - Graph Traversal
@@ -112,14 +125,14 @@ The documentation is organized into several key sections:
 
 ### AI and ML Integration
 
-12. [**AI/ML Integration Guide**](ai_ml_integration_guide.md) - Comprehensive guide to AI/ML components
+15. [**AI/ML Integration Guide**](ai_ml_integration_guide.md) - Comprehensive guide to AI/ML components
     - Architecture Overview
     - Component Interaction Patterns
     - Integration Flow
     - Best Practices
     - Complete End-to-End Examples
 
-13. [**AI/ML Visualization**](ai_ml_visualization.md) - Metrics visualization and reporting
+16. [**AI/ML Visualization**](ai_ml_visualization.md) - Metrics visualization and reporting
     - Training Metrics Visualization
     - Inference Performance Analysis
     - Worker Utilization Visualization
@@ -128,7 +141,7 @@ The documentation is organized into several key sections:
     - Export Capabilities
     - Integration with Data Science Workflows
 
-14. [**AI/ML Integration**](ai_ml_integration.md) - Integration with AI frameworks
+17. [**AI/ML Integration**](ai_ml_integration.md) - Integration with AI frameworks
     - Model Registry
     - Dataset Management
     - LangChain & LlamaIndex Integration
@@ -138,13 +151,13 @@ The documentation is organized into several key sections:
     - Generative Multimodal Workflows
     - Real-world Case Studies
 
-15. [**IPFS DataLoader**](ipfs_dataloader.md) - Efficient data loading for ML
+18. [**IPFS DataLoader**](ipfs_dataloader.md) - Efficient data loading for ML
     - Batch Loading
     - Framework Integration
     - Dataset Versioning
     - Distributed Training Support
 
-16. [**Performance Metrics**](performance_metrics.md) - Comprehensive performance measurement
+19. [**Performance Metrics**](performance_metrics.md) - Comprehensive performance measurement
     - Benchmarking Tools
     - Performance Profiling
     - Optimization Strategies
@@ -168,6 +181,8 @@ For practical examples of using IPFS Kit, see the [examples directory](../exampl
 - FSSpec integration examples
 - Cluster management examples
 - Performance profiling examples
+- Filesystem journal examples
+- Journal monitoring and visualization examples
 - AI/ML integration examples
 - AI/ML visualization examples
 - Data science workflow examples

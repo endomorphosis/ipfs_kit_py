@@ -655,18 +655,36 @@ The implementation includes comprehensive error handling and recovery strategies
 
 Planned enhancements for the libp2p integration include:
 
+### High Priority Enhancements
+
+- **WebTransport Integration**: Critical for browser connectivity, enabling web applications to connect directly to libp2p nodes without using WebSockets
+- **QUIC Transport**: Improved performance with multiplexed connections, reduced latency, and better congestion control
+- **AutoNAT Protocol**: Automatic NAT detection for more reliable connectivity across network boundaries
+- **Direct Connection Upgrade (DCUTR)**: Enhanced NAT traversal through direct connection upgrade techniques
+- **Advanced Gossipsub Features**: Security improvements including message signing, validation, and peer scoring
+
+### Medium Priority Enhancements
+
+- **GraphSync Protocol**: Support for efficient graph-based data exchange using IPLD selectors
+- **yamux Multiplexing**: Better performance for many streams compared to the current mplex implementation
 - **Bandwidth Throttling and QoS**: Prioritize important content in bandwidth allocation
-- **Enhanced Security**: Authentication and authorization mechanisms
+- **Enhanced Security**: Authentication and authorization mechanisms including TLS 1.3 and improved Noise protocol
 - **Peer Reputation System**: Sophisticated peer quality metrics for better routing
-- **Graphsync Protocol**: Support for efficient graph-based data exchange
+- **Resource Manager**: Comprehensive resource limitation functionality to prevent resource exhaustion
+
+### Additional Planned Features
+
+- **Rendezvous Protocol**: Enhanced peer discovery through rendezvous points
+- **Relay v2 Support**: Advanced relay capabilities for NAT traversal
 - **Bloom Filter Advertisements**: More efficient content routing with Bloom filters
 - **IPLD-Based Content Verification**: Verify content integrity using IPLD mechanisms
 - **Cross-Language Shared Memory**: Improved interoperability via shared memory interfaces
 - **Advanced Relay Selection**: Network topology awareness for relay selection
 - **Distributed Task Scheduling**: Enhanced computation scheduling using P2P communication
 - **Content Encryption**: End-to-end encryption for sensitive content
-- **WebRTC Transport**: Browser-based peer connections
 - **Mobile Optimizations**: Battery and bandwidth efficiency for mobile devices
+
+For a detailed implementation plan and timeline for these enhancements, see the [LIBP2P_IMPLEMENTATION_PLAN.md](LIBP2P_IMPLEMENTATION_PLAN.md) document.
 
 ## Complete Example
 

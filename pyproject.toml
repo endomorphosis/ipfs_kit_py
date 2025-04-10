@@ -33,8 +33,12 @@ dependencies = [
     "psutil>=5.9.0",
     "pyyaml>=6.0",
     "base58>=2.1.1",
+    "multiaddr>=0.0.9",  # Added for libp2p multiaddress support
+    "libp2p>=0.1.5",  # Added for peer-to-peer communication
     "importlib-metadata>=4.12.0; python_version < '3.10'",
     "python-magic>=0.4.27", # Added for file type detection
+    "anyio>=3.7.0", # For async operations with backend flexibility
+    "trio>=0.22.0", # Optional backend for anyio
 ]
 
 [project.optional-dependencies]
@@ -45,6 +49,10 @@ fsspec = [
 arrow = [
     "pyarrow>=11.0.0",  # Updated minimum version to be more compatible
     "pandas>=1.3.0",
+]
+libp2p = [
+    "multiaddr>=0.0.9",
+    "multiformats>=0.2.0",
 ]
 ai_ml = [
     "torch>=2.0.0",
@@ -91,6 +99,7 @@ dev = [
     "build>=0.10.0",
     "twine>=4.0.2",
     "pytest-asyncio", # Added for async test support
+    "pytest-anyio>=1.0.0", # Added for anyio test support
 ]
 full = [
     "fsspec>=2023.3.0",
@@ -98,6 +107,7 @@ full = [
     "pyarrow>=11.0.0",  # Updated minimum version to be more compatible
     "pandas>=1.3.0",
     "multiformats>=0.2.0",
+    "multiaddr>=0.0.9",  # Added for libp2p multiaddress support
     "aiohttp>=3.8.4",
     "pyyaml>=6.0",
     "numpy>=1.20.0",

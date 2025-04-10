@@ -1,0 +1,18 @@
+{
+  "name": "ipfs-kit-webrtc-tests",
+  "version": "1.0.0",
+  "description": "WebRTC test clients for IPFS Kit MCP server",
+  "private": true,
+  "scripts": {
+    "test": "node node_webrtc_client.js"
+  },
+  "dependencies": {
+    "commander": "^10.0.0",
+    "node-fetch": "^2.6.7",
+    "wrtc": "^0.4.7",
+    "ws": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

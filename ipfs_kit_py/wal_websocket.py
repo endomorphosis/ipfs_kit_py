@@ -16,15 +16,30 @@ Using WebSockets enables responsive, efficient monitoring without constant polli
 import os
 import json
 import time
-import asyncio
 import logging
 from typing import Dict, List, Any, Optional, Set, Callable
 from enum import Enum
 
+# Import anyio instead of asyncio for backend-agnostic async operations
+import anyio
+from anyio.abc import TaskGroup
+
 # WebSocket imports - wrapped in try/except for graceful fallback
 try:
     from fastapi import WebSocket, WebSocketDisconnect, Depends
-    from starlette.websockets import WebSocketState
+    # Handle WebSocketState import based on FastAPI/Starlette version
+    try:
+        from fastapi import WebSocketState
+    except ImportError:
+        try:
+            # In newer FastAPI versions, WebSocketState is in starlette
+            from starlette.websockets import WebSocketState
+        except ImportError:
+            # Fallback for when WebSocketState is not available
+            class WebSocketState(str, Enum):
+                CONNECTING = "CONNECTING"
+                CONNECTED = "CONNECTED"
+                DISCONNECTED = "DISCONNECTED"
     import websockets
     WEBSOCKET_AVAILABLE = True
 except ImportError:
@@ -88,19 +103,31 @@ class WALConnectionManager:
         Args:
             websocket: WebSocket connection
         """
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        self.connection_subscriptions[websocket] = {}
-        
-        # Send welcome message
-        await self.send_message(
-            websocket, 
-            {
-                "type": "connection_established",
-                "message": "Connected to WAL WebSocket API",
-                "timestamp": time.time()
-            }
-        )
+        try:
+            # Accept the connection with timeout
+            with anyio.fail_after(5.0):  # 5-second timeout
+                await websocket.accept()
+                
+            self.active_connections.append(websocket)
+            self.connection_subscriptions[websocket] = {}
+            
+            # Send welcome message
+            await self.send_message(
+                websocket, 
+                {
+                    "type": "connection_established",
+                    "message": "Connected to WAL WebSocket API",
+                    "timestamp": time.time()
+                }
+            )
+            
+            return True
+        except anyio.TimeoutError:
+            logger.error("Timeout accepting WebSocket connection")
+            return False
+        except Exception as e:
+            logger.error(f"Error accepting WebSocket connection: {e}")
+            return False
         
     def disconnect(self, websocket: WebSocket):
         """
@@ -279,8 +306,13 @@ class WALConnectionManager:
         """
         if websocket.client_state == WebSocketState.CONNECTED:
             try:
-                await websocket.send_json(message)
+                # Send with timeout
+                with anyio.fail_after(5.0):  # 5-second timeout
+                    await websocket.send_json(message)
                 return True
+            except anyio.TimeoutError:
+                logger.error("Timeout sending message to WebSocket")
+                return False
             except Exception as e:
                 logger.error(f"Error sending message to WebSocket: {e}")
                 return False
@@ -308,7 +340,7 @@ class WALConnectionManager:
             "timestamp": time.time()
         }
         
-        # Queue of subscribers to notify
+        # Build list of subscribers to notify
         subscribers_to_notify = set()
         
         # Add specific operation subscribers
@@ -330,9 +362,49 @@ class WALConnectionManager:
         # Add all operations subscribers
         subscribers_to_notify.update(self.all_operations_subscribers)
         
-        # Send to all subscribers
-        for websocket in subscribers_to_notify:
-            await self.send_message(websocket, message)
+        if not subscribers_to_notify:
+            return
+            
+        # Use memory streams for collecting results
+        send_stream, receive_stream = anyio.create_memory_object_stream(len(subscribers_to_notify))
+        
+        # Function to send notification and report result
+        async def send_notification(websocket: WebSocket):
+            """Send notification to a specific WebSocket."""
+            try:
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    await send_stream.send((False, "WebSocket disconnected"))
+                    return
+                    
+                # Send with timeout
+                with anyio.fail_after(5.0):  # 5-second timeout
+                    await websocket.send_json(message)
+                    
+                # Report success
+                await send_stream.send((True, None))
+            except Exception as e:
+                # Report error
+                await send_stream.send((False, str(e)))
+        
+        # Send to all subscribers concurrently
+        async with anyio.create_task_group() as tg:
+            # Start all send tasks
+            for websocket in subscribers_to_notify:
+                tg.start_soon(send_notification, websocket)
+                
+            # Close send stream when all tasks are done
+            tg.start_soon(send_stream.aclose)
+            
+        # Collect results (optional)
+        sent_count = 0
+        async with receive_stream:
+            async for success, error in receive_stream:
+                if success:
+                    sent_count += 1
+                elif error:
+                    logger.error(f"Error sending operation update: {error}")
+        
+        return sent_count
             
     async def broadcast_health_update(self, health_data: Dict[str, Any]):
         """
@@ -348,9 +420,49 @@ class WALConnectionManager:
             "timestamp": time.time()
         }
         
-        # Send to all health subscribers
-        for websocket in self.health_subscribers:
-            await self.send_message(websocket, message)
+        if not self.health_subscribers:
+            return
+            
+        # Use memory streams for collecting results
+        send_stream, receive_stream = anyio.create_memory_object_stream(len(self.health_subscribers))
+        
+        # Function to send notification and report result
+        async def send_notification(websocket: WebSocket):
+            """Send notification to a specific WebSocket."""
+            try:
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    await send_stream.send((False, "WebSocket disconnected"))
+                    return
+                    
+                # Send with timeout
+                with anyio.fail_after(5.0):  # 5-second timeout
+                    await websocket.send_json(message)
+                    
+                # Report success
+                await send_stream.send((True, None))
+            except Exception as e:
+                # Report error
+                await send_stream.send((False, str(e)))
+        
+        # Send to all subscribers concurrently
+        async with anyio.create_task_group() as tg:
+            # Start all send tasks
+            for websocket in self.health_subscribers:
+                tg.start_soon(send_notification, websocket)
+                
+            # Close send stream when all tasks are done
+            tg.start_soon(send_stream.aclose)
+            
+        # Collect results (optional)
+        sent_count = 0
+        async with receive_stream:
+            async for success, error in receive_stream:
+                if success:
+                    sent_count += 1
+                elif error:
+                    logger.error(f"Error sending health update: {error}")
+        
+        return sent_count
             
     async def broadcast_metrics_update(self, metrics_data: Dict[str, Any]):
         """
@@ -366,9 +478,49 @@ class WALConnectionManager:
             "timestamp": time.time()
         }
         
-        # Send to all metrics subscribers
-        for websocket in self.metrics_subscribers:
-            await self.send_message(websocket, message)
+        if not self.metrics_subscribers:
+            return
+            
+        # Use memory streams for collecting results
+        send_stream, receive_stream = anyio.create_memory_object_stream(len(self.metrics_subscribers))
+        
+        # Function to send notification and report result
+        async def send_notification(websocket: WebSocket):
+            """Send notification to a specific WebSocket."""
+            try:
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    await send_stream.send((False, "WebSocket disconnected"))
+                    return
+                    
+                # Send with timeout
+                with anyio.fail_after(5.0):  # 5-second timeout
+                    await websocket.send_json(message)
+                    
+                # Report success
+                await send_stream.send((True, None))
+            except Exception as e:
+                # Report error
+                await send_stream.send((False, str(e)))
+        
+        # Send to all subscribers concurrently
+        async with anyio.create_task_group() as tg:
+            # Start all send tasks
+            for websocket in self.metrics_subscribers:
+                tg.start_soon(send_notification, websocket)
+                
+            # Close send stream when all tasks are done
+            tg.start_soon(send_stream.aclose)
+            
+        # Collect results (optional)
+        sent_count = 0
+        async with receive_stream:
+            async for success, error in receive_stream:
+                if success:
+                    sent_count += 1
+                elif error:
+                    logger.error(f"Error sending metrics update: {error}")
+        
+        return sent_count
 
 class WALWebSocketHandler:
     """
@@ -388,7 +540,7 @@ class WALWebSocketHandler:
         self.wal = wal
         self.connection_manager = WALConnectionManager()
         self.running = False
-        self.update_task = None
+        self.task_group = None
         
         # Set up WAL integration
         self._setup_wal_integration()
@@ -409,26 +561,68 @@ class WALWebSocketHandler:
         Args:
             websocket: WebSocket connection
         """
-        await self.connection_manager.connect(websocket)
+        # Connect with timeout
+        connection_success = await self.connection_manager.connect(websocket)
+        if not connection_success:
+            logger.error("Failed to establish WebSocket connection")
+            return
         
         try:
             # Start the update task if not already running
             if not self.running:
-                self.start_update_task()
+                await self.start_update_task()
             
             # Process messages until disconnection
             while True:
-                message = await websocket.receive_json()
-                await self.handle_message(websocket, message)
+                try:
+                    # Receive message with timeout
+                    with anyio.fail_after(60.0):  # 60-second message timeout
+                        message = await websocket.receive_json()
+                        await self.handle_message(websocket, message)
+                except anyio.TimeoutError:
+                    # No message received, check if connection is still alive
+                    if websocket.client_state != WebSocketState.CONNECTED:
+                        logger.info("WebSocket disconnected during timeout")
+                        break
+                    # Send ping to keep connection alive
+                    try:
+                        with anyio.fail_after(5.0):  # 5-second ping timeout
+                            await websocket.send_json({
+                                "type": "ping",
+                                "timestamp": time.time()
+                            })
+                    except Exception:
+                        # Connection is probably dead
+                        logger.info("Connection appears dead during ping")
+                        break
+                except WebSocketDisconnect:
+                    # Client disconnected
+                    logger.info("WebSocket client disconnected")
+                    break
+                except Exception as e:
+                    # Handle other exceptions
+                    logger.error(f"WebSocket error: {e}")
+                    if "connection" in str(e).lower():
+                        # Connection-related errors should terminate the handler
+                        break
                 
-        except WebSocketDisconnect:
-            # Client disconnected
-            self.connection_manager.disconnect(websocket)
-            
+        except anyio.get_cancelled_exc_class():
+            # Task cancelled
+            logger.debug("WebSocket handler task cancelled")
         except Exception as e:
             # Handle other exceptions
-            logger.error(f"WebSocket error: {e}")
+            logger.error(f"Unhandled error in WebSocket handler: {e}")
+        finally:
+            # Always disconnect from the manager
             self.connection_manager.disconnect(websocket)
+            
+            # Ensure socket is properly closed
+            try:
+                if websocket.client_state != WebSocketState.DISCONNECTED:
+                    with anyio.fail_after(2.0):  # 2-second close timeout
+                        await websocket.close(code=1000, reason="Handler complete")
+            except Exception as e:
+                logger.debug(f"Error closing WebSocket: {e}")
             
     async def handle_message(self, websocket: WebSocket, message: Dict[str, Any]):
         """
@@ -771,16 +965,22 @@ class WALWebSocketHandler:
         # Get full health data
         health_data = self.wal.health_monitor.get_status()
         
-        # Schedule broadcast to avoid synchronous calls in callback
-        asyncio.create_task(self.connection_manager.broadcast_health_update(health_data))
+        # Schedule broadcast using anyio
+        anyio.from_thread.run(self.connection_manager.broadcast_health_update, health_data)
         
-    def start_update_task(self):
+    async def start_update_task(self):
         """Start the periodic update task."""
         if self.running:
             return
             
         self.running = True
-        self.update_task = asyncio.create_task(self._update_loop())
+        
+        # Create task group if needed
+        self.task_group = anyio.create_task_group()
+        
+        # Start the update loop in the task group
+        await self.task_group.__aenter__()
+        self.task_group.start_soon(self._update_loop)
         
     async def _update_loop(self):
         """Periodic update loop for pushing updates to clients."""
@@ -814,20 +1014,22 @@ class WALWebSocketHandler:
                         await self.connection_manager.broadcast_operation_update(operation)
                 
                 # Wait for next update
-                await asyncio.sleep(5)
+                await anyio.sleep(5)
                 
-        except asyncio.CancelledError:
+        except anyio.get_cancelled_exc_class():
             # Task was cancelled
+            logger.debug("Update loop task cancelled")
             self.running = False
         except Exception as e:
             logger.error(f"Error in update loop: {e}")
             self.running = False
             
-    def stop(self):
+    async def stop(self):
         """Stop the WebSocket handler."""
         self.running = False
-        if self.update_task:
-            self.update_task.cancel()
+        if self.task_group:
+            await self.task_group.__aexit__(None, None, None)
+            self.task_group = None
 
 # Function to register WAL WebSocket with the API
 def register_wal_websocket(app):

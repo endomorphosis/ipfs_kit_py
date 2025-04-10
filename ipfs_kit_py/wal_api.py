@@ -1354,7 +1354,8 @@ Key features:
 5. Rate limiting and request validation
 """
 
-import asyncio
+# Use anyio instead of asyncio for backend-agnostic async I/O
+import anyio
 import json
 import logging
 import os
@@ -1735,14 +1736,20 @@ async def start_api_server(
     
     logger.info(f"Starting WAL API server on {host}:{port}")
     
-    # Start the server
-    await uvicorn.run(
+    # Create uvicorn config
+    config = uvicorn.Config(
         app,
         host=host,
         port=port,
         log_level=log_level,
         log_config=log_config,
     )
+    
+    # Create server
+    server = uvicorn.Server(config)
+    
+    # Run server with anyio compatibility
+    await server.serve()
     
 def start_api_server_thread(
     app: Any,
@@ -1768,8 +1775,8 @@ def start_api_server_thread(
         
     # Create thread to run the server
     def run_server():
-        import asyncio
-        asyncio.run(start_api_server(app, host, port, log_level))
+        # Use anyio.run instead of asyncio.run for backend flexibility
+        anyio.run(start_api_server, app, host, port, log_level)
         
     thread = threading.Thread(target=run_server, daemon=True)
     thread.start()

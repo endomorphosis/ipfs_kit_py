@@ -47,10 +47,16 @@ To get started with contributing to ipfs_kit_py:
 
 ### Setup Instructions
 
-1. Clone the repository:
+1. Clone the repository with submodules:
    ```bash
-   git clone https://github.com/YourUsername/ipfs_kit_py.git
+   git clone --recurse-submodules https://github.com/YourUsername/ipfs_kit_py.git
    cd ipfs_kit_py
+   ```
+   
+   If you forgot to include `--recurse-submodules`, you can initialize and update the submodules after cloning:
+   ```bash
+   git submodule init
+   git submodule update
    ```
 
 2. Create a virtual environment:
@@ -211,9 +217,46 @@ test/                   # Test directory
   ├── __init__.py
   ├── test.py           # Test runner
   └── test_*.py         # Individual test files
-docs/                   # Documentation
+docs/                   # Documentation (includes git submodules)
 examples/               # Example usage patterns
+py-ipld-car/            # IPLD CAR implementation (git submodule)
+py-ipld-dag-pb/         # IPLD DAG-PB implementation (git submodule)
+py-ipld-unixfs/         # IPLD UnixFS implementation (git submodule)
 ```
+
+### Working with Git Submodules
+
+This project uses git submodules for documentation repositories and IPLD implementations. When working with these components:
+
+1. **Documentation Changes**: The `docs/` directory contains several submodules for external documentation repositories. If you need to modify documentation:
+   - For project-specific documentation, modify files directly in `docs/`
+   - For changes to submodule documentation, create a PR in the original repository
+   - See the [SUBMODULES_SETUP.md](SUBMODULES_SETUP.md) file for details on all submodules
+
+2. **IPLD Implementation Changes**: The `py-ipld-*` directories are submodules for IPLD implementations. To modify these:
+   - Create PRs directly to the original repositories
+   - Update the submodule references in this repository after changes are merged
+
+3. **Submodule Updates**: To update a submodule to the latest version:
+   ```bash
+   # Update a specific submodule
+   git submodule update --remote docs/ipfs-docs
+   
+   # Update all submodules
+   git submodule update --remote
+   
+   # Commit the updates
+   git add docs/ipfs-docs
+   git commit -m "Update ipfs-docs submodule to latest version"
+   ```
+
+4. **Adding New Submodules**: If you need to add a new submodule:
+   ```bash
+   git submodule add https://github.com/example/repo.git path/to/submodule
+   git commit -m "Add new submodule"
+   ```
+
+For more details on working with submodules, refer to [SUBMODULES_SETUP.md](SUBMODULES_SETUP.md).
 
 ## Release Process
 

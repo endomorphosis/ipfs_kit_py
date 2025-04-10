@@ -5,12 +5,14 @@ FROM python:3.11-slim AS builder
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
 # Copy only requirements files to leverage Docker cache
 COPY pyproject.toml setup.py README.md MANIFEST.in ./
+COPY .gitmodules ./
 
 # Install dependencies into the builder image
 RUN pip install --no-cache-dir build wheel

@@ -1225,47 +1225,225 @@ class ParquetCIDCache:
         return self.cache_path
         
     def _update_access_stats(self, cid: str):
-        """Update access statistics for a CID."""
-        # This is a mock implementation that would be replaced with real
-        # functionality in a production system
-        logger.debug(f"Updating access stats for CID: {cid}")
-        # In a real implementation, this would update access timestamps and counts
+        """Update access statistics for a CID.
+        
+        Args:
+            cid: The content ID to update access stats for
+        """
+        try:
+            # Get existing metadata
+            metadata = self.get_metadata(cid)
+            if metadata:
+                # Update access timestamp and count
+                metadata["last_accessed"] = time.time()
+                metadata["access_count"] = metadata.get("access_count", 0) + 1
+                
+                # Calculate heat score based on recency and frequency
+                # Heat score = frequency * recency_factor
+                age_seconds = metadata["last_accessed"] - metadata.get("timestamp", metadata["last_accessed"])
+                age_hours = age_seconds / 3600
+                
+                # Apply exponential decay based on age
+                decay_factor = 0.5  # Half-life in days
+                recency_factor = 2 ** (-age_hours / (24 * decay_factor))
+                
+                # Heat is a combination of access count and recency
+                frequency = min(10, metadata["access_count"]) / 10  # Normalize to 0-1
+                heat_score = (frequency * 0.6) + (recency_factor * 0.4)
+                
+                # Update heat score
+                metadata["heat_score"] = heat_score
+                
+                # Store updated metadata
+                self.put_metadata(cid, metadata)
+                logger.debug(f"Updated access stats for CID: {cid}, access_count={metadata['access_count']}, heat_score={heat_score:.2f}")
+                
+            return True
+        except Exception as e:
+            logger.warning(f"Error updating access stats for CID {cid}: {str(e)}")
+            return False
     
     def contains(self, cid: str) -> bool:
         """Check if a CID exists in the cache."""
+        # For backward compatibility
+        return self.exists(cid)
+        
+    def exists(self, cid: str) -> bool:
+        """Check if a CID exists in the cache.
+        
+        Args:
+            cid: The content ID to check
+            
+        Returns:
+            True if the CID exists in the cache, False otherwise
+        """
         # This is a mock implementation
+        # In a real implementation this would query the Parquet files
+        try:
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    metadata = json.load(f)
+                    return cid in metadata
+        except Exception as e:
+            logger.warning(f"Error checking if CID exists: {e}")
+        
         return False
+        
+    def get(self, cid: str) -> dict:
+        """Get metadata for a CID.
+        
+        Args:
+            cid: The content ID to retrieve metadata for
+            
+        Returns:
+            Dictionary with metadata or empty dictionary if not found
+        """
+        return self.get_metadata(cid)
+        
+    def put(self, cid: str, metadata: dict) -> bool:
+        """Store metadata for a CID.
+        
+        Args:
+            cid: The content ID to store metadata for
+            metadata: Dictionary with metadata
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Load existing metadata if any
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    all_metadata = json.load(f)
+            else:
+                all_metadata = {}
+                
+            # Add or update metadata for this CID
+            all_metadata[cid] = metadata
+            
+            # Store updated metadata
+            with open(metadata_path, "w") as f:
+                json.dump(all_metadata, f, indent=2)
+                
+            logger.debug(f"Stored metadata for CID: {cid}")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Error storing metadata for CID: {e}")
+            return False
         
     def delete(self, cid: str) -> bool:
         """Delete a CID from the cache."""
-        # This is a mock implementation
-        logger.debug(f"Deleting CID from cache: {cid}")
-        return True
+        try:
+            # Load existing metadata if any
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    all_metadata = json.load(f)
+                    
+                # Remove this CID if it exists
+                if cid in all_metadata:
+                    del all_metadata[cid]
+                    
+                    # Store updated metadata
+                    with open(metadata_path, "w") as f:
+                        json.dump(all_metadata, f, indent=2)
+                        
+                    logger.debug(f"Deleted CID from cache: {cid}")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error deleting CID: {e}")
+            return False
         
     def get_metadata(self, cid: str) -> dict:
         """Get metadata for a CID."""
-        # This is a mock implementation
+        try:
+            # Load existing metadata if any
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    all_metadata = json.load(f)
+                    
+                # Return metadata for this CID if it exists
+                if cid in all_metadata:
+                    return all_metadata[cid]
+        except Exception as e:
+            logger.warning(f"Error getting metadata for CID: {e}")
+            
+        # Return empty dict if not found or error
         return {}
         
     def put_metadata(self, cid: str, metadata: dict) -> bool:
         """Store metadata for a CID."""
-        # This is a mock implementation
-        logger.debug(f"Storing metadata for CID: {cid}")
-        return True
+        # This implementation is the same as put
+        return self.put(cid, metadata)
         
     def batch_get_metadata(self, cids: list) -> dict:
         """Get metadata for multiple CIDs."""
-        # This is a mock implementation
-        return {cid: {} for cid in cids}
+        result = {}
+        for cid in cids:
+            result[cid] = self.get_metadata(cid)
+        return result
         
     def query(self, filters=None, columns=None, sort_by=None, limit=None) -> dict:
         """Query metadata with filters."""
-        # This is a mock implementation
+        try:
+            # Load existing metadata if any
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    all_metadata = json.load(f)
+                    
+                # For a real implementation, this would use PyArrow and Parquet filters
+                # For this simple implementation, we'll do a basic filter in Python
+                results = {}
+                
+                if filters:
+                    # Basic filtering
+                    for cid, metadata in all_metadata.items():
+                        match = True
+                        for key, value in filters.items():
+                            if key not in metadata or metadata[key] != value:
+                                match = False
+                                break
+                        if match:
+                            results[cid] = metadata
+                else:
+                    # No filters, return all
+                    results = all_metadata
+                    
+                # Apply limit if specified
+                if limit and isinstance(limit, int) and limit > 0:
+                    results = dict(list(results.items())[:limit])
+                    
+                return results
+        except Exception as e:
+            logger.warning(f"Error querying metadata: {e}")
+            
         return {}
         
     def stats(self) -> dict:
         """Get statistics about the cache."""
-        # This is a mock implementation
+        try:
+            # Load existing metadata if any
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    all_metadata = json.load(f)
+                    
+                return {
+                    "record_count": len(all_metadata),
+                    "file_count": 1,
+                    "total_size_bytes": os.path.getsize(metadata_path)
+                }
+        except Exception as e:
+            logger.warning(f"Error getting cache stats: {e}")
+            
         return {
             "record_count": 0,
             "file_count": 0,
@@ -1274,13 +1452,31 @@ class ParquetCIDCache:
         
     def get_all_cids(self) -> list:
         """Get all CIDs in the cache."""
-        # This is a mock implementation
+        try:
+            # Load existing metadata if any
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, "r") as f:
+                    all_metadata = json.load(f)
+                    
+                return list(all_metadata.keys())
+        except Exception as e:
+            logger.warning(f"Error getting all CIDs: {e}")
+            
         return []
         
     def clear(self) -> bool:
         """Clear the cache."""
-        # This is a mock implementation
-        return True
+        try:
+            # Create an empty metadata file
+            metadata_path = os.path.join(self.cache_path, "metadata.json")
+            with open(metadata_path, "w") as f:
+                json.dump({}, f)
+                
+            return True
+        except Exception as e:
+            logger.warning(f"Error clearing cache: {e}")
+            return False
         
     def optimize_schema(self):
         """Optimize the cache schema based on access patterns."""

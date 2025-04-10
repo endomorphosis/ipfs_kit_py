@@ -183,6 +183,20 @@ except ImportError:
     storacha_kit = None
 
 try:
+    from .lotus_kit import lotus_kit
+    LOTUS_KIT_AVAILABLE = True
+except ImportError:
+    lotus_kit = None
+    LOTUS_KIT_AVAILABLE = False
+
+try:
+    from .lassie_kit import lassie_kit
+    LASSIE_KIT_AVAILABLE = True
+except ImportError:
+    lassie_kit = None
+    LASSIE_KIT_AVAILABLE = False
+
+try:
     from .test_fio import test_fio
 except ImportError:
     test_fio = None
@@ -228,3 +242,17 @@ try:
     from .cli import main as cli_main
 except ImportError:
     cli_main = None
+
+# Import our router modules
+from .api import app
+from . import api
+
+# Register Storage Backends router if available
+if hasattr(api, 'STORAGE_BACKENDS_AVAILABLE') and api.STORAGE_BACKENDS_AVAILABLE:
+    from .storage_backends_api import storage_router
+    app.include_router(storage_router)
+
+# Register Observability router if available
+if hasattr(api, 'OBSERVABILITY_AVAILABLE') and api.OBSERVABILITY_AVAILABLE:
+    from .observability_api import observability_router
+    app.include_router(observability_router)

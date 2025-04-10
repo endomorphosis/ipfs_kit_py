@@ -50,6 +50,19 @@ except ImportError:
 
 # Import ipfs_kit_py components
 try:
+    # Add compatibility layer first
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(script_dir)
+    compatibility_path = os.path.join(parent_dir, "mcp_compatibility.py")
+    
+    if os.path.exists(compatibility_path):
+        # Import and apply compatibility layer
+        sys.path.insert(0, parent_dir)
+        from mcp_compatibility import add_compatibility_methods, patch_mcp_server
+        add_compatibility_methods()
+        patch_mcp_server()
+        logger.info("Applied MCP compatibility layer")
+    
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
     from ipfs_kit_py.mcp import MCPServer
     from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel

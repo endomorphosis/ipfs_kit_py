@@ -1,0 +1,808 @@
+diff --git a/ipfs_kit_py/libp2p_peer.py b/ipfs_kit_py/libp2p_peer.py
+index 5403bf7..bc5f5e1 100644
+--- a/ipfs_kit_py/libp2p_peer.py
++++ b/ipfs_kit_py/libp2p_peer.py
+@@ -12,30 +12,44 @@ Key features:
+ - NAT traversal through hole punching and relays
+ - Protocol negotiation for various content exchange patterns
+ - Integration with the role-based architecture (master/worker/leecher)
++
++This implementation uses anyio for backend-agnostic async operations.
+ """
+ 
+-import asyncio
++import anyio
+ import json
+ import logging
+ import os
+ import threading
+ import time
+ import uuid
+-from typing import Any, Callable, Dict, List, Optional, Set, Union
++from typing import Any, Callable, Dict, List, Optional, Set, Union, Type
+ 
+-# Set default values for imports
+-HAS_LIBP2P = False
+-HAS_MDNS = False
+-HAS_NAT_TRAVERSAL = False
++# Configure logger
++logger = logging.getLogger(__name__)
+ 
+-# Use our dependency management system from the libp2p package
++# Import from our libp2p package for dependency management
++# This ensures consistent HAS_LIBP2P flag across modules
+ from ipfs_kit_py.libp2p import HAS_LIBP2P, check_dependencies, install_dependencies
+ 
+-# Import these only if dependencies are available
++# Set defaults for optional features
++HAS_MDNS = False
++HAS_NAT_TRAVERSAL = False
++
++# Import libp2p modules only if dependencies are available
+ if HAS_LIBP2P:
++    logger.debug("libp2p dependencies are available, importing required modules")
+     try:
+         import libp2p
+-        import libp2p.tools.pubsub.utils as pubsub_utils
++        
++        # Handle missing pubsub_utils gracefully
++        HAS_PUBSUB = True
++        try:
++            import libp2p.tools.pubsub.utils as pubsub_utils
++        except ImportError as e:
++            HAS_PUBSUB = False
++            logger.warning(f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited.")
++            
+         from libp2p import new_host
+         from libp2p.crypto.keys import KeyPair, PrivateKey, PublicKey
+         from libp2p.crypto.serialization import deserialize_private_key, serialize_private_key
+@@ -48,25 +62,33 @@ if HAS_LIBP2P:
+         from libp2p.tools.constants import ALPHA_VALUE
+         from libp2p.typing import TProtocol
+ 
+-        # Optional imports for discovery
++        # Optional imports for discovery - these don't affect basic functionality
+         try:
+             import libp2p.discovery.mdns as mdns
+             HAS_MDNS = True
+-        except ImportError:
++            logger.debug("mDNS discovery support is available")
++        except ImportError as e:
+             HAS_MDNS = False
++            logger.debug(f"mDNS discovery support is not available: {e}")
+ 
+-        # Optional NAT traversal imports
++        # Optional NAT traversal imports - these don't affect basic functionality
+         try:
+             from libp2p.transport.tcp.tcp import TCP
+             from libp2p.transport.upgrader import TransportUpgrader
+             HAS_NAT_TRAVERSAL = True
+-        except ImportError:
++            logger.debug("NAT traversal support is available")
++        except ImportError as e:
+             HAS_NAT_TRAVERSAL = False
+-    except ImportError:
+-        # If any specific import fails, mark everything as unavailable
+-        HAS_LIBP2P = False
++            logger.debug(f"NAT traversal support is not available: {e}")
++    except ImportError as e:
++        # If any critical import fails, mark everything as unavailable
++        # But don't modify the HAS_LIBP2P flag from the libp2p package
++        logger.error(f"Failed to import required libp2p modules: {e}")
+         HAS_MDNS = False
+         HAS_NAT_TRAVERSAL = False
++else:
++    logger.warning("libp2p dependencies are not available, peer-to-peer functionality will be limited")
++    HAS_NAT_TRAVERSAL = False
+ 
+ # Local imports
+ from ipfs_kit_py.error import (
+@@ -136,6 +158,9 @@ class IPFSLibp2pPeer:
+         """
+         # Set up logger
+         self.logger = logging.getLogger(__name__)
++        
++        # Declare global variable upfront to avoid shadowing
++        global HAS_LIBP2P
+ 
+         if not HAS_LIBP2P:
+             self.logger.warning("libp2p is not available. Attempting to install dependencies...")
+@@ -145,7 +170,15 @@ class IPFSLibp2pPeer:
+                 self.logger.info("Successfully installed libp2p dependencies")
+                 # Re-import necessary components after successful installation
+                 import libp2p
+-                import libp2p.tools.pubsub.utils as pubsub_utils
++                # Handle missing pubsub_utils gracefully
++                global HAS_PUBSUB
++                HAS_PUBSUB = True
++                try:
++                    import libp2p.tools.pubsub.utils as pubsub_utils
++                except ImportError as e:
++                    HAS_PUBSUB = False
++                    self.logger.warning(f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited.")
++                    
+                 from libp2p import new_host
+                 from libp2p.crypto.keys import KeyPair
+                 from libp2p.kademlia.network import KademliaServer
+@@ -180,7 +213,6 @@ class IPFSLibp2pPeer:
+         self.content_metadata = {}  # Metadata for stored content
+         self.protocol_handlers = {}  # Protocol handlers (protocol_id -> handler_function)
+         self._running = False
+-        self._event_loop = None
+         self._lock = threading.RLock()
+ 
+         # Bitswap protocol specific data structures
+@@ -189,22 +221,18 @@ class IPFSLibp2pPeer:
+         self.heat_scores = {}  # Track content "heat" for prioritization {cid: score}
+         self.want_counts = {}  # Count of how many times a CID is wanted {cid: count}
+ 
+-        # Initialize event loop for async operations
+-        self._event_loop = asyncio.new_event_loop()
+-
+-        # Start the event loop in a separate thread
+-        self._loop_thread = threading.Thread(
+-            target=self._run_event_loop, daemon=True, name="libp2p-event-loop"
+-        )
+-        self._loop_thread.start()
+-
+-        # Initialize identity and components
++        # Initialize components
+         try:
+             self._load_or_create_identity()
+ 
+-            # Initialize components using the event loop
+-            future = asyncio.run_coroutine_threadsafe(self._async_init(), self._event_loop)
+-            future.result(timeout=30)  # Wait for initialization with timeout
++            # Create anyio task group for background tasks
++            self._task_group = None
++            
++            # Flag to track if task group is initialized
++            self._task_group_initialized = False
++            
++            # Set up components synchronously
++            anyio.run(self._async_init, timeout=30)  # Use anyio.run for sync initialization
+ 
+             # Connect to bootstrap peers
+             if bootstrap_peers:
+@@ -226,13 +254,18 @@ class IPFSLibp2pPeer:
+             self.close()
+             raise LibP2PError(f"Failed to initialize libp2p peer: {str(e)}")
+ 
+-    def _run_event_loop(self):
+-        """Run the asyncio event loop in a separate thread."""
+-        asyncio.set_event_loop(self._event_loop)
+-        self._event_loop.run_forever()
++    async def _init_task_group(self):
++        """Initialize the task group for background tasks."""
++        if not self._task_group_initialized:
++            self._task_group = anyio.create_task_group()
++            await self._task_group.__aenter__()
++            self._task_group_initialized = True
+ 
+     async def _async_init(self):
+         """Initialize components asynchronously."""
++        # Initialize the task group
++        await self._init_task_group()
++        
+         # Initialize components in sequence
+         await self._init_host_async()
+         self._setup_protocols()
+@@ -278,6 +311,12 @@ class IPFSLibp2pPeer:
+ 
+     async def _setup_pubsub_async(self):
+         """Set up publish/subscribe asynchronously."""
++        # Check if pubsub module is available
++        if not HAS_PUBSUB:
++            self.logger.warning("PubSub functionality disabled due to missing libp2p.tools.pubsub module")
++            self.pubsub = None
++            return
++            
+         # Initialize pubsub with GossipSub
+         self.pubsub = pubsub_utils.create_pubsub(
+             host=self.host,
+@@ -420,8 +459,8 @@ class IPFSLibp2pPeer:
+             alpha=ALPHA_VALUE,
+         )
+ 
+-        # Bootstrap the DHT with connected peers
+-        bootstrap_task = asyncio.create_task(self._bootstrap_dht())
++        # Use the async version with anyio.run
++        anyio.run(self._bootstrap_dht)
+ 
+         self.logger.info(f"DHT initialized in {dht_mode} mode")
+ 
+@@ -429,7 +468,7 @@ class IPFSLibp2pPeer:
+         """Bootstrap the DHT with connected peers and/or bootstrap nodes."""
+         try:
+             # Start with a delay to allow connections to establish
+-            await asyncio.sleep(2)
++            await anyio.sleep(2)
+ 
+             # Collect peer IDs from connected peers
+             connected_peers = []
+@@ -444,7 +483,10 @@ class IPFSLibp2pPeer:
+                 self.logger.warning("No connected peers available for DHT bootstrapping")
+ 
+             # Schedule periodic DHT refresh for better routing table maintenance
+-            asyncio.create_task(self._periodic_dht_refresh())
++            if self._task_group_initialized:
++                self._task_group.start_soon(self._periodic_dht_refresh)
++            else:
++                self.logger.warning("Task group not initialized, skipping periodic DHT refresh")
+ 
+         except Exception as e:
+             self.logger.error(f"DHT bootstrapping error: {str(e)}")
+@@ -454,7 +496,7 @@ class IPFSLibp2pPeer:
+         while self._running:
+             try:
+                 # Refresh routing table every 15 minutes
+-                await asyncio.sleep(900)  # 15 minutes
++                await anyio.sleep(900)  # 15 minutes
+ 
+                 # Skip if we're not running anymore
+                 if not self._running:
+@@ -463,14 +505,21 @@ class IPFSLibp2pPeer:
+                 self.logger.debug("Refreshing DHT routing table")
+                 await self.dht.bootstrap([])  # Empty list triggers just a refresh
+ 
+-            except asyncio.CancelledError:
++            except anyio.get_cancelled_exc_class():
++                # Handle task cancellation
+                 break
+             except Exception as e:
+                 self.logger.error(f"DHT refresh error: {str(e)}")
+-                await asyncio.sleep(60)  # Backoff on errors
++                await anyio.sleep(60)  # Backoff on errors
+ 
+     def _setup_pubsub(self):
+         """Set up publish/subscribe for messaging."""
++        # Check if pubsub module is available
++        if not HAS_PUBSUB:
++            self.logger.warning("PubSub functionality disabled due to missing libp2p.tools.pubsub module")
++            self.pubsub = None
++            return
++            
+         # Initialize pubsub with GossipSub
+         self.pubsub = pubsub_utils.create_pubsub(
+             host=self.host,
+@@ -678,7 +727,18 @@ class IPFSLibp2pPeer:
+ 
+                 # Additionally, if we're a master, fetch the content proactively
+                 if self.role == "master" and priority > 1:  # Only for higher priority requests
+-                    asyncio.create_task(self._fetch_content_proactively(cid, providers))
++                    # Start proactive fetching via task group if available, otherwise with anyio.run
++                    if self._task_group_initialized:
++                        self._task_group.start_soon(self._fetch_content_proactively, cid, providers)
++                    else:
++                        # Run without waiting for result
++                        async def run_fetch():
++                            await self._fetch_content_proactively(cid, providers)
++                        
++                        try:
++                            anyio.run(run_fetch)
++                        except Exception as e:
++                            self.logger.error(f"Error in proactive fetch: {str(e)}")
+ 
+                 return
+ 
+@@ -848,7 +908,21 @@ class IPFSLibp2pPeer:
+ 
+                 # Update DHT if we're a master or worker
+                 if self.role in ["master", "worker"] and self.dht:
+-                    asyncio.run_coroutine_threadsafe(self.dht.provide(cid), self._event_loop)
++                    # Start a task to provide the CID to the DHT
++                    if self._task_group_initialized:
++                        # Use task group if available
++                        async def provide_in_dht(content_id):
++                            await self.dht.provide(content_id)
++                        
++                        self._task_group.start_soon(provide_in_dht, cid)
++                    else:
++                        # Fallback to anyio.run
++                        async def provide_cid():
++                            await self.dht.provide(cid)
++                        try:
++                            anyio.run(provide_cid)
++                        except Exception as e:
++                            self.logger.error(f"Error providing CID to DHT: {e}")
+ 
+         except Exception as e:
+             self.logger.error(f"Error handling content announcement: {str(e)}")
+@@ -986,19 +1060,18 @@ class IPFSLibp2pPeer:
+             # Create peer info
+             peer_info = PeerInfo(peer_id, [maddr])
+ 
+-            # Connect to peer
++            # Connect to peer using anyio run for sync usage of async function
+             async def connect():
+                 await self.host.connect(peer_info)
+ 
+-            # Run in event loop
+-            loop = asyncio.new_event_loop()
+-            asyncio.set_event_loop(loop)
++            # Run with anyio directly
+             try:
+-                loop.run_until_complete(connect())
++                anyio.run(connect)
+                 self.logger.info(f"Connected to peer: {peer_id_str}")
+                 return True
+-            finally:
+-                loop.close()
++            except Exception as inner_e:
++                self.logger.error(f"Connection failed: {str(inner_e)}")
++                return False
+ 
+         except Exception as e:
+             self.logger.error(f"Failed to connect to peer {peer_addr}: {str(e)}")
+@@ -1140,10 +1213,15 @@ class IPFSLibp2pPeer:
+ 
+                 # Try to connect if not already connected
+                 if not self.is_connected_to(peer_id) and self.role != "leecher":
+-                    # Run async task to attempt connection
+-                    asyncio.run_coroutine_threadsafe(
+-                        self._try_connect_to_discovered_peer(peer_id, addrs), self._event_loop
+-                    )
++                    # Schedule connection attempt via task group or anyio.run
++                    if self._task_group_initialized:
++                        self._task_group.start_soon(self._try_connect_to_discovered_peer, peer_id, addrs)
++                    else:
++                        # Run in background with anyio.run
++                        try:
++                            anyio.run(self._try_connect_to_discovered_peer, peer_id, addrs)
++                        except Exception as e:
++                            self.logger.error(f"Error connecting to discovered peer: {str(e)}")
+ 
+         except json.JSONDecodeError:
+             self.logger.debug("Received malformed discovery message")
+@@ -1228,8 +1306,16 @@ class IPFSLibp2pPeer:
+ 
+         self.logger.debug(f"Announced presence to discovery topic: {topic}")
+ 
+-        # Schedule periodic announcements
+-        threading.Timer(300, lambda: self._announce_to_discovery_topic(topic)).start()  # 5 minutes
++        # Schedule via task group if available, otherwise use threading as fallback
++        if self._task_group_initialized:
++            async def scheduled_announcement():
++                await anyio.sleep(300)  # 5 minutes
++                self._announce_to_discovery_topic(topic)
++            
++            self._task_group.start_soon(scheduled_announcement)
++        else:
++            # Fallback to threading if task group not available
++            threading.Timer(300, lambda: self._announce_to_discovery_topic(topic)).start()
+ 
+     def _setup_random_walk_discovery(self) -> None:
+         """Set up random walk discovery for better network connectivity."""
+@@ -1257,8 +1343,8 @@ class IPFSLibp2pPeer:
+                 if not self._running:
+                     break
+ 
+-                # Perform random walk
+-                asyncio.run_coroutine_threadsafe(self._perform_random_walk(), self._event_loop)
++                # Perform random walk with anyio
++                anyio.run(self._perform_random_walk)
+ 
+             except Exception as e:
+                 self.logger.error(f"Error in random walk: {str(e)}")
+@@ -1392,8 +1478,9 @@ class IPFSLibp2pPeer:
+     async def _handle_relay(self, stream) -> None:
+         """Handle relay protocol stream."""
+         try:
+-            # Read relay request
+-            request_data = await stream.read()
++            # Read relay request with timeout
++            with anyio.fail_after(10.0):  # 10-second read timeout
++                request_data = await stream.read()
+ 
+             # Process based on whether we're a relay server or client
+             if self.enable_relay_server:
+@@ -1403,50 +1490,64 @@ class IPFSLibp2pPeer:
+                     # This would involve complex logic specific to the relay implementation
+                     # For now, we just acknowledge the request
+ 
+-                    # Send success response
+-                    await stream.write(json.dumps({"status": "success"}).encode())
++                    # Send success response with timeout
++                    with anyio.fail_after(5.0):  # 5-second write timeout
++                        await stream.write(json.dumps({"status": "success"}).encode())
+ 
+                 except Exception as e:
+-                    # Send error response
+-                    await stream.write(json.dumps({"status": "error", "error": str(e)}).encode())
++                    # Send error response with timeout
++                    with anyio.fail_after(5.0):  # 5-second write timeout
++                        await stream.write(json.dumps({"status": "error", "error": str(e)}).encode())
+             else:
+                 # If we're not a relay server, reject the request
+-                await stream.write(
+-                    json.dumps(
+-                        {"status": "error", "error": "This node is not a relay server"}
+-                    ).encode()
+-                )
++                with anyio.fail_after(5.0):  # 5-second write timeout
++                    await stream.write(
++                        json.dumps(
++                            {"status": "error", "error": "This node is not a relay server"}
++                        ).encode()
++                    )
+ 
++        except anyio.TimeoutError as e:
++            self.logger.error(f"Timeout handling relay stream: {str(e)}")
+         except Exception as e:
+             self.logger.error(f"Error handling relay stream: {str(e)}")
+         finally:
+-            await stream.close()
++            # Ensure stream is closed with timeout
++            with anyio.move_on_after(2.0):  # Don't wait more than 2 seconds to close
++                await stream.close()
+ 
+     async def _handle_relay_hop(self, stream) -> None:
+         """Handle relay hop protocol stream."""
+         try:
+-            # Read hop request
+-            request_data = await stream.read()
++            # Read hop request with timeout
++            with anyio.fail_after(10.0):  # 10-second read timeout
++                request_data = await stream.read()
+ 
+             # Only master and worker nodes can serve as relay hops
+             if self.role in ["master", "worker"] and self.enable_relay_server:
+                 # Process hop request
+                 # This would require specific implementation based on the circuit relay spec
+ 
+-                # Send acknowledgement
+-                await stream.write(json.dumps({"status": "success"}).encode())
++                # Send acknowledgement with timeout
++                with anyio.fail_after(5.0):  # 5-second write timeout
++                    await stream.write(json.dumps({"status": "success"}).encode())
+             else:
+-                # If we can't serve as a hop, reject the request
+-                await stream.write(
+-                    json.dumps(
+-                        {"status": "error", "error": "This node cannot serve as a relay hop"}
+-                    ).encode()
+-                )
++                # If we can't serve as a hop, reject the request with timeout
++                with anyio.fail_after(5.0):  # 5-second write timeout
++                    await stream.write(
++                        json.dumps(
++                            {"status": "error", "error": "This node cannot serve as a relay hop"}
++                        ).encode()
++                    )
+ 
++        except anyio.TimeoutError as e:
++            self.logger.error(f"Timeout handling relay hop: {str(e)}")
+         except Exception as e:
+             self.logger.error(f"Error handling relay hop: {str(e)}")
+         finally:
+-            await stream.close()
++            # Ensure stream is closed with timeout
++            with anyio.move_on_after(2.0):  # Don't wait more than 2 seconds to close
++                await stream.close()
+ 
+     async def connect_via_relay(self, peer_id: str, relay_addr: str) -> bool:
+         """Connect to a peer through a relay.
+@@ -1600,13 +1701,12 @@ class IPFSLibp2pPeer:
+                 async def provide_content():
+                     await self.dht.provide(cid)
+ 
+-                # Run in event loop
+-                loop = asyncio.new_event_loop()
+-                asyncio.set_event_loop(loop)
+-                try:
+-                    loop.run_until_complete(provide_content())
+-                finally:
+-                    loop.close()
++                # Use task group if available, otherwise run with anyio
++                if self._task_group_initialized:
++                    self._task_group.start_soon(provide_content)
++                else:
++                    # Run with anyio directly
++                    anyio.run(provide_content)
+ 
+             # Announce via pubsub
+             if self.pubsub:
+@@ -1652,29 +1752,33 @@ class IPFSLibp2pPeer:
+             if len(providers) < count and self.dht:
+ 
+                 async def find_in_dht():
+-                    dht_providers = await self.dht.get_providers(cid, count=count - len(providers))
+-                    return dht_providers
+-
+-                # Run in event loop
+-                loop = asyncio.new_event_loop()
+-                asyncio.set_event_loop(loop)
+-                try:
+-                    dht_result = loop.run_until_complete(
+-                        asyncio.wait_for(find_in_dht(), timeout=timeout)
+-                    )
+-
+-                    # Convert to provider info format and merge lists
+-                    for provider in dht_result:
+-                        provider_info = {
+-                            "id": str(provider.peer_id),
+-                            "addrs": [str(addr) for addr in provider.addrs],
+-                        }
+-
+-                        # Add if not already in the list
+-                        if not any(p["id"] == provider_info["id"] for p in providers):
+-                            providers.append(provider_info)
+-                finally:
+-                    loop.close()
++                    try:
++                        # Use anyio timeout instead of asyncio
++                        with anyio.fail_after(timeout):
++                            dht_providers = await self.dht.get_providers(cid, count=count - len(providers))
++                            
++                            # Convert to provider info format and merge lists
++                            dht_results = []
++                            for provider in dht_providers:
++                                provider_info = {
++                                    "id": str(provider.peer_id),
++                                    "addrs": [str(addr) for addr in provider.addrs],
++                                }
++                                
++                                # Only add if not already in the list
++                                if not any(p["id"] == provider_info["id"] for p in providers):
++                                    dht_results.append(provider_info)
++                                    
++                            return dht_results
++                    except TimeoutError:
++                        self.logger.warning(f"DHT provider lookup timed out for {cid}")
++                        return []
++
++                # Run with anyio
++                dht_results = anyio.run(find_in_dht)
++                
++                # Add results to providers list
++                providers.extend(dht_results)
+ 
+             return providers
+ 
+@@ -1713,7 +1817,7 @@ class IPFSLibp2pPeer:
+                     "request_id": str(uuid.uuid4()),
+                 }
+ 
+-                # Open stream to provider
++                # Open stream to provider with anyio
+                 async def request_from_peer():
+                     try:
+                         # Create stream
+@@ -1725,8 +1829,9 @@ class IPFSLibp2pPeer:
+                         # Send request
+                         await stream.write(json.dumps(request).encode())
+ 
+-                        # Read response with timeout
+-                        response = await asyncio.wait_for(stream.read(), timeout=timeout)
++                        # Read response with anyio timeout
++                        with anyio.fail_after(timeout):
++                            response = await stream.read()
+ 
+                         # Close stream
+                         await stream.close()
+@@ -1747,25 +1852,22 @@ class IPFSLibp2pPeer:
+                     except StreamError as e:
+                         self.logger.error(f"Stream error: {str(e)}")
+                         return None
++                    except TimeoutError:
++                        self.logger.warning(f"Timeout requesting content from {provider_id}")
++                        return None
+ 
+-                # Run in event loop
+-                loop = asyncio.new_event_loop()
+-                asyncio.set_event_loop(loop)
++                # Run with anyio
+                 try:
+-                    content = loop.run_until_complete(
+-                        asyncio.wait_for(request_from_peer(), timeout=timeout)
+-                    )
++                    content = anyio.run(request_from_peer)
+ 
+                     if content:
+                         # Store for future use
+                         self.store_bytes(cid, content)
+                         return content
+ 
+-                except asyncio.TimeoutError:
+-                    self.logger.warning(f"Timeout requesting content from {provider_id}")
++                except Exception as inner_e:
++                    self.logger.warning(f"Error requesting content: {str(inner_e)}")
+                     continue
+-                finally:
+-                    loop.close()
+ 
+             except Exception as e:
+                 self.logger.error(f"Error requesting from provider {provider['id']}: {str(e)}")
+@@ -1827,13 +1929,11 @@ class IPFSLibp2pPeer:
+ 
+                 return total_bytes
+ 
+-            # Run in event loop
+-            loop = asyncio.new_event_loop()
+-            asyncio.set_event_loop(loop)
++            # Run with anyio
+             try:
+-                total_bytes = loop.run_until_complete(receive_stream())
+-            finally:
+-                loop.close()
++                total_bytes = anyio.run(receive_stream)
++            except Exception as inner_e:
++                self.logger.error(f"Error in stream receive: {str(inner_e)}")
+ 
+             return total_bytes
+ 
+@@ -1884,27 +1984,31 @@ class IPFSLibp2pPeer:
+ 
+             # Open stream to requester
+             async def send_response():
+-                # Create stream
+-                stream = await self.host.new_stream(
+-                    peer_id=PeerID.from_base58(requester), protocol_id=PROTOCOLS["BITSWAP"]
+-                )
++                try:
++                    # Create stream
++                    stream = await self.host.new_stream(
++                        peer_id=PeerID.from_base58(requester), protocol_id=PROTOCOLS["BITSWAP"]
++                    )
+ 
+-                # Send content
+-                await stream.write(content)
++                    # Send content with timeout
++                    with anyio.fail_after(30.0):  # 30-second timeout for sending
++                        await stream.write(content)
+ 
+-                # Close stream
+-                await stream.close()
++                    # Close stream with timeout
++                    with anyio.move_on_after(5.0):  # Don't wait more than 5 seconds to close
++                        await stream.close()
+ 
+-                return True
++                    return True
++                except Exception as inner_e:
++                    self.logger.error(f"Error in send_response: {str(inner_e)}")
++                    return False
+ 
+-            # Run in event loop
+-            loop = asyncio.new_event_loop()
+-            asyncio.set_event_loop(loop)
++            # Run with anyio
+             try:
+-                result = loop.run_until_complete(send_response())
+-                return result
+-            finally:
+-                loop.close()
++                return anyio.run(send_response)
++            except Exception as inner_e:
++                self.logger.error(f"Error running send_response: {str(inner_e)}")
++                return False
+ 
+         except Exception as e:
+             self.logger.error(f"Error sending content response: {str(e)}")
+@@ -2029,7 +2133,18 @@ class IPFSLibp2pPeer:
+         # Trigger cache prioritization if very hot
+         if entry["score"] > 10 and self.tiered_storage_manager:
+             # Request promotion to faster storage tier
+-            asyncio.create_task(self._promote_content_to_faster_tier(cid))
++            # Schedule via task group if available, otherwise use anyio.run
++            if self._task_group_initialized:
++                self._task_group.start_soon(self._promote_content_to_faster_tier, cid)
++            else:
++                # Run in background without waiting for result
++                async def run_promotion():
++                    await self._promote_content_to_faster_tier(cid)
++                
++                try:
++                    anyio.run(run_promotion)
++                except Exception as e:
++                    self.logger.error(f"Error promoting content: {str(e)}")
+ 
+     async def _promote_content_to_faster_tier(self, cid: str) -> None:
+         """Promote hot content to a faster storage tier.
+@@ -2123,13 +2238,13 @@ class IPFSLibp2pPeer:
+             func = getattr(self.tiered_storage_manager, method)
+ 
+             # Check if it's an async method
+-            if asyncio.iscoroutinefunction(func):
++            import inspect
++            if inspect.iscoroutinefunction(func):
+                 # Directly await it
+                 return await func(*args, **kwargs)
+             else:
+-                # Run sync method in executor to avoid blocking
+-                loop = asyncio.get_event_loop()
+-                return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
++                # Run sync method in thread to avoid blocking
++                return await anyio.to_thread.run_sync(func, *args, **kwargs)
+ 
+         except Exception as e:
+             self.logger.error(f"Error calling tiered storage method {method}: {str(e)}")
+@@ -2166,32 +2281,31 @@ class IPFSLibp2pPeer:
+             # If we need more, check DHT
+             if len(providers) < count and self.dht:
+                 try:
+-                    # Wait for DHT providers with timeout
+-                    dht_providers = await asyncio.wait_for(
+-                        self.dht.get_providers(cid), timeout=timeout
+-                    )
++                    # Wait for DHT providers with anyio timeout
++                    with anyio.fail_after(timeout):
++                        dht_providers = await self.dht.get_providers(cid)
+ 
+-                    # Add unique providers from DHT
+-                    for provider in dht_providers:
+-                        if len(providers) >= count:
+-                            break
++                        # Add unique providers from DHT
++                        for provider in dht_providers:
++                            if len(providers) >= count:
++                                break
+ 
+-                        provider_id = str(provider.peer_id)
++                            provider_id = str(provider.peer_id)
+ 
+-                        # Skip if already in results
+-                        if any(p["id"] == provider_id for p in providers):
+-                            continue
++                            # Skip if already in results
++                            if any(p["id"] == provider_id for p in providers):
++                                continue
+ 
+-                        # Add provider info
+-                        providers.append(
+-                            {
+-                                "id": provider_id,
+-                                "addrs": [str(addr) for addr in provider.addrs],
+-                                "source": "dht",
+-                            }
+-                        )
++                            # Add provider info
++                            providers.append(
++                                {
++                                    "id": provider_id,
++                                    "addrs": [str(addr) for addr in provider.addrs],
++                                    "source": "dht",
++                                }
++                            )
+ 
+-                except asyncio.TimeoutError:
++                except anyio.TimeoutError:
+                     self.logger.debug(f"DHT provider lookup timed out for {cid}")
+                     pass
+ 
+@@ -2331,11 +2445,33 @@ class IPFSLibp2pPeer:
+                 try:
+                     # Close network connections
+                     network = self.host.get_network()
+-                    for conn in network.connections.values():
+-                        asyncio.run(conn.close())
++                    
++                    # Define async close function
++                    async def close_connections():
++                        for conn in network.connections.values():
++                            try:
++                                # Close with timeout to avoid hanging
++                                with anyio.move_on_after(5.0):
++                                    await conn.close()
++                            except Exception as e:
++                                self.logger.warning(f"Error closing connection: {str(e)}")
++                    
++                    # Run with anyio
++                    anyio.run(close_connections)
+                 except Exception as e:
+                     self.logger.error(f"Error closing host connections: {str(e)}")
+ 
++            # Stop task group if it was initialized
++            if self._task_group_initialized and self._task_group:
++                try:
++                    async def close_task_group():
++                        await self._task_group.__aexit__(None, None, None)
++                        self._task_group_initialized = False
++                    
++                    anyio.run(close_task_group)
++                except Exception as e:
++                    self.logger.error(f"Error closing task group: {str(e)}")
++
+             # Stop mDNS discovery
+             if hasattr(self, "mdns") and self.mdns:
+                 try:

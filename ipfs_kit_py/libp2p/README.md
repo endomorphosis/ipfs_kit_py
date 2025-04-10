@@ -1,99 +1,248 @@
-# Enhanced LibP2P Integration for IPFS Kit
+# libp2p Implementation for ipfs_kit_py
 
-This package provides advanced peer-to-peer functionality for IPFS Kit, enabling more efficient content discovery and direct content retrieval without relying on the IPFS daemon. It implements Phase 3A of the development roadmap: Direct P2P Communication.
+This module provides a comprehensive implementation of the libp2p protocol stack for ipfs_kit_py, supporting direct peer-to-peer communication, content routing, and advanced networking capabilities.
 
-## Key Features
+## Features
 
-- **Enhanced DHT-based Discovery**: Improved peer discovery with k-bucket optimization for more efficient routing
-- **Provider Reputation Tracking**: Tracks the reliability and performance of content providers
-- **Intelligent Content Routing**: Uses network metrics to find the optimal content providers
-- **Direct P2P Content Retrieval**: Retrieves content directly from peers without requiring the IPFS daemon
-- **Seamless Cache Integration**: Integrates with the tiered cache system to handle cache misses
-- **Adaptive Backoff Strategies**: Implements backoff strategies for unreliable peers
+- **Core Networking**
+  - Multi-transport support (TCP, QUIC, WebRTC, WebTransport)
+  - Protocol negotiation with semantic versioning
+  - Stream multiplexing and backpressure
+  - NAT traversal and peer discovery
 
-## Components
+- **Security**
+  - Noise Protocol for secure communications
+  - Identity-based authentication
+  - Permission control
 
-The enhanced libp2p integration consists of several components that work together:
+- **Content Routing**
+  - DHT-based content discovery
+  - Provider record management
+  - Reputation tracking for optimal content routing
 
-1. **EnhancedDHTDiscovery**: Implements advanced DHT-based peer discovery with k-bucket optimization
-2. **ContentRoutingManager**: Manages intelligent content routing based on peer statistics
-3. **LibP2PIntegration**: Provides integration between libp2p and the filesystem cache
-4. **IPFSKit Integration**: Extends the IPFSKit class with libp2p functionality
+- **Specialized Protocols**
+  - Bitswap for content exchange
+  - DAG Exchange (GraphSync) for IPLD traversal
+  - GossipSub for publish/subscribe messaging
+
+- **Integration Points**
+  - Seamless integration with IPFSKit and high-level API
+  - Tiered storage system integration
+  - AnyIO support for async framework compatibility
+
+## Architecture
+
+The implementation follows a modular design with clear separation of concerns:
+
+```
+libp2p/
+├── __init__.py              # Entry point with dependency detection
+├── hooks.py                 # Protocol extension hooks
+├── autonat.py               # NAT detection and traversal
+├── dag_exchange.py          # IPLD DAG exchange (GraphSync)
+├── enhanced_dht_discovery.py # Advanced DHT-based discovery
+├── enhanced_protocol_negotiation.py # Improved protocol selection
+├── gossipsub_protocol.py    # PubSub implementation
+├── high_level_api_integration.py # Integration with high-level API
+├── ipfs_kit_integration.py  # Integration with IPFSKit
+├── noise_protocol.py        # Noise Protocol security
+├── p2p_integration.py       # Integration with P2P subsystem
+├── protocol_integration.py  # Protocol extension system
+├── typing.py                # Type definitions
+├── webrtc_transport.py      # WebRTC transport implementation
+└── webtransport.py          # WebTransport implementation
+```
+
+## Integration with ipfs_kit_py
+
+The libp2p module integrates with ipfs_kit_py through several key interfaces:
+
+1. **IPFSLibp2pPeer Class**
+   - Provides direct peer-to-peer interactions
+   - Handles multiple transports and protocols
+   - Enables content routing and discovery
+
+2. **TieredCacheManager Integration**
+   - Allows direct content retrieval from peers
+   - Optimizes storage with peer-based cache sources
+   - Enables heat-based content promotion
+
+3. **High-Level API Extensions**
+   - Adds peer discovery to simplified API
+   - Provides protocol management functionality
+   - Offers network visualization capabilities
+
+## Role-based Optimization
+
+The implementation includes role-specific optimizations:
+
+- **Master Node**
+  - Full DHT server node
+  - Acts as relay for worker/leecher nodes
+  - Maintains comprehensive provider records
+
+- **Worker Node**
+  - Balanced DHT client/server
+  - Optimized for content processing
+  - Cooperative caching strategies
+
+- **Leecher Node**
+  - Lightweight DHT client
+  - Minimal resource utilization
+  - Optimized for content consumption
+
+## Implementation Status
+
+The implementation covers all core functionality, with advanced features being continuously added:
+
+- ✅ **Core Networking**: Complete implementation
+- ✅ **Peer Identity**: Fully implemented
+- ✅ **Protocol Negotiation**: Enhanced with semantic versioning
+- ✅ **Connection Management**: Comprehensive implementation
+- ✅ **Discovery Mechanisms**: DHT, mDNS, Bootstrap peers
+- ✅ **Content Routing**: Advanced provider tracking
+- ✅ **Security**: Basic secure transport with Noise Protocol
+- ✅ **GossipSub**: Complete implementation
+- ✅ **Bitswap**: Comprehensive implementation
+- ✅ **Tiered Storage Integration**: Fully implemented
+- ✅ **Role-based Optimization**: Master/worker/leecher support
+- ⚠️ **Advanced Transport Protocols**: Partial implementation
+- ⚠️ **Advanced NAT Traversal**: Basic implementation
+- ⚠️ **DAG Exchange**: Implementation in progress
 
 ## Usage
 
-### Basic Usage
+### Basic Peer Setup
 
 ```python
-from ipfs_kit_py.ipfs_kit import ipfs_kit
-from ipfs_kit_py.libp2p.ipfs_kit_integration import apply_ipfs_kit_integration
-
-# Apply the integration to the IPFSKit class
-apply_ipfs_kit_integration()
-
-# Create an IPFSKit instance
-kit = ipfs_kit()
-
-# Get a filesystem interface with libp2p integration
-fs = kit.get_filesystem(use_libp2p=True)
-
-# Add content to IPFS
-result = kit.ipfs_add_string("Hello, IPFS Kit with LibP2P integration!")
-cid = result["Hash"]
-
-# Retrieve content using the filesystem interface
-# This will automatically use libp2p if the content isn't in the cache
-content = fs.cat(cid)
-```
-
-### Advanced Usage
-
-```python
-from ipfs_kit_py.ipfs_kit import ipfs_kit
+from ipfs_kit_py import ipfs_kit
 from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
-from ipfs_kit_py.libp2p.p2p_integration import register_libp2p_with_ipfs_kit
-from ipfs_kit_py.libp2p.enhanced_dht_discovery import EnhancedDHTDiscovery, ContentRoutingManager
 
-# Create an IPFSKit instance
-kit = ipfs_kit()
+# Initialize libp2p peer with desired role
+libp2p_peer = IPFSLibp2pPeer(role="worker")
 
-# Create a libp2p peer with custom configuration
-libp2p_peer = IPFSLibp2pPeer(
-    role="worker",
-    bootstrap_peers=[
-        "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
-        "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
-    ],
-    listen_addrs=[
-        "/ip4/0.0.0.0/tcp/4001",
-        "/ip4/0.0.0.0/udp/4001/quic"
-    ]
-)
+# Start the peer
+await libp2p_peer.start()
 
-# Register the libp2p peer with IPFSKit
-integration = register_libp2p_with_ipfs_kit(kit, libp2p_peer, extend_cache=True)
+# Connect to a bootstrap peer
+bootstrap_addr = "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
+await libp2p_peer.connect(bootstrap_addr)
 
-# Create enhanced discovery manually if needed
-discovery = EnhancedDHTDiscovery(
-    libp2p_peer,
-    role="worker",
-    bootstrap_peers=libp2p_peer.bootstrap_peers
-)
-discovery.start()
+# Request content directly from the network
+data = await libp2p_peer.get_content_by_cid("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
 
-# Create content routing manager manually if needed
-router = ContentRoutingManager(discovery, libp2p_peer)
-
-# Retrieve content directly using the content routing manager
-future = router.retrieve_content(some_cid)
-content = future.result(timeout=30)
-
-# Get statistics from the integration
-stats = integration.get_stats()
-print(f"Cache miss success rate: {stats['success_rate']:.2f}")
+# Stop the peer when done
+await libp2p_peer.stop()
 ```
 
-## API Reference
+### Integration with IPFSKit
+
+```python
+from ipfs_kit_py import ipfs_kit
+from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
+
+# Initialize kit and libp2p peer
+kit = ipfs_kit()
+libp2p_peer = IPFSLibp2pPeer(role="worker")
+
+# Register libp2p with IPFSKit
+from ipfs_kit_py.libp2p import register_libp2p_with_ipfs_kit
+integration = register_libp2p_with_ipfs_kit(kit, libp2p_peer)
+
+# Now IPFSKit can use libp2p for direct content retrieval
+# and will automatically attempt direct peer connections when
+# content is not available in the local cache
+content = kit.cat("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
+```
+
+### WebRTC Transport
+
+```python
+from ipfs_kit_py.libp2p.webrtc_transport import WebRTCTransport
+
+# Initialize WebRTC transport
+webrtc = WebRTCTransport(libp2p_peer)
+
+# Set protocol handlers
+webrtc.set_protocol_handler("/ipfs/ping/1.0.0", ping_handler)
+
+# Establish connection
+stream = await webrtc.dial(peer_id, ["/ipfs/ping/1.0.0"])
+
+# Use the stream
+await stream.write(b"ping\n")
+pong = await stream.read(1024)
+```
+
+### Noise Protocol Security
+
+```python
+from ipfs_kit_py.libp2p.noise_protocol import NoiseProtocol
+
+# Initialize Noise protocol
+noise = NoiseProtocol()
+
+# Perform handshake as initiator
+remote_pubkey_bytes = bytes.fromhex("...")
+session = await noise.handshake_initiator(remote_pubkey_bytes, stream)
+
+# Send encrypted data
+ciphertext = noise.encrypt(session, b"secret message")
+await stream.write(ciphertext)
+
+# Receive and decrypt
+ciphertext = await stream.read(1024)
+plaintext = noise.decrypt(session, ciphertext)
+```
+
+### DAG Exchange (GraphSync)
+
+```python
+from ipfs_kit_py.libp2p.dag_exchange import DAGExchange, make_all_selector
+
+# Initialize DAG Exchange
+dag_exchange = DAGExchange(libp2p_peer)
+await dag_exchange.start()
+
+# Define response handler
+def handle_response(response):
+    for cid, block in response.blocks.items():
+        print(f"Received block {cid}, size: {len(block)} bytes")
+
+# Request a DAG starting from a root CID
+root_cid = "QmRootCID..."
+selector = make_all_selector()
+request_id = await dag_exchange.request(
+    peer_id="QmPeerID...",
+    root_cid=root_cid,
+    selector=selector,
+    callback=handle_response
+)
+
+# Later, cancel if needed
+await dag_exchange.cancel_request(request_id)
+```
+
+## Extending the Implementation
+
+The implementation is designed to be extensible through several mechanisms:
+
+1. **Protocol Extensions**
+   - Register custom protocols via `apply_protocol_extensions`
+   - Add new protocol handlers to existing transports
+   - Create specialized stream handlers
+
+2. **Custom Selectors**
+   - Extend DAG Exchange with custom IPLD selectors
+   - Create domain-specific traversal patterns
+   - Implement selective content retrieval
+
+3. **Advanced Network Topologies**
+   - Configure relay networks for NAT traversal
+   - Implement custom peer discovery mechanisms
+   - Create specialized content routing algorithms
+
+## Enhanced Features
 
 ### EnhancedDHTDiscovery
 
@@ -130,51 +279,35 @@ class LibP2PIntegration:
     def get_stats()
 ```
 
-### Helper Functions
+### GossipSub Protocol Methods
 
 ```python
-def register_libp2p_with_ipfs_kit(ipfs_kit, libp2p_peer, extend_cache=True)
-def extend_tiered_cache_manager(cache_manager, libp2p_integration)
-def apply_ipfs_kit_integration()
-def extend_ipfs_kit_class(ipfs_kit_cls)
+# Methods added to IPFSLibp2pPeer by protocol extensions
+def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, Any]
+def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]
+def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = None) -> Dict[str, Any]
+def get_topic_peers(self, topic_id: str) -> Dict[str, Any]
+def list_topics(self) -> Dict[str, Any]
 ```
-
-## Architecture
-
-The enhanced libp2p integration is designed as a layered architecture:
-
-1. **Base Layer**: Enhanced DHT discovery and content routing (EnhancedDHTDiscovery, ContentRoutingManager)
-2. **Integration Layer**: Connects libp2p functionality with IPFSKit (LibP2PIntegration)
-3. **Extension Layer**: Extends IPFSKit with libp2p miss handling (IPFSKit integration)
-
-This design allows for flexible integration with the existing codebase and enables easy extension for future improvements.
-
-## Error Handling
-
-The implementation includes comprehensive error handling with:
-
-- Proper exception handling for network operations
-- Fallback mechanisms when peers fail
-- Adaptive backoff strategies for unreliable peers
-- Detailed logging for troubleshooting
-
-## Performance Considerations
-
-The enhanced libp2p integration is designed for performance:
-
-- **Caching**: Caches discovery results and provider information
-- **Concurrency**: Uses asynchronous operations for network IO
-- **Resource Awareness**: Adapts behavior based on node role and available resources
-- **Metrics Collection**: Tracks performance metrics for optimization
-
-## Examples
-
-See the `/examples/libp2p_example.py` file for a complete example of using the enhanced libp2p integration.
 
 ## Testing
 
-The unit tests for the libp2p integration are in the `/test/test_libp2p_integration.py` file. Run them with:
+The unit tests for the libp2p implementation are in the `/test/test_libp2p_integration.py` and related test files. Run them with:
 
 ```bash
 python -m unittest test.test_libp2p_integration
+python -m unittest test.test_libp2p_pubsub
+python -m unittest test.test_libp2p_kademlia
 ```
+
+## License
+
+This implementation is part of the ipfs_kit_py project and is subject to the same license terms.
+
+## References
+
+- [libp2p Specifications](https://github.com/libp2p/specs)
+- [IPFS Documentation](https://docs.ipfs.tech/)
+- [IPLD Specifications](https://github.com/ipld/specs)
+- [WebRTC Documentation](https://webrtc.org/getting-started/overview)
+- [WebTransport Documentation](https://w3c.github.io/webtransport/)

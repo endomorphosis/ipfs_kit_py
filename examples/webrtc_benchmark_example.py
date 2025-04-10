@@ -17,7 +17,7 @@ Requirements:
 - matplotlib (optional) - For visualizing benchmark results
 """
 
-import asyncio
+import anyio
 import argparse
 import logging
 import os

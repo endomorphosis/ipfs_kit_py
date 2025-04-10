@@ -460,6 +460,72 @@ python -m examples.probabilistic_data_structures_integration_example
 pip install matplotlib numpy pandas
 ```
 
+### Filesystem Journal Examples
+
+#### `fs_journal_example.py`
+
+Demonstrates the core filesystem journal functionality. This example shows how to:
+
+- Create a journaled filesystem interface
+- Perform filesystem operations with transaction protection
+- Persist path-to-CID mappings for virtual filesystem support
+- Recover after unexpected shutdowns
+- Bridge content-addressed storage with path-based filesystem operations
+
+**Usage**:
+```bash
+# Run the filesystem journal example
+python -m examples.fs_journal_example
+```
+
+#### `fs_journal_integration_example.py`
+
+Demonstrates the filesystem journal integration with tiered storage backends. This example shows how to:
+
+- Integrate with the TieredCacheManager
+- Move content between storage tiers with journal tracking
+- Ensure transaction safety with automatic rollbacks
+- Recover from the journal after failures
+- Track content across multiple storage backends
+
+**Usage**:
+```bash
+# Run the filesystem journal integration example
+python -m examples.fs_journal_integration_example
+```
+
+#### `fs_journal_monitor_example.py`
+
+Demonstrates the monitoring and visualization tools for the filesystem journal. This example shows how to:
+
+- Set up a journal health monitor to track metrics and detect issues
+- Track transaction and operation performance statistics
+- Collect and analyze storage tier statistics
+- Generate visualizations of journal operations and performance
+- Create comprehensive monitoring dashboards
+- Configure and respond to health alerts
+
+The example includes a complete workflow that:
+1. Sets up a journal and tiered storage backend
+2. Configures health monitoring with customizable thresholds
+3. Generates metrics by simulating a realistic workload
+4. Creates visualizations of journal operations and performance
+5. Generates a comprehensive HTML dashboard
+6. Demonstrates the alert system for health monitoring
+
+**Usage**:
+```bash
+# Run the filesystem journal monitoring example
+python -m examples.fs_journal_monitor_example
+```
+
+**Prerequisites**: For visualization capabilities, you need matplotlib:
+```bash
+pip install matplotlib
+```
+
+When matplotlib is not available, the example gracefully falls back to data collection only.
+
 ### Additional Examples
 
 - `libp2p_example.py`: Direct peer-to-peer communication

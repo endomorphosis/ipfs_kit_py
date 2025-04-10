@@ -19,7 +19,7 @@ try:
 
     # If FastAPI is not available, skip all tests
     if not FASTAPI_AVAILABLE:
-#         pytestmark = pytest.mark.skip(reason="FastAPI not available, skipping tests")
+        pytestmark = pytest.mark.skip(reason="FastAPI not available, skipping tests")
 except ImportError:
     FASTAPI_AVAILABLE = False
 #     pytestmark = pytest.mark.skip(reason="Could not import api module, skipping tests")

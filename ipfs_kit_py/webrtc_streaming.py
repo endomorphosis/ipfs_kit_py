@@ -20,11 +20,24 @@ import json
 import time
 import uuid
 import logging
-import asyncio
 from typing import Dict, List, Optional, Union, Callable, Any, Tuple
 from pathlib import Path
 from datetime import datetime
 from contextlib import nullcontext
+
+# Import anyio as primary async library
+import anyio
+from anyio.to_thread import run_sync
+# Import asyncio for compatibility with aiortc
+# Will be fully replaced with anyio once all migration is complete
+import asyncio
+
+# Try to detect current async context
+try:
+    import sniffio
+    HAS_SNIFFIO = True
+except ImportError:
+    HAS_SNIFFIO = False
 
 # Setup basic logging
 logger = logging.getLogger(__name__)
@@ -237,6 +250,76 @@ QUALITY_PRESETS = {
     "high": {"bitrate": 2_500_000, "width": 1920, "height": 1080, "framerate": 30}
 }
 
+# Global variables for WebRTC state
+webrtc_connections = {}
+media_players = {}
+media_relays = {}
+media_tracks = {}
+active_streams = {}
+peer_stats = {}
+quality_profiles = {}
+event_listeners = {}
+_next_track_id = 0  # For unique track IDs
+
+class AnyIOEventLoopHandler:
+    """Helper class to manage event loop interaction with AnyIO compatibility.
+    
+    This class detects the current async context and provides methods to run coroutines
+    appropriately, whether in asyncio, trio, or non-async contexts.
+    """
+    
+    def __init__(self):
+        """Initialize with detection of current async context."""
+        self.current_async_lib = None
+        self.in_async_context = False
+        
+        # Try to detect current async context if sniffio is available
+        if HAS_SNIFFIO:
+            try:
+                self.current_async_lib = sniffio.current_async_library()
+                self.in_async_context = True
+                logger.debug(f"Detected async context: {self.current_async_lib}")
+            except sniffio.AsyncLibraryNotFoundError:
+                self.in_async_context = False
+                logger.debug("No async context detected")
+    
+    async def run_coro(self, coro):
+        """Run a coroutine in the appropriate way based on detected context.
+        
+        Args:
+            coro: Asyncio coroutine to run
+            
+        Returns:
+            Result of the coroutine
+        """
+        # If we're in the same async library context, we can just await the coroutine
+        if self.current_async_lib in ("asyncio", "anyio"):
+            return await coro
+        
+        # If we're in a trio or another context, we need to run it in a thread
+        if self.in_async_context:
+            # Use AnyIO's run_sync to execute the coroutine in thread
+            return await anyio.to_thread.run_sync(
+                lambda: anyio.run(coro)
+            )
+        
+        # If we're not in an async context at all, just run it directly
+        return anyio.run(coro)
+    
+    def run_sync(self, coro):
+        """Run a coroutine synchronously.
+        
+        Args:
+            coro: Asyncio coroutine to run
+            
+        Returns:
+            Result of the coroutine
+        """
+        return anyio.run(coro)
+
+# Create a global instance for use throughout the module
+event_loop_handler = AnyIOEventLoopHandler()
+
 class AdaptiveBitrateController:
     """Adaptive bitrate controller for WebRTC streams."""
     
@@ -350,7 +433,7 @@ class AdaptiveBitrateController:
 # Define implementations only if dependencies are available
 if HAVE_WEBRTC:
     class IPFSMediaStreamTrack(VideoStreamTrack):
-        """Media stream track that sources content from IPFS."""
+        """Media stream track that sources content from IPFS with optimized streaming."""
         
         def __init__(self, 
                     source_cid=None, 
@@ -359,8 +442,11 @@ if HAVE_WEBRTC:
                     height=720, 
                     framerate=30,
                     ipfs_client=None,
-                    track_id=None):
-            """Initialize the IPFS media stream track."""
+                    track_id=None,
+                    buffer_size=30,  # Buffer size in frames
+                    prefetch_threshold=0.5,  # Prefetch when buffer is 50% full
+                    use_progressive_loading=True):  # Enable progressive loading
+            """Initialize the IPFS media stream track with optimized buffering."""
             super().__init__()
             self.source_cid = source_cid
             self.source_path = source_path
@@ -379,29 +465,90 @@ if HAVE_WEBRTC:
             # Set up adaptive bitrate control
             self._bitrate_controller = AdaptiveBitrateController()
             
+            # Advanced buffering and streaming optimization
+            self.buffer_size = buffer_size
+            self.initial_buffer_size = buffer_size  # Store initial size for adaptation metrics
+            self.prefetch_threshold = prefetch_threshold
+            self.use_progressive_loading = use_progressive_loading
+            self.frame_buffer = anyio.Queue(maxsize=buffer_size)
+            self.buffer_task = None
+            self.buffer_stats = {
+                "buffer_size": buffer_size,
+                "current_fill_level": 0,
+                "underflows": 0,
+                "overflows": 0,
+                "prefetches": 0,
+                "avg_fill_level": 0,
+                "fill_level_samples": []
+            }
+            
+            # Network adaption metrics
+            self.network_metrics = {
+                "last_frame_delay": 0,
+                "avg_frame_delay": 0,
+                "frame_delays": [],
+                "jitter": 0,
+                "last_adaptation": time.time()
+            }
+            
             # Initialize video source
             self._initialize_source()
+            
+            # Start buffer filling
+            if self.source_track:
+                self.buffer_task = anyio.create_task(self._fill_buffer())
         
         def _initialize_source(self):
-            """Initialize the video source from IPFS content."""
+            """Initialize the video source from IPFS content with progressive loading."""
             if self.source_cid:
                 # Load content from IPFS
                 if self.ipfs_client:
                     logger.info(f"Loading IPFS content: {self.source_cid}")
                     try:
-                        # Fetch content from IPFS
-                        content = self.ipfs_client.cat(self.source_cid)
-                        
-                        # Save to temporary file for processing
+                        # Create temporary directory
                         import tempfile
                         self.temp_dir = tempfile.TemporaryDirectory()
                         temp_path = Path(self.temp_dir.name) / "media.mp4"
                         
-                        with open(temp_path, "wb") as f:
-                            f.write(content)
+                        if self.use_progressive_loading:
+                            # Progressive loading - create empty file first
+                            with open(temp_path, "wb") as f:
+                                f.write(b"")  # Create empty file
                             
-                        # Create media source
-                        self.player = MediaPlayer(str(temp_path))
+                            # Start fetching in the background
+                            self.fetch_task = anyio.create_task(
+                                self._progressive_fetch(self.source_cid, temp_path)
+                            )
+                            
+                            # Wait a short time for initial data
+                            time.sleep(0.1)
+                        else:
+                            # Traditional loading - fetch entire content
+                            content = self.ipfs_client.cat(self.source_cid)
+                            with open(temp_path, "wb") as f:
+                                f.write(content)
+                            
+                        # Create media source with appropriate options
+                        import av
+                        self.container = av.open(
+                            str(temp_path), 
+                            mode='r',
+                            timeout=60,  # Increased timeout for progressive loading
+                            options={
+                                'analyzeduration': '10000000',  # 10 seconds in microseconds
+                                'probesize': '5000000',  # 5MB probe size for progressive loading
+                                'fflags': 'nobuffer',   # Less buffering for real-time playback
+                            }
+                        )
+                        
+                        # Create player with an overridden socket read timeout
+                        self.player = MediaPlayer(
+                            str(temp_path),
+                            options={
+                                'rtbufsize': '15M',  # Larger real-time buffer
+                                'fflags': 'nobuffer+discardcorrupt',  # Discard corrupt frames
+                            }
+                        )
                         
                         # Get video track
                         self.source_track = self.player.video
@@ -418,7 +565,13 @@ if HAVE_WEBRTC:
             elif self.source_path:
                 # Load from local file
                 try:
-                    self.player = MediaPlayer(self.source_path)
+                    self.player = MediaPlayer(
+                        self.source_path,
+                        options={
+                            'rtbufsize': '15M',  # Larger real-time buffer
+                            'fflags': 'nobuffer+discardcorrupt',  # Discard corrupt frames
+                        }
+                    )
                     self.source_track = self.player.video
                     logger.info(f"Successfully loaded media from local path: {self.source_path}")
                 except Exception as e:
@@ -430,26 +583,167 @@ if HAVE_WEBRTC:
                 logger.info("No source provided, using test pattern")
                 self.source_track = None
         
+        async def _progressive_fetch(self, cid, file_path):
+            """Progressively fetch IPFS content and write to file."""
+            try:
+                # Fetch content chunks
+                chunk_size = 1024 * 1024  # 1MB chunks
+                
+                # Get file size if possible
+                size_result = self.ipfs_client.size(cid)
+                total_size = size_result.get("Size", 0) if isinstance(size_result, dict) else 0
+                
+                # Open file for progressive writing
+                with open(file_path, "wb") as f:
+                    # If supported, get a chunk-based reader
+                    if hasattr(self.ipfs_client, "cat_stream"):
+                        async for chunk in self.ipfs_client.cat_stream(cid, chunk_size=chunk_size):
+                            f.write(chunk)
+                            await anyio.sleep(0.01)  # Small yield to prevent blocking
+                    else:
+                        # Fallback to single request
+                        content = self.ipfs_client.cat(cid)
+                        f.write(content)
+                        
+                logger.info(f"Completed progressive fetch of {cid} to {file_path}")
+                
+            except Exception as e:
+                logger.error(f"Error in progressive fetch: {e}")
+        
+        async def _fill_buffer(self):
+            """Fill the frame buffer from the source track."""
+            frame_interval = 1.0 / self.framerate
+            last_prefetch_time = time.time()
+            
+            try:
+                while self.active and self.source_track:
+                    # Check if buffer needs filling
+                    current_fill = self.frame_buffer.qsize()
+                    fill_percentage = current_fill / self.buffer_size
+                    
+                    # Update buffer statistics
+                    self.buffer_stats["current_fill_level"] = current_fill
+                    self.buffer_stats["fill_level_samples"].append(current_fill)
+                    if len(self.buffer_stats["fill_level_samples"]) > 100:
+                        self.buffer_stats["fill_level_samples"].pop(0)
+                    self.buffer_stats["avg_fill_level"] = sum(self.buffer_stats["fill_level_samples"]) / len(self.buffer_stats["fill_level_samples"])
+                    
+                    # Check if we need to prefetch more frames
+                    should_prefetch = fill_percentage <= self.prefetch_threshold
+                    
+                    if should_prefetch:
+                        # Prefetch frames until buffer is full
+                        prefetch_count = self.buffer_size - current_fill
+                        prefetch_start = time.time()
+                        
+                        for _ in range(prefetch_count):
+                            if not self.active:
+                                break
+                                
+                            try:
+                                # Get frame from source
+                                frame = await self.source_track.recv()
+                                
+                                # Try to put in buffer (non-blocking)
+                                try:
+                                    self.frame_buffer.put_nowait(frame)
+                                except anyio.WouldBlock:
+                                    # Buffer is full
+                                    self.buffer_stats["overflows"] += 1
+                                    break
+                                    
+                            except Exception as e:
+                                logger.error(f"Error prefetching frame: {e}")
+                                break
+                                
+                        # Record prefetch stats
+                        self.buffer_stats["prefetches"] += 1
+                        last_prefetch_time = time.time()
+                        prefetch_duration = time.time() - prefetch_start
+                        logger.debug(f"Prefetched {prefetch_count} frames in {prefetch_duration:.3f}s")
+                        
+                    # Wait before checking buffer again
+                    await anyio.sleep(frame_interval)
+                    
+            except anyio.get_cancelled_exc_class():
+                logger.debug("Buffer filling task cancelled")
+                raise
+            except Exception as e:
+                logger.error(f"Error in buffer filling task: {e}")
+        
         async def recv(self):
-            """Receive the next frame from the source."""
+            """Receive the next frame from the buffer with adaptive timing."""
+            frame_start_time = time.time()
+            
             if not self.active:
                 # Track has been stopped
                 frame = None
                 pts, time_base = await self._next_timestamp()
             
+            elif self.source_track and self.frame_buffer and self.frame_buffer.qsize() > 0:
+                # Get frame from buffer
+                try:
+                    # Get from buffer with timeout
+                    with anyio.fail_after(1.0/self.framerate):
+                        frame = await self.frame_buffer.get()
+                except TimeoutError:
+                    # Buffer underflow
+                    self.buffer_stats["underflows"] += 1
+                    logger.debug("Buffer underflow, generating fallback frame")
+                    frame = self._create_test_frame()
+                except Exception as e:
+                    logger.error(f"Error getting frame from buffer: {e}")
+                    frame = self._create_test_frame()
+                    
             elif self.source_track:
-                # Use source track if available
+                # Direct from source if buffer not available
                 try:
                     frame = await self.source_track.recv()
                 except Exception as e:
                     logger.error(f"Error receiving frame from source: {e}")
                     frame = self._create_test_frame()
-                    pts, time_base = await self._next_timestamp()
                     
             else:
                 # Generate test pattern
                 frame = self._create_test_frame()
-                pts, time_base = await self._next_timestamp()
+            
+            # Update network adaptation metrics
+            frame_delay = time.time() - frame_start_time
+            self.network_metrics["last_frame_delay"] = frame_delay
+            self.network_metrics["frame_delays"].append(frame_delay)
+            
+            # Keep a rolling window of 30 frames for metrics
+            if len(self.network_metrics["frame_delays"]) > 30:
+                self.network_metrics["frame_delays"].pop(0)
+                
+            # Calculate average and jitter
+            if len(self.network_metrics["frame_delays"]) > 1:
+                self.network_metrics["avg_frame_delay"] = sum(self.network_metrics["frame_delays"]) / len(self.network_metrics["frame_delays"])
+                
+                # Calculate jitter as standard deviation of delays
+                mean_delay = self.network_metrics["avg_frame_delay"]
+                sum_squared_diff = sum((d - mean_delay) ** 2 for d in self.network_metrics["frame_delays"])
+                self.network_metrics["jitter"] = (sum_squared_diff / len(self.network_metrics["frame_delays"])) ** 0.5
+            
+            # Consider adaptation if needed (high jitter or delays)
+            now = time.time()
+            if (now - self.network_metrics["last_adaptation"] > 5.0 and  # At least 5 seconds between adaptations
+                (self.network_metrics["jitter"] > 0.05 or  # High jitter (>50ms std dev)
+                 self.network_metrics["avg_frame_delay"] > 0.1)):  # High delay (>100ms)
+                
+                # Perform adaptation - adjust buffer size or prefetch threshold
+                if self.network_metrics["jitter"] > 0.05:
+                    # High jitter - increase buffer size to absorb jitter
+                    self.buffer_size = min(60, self.buffer_size + 5)  # Increase but cap at 60 frames
+                    logger.info(f"Increasing buffer size to {self.buffer_size} due to high jitter")
+                
+                if self.network_metrics["avg_frame_delay"] > 0.1:
+                    # High delay - increase prefetch threshold for earlier prefetching
+                    self.prefetch_threshold = min(0.8, self.prefetch_threshold + 0.1)
+                    logger.info(f"Increasing prefetch threshold to {self.prefetch_threshold} due to high delay")
+                
+                # Record adaptation time
+                self.network_metrics["last_adaptation"] = now
             
             # Update stats
             self.frame_count += 1
@@ -502,28 +796,59 @@ if HAVE_WEBRTC:
             target_time = self.start_time + (pts / 1000)
             delay = max(0, target_time - time.time())
             if delay > 0:
-                await asyncio.sleep(delay)
+                await anyio.sleep(delay)
             
             return pts, time_base
         
         def stop(self):
-            """Stop the track and clean up resources."""
+            """Stop the track and clean up resources including buffer tasks."""
             self.active = False
+            
+            # Cancel buffer filling task if running
+            if hasattr(self, 'buffer_task') and self.buffer_task:
+                self.buffer_task.cancel()
+                self.buffer_task = None
+                
+            # Cancel progressive fetch task if running
+            if hasattr(self, 'fetch_task') and self.fetch_task:
+                self.fetch_task.cancel()
+                self.fetch_task = None
+                
+            # Clear frame buffer
+            if hasattr(self, 'frame_buffer') and self.frame_buffer:
+                while not self.frame_buffer.empty():
+                    try:
+                        self.frame_buffer.get_nowait()
+                    except:
+                        break
             
             # Clean up media player if needed
             if hasattr(self, 'player') and self.player and hasattr(self.player, 'video') and self.player.video:
                 self.player.video.stop()
                 
+            # Close container if opened directly
+            if hasattr(self, 'container') and self.container:
+                try:
+                    self.container.close()
+                except:
+                    pass
+                
             # Clean up temporary directory if needed
             if hasattr(self, 'temp_dir') and self.temp_dir:
-                self.temp_dir.cleanup()
+                try:
+                    self.temp_dir.cleanup()
+                except:
+                    logger.debug("Error cleaning up temporary directory")
+                
+            logger.info(f"Track {self.track_id} stopped and resources cleaned up")
         
         def get_stats(self):
-            """Get statistics about this track."""
+            """Get statistics about this track including buffer metrics."""
             now = time.time()
             elapsed = now - self.start_time
             
-            return {
+            # Basic stats
+            stats = {
                 "track_id": self.track_id,
                 "resolution": f"{self.width}x{self.height}",
                 "framerate": self.framerate,
@@ -535,6 +860,36 @@ if HAVE_WEBRTC:
                 "last_frame_time": self.last_frame_time,
                 "active": self.active
             }
+            
+            # Add buffer statistics if available
+            if hasattr(self, 'buffer_stats'):
+                current_fill = self.frame_buffer.qsize() if hasattr(self, 'frame_buffer') else 0
+                self.buffer_stats["current_fill_level"] = current_fill
+                
+                stats["buffer"] = {
+                    "size": self.buffer_size,
+                    "current_fill": current_fill,
+                    "fill_percentage": (current_fill / self.buffer_size) * 100 if self.buffer_size > 0 else 0,
+                    "underflows": self.buffer_stats.get("underflows", 0),
+                    "overflows": self.buffer_stats.get("overflows", 0),
+                    "prefetches": self.buffer_stats.get("prefetches", 0),
+                    "avg_fill_level": self.buffer_stats.get("avg_fill_level", 0),
+                    "prefetch_threshold": self.prefetch_threshold
+                }
+            
+            # Add network adaptation metrics if available
+            if hasattr(self, 'network_metrics'):
+                stats["network"] = {
+                    "avg_frame_delay_ms": self.network_metrics.get("avg_frame_delay", 0) * 1000,
+                    "jitter_ms": self.network_metrics.get("jitter", 0) * 1000,
+                    "buffer_adaptations": self.buffer_size != getattr(self, 'initial_buffer_size', 30)
+                }
+                
+            # Add progressive loading statistics if available
+            if hasattr(self, 'use_progressive_loading') and self.use_progressive_loading:
+                stats["progressive_loading"] = True
+                
+            return stats
             
     class WebRTCStreamingManager:
         """Manager for WebRTC streaming connections."""
@@ -1131,3 +1486,94 @@ def check_webrtc_dependencies():
         },
         "installation_command": "pip install ipfs_kit_py[webrtc]"
     }
+
+# AnyIO compatibility layer for WebRTC functions
+
+async def create_offer_anyio(track_ids=None, ice_servers=None):
+    """AnyIO-compatible version of WebRTC offer creation.
+    
+    This function handles the execution of the aiortc code
+    in any async context using AnyIO.
+    
+    Args:
+        track_ids: IDs of tracks to include in the offer
+        ice_servers: ICE servers to use (defaults to standard STUN servers)
+        
+    Returns:
+        Dictionary with the offer details
+    """
+    if not HAVE_WEBRTC:
+        return {
+            "success": False,
+            "error": "WebRTC dependencies not available",
+            "error_type": "dependency_missing",
+            "installation_command": "pip install ipfs_kit_py[webrtc]"
+        }
+    
+    # Create a manager instance
+    manager = WebRTCStreamingManager(ice_servers=ice_servers)
+    
+    # Execute the aiortc coroutine using our handler
+    try:
+        result = await event_loop_handler.run_coro(
+            manager.create_offer(track_ids=track_ids)
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error creating WebRTC offer: {e}")
+        return {
+            "success": False,
+            "error": f"Error creating WebRTC offer: {str(e)}",
+            "error_type": "webrtc_error"
+        }
+
+async def process_answer_anyio(pc_id, answer_sdp):
+    """AnyIO-compatible version of WebRTC answer processing.
+    
+    Args:
+        pc_id: Peer connection ID
+        answer_sdp: SDP answer from the client
+        
+    Returns:
+        Dictionary with the result of processing the answer
+    """
+    if not HAVE_WEBRTC:
+        return {
+            "success": False,
+            "error": "WebRTC dependencies not available",
+            "error_type": "dependency_missing",
+            "installation_command": "pip install ipfs_kit_py[webrtc]"
+        }
+    
+    # Execute the aiortc coroutine using our handler
+    try:
+        # We need to check if the connection exists
+        if pc_id not in webrtc_connections:
+            return {
+                "success": False,
+                "error": f"Unknown peer connection ID: {pc_id}",
+                "error_type": "invalid_connection"
+            }
+            
+        # Use the WebRTC connection directly since we don't have a manager
+        pc = webrtc_connections[pc_id]
+        
+        # Create the session description
+        answer = RTCSessionDescription(sdp=answer_sdp, type="answer")
+        
+        # Process the answer
+        result = await event_loop_handler.run_coro(
+            pc.setRemoteDescription(answer)
+        )
+        
+        return {
+            "success": True,
+            "pc_id": pc_id
+        }
+    except Exception as e:
+        logger.error(f"Error processing WebRTC answer: {e}")
+        return {
+            "success": False,
+            "error": f"Error processing WebRTC answer: {str(e)}",
+            "error_type": "webrtc_error"
+        }

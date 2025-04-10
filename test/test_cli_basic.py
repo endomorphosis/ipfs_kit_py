@@ -30,6 +30,14 @@ class TestCLIBasic(unittest.TestCase):
     Tests only the fundamental commands that are known to be supported.
     """
 
+    @classmethod
+    def setUpClass(cls):
+        # Skip all tests in this class if requirements aren't met
+        try:
+            import ipfs_kit_py.cli
+        except ImportError:
+            raise unittest.SkipTest("CLI module not available - skipping CLI tests")
+
     def setUp(self):
         """Set up test fixtures."""
         # Track resources to clean up

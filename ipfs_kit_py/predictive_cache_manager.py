@@ -38,13 +38,13 @@ class PredictiveCacheManager:
         """
         self.tiered_cache = tiered_cache
         
-        # Import asyncio if available for enhanced async operations
+        # Import anyio if available for enhanced async operations
         try:
-            import asyncio
-            self.has_asyncio = True
-            self.asyncio = asyncio
+            import anyio
+            self.has_async = True
+            self.anyio = anyio
         except ImportError:
-            self.has_asyncio = False
+            self.has_async = False
         
         # Default configuration
         default_config = {
@@ -370,42 +370,21 @@ class PredictiveCacheManager:
             logger.error(f"Error identifying prefetch candidates: {e}")
             return []
     
-    def _ensure_event_loop(self) -> Optional[Any]:
-        """Ensures that an event loop is running in the current thread.
+    def _ensure_async_environment(self) -> bool:
+        """Checks if we're in an environment where async operations can be performed.
         
-        This method is used to support async operations in the prefetching system.
-        If no event loop is running, it will create a new one.
+        This method is used to check if we can perform async operations in the 
+        prefetching system. With anyio, the event loop management is mostly automatic.
         
         Returns:
-            The event loop or None if asyncio is not available
+            True if async operations are available, False otherwise
         """
-        if not self.has_asyncio:
-            return None  # Asyncio not available, nothing to do
-            
-        try:
-            # Try to get the current event loop
-            loop = self.asyncio.get_event_loop()
-            
-            # Check if the loop is running
-            if not loop.is_running():
-                # New event loop needed
-                if hasattr(self.asyncio, 'get_running_loop'):
-                    try:
-                        # For Python 3.7+, prefer get_running_loop
-                        self.asyncio.get_running_loop()
-                    except RuntimeError:
-                        # No running event loop, set a new one
-                        self.asyncio.set_event_loop(self.asyncio.new_event_loop())
-                else:
-                    # For older Python versions
-                    self.asyncio.set_event_loop(self.asyncio.new_event_loop())
-                    
-            return loop
-        except RuntimeError:
-            # No event loop in this thread, create a new one
-            loop = self.asyncio.new_event_loop()
-            self.asyncio.set_event_loop(loop)
-            return loop
+        if not self.has_async:
+            return False  # Anyio not available
+        
+        # In anyio, there's no need to explicitly create or manage event loops
+        # as it handles that automatically based on the backend being used
+        return True
     
     def _prefetch_content(self, cid: str) -> None:
         """Prefetch content likely to be accessed next.
@@ -875,12 +854,12 @@ class PredictiveCacheManager:
         # This is a simplified implementation that would need to be adapted
         # to the actual content retrieval mechanism
         
-        # Launch prefetch operation in background using asyncio for improved concurrency
-        if hasattr(self, "has_asyncio") and self.has_asyncio and self.tiered_cache.config.get("async_prefetch_enabled", True):
-            # Use asyncio for modern Python versions
-            self._ensure_event_loop()
-            asyncio.create_task(self._async_perform_stream_prefetch(cid, stream_size, chunk_size, num_chunks))
-            logger.debug(f"Started async prefetch for {cid} with {num_chunks} chunks")
+        # Launch prefetch operation in background using anyio for improved concurrency
+        if self.has_async and self.tiered_cache.config.get("async_prefetch_enabled", True):
+            # Use anyio instead of asyncio
+            if self._ensure_async_environment():
+                self.anyio.create_task(self._async_perform_stream_prefetch(cid, stream_size, chunk_size, num_chunks))
+                logger.debug(f"Started async prefetch for {cid} with {num_chunks} chunks")
         else:
             # Fallback to thread pool for older Python versions
             self.thread_pool.submit(
@@ -961,7 +940,7 @@ class PredictiveCacheManager:
     async def _async_perform_stream_prefetch(self, cid: str, total_size: int, chunk_size: int, num_chunks: int) -> None:
         """Perform streaming prefetch using asynchronous I/O for higher throughput.
         
-        This implements a more efficient streaming prefetch using asyncio for concurrent
+        This implements a more efficient streaming prefetch using anyio for concurrent
         chunk retrieval, providing better throughput and resource utilization than
         the thread-based approach.
         
@@ -979,7 +958,7 @@ class PredictiveCacheManager:
             self.read_ahead_config.get("max_parallel_prefetch", 5),
             num_chunks
         )
-        semaphore = asyncio.Semaphore(max_concurrent)
+        semaphore = self.anyio.Semaphore(max_concurrent)
         
         # Create prefetch buffer
         prefetch_buffer = {}
@@ -997,7 +976,7 @@ class PredictiveCacheManager:
                 try:
                     # In a real implementation, this would be an async byte range request
                     # For now, simulate with a small delay
-                    await asyncio.sleep(0.005)  # Simulate async I/O
+                    await self.anyio.sleep(0.005)  # Simulate async I/O
                     
                     # Record timing
                     chunk_time = time.time() - chunk_fetch_start
@@ -1019,9 +998,15 @@ class PredictiveCacheManager:
                     logger.error(f"Async error prefetching chunk {chunk_idx} for {cid}: {e}")
                     return False
         
-        # Create and gather all tasks
-        tasks = [fetch_chunk(i) for i in range(num_chunks)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Create and gather all tasks using anyio task group
+        results = []
+        
+        async with self.anyio.create_task_group() as tg:
+            # Create a task for each chunk
+            tasks = []
+            for i in range(num_chunks):
+                task = tg.start_soon(fetch_chunk, i)
+                tasks.append(task)
         
         # Calculate metrics
         successful_chunks = sum(1 for r in results if r is True)

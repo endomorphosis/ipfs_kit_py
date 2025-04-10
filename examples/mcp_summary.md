@@ -97,6 +97,76 @@ Key features:
 - **HTTP Error Handling**: Converts model errors to HTTP errors
 - **Endpoint Documentation**: Provides API documentation for FastAPI
 
+### CLI Controller (`controllers/cli_controller.py`)
+
+Handles advanced CLI operations through HTTP endpoints:
+
+```python
+class CliController:
+    def __init__(self, ipfs_model):
+        self.ipfs_model = ipfs_model
+        self.api = IPFSSimpleAPI()  # High-level API instance
+    
+    def register_routes(self, router: APIRouter):
+        # Register filesystem operations
+        router.add_api_route(
+            "/cli/fs/get-filesystem",
+            self.get_filesystem,
+            methods=["GET"],
+            response_model=CliCommandResponse,
+            summary="Get FSSpec-compatible filesystem"
+        )
+        
+        # Register streaming operations
+        router.add_api_route(
+            "/cli/stream/media/{cid}",
+            self.stream_media,
+            methods=["GET"],
+            response_class=Response,
+            summary="Stream media content"
+        )
+        
+        # Register filesystem journaling
+        router.add_api_route(
+            "/cli/fs/enable-journaling",
+            self.enable_filesystem_journaling,
+            methods=["POST"],
+            response_model=CliCommandResponse,
+            summary="Enable filesystem journaling"
+        )
+        
+        # Register WAL telemetry
+        router.add_api_route(
+            "/cli/wal/telemetry/ai-analyze",
+            self.analyze_wal_telemetry_with_ai,
+            methods=["POST"],
+            response_model=CliCommandResponse,
+            summary="Analyze WAL telemetry with AI"
+        )
+        
+        # Register configuration management
+        router.add_api_route(
+            "/cli/config/save",
+            self.save_config,
+            methods=["POST"],
+            response_model=CliCommandResponse,
+            summary="Save configuration"
+        )
+    
+    async def get_filesystem(self, request: Request) -> Dict[str, Any]:
+        # Implementation for getting FSSpec filesystem
+        
+    async def stream_media(self, cid: str, request: Request) -> Response:
+        # Implementation for streaming media content
+```
+
+Key features:
+- **Advanced Operations**: Provides access to higher-level functionality
+- **Streaming Responses**: Efficiently handles large content with chunked transfer
+- **FSSpec Integration**: Enables filesystem-like operations on IPFS content
+- **Configuration Management**: Handles saving and loading of configuration
+- **Telemetry Analysis**: Provides AI-powered analysis of operation logs
+
 ### Cache Manager (`persistence/cache_manager.py`)
 
 Implements a tiered caching system (memory and disk):
@@ -213,25 +283,135 @@ mcp_server.register_with_app(app, prefix="/mcp")
 # etc.
 ```
 
+### Distributed Controller
+
+The Distributed Controller enables cluster-wide functionality:
+
+```python
+class DistributedController:
+    """Controller for distributed operations."""
+    
+    def register_routes(self, router: APIRouter):
+        # Peer discovery endpoints
+        router.add_api_route(
+            "/distributed/peers/discover",
+            self.discover_peers,
+            methods=["POST"],
+            response_model=PeerDiscoveryResponse
+        )
+        
+        # Node registration endpoints
+        router.add_api_route(
+            "/distributed/nodes/register",
+            self.register_node,
+            methods=["POST"],
+            response_model=NodeRegistrationResponse
+        )
+        
+        # Cluster-wide cache endpoints
+        router.add_api_route(
+            "/distributed/cache",
+            self.cache_operation,
+            methods=["POST"],
+            response_model=ClusterCacheResponse
+        )
+        
+        # Distributed task endpoints
+        router.add_api_route(
+            "/distributed/tasks/submit",
+            self.submit_task,
+            methods=["POST"],
+            response_model=DistributedTaskResponse
+        )
+```
+
+Key features:
+- **Peer Discovery**: Multiple methods for finding peers (mDNS, DHT, direct)
+- **Node Management**: Registration and status monitoring
+- **Cluster-Wide Cache**: Synchronized caching across nodes
+- **Distributed Tasks**: Submit and track processing tasks
+- **State Synchronization**: Cross-node state coordination
+- **Real-time Events**: WebSocket integration for live updates
+
+### WebRTC Controller
+
+The WebRTC Controller enables media streaming:
+
+```python
+class WebRTCController:
+    """Controller for WebRTC operations."""
+    
+    def register_routes(self, router: APIRouter):
+        # Check WebRTC dependencies
+        router.add_api_route(
+            "/webrtc/check",
+            self.check_dependencies,
+            methods=["GET"],
+            response_model=DependencyResponse
+        )
+        
+        # Stream content
+        router.add_api_route(
+            "/webrtc/stream",
+            self.stream_content,
+            methods=["POST"],
+            response_model=StreamResponse
+        )
+        
+        # Connection management
+        router.add_api_route(
+            "/webrtc/connections",
+            self.list_connections,
+            methods=["GET"],
+            response_model=ConnectionsListResponse
+        )
+        
+        # Benchmarking
+        router.add_api_route(
+            "/webrtc/benchmark",
+            self.run_benchmark,
+            methods=["POST"],
+            response_model=BenchmarkResponse
+        )
+```
+
+Key features:
+- **Media Streaming**: Direct WebRTC streaming of IPFS content
+- **Connection Management**: Monitor and control active connections
+- **Quality Control**: Dynamic quality adjustment
+- **Performance Benchmarks**: Comprehensive streaming metrics
+- **Dependency Handling**: Graceful feature availability detection
+
 ## Key Findings
 
 1. The MCP architecture provides a clean separation of concerns and facilitates testing
 2. The server can run in debug mode, providing detailed information for troubleshooting
 3. Isolation mode allows for testing without affecting the host system
-4. Caching improves performance and provides useful metrics
-5. The emulator demonstrates the architecture without requiring IPFS installation
-6. The implementation gracefully handles IPFS daemon failures with simulated responses
-7. The tiered caching system optimizes resource usage and improves performance
+4. The multi-controller design enables modular feature extension
+5. Distributed features enable scalable cluster deployments
+6. WebRTC integration provides efficient media streaming
+7. WebSocket support enables real-time updates and monitoring
+8. The implementation gracefully handles component availability with feature detection
+
+## Current Capabilities
+
+The MCP server now provides comprehensive functionality:
+
+1. **Core IPFS Operations**: Content add, get, pin, and management
+2. **High-Level Abstractions**: FSSpec integration and streaming
+3. **CLI Operations**: Advanced command line functionality
+4. **Filesystem Journaling**: Transaction safety and recovery
+5. **WAL Telemetry**: Operation logging and AI analysis
+6. **Distributed Architecture**: Cluster coordination and state sync
+7. **WebRTC Streaming**: Media streaming with performance monitoring
+8. **Configuration Management**: Save/load with format conversion
 
 ## Future Enhancements
 
 Potential future improvements:
 
-1. **Additional Models**: Support for Storacha, S3, and other providers
-2. **Distributed Caching**: Share cache between nodes in a cluster
-3. **Webhooks**: Event notifications for operations
-4. **Rate Limiting**: Protect against abuse
-5. **Authentication**: Secure API access
-6. **Metrics Export**: Prometheus-compatible metrics endpoint
-7. **Improve Documentation**: Add more detailed API reference documentation
-8. **Comprehensive Integration Tests**: Add more tests for edge cases
+1. **Security Enhancements**: Authentication and access control
+2. **Advanced Analytics**: Visual dashboard with predictive monitoring
+3. **Enterprise Features**: Multi-tenant support and audit logging
+4. **Additional Integrations**: More data science framework connectors
+5. **Deployment Automation**: Enterprise deployment and scaling tools

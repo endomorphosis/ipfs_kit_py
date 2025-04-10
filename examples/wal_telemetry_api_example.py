@@ -15,7 +15,7 @@ This example shows how to:
 import os
 import time
 import argparse
-import asyncio
+import anyio
 import random
 import json
 import logging

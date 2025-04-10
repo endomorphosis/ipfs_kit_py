@@ -1,73 +1,770 @@
-2025-04-07 22:15:16,000 - faiss.loader - INFO - Loading faiss with AVX2 support.
-2025-04-07 22:15:16,020 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
-2025-04-07 22:15:16,025 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
-2025-04-07 22:15:16.891726: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2025-04-10 02:50:12,289 - ipfs_kit_py.libp2p - INFO - libp2p dependencies are available
+2025-04-10 02:50:12,289 - ipfs_kit_py.libp2p - WARNING - Could not patch stream read_until method: No module named 'libp2p.network.stream.net_stream_interface'
+2025-04-10 02:50:12,290 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+2025-04-10 02:50:12,292 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+2025-04-10 02:50:12,293 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+2025-04-10 02:50:12,301 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+2025-04-10 02:50:12,302 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.typing module not available: No module named 'libp2p.typing'. Using fallback TProtocol type.
+2025-04-10 02:50:12,304 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-10 02:50:12,305 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not import enhanced protocol negotiation: No module named 'semver'
+2025-04-10 02:50:12,305 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-10 02:50:12,306 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not apply recursive routing extensions: cannot import name 'enhance_with_recursive_routing' from 'ipfs_kit_py.libp2p.recursive_routing' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/recursive_routing.py)
+2025-04-10 02:50:12,306 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-10 02:50:12,306 - ipfs_kit_py.high_level_api.libp2p_integration - INFO - Adding libp2p methods to IPFSSimpleAPI
+2025-04-10 02:50:12,306 - ipfs_kit_py.high_level_api - INFO - LibP2P integration module imported
+2025-04-10 02:50:12,307 - ipfs_kit_py.high_level_api - INFO - Successfully imported WebRTCBenchmarkIntegrationAnyIO
+2025-04-10 02:50:12,577 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-10 02:50:12,577 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not import enhanced protocol negotiation: No module named 'semver'
+2025-04-10 02:50:12,577 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-10 02:50:12,577 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not apply recursive routing extensions: cannot import name 'enhance_with_recursive_routing' from 'ipfs_kit_py.libp2p.recursive_routing' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/recursive_routing.py)
+2025-04-10 02:50:12,577 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-10 02:50:12,763 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-04-10 02:50:12,788 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-04-10 02:50:12,796 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-04-10 02:50:13.697372: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-E0000 00:00:1744089316.906458   54339 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-E0000 00:00:1744089316.910689   54339 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-W0000 00:00:1744089316.920288   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-W0000 00:00:1744089316.920330   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-W0000 00:00:1744089316.920335   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-W0000 00:00:1744089316.920339   54339 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-2025-04-07 22:15:16.923196: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+E0000 00:00:1744278613.711929  232406 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1744278613.716437  232406 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1744278613.726766  232406 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744278613.726805  232406 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744278613.726811  232406 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744278613.726815  232406 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-10 02:50:13.730087: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
 AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
 AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
 AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
 AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
-2025-04-07 22:15:20,290 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
-2025-04-07 22:15:20,291 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
-2025-04-07 22:15:20,291 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
-2025-04-07 22:15:20,291 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-07 22:15:20,309 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
-2025-04-07 22:15:20,309 - ipfs_kit_py.api - INFO - Prometheus metrics enabled at /metrics
-2025-04-07 22:15:20,352 - ipfs_kit_py.api - INFO - GraphQL API available at /graphql
-2025-04-07 22:15:20,353 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
-2025-04-07 22:15:20,353 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
-2025-04-07 22:15:20,353 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
-2025-04-07 22:15:20,354 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
-2025-04-07 22:15:20,354 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
-2025-04-07 22:15:20,354 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
-2025-04-07 22:15:20,363 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
-2025-04-07 22:15:20,364 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
-2025-04-07 22:15:20,364 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
-2025-04-07 22:15:20,364 - ipfs_kit_py.api - INFO - Prometheus metrics endpoint added at /metrics
-2025-04-07 22:15:20,383 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
-2025-04-07 22:15:20,383 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-07 22:15:20,383 - mcp_example - INFO - Created temporary cache directory: /tmp/ipfs_mcp_cache_fanw6smx
-2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
-2025-04-07 22:15:20,383 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
-2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
-2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - IPFS daemon connection test returned failure
-2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized successfully
-2025-04-07 22:15:20,384 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
-2025-04-07 22:15:20,388 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
-2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 8d50d3bb-17b2-4bd7-86be-a1d8fa84372d
-2025-04-07 22:15:20,388 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 8d50d3bb-17b2-4bd7-86be-a1d8fa84372d
-2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
-2025-04-07 22:15:20,388 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
-2025-04-07 22:15:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-07 22:15:20,392 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-07 22:15:20,393 - mcp_example - INFO - Created FastAPI app with MCP server (/api/v0/mcp)
-2025-04-07 22:15:20,393 - mcp_example - INFO - Starting server on http://127.0.0.1:8000
-2025-04-07 22:15:20,393 - mcp_example - INFO - Debug mode: True, Isolation mode: False
-2025-04-07 22:15:20,393 - mcp_example - INFO - API docs available at http://127.0.0.1:8000/docs
-INFO:     Started server process [54339]
+2025-04-10 02:50:17,037 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies status: NUMPY=True, CV2=True, AV=True, AIORTC=True
+2025-04-10 02:50:17,037 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC availability: True
+2025-04-10 02:50:17,037 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-10 02:50:17,038 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-10 02:50:17,038 - ipfs_kit_py.high_level_api - INFO - Successfully imported WebRTCBenchmarkIntegrationAnyIO
+2025-04-10 02:50:17,039 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 02:50:17,749 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 02:50:17,749 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 02:50:17,750 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 02:50:17,770 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-10 02:50:17,837 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 02:50:17,837 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 02:50:17,837 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-10 02:50:17,838 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-10 02:50:17,838 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-10 02:50:17,839 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 02:50:17,839 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 02:50:17,839 - ipfs_kit_py.high_level_api - INFO - Successfully imported IPFSSimpleAPI from high_level_api.py
+2025-04-10 02:50:17,949 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 02:50:18,745 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 02:50:18,746 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 02:50:18,746 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 02:50:18,769 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-10 02:50:18,841 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 02:50:18,841 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 02:50:18,841 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-10 02:50:18,841 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 02:50:18,842 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 02:50:18,851 - ipfs_kit_py.api - INFO - LibP2P functionality integrated into High-Level API.
+2025-04-10 02:50:18,869 - ipfs_kit_py.api - INFO - WebRTC API available at /api/v0/webrtc
+2025-04-10 02:50:18,869 - ipfs_kit_py.api - WARNING - Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.
+2025-04-10 02:50:18,879 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-10 02:50:18,886 - ipfs_kit_py.api - INFO - Storage Backends API available at /api/v0/storage
+2025-04-10 02:50:18,894 - ipfs_kit_py.api - INFO - Observability API available at /api/v0/observability
+2025-04-10 02:50:18,895 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
+2025-04-10 02:50:18,895 - ipfs_kit_py.api - INFO - Prometheus metrics endpoint added at /metrics
+2025-04-10 02:50:18,997 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-10 02:50:18,998 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not import enhanced protocol negotiation: No module named 'semver'
+2025-04-10 02:50:18,998 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-10 02:50:18,998 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not apply recursive routing extensions: cannot import name 'enhance_with_recursive_routing' from 'ipfs_kit_py.libp2p.recursive_routing' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/recursive_routing.py)
+2025-04-10 02:50:18,998 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-10 02:50:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-10 02:50:19,031 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-10 02:50:19,032 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-10 02:50:19,032 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-10 02:50:19,032 - ipfs_kit_py.credential_manager - INFO - Loaded IPFS API credential
+2025-04-10 02:50:19 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-10 02:50:19,032 - ipfs_kit_py.mcp.server - INFO - Creating new IPFS kit instance
+2025-04-10 02:50:19,691 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 02:50:19,692 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 02:50:19,692 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 02:50:19,740 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-10 02:50:19,817 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 02:50:19,817 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 02:50:19,817 - ipfs_kit_py.mcp.models.storage_manager - INFO - Initializing S3 kit with resources={}, config={}
+2025-04-10 02:50:19,824 - ipfs_kit_py.mcp.models.storage_manager - ERROR - Failed to initialize S3 Model: s3_config must contain accessKey, secretKey, and endpoint
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/storage_manager.py", line 77, in _init_storage_models
+    s3_kit_instance = s3_kit(resources=s3_resources, meta={"s3cfg": s3_config})
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 47, in __init__
+    self.get_session(meta["s3cfg"])
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 509, in get_session
+    self.session = Session().client(**self.config_to_boto(s3_config))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 532, in config_to_boto
+    raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
+Exception: s3_config must contain accessKey, secretKey, and endpoint
+2025-04-10 02:50:19,946 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 02:50:19,946 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 8f9abdc8-eeb2-4d71-b071-7099e77ec9a8
+2025-04-10 02:50:19,946 - ipfs_kit_py.mcp.models.storage.huggingface_model - INFO - Hugging Face Model initialized
+2025-04-10 02:50:19,946 - ipfs_kit_py.mcp.models.storage_manager - INFO - Hugging Face Model initialized
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 41976f60-7585-44fc-ba54-47a44e212ab7
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage.storacha_model - INFO - Storacha Model initialized
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storacha Model initialized
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 7f9626c7-486b-4834-8ff6-104009946cd9
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage.filecoin_model - INFO - Filecoin Model initialized
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage_manager - INFO - Filecoin Model initialized
+2025-04-10 02:50:20,579 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 8eab1fec-a091-4cb2-9be6-ad5dd828d850
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.models.storage.lassie_model - INFO - Lassie Model initialized
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.models.storage_manager - INFO - Lassie Model initialized
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storage Manager initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-10 02:50:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.server - INFO - Storage model huggingface added
+2025-04-10 02:50:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.server - INFO - Storage model storacha added
+2025-04-10 02:50:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.server - INFO - Storage model filecoin added
+2025-04-10 02:50:20 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.server - INFO - Storage model lassie added
+2025-04-10 02:50:20,580 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-10 02:50:20,580 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 02:50:21,248 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 02:50:21,249 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 02:50:21,249 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 02:50:21,287 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-10 02:50:21,351 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 02:50:21,351 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 02:50:21,352 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-10 02:50:21,352 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 02:50:21,352 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Hugging Face Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Hugging Face Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Storacha Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Filecoin Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Lassie Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Scheduled WebRTC cleanup task with AnyIO task group
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized with AnyIO and resource management
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
+2025-04-10 02:50:21,352 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-10 02:50:21,352 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
+2025-04-10 02:50:21,357 - ipfs_kit_py.aria2_kit - INFO - Found aria2 version: aria2 version 1.37.0
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.models.aria2_model - INFO - Aria2 model initialized
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Aria2 controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.server - INFO - Aria2 Controller added
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.models.libp2p_model - ERROR - Failed to create libp2p peer: 'IPFSLibp2pPeer' object has no attribute 'metadata'
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.server - INFO - LibP2P Controller added
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - MCP Discovery Model initialized with ID 1647f34a-3bc2-41ed-be77-bc2509828fc7 and role master
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - Features: peer_websocket, ipfs_daemon
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller initialized
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-10 02:50:21,357 - ipfs_kit_py.mcp.server - INFO - MCP Discovery Controller added
+2025-04-10 02:50:21,379 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-10 02:50:21,428 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-10 02:50:21,432 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-10 02:50:21,437 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face routes registered
+2025-04-10 02:50:21,441 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha routes registered
+2025-04-10 02:50:21,447 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin routes registered
+2025-04-10 02:50:21,450 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie routes registered
+2025-04-10 02:50:21,457 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-10 02:50:21,461 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-10 02:50:21,464 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket endpoint registered at /peer/websocket
+2025-04-10 02:50:21,465 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-10 02:50:21,465 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-10 02:50:21,475 - mcp.controllers.fs_journal - INFO - Registered 18 Filesystem Journal routes
+2025-04-10 02:50:21,480 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Registered 15 Aria2 endpoints
+2025-04-10 02:50:21,484 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - Registered libp2p controller routes: 12 endpoints
+2025-04-10 02:50:21,491 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller routes registered
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 1647f34a-3bc2-41ed-be77-bc2509828fc7
+2025-04-10 02:50:21,491 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 1647f34a-3bc2-41ed-be77-bc2509828fc7
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-10 02:50:21,491 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-10 02:50:21,491 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-10 02:50:21,781 - ipfs_kit_py.mcp.server - INFO - Debug middleware added to FastAPI app
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server also registered at /api/v0 for test compatibility
+2025-04-10 02:50:21,782 - ipfs_kit_py.mcp.server - INFO - MCP Server also registered at /api/v0 for test compatibility
+2025-04-10 02:50:21 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-10 02:50:21,782 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+INFO:     Started server process [232406]
 INFO:     Waiting for application startup.
+2025-04-10 02:50:21,782 - ipfs_kit_py.peer_websocket_anyio - INFO - Starting peer WebSocket server...
+2025-04-10 02:50:21,785 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket server started
+2025-04-10 02:50:21,785 - ipfs_kit_py.peer_websocket_anyio - INFO - Starting peer WebSocket server...
+2025-04-10 02:50:21,785 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket server started
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:36050 - "GET /api/v0/mcp/health HTTP/1.1" 200 OK
-2025-04-07 22:15:28,918 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Error adding content to IPFS: 'ipfs_kit' object has no attribute 'ipfs_add_file'
-INFO:     127.0.0.1:36066 - "POST /api/v0/mcp/ipfs/add/file HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50258 - "GET /api/v0/mcp/health HTTP/1.1" 200 OK
-2025-04-07 22:15:54,937 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Error adding content to IPFS: 'ipfs_kit' object has no attribute 'ipfs_add_file'
-INFO:     127.0.0.1:50272 - "POST /api/v0/mcp/ipfs/add/file HTTP/1.1" 200 OK
-2025-04-07 22:15:54,941 - ipfs_kit_py.mcp.models.ipfs_model - ERROR - Error adding content to IPFS: 'ipfs_kit' object has no attribute 'ipfs_add_file'
-INFO:     127.0.0.1:50286 - "POST /api/v0/mcp/ipfs/add HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50288 - "GET /api/v0/mcp/debug HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50296 - "GET /api/v0/mcp/operations HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [54339]
+INFO:     Uvicorn running on http://127.0.0.1:9999 (Press CTRL+C to quit)
+2025-04-10 02:50:22,969 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+INFO:     127.0.0.1:40816 - "GET /api/v0/mcp/health HTTP/1.1" 200 OK
+2025-04-10 02:50:22,977 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Generated valid CID using multiformats: bafkreiafoubzyq57b73o4f4oq5fmdbzwisfijdj4qoiezu2zugbt5lgdt4
+2025-04-10 02:50:22,977 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Using simulated CID due to error: ipfs_py.add() got an unexpected keyword argument 'recursive'
+2025-04-10 02:50:22,978 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Stored CID bafkreiafoubzyq57b73o4f4oq5fmdbzwisfijdj4qoiezu2zugbt5lgdt4 in parquet cache with metadata
+INFO:     127.0.0.1:40820 - "POST /api/v0/mcp/ipfs/add HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40832 - "POST /api/v0/mcp/storage/storacha/ipfs-to-storacha HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:40848 - "POST /api/v0/mcp/storage/filecoin/store HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:40850 - "POST /api/v0/mcp/storage/huggingface/ipfs-to-hub HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:40866 - "POST /api/v0/mcp/storage/s3/ipfs-to-s3 HTTP/1.1" 404 Not Found
+2025-04-10 02:50:31,590 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+INFO:     127.0.0.1:48142 - "GET /api/v0/mcp/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48152 - "GET /api/v0/mcp/storage/huggingface/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48166 - "GET /api/v0/mcp/storage/storacha/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48170 - "GET /api/v0/mcp/storage/filecoin/status HTTP/1.1" 404 Not Found
+2025-04-10 02:50:31,598 - ipfs_kit_py.lassie_kit - ERROR - Exception running command: lassie --version
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/lassie_kit.py", line 129, in run_lassie_command
+    process = subprocess.run(
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'lassie'
+INFO:     127.0.0.1:48186 - "GET /api/v0/mcp/storage/lassie/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60720 - "GET / HTTP/1.1" 200 OK
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID get_node_id_api_v0_mcp_ipfs_id_post for function get_node_id at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID get_version_api_v0_mcp_ipfs_version_post for function get_version at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID list_peers_api_v0_mcp_ipfs_swarm_peers_post for function list_peers at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID list_files_api_v0_mcp_ipfs_files_ls_post for function list_files at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID stat_file_api_v0_mcp_ipfs_files_stat_post for function stat_file at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID resolve_name_api_v0_mcp_ipfs_name_resolve_post for function resolve_name at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID get_dag_node_api_v0_mcp_ipfs_dag_get_post for function get_dag_node at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID stat_block_api_v0_mcp_ipfs_block_stat_post for function stat_block at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID get_block_json_api_v0_mcp_ipfs_block_get_post for function get_block_json at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID find_peer_api_v0_mcp_ipfs_dht_findpeer_post for function find_peer at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:246: UserWarning: Duplicate Operation ID find_providers_api_v0_mcp_ipfs_dht_findprovs_post for function find_providers at /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py
+  warnings.warn(message, stacklevel=1)
+INFO:     127.0.0.1:60722 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38322 - "GET /api/v0/mcp/storage/filecoin/status HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38336 - "GET /api/v0/mcp/filecoin/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38346 - "GET /api/v0/mcp/storage/filecoin/info HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38360 - "GET /api/v0/mcp/lotus/status HTTP/1.1" 404 Not Found
+2025-04-10 02:51:02,272 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+INFO:     127.0.0.1:38376 - "GET /api/v0/mcp/daemon/status HTTP/1.1" 200 OK
+2025-04-10 02:51:02,345 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+INFO:     127.0.0.1:38388 - "GET /api/v0/mcp/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38404 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38414 - "GET /api/v0/mcp/filecoin/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38420 - "GET /api/v0/mcp/filecoin/wallets HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:38426 - "GET /api/v0/mcp/filecoin/wallet/balance/%7Baddress%7D HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:38436 - "GET /api/v0/mcp/filecoin/import HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:38452 - "GET /api/v0/mcp/filecoin/imports HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:38458 - "GET /api/v0/mcp/filecoin/deals HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:38472 - "GET /api/v0/mcp/filecoin/deal/%7Bdeal_id%7D HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:38488 - "GET /api/v0/mcp/filecoin/deal/start HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:38494 - "GET /api/v0/mcp/filecoin/retrieve HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:38500 - "GET /api/v0/mcp/filecoin/miners HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:38514 - "GET /api/v0/mcp/filecoin/miner/info HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:38516 - "GET /api/v0/mcp/filecoin/from_ipfs HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:38522 - "GET /api/v0/mcp/filecoin/to_ipfs HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:52764 - "GET /api/v0/mcp/storage/huggingface/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52766 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-04-10 02:51:21,061 - ipfs_kit_py.mcp.models.storage - ERROR - Error in list_models: 'huggingface_kit' object has no attribute 'list_models'
+INFO:     127.0.0.1:52776 - "GET /api/v0/mcp/huggingface/models HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52780 - "GET /api/v0/mcp/storage/huggingface/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52788 - "GET /api/v0/mcp/storage/storacha/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52802 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52818 - "GET /api/v0/mcp/storacha/space/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52824 - "GET /api/v0/mcp/storacha/uploads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52840 - "GET /api/v0/mcp/storage/storacha/status HTTP/1.1" 200 OK
+2025-04-10 02:52:15,620 - ipfs_kit_py.lassie_kit - ERROR - Exception running command: lassie --version
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/lassie_kit.py", line 129, in run_lassie_command
+    process = subprocess.run(
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'lassie'
+INFO:     127.0.0.1:39240 - "GET /api/v0/mcp/storage/lassie/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39246 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-04-10 02:52:15,632 - ipfs_kit_py.lassie_kit - ERROR - Exception running command: lassie --version
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/lassie_kit.py", line 129, in run_lassie_command
+    process = subprocess.run(
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'lassie'
+INFO:     127.0.0.1:39258 - "GET /api/v0/mcp/storage/lassie/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39268 - "POST /api/v0/mcp/lassie/fetch HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 76, in collapse_excgroups
+  |     yield
+  |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 174, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 772, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 403, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/applications.py", line 112, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 173, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 82, in collapse_excgroups
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 175, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py", line 470, in debug_middleware
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 153, in call_next
+    |     raise app_exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 140, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 714, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 734, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/storage/lassie_controller.py", line 200, in handle_fetch_cid_request
+    |     result = self.lassie_model.fetch_cid(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    | TypeError: LassieModel.fetch_cid() got an unexpected keyword argument 'dag_scope'
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/applications.py", line 112, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 173, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 82, in collapse_excgroups
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 175, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py", line 470, in debug_middleware
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 153, in call_next
+    raise app_exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 140, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 714, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 734, in app
+    await route.handle(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/storage/lassie_controller.py", line 200, in handle_fetch_cid_request
+    result = self.lassie_model.fetch_cid(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: LassieModel.fetch_cid() got an unexpected keyword argument 'dag_scope'
+INFO:     127.0.0.1:39270 - "POST /api/v0/mcp/storage/lassie/fetch HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:35614 - "GET /api/v0/mcp/storage/s3/status HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:35628 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35630 - "GET /api/v0/mcp/storage/s3/buckets HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34848 - "GET /api/v0/mcp/storage/huggingface/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34852 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34856 - "GET /api/v0/mcp/storage/huggingface/repos HTTP/1.1" 404 Not Found
+2025-04-10 02:54:39,646 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+INFO:     127.0.0.1:34276 - "GET /api/v0/mcp/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34292 - "GET /api/v0/mcp/debug/status HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34296 - "GET /api/v0/mcp/debug/config HTTP/1.1" 404 Not Found
+2025-04-10 02:54:39,654 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Generated valid CID using multiformats: bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy
+2025-04-10 02:54:39,654 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Using simulated CID due to error: ipfs_py.add() got an unexpected keyword argument 'recursive'
+2025-04-10 02:54:39,655 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Stored CID bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy in parquet cache with metadata
+INFO:     127.0.0.1:34302 - "POST /api/v0/mcp/ipfs/add HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34304 - "GET /api/v0/mcp/ipfs/cat?cid=bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy HTTP/1.1" 405 Method Not Allowed
+2025-04-10 02:54:39,659 - ipfs_kit_py.mcp.controllers.ipfs_controller - WARNING - Failed to parse request body as JSON: Expecting value: line 1 column 1 (char 0)
+2025-04-10 02:54:39,659 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Using simulated pinning for CID bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy due to error: 'ipfs_kit' object has no attribute 'ipfs_pin'
+2025-04-10 02:54:39,660 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Updated pin status in parquet cache for CID: bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy
+INFO:     127.0.0.1:34320 - "POST /api/v0/mcp/ipfs/pin/add?cid=bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy HTTP/1.1" 200 OK
+2025-04-10 02:54:39,661 - ipfs_kit_py.mcp.controllers.ipfs_controller - ERROR - Error listing pins: 'IPFSModel' object has no attribute 'list_pins'
+INFO:     127.0.0.1:34336 - "GET /api/v0/mcp/ipfs/pin/ls HTTP/1.1" 200 OK
+2025-04-10 02:54:39,663 - ipfs_kit_py.mcp.controllers.ipfs_controller - WARNING - Failed to parse request body as JSON: Expecting value: line 1 column 1 (char 0)
+2025-04-10 02:54:39,663 - ipfs_kit_py.mcp.controllers.ipfs_controller - WARNING - Failed to check current pin status: 'IPFSModel' object has no attribute 'list_pins'
+INFO:     127.0.0.1:34348 - "POST /api/v0/mcp/ipfs/pin/rm?cid=bafkreiebgu3rkrh6nbw7mh4efdu6ei7i4avif4iwlb6u5b6rhck3gqzigy HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+  + Exception Group Traceback (most recent call last):
+  |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 76, in collapse_excgroups
+  |     yield
+  |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 174, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 772, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 403, in run_asgi
+    |     result = await app(  # type: ignore[func-returns-value]
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    |     return await self.app(scope, receive, send)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/applications.py", line 112, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 173, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |   File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 82, in collapse_excgroups
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 175, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py", line 470, in debug_middleware
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 153, in call_next
+    |     raise app_exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 140, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 714, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 734, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py", line 1099, in unpin_content
+    |     logger.error(f"Error unpinning content {cid_request.cid}: {e}")
+    |                                             ^^^^^^^^^^^^^^^
+    | AttributeError: 'NoneType' object has no attribute 'cid'
+    +------------------------------------
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/applications.py", line 112, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 173, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 82, in collapse_excgroups
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 175, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py", line 470, in debug_middleware
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 153, in call_next
+    raise app_exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 140, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 714, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 734, in app
+    await route.handle(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py", line 1099, in unpin_content
+    logger.error(f"Error unpinning content {cid_request.cid}: {e}")
+                                            ^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'cid'
+INFO:     127.0.0.1:34364 - "GET /api/v0/mcp/credentials HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34370 - "POST /api/v0/mcp/credentials/s3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34386 - "POST /api/v0/mcp/credentials/storacha HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34398 - "DELETE /api/v0/mcp/credentials/s3/test-s3 HTTP/1.1" 200 OK
+2025-04-10 02:54:39,676 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies check (anyio): True
+INFO:     127.0.0.1:34400 - "GET /api/v0/mcp/webrtc/check HTTP/1.1" 200 OK
+2025-04-10 02:54:39,782 - ipfs_kit_py.mcp.controllers.webrtc_controller - ERROR - Error streaming content: 'IPFSModel' object has no attribute 'stream_content_webrtc'
+INFO:     127.0.0.1:34416 - "POST /api/v0/mcp/webrtc/stream HTTP/1.1" 500 Internal Server Error
+2025-04-10 02:54:39,785 - ipfs_kit_py.mcp.controllers.webrtc_controller - ERROR - Error listing connections: 'IPFSModel' object has no attribute 'list_webrtc_connections'
+INFO:     127.0.0.1:34424 - "GET /api/v0/mcp/webrtc/connections HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:34438 - "GET /api/v0/mcp/cli/version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34440 - "GET /api/v0/mcp/cli/pins HTTP/1.1" 200 OK
+2025-04-10 02:56:18,043 - run_mcp_server - INFO - Received signal 15, shutting down...
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-10 02:56:18,043 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Stopping cache cleanup thread...
+2025-04-10 02:56:18,043 - ipfs_kit_py.mcp.server - INFO - Stopping cache cleanup thread...
+2025-04-10 02:56:18,043 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-10 02:56:18,075 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache cleanup worker thread exiting
+2025-04-10 02:56:18,143 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache cleanup thread stopped
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache cleanup thread stopped
+2025-04-10 02:56:18,143 - ipfs_kit_py.mcp.server - INFO - Cache cleanup thread stopped
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Saving cache metadata...
+2025-04-10 02:56:18,143 - ipfs_kit_py.mcp.server - INFO - Saving cache metadata...
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache metadata saved
+2025-04-10 02:56:18,143 - ipfs_kit_py.mcp.server - INFO - Cache metadata saved
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ensuring credential persistence...
+2025-04-10 02:56:18,143 - ipfs_kit_py.mcp.server - INFO - Ensuring credential persistence...
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials persisted
+2025-04-10 02:56:18,144 - ipfs_kit_py.mcp.server - INFO - Credentials persisted
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-10 02:56:18,144 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-10 02:56:18 [ERROR   ] [MCP:ipfs_kit_py.mcp.server] Error in peer_websocket controller shutdown: This event loop is already running
+2025-04-10 02:56:18,144 - ipfs_kit_py.mcp.server - ERROR - Error in peer_websocket controller shutdown: This event loop is already running
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:-1: RuntimeWarning: coroutine 'PeerWebSocketController.shutdown' was never awaited
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-10 02:56:18 [ERROR   ] [MCP:ipfs_kit_py.mcp.server] Error in webrtc controller shutdown: This event loop is already running
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - ERROR - Error in webrtc controller shutdown: This event loop is already running
+2025-04-10 02:56:18 [ERROR   ] [MCP:ipfs_kit_py.mcp.server] Error stopping WebRTC streaming servers directly: This event loop is already running
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - ERROR - Error stopping WebRTC streaming servers directly: This event loop is already running
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:1372: RuntimeWarning: coroutine 'WebRTCController.close_all_streaming_servers' was never awaited
+  logger.error(f"Error stopping WebRTC streaming servers directly: {srv_error}")
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:-1: RuntimeWarning: coroutine 'WebRTCController.shutdown' was never awaited
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-10 02:56:18 [ERROR   ] [MCP:ipfs_kit_py.mcp.server] Error shutting down webrtc controller: Cannot run the event loop while another loop is running
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - ERROR - Error shutting down webrtc controller: Cannot run the event loop while another loop is running
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:1417: RuntimeWarning: coroutine 'BaseEventLoop.shutdown_asyncgens' was never awaited
+  logger.error(f"Error shutting down {controller_name} controller: {e}")
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:1417: RuntimeWarning: coroutine 'WebRTCController.shutdown' was never awaited
+  logger.error(f"Error shutting down {controller_name} controller: {e}")
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-10 02:56:18 [ERROR   ] [MCP:ipfs_kit_py.mcp.server] Error shutting down peer_websocket controller: This event loop is already running
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - ERROR - Error shutting down peer_websocket controller: This event loop is already running
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:1417: RuntimeWarning: coroutine 'PeerWebSocketController.shutdown' was never awaited
+  logger.error(f"Error shutting down {controller_name} controller: {e}")
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage models...
+2025-04-10 02:56:18,145 - ipfs_kit_py.mcp.server - INFO - Shutting down storage models...
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: 4f6cd926-dd18-4aea-b906-fb031a23233f
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: c8721836-3fb6-4efa-8114-bdf27b2f33dc
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: e97ddcae-b2b8-43e3-b62a-c19790527b06
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: a4f280b7-bdc4-4349-880d-699913d236d9
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.models.storage_manager - INFO - All storage models reset
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage models shutdown complete
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.server - INFO - Storage models shutdown complete
+2025-04-10 02:56:18 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutdown complete
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.server - INFO - MCP Server shutdown complete
+2025-04-10 02:56:18,146 - ipfs_kit_py.peer_websocket_anyio - INFO - Stopping peer WebSocket server...
+2025-04-10 02:56:18,146 - ipfs_kit_py.peer_websocket_anyio - ERROR - Error shutting down task group: Attempted to exit a cancel scope that isn't the current tasks's current cancel scope
+2025-04-10 02:56:18,146 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket server stopped
+2025-04-10 02:56:18,146 - ipfs_kit_py.peer_websocket_anyio - INFO - Stopping peer WebSocket server...
+2025-04-10 02:56:18,146 - run_mcp_server - INFO - FastAPI shutdown event received, cleaning up MCP server
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.server - INFO - Stopping cache cleanup thread...
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.server - INFO - Cache cleanup thread stopped
+2025-04-10 02:56:18,146 - ipfs_kit_py.mcp.server - INFO - Saving cache metadata...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Cache metadata saved
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Ensuring credential persistence...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Credentials persisted
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - ERROR - Error in peer_websocket controller shutdown: This event loop is already running
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - ERROR - Error in webrtc controller shutdown: This event loop is already running
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - ERROR - Error stopping WebRTC streaming servers directly: This event loop is already running
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - ERROR - Error shutting down webrtc controller: Already running asyncio in this thread
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - ERROR - Error shutting down peer_websocket controller: This event loop is already running
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.server - INFO - Shutting down storage models...
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: c0e19e80-176f-4c64-bd3b-65c17a608c4d
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: 081c2c8e-820f-4053-b8d3-ea8dafac0e66
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: 641db7f0-3f8e-4314-b3f1-c38b5c7ed0a8
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: cdbbb4a9-385e-4cf7-ac7e-b8d4c6ca9c57
+2025-04-10 02:56:18,147 - ipfs_kit_py.mcp.models.storage_manager - INFO - All storage models reset
+2025-04-10 02:56:18,148 - ipfs_kit_py.mcp.server - INFO - Storage models shutdown complete
+2025-04-10 02:56:18,148 - ipfs_kit_py.mcp.server - INFO - MCP Server shutdown complete
+2025-04-10 02:56:18,148 - run_mcp_server - INFO - MCP server resources cleaned up
+ERROR:    Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 674, in run_until_complete
+    self.run_forever()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 641, in run_forever
+    self._run_once()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 1949, in _run_once
+    event_list = self._selector.select(timeout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/selectors.py", line 468, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/run_mcp_server.py", line 150, in signal_handler
+    exit(0)
+  File "<frozen _sitebuiltins>", line 26, in __call__
+SystemExit: 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/starlette/routing.py", line 699, in lifespan
+    await receive()
+  File "/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+

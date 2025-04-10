@@ -67,6 +67,23 @@ class huggingface_kit:
     It follows the storage backend pattern used in other ipfs_kit_py components,
     making it compatible with the adaptive replacement cache.
     """
+    
+    def _check_and_install_dependencies(self):
+        """Check if required dependencies are available and install if possible.
+        
+        This method ensures that the huggingface_hub library is available
+        and attempts to install it if missing.
+        
+        Returns:
+            bool: True if dependencies are available, False otherwise
+        """
+        global HUGGINGFACE_HUB_AVAILABLE
+        
+        if not HUGGINGFACE_HUB_AVAILABLE:
+            logger.warning("huggingface_hub package not available. Some functionality will be limited.")
+            logger.info("You can install it with: pip install huggingface_hub")
+            
+        return HUGGINGFACE_HUB_AVAILABLE
 
     def __init__(self, resources=None, metadata=None):
         """Initialize the Hugging Face Hub interface.
@@ -81,7 +98,18 @@ class huggingface_kit:
         # Store metadata
         self.metadata = metadata or {}
         
-        # Check HuggingFace Hub availability
+        # Generate correlation ID for tracking operations
+        self.correlation_id = str(uuid.uuid4())
+        
+        # Initialize authentication state
+        self.is_authenticated = False
+        self.user_info = None
+        
+        # Auto-install dependencies on first run if they're not already installed
+        if not self.metadata.get("skip_dependency_check", False):
+            self._check_and_install_dependencies()
+        
+        # Check HuggingFace Hub availability (after potential installation)
         if not HUGGINGFACE_HUB_AVAILABLE:
             logger.warning(
                 "huggingface_hub package is not installed. HuggingFace Hub functionality will be limited."
@@ -89,13 +117,6 @@ class huggingface_kit:
             logger.warning(
                 "To enable HuggingFace Hub support, install with: pip install ipfs_kit_py[huggingface]"
             )
-        
-        # Generate correlation ID for tracking operations
-        self.correlation_id = str(uuid.uuid4())
-        
-        # Initialize authentication state
-        self.is_authenticated = False
-        self.user_info = None
         
         # Generate API client
         self.api = HfApi() if HUGGINGFACE_HUB_AVAILABLE else None

@@ -14,6 +14,7 @@ The Arrow-based Metadata Index is a high-performance system for storing, queryin
 - **Zero-copy Access**: Share index data with other processes using Arrow C Data Interface
 - **PubSub Integration**: Real-time updates via IPFS pubsub messaging
 - **DAG Publishing**: Make index discoverable via IPFS DAG
+- **Configurable Replication**: Minimum (3), target (4), and maximum (5) replication factors for fault tolerance
 
 ## Integration with IPFS Kit
 
@@ -335,6 +336,45 @@ The metadata index behaves differently based on the node's role:
 - **Cache Optimization**: Frequently accessed records are kept in memory
 - **Sync Frequency**: Adjust sync_interval based on network conditions and update frequency
 - **C Data Interface**: Use zero-copy access for sharing index data with other processes
+
+## Metadata Replication
+
+The metadata index is integrated with the replication system, providing fault tolerance and high availability:
+
+### Replication Factors
+
+- **Minimum Replication Factor (3)**: The system ensures at least 3 copies of metadata exist, allowing it to survive up to 2 node failures
+- **Target Replication Factor (4)**: The system aims to maintain 4 copies of metadata for optimal redundancy
+- **Maximum Replication Factor (5)**: To prevent excessive resource usage, replication is limited to a maximum of 5 copies
+
+### Replication Success Levels
+
+The system reports detailed status information for each replication operation:
+
+- **TARGET_ACHIEVED**: Successfully reached or exceeded the target replication factor (≥4 nodes)
+- **QUORUM_ACHIEVED**: Reached quorum but not the target replication factor (≥3 but <4 nodes)
+- **BELOW_QUORUM**: Some replication occurred but below quorum (<3 nodes)
+- **NO_REPLICATION**: No successful replication (0 nodes)
+
+### Configuring Replication
+
+Replication factors can be configured when initializing the IPFS Kit:
+
+```python
+from ipfs_kit_py.ipfs_kit import ipfs_kit
+
+# Initialize with custom replication factors
+kit = ipfs_kit(
+    metadata={
+        "enable_metadata_index": True,
+        "quorum_size": 3,               # Minimum replication factor
+        "target_replication_factor": 4,  # Target number of copies
+        "max_replication_factor": 5      # Maximum number of copies
+    }
+)
+```
+
+For more details, see the [Metadata Replication](metadata_replication.md) documentation.
 
 ## Implementation Details
 

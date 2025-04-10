@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added multiaddr>=0.0.9 as a dependency for proper libp2p functionality
+- Added libp2p>=0.1.5 as a dependency for peer-to-peer communication
+- Added new libp2p optional dependency group to explicitly separate libp2p-related dependencies
+
+### Fixed
+- Fixed missing multiaddr dependency that could cause errors in peer-to-peer communication
+- Fixed swarm connect failures due to multiaddr parsing errors
+- Fixed missing libp2p dependency in both pyproject.toml and setup.py
+
 ## [0.2.0] - 2025-04-08
 
 ### Added

@@ -12,7 +12,7 @@ python notification_client_example.py --url ws://localhost:8000/ws/notifications
 """
 
 import argparse
-import asyncio
+import anyio
 import json
 import logging
 import sys

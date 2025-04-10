@@ -47,7 +47,8 @@ def main():
 
     # Register MCP server with app
     try:
-        mcp_server.register_with_app(app, prefix="/api/v0/mcp")
+        # For the API routes to be properly accessible, we need to register with /api/v0 prefix
+        mcp_server.register_with_app(app, prefix="/api/v0")
     except Exception as e:
         logger.error(f"Failed to register MCP server with app: {e}")
         return 1
@@ -87,17 +88,48 @@ try:
         isolation_mode=isolation_mode,
         persistence_path=os.path.expanduser(persistence_path)
     )
-    mcp_server.register_with_app(app, prefix=api_prefix)
+    # For the API routes to be properly accessible, we need to register with
+    # the correct prefix that's compatible with the controller route paths.
+    # We should use /api/v0 instead of /api/v0/mcp to fix the 404 errors
+    mcp_server.register_with_app(app, prefix="/api/v0")
     
     # Add a simple root endpoint
     @app.get("/")
     async def root():
+        # Get daemon status information if available
+        daemon_info = {}
+        if hasattr(mcp_server.ipfs_kit, 'check_daemon_status'):
+            try:
+                daemon_info["ipfs_daemon_running"] = mcp_server.ipfs_kit.check_daemon_status('ipfs').get("running", False)
+            except Exception:
+                daemon_info["ipfs_daemon_running"] = False
+                
+        if hasattr(mcp_server.ipfs_kit, 'auto_start_daemons'):
+            daemon_info["auto_start_daemons"] = mcp_server.ipfs_kit.auto_start_daemons
+            
+        if hasattr(mcp_server.ipfs_kit, 'is_daemon_health_monitor_running'):
+            daemon_info["daemon_monitor_running"] = mcp_server.ipfs_kit.is_daemon_health_monitor_running()
+        
+        # List available endpoints including daemon management endpoints
+        endpoints = {
+            "health_check": f"{api_prefix}/health",
+            "debug_state": f"{api_prefix}/debug" if debug_mode else "Disabled (debug mode required)",
+            "daemon_management": {
+                "daemon_status": f"{api_prefix}/daemon/status",
+                "start_daemon": f"{api_prefix}/daemon/start/{{daemon_type}}",
+                "stop_daemon": f"{api_prefix}/daemon/stop/{{daemon_type}}",
+                "start_monitor": f"{api_prefix}/daemon/monitor/start",
+                "stop_monitor": f"{api_prefix}/daemon/monitor/stop"
+            }
+        }
+        
         return {
             "message": "MCP Server is running", 
-            "health_endpoint": f"{api_prefix}/health",
             "debug_mode": debug_mode,
             "isolation_mode": isolation_mode,
             "controllers": list(mcp_server.controllers.keys()),
+            "daemon_status": daemon_info,
+            "endpoints": endpoints,
             "documentation": "/docs"
         }
     

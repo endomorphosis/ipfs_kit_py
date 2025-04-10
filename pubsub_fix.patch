@@ -1,0 +1,64 @@
+diff --git a/ipfs_kit_py/libp2p_peer.py b/ipfs_kit_py/libp2p_peer.py
+--- a/ipfs_kit_py/libp2p_peer.py
++++ b/ipfs_kit_py/libp2p_peer.py
+@@ -42,7 +42,15 @@ if HAS_LIBP2P:
+     logger.debug("libp2p dependencies are available, importing required modules")
+     try:
+         import libp2p
+-        import libp2p.tools.pubsub.utils as pubsub_utils
++        
++        # Handle missing pubsub_utils gracefully
++        HAS_PUBSUB = True
++        try:
++            import libp2p.tools.pubsub.utils as pubsub_utils
++        except ImportError as e:
++            HAS_PUBSUB = False
++            logger.warning(f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited.")
++            
+         from libp2p import new_host
+         from libp2p.crypto.keys import KeyPair, PrivateKey, PublicKey
+         from libp2p.crypto.serialization import deserialize_private_key, serialize_private_key
+@@ -161,7 +169,15 @@ class IPFSLibp2pPeer:
+             if install_dependencies():
+                 self.logger.info("Successfully installed libp2p dependencies")
+                 # Re-import necessary components after successful installation
+                 import libp2p
+-                import libp2p.tools.pubsub.utils as pubsub_utils
++                # Handle missing pubsub_utils gracefully
++                global HAS_PUBSUB
++                HAS_PUBSUB = True
++                try:
++                    import libp2p.tools.pubsub.utils as pubsub_utils
++                except ImportError as e:
++                    HAS_PUBSUB = False
++                    self.logger.warning(f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited.")
++                    
+                 from libp2p import new_host
+                 from libp2p.crypto.keys import KeyPair
+                 from libp2p.kademlia.network import KademliaServer
+@@ -292,6 +308,12 @@ class IPFSLibp2pPeer:
+ 
+     async def _setup_pubsub_async(self):
+         """Set up publish/subscribe asynchronously."""
++        # Check if pubsub module is available
++        if not HAS_PUBSUB:
++            self.logger.warning("PubSub functionality disabled due to missing libp2p.tools.pubsub module")
++            self.pubsub = None
++            return
++            
+         # Initialize pubsub with GossipSub
+         self.pubsub = pubsub_utils.create_pubsub(
+             host=self.host,
+@@ -493,6 +515,12 @@ class IPFSLibp2pPeer:
+ 
+     def _setup_pubsub(self):
+         """Set up publish/subscribe for messaging."""
++        # Check if pubsub module is available
++        if not HAS_PUBSUB:
++            self.logger.warning("PubSub functionality disabled due to missing libp2p.tools.pubsub module")
++            self.pubsub = None
++            return
++            
+         # Initialize pubsub with GossipSub
+         self.pubsub = pubsub_utils.create_pubsub(
+             host=self.host,

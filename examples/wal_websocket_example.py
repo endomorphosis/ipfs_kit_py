@@ -16,7 +16,7 @@ The WebSocket interface provides a more efficient way to monitor WAL operations
 compared to polling the REST API, especially for long-running operations.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys

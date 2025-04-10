@@ -1,0 +1,484 @@
+2025-04-08 16:50:03,230 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
+2025-04-08 16:50:03,303 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
+2025-04-08 16:50:04,225 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-08 16:50:07,029 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 16:50:07,030 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-08 16:50:07,030 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-08 16:50:07,292 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:07,293 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:07,420 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:07,488 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:07,490 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-08 16:50:07,491 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-08 16:50:07,491 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:07,491 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:07,491 - ipfs_kit_py.high_level_api - INFO - Successfully imported IPFSSimpleAPI from high_level_api.py
+2025-04-08 16:50:07,961 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
+2025-04-08 16:50:08,127 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:08,128 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:08,240 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:08,342 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:08,342 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:08,342 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:08,343 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
+2025-04-08 16:50:08,343 - __main__ - INFO - Successfully registered high_level_api module
+2025-04-08 16:50:08,608 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:08,609 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:08,729 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:08,847 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:08,848 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:08,848 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:09,040 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
+2025-04-08 16:50:09,041 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
+2025-04-08 16:50:09,041 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
+2025-04-08 16:50:09,042 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
+2025-04-08 16:50:09,042 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
+2025-04-08 16:50:09,042 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
+2025-04-08 16:50:09,061 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
+2025-04-08 16:50:09,061 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-08 16:50:09,134 - __main__ - INFO - Forcing WebRTC dependencies to be available...
+2025-04-08 16:50:09,135 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 16:50:09,135 - __main__ - INFO - Patched webrtc_streaming module successfully
+2025-04-08 16:50:09,136 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
+2025-04-08 16:50:09,138 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
+2025-04-08 16:50:09,138 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
+2025-04-08 16:50:09,348 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:09,348 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:09,475 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:09,573 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:09,574 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:09,574 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:09,574 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
+2025-04-08 16:50:09,574 - __main__ - INFO - Patched high_level_api.py module directly
+2025-04-08 16:50:09,574 - __main__ - ERROR - Failed to patch high_level_api through standard import: module ipfs_kit_py.high_level_api not in sys.modules
+2025-04-08 16:50:09,575 - __main__ - ERROR - Failed to patch IPFSModel module: name 'patched_check' is not defined
+2025-04-08 16:50:09,575 - __main__ - INFO - WebRTC controller is available
+2025-04-08 16:50:09,575 - __main__ - INFO - Using persistence path: /home/barberb/.ipfs_kit_mcp
+2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level DEBUG
+2025-04-08 16:50:09,576 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level DEBUG
+2025-04-08 16:50:09,577 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 0 entries
+2025-04-08 16:50:09,577 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 16:50:09,578 - ipfs_kit_py.credential_manager - INFO - Loaded IPFS API credential
+2025-04-08 16:50:09,579 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:09,579 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:09,579 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Initializing IPFSModel with normalized IPFS instance
+2025-04-08 16:50:09,580 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Adding simulation function for missing method: add_file
+2025-04-08 16:50:09,580 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Normalized IPFS instance: added 10 methods
+2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
+2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
+2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFSModel initialization complete
+2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 16:50:09,815 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:09,815 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:09,877 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:09,956 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:09,956 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:09,956 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:09,956 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized
+2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
+2025-04-08 16:50:09,957 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
+2025-04-08 16:50:10,108 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 16:50:10,216 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-08 16:50:10,222 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-08 16:50:10,242 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-08 16:50:10,250 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-08 16:50:10,257 - ipfs_kit_py.peer_websocket - ERROR - Error creating peer info from IPFS Kit: Failed to get IPFS ID: IPFS component not available
+2025-04-08 16:50:10,257 - ipfs_kit_py.peer_websocket - ERROR - Error registering peer WebSocket: 'APIRouter' object has no attribute 'state'
+2025-04-08 16:50:10,257 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-08 16:50:10,257 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-08 16:50:10,269 - mcp.controllers.fs_journal - INFO - Registered 13 Filesystem Journal routes
+2025-04-08 16:50:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: aca113da-c614-455b-b933-b9e644ce2a48
+2025-04-08 16:50:10,269 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: aca113da-c614-455b-b933-b9e644ce2a48
+2025-04-08 16:50:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 16:50:10,270 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 16:50:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 16:50:10,419 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 16:50:10,419 - __main__ - INFO - Successfully created MCP app with WebRTC support
+2025-04-08 16:50:10,420 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
+2025-04-08 16:50:10,423 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
+2025-04-08 16:50:10,423 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
+2025-04-08 16:50:10,605 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:10,605 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:10,730 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:10,853 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:10,854 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:10,854 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:10,854 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
+2025-04-08 16:50:10,854 - __main__ - INFO - Successfully registered high_level_api module
+2025-04-08 16:50:10,854 - __main__ - INFO - Forcing WebRTC dependencies to be available...
+2025-04-08 16:50:10,855 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
+2025-04-08 16:50:10,856 - __main__ - INFO - Patched webrtc_streaming module successfully
+2025-04-08 16:50:10,856 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
+2025-04-08 16:50:10,860 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
+2025-04-08 16:50:10,860 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
+2025-04-08 16:50:11,109 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:11,109 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:11,235 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:11,320 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:11,320 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:11,320 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:11,321 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
+2025-04-08 16:50:11,321 - __main__ - INFO - Patched high_level_api.py module directly
+2025-04-08 16:50:11,321 - __main__ - ERROR - Failed to patch high_level_api through standard import: module ipfs_kit_py.high_level_api not in sys.modules
+2025-04-08 16:50:11,321 - __main__ - ERROR - Failed to patch IPFSModel module: name 'patched_check' is not defined
+2025-04-08 16:50:11,321 - __main__ - INFO - WebRTC controller is available
+2025-04-08 16:50:11,322 - __main__ - INFO - Using persistence path: /home/barberb/.ipfs_kit_mcp
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level DEBUG
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level DEBUG
+2025-04-08 16:50:11,322 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level DEBUG
+2025-04-08 16:50:11,323 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 0 entries
+2025-04-08 16:50:11,324 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-08 16:50:11,325 - ipfs_kit_py.credential_manager - INFO - Loaded IPFS API credential
+2025-04-08 16:50:11,325 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:11,325 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:11,325 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Initializing IPFSModel with normalized IPFS instance
+2025-04-08 16:50:11,326 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Adding simulation function for missing method: add_file
+2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Normalized IPFS instance: added 10 methods
+2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
+2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
+2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFSModel initialization complete
+2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-08 16:50:11,486 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-04-08 16:50:11,487 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-08 16:50:11,606 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-08 16:50:11,671 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-04-08 16:50:11,672 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
+2025-04-08 16:50:11,672 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
+2025-04-08 16:50:11,672 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
+2025-04-08 16:50:11,688 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-08 16:50:11,792 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-08 16:50:11,798 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-08 16:50:11,814 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-08 16:50:11,821 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-08 16:50:11,828 - ipfs_kit_py.peer_websocket - ERROR - Error creating peer info from IPFS Kit: Failed to get IPFS ID: IPFS component not available
+2025-04-08 16:50:11,828 - ipfs_kit_py.peer_websocket - ERROR - Error registering peer WebSocket: 'APIRouter' object has no attribute 'state'
+2025-04-08 16:50:11,828 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-08 16:50:11,828 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-08 16:50:11,841 - mcp.controllers.fs_journal - INFO - Registered 13 Filesystem Journal routes
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: ae6881c9-51a4-455a-8835-71c9311d411e
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: ae6881c9-51a4-455a-8835-71c9311d411e
+2025-04-08 16:50:11,841 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: ae6881c9-51a4-455a-8835-71c9311d411e
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-08 16:50:11,841 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 16:50:11,992 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
+2025-04-08 16:50:11,993 - __main__ - INFO - Starting MCP server with WebRTC on 127.0.0.1:9999...
+Registered routes:
+  /openapi.json
+  /docs
+  /docs/oauth2-redirect
+  /redoc
+  /api/v0/mcp/health
+  /api/v0/mcp/debug
+  /api/v0/mcp/operations
+  /api/v0/mcp/daemon/start/{daemon_type}
+  /api/v0/mcp/daemon/stop/{daemon_type}
+  /api/v0/mcp/daemon/status
+  /api/v0/mcp/daemon/monitor/start
+  /api/v0/mcp/daemon/monitor/stop
+  /api/v0/mcp/ipfs/add
+  /api/v0/mcp/ipfs/add/json
+  /api/v0/mcp/ipfs/add/file
+  /api/v0/mcp/ipfs/cat/{cid}
+  /api/v0/mcp/ipfs/get/{cid}
+  /api/v0/mcp/ipfs/cat
+  /api/v0/mcp/ipfs/pin/add
+  /api/v0/mcp/ipfs/pin/rm
+  /api/v0/mcp/ipfs/pin/ls
+  /api/v0/mcp/ipfs/pin
+  /api/v0/mcp/ipfs/unpin
+  /api/v0/mcp/ipfs/pins
+  /api/v0/mcp/ipfs/stats
+  /api/v0/mcp/cli/version
+  /api/v0/mcp/cli/add
+  /api/v0/mcp/cli/cat/{cid}
+  /api/v0/mcp/cli/pin/{cid}
+  /api/v0/mcp/cli/unpin/{cid}
+  /api/v0/mcp/cli/pins
+  /api/v0/mcp/cli/publish/{cid}
+  /api/v0/mcp/cli/resolve/{name}
+  /api/v0/mcp/cli/connect/{peer}
+  /api/v0/mcp/cli/peers
+  /api/v0/mcp/cli/exists/{path}
+  /api/v0/mcp/cli/ls/{path}
+  /api/v0/mcp/cli/generate-sdk
+  /api/v0/mcp/cli/webrtc/check-deps
+  /api/v0/mcp/cli/webrtc/stream
+  /api/v0/mcp/cli/webrtc/benchmark
+  /api/v0/mcp/cli/webrtc/benchmark-compare
+  /api/v0/mcp/cli/webrtc/benchmark-visualize
+  /api/v0/mcp/cli/webrtc/benchmark-list
+  /api/v0/mcp/cli/ipld/import
+  /api/v0/mcp/cli/ipld/link
+  /api/v0/mcp/cli/ipld/get/{cid}
+  /api/v0/mcp/cli/mcp/start
+  /api/v0/mcp/cli/mcp/stop
+  /api/v0/mcp/cli/mcp/status
+  /api/v0/mcp/cli/ai/model/register
+  /api/v0/mcp/cli/ai/model/list
+  /api/v0/mcp/cli/ai/model/benchmark
+  /api/v0/mcp/cli/ai/dataset/register
+  /api/v0/mcp/cli/ai/dataset/list
+  /api/v0/mcp/cli/ai/vector/create-embeddings
+  /api/v0/mcp/cli/ai/vector/search
+  /api/v0/mcp/cli/ai/vector/hybrid-search
+  /api/v0/mcp/cli/ai/knowledge-graph/create
+  /api/v0/mcp/cli/ai/knowledge-graph/query
+  /api/v0/mcp/cli/ai/knowledge-graph/metrics
+  /api/v0/mcp/cli/ai/training/submit-job
+  /api/v0/mcp/cli/ai/training/status
+  /api/v0/mcp/cli/ai/training/aggregate-results
+  /api/v0/mcp/cli/ai/deployment/deploy-model
+  /api/v0/mcp/cli/ai/deployment/optimize-model
+  /api/v0/mcp/cli/ai/langchain/create-vectorstore
+  /api/v0/mcp/cli/ai/langchain/query
+  /api/v0/mcp/cli/ai/llama-index/create-index
+  /api/v0/mcp/cli/ai/llama-index/query
+  /api/v0/mcp/cli/fs/get-filesystem
+  /api/v0/mcp/cli/fs/open
+  /api/v0/mcp/cli/stream/media/{cid}
+  /api/v0/mcp/cli/stream/to-ipfs
+  /api/v0/mcp/cli/fs/enable-journaling
+  /api/v0/mcp/cli/fs/journal/status
+  /api/v0/mcp/cli/wal/telemetry/ai-analyze
+  /api/v0/mcp/cli/wal/telemetry/visualize
+  /api/v0/mcp/cli/config/save
+  /api/v0/mcp/cli/config/get
+  /api/v0/mcp/cli/wal/status
+  /api/v0/mcp/cli/wal/list/{operation_type}
+  /api/v0/mcp/cli/wal/show/{operation_id}
+  /api/v0/mcp/cli/wal/retry/{operation_id}
+  /api/v0/mcp/cli/wal/cleanup
+  /api/v0/mcp/cli/wal/metrics
+  /api/v0/mcp/credentials
+  /api/v0/mcp/credentials/s3
+  /api/v0/mcp/credentials/storacha
+  /api/v0/mcp/credentials/filecoin
+  /api/v0/mcp/credentials/ipfs
+  /api/v0/mcp/credentials/{service}/{name}
+  /api/v0/mcp/distributed/peers/discover
+  /api/v0/mcp/distributed/peers/list
+  /api/v0/mcp/distributed/nodes/register
+  /api/v0/mcp/distributed/nodes/status
+  /api/v0/mcp/distributed/nodes/list
+  /api/v0/mcp/distributed/cache
+  /api/v0/mcp/distributed/cache/status
+  /api/v0/mcp/distributed/state
+  /api/v0/mcp/distributed/state/sync
+  /api/v0/mcp/distributed/tasks/submit
+  /api/v0/mcp/distributed/tasks/{task_id}/status
+  /api/v0/mcp/distributed/tasks/{task_id}/cancel
+  /api/v0/mcp/distributed/tasks/list
+  /api/v0/mcp/distributed/events
+  /api/v0/mcp/webrtc/check
+  /api/v0/mcp/webrtc/stream
+  /api/v0/mcp/webrtc/stream/stop/{server_id}
+  /api/v0/mcp/webrtc/connections
+  /api/v0/mcp/webrtc/connections/{connection_id}/stats
+  /api/v0/mcp/webrtc/connections/{connection_id}/close
+  /api/v0/mcp/webrtc/connections/close-all
+  /api/v0/mcp/webrtc/connections/quality
+  /api/v0/mcp/webrtc/benchmark
+  /api/v0/mcp/peer/websocket/check
+  /api/v0/mcp/peer/websocket/server/start
+  /api/v0/mcp/peer/websocket/server/stop
+  /api/v0/mcp/peer/websocket/server/status
+  /api/v0/mcp/peer/websocket/client/connect
+  /api/v0/mcp/peer/websocket/client/disconnect
+  /api/v0/mcp/peer/websocket/peers
+  /api/v0/mcp/peer/websocket/peers/{peer_id}
+  /api/v0/mcp/fs-journal/enable
+  /api/v0/mcp/fs-journal/status
+  /api/v0/mcp/fs-journal/transactions
+  /api/v0/mcp/fs-journal/checkpoint
+  /api/v0/mcp/fs-journal/recover
+  /api/v0/mcp/fs-journal/mount
+  /api/v0/mcp/fs-journal/mkdir
+  /api/v0/mcp/fs-journal/write
+  /api/v0/mcp/fs-journal/read
+  /api/v0/mcp/fs-journal/remove
+  /api/v0/mcp/fs-journal/move
+  /api/v0/mcp/fs-journal/ls
+  /api/v0/mcp/fs-journal/export
+Registered routes:
+  /openapi.json
+  /docs
+  /docs/oauth2-redirect
+  /redoc
+  /api/v0/mcp/health
+  /api/v0/mcp/debug
+  /api/v0/mcp/operations
+  /api/v0/mcp/daemon/start/{daemon_type}
+  /api/v0/mcp/daemon/stop/{daemon_type}
+  /api/v0/mcp/daemon/status
+  /api/v0/mcp/daemon/monitor/start
+  /api/v0/mcp/daemon/monitor/stop
+  /api/v0/mcp/ipfs/add
+  /api/v0/mcp/ipfs/add/json
+  /api/v0/mcp/ipfs/add/file
+  /api/v0/mcp/ipfs/cat/{cid}
+  /api/v0/mcp/ipfs/get/{cid}
+  /api/v0/mcp/ipfs/cat
+  /api/v0/mcp/ipfs/pin/add
+  /api/v0/mcp/ipfs/pin/rm
+  /api/v0/mcp/ipfs/pin/ls
+  /api/v0/mcp/ipfs/pin
+  /api/v0/mcp/ipfs/unpin
+  /api/v0/mcp/ipfs/pins
+  /api/v0/mcp/ipfs/stats
+  /api/v0/mcp/cli/version
+  /api/v0/mcp/cli/add
+  /api/v0/mcp/cli/cat/{cid}
+  /api/v0/mcp/cli/pin/{cid}
+  /api/v0/mcp/cli/unpin/{cid}
+  /api/v0/mcp/cli/pins
+  /api/v0/mcp/cli/publish/{cid}
+  /api/v0/mcp/cli/resolve/{name}
+  /api/v0/mcp/cli/connect/{peer}
+  /api/v0/mcp/cli/peers
+  /api/v0/mcp/cli/exists/{path}
+  /api/v0/mcp/cli/ls/{path}
+  /api/v0/mcp/cli/generate-sdk
+  /api/v0/mcp/cli/webrtc/check-deps
+  /api/v0/mcp/cli/webrtc/stream
+  /api/v0/mcp/cli/webrtc/benchmark
+  /api/v0/mcp/cli/webrtc/benchmark-compare
+  /api/v0/mcp/cli/webrtc/benchmark-visualize
+  /api/v0/mcp/cli/webrtc/benchmark-list
+  /api/v0/mcp/cli/ipld/import
+  /api/v0/mcp/cli/ipld/link
+  /api/v0/mcp/cli/ipld/get/{cid}
+  /api/v0/mcp/cli/mcp/start
+  /api/v0/mcp/cli/mcp/stop
+  /api/v0/mcp/cli/mcp/status
+  /api/v0/mcp/cli/ai/model/register
+  /api/v0/mcp/cli/ai/model/list
+  /api/v0/mcp/cli/ai/model/benchmark
+  /api/v0/mcp/cli/ai/dataset/register
+  /api/v0/mcp/cli/ai/dataset/list
+  /api/v0/mcp/cli/ai/vector/create-embeddings
+  /api/v0/mcp/cli/ai/vector/search
+  /api/v0/mcp/cli/ai/vector/hybrid-search
+  /api/v0/mcp/cli/ai/knowledge-graph/create
+  /api/v0/mcp/cli/ai/knowledge-graph/query
+  /api/v0/mcp/cli/ai/knowledge-graph/metrics
+  /api/v0/mcp/cli/ai/training/submit-job
+  /api/v0/mcp/cli/ai/training/status
+  /api/v0/mcp/cli/ai/training/aggregate-results
+  /api/v0/mcp/cli/ai/deployment/deploy-model
+  /api/v0/mcp/cli/ai/deployment/optimize-model
+  /api/v0/mcp/cli/ai/langchain/create-vectorstore
+  /api/v0/mcp/cli/ai/langchain/query
+  /api/v0/mcp/cli/ai/llama-index/create-index
+  /api/v0/mcp/cli/ai/llama-index/query
+  /api/v0/mcp/cli/fs/get-filesystem
+  /api/v0/mcp/cli/fs/open
+  /api/v0/mcp/cli/stream/media/{cid}
+  /api/v0/mcp/cli/stream/to-ipfs
+  /api/v0/mcp/cli/fs/enable-journaling
+  /api/v0/mcp/cli/fs/journal/status
+  /api/v0/mcp/cli/wal/telemetry/ai-analyze
+  /api/v0/mcp/cli/wal/telemetry/visualize
+  /api/v0/mcp/cli/config/save
+  /api/v0/mcp/cli/config/get
+  /api/v0/mcp/cli/wal/status
+  /api/v0/mcp/cli/wal/list/{operation_type}
+  /api/v0/mcp/cli/wal/show/{operation_id}
+  /api/v0/mcp/cli/wal/retry/{operation_id}
+  /api/v0/mcp/cli/wal/cleanup
+  /api/v0/mcp/cli/wal/metrics
+  /api/v0/mcp/credentials
+  /api/v0/mcp/credentials/s3
+  /api/v0/mcp/credentials/storacha
+  /api/v0/mcp/credentials/filecoin
+  /api/v0/mcp/credentials/ipfs
+  /api/v0/mcp/credentials/{service}/{name}
+  /api/v0/mcp/distributed/peers/discover
+  /api/v0/mcp/distributed/peers/list
+  /api/v0/mcp/distributed/nodes/register
+  /api/v0/mcp/distributed/nodes/status
+  /api/v0/mcp/distributed/nodes/list
+  /api/v0/mcp/distributed/cache
+  /api/v0/mcp/distributed/cache/status
+  /api/v0/mcp/distributed/state
+  /api/v0/mcp/distributed/state/sync
+  /api/v0/mcp/distributed/tasks/submit
+  /api/v0/mcp/distributed/tasks/{task_id}/status
+  /api/v0/mcp/distributed/tasks/{task_id}/cancel
+  /api/v0/mcp/distributed/tasks/list
+  /api/v0/mcp/distributed/events
+  /api/v0/mcp/webrtc/check
+  /api/v0/mcp/webrtc/stream
+  /api/v0/mcp/webrtc/stream/stop/{server_id}
+  /api/v0/mcp/webrtc/connections
+  /api/v0/mcp/webrtc/connections/{connection_id}/stats
+  /api/v0/mcp/webrtc/connections/{connection_id}/close
+  /api/v0/mcp/webrtc/connections/close-all
+  /api/v0/mcp/webrtc/connections/quality
+  /api/v0/mcp/webrtc/benchmark
+  /api/v0/mcp/peer/websocket/check
+  /api/v0/mcp/peer/websocket/server/start
+  /api/v0/mcp/peer/websocket/server/stop
+  /api/v0/mcp/peer/websocket/server/status
+  /api/v0/mcp/peer/websocket/client/connect
+  /api/v0/mcp/peer/websocket/client/disconnect
+  /api/v0/mcp/peer/websocket/peers
+  /api/v0/mcp/peer/websocket/peers/{peer_id}
+  /api/v0/mcp/fs-journal/enable
+  /api/v0/mcp/fs-journal/status
+  /api/v0/mcp/fs-journal/transactions
+  /api/v0/mcp/fs-journal/checkpoint
+  /api/v0/mcp/fs-journal/recover
+  /api/v0/mcp/fs-journal/mount
+  /api/v0/mcp/fs-journal/mkdir
+  /api/v0/mcp/fs-journal/write
+  /api/v0/mcp/fs-journal/read
+  /api/v0/mcp/fs-journal/remove
+  /api/v0/mcp/fs-journal/move
+  /api/v0/mcp/fs-journal/ls
+  /api/v0/mcp/fs-journal/export
+2025-04-08 16:50:12,009 - __main__ - INFO - Server process started with PID 151197, waiting for it to become available...
+INFO:     Started server process [151197]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+2025-04-08 16:50:15,018 - __main__ - INFO - Server health check: 200
+2025-04-08 16:50:15,019 - __main__ - INFO - Health check response: {'success': True, 'status': 'ok', 'timestamp': 1744156215.0160651, 'server_id': 'f05c28df-6fdd-4651-918c-3fb09c6d68e1', 'debug_mode': True, 'isolation_mode': False, 'auto_start_daemons_enabled': True}
+2025-04-08 16:50:15,019 - __main__ - INFO - Server is running correctly!
+2025-04-08 16:50:15,020 - __main__ - INFO - WebRTC endpoints:
+2025-04-08 16:50:15,027 - __main__ - INFO - WebRTC dependency check: 200: {'success': True, 'operation_id': 'check_webrtc_1744156215024', 'dependencies': {'numpy': True, 'opencv': True, 'av': True, 'aiortc': True, 'websockets': True, 'notifications': True}, 'webrtc_available': True, 'installation_command': 'pip install ipfs_kit_py[webrtc]'}
+2025-04-08 16:50:15,036 - __main__ - INFO - WebRTC connections: 200: {'success': True, 'operation_id': 'list_webrtc_1744156215032', 'connections': []}
+2025-04-08 16:50:15,036 - __main__ - INFO - Server is running. Press Ctrl+C to stop.
+2025-04-08 16:50:15,037 - __main__ - INFO - To run tests against this server, restart with --run-tests option
