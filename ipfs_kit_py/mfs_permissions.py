@@ -170,29 +170,56 @@ class FilePermissions:
         """
         user_groups = user_groups or []
         
+        print(f"*** FilePermissions.user_can_access: user_id={user_id}, permission={permission.value}")
+        print(f"*** File owner: {self.owner_id}, Current user is owner: {user_id == self.owner_id}")
+        print(f"*** Owner permissions: {[p.value for p in self.owner_permissions]}")
+        print(f"*** Requested permission in owner_permissions: {permission in self.owner_permissions}")
+        
         # Owner permissions
         if user_id == self.owner_id:
             if permission in self.owner_permissions:
+                print(f"*** [ALLOW] User is owner and has {permission.value} permission")
                 return True
+            else:
+                print(f"*** [DENY] User is owner but lacks {permission.value} permission")
         
         # Group permissions
+        print(f"*** File group: {self.group_id}, User groups: {user_groups}")
+        print(f"*** Group overlap: {self.group_id in user_groups}")
+        print(f"*** Group permissions: {[p.value for p in self.group_permissions]}")
+        print(f"*** Requested permission in group_permissions: {permission in self.group_permissions}")
         if self.group_id in user_groups:
             if permission in self.group_permissions:
+                print(f"*** [ALLOW] User is in file's group and has {permission.value} permission")
                 return True
+            else:
+                print(f"*** User is in file's group but lacks {permission.value} permission")
         
         # Check ACLs for specific user
+        print(f"*** ACLs: {len(self.acl)} entries")
         for entry in self.acl:
+            print(f"*** ACL entry: type={entry.target_type}, id={entry.target_id}, perms={[p.value for p in entry.permissions]}")
             if entry.target_type == "user" and entry.target_id == user_id:
                 if permission in entry.permissions:
+                    print(f"*** [ALLOW] User has {permission.value} permission via ACL entry")
                     return True
+                else:
+                    print(f"*** User has ACL entry but lacks {permission.value} permission")
             elif entry.target_type == "group" and entry.target_id in user_groups:
                 if permission in entry.permissions:
+                    print(f"*** [ALLOW] User's group has {permission.value} permission via ACL entry")
                     return True
+                else:
+                    print(f"*** User's group has ACL entry but lacks {permission.value} permission")
         
         # Other permissions (public access)
+        print(f"*** Other permissions: {[p.value for p in self.other_permissions]}")
+        print(f"*** Requested permission in other_permissions: {permission in self.other_permissions}")
         if permission in self.other_permissions:
+            print(f"*** [ALLOW] Public access includes {permission.value} permission")
             return True
         
+        print(f"*** [DENY] No permission granted via any channel")
         return False
     
     def add_acl_entry(self, entry: ACLEntry) -> None:
@@ -402,22 +429,43 @@ class PermissionManager:
         Returns:
             FilePermissions: Permissions for the file, or None if not found
         """
+        logger.debug(f"Loading permissions for path: {file_path}")
+        
         # Check in-memory cache first
         if file_path in self.file_permissions:
+            logger.debug(f"Cache hit: Found permissions in memory cache for {file_path}")
+            cache_perms = self.file_permissions[file_path]
+            logger.debug(f"Cache permissions for {file_path}: owner_id={cache_perms.owner_id}, "
+                         f"owner_permissions={[p.value for p in cache_perms.owner_permissions]}")
             return self.file_permissions[file_path]
+        
+        logger.debug(f"Cache miss: Permissions not in memory cache, loading from disk")
         
         # Try to load from disk
         permissions_path = self._get_permissions_path(file_path)
+        logger.debug(f"Permission file path: {permissions_path}")
+        
         if os.path.exists(permissions_path):
+            logger.debug(f"Permission file exists on disk")
             try:
                 with open(permissions_path, "r") as f:
                     data = json.load(f)
+                    
+                logger.debug(f"Raw permission data from disk: owner_permissions={data.get('owner_permissions', [])}")
+                
                 permissions = FilePermissions.from_dict(data)
+                logger.debug(f"Parsed permissions from disk: owner_id={permissions.owner_id}, "
+                            f"owner_permissions={[p.value for p in permissions.owner_permissions]}")
+                
+                logger.debug(f"Adding permissions to memory cache")
                 self.file_permissions[file_path] = permissions
                 return permissions
             except (json.JSONDecodeError, KeyError) as e:
                 logger.error(f"Error loading permissions file {permissions_path}: {e}")
+        else:
+            logger.debug(f"Permission file does not exist on disk")
         
+        logger.debug(f"No permissions found for {file_path}")
         return None
     
     async def save_permissions(self, permissions: FilePermissions) -> None:
@@ -433,10 +481,31 @@ class PermissionManager:
         # Save to disk
         permissions_path = self._get_permissions_path(permissions.path)
         try:
+            # Ensure the path is updated
+            permissions.updated_at = time.time()
+            
             with open(permissions_path, "w") as f:
                 json.dump(permissions.to_dict(), f)
+                
+            logger.debug(f"Saved permissions for path: {permissions.path}, "
+                       f"owner_perms: {[p.value for p in permissions.owner_permissions]}")
         except IOError as e:
             logger.error(f"Error saving permissions to {permissions_path}: {e}")
+            
+    async def clear_cache(self, file_path: Optional[str] = None) -> None:
+        """
+        Clear the in-memory permissions cache.
+        
+        Args:
+            file_path: Specific file path to clear from cache, or None to clear all
+        """
+        if file_path:
+            if file_path in self.file_permissions:
+                logger.debug(f"Clearing cache for path: {file_path}")
+                del self.file_permissions[file_path]
+        else:
+            logger.debug("Clearing entire permissions cache")
+            self.file_permissions = {}
     
     async def delete_permissions(self, file_path: str) -> bool:
         """
@@ -545,22 +614,34 @@ class PermissionManager:
         """
         user_id = user_id or self.current_user_id
         
+        logger.debug(f"Checking permission: path={file_path}, permission={permission.value}, user={user_id}")
+        
         # Super user has all permissions
         if user_id == "root":
+            logger.debug(f"Root user has all permissions")
             return True
         
         # Load permissions
         permissions = await self.load_permissions(file_path)
+        
         if not permissions:
             # No permissions defined, use default access rules
             # For safety, restrict access when permissions are missing
+            logger.debug(f"No permissions defined for path: {file_path}")
             return False
         
         # Get user's groups
         user_groups = self.get_user_groups(user_id)
         
         # Check if user has permission
-        return permissions.user_can_access(user_id, permission, user_groups)
+        result = permissions.user_can_access(user_id, permission, user_groups)
+        
+        if result:
+            logger.debug(f"Permission granted for user {user_id} on {file_path} for {permission.value}")
+        else:
+            logger.debug(f"Permission denied for user {user_id} on {file_path} for {permission.value}")
+            
+        return result
     
     async def set_owner(self, 
                       file_path: str, 

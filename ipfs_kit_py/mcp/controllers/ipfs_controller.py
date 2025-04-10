@@ -112,6 +112,17 @@ class StatsResponse(BaseModel):
     normalized_ipfs_stats: Optional[Dict[str, Any]] = Field({}, description="Normalized IPFS statistics")
     aggregate: Optional[Dict[str, Any]] = Field({}, description="Aggregate statistics")
 
+class DaemonStatusRequest(BaseModel):
+    """Request model for checking daemon status."""
+    daemon_type: Optional[str] = Field(None, description="Type of daemon to check (ipfs, ipfs_cluster_service, etc.)")
+
+class DaemonStatusResponse(OperationResponse):
+    """Response model for daemon status checks."""
+    daemon_status: Dict[str, Any] = Field(..., description="Status of the requested daemon(s)")
+    overall_status: str = Field(..., description="Overall status (healthy, degraded, or critical)")
+    status_code: int = Field(..., description="Numeric status code (200=healthy, 429=degraded, 500=critical)")
+    role: Optional[str] = Field(None, description="Node role (master, worker, leecher)")
+
 class DAGPutRequest(BaseModel):
     """Request model for putting a DAG node."""
     object: Any = Field(..., description="Object to store as a DAG node")
@@ -632,6 +643,16 @@ class IPFSController:
             response_model=DHTFindProvsResponse,
             summary="Find providers for a CID using DHT",
             description="Find providers for a content ID using the DHT"
+        )
+        
+        # System health endpoints
+        router.add_api_route(
+            "/ipfs/daemon/status",
+            self.check_daemon_status,
+            methods=["POST"],
+            response_model=DaemonStatusResponse, 
+            summary="Check daemon status",
+            description="Check status of IPFS daemons with role-based requirements"
         )
         
         logger.info("IPFS Controller routes registered")
@@ -1480,9 +1501,83 @@ class IPFSController:
         """
         logger.debug("Getting IPFS operation statistics")
         
-        # Just return what the model gives us - the test is directly configuring this
-        # via the mock to return exactly what it expects
-        return self.ipfs_model.get_stats()
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"get_stats_{int(start_time * 1000)}"
+        
+        try:
+            # Call IPFS model to get stats
+            result = self.ipfs_model.get_stats()
+            
+            # Add operation tracking fields for consistency
+            if "operation_id" not in result:
+                result["operation_id"] = operation_id
+                
+            if "duration_ms" not in result:
+                result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            logger.debug("Successfully retrieved IPFS operation statistics")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error retrieving IPFS statistics: {e}")
+            
+            # Return error in standardized format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "operation_stats": {}
+            }
+    
+    async def check_daemon_status(self, request: DaemonStatusRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Check status of IPFS daemons.
+        
+        Args:
+            request: Request with optional daemon type to check
+            
+        Returns:
+            Dictionary with daemon status information
+        """
+        daemon_type = request.daemon_type
+        logger.debug(f"Checking daemon status for: {daemon_type or 'all daemons'}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"check_daemon_{int(start_time * 1000)}"
+        
+        try:
+            # Call IPFS model to check daemon status
+            result = self.ipfs_model.check_daemon_status(daemon_type)
+            
+            # Add operation tracking fields for consistency
+            if "operation_id" not in result:
+                result["operation_id"] = operation_id
+                
+            if "duration_ms" not in result:
+                result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            logger.debug(f"Daemon status check result: {result['overall_status']}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error checking daemon status: {e}")
+            
+            # Return error in standardized format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "daemon_status": {},
+                "overall_status": "critical",
+                "status_code": 500,
+                "daemon_type": daemon_type
+            }
     
     def reset(self):
         """Reset the controller state."""

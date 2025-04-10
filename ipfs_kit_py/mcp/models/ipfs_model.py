@@ -2576,3 +2576,396 @@ class IPFSModel:
             logger.error(f"Error in _wrap_in_directory: {e}")
             
         return result
+        
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about IPFS and the system.
+        
+        Returns:
+            Dictionary with operation results and statistics
+        """
+        operation_id = f"get_stats_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation": "get_stats",
+            "operation_id": operation_id,
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Get basic IPFS stats
+            result["ipfs"] = {
+                "operation_stats": self.operation_stats,
+                "version": self.ipfs_version if hasattr(self, "ipfs_version") else "unknown"
+            }
+            
+            # Try to get system statistics if psutil is available
+            system_stats = {}
+            try:
+                import psutil
+                
+                # Get CPU info
+                cpu_percent = psutil.cpu_percent(interval=0.1)
+                cpu_count = psutil.cpu_count()
+                
+                # Get memory info
+                memory = psutil.virtual_memory()
+                
+                # Get disk info for the current directory
+                disk = psutil.disk_usage(".")
+                
+                # Get network info
+                network = psutil.net_io_counters()
+                
+                # Populate system stats
+                system_stats = {
+                    "cpu": {
+                        "percent": cpu_percent,
+                        "count": cpu_count
+                    },
+                    "memory": {
+                        "total": memory.total,
+                        "available": memory.available,
+                        "used": memory.used,
+                        "percent": memory.percent
+                    },
+                    "disk": {
+                        "total": disk.total,
+                        "used": disk.used,
+                        "free": disk.free,
+                        "percent": disk.percent
+                    },
+                    "network": {
+                        "bytes_sent": network.bytes_sent,
+                        "bytes_recv": network.bytes_recv,
+                        "packets_sent": network.packets_sent,
+                        "packets_recv": network.packets_recv,
+                        "errin": network.errin,
+                        "errout": network.errout,
+                        "dropin": network.dropin,
+                        "dropout": network.dropout
+                    }
+                }
+                
+                # Calculate an overall health score based on resources
+                health_score = 100
+                
+                # Reduce score based on CPU usage
+                cpu_penalty = max(0, (cpu_percent - 70) * 1.5) if cpu_percent > 70 else 0
+                health_score -= cpu_penalty
+                
+                # Reduce score based on memory usage
+                memory_penalty = max(0, (memory.percent - 70) * 1.5) if memory.percent > 70 else 0
+                health_score -= memory_penalty
+                
+                # Reduce score based on disk usage
+                disk_penalty = max(0, (disk.percent - 70) * 1.5) if disk.percent > 70 else 0
+                health_score -= disk_penalty
+                
+                # Ensure score is between 0 and 100
+                health_score = max(0, min(100, health_score))
+                
+                system_stats["health_score"] = health_score
+                system_stats["status"] = "critical" if health_score < 30 else "warning" if health_score < 70 else "healthy"
+                
+            except ImportError:
+                system_stats["available"] = False
+                system_stats["error"] = "psutil not installed"
+                
+            except Exception as e:
+                system_stats["available"] = False
+                system_stats["error"] = str(e)
+                
+            result["system"] = system_stats
+            
+            # Get cache statistics if available
+            if hasattr(self, "cache") and self.cache:
+                result["cache"] = {
+                    "memory_cache_size": self.cache.get_memory_size() if hasattr(self.cache, "get_memory_size") else None,
+                    "memory_cache_items": self.cache.get_memory_item_count() if hasattr(self.cache, "get_memory_item_count") else None,
+                    "disk_cache_size": self.cache.get_disk_size() if hasattr(self.cache, "get_disk_size") else None,
+                    "disk_cache_items": self.cache.get_disk_item_count() if hasattr(self.cache, "get_disk_item_count") else None
+                }
+                
+            # Add statistics about this model
+            result["model"] = {
+                "total_operations": self.operation_stats.get("total_operations", 0),
+                "success_count": self.operation_stats.get("success_count", 0),
+                "failure_count": self.operation_stats.get("failure_count", 0),
+                "bytes_sent": self.operation_stats.get("bytes_sent", 0),
+                "bytes_received": self.operation_stats.get("bytes_received", 0)
+            }
+            
+            # Calculate success rate
+            total_ops = self.operation_stats.get("total_operations", 0)
+            if total_ops > 0:
+                success_rate = (self.operation_stats.get("success_count", 0) / total_ops) * 100
+                result["model"]["success_rate"] = round(success_rate, 2)
+            
+            # Mark the operation as successful
+            result["success"] = True
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            # Update stats
+            self.operation_stats["total_operations"] += 1
+            self.operation_stats["success_count"] += 1
+            
+        except Exception as e:
+            # Handle error
+            result["error"] = str(e)
+            result["error_type"] = "stats_error"
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            # Update stats
+            self.operation_stats["total_operations"] += 1
+            self.operation_stats["failure_count"] += 1
+            
+            logger.error(f"Error in get_stats: {e}")
+            
+        return result
+    
+    async def async_get_stats(self) -> Dict[str, Any]:
+        """
+        AnyIO-compatible version of get_stats.
+        
+        Returns:
+            Dictionary with system statistics
+        """
+        # Import AnyIO locally
+        import anyio
+        
+        # Delegate to synchronous version in a background thread
+        return await anyio.to_thread.run_sync(self.get_stats)
+        
+    def check_daemon_status(self, daemon_type: str = None) -> Dict[str, Any]:
+        """
+        Check daemon status.
+        
+        Args:
+            daemon_type: Type of daemon to check ('ipfs', 'ipfs_cluster_service', etc.)
+                         If None, checks all daemons.
+                         
+        Returns:
+            Dictionary with operation results and daemon status information
+        """
+        operation_id = f"check_daemon_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation": "check_daemon_status",
+            "operation_id": operation_id,
+            "timestamp": time.time(),
+            "daemon_type": daemon_type
+        }
+        
+        try:
+            # Define daemon types to check
+            daemon_types = []
+            if daemon_type is None:
+                # Check all known daemon types
+                daemon_types = ["ipfs", "ipfs_cluster_service", "ipfs_cluster_follow"]
+            else:
+                # Check only the specified daemon type
+                daemon_types = [daemon_type]
+                
+            # Check each daemon
+            daemon_statuses = {}
+            for dtype in daemon_types:
+                status = self._check_specific_daemon(dtype)
+                daemon_statuses[dtype] = status
+                
+            # Add results
+            result["daemons"] = daemon_statuses
+            
+            # Determine overall success based on whether any required daemons are running
+            all_required_running = True
+            for dtype, status in daemon_statuses.items():
+                # IPFS daemon is always required
+                if dtype == "ipfs" and not status.get("running", False):
+                    all_required_running = False
+                    
+                # Cluster daemons are only required for master/worker roles
+                if dtype in ["ipfs_cluster_service", "ipfs_cluster_follow"]:
+                    # Check if this cluster daemon is required
+                    is_required = False
+                    if hasattr(self, "role"):
+                        if self.role == "master" and dtype == "ipfs_cluster_service":
+                            is_required = True
+                        elif self.role == "worker" and dtype == "ipfs_cluster_follow":
+                            is_required = True
+                            
+                    # If required and not running, mark as not all required running
+                    if is_required and not status.get("running", False):
+                        all_required_running = False
+                        
+            # Update result with overall status
+            result["all_required_running"] = all_required_running
+            result["success"] = True
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            # Update stats
+            self.operation_stats["total_operations"] += 1
+            self.operation_stats["success_count"] += 1
+            
+        except Exception as e:
+            # Handle error
+            result["error"] = str(e)
+            result["error_type"] = "daemon_check_error"
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            # Update stats
+            self.operation_stats["total_operations"] += 1
+            self.operation_stats["failure_count"] += 1
+            
+            logger.error(f"Error in check_daemon_status: {e}")
+            
+        return result
+    
+    def _check_specific_daemon(self, daemon_type: str) -> Dict[str, Any]:
+        """
+        Check status of a specific daemon.
+        
+        Args:
+            daemon_type: Type of daemon to check
+            
+        Returns:
+            Dictionary with daemon status information
+        """
+        status = {
+            "daemon_type": daemon_type,
+            "running": False,
+            "timestamp": time.time()
+        }
+        
+        try:
+            # Check if the subprocess module is available
+            import subprocess
+            import shutil
+            
+            # First, check if the daemon executable is available
+            executable = daemon_type
+            if daemon_type == "ipfs_cluster_service":
+                executable = "ipfs-cluster-service"
+            elif daemon_type == "ipfs_cluster_follow":
+                executable = "ipfs-cluster-follow"
+                
+            executable_path = shutil.which(executable)
+            status["executable_available"] = executable_path is not None
+            
+            if not executable_path:
+                status["error"] = f"Executable '{executable}' not found in PATH"
+                return status
+                
+            # Check version
+            try:
+                if daemon_type == "ipfs":
+                    version_proc = subprocess.run([executable, "version"], 
+                                                  capture_output=True, text=True, timeout=5)
+                else:
+                    version_proc = subprocess.run([executable, "--version"], 
+                                                  capture_output=True, text=True, timeout=5)
+                    
+                if version_proc.returncode == 0:
+                    status["version"] = version_proc.stdout.strip()
+                else:
+                    status["version_error"] = version_proc.stderr.strip()
+            except Exception as e:
+                status["version_error"] = str(e)
+                
+            # Check if daemon is running
+            try:
+                if daemon_type == "ipfs":
+                    # For IPFS, we can use the API to check
+                    process = subprocess.run([executable, "id"], 
+                                            capture_output=True, text=True, timeout=5)
+                    
+                    if process.returncode == 0:
+                        status["running"] = True
+                        status["peer_id"] = process.stdout.strip()
+                    else:
+                        status["running"] = False
+                        status["error"] = process.stderr.strip()
+                        
+                elif daemon_type == "ipfs_cluster_service":
+                    # For cluster service, we can use the API to check
+                    process = subprocess.run(["ipfs-cluster-ctl", "id"], 
+                                            capture_output=True, text=True, timeout=5)
+                    
+                    if process.returncode == 0:
+                        status["running"] = True
+                        status["peer_id"] = process.stdout.strip()
+                    else:
+                        status["running"] = False
+                        status["error"] = process.stderr.strip()
+                        
+                elif daemon_type == "ipfs_cluster_follow":
+                    # For cluster follow, it's harder to check directly
+                    # We'll check for the process
+                    try:
+                        import psutil
+                        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                            try:
+                                if executable in proc.info['name'] or any(executable in cmd for cmd in proc.info.get('cmdline', [])):
+                                    status["running"] = True
+                                    status["pid"] = proc.info['pid']
+                                    break
+                            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                                pass
+                    except ImportError:
+                        # If psutil is not available, try a more basic approach
+                        process = subprocess.run(["pgrep", "-f", executable], 
+                                                capture_output=True, text=True, timeout=5)
+                        
+                        if process.returncode == 0:
+                            status["running"] = True
+                            status["pid"] = process.stdout.strip()
+                        else:
+                            status["running"] = False
+                
+                # For all daemon types, add additional metadata if available
+                if status["running"]:
+                    # Try to get process information
+                    try:
+                        import psutil
+                        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cpu_percent', 'memory_info']):
+                            try:
+                                if executable in proc.info['name'] or any(executable in cmd for cmd in proc.info.get('cmdline', [])):
+                                    status["process"] = {
+                                        "pid": proc.info['pid'],
+                                        "cpu_percent": proc.info.get('cpu_percent', 0),
+                                        "memory_mb": proc.info.get('memory_info', {}).get('rss', 0) / (1024 * 1024),
+                                        "command": " ".join(proc.info.get('cmdline', []))
+                                    }
+                                    break
+                            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                                pass
+                    except ImportError:
+                        pass
+            except Exception as e:
+                status["error"] = str(e)
+                
+        except Exception as e:
+            status["error"] = str(e)
+            
+        return status
+        
+    async def async_check_daemon_status(self, daemon_type: str = None) -> Dict[str, Any]:
+        """
+        AnyIO-compatible version of check_daemon_status.
+        
+        Args:
+            daemon_type: Type of daemon to check
+            
+        Returns:
+            Dictionary with daemon status information
+        """
+        # Import AnyIO locally
+        import anyio
+        
+        # Delegate to synchronous version in a background thread
+        return await anyio.to_thread.run_sync(
+            lambda: self.check_daemon_status(daemon_type=daemon_type)
+        )

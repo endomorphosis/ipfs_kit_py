@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from ipfs_kit_py.mcp.controllers.ipfs_controller import (
     ContentRequest, CIDRequest, OperationResponse, AddContentResponse, 
     GetContentResponse, PinResponse, ListPinsResponse, ReplicationStatusResponse,
-    MakeDirRequest, StatsResponse
+    MakeDirRequest, StatsResponse, DaemonStatusRequest, DaemonStatusResponse
 )
 
 # Define new request models for MFS operations
@@ -424,6 +424,26 @@ class IPFSControllerAnyIO:
             description="Get replication status details and health information for a CID"
         )
         
+        # Statistics endpoint
+        router.add_api_route(
+            "/ipfs/stats",
+            self.get_stats,
+            methods=["GET"],
+            response_model=StatsResponse,
+            summary="Get statistics about IPFS operations",
+            description="Get comprehensive statistics about IPFS operations and system resources"
+        )
+        
+        # System health endpoints
+        router.add_api_route(
+            "/ipfs/daemon/status",
+            self.check_daemon_status,
+            methods=["POST"],
+            response_model=DaemonStatusResponse,
+            summary="Check daemon status",
+            description="Check status of IPFS daemons with role-based requirements"
+        )
+        
         logger.info("IPFS Controller (AnyIO) routes registered")
     
     @staticmethod
@@ -433,6 +453,154 @@ class IPFSControllerAnyIO:
             return sniffio.current_async_library()
         except sniffio.AsyncLibraryNotFoundError:
             return None
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about IPFS operations and system resources.
+        
+        Returns:
+            Dictionary with comprehensive operation and system statistics
+        """
+        logger.debug("Getting IPFS operation statistics")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"get_stats_{int(start_time * 1000)}"
+        
+        try:
+            # Call IPFS model to get stats using the async method
+            result = await anyio.to_thread.run_sync(
+                self.ipfs_model.async_get_stats
+            )
+            
+            # Add operation tracking fields for consistency
+            if "operation_id" not in result:
+                result["operation_id"] = operation_id
+                
+            if "duration_ms" not in result:
+                result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            logger.debug("Successfully retrieved IPFS operation statistics")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error retrieving IPFS statistics: {e}")
+            
+            # Return error in standardized format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "operation_stats": {}
+            }
+    
+    async def check_daemon_status(self, request: DaemonStatusRequest = Body(...)) -> Dict[str, Any]:
+        """
+        Check status of IPFS daemons with role-based requirements.
+        
+        Args:
+            request: Request with optional daemon type to check
+            
+        Returns:
+            Dictionary with daemon status information
+        """
+        daemon_type = request.daemon_type
+        logger.debug(f"Checking daemon status for: {daemon_type or 'all daemons'}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"check_daemon_{int(start_time * 1000)}"
+        
+        try:
+            # Call IPFS model to check daemon status using the async method
+            result = await anyio.to_thread.run_sync(
+                self.ipfs_model.async_check_daemon_status,
+                daemon_type
+            )
+            
+            # Add operation tracking fields for consistency
+            if "operation_id" not in result:
+                result["operation_id"] = operation_id
+                
+            if "duration_ms" not in result:
+                result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            logger.debug(f"Daemon status check result: {result['overall_status']}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error checking daemon status: {e}")
+            
+            # Return error in standardized format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "daemon_status": {},
+                "overall_status": "critical",
+                "status_code": 500,
+                "daemon_type": daemon_type
+            }
+    
+    async def get_replication_status(self, request: Request) -> Dict[str, Any]:
+        """
+        Get replication status for a CID.
+        
+        Args:
+            request: FastAPI request object containing the CID parameter
+            
+        Returns:
+            Dictionary with replication status and details
+        """
+        # Get CID from query parameters
+        cid = request.query_params.get("cid")
+        if not cid:
+            raise HTTPException(
+                status_code=400,
+                detail="CID parameter is required"
+            )
+            
+        logger.debug(f"Getting replication status for CID: {cid}")
+        
+        # Start timing for operation metrics
+        start_time = time.time()
+        operation_id = f"replication_status_{int(start_time * 1000)}"
+        
+        try:
+            # Call IPFS model to get replication status
+            result = await anyio.to_thread.run_sync(
+                self.ipfs_model.get_replication_status,
+                cid
+            )
+            
+            # Add operation tracking fields for consistency
+            if "operation_id" not in result:
+                result["operation_id"] = operation_id
+                
+            if "duration_ms" not in result:
+                result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            logger.debug(f"Retrieved replication status for CID {cid}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting replication status for CID {cid}: {e}")
+            
+            # Return error in standardized format
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "cid": cid,
+                "replication": {},
+                "needs_replication": True
+            }
     
     async def handle_add_request(self, request: Request) -> Dict[str, Any]:
         """

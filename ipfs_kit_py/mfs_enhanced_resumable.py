@@ -4,7 +4,18 @@ Enhanced MFS resumable operations for IPFS.
 
 This module provides functionality for resumable file operations in the IPFS
 Mutable File System, allowing read and write operations to be paused and resumed.
-It also supports user permissions to control access to files and directories.
+It implements a comprehensive permissions system to control access to files and
+directories based on user identity, groups, and access control lists (ACLs).
+
+Key features:
+- Resumable file operations with chunked transfer
+- Adaptive chunk sizing for optimal performance
+- Parallel transfers for improved throughput
+- UNIX-like permission model (read/write/execute)
+- User and group-based access control
+- Access Control Lists (ACLs) for fine-grained permissions
+- Permission inheritance from parent directories
+- Configurable permission enforcement
 """
 
 import asyncio
@@ -309,11 +320,25 @@ class ResumableFileState:
 
 class ResumableFileOperations:
     """
-    Provides resumable file operations for IPFS MFS.
+    Provides resumable file operations for IPFS MFS with permission management.
     
     This class implements resumable read and write operations for IPFS MFS,
     allowing operations to be paused and resumed even after connection loss.
-    It also integrates with the permission system to control access to files.
+    It fully integrates with the permission system to control access to files,
+    enforcing user and group-based permissions for all file operations.
+    
+    The permission system implements a UNIX-like model with read, write, and
+    execute permissions for owner, group, and others. Additionally, it supports
+    Access Control Lists (ACLs) for more fine-grained permission control.
+    
+    Permission checks are performed at multiple levels:
+    - When starting operations (read/write)
+    - During individual chunk operations
+    - When finalizing operations
+    - During copy operations (for both source and destination)
+    
+    Permissions can be bypassed for system operations by setting enforce_permissions=False
+    when initializing the class.
     """
     
     def __init__(self, 
@@ -359,6 +384,14 @@ class ResumableFileOperations:
         """
         Check if the current user has permission for an operation.
         
+        This method verifies if the current user has the specified permission for the
+        given file path. It delegates to the PermissionManager to perform the actual
+        permission check based on user, group, and ACL information.
+        
+        If enforce_permissions is False, this method always returns True, bypassing
+        the permission check. This is useful for system operations that need to run
+        regardless of user permissions.
+        
         Args:
             file_path: Path to the file in MFS
             permission: Permission to check (READ, WRITE, EXECUTE)
@@ -369,27 +402,57 @@ class ResumableFileOperations:
         Raises:
             AccessDeniedException: If the user doesn't have permission and enforce_permissions is True
         """
+        logger.debug(f"Permission check started for user={self.user_id}, path={file_path}, permission={permission.value}")
+        logger.debug(f"Enforce permissions: {self.enforce_permissions}, permission manager exists: {self.permission_manager is not None}")
+        
         if not self.enforce_permissions or not self.permission_manager:
+            logger.debug(f"Permissions bypassed, returning True")
             return True
-            
+        
+        # Load the permissions directly from disk to verify what's stored
+        if hasattr(self.permission_manager, '_get_permissions_path') and logger.isEnabledFor(logging.DEBUG):
+            perm_path = self.permission_manager._get_permissions_path(file_path)
+            logger.debug(f"Permission file path: {perm_path}")
+            if os.path.exists(perm_path):
+                logger.debug(f"Permission file exists: {perm_path}")
+                try:
+                    with open(perm_path) as f:
+                        perm_data = json.load(f)
+                        logger.debug(f"Raw permission data from disk: {perm_data.get('owner_permissions', [])}")
+                except Exception as e:
+                    logger.debug(f"Error reading permission file: {e}")
+        
+        # Perform the actual permission check
+        logger.debug(f"Calling permission_manager.check_permission...")
         has_permission = await self.permission_manager.check_permission(
             file_path=file_path,
             permission=permission,
             user_id=self.user_id
         )
+        logger.debug(f"Permission check result: {has_permission}")
         
         if not has_permission:
+            logger.debug(f"Access denied, raising AccessDeniedException")
             logger.warning(
                 f"Access denied for user {self.user_id} on {file_path}: "
                 f"lacks {permission.value} permission"
             )
             raise AccessDeniedException(file_path, permission, self.user_id)
-            
+        
+        logger.debug(f"Permission check passed")    
         return True
         
     async def _ensure_permissions(self, file_path: str, file_type: FileType) -> None:
         """
         Ensure permissions exist for a file, creating them if needed.
+        
+        This method checks if permissions are defined for the given file path and
+        creates default permissions if they don't exist. The default permissions
+        are based on the file type and system defaults from the PermissionManager.
+        
+        For new files, permissions are typically inherited from parent directories
+        according to the permission inheritance rules. If no parent directory exists
+        or has permissions, system defaults are used.
         
         Args:
             file_path: Path to the file in MFS
@@ -567,6 +630,17 @@ class ResumableFileOperations:
                                    group_id: Optional[str] = None) -> str:
         """
         Start a resumable write operation.
+        
+        Initiates a resumable write operation for the specified file path, after
+        verifying that the current user has write permission for the file.
+        
+        This method first checks if the user has write permission for the file.
+        If permissions are being enforced and the user doesn't have write permission,
+        an AccessDeniedException is raised.
+        
+        For new files, this method creates default permissions based on the current
+        user and group settings. The owner_id and group_id parameters can be used
+        to specify a different owner and group for the file.
         
         Args:
             file_path: Path to the file in MFS
@@ -853,11 +927,25 @@ class ResumableFileOperations:
         """
         Finalize a resumable write operation.
         
+        Completes a resumable write operation after verifying that the current user
+        has write permission for the file. If all chunks have been successfully 
+        written, this method marks the operation as complete and returns file metadata.
+        
+        Permission checks are performed to ensure the user still has write permission
+        for the file, which might have changed since the operation started.
+        
         Args:
             file_id: Unique identifier for the resumable operation
             
         Returns:
-            result: Result of the operation
+            result: Result of the operation with the following fields:
+                - success: Whether the operation was successful
+                - file_path: Path to the file in MFS
+                - total_size: Total size of the file in bytes
+                - hash: IPFS hash of the file (CID)
+                - metadata: Additional metadata for the file
+                - error: Error message if operation failed
+                - permission_denied: True if user doesn't have permission (if applicable)
         """
         state = await self.load_state(file_id)
         if not state:
@@ -919,6 +1007,17 @@ class ResumableFileOperations:
                                   max_parallel_chunks: Optional[int] = None) -> str:
         """
         Start a resumable read operation.
+        
+        Initiates a resumable read operation for the specified file path, after
+        verifying that the current user has read permission for the file.
+        
+        This method first checks if the user has read permission for the file.
+        If permissions are being enforced and the user doesn't have read permission,
+        an AccessDeniedException is raised.
+        
+        The method stores operation metadata including the operation type ("read"),
+        which is used by other methods to apply the appropriate permission checks
+        during the operation lifecycle.
         
         Args:
             file_path: Path to the file in MFS
@@ -1180,11 +1279,25 @@ class ResumableFileOperations:
         """
         Finalize a resumable read operation.
         
+        Completes a resumable read operation after verifying that the current user
+        has read permission for the file. This method clears the operation state
+        and returns file metadata.
+        
+        Permission checks are performed to ensure the user still has read permission
+        for the file, which might have changed since the operation started.
+        
         Args:
             file_id: Unique identifier for the resumable operation
             
         Returns:
-            result: Result of the operation
+            result: Result of the operation with the following fields:
+                - success: Whether the operation was successful
+                - file_path: Path to the file in MFS
+                - total_size: Total size of the file in bytes
+                - completion_percentage: Percentage of chunks that were successfully read
+                - metadata: Additional metadata for the file
+                - error: Error message if operation failed
+                - permission_denied: True if user doesn't have permission (if applicable)
         """
         state = await self.load_state(file_id)
         if not state:
@@ -1378,6 +1491,17 @@ class ResumableFileOperations:
                 "error": f"No resumable operation found with ID {file_id}"
             }
         
+        # Check write permission
+        try:
+            await self._check_permission(state.file_path, Permission.WRITE)
+        except AccessDeniedException as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "file_id": file_id,
+                "permission_denied": True
+            }
+        
         # Check if this operation supports parallel transfers
         is_parallel = (file_id in self.transfer_semaphores)
         if not is_parallel:
@@ -1447,6 +1571,10 @@ class ResumableFileOperations:
                 else:
                     results["failed_chunks"] += 1
                     results["success"] = False  # Mark overall operation as failed if any chunk fails
+                    
+                    # If permission was denied, propagate to parent result
+                    if chunk_result.get("permission_denied", False):
+                        results["permission_denied"] = True
                     
                 # Remove from active transfers
                 if idx in self.active_transfers.get(file_id, {}):
