@@ -66,6 +66,17 @@ def create_client(use_simulation=None, custom_path=None, lite_mode=True):
         "daemon_health_check_interval": 30,  # Check daemon health frequently
     }
     
+    # Debug log the configuration
+    logger.debug("Creating Lotus client with configuration:")
+    logger.debug(f"  - auto_start_daemon: {metadata['auto_start_daemon']}")
+    logger.debug(f"  - simulation_mode: {metadata['simulation_mode']}")
+    logger.debug(f"  - lite_mode: {metadata['lite']}")
+    logger.debug(f"  - Lotus binary available: {LOTUS_AVAILABLE}")
+    
+    # Verify LOTUS_SKIP_DAEMON_LAUNCH environment variable
+    skip_env = os.environ.get("LOTUS_SKIP_DAEMON_LAUNCH")
+    logger.debug(f"  - LOTUS_SKIP_DAEMON_LAUNCH env: {skip_env if skip_env else 'Not set'}")
+    
     # Add custom path if specified
     if custom_path:
         custom_path = os.path.abspath(os.path.expanduser(custom_path))
@@ -97,6 +108,15 @@ def run_command(client, command, args):
     result = None
     
     try:
+        # Check daemon status before command if not a daemon management command
+        if command not in ("daemon_status", "daemon_start", "daemon_stop"):
+            logger.debug(f"Checking daemon status before executing '{command}'")
+            daemon_status = client.daemon_status()
+            daemon_running = daemon_status.get("process_running", False)
+            
+            if not daemon_running and client.auto_start_daemon:
+                logger.info("Daemon not running, auto-start will be triggered by API call")
+        
         # Route the command to the appropriate method
         if command == "wallet_list":
             result = client.list_wallets()
@@ -120,6 +140,16 @@ def run_command(client, command, args):
         else:
             raise ValueError(f"Unknown command: {command}")
         
+        # Check if daemon auto-started during the command
+        if command not in ("daemon_status", "daemon_start", "daemon_stop"):
+            logger.debug(f"Checking if daemon was auto-started during '{command}'")
+            new_status = client.daemon_status()
+            new_daemon_running = new_status.get("process_running", False)
+            
+            if new_daemon_running and not daemon_running:
+                logger.info("Daemon was automatically started during the operation")
+                result["daemon_auto_started"] = True
+        
         # Calculate execution time
         elapsed = time.time() - start_time
         
@@ -131,6 +161,21 @@ def run_command(client, command, args):
     
     except Exception as e:
         logger.error(f"Error executing command '{command}': {str(e)}")
+        
+        # Try to determine if it was a daemon-related error
+        if "daemon not running" in str(e).lower() or "connection refused" in str(e).lower():
+            logger.error("The error appears to be related to daemon connectivity")
+            
+            # Check daemon status to confirm
+            try:
+                daemon_status = client.daemon_status()
+                if not daemon_status.get("process_running", False):
+                    logger.error("Confirmed: Daemon is not running")
+                else:
+                    logger.error("Daemon is running but may not be ready or accessible")
+            except Exception as status_error:
+                logger.error(f"Error checking daemon status: {status_error}")
+        
         return {"success": False, "error": str(e), "elapsed_seconds": time.time() - start_time}
 
 def main():

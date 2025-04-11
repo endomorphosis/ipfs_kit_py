@@ -12,7 +12,8 @@ import json
 import time
 import uuid
 from typing import Dict, List, Any, Optional, Union
-from fastapi import APIRouter, HTTPException, Depends, Body, Query, Path, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Depends, Body, Query, Path
+from starlette.websockets import WebSocket, WebSocketDisconnect # Correct import
 
 # Import AnyIO for backend-agnostic async operations
 import anyio

@@ -13,8 +13,13 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ipfs_kit_py.mcp.controllers.fs_journal_controller import FSJournalController
-from ipfs_kit_py.mcp.models.fs_journal_model import FSJournalModel
+from ipfs_kit_py.mcp.controllers.fs_journal_controller import FsJournalController as FSJournalController
+
+# Create a mock for FSJournalModel since it doesn't exist yet
+from unittest.mock import MagicMock
+class FSJournalModel(MagicMock):
+    """Mock class for FSJournalModel."""
+    pass
 from fastapi import APIRouter, Request, Response
 from fastapi.testclient import TestClient
 from fastapi import FastAPI

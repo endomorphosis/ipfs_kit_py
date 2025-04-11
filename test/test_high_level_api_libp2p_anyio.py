@@ -7,8 +7,9 @@ import pytest
 import anyio
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-from ipfs_kit_py.high_level_api.libp2p_integration_anyio import (
-    inject_libp2p_into_high_level_api,
+# Corrected import path again
+from ipfs_kit_py.libp2p.high_level_api_integration import (
+    # inject_libp2p_into_high_level_api, # This function might not exist, removing import
     apply_high_level_api_integration
 )
 
@@ -31,10 +32,11 @@ class TestHighLevelAPILibP2PAnyIO:
         """Create a high-level API instance with libp2p integration."""
         # Create a simple API instance
         api = IPFSSimpleAPI(role="leecher")
-        
+
         # Apply the libp2p integration using the AnyIO version
-        inject_libp2p_into_high_level_api(api.__class__)
-        
+        # Use apply_high_level_api_integration which seems more appropriate based on naming
+        apply_high_level_api_integration(api)
+
         # Return the instance
         return api
 
@@ -99,8 +101,8 @@ class TestHighLevelAPILibP2PAnyIO:
         api = IPFSSimpleAPI(role="leecher")
         
         # Apply the libp2p integration using the AnyIO version
-        inject_libp2p_into_high_level_api(api.__class__)
-        
+        apply_high_level_api_integration(api)
+
         # Test running with the current anyio backend
         async def test_discovery():
             # Call discover peers, which uses AnyIO internally

@@ -250,64 +250,98 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         Args:
             router: FastAPI router to register routes with
         """
+        logger.info(f"Registering routes for StorageManagerControllerAnyIO with router: {router}")
+        
         # Get status of all storage backends
-        router.add_api_route(
-            "/storage/status",
-            self.handle_status_request_async,
-            methods=["GET"],
-            response_model=AllBackendsStatusResponse,
-            summary="Storage Status",
-            description="Get status of all storage backends"
-        )
+        try:
+            router.add_api_route(
+                "/storage/status",
+                self.handle_status_request_async,
+                methods=["GET"],
+                response_model=AllBackendsStatusResponse,
+                summary="Storage Status",
+                description="Get status of all storage backends"
+            )
+            logger.info("Successfully registered /storage/status endpoint")
+        except Exception as e:
+            logger.error(f"Error registering /storage/status endpoint: {e}")
         
         # Get status of a specific backend
-        router.add_api_route(
-            "/storage/{backend_name}/status",
-            self.handle_backend_status_request_async,
-            methods=["GET"],
-            response_model=BackendStatusResponse,
-            summary="Backend Status",
-            description="Get status of a specific storage backend"
-        )
+        try:
+            router.add_api_route(
+                "/storage/{backend_name}/status",
+                self.handle_backend_status_request_async,
+                methods=["GET"],
+                response_model=BackendStatusResponse,
+                summary="Backend Status",
+                description="Get status of a specific storage backend"
+            )
+            logger.info("Successfully registered /storage/{backend_name}/status endpoint")
+        except Exception as e:
+            logger.error(f"Error registering /storage/{{backend_name}}/status endpoint: {e}")
         
         # Transfer content between backends
-        router.add_api_route(
-            "/storage/transfer",
-            self.handle_transfer_request_async,
-            methods=["POST"],
-            response_model=StorageTransferResponse,
-            summary="Transfer Content",
-            description="Transfer content between storage backends"
-        )
+        try:
+            router.add_api_route(
+                "/storage/transfer",
+                self.handle_transfer_request_async,
+                methods=["POST"],
+                response_model=StorageTransferResponse,
+                summary="Transfer Content",
+                description="Transfer content between storage backends"
+            )
+            logger.info("Successfully registered /storage/transfer endpoint")
+        except Exception as e:
+            logger.error(f"Error registering /storage/transfer endpoint: {e}")
         
         # Register routes for storage bridge operations
-        router.add_api_route(
-            "/storage/verify",
-            self.handle_verify_request_async,
-            methods=["POST"],
-            response_model=OperationResponse,
-            summary="Verify Content",
-            description="Verify content across storage backends"
-        )
+        try:
+            router.add_api_route(
+                "/storage/verify",
+                self.handle_verify_request_async,
+                methods=["POST"],
+                response_model=OperationResponse,
+                summary="Verify Content",
+                description="Verify content across storage backends"
+            )
+            logger.info("Successfully registered /storage/verify endpoint")
+        except Exception as e:
+            logger.error(f"Error registering /storage/verify endpoint: {e}")
         
         # Register migration endpoint
-        router.add_api_route(
-            "/storage/migrate",
-            self.handle_migration_request_async,
-            methods=["POST"],
-            response_model=ContentMigrationResponse,
-            summary="Migrate Content",
-            description="Migrate content between storage backends"
-        )
+        try:
+            router.add_api_route(
+                "/storage/migrate",
+                self.handle_migration_request_async,
+                methods=["POST"],
+                response_model=ContentMigrationResponse,
+                summary="Migrate Content",
+                description="Migrate content between storage backends"
+            )
+            logger.info("Successfully registered /storage/migrate endpoint")
+        except Exception as e:
+            logger.error(f"Error registering /storage/migrate endpoint: {e}")
         
         # Register replication policy endpoint
-        router.add_api_route(
-            "/storage/apply-policy",
-            self.handle_replication_policy_request_async,
-            methods=["POST"],
-            response_model=ReplicationPolicyResponse,
-            summary="Apply Replication Policy",
-            description="Apply storage replication policy to content based on content characteristics"
-        )
+        try:
+            router.add_api_route(
+                "/storage/apply-policy",
+                self.handle_replication_policy_request_async,
+                methods=["POST"],
+                response_model=ReplicationPolicyResponse,
+                summary="Apply Replication Policy",
+                description="Apply storage replication policy to content based on content characteristics"
+            )
+            logger.info("Successfully registered /storage/apply-policy endpoint")
+        except Exception as e:
+            logger.error(f"Error registering /storage/apply-policy endpoint: {e}")
         
+        # List all routes in the router after registration
+        try:
+            logger.info("Routes in router after registration:")
+            for route in router.routes:
+                logger.info(f"  Path: {route.path}, Methods: {route.methods}")
+        except Exception as e:
+            logger.error(f"Error listing router routes: {e}")
+            
         logger.info("Storage Manager Controller routes registered with AnyIO support")

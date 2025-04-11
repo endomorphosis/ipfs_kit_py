@@ -12,7 +12,18 @@ import uuid
 from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
-import pytest_asyncio
+# Handle pytest_asyncio dependency gracefully
+try:
+    import pytest_asyncio
+    HAS_PYTEST_ASYNCIO = True
+except ImportError:
+    HAS_PYTEST_ASYNCIO = False
+    # Create dummy versions for compatibility
+    class DummyAsyncioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    
+    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
 from ipfs_kit_py.mfs_permissions import (
     Permission, FileType, PermissionManager, FilePermissions,
@@ -25,6 +36,7 @@ from ipfs_kit_py.mfs_enhanced_resumable import (
 )
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 async def permission_manager():
     """Create a permission manager with test permissions."""
@@ -49,6 +61,7 @@ async def permission_manager():
         os.rmdir(temp_dir)
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 async def resumable_ops(permission_manager):
     """Create a resumable operations instance with mocked IPFS client and permissions."""
@@ -96,6 +109,7 @@ async def resumable_ops(permission_manager):
         os.rmdir(temp_dir)
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 async def resumable_ops_no_permissions(permission_manager):
     """Create a resumable operations instance with enforcement disabled."""
@@ -129,6 +143,7 @@ async def resumable_ops_no_permissions(permission_manager):
         os.rmdir(temp_dir)
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_start_resumable_write_with_permissions(resumable_ops):
     """Test starting a resumable write operation with permissions."""
@@ -172,6 +187,7 @@ async def test_start_resumable_write_with_permissions(resumable_ops):
     assert state.metadata["operation_type"] == "write"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_start_resumable_write_permission_denied(resumable_ops):
     """Test permission denied when starting a resumable write operation."""
@@ -201,6 +217,7 @@ async def test_start_resumable_write_permission_denied(resumable_ops):
     assert "lacks w permission" in str(excinfo.value)
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_write_chunk_permission_check(resumable_ops):
     """Test permission check when writing a chunk."""
@@ -260,6 +277,7 @@ async def test_write_chunk_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_start_resumable_read_with_permissions(resumable_ops):
     """Test starting a resumable read operation with permissions."""
@@ -299,6 +317,7 @@ async def test_start_resumable_read_with_permissions(resumable_ops):
     assert state.metadata["operation_type"] == "read"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_start_resumable_read_permission_denied(resumable_ops):
     """Test permission denied when starting a resumable read operation."""
@@ -327,6 +346,7 @@ async def test_start_resumable_read_permission_denied(resumable_ops):
     assert "lacks r permission" in str(excinfo.value)
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_read_chunk_permission_check(resumable_ops):
     """Test permission check when reading a chunk."""
@@ -400,6 +420,7 @@ async def test_read_chunk_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_finalize_write_permission_check(resumable_ops):
     """Test permission check when finalizing a write operation."""
@@ -467,6 +488,7 @@ async def test_finalize_write_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_finalize_read_permission_check(resumable_ops):
     """Test permission check when finalizing a read operation."""
@@ -523,6 +545,7 @@ async def test_finalize_read_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_resume_operation_permission_check(resumable_ops):
     """Test permission check when resuming an operation."""
@@ -581,6 +604,7 @@ async def test_resume_operation_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_copy_resumable_permission_check(resumable_ops):
     """Test permission check when copying a resumable operation."""
@@ -696,6 +720,7 @@ async def test_copy_resumable_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_read_multiple_chunks_permission_check(resumable_ops):
     """Test permission check when reading multiple chunks in parallel."""
@@ -767,6 +792,7 @@ async def test_read_multiple_chunks_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_write_multiple_chunks_permission_check(resumable_ops):
     """Test permission check when writing multiple chunks in parallel."""
@@ -847,6 +873,7 @@ async def test_write_multiple_chunks_permission_check(resumable_ops):
     assert "permission" in result["error"].lower(), "Error message should mention permission"
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 async def test_bypassing_permissions(resumable_ops_no_permissions):
     """Test that permissions are bypassed when enforce_permissions is False."""

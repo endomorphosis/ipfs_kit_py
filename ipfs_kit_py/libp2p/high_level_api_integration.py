@@ -29,13 +29,16 @@ logger = logging.getLogger(__name__)
 # The actual class will be passed via dependency injection
 HAS_HIGH_LEVEL_API = False
 try:
-    # Just check if the module exists, but don't import the class
-    import importlib.util
-    if importlib.util.find_spec("ipfs_kit_py.high_level_api"):
+    # Check if the high level API module exists
+    import importlib
+    try:
+        # Try to import as a module, not as a package
+        importlib.import_module("ipfs_kit_py.high_level_api")
         HAS_HIGH_LEVEL_API = True
         logger.debug("High-level API module is available")
-    else:
-        logger.debug("High-level API module is not available")
+    except (ImportError, ValueError) as e:
+        logger.debug(f"High-level API module is not available: {e}")
+        HAS_HIGH_LEVEL_API = False
 except ImportError:
     logger.warning("Failed to check for high-level API module")
     HAS_HIGH_LEVEL_API = False

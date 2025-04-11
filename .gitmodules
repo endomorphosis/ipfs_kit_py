@@ -13,9 +13,6 @@
 [submodule "docs/libp2p-universal-connectivity"]
 	path = docs/libp2p-universal-connectivity
 	url = https://github.com/libp2p/universal-connectivity.git
-[submodule "docs/lotus"]
-	path = docs/lotus
-	url = https://github.com/filecoin-project/lotus.git
 [submodule "docs/filecoin-address-python"]
 	path = docs/filecoin-address-python
 	url = https://github.com/ciknight/filecoin-address-python.git

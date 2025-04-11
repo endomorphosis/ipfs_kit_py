@@ -12,7 +12,13 @@ import sys
 import time
 import json
 import uuid
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Callable
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+# Initialize enhanced_content_routing logger
+enhanced_logger = logging.getLogger(__name__)
 
 # Core IPFS Kit imports
 from ipfs_kit_py.error import (
@@ -22,8 +28,38 @@ from ipfs_kit_py.error import (
     IPFSError
 )
 
-# Check libp2p availability
-from ipfs_kit_py.libp2p import HAS_LIBP2P, check_dependencies, install_dependencies
+# Import global module-level variables to avoid UnboundLocalError in class methods
+# Define default values for when imports fail - these will be used if imports fail
+HAS_LIBP2P = False
+
+def check_dependencies():
+    return False
+    
+def install_dependencies(force=False):
+    return False
+
+# Try to import from ipfs_kit_py.libp2p first (preferred source)
+try:
+    # Check libp2p availability from the module
+    from ipfs_kit_py.libp2p import HAS_LIBP2P, check_dependencies, install_dependencies
+except ImportError:
+    # In case of import error, we'll use fallback sources
+    logging.getLogger(__name__).warning("Failed to import ipfs_kit_py.libp2p dependencies")
+    
+    # Try to import directly from install_libp2p as first backup
+    try:
+        from install_libp2p import HAS_LIBP2P, check_dependencies, install_dependencies
+    except ImportError:
+        # Try to import from libp2p_peer as second backup (for mock testing)
+        try:
+            from ipfs_kit_py.libp2p_peer import HAS_LIBP2P
+        except ImportError:
+            # If all imports fail, we'll use the default values defined above
+            logging.getLogger(__name__).warning("Failed to import all libp2p dependency sources")
+
+# Ensure we have a valid HAS_LIBP2P variable in this module's global scope
+# This prevents UnboundLocalError when accessing HAS_LIBP2P later
+globals()['HAS_LIBP2P'] = HAS_LIBP2P
 
 # Import libp2p peer if available
 if HAS_LIBP2P:
@@ -33,11 +69,25 @@ if HAS_LIBP2P:
     # Import DHT discovery
     from ipfs_kit_py.libp2p import get_enhanced_dht_discovery
     EnhancedDHTDiscovery = get_enhanced_dht_discovery()
+    
+    # Import enhanced content routing
+    try:
+        from ipfs_kit_py.libp2p.enhanced_content_routing import (
+            EnhancedContentRouter,
+            RecursiveContentRouter,
+            apply_to_peer
+        )
+        HAS_ENHANCED_ROUTING = True
+        logger.debug("Enhanced content routing is available")
+    except ImportError:
+        logger.debug("Enhanced content routing is not available")
+        HAS_ENHANCED_ROUTING = False
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Note: loggers are already defined at the top of the file
 
 class LibP2PModel:
+    # Class logger
+    logger = logging.getLogger(__name__)
     """
     Model for libp2p-based peer-to-peer operations.
     
@@ -110,32 +160,42 @@ class LibP2PModel:
         self.peer_info_cache = {}
         
         # Check if libp2p is available
-        if not HAS_LIBP2P:
-            # Re-check in case something changed since importing 
+        libp2p_available = HAS_LIBP2P  # Local copy to avoid using the global directly
+        
+        # Re-check in case something changed since importing 
+        if not libp2p_available:
+            # Attempt to check dependencies again
             check_dependencies()
-            if not HAS_LIBP2P:
-                if self.metadata.get("auto_install_dependencies", False):
-                    logger.info("Auto-installing libp2p dependencies...")
-                    success = install_dependencies()
-                    if success:
-                        # Try to import dependencies again after installation
-                        try:
-                            import importlib
+            # Get the result without modifying our module-level variable
+            # We'll just use the result to decide whether to attempt installation
+            libp2p_available = 'ipfs_kit_py.libp2p' in sys.modules and getattr(sys.modules['ipfs_kit_py.libp2p'], 'HAS_LIBP2P', False)
+            
+            if not libp2p_available and self.metadata.get("auto_install_dependencies", False):
+                logger.info("Auto-installing libp2p dependencies...")
+                success = install_dependencies()
+                if success:
+                    # Try to import dependencies again after installation
+                    try:
+                        import importlib
+                        # If the module exists, reload it to get new imports
+                        if 'ipfs_kit_py.libp2p' in sys.modules:
                             importlib.reload(sys.modules['ipfs_kit_py.libp2p'])
-                            from ipfs_kit_py.libp2p import HAS_LIBP2P
-                            if HAS_LIBP2P:
+                            # Check if installation was successful (without using global)
+                            if hasattr(sys.modules['ipfs_kit_py.libp2p'], 'HAS_LIBP2P') and sys.modules['ipfs_kit_py.libp2p'].HAS_LIBP2P:
                                 logger.info("Successfully installed libp2p dependencies")
-                        except (ImportError, KeyError):
-                            logger.warning("Failed to reload libp2p module after installation")
-                else:
-                    logger.warning("libp2p dependencies are not available. P2P functionality will be limited.")
+                                # We don't need to modify the module-level variable
+                                # We'll just use the functions based on the imports below
+                    except (ImportError, KeyError):
+                        logger.warning("Failed to reload libp2p module after installation")
+            elif not libp2p_available:
+                logger.warning("libp2p dependencies are not available. P2P functionality will be limited.")
         
         # Initialize libp2p peer
         if libp2p_peer_instance:
             # Use provided instance
             self.libp2p_peer = libp2p_peer_instance
             logger.info("Using provided libp2p peer instance")
-        elif HAS_LIBP2P:
+        elif libp2p_available:
             # Create new instance with role-based configuration
             try:
                 # Extract configuration from metadata
@@ -191,6 +251,15 @@ class LibP2PModel:
             self.libp2p_peer = None
             logger.warning("libp2p functionality disabled due to missing dependencies")
     
+    def _is_available_sync(self) -> bool:
+        """
+        Internal synchronous implementation to check if libp2p functionality is available.
+        
+        Returns:
+            bool: True if libp2p is available, False otherwise
+        """
+        return HAS_LIBP2P and self.libp2p_peer is not None
+        
     def is_available(self) -> bool:
         """
         Check if libp2p functionality is available.
@@ -198,7 +267,19 @@ class LibP2PModel:
         Returns:
             bool: True if libp2p is available, False otherwise
         """
-        return HAS_LIBP2P and self.libp2p_peer is not None
+        return self._is_available_sync()
+        
+    async def is_available(self) -> bool:
+        """
+        Async version of is_available for use with async controllers.
+        
+        Returns:
+            bool: True if libp2p is available, False otherwise
+        """
+        # Use anyio to run the synchronous version in a thread
+        # This ensures it returns a proper coroutine that can be awaited
+        import anyio
+        return await anyio.to_thread.run_sync(lambda: self._is_available_sync())
     
     def get_health(self) -> Dict[str, Any]:
         """
@@ -219,7 +300,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -279,6 +360,460 @@ class LibP2PModel:
             result["error_type"] = "health_check_error"
             self.operation_stats["failed_operations"] += 1
             return result
+            
+    async def get_health(self) -> Dict[str, Any]:
+        """
+        Async version of get_health for use with async controllers.
+        
+        Returns:
+            Dict containing health status information
+        """
+        # Define a helper function to avoid recursive call
+        def _get_health_sync():
+            # Call the original method directly to avoid recursion
+            original_method = LibP2PModel.get_health.__func__
+            return original_method(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_get_health_sync)
+        
+    async def discover_peers(self, discovery_method: str = "all", limit: int = 10) -> Dict[str, Any]:
+        """
+        Async version of discover_peers for use with async controllers.
+        
+        Args:
+            discovery_method: Discovery method to use ("dht", "mdns", "bootstrap", "all")
+            limit: Maximum number of peers to discover
+            
+        Returns:
+            Dict containing discovered peers and status information
+        """
+        # Define a helper function to avoid parameter issues
+        def _discover_peers_sync():
+            return LibP2PModel.discover_peers(self, discovery_method, limit)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_discover_peers_sync)
+        
+    async def connect_peer(self, peer_addr: str) -> Dict[str, Any]:
+        """
+        Async version of connect_peer for use with async controllers.
+        
+        Args:
+            peer_addr: Peer multiaddress to connect to
+            
+        Returns:
+            Dict with connection status
+        """
+        # Define a helper function to avoid parameter issues
+        def _connect_peer_sync():
+            return LibP2PModel.connect_peer(self, peer_addr)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_connect_peer_sync)
+        
+    async def disconnect_peer(self, peer_id: str) -> Dict[str, Any]:
+        """
+        Async version of disconnect_peer for use with async controllers.
+        
+        Args:
+            peer_id: Peer ID to disconnect from
+            
+        Returns:
+            Dict with disconnection status
+        """
+        # Define a helper function to avoid parameter issues
+        def _disconnect_peer_sync():
+            return LibP2PModel.disconnect_peer(self, peer_id)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_disconnect_peer_sync)
+        
+    async def find_content(self, cid: str, timeout: int = 30) -> Dict[str, Any]:
+        """
+        Async version of find_content for use with async controllers.
+        
+        Args:
+            cid: Content ID to find
+            timeout: Timeout in seconds for the operation
+            
+        Returns:
+            Dict with content providers information
+        """
+        # Define a helper function to avoid parameter issues
+        def _find_content_sync():
+            return LibP2PModel.find_content(self, cid, timeout)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_find_content_sync)
+        
+    
+    async def retrieve_content(self, cid: str, timeout: int = 60) -> Dict[str, Any]:
+        """
+
+        Async version of retrieve_content for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _retrieve_content_sync():
+            return LibP2PModel.retrieve_content(self, cid, timeout)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_retrieve_content_sync)
+        
+    
+    async def get_content(self, cid: str, timeout: int = 60) -> Dict[str, Any]:
+        """
+
+        Async version of get_content for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _get_content_sync():
+            return LibP2PModel.get_content(self, cid, timeout)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_get_content_sync)
+        
+    
+    async def announce_content(self, cid: str, data: Optional[bytes] = None) -> Dict[str, Any]:
+        """
+
+        Async version of announce_content for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _announce_content_sync():
+            return LibP2PModel.announce_content(self, cid, data)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_announce_content_sync)
+        
+    
+    async def get_connected_peers(self) -> Dict[str, Any]:
+        """
+
+        Async version of get_connected_peers for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _get_connected_peers_sync():
+            return LibP2PModel.get_connected_peers(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(lambda: self.get_connected_peers())
+        
+    
+    async def get_peer_info(self, peer_id: str) -> Dict[str, Any]:
+        """
+
+        Async version of get_peer_info for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _get_peer_info_sync():
+            return LibP2PModel.get_peer_info(self, peer_id)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_get_peer_info_sync)
+        
+    
+    async def reset(self) -> Dict[str, Any]:
+        """
+
+        Async version of reset for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _reset_sync():
+            return LibP2PModel.reset(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_reset_sync)
+        
+    
+    async def start(self) -> Dict[str, Any]:
+        """
+
+        Async version of start for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _start_sync():
+            return LibP2PModel.start(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_start_sync)
+        
+    
+    async def stop(self) -> Dict[str, Any]:
+        """
+
+        Async version of stop for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _stop_sync():
+            return LibP2PModel.stop(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_stop_sync)
+        
+    
+    async def dht_find_peer(self, peer_id: str, timeout: int = 30) -> Dict[str, Any]:
+        """
+
+        Async version of dht_find_peer for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _dht_find_peer_sync():
+            return LibP2PModel.dht_find_peer(self, peer_id, timeout)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_dht_find_peer_sync)
+        
+    
+    async def dht_provide(self, cid: str) -> Dict[str, Any]:
+        """
+
+        Async version of dht_provide for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _dht_provide_sync():
+            return LibP2PModel.dht_provide(self, cid)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_dht_provide_sync)
+        
+    
+    async def dht_find_providers(self, cid: str, timeout: int = 30, limit: int = 20) -> Dict[str, Any]:
+        """
+
+        Async version of dht_find_providers for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _dht_find_providers_sync():
+            return LibP2PModel.dht_find_providers(self, cid, timeout, limit)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_dht_find_providers_sync)
+        
+    
+    async def pubsub_publish(self, topic: str, message: Union[str, bytes, Dict[str, Any]]) -> Dict[str, Any]:
+        """
+
+        Async version of pubsub_publish for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _pubsub_publish_sync():
+            return LibP2PModel.pubsub_publish(self, topic, message)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_pubsub_publish_sync)
+        
+    
+    async def pubsub_subscribe(self, topic: str, handler_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+
+        Async version of pubsub_subscribe for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _pubsub_subscribe_sync():
+            return LibP2PModel.pubsub_subscribe(self, topic, handler_id)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_pubsub_subscribe_sync)
+        
+    
+    async def pubsub_unsubscribe(self, topic: str, handler_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+
+        Async version of pubsub_unsubscribe for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _pubsub_unsubscribe_sync():
+            return LibP2PModel.pubsub_unsubscribe(self, topic, handler_id)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_pubsub_unsubscribe_sync)
+        
+    
+    async def pubsub_get_topics(self) -> Dict[str, Any]:
+        """
+
+        Async version of pubsub_get_topics for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _pubsub_get_topics_sync():
+            return LibP2PModel.pubsub_get_topics(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_pubsub_get_topics_sync)
+        
+    
+    async def pubsub_get_peers(self, topic: Optional[str] = None) -> Dict[str, Any]:
+        """
+
+        Async version of pubsub_get_peers for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _pubsub_get_peers_sync():
+            return LibP2PModel.pubsub_get_peers(self, topic)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_pubsub_get_peers_sync)
+        
+    
+    async def register_message_handler(self, handler_id: str, protocol_id: str, description: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Async version of register_message_handler for use with async controllers.
+        
+        Args:
+            handler_id: Unique identifier for the handler
+            protocol_id: Protocol ID to handle
+            description: Optional description of the handler
+            
+        Returns:
+            Dict with registration status
+        """
+        # Create a dummy handler function
+        def dummy_handler(message):
+            pass
+        
+        # Define a helper function to avoid parameter issues
+        def _register_message_handler_sync():
+            return LibP2PModel.register_message_handler(self, protocol_id, dummy_handler, handler_id)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_register_message_handler_sync)
+        
+    
+    async def unregister_message_handler(self, handler_id: str, protocol_id: str) -> Dict[str, Any]:
+        """
+
+        Async version of unregister_message_handler for use with async controllers.
+        
+        Args:
+            handler_id: ID of the handler to unregister
+            protocol_id: Protocol ID the handler is registered for
+            
+        Returns:
+            Dict with unregistration status
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _unregister_message_handler_sync():
+            return LibP2PModel.unregister_message_handler(self, handler_id, protocol_id)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_unregister_message_handler_sync)
+        
+    
+    async def list_message_handlers(self) -> Dict[str, Any]:
+        """
+
+        Async version of list_message_handlers for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _list_message_handlers_sync():
+            return LibP2PModel.list_message_handlers(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_list_message_handlers_sync)
+        
+    async def publish_message(self, topic: str, message: str) -> Dict[str, Any]:
+        """
+        Async version of publish_message for use with async controllers.
+        
+        Args:
+            topic: Topic to publish to
+            message: Message to publish
+            
+        Returns:
+            Dict with publish status
+        """
+        # We'll use the pubsub_publish method since they're essentially the same
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(LibP2PModel.pubsub_publish, self, topic, message)
+        
+    async def subscribe_topic(self, topic: str) -> Dict[str, Any]:
+        """
+        Async version of subscribe_topic for use with async controllers.
+        
+        Args:
+            topic: Topic to subscribe to
+            
+        Returns:
+            Dict with subscription status
+        """
+        # We'll use pubsub_subscribe without a handler_id
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(LibP2PModel.pubsub_subscribe, self, topic)
+        
+    async def unsubscribe_topic(self, topic: str) -> Dict[str, Any]:
+        """
+        Async version of unsubscribe_topic for use with async controllers.
+        
+        Args:
+            topic: Topic to unsubscribe from
+            
+        Returns:
+            Dict with unsubscription status
+        """
+        # We'll use pubsub_unsubscribe without a handler_id
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(LibP2PModel.pubsub_unsubscribe, self, topic)
+        
+    
+    async def peer_info(self) -> Dict[str, Any]:
+        """
+
+        Async version of peer_info for use with async controllers.
+        
+        """
+        # Define a helper function to avoid parameter issues
+        def _peer_info_sync():
+            return LibP2PModel.peer_info(self)
+            
+        # Use anyio to run the synchronous version in a thread
+        import anyio
+        return await anyio.to_thread.run_sync(_peer_info_sync)
     
     def discover_peers(self, discovery_method: str = "all", limit: int = 10) -> Dict[str, Any]:
         """
@@ -303,7 +838,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -395,7 +930,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -458,7 +993,7 @@ class LibP2PModel:
                 return cached_result
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -529,7 +1064,7 @@ class LibP2PModel:
                 }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -623,7 +1158,7 @@ class LibP2PModel:
                 }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -687,7 +1222,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -745,7 +1280,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -799,7 +1334,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -905,7 +1440,7 @@ class LibP2PModel:
         }
         
         # Get additional stats from libp2p peer if available
-        if self.is_available() and hasattr(self.libp2p_peer, "get_detailed_stats"):
+        if self._is_available_sync() and hasattr(self.libp2p_peer, "get_detailed_stats"):
             detailed_stats = self.libp2p_peer.get_detailed_stats()
             stats["detailed"] = detailed_stats
             
@@ -1038,7 +1573,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1084,7 +1619,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1141,7 +1676,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1201,7 +1736,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1261,7 +1796,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1331,7 +1866,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1431,7 +1966,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1497,7 +2032,7 @@ class LibP2PModel:
         }
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1568,7 +2103,7 @@ class LibP2PModel:
             result["topic"] = topic
         
         # Return early if libp2p is not available
-        if not self.is_available():
+        if not self._is_available_sync():
             result["error"] = "libp2p is not available"
             result["error_type"] = "dependency_missing"
             self.operation_stats["failed_operations"] += 1
@@ -1773,6 +2308,65 @@ class LibP2PModel:
             self.logger.error(f"Error listing message handlers: {str(e)}")
             result["error"] = f"Error listing message handlers: {str(e)}"
             result["error_type"] = "handler_listing_error"
+            self.operation_stats["failed_operations"] += 1
+            return result
+            
+    def peer_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current peer.
+        
+        Returns:
+            Dict with peer information
+        """
+        self.operation_stats["operation_count"] += 1
+        
+        # Prepare result
+        result = {
+            "success": False,
+            "operation": "peer_info",
+            "timestamp": time.time()
+        }
+        
+        # Return early if libp2p is not available
+        if not self._is_available_sync():
+            result["error"] = "libp2p is not available"
+            result["error_type"] = "dependency_missing"
+            self.operation_stats["failed_operations"] += 1
+            return result
+            
+        try:
+            # Get peer ID
+            peer_id = self.libp2p_peer.get_peer_id()
+            
+            # Get listen addresses
+            addrs = self.libp2p_peer.get_listen_addresses()
+            
+            # Get connected peers
+            connected_peers = self.libp2p_peer.get_connected_peers()
+            
+            # Get DHT routing table size if available
+            dht_peers = 0
+            if self.libp2p_peer.dht:
+                dht_peers = len(self.libp2p_peer.dht.routing_table.get_peers())
+            
+            # Update result with collected information
+            result.update({
+                "success": True,
+                "peer_id": peer_id,
+                "addresses": addrs,
+                "connected_peers": len(connected_peers),
+                "dht_peers": dht_peers,
+                "protocols": list(self.libp2p_peer.protocol_handlers.keys()),
+                "role": self.libp2p_peer.role
+            })
+            
+            return result
+            
+        except Exception as e:
+            # Handle any errors
+            logger.error(f"Error getting peer info: {str(e)}")
+            result["error"] = f"Error getting peer info: {str(e)}"
+            result["error_type"] = "peer_info_error"
             self.operation_stats["failed_operations"] += 1
             return result
             

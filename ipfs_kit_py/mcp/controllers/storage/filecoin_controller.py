@@ -142,6 +142,157 @@ class FilecoinToIPFSResponse(OperationResponse):
     ipfs_cid: Optional[str] = Field(None, description="Content identifier in IPFS")
     size_bytes: Optional[int] = Field(None, description="Size of the content in bytes")
 
+# Models for new Chain/State methods
+class TipsetKeyModel(BaseModel):
+    """Model for a CID within a tipset key."""
+    cid: str = Field(..., alias='/', description="CID string")
+
+class GetTipsetRequest(BaseModel):
+    """Request model for getting a tipset."""
+    tipset_key: List[TipsetKeyModel] = Field(..., description="List of block CIDs forming the tipset key")
+
+class GetTipsetResponse(OperationResponse):
+    """Response model for getting a tipset."""
+    tipset: Optional[Dict[str, Any]] = Field(None, description="Tipset details")
+
+class GetActorRequest(BaseModel):
+    """Request model for getting actor information."""
+    address: str = Field(..., description="The address of the actor")
+    tipset_key: Optional[List[TipsetKeyModel]] = Field(None, description="Optional tipset key to query state at (default: head)")
+
+class GetActorResponse(OperationResponse):
+    """Response model for getting actor information."""
+    actor: Optional[Dict[str, Any]] = Field(None, description="Actor details")
+
+class GetMessagesInTipsetRequest(BaseModel):
+    """Request model for getting messages in a tipset."""
+    tipset_key: List[TipsetKeyModel] = Field(..., description="List of block CIDs forming the tipset key")
+
+class GetMessagesInTipsetResponse(OperationResponse):
+    """Response model for getting messages in a tipset."""
+    messages: Optional[List[Dict[str, Any]]] = Field(None, description="List of messages in the tipset")
+    count: Optional[int] = Field(None, description="Number of messages")
+
+class WaitMessageRequest(BaseModel):
+    """Request model for waiting for a message."""
+    message_cid: str = Field(..., description="The CID of the message to wait for")
+    confidence: int = Field(1, description="Number of epochs of confidence needed")
+
+class WaitMessageResponse(OperationResponse):
+    """Response model for waiting for a message."""
+    message_lookup: Optional[Dict[str, Any]] = Field(None, description="Message lookup details (receipt, tipset, height)")
+
+class MpoolPendingRequest(BaseModel):
+    """Request model for getting pending messages."""
+    tipset_key: Optional[List[TipsetKeyModel]] = Field(None, description="Optional tipset key to filter pending messages for (default: current)")
+
+class MpoolPendingResponse(OperationResponse):
+    """Response model for getting pending messages."""
+    pending_messages: Optional[List[Dict[str, Any]]] = Field(None, description="List of pending signed messages")
+    count: Optional[int] = Field(None, description="Number of pending messages")
+
+class MpoolPushRequest(BaseModel):
+    """Request model for pushing a message to the message pool."""
+    message: Dict[str, Any] = Field(..., description="The signed message to push")
+
+class MpoolPushResponse(OperationResponse):
+    """Response model for pushing a message to the message pool."""
+    message_cid: Optional[str] = Field(None, description="CID of the pushed message")
+
+class MpoolGetNonceRequest(BaseModel):
+    """Request model for getting the nonce for an address."""
+    address: str = Field(..., description="Account address to get nonce for")
+
+class MpoolGetNonceResponse(OperationResponse):
+    """Response model for getting the nonce for an address."""
+    address: Optional[str] = Field(None, description="Account address")
+    nonce: Optional[int] = Field(None, description="Next nonce value for the address")
+
+class GasEstimateMessageGasRequest(BaseModel):
+    """Request model for estimating message gas."""
+    message: Dict[str, Any] = Field(..., description="The message object to estimate gas for")
+    max_fee: Optional[str] = Field(None, description="Maximum fee willing to pay (attoFIL)")
+    tipset_key: Optional[List[TipsetKeyModel]] = Field(None, description="Optional tipset key to base the estimate on (default: head)")
+
+class GasEstimateMessageGasResponse(OperationResponse):
+    """Response model for estimating message gas."""
+    estimated_message: Optional[Dict[str, Any]] = Field(None, description="Message object with estimated gas values")
+
+class WalletNewRequest(BaseModel):
+    """Request model for creating a new wallet."""
+    wallet_type: str = Field("bls", description="Type of wallet to create (bls or secp256k1)")
+
+class WalletNewResponse(OperationResponse):
+    """Response model for creating a new wallet."""
+    address: Optional[str] = Field(None, description="New wallet address")
+    wallet_type: Optional[str] = Field(None, description="Type of wallet created")
+
+class WalletHasRequest(BaseModel):
+    """Request model for checking if a wallet address exists."""
+    address: str = Field(..., description="Address to check")
+
+class WalletHasResponse(OperationResponse):
+    """Response model for checking if a wallet address exists."""
+    address: Optional[str] = Field(None, description="Checked wallet address")
+    exists: Optional[bool] = Field(None, description="Whether the wallet exists")
+
+class WalletDefaultAddressRequest(BaseModel):
+    """Request model for getting the default wallet address."""
+    pass
+
+class WalletDefaultAddressResponse(OperationResponse):
+    """Response model for getting the default wallet address."""
+    address: Optional[str] = Field(None, description="Default wallet address")
+
+class WalletSetDefaultRequest(BaseModel):
+    """Request model for setting the default wallet address."""
+    address: str = Field(..., description="Address to set as default")
+
+class WalletSetDefaultResponse(OperationResponse):
+    """Response model for setting the default wallet address."""
+    address: Optional[str] = Field(None, description="New default wallet address")
+    success: bool = Field(..., description="Whether the operation was successful")
+
+class WalletSignRequest(BaseModel):
+    """Request model for signing data with a wallet."""
+    address: str = Field(..., description="Address to sign with")
+    data: str = Field(..., description="Base64-encoded data to sign")
+
+class WalletSignResponse(OperationResponse):
+    """Response model for signing data with a wallet."""
+    address: Optional[str] = Field(None, description="Wallet address used for signing")
+    signature: Optional[Dict[str, Any]] = Field(None, description="Signature data")
+
+class WalletVerifyRequest(BaseModel):
+    """Request model for verifying a signature."""
+    address: str = Field(..., description="Address that signed the data")
+    data: str = Field(..., description="Base64-encoded data that was signed")
+    signature: Dict[str, Any] = Field(..., description="Signature to verify")
+
+class WalletVerifyResponse(OperationResponse):
+    """Response model for verifying a signature."""
+    address: Optional[str] = Field(None, description="Wallet address for verification")
+    valid: Optional[bool] = Field(None, description="Whether the signature is valid")
+
+class StateListMinersRequest(BaseModel):
+    """Request model for listing miners in the network."""
+    tipset_key: Optional[List[TipsetKeyModel]] = Field(None, description="Optional tipset key to filter miners for (default: current)")
+
+class StateListMinersResponse(OperationResponse):
+    """Response model for listing miners in the network."""
+    miners: Optional[List[str]] = Field(None, description="List of miner addresses")
+    count: Optional[int] = Field(None, description="Number of miners")
+
+class StateMinerPowerRequest(BaseModel):
+    """Request model for getting miner power information."""
+    miner_address: str = Field(..., description="Miner address to query")
+    tipset_key: Optional[List[TipsetKeyModel]] = Field(None, description="Optional tipset key (default: current)")
+
+class StateMinerPowerResponse(OperationResponse):
+    """Response model for getting miner power information."""
+    miner_address: Optional[str] = Field(None, description="Miner address")
+    power: Optional[Dict[str, Any]] = Field(None, description="Miner power information")
+
 
 class FilecoinController:
     """
@@ -298,6 +449,156 @@ class FilecoinController:
             summary="Filecoin to IPFS",
             description="Retrieve content from Filecoin and add to IPFS"
         )
+
+        # Chain/State endpoints
+        router.add_api_route(
+            "/filecoin/chain/tipset",
+            self.handle_get_tipset_request,
+            methods=["POST"],
+            response_model=GetTipsetResponse,
+            summary="Get Tipset",
+            description="Get tipset details by its key"
+        )
+
+        router.add_api_route(
+            "/filecoin/state/actor",
+            self.handle_get_actor_request,
+            methods=["POST"],
+            response_model=GetActorResponse,
+            summary="Get Actor",
+            description="Get actor information by address"
+        )
+
+        router.add_api_route(
+            "/filecoin/chain/messages",
+            self.handle_get_messages_in_tipset_request,
+            methods=["POST"],
+            response_model=GetMessagesInTipsetResponse,
+            summary="Get Messages in Tipset",
+            description="Get all messages included in a given tipset"
+        )
+
+        router.add_api_route(
+            "/filecoin/state/wait_message",
+            self.handle_wait_message_request,
+            methods=["POST"],
+            response_model=WaitMessageResponse,
+            summary="Wait for Message",
+            description="Wait for a message to appear on-chain and get its receipt"
+        )
+
+        # Mpool endpoints
+        router.add_api_route(
+            "/filecoin/mpool/pending",
+            self.handle_mpool_pending_request,
+            methods=["POST"], # Using POST as it takes an optional body
+            response_model=MpoolPendingResponse,
+            summary="Get Pending Messages",
+            description="Get pending messages from the message pool"
+        )
+
+        # Gas endpoints
+        router.add_api_route(
+            "/filecoin/gas/estimate_message_gas",
+            self.handle_gas_estimate_message_gas_request,
+            methods=["POST"],
+            response_model=GasEstimateMessageGasResponse,
+            summary="Estimate Message Gas",
+            description="Estimate gas values for a message"
+        )
+        
+        # Additional wallet endpoints
+        router.add_api_route(
+            "/filecoin/wallet/new",
+            self.handle_wallet_new_request,
+            methods=["POST"],
+            response_model=WalletNewResponse,
+            summary="Create New Wallet",
+            description="Create a new wallet address of specified type"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallet/has/{address}",
+            self.handle_wallet_has_request,
+            methods=["GET"],
+            response_model=WalletHasResponse,
+            summary="Check Wallet",
+            description="Check if wallet address exists"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallet/default",
+            self.handle_wallet_default_address_request,
+            methods=["GET"],
+            response_model=WalletDefaultAddressResponse,
+            summary="Get Default Wallet",
+            description="Get default wallet address"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallet/set_default",
+            self.handle_wallet_set_default_request,
+            methods=["POST"],
+            response_model=WalletSetDefaultResponse,
+            summary="Set Default Wallet",
+            description="Set default wallet address"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallet/sign",
+            self.handle_wallet_sign_request,
+            methods=["POST"],
+            response_model=WalletSignResponse,
+            summary="Sign Message",
+            description="Sign data with a wallet"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallet/verify",
+            self.handle_wallet_verify_request,
+            methods=["POST"],
+            response_model=WalletVerifyResponse,
+            summary="Verify Signature",
+            description="Verify signature with a wallet address"
+        )
+        
+        # Additional state endpoints
+        router.add_api_route(
+            "/filecoin/state/list_miners",
+            self.handle_state_list_miners_request,
+            methods=["POST"],
+            response_model=StateListMinersResponse,
+            summary="List Miners",
+            description="List all miners in the network at specified tipset"
+        )
+        
+        router.add_api_route(
+            "/filecoin/state/miner_power",
+            self.handle_state_miner_power_request,
+            methods=["POST"],
+            response_model=StateMinerPowerResponse,
+            summary="Miner Power",
+            description="Get miner power information"
+        )
+        
+        # Additional mpool endpoints
+        router.add_api_route(
+            "/filecoin/mpool/get_nonce",
+            self.handle_mpool_get_nonce_request,
+            methods=["POST"],
+            response_model=MpoolGetNonceResponse,
+            summary="Get Nonce",
+            description="Get the next nonce for an address"
+        )
+        
+        router.add_api_route(
+            "/filecoin/mpool/push",
+            self.handle_mpool_push_request,
+            methods=["POST"],
+            response_model=MpoolPushResponse,
+            summary="Push Message",
+            description="Push a signed message to the message pool"
+        )
         
         logger.info("Filecoin routes registered")
     
@@ -351,6 +652,182 @@ class FilecoinController:
                 }
             )
         
+        return result
+
+    async def handle_get_tipset_request(self, request: GetTipsetRequest):
+        """
+        Handle get tipset request.
+
+        Args:
+            request: GetTipsetRequest containing the tipset key.
+
+        Returns:
+            Tipset details.
+        """
+        # Convert Pydantic models back to simple dicts for the model layer
+        tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+        result = self.filecoin_model.get_tipset(tipset_key=tipset_key_dicts)
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get tipset"),
+                    "error_type": result.get("error_type", "GetTipsetError")
+                }
+            )
+        # Rename 'result' field to 'tipset' for the response model
+        if "result" in result:
+            result["tipset"] = result.pop("result")
+        return result
+
+    async def handle_get_actor_request(self, request: GetActorRequest):
+        """
+        Handle get actor request.
+
+        Args:
+            request: GetActorRequest containing address and optional tipset key.
+
+        Returns:
+            Actor details.
+        """
+        tipset_key_dicts = None
+        if request.tipset_key:
+            tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+
+        result = self.filecoin_model.get_actor(
+            address=request.address,
+            tipset_key=tipset_key_dicts
+        )
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get actor info"),
+                    "error_type": result.get("error_type", "GetActorError")
+                }
+            )
+        # Rename 'result' field to 'actor' for the response model
+        if "result" in result:
+            result["actor"] = result.pop("result")
+        return result
+
+    async def handle_get_messages_in_tipset_request(self, request: GetMessagesInTipsetRequest):
+        """
+        Handle get messages in tipset request.
+
+        Args:
+            request: GetMessagesInTipsetRequest containing the tipset key.
+
+        Returns:
+            List of messages in the tipset.
+        """
+        tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+        result = self.filecoin_model.get_messages_in_tipset(tipset_key=tipset_key_dicts)
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get messages in tipset"),
+                    "error_type": result.get("error_type", "GetMessagesError")
+                }
+            )
+        # Rename 'result' field to 'messages' and add count
+        if "result" in result:
+            messages = result.pop("result")
+            result["messages"] = messages
+            result["count"] = len(messages) if messages else 0
+        return result
+
+    async def handle_wait_message_request(self, request: WaitMessageRequest):
+        """
+        Handle wait message request.
+
+        Args:
+            request: WaitMessageRequest containing message CID and confidence.
+
+        Returns:
+            Message lookup details.
+        """
+        result = self.filecoin_model.wait_message(
+            message_cid=request.message_cid,
+            confidence=request.confidence
+        )
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to wait for message"),
+                    "error_type": result.get("error_type", "WaitMessageError")
+                }
+            )
+        # Rename 'result' field to 'message_lookup'
+        if "result" in result:
+            result["message_lookup"] = result.pop("result")
+        return result
+
+    async def handle_mpool_pending_request(self, request: MpoolPendingRequest):
+        """
+        Handle mpool pending request.
+
+        Args:
+            request: MpoolPendingRequest containing optional tipset key.
+
+        Returns:
+            List of pending messages.
+        """
+        tipset_key_dicts = None
+        if request.tipset_key:
+            tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+
+        result = self.filecoin_model.mpool_pending(tipset_key=tipset_key_dicts)
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get pending messages"),
+                    "error_type": result.get("error_type", "MpoolPendingError")
+                }
+            )
+        # The model returns 'messages' and 'count' fields, but we need to rename to 'pending_messages'
+        if "messages" in result:
+            result["pending_messages"] = result.pop("messages")
+        return result
+
+    async def handle_gas_estimate_message_gas_request(self, request: GasEstimateMessageGasRequest):
+        """
+        Handle gas estimate message gas request.
+
+        Args:
+            request: GasEstimateMessageGasRequest containing message and options.
+
+        Returns:
+            Message with estimated gas values.
+        """
+        tipset_key_dicts = None
+        if request.tipset_key:
+            tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+
+        result = self.filecoin_model.gas_estimate_message_gas(
+            message=request.message,
+            tipset_key=tipset_key_dicts
+        )
+
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to estimate message gas"),
+                    "error_type": result.get("error_type", "GasEstimateError")
+                }
+            )
+        # Rename 'result' field to 'estimated_message'
+        if "estimate" in result:
+            result["estimated_message"] = result.pop("estimate")
         return result
     
     async def handle_wallet_balance_request(self, address: str):
@@ -641,4 +1118,269 @@ class FilecoinController:
                 }
             )
         
+        return result
+
+    # Wallet endpoints handlers
+    async def handle_wallet_new_request(self, request: WalletNewRequest):
+        """
+        Handle wallet new request.
+        
+        Args:
+            request: Wallet new request parameters
+            
+        Returns:
+            New wallet address
+        """
+        result = self.filecoin_model.wallet_new(wallet_type=request.wallet_type)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to create new wallet"),
+                    "error_type": result.get("error_type", "WalletNewError")
+                }
+            )
+        
+        return result
+
+    async def handle_wallet_has_request(self, address: str):
+        """
+        Handle wallet has request.
+        
+        Args:
+            address: Wallet address to check
+            
+        Returns:
+            Whether the wallet exists
+        """
+        result = self.filecoin_model.wallet_has(address)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", f"Failed to check if wallet {address} exists"),
+                    "error_type": result.get("error_type", "WalletHasError")
+                }
+            )
+        
+        return result
+
+    async def handle_wallet_default_address_request(self):
+        """
+        Handle wallet default address request.
+        
+        Returns:
+            Default wallet address
+        """
+        result = self.filecoin_model.wallet_default_address()
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get default wallet address"),
+                    "error_type": result.get("error_type", "WalletDefaultAddressError")
+                }
+            )
+        
+        return result
+
+    async def handle_wallet_set_default_request(self, request: WalletSetDefaultRequest):
+        """
+        Handle wallet set default request.
+        
+        Args:
+            request: Wallet set default request parameters
+            
+        Returns:
+            Result of setting default wallet
+        """
+        result = self.filecoin_model.wallet_set_default(address=request.address)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", f"Failed to set {request.address} as default wallet"),
+                    "error_type": result.get("error_type", "WalletSetDefaultError")
+                }
+            )
+        
+        return result
+
+    async def handle_wallet_sign_request(self, request: WalletSignRequest):
+        """
+        Handle wallet sign request.
+        
+        Args:
+            request: Wallet sign request parameters
+            
+        Returns:
+            Signature data
+        """
+        result = self.filecoin_model.wallet_sign(
+            address=request.address,
+            data=request.data
+        )
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to sign data with wallet"),
+                    "error_type": result.get("error_type", "WalletSignError")
+                }
+            )
+        
+        return result
+
+    async def handle_wallet_verify_request(self, request: WalletVerifyRequest):
+        """
+        Handle wallet verify request.
+        
+        Args:
+            request: Wallet verify request parameters
+            
+        Returns:
+            Verification result
+        """
+        result = self.filecoin_model.wallet_verify(
+            address=request.address,
+            data=request.data,
+            signature=request.signature
+        )
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to verify signature"),
+                    "error_type": result.get("error_type", "WalletVerifyError")
+                }
+            )
+        
+        return result
+
+    # State endpoints handlers
+    async def handle_state_list_miners_request(self, request: StateListMinersRequest):
+        """
+        Handle state list miners request.
+        
+        Args:
+            request: State list miners request parameters
+            
+        Returns:
+            List of miners
+        """
+        tipset_key_dicts = None
+        if request.tipset_key:
+            tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+            
+        result = self.filecoin_model.state_list_miners(tipset_key=tipset_key_dicts)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to list miners"),
+                    "error_type": result.get("error_type", "StateListMinersError")
+                }
+            )
+        
+        # Rename 'result' field to 'miners' and add count
+        if "result" in result:
+            miners = result.pop("result")
+            result["miners"] = miners
+            result["count"] = len(miners) if miners else 0
+            
+        return result
+
+    async def handle_state_miner_power_request(self, request: StateMinerPowerRequest):
+        """
+        Handle state miner power request.
+        
+        Args:
+            request: State miner power request parameters
+            
+        Returns:
+            Miner power information
+        """
+        tipset_key_dicts = None
+        if request.tipset_key:
+            tipset_key_dicts = [{"/": item.cid} for item in request.tipset_key]
+            
+        result = self.filecoin_model.state_miner_power(
+            miner_address=request.miner_address,
+            tipset_key=tipset_key_dicts
+        )
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get miner power"),
+                    "error_type": result.get("error_type", "StateMinerPowerError")
+                }
+            )
+        
+        # Rename 'result' field to 'power'
+        if "result" in result:
+            result["power"] = result.pop("result")
+            result["miner_address"] = request.miner_address
+            
+        return result
+
+    # Mpool endpoints handlers
+    async def handle_mpool_get_nonce_request(self, request: MpoolGetNonceRequest):
+        """
+        Handle mpool get nonce request.
+        
+        Args:
+            request: Mpool get nonce request parameters
+            
+        Returns:
+            Next nonce for address
+        """
+        result = self.filecoin_model.mpool_get_nonce(address=request.address)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to get nonce"),
+                    "error_type": result.get("error_type", "MpoolGetNonceError")
+                }
+            )
+        
+        # Rename 'result' field to 'nonce'
+        if "result" in result:
+            result["nonce"] = result.pop("result")
+            result["address"] = request.address
+            
+        return result
+
+    async def handle_mpool_push_request(self, request: MpoolPushRequest):
+        """
+        Handle mpool push request.
+        
+        Args:
+            request: Mpool push request parameters
+            
+        Returns:
+            Message push result
+        """
+        result = self.filecoin_model.mpool_push(signed_message=request.message)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Failed to push message"),
+                    "error_type": result.get("error_type", "MpoolPushError")
+                }
+            )
+        
+        # The message_cid field should already be set by the model
         return result

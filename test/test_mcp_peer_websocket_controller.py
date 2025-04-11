@@ -8,7 +8,8 @@ which provides HTTP and WebSocket endpoints for peer discovery.
 import pytest
 import json
 from unittest.mock import MagicMock, AsyncMock, patch
-from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, APIRouter
+from starlette.websockets import WebSocket, WebSocketDisconnect # Correct import
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 

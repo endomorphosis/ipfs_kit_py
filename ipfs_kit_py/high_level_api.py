@@ -66,7 +66,34 @@ except ImportError:
 # Define initial values for FSSpec integration
 HAVE_FSSPEC = False
 IPFSFileSystem = None
-# These will be properly set when get_filesystem is called
+# Try to import FSSpec to check availability
+try:
+    import fsspec
+    HAVE_FSSPEC = True
+    logger.info("FSSpec is available")
+except ImportError:
+    HAVE_FSSPEC = False
+    logger.info("FSSpec is not available, filesystem interface will be limited")
+
+# Try to import IPFSFileSystem if FSSpec is available
+if HAVE_FSSPEC:
+    try:
+        # First try relative import
+        try:
+            from .ipfs_fsspec import IPFSFileSystem
+            logger.info("IPFSFileSystem imported successfully (relative import)")
+        except ImportError:
+            # Then try absolute import
+            from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
+            logger.info("IPFSFileSystem imported successfully (absolute import)")
+    except ImportError as e:
+        IPFSFileSystem = None
+        logger.warning(f"IPFSFileSystem could not be imported: {e}")
+        logger.warning("The filesystem interface will be limited unless get_filesystem() is called with return_mock=True")
+# These variables may be updated when get_filesystem is called
+
+# These are helper methods, but the real implementations should be inside the IPFSSimpleAPI class
+# Actual class methods are defined inside IPFSSimpleAPI
 
 # Function to get appropriate benchmark helper based on backend
 def get_benchmark_helper():
@@ -125,9 +152,16 @@ except ImportError:
     
 # Import WebRTC benchmark helpers with anyio support detection
 try:
-    from .high_level_api import WebRTCBenchmarkIntegration
-    from .high_level_api import WebRTCBenchmarkIntegrationAnyIO, HAVE_ANYIO_BENCHMARK
-    logger.info(f"WebRTC benchmark helpers: anyio_support={HAVE_ANYIO_BENCHMARK}")
+    # Import directly from the submodule to prevent circular imports
+    from .high_level_api.webrtc_benchmark_helpers import WebRTCBenchmarkIntegration
+    try:
+        from .high_level_api.webrtc_benchmark_helpers_anyio import WebRTCBenchmarkIntegrationAnyIO
+        HAVE_ANYIO_BENCHMARK = True
+        logger.info(f"WebRTC benchmark helpers: anyio_support={HAVE_ANYIO_BENCHMARK}")
+    except ImportError:
+        WebRTCBenchmarkIntegrationAnyIO = None
+        HAVE_ANYIO_BENCHMARK = False
+        logger.info(f"WebRTC benchmark helpers: anyio_support={HAVE_ANYIO_BENCHMARK}")
 except ImportError:
     try:
         from .high_level_api.webrtc_benchmark_helpers import WebRTCBenchmarkIntegration
@@ -257,6 +291,14 @@ class IPFSSimpleAPI:
             self.logger.info("LibP2P integration applied to IPFSSimpleAPI")
         except ImportError as e:
             self.logger.warning(f"Could not apply LibP2P integration: {e}")
+            # Try an alternate import path
+            try:
+                # Fallback to relative import
+                from .high_level_api.libp2p_integration import inject_libp2p_into_high_level_api
+                inject_libp2p_into_high_level_api(self.__class__)
+                self.logger.info("LibP2P integration applied to IPFSSimpleAPI (using fallback import)")
+            except ImportError as e2:
+                self.logger.warning(f"Could not apply LibP2P integration with fallback import: {e2}")
         except Exception as e:
             self.logger.error(f"Error applying LibP2P integration: {e}")
         
@@ -307,6 +349,66 @@ class IPFSSimpleAPI:
         logger.info(f"IPFSSimpleAPI initialized with role: {self.config.get('role', 'leecher')}")
         
 
+    def _check_fsspec_available(self):
+        """
+        Check if fsspec is available by trying to import it.
+        
+        This method allows for better testing and mocking of the import check.
+        
+        Returns:
+            bool: True if fsspec is available, False otherwise
+        """
+        try:
+            import fsspec
+            return True
+        except ImportError:
+            return False
+
+    def _import_ipfs_filesystem(self):
+        """
+        Import the IPFSFileSystem class from the ipfs_fsspec module.
+        
+        This method allows for better testing and mocking of the import.
+        
+        Returns:
+            IPFSFileSystem class
+            
+        Raises:
+            ImportError: If the import fails
+        """
+        try:
+            # Try relative import first
+            from .ipfs_fsspec import IPFSFileSystem
+            return IPFSFileSystem
+        except ImportError:
+            try:
+                # Try absolute import next
+                from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
+                return IPFSFileSystem
+            except ImportError as e:
+                # Try another common pattern - may be in parent directory
+                try:
+                    import os
+                    import sys
+                    import importlib.util
+                    
+                    # Add parent dir to path temporarily
+                    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+                    sys.path.insert(0, parent_dir)
+                    
+                    # Try direct import
+                    from ipfs_fsspec import IPFSFileSystem
+                    
+                    # Remove the temporary path addition
+                    if parent_dir in sys.path:
+                        sys.path.remove(parent_dir)
+                        
+                    return IPFSFileSystem
+                except ImportError:
+                    # All import strategies failed
+                    self.logger.error(f"Could not import IPFSFileSystem. Error: {e}")
+                    raise ImportError(f"Could not import IPFSFileSystem from any location: {e}")
+    
     def _init_metadata_replication(self):
         """Initialize the metadata replication system.
         

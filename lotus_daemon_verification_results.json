@@ -1,29 +1,95 @@
 {
-  "timestamp": 1744303837.9258068,
-  "test_results": {
-    "version_detection": true,
-    "repo_initialization": true,
-    "daemon_start_stop": true
-  },
-  "success_count": 3,
-  "total_count": 3,
-  "success_percentage": 100.0,
-  "all_tests_passed": true,
-  "start_result": {
-    "success": true,
-    "operation": "daemon_start",
-    "timestamp": 1744303835.5510936,
-    "correlation_id": "ede31f01-2d92-46ab-a8cc-c451c62f97ec",
-    "status": "simulation_mode_fallback",
-    "message": "Lotus daemon unavailable, but simulation mode is working",
-    "method": "simulation_fallback",
-    "attempts": {
-      "direct": {
-        "success": false,
-        "returncode": 1,
-        "stderr": "2025-04-10T09:50:35.780-0700\tINFO\tmain\tlotus/daemon.go:222\tlotus repo: /home/barberb/.lotus_test\nERROR: could not get API info for FullNode: could not get api endpoint: API not running (no endpoint)\n\n",
-        "stdout": ""
+  "timestamp": 1744310228.9484231,
+  "tests": {
+    "cleanup": {
+      "success": true,
+      "result": {
+        "success": true,
+        "operation": "daemon_stop",
+        "timestamp": 1744310228.949773,
+        "correlation_id": "15eb5ea4-9f89-4b15-a0e0-0b89151ae7bf",
+        "status": "already_stopped",
+        "message": "Lotus daemon was not running",
+        "method": "none_needed",
+        "attempts": {
+          "manual": {
+            "success": true,
+            "message": "No Lotus daemon processes found"
+          }
+        },
+        "lock_file_removed": true
       }
+    },
+    "create_kit": {
+      "success": true,
+      "time": 1744310229.6224096
+    },
+    "chain_head": {
+      "success": true,
+      "simulated": true,
+      "height": null,
+      "result": {
+        "success": true,
+        "operation": "ChainHead",
+        "timestamp": 1744310229.622455,
+        "correlation_id": "39fa1af6-6e58-4e95-91be-52690a9c0510",
+        "simulated": true,
+        "result": {
+          "Cids": [
+            {
+              "/": "bafy2bzaceSimulatedChainHeadCid"
+            }
+          ],
+          "Blocks": [],
+          "Height": 123456,
+          "ParentWeight": "123456789",
+          "Timestamp": 1744310229
+        }
+      },
+      "time": 1744310229.6224582
+    },
+    "daemon_status": {
+      "success": true,
+      "simulated": false,
+      "process_running": false,
+      "result": {
+        "success": true,
+        "operation": "daemon_status",
+        "timestamp": 1744310229.6227477,
+        "correlation_id": "645a91c8-a225-4960-b332-31a0753e1d92",
+        "process_running": false,
+        "pid": null,
+        "daemon_info": {
+          "api_responding": false,
+          "pid_file_exists": false,
+          "api_socket_exists": false,
+          "repo_lock_exists": false
+        }
+      },
+      "time": 1744310229.7053785
+    },
+    "list_wallets": {
+      "success": true,
+      "simulated": true,
+      "wallet_count": 0,
+      "result": {
+        "success": true,
+        "operation": "WalletList",
+        "timestamp": 1744310229.70553,
+        "correlation_id": "39fa1af6-6e58-4e95-91be-52690a9c0510",
+        "simulated": true,
+        "result": [
+          "f13c008947f0",
+          "f130858f5530",
+          "f13130072c43"
+        ]
+      },
+      "time": 1744310229.705544
     }
+  },
+  "summary": {
+    "success": true,
+    "simulation_mode_working": true,
+    "test_duration": 0.7571415901184082
   }
 }

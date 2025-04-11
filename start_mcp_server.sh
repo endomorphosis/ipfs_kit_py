@@ -60,12 +60,20 @@ while [ $# -gt 0 ]; do
 done
 
 # Build the command
-CMD="uvicorn run_mcp_server:app --host $HOST --port $PORT"
-
-# If in development mode, add reload flag
 if [ "$DEBUG" = true ]; then
-    CMD="$CMD --reload"
+    DEBUG_FLAG="--debug"
+else
+    DEBUG_FLAG=""
 fi
+
+if [ "$ISOLATION" = true ]; then
+    ISOLATION_FLAG="--isolation"
+else
+    ISOLATION_FLAG=""
+fi
+
+# Use run_mcp_with_storage.py instead of uvicorn directly
+CMD="python run_mcp_with_storage.py --host $HOST --port $PORT --api-prefix $PREFIX $DEBUG_FLAG $ISOLATION_FLAG --simulation-mode"
 
 # Print startup message
 echo "Starting MCP server with the following configuration:"

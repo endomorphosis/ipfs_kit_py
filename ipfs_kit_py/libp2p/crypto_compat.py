@@ -13,6 +13,10 @@ from typing import Optional, Tuple, Union, Any
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Module-level variable to track which key generation method was successful
+# This is updated by install_libp2p.py when it successfully verifies key generation
+PREFERRED_KEY_GENERATION_METHOD = None
+
 # Import libp2p components with graceful fallbacks
 try:
     import libp2p.crypto.keys
@@ -100,7 +104,98 @@ def generate_key_pair(key_type: Optional[str] = None) -> Any:
     if not HAS_KEYS:
         raise ImportError("libp2p.crypto.keys is not available")
     
+    # First try to use the method that was previously verified to work
+    if PREFERRED_KEY_GENERATION_METHOD:
+        try:
+            logger.debug(f"Attempting to use preferred method: {PREFERRED_KEY_GENERATION_METHOD}")
+            
+            # Method: rsa.create_new_key_pair()
+            if PREFERRED_KEY_GENERATION_METHOD == "rsa.create_new_key_pair()":
+                from libp2p.crypto import rsa
+                return rsa.create_new_key_pair()
+                
+            # Method: secp256k1.create_new_key_pair()
+            elif PREFERRED_KEY_GENERATION_METHOD == "secp256k1.create_new_key_pair()":
+                from libp2p.crypto import secp256k1
+                return secp256k1.create_new_key_pair()
+                
+            # Method: ed25519.Ed25519PrivateKey.generate()
+            elif PREFERRED_KEY_GENERATION_METHOD == "ed25519.Ed25519PrivateKey.generate()":
+                from libp2p.crypto import ed25519
+                private_key = ed25519.Ed25519PrivateKey.generate()
+                public_key = private_key.get_public_key()
+                return KeyPair(private_key, public_key)
+                
+            # Method: generate_key_pair()
+            elif PREFERRED_KEY_GENERATION_METHOD == "generate_key_pair()":
+                from libp2p.crypto.keys import generate_key_pair as lib_generate_key_pair
+                return lib_generate_key_pair()
+                
+            # Method: KeyPair.generate()
+            elif PREFERRED_KEY_GENERATION_METHOD == "KeyPair.generate()":
+                return KeyPair.generate()
+                
+        except Exception as e:
+            logger.warning(f"Preferred method {PREFERRED_KEY_GENERATION_METHOD} failed: {e}")
+            # Fall back to our custom implementation
+    
+    # If preferred method failed or isn't set, try other native methods
+    # Try all the native methods in order of preference
+    try:
+        # Try RSA key generation
+        try:
+            from libp2p.crypto import rsa
+            if hasattr(rsa, 'create_new_key_pair'):
+                key_pair = rsa.create_new_key_pair()
+                logger.debug("Generated key using rsa.create_new_key_pair()")
+                return key_pair
+        except Exception:
+            pass
+            
+        # Try Secp256k1 key generation
+        try:
+            from libp2p.crypto import secp256k1
+            if hasattr(secp256k1, 'create_new_key_pair'):
+                key_pair = secp256k1.create_new_key_pair()
+                logger.debug("Generated key using secp256k1.create_new_key_pair()")
+                return key_pair
+        except Exception:
+            pass
+            
+        # Try Ed25519 key generation
+        try:
+            from libp2p.crypto import ed25519
+            if hasattr(ed25519, 'Ed25519PrivateKey') and hasattr(ed25519.Ed25519PrivateKey, 'generate'):
+                private_key = ed25519.Ed25519PrivateKey.generate()
+                public_key = private_key.get_public_key()
+                key_pair = KeyPair(private_key, public_key)
+                logger.debug("Generated key using ed25519.Ed25519PrivateKey.generate()")
+                return key_pair
+        except Exception:
+            pass
+            
+        # Try legacy module function
+        try:
+            from libp2p.crypto.keys import generate_key_pair as lib_generate_key_pair
+            key_pair = lib_generate_key_pair()
+            logger.debug("Generated key using libp2p.crypto.keys.generate_key_pair()")
+            return key_pair
+        except Exception:
+            pass
+            
+        # Try direct KeyPair class method
+        try:
+            key_pair = KeyPair.generate()
+            logger.debug("Generated key using KeyPair.generate()")
+            return key_pair
+        except Exception:
+            pass
+    except Exception as e:
+        logger.debug(f"All native key generation methods failed: {e}")
+        # Fall back to custom implementation
+    
     # Let's create a custom implementation if the libp2p functions aren't available
+    logger.debug("Falling back to custom key implementation")
     from cryptography.hazmat.primitives.asymmetric import rsa, ed25519
     from cryptography.hazmat.primitives import serialization
     import hashlib

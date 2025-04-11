@@ -182,49 +182,105 @@ class StorageManagerController:
         """
         start_time = time.time()
         
-        # Get available backends
-        available_backends = self.storage_manager.get_available_backends()
-        
-        # Get all models
-        models = self.storage_manager.get_all_models()
-        
-        # Prepare response
-        backends_status = {}
-        for backend_name, is_available in available_backends.items():
-            backend_model = models.get(backend_name)
+        try:
+            # Create default response structure first to ensure we always return a valid response
+            response = {
+                "success": True,
+                "operation_id": f"storage_status_{int(start_time * 1000)}",
+                "backends": {},
+                "available_count": 0,
+                "total_count": 0,
+                "duration_ms": 0
+            }
             
-            if backend_model:
-                # Get backend stats if available
-                stats = backend_model.get_stats()
-                
-                # Get backend capabilities
-                capabilities = self._get_backend_capabilities(backend_name, backend_model)
-                
-                backends_status[backend_name] = {
-                    "backend_name": backend_name,
-                    "is_available": is_available,
-                    "capabilities": capabilities,
-                    "stats": stats
-                }
-            else:
-                backends_status[backend_name] = {
-                    "backend_name": backend_name,
-                    "is_available": False,
-                    "capabilities": [],
-                    "stats": None
-                }
-        
-        # Create response
-        response = {
-            "success": True,
-            "operation_id": f"storage_status_{int(start_time * 1000)}",
-            "backends": backends_status,
-            "available_count": sum(1 for b in available_backends.values() if b),
-            "total_count": len(available_backends),
-            "duration_ms": (time.time() - start_time) * 1000
-        }
-        
-        return response
+            try:
+                # Get available backends
+                available_backends = self.storage_manager.get_available_backends()
+                response["total_count"] = len(available_backends)
+            except Exception as e:
+                logger.error(f"Error getting available backends: {str(e)}")
+                response["error"] = f"Failed to get backends: {str(e)}"
+                response["error_type"] = type(e).__name__
+                response["success"] = False
+                response["duration_ms"] = (time.time() - start_time) * 1000
+                return response
+            
+            try:
+                # Get all models - protect against None
+                models = self.storage_manager.get_all_models() or {}
+            except Exception as e:
+                logger.error(f"Error getting backend models: {str(e)}")
+                models = {}
+                # Still continue to provide partial status
+            
+            # Prepare response
+            backends_status = {}
+            available_count = 0
+            
+            # Process each backend
+            for backend_name, is_available in available_backends.items():
+                try:
+                    if is_available:
+                        available_count += 1
+                        
+                    backend_model = None
+                    try:
+                        backend_model = models.get(backend_name)
+                    except Exception as e:
+                        logger.error(f"Error accessing model for {backend_name}: {str(e)}")
+                    
+                    # Get stats
+                    stats = None
+                    try:
+                        if backend_model:
+                            stats = backend_model.get_stats()
+                    except Exception as e:
+                        logger.error(f"Error getting stats for {backend_name}: {str(e)}")
+                        stats = {"error": str(e), "error_type": type(e).__name__}
+                    
+                    # Get capabilities
+                    capabilities = []
+                    try:
+                        if backend_model:
+                            capabilities = self._get_backend_capabilities(backend_name, backend_model)
+                    except Exception as e:
+                        logger.error(f"Error getting capabilities for {backend_name}: {str(e)}")
+                    
+                    backends_status[backend_name] = {
+                        "backend_name": backend_name,
+                        "is_available": is_available,
+                        "capabilities": capabilities,
+                        "stats": stats
+                    }
+                except Exception as e:
+                    logger.error(f"Error processing backend {backend_name}: {str(e)}")
+                    backends_status[backend_name] = {
+                        "backend_name": backend_name,
+                        "is_available": False,
+                        "capabilities": [],
+                        "stats": {"error": str(e), "error_type": type(e).__name__},
+                        "error": str(e),
+                        "error_type": type(e).__name__
+                    }
+            
+            # Update response
+            response["backends"] = backends_status
+            response["available_count"] = available_count
+            response["duration_ms"] = (time.time() - start_time) * 1000
+            
+            return response
+        except Exception as e:
+            logger.error(f"Error handling storage status request: {str(e)}")
+            return {
+                "success": False,
+                "operation_id": f"storage_status_{int(start_time * 1000)}",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "backends": {},
+                "available_count": 0,
+                "total_count": 0,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
     
     async def handle_backend_status_request(self, backend_name: str):
         """
@@ -238,36 +294,72 @@ class StorageManagerController:
         """
         start_time = time.time()
         
-        # Get backend model
-        backend_model = self.storage_manager.get_model(backend_name)
-        
-        if not backend_model:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "error": f"Storage backend '{backend_name}' not found",
-                    "error_type": "BackendNotFoundError"
-                }
-            )
-        
-        # Get backend stats
-        stats = backend_model.get_stats()
-        
-        # Get backend capabilities
-        capabilities = self._get_backend_capabilities(backend_name, backend_model)
-        
-        # Create response
-        response = {
-            "success": True,
-            "operation_id": f"backend_status_{int(start_time * 1000)}",
-            "backend_name": backend_name,
-            "is_available": True,
-            "capabilities": capabilities,
-            "stats": stats,
-            "duration_ms": (time.time() - start_time) * 1000
-        }
-        
-        return response
+        try:
+            # Create default response structure to ensure consistency
+            response = {
+                "success": True,
+                "operation_id": f"backend_status_{int(start_time * 1000)}",
+                "backend_name": backend_name,
+                "is_available": False,
+                "capabilities": [],
+                "stats": None,
+                "duration_ms": 0
+            }
+            
+            # Get backend model
+            try:
+                backend_model = self.storage_manager.get_model(backend_name)
+                
+                if not backend_model:
+                    logger.warning(f"Storage backend '{backend_name}' not found")
+                    response["error"] = f"Storage backend '{backend_name}' not found"
+                    response["error_type"] = "BackendNotFoundError"
+                    response["success"] = False
+                    response["duration_ms"] = (time.time() - start_time) * 1000
+                    return response
+            except Exception as e:
+                logger.error(f"Error retrieving model for backend '{backend_name}': {str(e)}")
+                response["error"] = f"Error retrieving model: {str(e)}"
+                response["error_type"] = type(e).__name__
+                response["success"] = False
+                response["duration_ms"] = (time.time() - start_time) * 1000
+                return response
+            
+            # Get backend stats
+            try:
+                stats = backend_model.get_stats()
+                response["stats"] = stats
+            except Exception as e:
+                logger.error(f"Error getting stats for backend '{backend_name}': {str(e)}")
+                response["stats"] = {"error": str(e), "error_type": type(e).__name__}
+            
+            # Get backend capabilities
+            try:
+                capabilities = self._get_backend_capabilities(backend_name, backend_model)
+                response["capabilities"] = capabilities
+            except Exception as e:
+                logger.error(f"Error getting capabilities for backend '{backend_name}': {str(e)}")
+                # Keep default empty capabilities list
+            
+            # Update response fields
+            response["is_available"] = True
+            response["duration_ms"] = (time.time() - start_time) * 1000
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Unhandled error in backend_status for '{backend_name}': {str(e)}")
+            return {
+                "success": False,
+                "operation_id": f"backend_status_{int(start_time * 1000)}",
+                "backend_name": backend_name,
+                "is_available": False,
+                "capabilities": [],
+                "stats": None,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "duration_ms": (time.time() - start_time) * 1000
+            }
     
     async def handle_transfer_request(self, request: StorageTransferRequest):
         """
@@ -281,106 +373,169 @@ class StorageManagerController:
         """
         start_time = time.time()
         
-        # Validate source backend
-        source_backend = self.storage_manager.get_model(request.source_backend)
-        if not source_backend:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "error": f"Source backend '{request.source_backend}' not found",
-                    "error_type": "BackendNotFoundError"
-                }
-            )
-        
-        # Validate target backend
-        target_backend = self.storage_manager.get_model(request.target_backend)
-        if not target_backend:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "error": f"Target backend '{request.target_backend}' not found",
-                    "error_type": "BackendNotFoundError"
-                }
-            )
-        
-        # Delegate to storage bridge for transfer
-        if hasattr(self.storage_manager, "storage_bridge"):
-            result = self.storage_manager.storage_bridge.transfer_content(
-                request.source_backend,
-                request.target_backend,
-                request.content_id,
-                target_options=request.options
-            )
-        else:
-            # If no storage bridge, use a basic implementation
-            # Get content from source backend
-            source_method = self._get_backend_method(request.source_backend, "get_content")
-            if not source_method:
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "error": f"Source backend '{request.source_backend}' does not support content retrieval",
-                        "error_type": "UnsupportedOperationError"
-                    }
-                )
-            
-            source_result = source_method(request.content_id)
-            if not source_result.get("success", False):
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": f"Failed to retrieve content from source backend: {source_result.get('error', 'Unknown error')}",
-                        "error_type": source_result.get("error_type", "ContentRetrievalError")
-                    }
-                )
-            
-            # Put content in target backend
-            target_method = self._get_backend_method(request.target_backend, "put_content")
-            if not target_method:
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "error": f"Target backend '{request.target_backend}' does not support content storage",
-                        "error_type": "UnsupportedOperationError"
-                    }
-                )
-            
-            content = source_result.get("content")
-            if not content:
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Source backend returned empty content",
-                        "error_type": "ContentRetrievalError"
-                    }
-                )
-            
-            target_result = target_method(request.content_id, content, request.options)
-            if not target_result.get("success", False):
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": f"Failed to store content in target backend: {target_result.get('error', 'Unknown error')}",
-                        "error_type": target_result.get("error_type", "ContentStorageError")
-                    }
-                )
-            
-            # Construct result
+        try:
+            # Initialize default response
             result = {
-                "success": True,
+                "success": False,
+                "operation_id": f"transfer_{int(start_time * 1000)}",
                 "source_backend": request.source_backend,
                 "target_backend": request.target_backend,
                 "content_id": request.content_id,
-                "source_location": source_result.get("location"),
-                "target_location": target_result.get("location"),
-                "bytes_transferred": len(content) if isinstance(content, (bytes, bytearray)) else None
+                "duration_ms": 0
             }
-        
-        # Add duration
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        result["operation_id"] = f"transfer_{int(start_time * 1000)}"
-        
-        return result
+            
+            # Validate source backend
+            try:
+                source_backend = self.storage_manager.get_model(request.source_backend)
+                if not source_backend:
+                    logger.warning(f"Source backend '{request.source_backend}' not found")
+                    result["error"] = f"Source backend '{request.source_backend}' not found"
+                    result["error_type"] = "BackendNotFoundError"
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    return result
+            except Exception as e:
+                logger.error(f"Error accessing source backend '{request.source_backend}': {str(e)}")
+                result["error"] = f"Error accessing source backend: {str(e)}"
+                result["error_type"] = type(e).__name__
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                return result
+            
+            # Validate target backend
+            try:
+                target_backend = self.storage_manager.get_model(request.target_backend)
+                if not target_backend:
+                    logger.warning(f"Target backend '{request.target_backend}' not found")
+                    result["error"] = f"Target backend '{request.target_backend}' not found"
+                    result["error_type"] = "BackendNotFoundError"
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    return result
+            except Exception as e:
+                logger.error(f"Error accessing target backend '{request.target_backend}': {str(e)}")
+                result["error"] = f"Error accessing target backend: {str(e)}"
+                result["error_type"] = type(e).__name__
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                return result
+            
+            # Check if storage bridge is available
+            storage_bridge_available = False
+            try:
+                storage_bridge_available = hasattr(self.storage_manager, "storage_bridge") and self.storage_manager.storage_bridge is not None
+            except Exception as e:
+                logger.error(f"Error checking storage bridge: {str(e)}")
+            
+            # Delegate to storage bridge for transfer
+            if storage_bridge_available:
+                try:
+                    bridge_result = self.storage_manager.storage_bridge.transfer_content(
+                        request.source_backend,
+                        request.target_backend,
+                        request.content_id,
+                        target_options=request.options
+                    )
+                    # Update our result with bridge result
+                    result.update(bridge_result)
+                    
+                except Exception as e:
+                    logger.error(f"Error using storage bridge for transfer: {str(e)}")
+                    result["error"] = f"Storage bridge transfer failed: {str(e)}"
+                    result["error_type"] = type(e).__name__
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    return result
+            else:
+                # If no storage bridge, use a basic implementation
+                logger.info("Storage bridge not available, using basic transfer implementation")
+                
+                # Get content from source backend
+                try:
+                    source_method = self._get_backend_method(request.source_backend, "get_content")
+                    if not source_method:
+                        result["error"] = f"Source backend '{request.source_backend}' does not support content retrieval"
+                        result["error_type"] = "UnsupportedOperationError"
+                        result["duration_ms"] = (time.time() - start_time) * 1000
+                        return result
+                        
+                    source_result = source_method(request.content_id)
+                    if not source_result.get("success", False):
+                        result["error"] = f"Failed to retrieve content from source backend: {source_result.get('error', 'Unknown error')}"
+                        result["error_type"] = source_result.get("error_type", "ContentRetrievalError")
+                        result["duration_ms"] = (time.time() - start_time) * 1000
+                        return result
+                        
+                except Exception as e:
+                    logger.error(f"Error retrieving content from source backend: {str(e)}")
+                    result["error"] = f"Error retrieving content: {str(e)}"
+                    result["error_type"] = type(e).__name__
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    return result
+                
+                # Get content from source result
+                try:
+                    content = source_result.get("content")
+                    if not content:
+                        result["error"] = "Source backend returned empty content"
+                        result["error_type"] = "ContentRetrievalError"
+                        result["duration_ms"] = (time.time() - start_time) * 1000
+                        return result
+                        
+                    result["source_location"] = source_result.get("location")
+                except Exception as e:
+                    logger.error(f"Error processing source result: {str(e)}")
+                    result["error"] = f"Error processing source result: {str(e)}"
+                    result["error_type"] = type(e).__name__
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    return result
+                
+                # Put content in target backend
+                try:
+                    target_method = self._get_backend_method(request.target_backend, "put_content")
+                    if not target_method:
+                        result["error"] = f"Target backend '{request.target_backend}' does not support content storage"
+                        result["error_type"] = "UnsupportedOperationError"
+                        result["duration_ms"] = (time.time() - start_time) * 1000
+                        return result
+                        
+                    target_result = target_method(request.content_id, content, request.options)
+                    if not target_result.get("success", False):
+                        result["error"] = f"Failed to store content in target backend: {target_result.get('error', 'Unknown error')}"
+                        result["error_type"] = target_result.get("error_type", "ContentStorageError")
+                        result["duration_ms"] = (time.time() - start_time) * 1000
+                        return result
+                        
+                    result["target_location"] = target_result.get("location")
+                except Exception as e:
+                    logger.error(f"Error storing content in target backend: {str(e)}")
+                    result["error"] = f"Error storing content: {str(e)}"
+                    result["error_type"] = type(e).__name__
+                    result["duration_ms"] = (time.time() - start_time) * 1000
+                    return result
+                
+                # Set bytes transferred
+                try:
+                    result["bytes_transferred"] = len(content) if isinstance(content, (bytes, bytearray)) else None
+                except Exception as e:
+                    logger.warning(f"Error calculating content size: {str(e)}")
+                    # Not critical, continue
+                
+                # Mark as success
+                result["success"] = True
+            
+            # Add duration
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Unhandled error in content transfer: {str(e)}")
+            return {
+                "success": False,
+                "operation_id": f"transfer_{int(start_time * 1000)}",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "source_backend": request.source_backend if request else "unknown",
+                "target_backend": request.target_backend if request else "unknown",
+                "content_id": request.content_id if request else "unknown",
+                "duration_ms": (time.time() - start_time) * 1000
+            }
     
     async def handle_verify_request(self, content_id: str = Body(..., embed=True), backends: List[str] = Body(None, embed=True)):
         """
@@ -693,34 +848,41 @@ class StorageManagerController:
         # Generic capabilities based on method presence
         capabilities = []
         
-        # Check for common methods
-        common_methods = {
-            "upload_file": "file_upload",
-            "download_file": "file_download",
-            "get_content": "content_retrieval",
-            "put_content": "content_storage",
-            "list_objects": "object_listing",
-            "delete_object": "object_deletion",
-            "verify_content": "content_verification"
-        }
-        
-        for method_name, capability in common_methods.items():
-            if hasattr(backend_model, method_name):
-                capabilities.append(capability)
-        
-        # Backend-specific capabilities
-        if backend_name == "s3":
-            capabilities.extend(["bucket_management", "multipart_upload"])
-        elif backend_name == "storacha":
-            capabilities.extend(["car_packaging", "space_management"])
-        elif backend_name == "huggingface":
-            capabilities.extend(["model_registry", "dataset_management"])
-        elif backend_name == "filecoin":
-            capabilities.extend(["deal_making", "retrieval_market"])
-        elif backend_name == "lassie":
-            capabilities.extend(["content_discovery", "retrieval_optimization"])
-        
-        return capabilities
+        try:
+            # Check for common methods
+            common_methods = {
+                "upload_file": "file_upload",
+                "download_file": "file_download",
+                "get_content": "content_retrieval",
+                "put_content": "content_storage",
+                "list_objects": "object_listing",
+                "delete_object": "object_deletion",
+                "verify_content": "content_verification"
+            }
+            
+            for method_name, capability in common_methods.items():
+                try:
+                    if hasattr(backend_model, method_name):
+                        capabilities.append(capability)
+                except Exception as e:
+                    logger.debug(f"Error checking method {method_name} on {backend_name}: {str(e)}")
+            
+            # Backend-specific capabilities
+            if backend_name == "s3":
+                capabilities.extend(["bucket_management", "multipart_upload"])
+            elif backend_name == "storacha":
+                capabilities.extend(["car_packaging", "space_management"])
+            elif backend_name == "huggingface":
+                capabilities.extend(["model_registry", "dataset_management"])
+            elif backend_name == "filecoin":
+                capabilities.extend(["deal_making", "retrieval_market"])
+            elif backend_name == "lassie":
+                capabilities.extend(["content_discovery", "retrieval_optimization"])
+            
+            return capabilities
+        except Exception as e:
+            logger.error(f"Error determining capabilities for {backend_name}: {str(e)}")
+            return []
     
     def _get_backend_method(self, backend_name: str, method_name: str):
         """
@@ -733,13 +895,25 @@ class StorageManagerController:
         Returns:
             Method if it exists, None otherwise
         """
-        backend_model = self.storage_manager.get_model(backend_name)
-        if not backend_model:
+        try:
+            backend_model = self.storage_manager.get_model(backend_name)
+            if not backend_model:
+                logger.debug(f"Backend model not found: {backend_name}")
+                return None
+            
+            try:
+                method = getattr(backend_model, method_name, None)
+                if callable(method):
+                    return method
+                else:
+                    logger.debug(f"Method {method_name} exists on {backend_name} but is not callable")
+                    return None
+            except Exception as e:
+                logger.error(f"Error accessing method {method_name} on {backend_name}: {str(e)}")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting backend model for {backend_name}: {str(e)}")
             return None
-        
-        method = getattr(backend_model, method_name, None)
-        if callable(method):
-            return method
     
     async def handle_replication_policy_request(self, request: ReplicationPolicyRequest):
         """

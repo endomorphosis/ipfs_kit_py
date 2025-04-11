@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import uuid
+import traceback
 
 from .error import (
     IPFSConfigurationError,
@@ -174,6 +175,134 @@ class ipfs_cluster_follow:
             logger.exception(f"Exception running command: {command_str}")
             return handle_error(result, e)
 
+    def ipfs_follow_init(self, **kwargs):
+        """Initialize the IPFS cluster-follow configuration.
+
+        Args:
+            **kwargs: Optional arguments
+                - cluster_name: Name of the cluster to follow
+                - bootstrap_peer: Multiaddr of the trusted bootstrap peer to follow
+                - correlation_id: ID for tracking related operations
+                - timeout: Command timeout in seconds
+                - service_name: Optional service name for configuration
+
+        Returns:
+            Dictionary with operation result information
+        """
+        # Create standardized result dictionary
+        correlation_id = kwargs.get("correlation_id", self.correlation_id)
+        result = create_result_dict("ipfs_follow_init", correlation_id)
+
+        try:
+            # Validate required parameters
+            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
+            if not cluster_name:
+                return handle_error(
+                    result, IPFSValidationError("Missing required parameter: cluster_name")
+                )
+
+            bootstrap_peer = kwargs.get("bootstrap_peer", None)
+            if not bootstrap_peer:
+                return handle_error(
+                    result, IPFSValidationError("Missing required parameter: bootstrap_peer")
+                )
+
+            # Validate cluster name (prevent command injection)
+            if not isinstance(cluster_name, str):
+                return handle_error(
+                    result,
+                    IPFSValidationError(
+                        f"cluster_name must be a string, got {type(cluster_name).__name__}"
+                    ),
+                )
+
+            try:
+                from .validation import is_safe_command_arg
+                if not is_safe_command_arg(cluster_name):
+                    return handle_error(
+                        result,
+                        IPFSValidationError(
+                            f"Invalid cluster name contains shell metacharacters: {cluster_name}"
+                        ),
+                    )
+            except ImportError:
+                # Fallback if validation module not available
+                if re.search(r'[;&|"`\'$<>]', cluster_name):
+                    return handle_error(
+                        result,
+                        IPFSValidationError(
+                            f"Invalid cluster name contains shell metacharacters: {cluster_name}"
+                        ),
+                    )
+
+            # Set timeout for commands
+            timeout = kwargs.get("timeout", 60)
+            service_name = kwargs.get("service_name", None)
+
+            # Check if ipfs-cluster-follow binary exists
+            which_result = self.run_cluster_follow_command(
+                ["which", "ipfs-cluster-follow"], check=False, timeout=5, correlation_id=correlation_id
+            )
+            
+            if not which_result.get("success", False) or which_result.get("returncode", 1) != 0:
+                logger.error("ipfs-cluster-follow binary not found in PATH")
+                return handle_error(
+                    result, 
+                    IPFSConfigurationError("ipfs-cluster-follow binary not found in PATH. Please install it first.")
+                )
+
+            # Setup command for initialization
+            cmd_args = ["ipfs-cluster-follow", cluster_name, "init", bootstrap_peer]
+            
+            # Add service name if provided
+            if service_name:
+                cmd_args.extend(["--service-name", service_name])
+
+            logger.info(f"Initializing ipfs-cluster-follow configuration for cluster: {cluster_name}")
+            
+            # Run the initialization command
+            cmd_result = self.run_cluster_follow_command(
+                cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
+            )
+
+            result["command_result"] = cmd_result
+            result["success"] = cmd_result.get("success", False) and cmd_result.get("returncode", 1) == 0
+
+            # Verify configuration was created
+            config_path = os.path.expanduser(f"~/.ipfs-cluster-follow/{cluster_name}/service.json")
+            config_exists = os.path.exists(config_path)
+            result["config_created"] = config_exists
+            
+            if config_exists:
+                logger.info(f"Successfully created cluster configuration at: {config_path}")
+                
+                # Check the configuration contents
+                try:
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+                        result["config_valid"] = True
+                        result["config_summary"] = {
+                            "id": config_data.get("cluster", {}).get("id", "unknown"),
+                            "peers": config_data.get("peers", []),
+                            "bootstrap": config_data.get("bootstrap", [])
+                        }
+                except Exception as e:
+                    logger.error(f"Error reading configuration file: {str(e)}")
+                    result["config_valid"] = False
+                    result["config_error"] = str(e)
+            else:
+                # Handle failure case
+                error_msg = cmd_result.get("stderr", "Unknown error")
+                logger.error(f"Failed to initialize cluster configuration: {error_msg}")
+                result["error"] = error_msg
+                result["success"] = False
+
+            return result
+
+        except Exception as e:
+            logger.exception(f"Unexpected error in ipfs_follow_init: {str(e)}")
+            return handle_error(result, e)
+
     def ipfs_follow_start(self, **kwargs):
         """Start the IPFS cluster-follow service.
 
@@ -207,23 +336,63 @@ class ipfs_cluster_follow:
                     ),
                 )
 
-            from .validation import is_safe_command_arg
-
-            if not is_safe_command_arg(cluster_name):
+            # Check if ipfs-cluster-follow binary exists
+            which_result = self.run_cluster_follow_command(
+                ["which", "ipfs-cluster-follow"], check=False, timeout=5, correlation_id=correlation_id
+            )
+            
+            if not which_result.get("success", False) or which_result.get("returncode", 1) != 0:
+                logger.error("ipfs-cluster-follow binary not found in PATH")
                 return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"Invalid cluster name contains shell metacharacters: {cluster_name}"
-                    ),
+                    result, 
+                    IPFSConfigurationError("ipfs-cluster-follow binary not found in PATH. Please install it first.")
                 )
+
+            try:
+                from .validation import is_safe_command_arg
+                if not is_safe_command_arg(cluster_name):
+                    return handle_error(
+                        result,
+                        IPFSValidationError(
+                            f"Invalid cluster name contains shell metacharacters: {cluster_name}"
+                        ),
+                    )
+            except ImportError:
+                # Fallback if validation module not available
+                if re.search(r'[;&|"`\'$<>]', cluster_name):
+                    return handle_error(
+                        result,
+                        IPFSValidationError(
+                            f"Invalid cluster name contains shell metacharacters: {cluster_name}"
+                        ),
+                    )
 
             # Set timeout for commands
             timeout = kwargs.get("timeout", 30)
+            
+            # Check if configuration exists
+            follow_config_path = os.path.expanduser(f"~/.ipfs-cluster-follow/{cluster_name}/service.json")
+            if not os.path.exists(follow_config_path):
+                logger.error(f"Cluster follow configuration not found at {follow_config_path}")
+                return handle_error(
+                    result, 
+                    IPFSConfigurationError(f"Cluster follow configuration not found for {cluster_name}. Run initialization first.")
+                )
 
             # Different execution paths based on user privileges
-            if os.getuid() == 0:
+            if os.geteuid() == 0:  # Using geteuid() instead of getuid() for consistency
                 # Running as root, use systemctl
                 logger.debug("Starting ipfs-cluster-follow as root using systemctl")
+                
+                # Check if service file exists
+                service_file_path = "/etc/systemd/system/ipfs-cluster-follow.service"
+                if not os.path.exists(service_file_path):
+                    logger.error(f"Systemd service file not found: {service_file_path}")
+                    return handle_error(
+                        result, 
+                        IPFSConfigurationError(f"Systemd service file not found: {service_file_path}")
+                    )
+                
                 systemctl_result = self.run_cluster_follow_command(
                     ["systemctl", "start", "ipfs-cluster-follow"],
                     check=False,
@@ -233,9 +402,11 @@ class ipfs_cluster_follow:
                 result["systemctl_result"] = systemctl_result
 
                 if not systemctl_result.get("success", False):
+                    systemctl_error = systemctl_result.get("stderr", "")
                     logger.warning(
-                        "Failed to start ipfs-cluster-follow via systemctl, will try direct execution"
+                        f"Failed to start ipfs-cluster-follow via systemctl: {systemctl_error}"
                     )
+                    result["systemctl_error"] = systemctl_error
             else:
                 # Running as non-root user, use direct execution
                 logger.debug(
@@ -244,10 +415,58 @@ class ipfs_cluster_follow:
                 # Construct command arguments as a list for security
                 cmd_args = ["ipfs-cluster-follow", cluster_name, "run"]
 
-                direct_result = self.run_cluster_follow_command(
-                    cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
-                )
-                result["direct_result"] = direct_result
+                # Run the command in background with Popen instead of blocking run_cluster_follow_command
+                # This allows the process to detach and continue running
+                try:
+                    env = os.environ.copy()
+                    env["PATH"] = self.path
+                    if hasattr(self, "ipfs_path"):
+                        env["IPFS_PATH"] = self.ipfs_path
+                        
+                    # Redirect the output to files so we can capture it for debugging
+                    logs_dir = os.path.expanduser("~/.ipfs-cluster-follow/logs")
+                    os.makedirs(logs_dir, exist_ok=True)
+                    stdout_path = os.path.join(logs_dir, f"cluster-follow-{cluster_name}.out")
+                    stderr_path = os.path.join(logs_dir, f"cluster-follow-{cluster_name}.err")
+                    
+                    with open(stdout_path, "wb") as stdout_file, open(stderr_path, "wb") as stderr_file:
+                        process = subprocess.Popen(
+                            cmd_args,
+                            stdout=stdout_file,
+                            stderr=stderr_file,
+                            env=env,
+                            shell=False,  # Never use shell=True
+                        )
+                        
+                        # Store process details
+                        result["direct_execution"] = {
+                            "pid": process.pid,
+                            "stdout_path": stdout_path,
+                            "stderr_path": stderr_path
+                        }
+                        
+                        # Wait briefly to see if the process crashes immediately
+                        time.sleep(2)
+                        return_code = process.poll()
+                        
+                        if return_code is not None:  # Process already exited
+                            result["process_exited_early"] = True
+                            result["exit_code"] = return_code
+                            
+                            # Read the error output to provide useful debugging info
+                            with open(stderr_path, "r") as err_file:
+                                stderr_content = err_file.read()
+                                if stderr_content:
+                                    result["stderr"] = stderr_content
+                                    logger.error(f"Process exited with error: {stderr_content}")
+                        else:
+                            result["direct_result"] = {"success": True, "process_running": True}
+                            
+                except Exception as e:
+                    direct_error = str(e)
+                    logger.error(f"Error starting cluster follow process: {direct_error}")
+                    result["direct_execution_error"] = direct_error
+                    return handle_error(result, e)
 
             # Check if the service is running after start attempts
             process_check_cmd = ["ps", "-ef"]
@@ -259,7 +478,7 @@ class ipfs_cluster_follow:
             if ps_result.get("success", False) and ps_result.get("stdout"):
                 process_running = False
                 for line in ps_result.get("stdout", "").splitlines():
-                    if "ipfs-cluster-follow" in line and "grep" not in line:
+                    if "ipfs-cluster-follow" in line and cluster_name in line and "grep" not in line:
                         process_running = True
                         break
 
@@ -293,35 +512,55 @@ class ipfs_cluster_follow:
                         if hasattr(self, "ipfs_path"):
                             env["IPFS_PATH"] = self.ipfs_path
 
-                        # Start the process with proper list arguments
-                        cmd_args = ["ipfs-cluster-follow", cluster_name, "run"]
-                        process = subprocess.Popen(
-                            cmd_args,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            env=env,
-                            shell=False,  # Never use shell=True
-                        )
+                        # Create logs directory if it doesn't exist
+                        logs_dir = os.path.expanduser("~/.ipfs-cluster-follow/logs")
+                        os.makedirs(logs_dir, exist_ok=True)
+                        stdout_path = os.path.join(logs_dir, f"cluster-follow-retry-{cluster_name}.out")
+                        stderr_path = os.path.join(logs_dir, f"cluster-follow-retry-{cluster_name}.err")
+                        
+                        # Start the process with proper list arguments and redirect output to files
+                        with open(stdout_path, "wb") as stdout_file, open(stderr_path, "wb") as stderr_file:
+                            cmd_args = ["ipfs-cluster-follow", cluster_name, "run"]
+                            process = subprocess.Popen(
+                                cmd_args,
+                                stdout=stdout_file,
+                                stderr=stderr_file,
+                                env=env,
+                                shell=False,  # Never use shell=True
+                            )
 
-                        # Wait briefly to check if the process started
-                        time.sleep(1)
-                        if process.poll() is None:  # Still running
-                            result["background_process_started"] = True
-                            result["process_id"] = process.pid
-                        else:
-                            result["background_process_started"] = False
-                            stdout, stderr = process.communicate(timeout=5)
-                            result["background_stdout"] = (
-                                stdout.decode("utf-8", errors="replace") if stdout else ""
-                            )
-                            result["background_stderr"] = (
-                                stderr.decode("utf-8", errors="replace") if stderr else ""
-                            )
+                            # Wait briefly to check if the process started
+                            time.sleep(2)
+                            if process.poll() is None:  # Still running
+                                result["background_process_started"] = True
+                                result["process_id"] = process.pid
+                                result["stdout_path"] = stdout_path
+                                result["stderr_path"] = stderr_path
+                            else:
+                                result["background_process_started"] = False
+                                # Read the error output to diagnose issues
+                                with open(stderr_path, "r") as err_file:
+                                    stderr_content = err_file.read()
+                                    if stderr_content:
+                                        result["background_stderr"] = stderr_content
+                                        logger.error(f"Background process failed with error: {stderr_content}")
+                                        # Set error for better diagnosis
+                                        result["error"] = stderr_content
 
                     except Exception as e:
                         logger.error(f"Failed to start background process: {str(e)}")
                         result["background_process_started"] = False
                         result["background_error"] = str(e)
+
+            # Check if the cluster configuration is accessible
+            try:
+                config_check_cmd = ["ls", "-la", os.path.expanduser(f"~/.ipfs-cluster-follow/{cluster_name}")]
+                config_check_result = self.run_cluster_follow_command(
+                    config_check_cmd, check=False, timeout=5, correlation_id=correlation_id
+                )
+                result["config_check"] = config_check_result.get("stdout", "")
+            except Exception as config_e:
+                logger.warning(f"Could not check cluster config: {str(config_e)}")
 
             # Determine final success based on results
             result["success"] = result.get("process_running", False) or result.get(
@@ -331,632 +570,119 @@ class ipfs_cluster_follow:
             if result["success"]:
                 logger.info(f"Successfully started ipfs-cluster-follow for cluster: {cluster_name}")
             else:
-                logger.error(f"Failed to start ipfs-cluster-follow for cluster: {cluster_name}")
+                # Provide more detailed error information
+                error_details = []
+                
+                # Check for binary issue
+                if not which_result.get("success", False):
+                    error_details.append("ipfs-cluster-follow binary not found")
+                
+                # Check for systemctl issues
+                systemctl_error = result.get("systemctl_error", "")
+                if systemctl_error:
+                    error_details.append(f"systemctl error: {systemctl_error}")
+                
+                # Check for direct execution issues
+                direct_error = result.get("direct_execution_error", "")
+                if direct_error:
+                    error_details.append(f"direct execution error: {direct_error}")
+                
+                # Check stderr from any attempts
+                stderr = result.get("stderr", "")
+                if stderr:
+                    error_details.append(f"process error: {stderr}")
+                
+                background_stderr = result.get("background_stderr", "")
+                if background_stderr:
+                    error_details.append(f"background error: {background_stderr}")
+                
+                # If we have error details, include them in the result
+                if error_details:
+                    error_msg = "; ".join(error_details)
+                    result["error"] = error_msg
+                    logger.error(f"Failed to start ipfs-cluster-follow for cluster: {cluster_name}: {error_msg}")
+                else:
+                    result["error"] = "Unknown error, check system logs"
+                    logger.error(f"Failed to start ipfs-cluster-follow for cluster: {cluster_name}")
 
             return result
 
         except Exception as e:
             logger.exception(f"Unexpected error in ipfs_follow_start: {str(e)}")
             return handle_error(result, e)
-
-    def ipfs_follow_stop(self, **kwargs):
-        """Stop the IPFS cluster-follow service.
+            
+    def ipfs_cluster_follow_status(self, **kwargs):
+        """Get the status of the IPFS cluster-follow daemon.
 
         Args:
             **kwargs: Optional arguments
-                - cluster_name: Name of the cluster to stop following
                 - correlation_id: ID for tracking related operations
                 - timeout: Command timeout in seconds
-                - force: Whether to force-kill the process
 
         Returns:
             Dictionary with operation result information
         """
         # Create standardized result dictionary
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("ipfs_follow_stop", correlation_id)
+        correlation_id = kwargs.get("correlation_id", getattr(self, "correlation_id", str(uuid.uuid4())))
+        result = create_result_dict("ipfs_cluster_follow_status", correlation_id)
 
         try:
-            # Validate required parameters
-            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
-            if not cluster_name:
-                return handle_error(
-                    result, IPFSValidationError("Missing required parameter: cluster_name")
-                )
-
-            # Validate cluster name (prevent command injection)
-            if not isinstance(cluster_name, str):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"cluster_name must be a string, got {type(cluster_name).__name__}"
-                    ),
-                )
-
-            if re.search(r'[;&|"`\'$<>]', cluster_name):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"Invalid cluster name contains shell metacharacters: {cluster_name}"
-                    ),
-                )
-
             # Set timeout for commands
             timeout = kwargs.get("timeout", 30)
-            force = kwargs.get("force", False)
 
-            # Different execution paths based on user privileges
-            if os.getuid() == 0:
-                # Running as root, use systemctl
-                logger.debug("Stopping ipfs-cluster-follow as root using systemctl")
-                systemctl_result = self.run_cluster_follow_command(
-                    ["systemctl", "stop", "ipfs-cluster-follow"],
-                    check=False,
-                    timeout=timeout,
-                    correlation_id=correlation_id,
-                )
-                result["systemctl_result"] = systemctl_result
-            else:
-                # Running as non-root user, use direct execution
-                logger.debug(
-                    f"Stopping ipfs-cluster-follow as non-root user for cluster: {cluster_name}"
-                )
-                # Construct command arguments as a list for security
-                cmd_args = ["ipfs-cluster-follow", cluster_name, "stop"]
-
-                direct_result = self.run_cluster_follow_command(
-                    cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
-                )
-                result["direct_result"] = direct_result
-
-            # Check for any remaining processes and kill them if needed
+            # First check if the process is running
             process_check_cmd = ["ps", "-ef"]
             ps_result = self.run_cluster_follow_command(
                 process_check_cmd, check=False, timeout=10, correlation_id=correlation_id
             )
 
-            # Process ps output to find and kill ipfs-cluster-follow processes
-            pids_to_kill = []
+            process_running = False
+            process_count = 0
+
+            # Process ps output to check for ipfs-cluster-follow processes
             if ps_result.get("success", False) and ps_result.get("stdout"):
                 for line in ps_result.get("stdout", "").splitlines():
-                    if "ipfs-cluster-follow" in line and "grep" not in line:
-                        # Extract PID (assumes standard ps output format)
-                        parts = line.split()
-                        if len(parts) > 1:
-                            try:
-                                pid = int(parts[1])
-                                pids_to_kill.append(pid)
-                            except (ValueError, IndexError):
-                                continue
+                    if "ipfs-cluster-follow" in line and "daemon" in line and "grep" not in line:
+                        process_running = True
+                        process_count += 1
 
-            # Kill any remaining processes if found
-            killed_pids = []
-            kill_errors = []
+            result["process_running"] = process_running
+            result["process_count"] = process_count
 
-            for pid in pids_to_kill:
-                try:
-                    # Use SIGTERM by default, SIGKILL if force=True
-                    sig = 9 if force else 15
-                    os.kill(pid, sig)
-                    killed_pids.append(pid)
-                except ProcessLookupError:
-                    # Process already gone
-                    pass
-                except Exception as e:
-                    kill_errors.append({"pid": pid, "error": str(e)})
-
-            result["killed_processes"] = killed_pids
-            if kill_errors:
-                result["kill_errors"] = kill_errors
-
-            # Clean up socket file
-            socket_path = os.path.expanduser(f"~/.ipfs-cluster-follow/{cluster_name}/api-socket")
-            if os.path.exists(socket_path):
-                try:
-                    os.remove(socket_path)
-                    result["socket_removed"] = True
-                except (PermissionError, OSError) as e:
-                    logger.error(f"Failed to remove socket file: {str(e)}")
-                    result["socket_removed"] = False
-                    result["socket_error"] = str(e)
-            else:
-                result["socket_removed"] = False
-                result["socket_exists"] = False
-
-            # Check if the service is truly stopped
-            time.sleep(1)  # Brief wait to allow processes to terminate
-
-            # Verify all processes are stopped
-            ps_result = self.run_cluster_follow_command(
-                ["ps", "-ef"], check=False, timeout=10, correlation_id=correlation_id
-            )
-
-            all_stopped = True
-            if ps_result.get("success", False) and ps_result.get("stdout"):
-                for line in ps_result.get("stdout", "").splitlines():
-                    if "ipfs-cluster-follow" in line and "grep" not in line:
-                        all_stopped = False
-                        break
-
-            result["all_processes_stopped"] = all_stopped
-
-            # Determine final success
-            result["success"] = (
-                result.get("systemctl_result", {}).get("success", False)
-                or result.get("direct_result", {}).get("success", False)
-            ) and all_stopped
-
-            if result["success"]:
-                logger.info(f"Successfully stopped ipfs-cluster-follow for cluster: {cluster_name}")
-            else:
-                logger.warning(
-                    f"May not have fully stopped ipfs-cluster-follow for cluster: {cluster_name}"
+            # If process is running, try to get detailed status
+            if process_running:
+                # Use the ipfs-cluster-follow status command
+                status_cmd = ["ipfs-cluster-follow", "status"]
+                status_result = self.run_cluster_follow_command(
+                    status_cmd, check=False, timeout=timeout, correlation_id=correlation_id
                 )
 
-            return result
-
-        except Exception as e:
-            logger.exception(f"Unexpected error in ipfs_follow_stop: {str(e)}")
-            return handle_error(result, e)
-
-    #    def ipfs_follow_run(self, **kwargs):
-    #        if "cluster_name" in list(self.keys()):
-    #            cluster_name = self.cluster_name
-    #        if "cluster_name" in kwargs:
-    #            cluster_name = kwargs['cluster_name']
-    #
-    #        command = "ipfs cluster-follow " + cluster_name + " run"
-    #        results = subprocess.check_output(command, shell=True)
-    #        results = results.decode()
-    #        return results
-
-    def ipfs_follow_list(self, **kwargs):
-        """List trusted peers for the specified cluster.
-
-        Args:
-            **kwargs: Optional arguments
-                - cluster_name: Name of the cluster
-                - correlation_id: ID for tracking related operations
-                - timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with operation result information
-        """
-        # Create standardized result dictionary
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("ipfs_follow_list", correlation_id)
-
-        try:
-            # Validate required parameters
-            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
-            if not cluster_name:
-                return handle_error(
-                    result, IPFSValidationError("Missing required parameter: cluster_name")
-                )
-
-            # Validate cluster name (prevent command injection)
-            if not isinstance(cluster_name, str):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"cluster_name must be a string, got {type(cluster_name).__name__}"
-                    ),
-                )
-
-            if re.search(r'[;&|"`\'$<>]', cluster_name):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"Invalid cluster name contains shell metacharacters: {cluster_name}"
-                    ),
-                )
-
-            # Set timeout for commands
-            timeout = kwargs.get("timeout", 30)
-
-            # Execute the command with proper arguments
-            cmd_args = ["ipfs-cluster-follow", cluster_name, "list"]
-            cmd_result = self.run_cluster_follow_command(
-                cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
-            )
-
-            if not cmd_result.get("success", False):
-                result["command_result"] = cmd_result
-                return result
-
-            # Parse the output into a structured format
-            stdout = cmd_result.get("stdout", "")
-            if not stdout:
-                result["success"] = True
-                result["peers"] = {}
-                return result
-
-            # Process the output
-            peers = {}
-            for line in stdout.split("\n"):
-                if not line.strip():
-                    continue
-
-                # Normalize whitespace
-                line = re.sub(r"\s+", " ", line.strip())
-
-                # Split into components (assuming format: "ID NAME")
-                parts = line.split(" ", 1)
-                if len(parts) >= 2:
-                    peer_id = parts[0]
-                    peer_name = parts[1]
-                    peers[peer_name] = peer_id
-
-            result["success"] = True
-            result["peers"] = peers
-            result["peer_count"] = len(peers)
-
-            logger.debug(f"Found {len(peers)} trusted peers for cluster: {cluster_name}")
-            return result
-
-        except Exception as e:
-            logger.exception(f"Unexpected error in ipfs_follow_list: {str(e)}")
-            return handle_error(result, e)
-
-    def ipfs_follow_info(self, **kwargs):
-        """Get information about the specified cluster.
-
-        Args:
-            **kwargs: Optional arguments
-                - cluster_name: Name of the cluster
-                - correlation_id: ID for tracking related operations
-                - timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with operation result information
-        """
-        # Create standardized result dictionary
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("ipfs_follow_info", correlation_id)
-
-        try:
-            # Validate required parameters
-            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
-            if not cluster_name:
-                return handle_error(
-                    result, IPFSValidationError("Missing required parameter: cluster_name")
-                )
-
-            # Validate cluster name (prevent command injection)
-            if not isinstance(cluster_name, str):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"cluster_name must be a string, got {type(cluster_name).__name__}"
-                    ),
-                )
-
-            if re.search(r'[;&|"`\'$<>]', cluster_name):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"Invalid cluster name contains shell metacharacters: {cluster_name}"
-                    ),
-                )
-
-            # Set timeout for commands
-            timeout = kwargs.get("timeout", 30)
-
-            # Execute the command with proper arguments
-            cmd_args = ["ipfs-cluster-follow", cluster_name, "info"]
-            cmd_result = self.run_cluster_follow_command(
-                cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
-            )
-
-            if not cmd_result.get("success", False):
-                result["command_result"] = cmd_result
-                return result
-
-            # Parse the output into a structured format
-            stdout = cmd_result.get("stdout", "")
-            if not stdout:
-                result["success"] = True
-                result["info"] = {"cluster_name": cluster_name}
-                return result
-
-            # Process the output by parsing key-value pairs
-            cluster_info = {"cluster_name": cluster_name}
-            lines = stdout.strip().split("\n")
-
-            # Define expected fields with their labels in the output
-            expected_fields = {
-                "config_folder": "Configuration folder",
-                "config_source": "Configuration source",
-                "cluster_peer_online": "Cluster Peer online",
-                "ipfs_peer_online": "IPFS Peer online",
-            }
-
-            # Extract information from the output lines
-            for line in lines:
-                line = line.strip()
-                if not line or ":" not in line:
-                    continue
-
-                # Split on first colon to handle potential colons in values
-                key_label, value = line.split(":", 1)
-                key_label = key_label.strip()
-                value = value.strip()
-
-                # Map the output label to our standardized field names
-                for field_name, label in expected_fields.items():
-                    if label in key_label:
-                        cluster_info[field_name] = value
-                        break
-
-            result["success"] = True
-            result["info"] = cluster_info
-
-            # Add some derived fields for convenience
-            if "cluster_peer_online" in cluster_info:
-                result["is_online"] = cluster_info["cluster_peer_online"].lower() == "yes"
-
-            logger.debug(f"Retrieved info for cluster: {cluster_name}")
-            return result
-
-        except Exception as e:
-            logger.exception(f"Unexpected error in ipfs_follow_info: {str(e)}")
-            return handle_error(result, e)
-
-    def ipfs_follow_run(self, **kwargs):
-        """Run the IPFS cluster-follow service in the foreground.
-
-        Args:
-            **kwargs: Optional arguments
-                - cluster_name: Name of the cluster to follow
-                - correlation_id: ID for tracking related operations
-                - timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with operation result information
-        """
-        # Create standardized result dictionary
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("ipfs_follow_run", correlation_id)
-
-        try:
-            # Validate required parameters
-            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
-            if not cluster_name:
-                return handle_error(
-                    result, IPFSValidationError("Missing required parameter: cluster_name")
-                )
-
-            # Validate cluster name (prevent command injection)
-            if not isinstance(cluster_name, str):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"cluster_name must be a string, got {type(cluster_name).__name__}"
-                    ),
-                )
-
-            if re.search(r'[;&|"`\'$<>]', cluster_name):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"Invalid cluster name contains shell metacharacters: {cluster_name}"
-                    ),
-                )
-
-            # Set timeout for commands - default is higher for run command as it typically runs until interrupted
-            timeout = kwargs.get("timeout", 60)
-
-            # Remove stale socket if it exists to avoid bind errors
-            socket_path = os.path.expanduser(f"~/.ipfs-cluster-follow/{cluster_name}/api-socket")
-            if os.path.exists(socket_path):
-                logger.debug(f"Removing stale socket at: {socket_path}")
-                try:
-                    os.remove(socket_path)
-                    result["socket_removed"] = True
-                except (PermissionError, OSError) as e:
-                    logger.error(f"Failed to remove stale socket: {str(e)}")
-                    result["socket_removed"] = False
-                    result["socket_error"] = str(e)
-
-            # Execute the command with proper arguments
-            cmd_args = ["ipfs-cluster-follow", cluster_name, "run"]
-
-            logger.info(f"Running ipfs-cluster-follow in foreground for cluster: {cluster_name}")
-            logger.warning("This command will block until terminated")
-
-            cmd_result = self.run_cluster_follow_command(
-                cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
-            )
-
-            result["command_result"] = cmd_result
-            result["success"] = cmd_result.get("success", False)
-
-            # Extract output lines for analysis
-            if cmd_result.get("stdout"):
-                result["output_lines"] = cmd_result.get("stdout", "").strip().split("\n")
-
-                # Look for indication of successful startup
-                for line in result["output_lines"]:
-                    if "Listening on" in line or "Starting IPFS Cluster" in line:
-                        result["service_started"] = True
-                        break
-
-            if not result.get("success", False):
-                logger.error(f"Failed to run ipfs-cluster-follow for cluster: {cluster_name}")
-                if cmd_result.get("stderr"):
-                    logger.error(f"Error output: {cmd_result.get('stderr')}")
-
-            return result
-
-        except Exception as e:
-            logger.exception(f"Unexpected error in ipfs_follow_run: {str(e)}")
-            return handle_error(result, e)
-
-    def test_ipfs_cluster_follow(self, **kwargs):
-        """Test if ipfs-cluster-follow binary is available in the PATH.
-
-        Args:
-            **kwargs: Optional arguments
-                - correlation_id: ID for tracking related operations
-
-        Returns:
-            Boolean indicating if ipfs-cluster-follow is available
-        """
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("test_ipfs_cluster_follow", correlation_id)
-
-        try:
-            # Use the 'which' command to check for binary existence using run_cluster_follow_command
-            cmd_result = self.run_cluster_follow_command(
-                ["which", "ipfs-cluster-follow"], check=False, correlation_id=correlation_id
-            )
-
-            if cmd_result.get("success", False) and cmd_result.get("returncode", 1) == 0:
-                detected_path = cmd_result.get("stdout", "").strip()
-                if detected_path:
-                    logger.debug(f"Found ipfs-cluster-follow at: {detected_path}")
+                if status_result.get("success", False):
+                    result["detailed_status"] = status_result.get("stdout", "")
                     result["success"] = True
-                    result["binary_path"] = detected_path
-                    return True
-
-            logger.warning("ipfs-cluster-follow binary not found in PATH")
-            return False
-
-        except Exception as e:
-            logger.exception(f"Error testing for ipfs-cluster-follow: {str(e)}")
-            return False
-
-    def ipfs_follow_sync(self, **kwargs):
-        """Synchronize the worker node with the master's state.
-
-        Args:
-            **kwargs: Optional arguments
-                - cluster_name: Name of the cluster
-                - correlation_id: ID for tracking related operations
-                - timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with operation result information
-        """
-        # Create standardized result dictionary
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("ipfs_follow_sync", correlation_id)
-
-        try:
-            # Validate required parameters
-            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
-            if not cluster_name:
-                return handle_error(
-                    result, IPFSValidationError("Missing required parameter: cluster_name")
-                )
-
-            # Validate cluster name (prevent command injection)
-            if not isinstance(cluster_name, str):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"cluster_name must be a string, got {type(cluster_name).__name__}"
-                    ),
-                )
-
-            if re.search(r'[;&|"`\'$<>]', cluster_name):
-                return handle_error(
-                    result,
-                    IPFSValidationError(
-                        f"Invalid cluster name contains shell metacharacters: {cluster_name}"
-                    ),
-                )
-
-            # Set timeout for commands
-            timeout = kwargs.get("timeout", 30)
-
-            # Execute the command with proper arguments
-            cmd_args = ["ipfs-cluster-follow", cluster_name, "sync"]
-            cmd_result = self.run_cluster_follow_command(
-                cmd_args, check=False, timeout=timeout, correlation_id=correlation_id
-            )
-
-            if not cmd_result.get("success", False):
-                result["command_result"] = cmd_result
-                return result
-
-            # Parse the output into a structured format
-            stdout = cmd_result.get("stdout", "")
-            result["command_output"] = stdout
-
-            # Success by default
-            result["success"] = True
-
-            # Parse output to extract metrics
-            sync_metrics = {"synced": 0, "pins_added": 0, "pins_removed": 0}
-
-            # Simple parsing for example metrics - adjust based on actual output format
-            if stdout:
-                # Parse pins synced
-                synced_match = re.search(r"synced (\d+)", stdout)
-                if synced_match:
-                    sync_metrics["synced"] = int(synced_match.group(1))
-
-                # Parse pins added
-                added_match = re.search(r"added (\d+)", stdout)
-                if added_match:
-                    sync_metrics["pins_added"] = int(added_match.group(1))
-
-                # Parse pins removed
-                removed_match = re.search(r"removed (\d+)", stdout)
-                if removed_match:
-                    sync_metrics["pins_removed"] = int(removed_match.group(1))
-
-            # Update result with metrics
-            result.update(sync_metrics)
-            logger.info(
-                f"Synchronized with cluster: {cluster_name}. Added: {sync_metrics['pins_added']}, Removed: {sync_metrics['pins_removed']}"
-            )
-
-            return result
-
-        except Exception as e:
-            logger.exception(f"Unexpected error in ipfs_follow_sync: {str(e)}")
-            return handle_error(result, e)
-
-    def test(self, **kwargs):
-        """Run all tests for ipfs-cluster-follow functionality.
-
-        Args:
-            **kwargs: Optional arguments
-                - correlation_id: ID for tracking related operations
-
-        Returns:
-            Dictionary with test results
-        """
-        correlation_id = kwargs.get("correlation_id", self.correlation_id)
-        result = create_result_dict("test", correlation_id)
-
-        try:
-            # Test if ipfs-cluster-follow binary is available
-            follow_available = self.test_ipfs_cluster_follow(correlation_id=correlation_id)
-            result["ipfs_cluster_follow_available"] = follow_available
-
-            # Set overall success based on test results
-            result["success"] = follow_available
-
-            # Check environment
-            result["environment"] = {
-                "path": self.path,
-                "role": getattr(self, "role", "unknown"),
-                "ipfs_path": getattr(self, "ipfs_path", "not set"),
-                "ipfs_cluster_path": getattr(self, "ipfs_cluster_path", "not set"),
-            }
-
-            if follow_available:
-                logger.info("IPFS Cluster Follow tests passed")
+                else:
+                    # If status command fails, at least we know process is running
+                    result["detailed_status_error"] = status_result.get("stderr", "")
+                    result["detailed_status_failed"] = True
+                    result["success"] = (
+                        True  # Service is running even if we can't get detailed status
+                    )
             else:
-                logger.warning("IPFS Cluster Follow tests failed: binary not available")
+                # Check socket file to see if it's stale
+                socket_path = os.path.expanduser(f"~/.ipfs-cluster/api-socket")
+                result["socket_exists"] = os.path.exists(socket_path)
+                result["success"] = False
+
+            # Log appropriate message
+            if result["success"]:
+                logger.info(f"IPFS cluster-follow is running with {process_count} process(es)")
+            else:
+                logger.warning("IPFS cluster-follow is not running")
 
             return result
 
         except Exception as e:
-            logger.exception(f"Error during tests: {str(e)}")
+            logger.exception(f"Unexpected error in ipfs_cluster_follow_status: {str(e)}")
             return handle_error(result, e)
 
 

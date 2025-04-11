@@ -1,484 +1,501 @@
-2025-04-08 16:50:03,230 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
-2025-04-08 16:50:03,303 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
-2025-04-08 16:50:04,225 - datasets - INFO - PyTorch version 2.4.0 available.
-2025-04-08 16:50:07,029 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
-2025-04-08 16:50:07,030 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
-2025-04-08 16:50:07,030 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
-2025-04-08 16:50:07,292 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:07,293 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:07,420 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:07,488 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:07,490 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
-2025-04-08 16:50:07,491 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
-2025-04-08 16:50:07,491 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:07,491 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:07,491 - ipfs_kit_py.high_level_api - INFO - Successfully imported IPFSSimpleAPI from high_level_api.py
-2025-04-08 16:50:07,961 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
-2025-04-08 16:50:08,127 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:08,128 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:08,240 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:08,342 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:08,342 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:08,342 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:08,343 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
-2025-04-08 16:50:08,343 - __main__ - INFO - Successfully registered high_level_api module
-2025-04-08 16:50:08,608 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:08,609 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:08,729 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:08,847 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:08,848 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:08,848 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:09,040 - ipfs_kit_py.storage_wal - INFO - Backend health check thread started
-2025-04-08 16:50:09,041 - ipfs_kit_py.storage_wal - INFO - WAL processing thread started
-2025-04-08 16:50:09,041 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry hooks installed successfully
-2025-04-08 16:50:09,042 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry sampling thread started
-2025-04-08 16:50:09,042 - ipfs_kit_py.wal_telemetry - INFO - WAL telemetry initialized with sampling interval 60s
-2025-04-08 16:50:09,042 - ipfs_kit_py.wal_api - INFO - WAL telemetry initialized successfully.
-2025-04-08 16:50:09,061 - ipfs_kit_py.wal_api - INFO - WAL API registered successfully with the FastAPI app.
-2025-04-08 16:50:09,061 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
-2025-04-08 16:50:09,134 - __main__ - INFO - Forcing WebRTC dependencies to be available...
-2025-04-08 16:50:09,135 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
-2025-04-08 16:50:09,135 - __main__ - INFO - Patched webrtc_streaming module successfully
-2025-04-08 16:50:09,136 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
-2025-04-08 16:50:09,138 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
-2025-04-08 16:50:09,138 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
-2025-04-08 16:50:09,348 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:09,348 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:09,475 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:09,573 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:09,574 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:09,574 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:09,574 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
-2025-04-08 16:50:09,574 - __main__ - INFO - Patched high_level_api.py module directly
-2025-04-08 16:50:09,574 - __main__ - ERROR - Failed to patch high_level_api through standard import: module ipfs_kit_py.high_level_api not in sys.modules
-2025-04-08 16:50:09,575 - __main__ - ERROR - Failed to patch IPFSModel module: name 'patched_check' is not defined
-2025-04-08 16:50:09,575 - __main__ - INFO - WebRTC controller is available
-2025-04-08 16:50:09,575 - __main__ - INFO - Using persistence path: /home/barberb/.ipfs_kit_mcp
-2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level DEBUG
-2025-04-08 16:50:09,576 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level DEBUG
-2025-04-08 16:50:09,577 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 0 entries
-2025-04-08 16:50:09,577 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
-2025-04-08 16:50:09,578 - ipfs_kit_py.credential_manager - INFO - Loaded IPFS API credential
-2025-04-08 16:50:09,579 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:09,579 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:09,579 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Initializing IPFSModel with normalized IPFS instance
-2025-04-08 16:50:09,580 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Adding simulation function for missing method: add_file
-2025-04-08 16:50:09,580 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Normalized IPFS instance: added 10 methods
-2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
-2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
-2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFSModel initialization complete
-2025-04-08 16:50:09,581 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
-2025-04-08 16:50:09,815 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:09,815 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:09,877 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:09,956 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:09,956 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:09,956 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:09,956 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
-2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized
-2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
-2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
-2025-04-08 16:50:09,957 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
-2025-04-08 16:50:09 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
-2025-04-08 16:50:09,957 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
-2025-04-08 16:50:10,108 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
-2025-04-08 16:50:10,216 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
-2025-04-08 16:50:10,222 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
-2025-04-08 16:50:10,242 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
-2025-04-08 16:50:10,250 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
-2025-04-08 16:50:10,257 - ipfs_kit_py.peer_websocket - ERROR - Error creating peer info from IPFS Kit: Failed to get IPFS ID: IPFS component not available
-2025-04-08 16:50:10,257 - ipfs_kit_py.peer_websocket - ERROR - Error registering peer WebSocket: 'APIRouter' object has no attribute 'state'
-2025-04-08 16:50:10,257 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
-2025-04-08 16:50:10,257 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
-2025-04-08 16:50:10,269 - mcp.controllers.fs_journal - INFO - Registered 13 Filesystem Journal routes
-2025-04-08 16:50:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: aca113da-c614-455b-b933-b9e644ce2a48
-2025-04-08 16:50:10,269 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: aca113da-c614-455b-b933-b9e644ce2a48
-2025-04-08 16:50:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
-2025-04-08 16:50:10,270 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
-2025-04-08 16:50:10 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-08 16:50:10,419 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-08 16:50:10,419 - __main__ - INFO - Successfully created MCP app with WebRTC support
-2025-04-08 16:50:10,420 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
-2025-04-08 16:50:10,423 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
-2025-04-08 16:50:10,423 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
-2025-04-08 16:50:10,605 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:10,605 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:10,730 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:10,853 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:10,854 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:10,854 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:10,854 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
-2025-04-08 16:50:10,854 - __main__ - INFO - Successfully registered high_level_api module
-2025-04-08 16:50:10,854 - __main__ - INFO - Forcing WebRTC dependencies to be available...
-2025-04-08 16:50:10,855 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies being forced available for testing
-2025-04-08 16:50:10,856 - __main__ - INFO - Patched webrtc_streaming module successfully
-2025-04-08 16:50:10,856 - __main__ - INFO - Loading high_level_api.py directly from: /home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py
-2025-04-08 16:50:10,860 - high_level_api_module - WARNING - Relative imports failed. Trying absolute imports.
-2025-04-08 16:50:10,860 - high_level_api_module - WARNING - WebRTC streaming module could not be imported
-2025-04-08 16:50:11,109 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:11,109 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:11,235 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:11,320 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:11,320 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:11,320 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:11,321 - __main__ - INFO - Successfully loaded IPFSSimpleAPI from high_level_api.py
-2025-04-08 16:50:11,321 - __main__ - INFO - Patched high_level_api.py module directly
-2025-04-08 16:50:11,321 - __main__ - ERROR - Failed to patch high_level_api through standard import: module ipfs_kit_py.high_level_api not in sys.modules
-2025-04-08 16:50:11,321 - __main__ - ERROR - Failed to patch IPFSModel module: name 'patched_check' is not defined
-2025-04-08 16:50:11,321 - __main__ - INFO - WebRTC controller is available
-2025-04-08 16:50:11,322 - __main__ - INFO - Using persistence path: /home/barberb/.ipfs_kit_mcp
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level DEBUG
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level DEBUG
-2025-04-08 16:50:11,322 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level DEBUG
-2025-04-08 16:50:11,323 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 0 entries
-2025-04-08 16:50:11,324 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
-2025-04-08 16:50:11,325 - ipfs_kit_py.credential_manager - INFO - Loaded IPFS API credential
-2025-04-08 16:50:11,325 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:11,325 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:11,325 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Initializing IPFSModel with normalized IPFS instance
-2025-04-08 16:50:11,326 - ipfs_kit_py.mcp.models.ipfs_model - WARNING - Adding simulation function for missing method: add_file
-2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Normalized IPFS instance: added 10 methods
-2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC dependencies available, initializing WebRTC support
-2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - WebRTC streaming manager initialized successfully
-2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFSModel initialization complete
-2025-04-08 16:50:11,327 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
-2025-04-08 16:50:11,486 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
-2025-04-08 16:50:11,487 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
-2025-04-08 16:50:11,606 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
-2025-04-08 16:50:11,671 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
-2025-04-08 16:50:11,672 - high_level_api_module - INFO - IPFSFileSystem initialized successfully
-2025-04-08 16:50:11,672 - high_level_api_module - INFO - IPFSSimpleAPI initialized with role: leecher
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
-2025-04-08 16:50:11,672 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
-2025-04-08 16:50:11,672 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
-2025-04-08 16:50:11,688 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
-2025-04-08 16:50:11,792 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
-2025-04-08 16:50:11,798 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
-2025-04-08 16:50:11,814 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
-2025-04-08 16:50:11,821 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
-2025-04-08 16:50:11,828 - ipfs_kit_py.peer_websocket - ERROR - Error creating peer info from IPFS Kit: Failed to get IPFS ID: IPFS component not available
-2025-04-08 16:50:11,828 - ipfs_kit_py.peer_websocket - ERROR - Error registering peer WebSocket: 'APIRouter' object has no attribute 'state'
-2025-04-08 16:50:11,828 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
-2025-04-08 16:50:11,828 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
-2025-04-08 16:50:11,841 - mcp.controllers.fs_journal - INFO - Registered 13 Filesystem Journal routes
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: ae6881c9-51a4-455a-8835-71c9311d411e
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: ae6881c9-51a4-455a-8835-71c9311d411e
-2025-04-08 16:50:11,841 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: ae6881c9-51a4-455a-8835-71c9311d411e
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
-2025-04-08 16:50:11,841 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-08 16:50:11 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-08 16:50:11,992 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0/mcp
-2025-04-08 16:50:11,993 - __main__ - INFO - Starting MCP server with WebRTC on 127.0.0.1:9999...
-Registered routes:
-  /openapi.json
-  /docs
-  /docs/oauth2-redirect
-  /redoc
-  /api/v0/mcp/health
-  /api/v0/mcp/debug
-  /api/v0/mcp/operations
-  /api/v0/mcp/daemon/start/{daemon_type}
-  /api/v0/mcp/daemon/stop/{daemon_type}
-  /api/v0/mcp/daemon/status
-  /api/v0/mcp/daemon/monitor/start
-  /api/v0/mcp/daemon/monitor/stop
-  /api/v0/mcp/ipfs/add
-  /api/v0/mcp/ipfs/add/json
-  /api/v0/mcp/ipfs/add/file
-  /api/v0/mcp/ipfs/cat/{cid}
-  /api/v0/mcp/ipfs/get/{cid}
-  /api/v0/mcp/ipfs/cat
-  /api/v0/mcp/ipfs/pin/add
-  /api/v0/mcp/ipfs/pin/rm
-  /api/v0/mcp/ipfs/pin/ls
-  /api/v0/mcp/ipfs/pin
-  /api/v0/mcp/ipfs/unpin
-  /api/v0/mcp/ipfs/pins
-  /api/v0/mcp/ipfs/stats
-  /api/v0/mcp/cli/version
-  /api/v0/mcp/cli/add
-  /api/v0/mcp/cli/cat/{cid}
-  /api/v0/mcp/cli/pin/{cid}
-  /api/v0/mcp/cli/unpin/{cid}
-  /api/v0/mcp/cli/pins
-  /api/v0/mcp/cli/publish/{cid}
-  /api/v0/mcp/cli/resolve/{name}
-  /api/v0/mcp/cli/connect/{peer}
-  /api/v0/mcp/cli/peers
-  /api/v0/mcp/cli/exists/{path}
-  /api/v0/mcp/cli/ls/{path}
-  /api/v0/mcp/cli/generate-sdk
-  /api/v0/mcp/cli/webrtc/check-deps
-  /api/v0/mcp/cli/webrtc/stream
-  /api/v0/mcp/cli/webrtc/benchmark
-  /api/v0/mcp/cli/webrtc/benchmark-compare
-  /api/v0/mcp/cli/webrtc/benchmark-visualize
-  /api/v0/mcp/cli/webrtc/benchmark-list
-  /api/v0/mcp/cli/ipld/import
-  /api/v0/mcp/cli/ipld/link
-  /api/v0/mcp/cli/ipld/get/{cid}
-  /api/v0/mcp/cli/mcp/start
-  /api/v0/mcp/cli/mcp/stop
-  /api/v0/mcp/cli/mcp/status
-  /api/v0/mcp/cli/ai/model/register
-  /api/v0/mcp/cli/ai/model/list
-  /api/v0/mcp/cli/ai/model/benchmark
-  /api/v0/mcp/cli/ai/dataset/register
-  /api/v0/mcp/cli/ai/dataset/list
-  /api/v0/mcp/cli/ai/vector/create-embeddings
-  /api/v0/mcp/cli/ai/vector/search
-  /api/v0/mcp/cli/ai/vector/hybrid-search
-  /api/v0/mcp/cli/ai/knowledge-graph/create
-  /api/v0/mcp/cli/ai/knowledge-graph/query
-  /api/v0/mcp/cli/ai/knowledge-graph/metrics
-  /api/v0/mcp/cli/ai/training/submit-job
-  /api/v0/mcp/cli/ai/training/status
-  /api/v0/mcp/cli/ai/training/aggregate-results
-  /api/v0/mcp/cli/ai/deployment/deploy-model
-  /api/v0/mcp/cli/ai/deployment/optimize-model
-  /api/v0/mcp/cli/ai/langchain/create-vectorstore
-  /api/v0/mcp/cli/ai/langchain/query
-  /api/v0/mcp/cli/ai/llama-index/create-index
-  /api/v0/mcp/cli/ai/llama-index/query
-  /api/v0/mcp/cli/fs/get-filesystem
-  /api/v0/mcp/cli/fs/open
-  /api/v0/mcp/cli/stream/media/{cid}
-  /api/v0/mcp/cli/stream/to-ipfs
-  /api/v0/mcp/cli/fs/enable-journaling
-  /api/v0/mcp/cli/fs/journal/status
-  /api/v0/mcp/cli/wal/telemetry/ai-analyze
-  /api/v0/mcp/cli/wal/telemetry/visualize
-  /api/v0/mcp/cli/config/save
-  /api/v0/mcp/cli/config/get
-  /api/v0/mcp/cli/wal/status
-  /api/v0/mcp/cli/wal/list/{operation_type}
-  /api/v0/mcp/cli/wal/show/{operation_id}
-  /api/v0/mcp/cli/wal/retry/{operation_id}
-  /api/v0/mcp/cli/wal/cleanup
-  /api/v0/mcp/cli/wal/metrics
-  /api/v0/mcp/credentials
-  /api/v0/mcp/credentials/s3
-  /api/v0/mcp/credentials/storacha
-  /api/v0/mcp/credentials/filecoin
-  /api/v0/mcp/credentials/ipfs
-  /api/v0/mcp/credentials/{service}/{name}
-  /api/v0/mcp/distributed/peers/discover
-  /api/v0/mcp/distributed/peers/list
-  /api/v0/mcp/distributed/nodes/register
-  /api/v0/mcp/distributed/nodes/status
-  /api/v0/mcp/distributed/nodes/list
-  /api/v0/mcp/distributed/cache
-  /api/v0/mcp/distributed/cache/status
-  /api/v0/mcp/distributed/state
-  /api/v0/mcp/distributed/state/sync
-  /api/v0/mcp/distributed/tasks/submit
-  /api/v0/mcp/distributed/tasks/{task_id}/status
-  /api/v0/mcp/distributed/tasks/{task_id}/cancel
-  /api/v0/mcp/distributed/tasks/list
-  /api/v0/mcp/distributed/events
-  /api/v0/mcp/webrtc/check
-  /api/v0/mcp/webrtc/stream
-  /api/v0/mcp/webrtc/stream/stop/{server_id}
-  /api/v0/mcp/webrtc/connections
-  /api/v0/mcp/webrtc/connections/{connection_id}/stats
-  /api/v0/mcp/webrtc/connections/{connection_id}/close
-  /api/v0/mcp/webrtc/connections/close-all
-  /api/v0/mcp/webrtc/connections/quality
-  /api/v0/mcp/webrtc/benchmark
-  /api/v0/mcp/peer/websocket/check
-  /api/v0/mcp/peer/websocket/server/start
-  /api/v0/mcp/peer/websocket/server/stop
-  /api/v0/mcp/peer/websocket/server/status
-  /api/v0/mcp/peer/websocket/client/connect
-  /api/v0/mcp/peer/websocket/client/disconnect
-  /api/v0/mcp/peer/websocket/peers
-  /api/v0/mcp/peer/websocket/peers/{peer_id}
-  /api/v0/mcp/fs-journal/enable
-  /api/v0/mcp/fs-journal/status
-  /api/v0/mcp/fs-journal/transactions
-  /api/v0/mcp/fs-journal/checkpoint
-  /api/v0/mcp/fs-journal/recover
-  /api/v0/mcp/fs-journal/mount
-  /api/v0/mcp/fs-journal/mkdir
-  /api/v0/mcp/fs-journal/write
-  /api/v0/mcp/fs-journal/read
-  /api/v0/mcp/fs-journal/remove
-  /api/v0/mcp/fs-journal/move
-  /api/v0/mcp/fs-journal/ls
-  /api/v0/mcp/fs-journal/export
-Registered routes:
-  /openapi.json
-  /docs
-  /docs/oauth2-redirect
-  /redoc
-  /api/v0/mcp/health
-  /api/v0/mcp/debug
-  /api/v0/mcp/operations
-  /api/v0/mcp/daemon/start/{daemon_type}
-  /api/v0/mcp/daemon/stop/{daemon_type}
-  /api/v0/mcp/daemon/status
-  /api/v0/mcp/daemon/monitor/start
-  /api/v0/mcp/daemon/monitor/stop
-  /api/v0/mcp/ipfs/add
-  /api/v0/mcp/ipfs/add/json
-  /api/v0/mcp/ipfs/add/file
-  /api/v0/mcp/ipfs/cat/{cid}
-  /api/v0/mcp/ipfs/get/{cid}
-  /api/v0/mcp/ipfs/cat
-  /api/v0/mcp/ipfs/pin/add
-  /api/v0/mcp/ipfs/pin/rm
-  /api/v0/mcp/ipfs/pin/ls
-  /api/v0/mcp/ipfs/pin
-  /api/v0/mcp/ipfs/unpin
-  /api/v0/mcp/ipfs/pins
-  /api/v0/mcp/ipfs/stats
-  /api/v0/mcp/cli/version
-  /api/v0/mcp/cli/add
-  /api/v0/mcp/cli/cat/{cid}
-  /api/v0/mcp/cli/pin/{cid}
-  /api/v0/mcp/cli/unpin/{cid}
-  /api/v0/mcp/cli/pins
-  /api/v0/mcp/cli/publish/{cid}
-  /api/v0/mcp/cli/resolve/{name}
-  /api/v0/mcp/cli/connect/{peer}
-  /api/v0/mcp/cli/peers
-  /api/v0/mcp/cli/exists/{path}
-  /api/v0/mcp/cli/ls/{path}
-  /api/v0/mcp/cli/generate-sdk
-  /api/v0/mcp/cli/webrtc/check-deps
-  /api/v0/mcp/cli/webrtc/stream
-  /api/v0/mcp/cli/webrtc/benchmark
-  /api/v0/mcp/cli/webrtc/benchmark-compare
-  /api/v0/mcp/cli/webrtc/benchmark-visualize
-  /api/v0/mcp/cli/webrtc/benchmark-list
-  /api/v0/mcp/cli/ipld/import
-  /api/v0/mcp/cli/ipld/link
-  /api/v0/mcp/cli/ipld/get/{cid}
-  /api/v0/mcp/cli/mcp/start
-  /api/v0/mcp/cli/mcp/stop
-  /api/v0/mcp/cli/mcp/status
-  /api/v0/mcp/cli/ai/model/register
-  /api/v0/mcp/cli/ai/model/list
-  /api/v0/mcp/cli/ai/model/benchmark
-  /api/v0/mcp/cli/ai/dataset/register
-  /api/v0/mcp/cli/ai/dataset/list
-  /api/v0/mcp/cli/ai/vector/create-embeddings
-  /api/v0/mcp/cli/ai/vector/search
-  /api/v0/mcp/cli/ai/vector/hybrid-search
-  /api/v0/mcp/cli/ai/knowledge-graph/create
-  /api/v0/mcp/cli/ai/knowledge-graph/query
-  /api/v0/mcp/cli/ai/knowledge-graph/metrics
-  /api/v0/mcp/cli/ai/training/submit-job
-  /api/v0/mcp/cli/ai/training/status
-  /api/v0/mcp/cli/ai/training/aggregate-results
-  /api/v0/mcp/cli/ai/deployment/deploy-model
-  /api/v0/mcp/cli/ai/deployment/optimize-model
-  /api/v0/mcp/cli/ai/langchain/create-vectorstore
-  /api/v0/mcp/cli/ai/langchain/query
-  /api/v0/mcp/cli/ai/llama-index/create-index
-  /api/v0/mcp/cli/ai/llama-index/query
-  /api/v0/mcp/cli/fs/get-filesystem
-  /api/v0/mcp/cli/fs/open
-  /api/v0/mcp/cli/stream/media/{cid}
-  /api/v0/mcp/cli/stream/to-ipfs
-  /api/v0/mcp/cli/fs/enable-journaling
-  /api/v0/mcp/cli/fs/journal/status
-  /api/v0/mcp/cli/wal/telemetry/ai-analyze
-  /api/v0/mcp/cli/wal/telemetry/visualize
-  /api/v0/mcp/cli/config/save
-  /api/v0/mcp/cli/config/get
-  /api/v0/mcp/cli/wal/status
-  /api/v0/mcp/cli/wal/list/{operation_type}
-  /api/v0/mcp/cli/wal/show/{operation_id}
-  /api/v0/mcp/cli/wal/retry/{operation_id}
-  /api/v0/mcp/cli/wal/cleanup
-  /api/v0/mcp/cli/wal/metrics
-  /api/v0/mcp/credentials
-  /api/v0/mcp/credentials/s3
-  /api/v0/mcp/credentials/storacha
-  /api/v0/mcp/credentials/filecoin
-  /api/v0/mcp/credentials/ipfs
-  /api/v0/mcp/credentials/{service}/{name}
-  /api/v0/mcp/distributed/peers/discover
-  /api/v0/mcp/distributed/peers/list
-  /api/v0/mcp/distributed/nodes/register
-  /api/v0/mcp/distributed/nodes/status
-  /api/v0/mcp/distributed/nodes/list
-  /api/v0/mcp/distributed/cache
-  /api/v0/mcp/distributed/cache/status
-  /api/v0/mcp/distributed/state
-  /api/v0/mcp/distributed/state/sync
-  /api/v0/mcp/distributed/tasks/submit
-  /api/v0/mcp/distributed/tasks/{task_id}/status
-  /api/v0/mcp/distributed/tasks/{task_id}/cancel
-  /api/v0/mcp/distributed/tasks/list
-  /api/v0/mcp/distributed/events
-  /api/v0/mcp/webrtc/check
-  /api/v0/mcp/webrtc/stream
-  /api/v0/mcp/webrtc/stream/stop/{server_id}
-  /api/v0/mcp/webrtc/connections
-  /api/v0/mcp/webrtc/connections/{connection_id}/stats
-  /api/v0/mcp/webrtc/connections/{connection_id}/close
-  /api/v0/mcp/webrtc/connections/close-all
-  /api/v0/mcp/webrtc/connections/quality
-  /api/v0/mcp/webrtc/benchmark
-  /api/v0/mcp/peer/websocket/check
-  /api/v0/mcp/peer/websocket/server/start
-  /api/v0/mcp/peer/websocket/server/stop
-  /api/v0/mcp/peer/websocket/server/status
-  /api/v0/mcp/peer/websocket/client/connect
-  /api/v0/mcp/peer/websocket/client/disconnect
-  /api/v0/mcp/peer/websocket/peers
-  /api/v0/mcp/peer/websocket/peers/{peer_id}
-  /api/v0/mcp/fs-journal/enable
-  /api/v0/mcp/fs-journal/status
-  /api/v0/mcp/fs-journal/transactions
-  /api/v0/mcp/fs-journal/checkpoint
-  /api/v0/mcp/fs-journal/recover
-  /api/v0/mcp/fs-journal/mount
-  /api/v0/mcp/fs-journal/mkdir
-  /api/v0/mcp/fs-journal/write
-  /api/v0/mcp/fs-journal/read
-  /api/v0/mcp/fs-journal/remove
-  /api/v0/mcp/fs-journal/move
-  /api/v0/mcp/fs-journal/ls
-  /api/v0/mcp/fs-journal/export
-2025-04-08 16:50:12,009 - __main__ - INFO - Server process started with PID 151197, waiting for it to become available...
-INFO:     Started server process [151197]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 9999): address already in use
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-2025-04-08 16:50:15,018 - __main__ - INFO - Server health check: 200
-2025-04-08 16:50:15,019 - __main__ - INFO - Health check response: {'success': True, 'status': 'ok', 'timestamp': 1744156215.0160651, 'server_id': 'f05c28df-6fdd-4651-918c-3fb09c6d68e1', 'debug_mode': True, 'isolation_mode': False, 'auto_start_daemons_enabled': True}
-2025-04-08 16:50:15,019 - __main__ - INFO - Server is running correctly!
-2025-04-08 16:50:15,020 - __main__ - INFO - WebRTC endpoints:
-2025-04-08 16:50:15,027 - __main__ - INFO - WebRTC dependency check: 200: {'success': True, 'operation_id': 'check_webrtc_1744156215024', 'dependencies': {'numpy': True, 'opencv': True, 'av': True, 'aiortc': True, 'websockets': True, 'notifications': True}, 'webrtc_available': True, 'installation_command': 'pip install ipfs_kit_py[webrtc]'}
-2025-04-08 16:50:15,036 - __main__ - INFO - WebRTC connections: 200: {'success': True, 'operation_id': 'list_webrtc_1744156215032', 'connections': []}
-2025-04-08 16:50:15,036 - __main__ - INFO - Server is running. Press Ctrl+C to stop.
-2025-04-08 16:50:15,037 - __main__ - INFO - To run tests against this server, restart with --run-tests option
+2025-04-10 22:12:20,301 - ipfs_kit_py.libp2p - WARNING - Missing libp2p dependencies: libp2p, multiaddr
+2025-04-10 22:12:20,301 - ipfs_kit_py.libp2p - WARNING - Install with `pip install ipfs_kit_py[libp2p]` to enable libp2p functionality
+2025-04-10 22:12:20,302 - ipfs_kit_py.libp2p - WARNING - libp2p dependencies not available. Some functionality will be limited.
+2025-04-10 22:12:20,302 - ipfs_kit_py.high_level_api - WARNING - LibP2P integration module not loaded: libp2p dependencies not available
+2025-04-10 22:12:20,303 - ipfs_kit_py.high_level_api - INFO - Successfully imported WebRTCBenchmarkIntegrationAnyIO
+2025-04-10 22:12:20,494 - ipfs_kit_py.lotus_kit - INFO - Lotus binary available: True
+2025-04-10 22:12:20,494 - ipfs_kit_py.lotus_kit - INFO - Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:20,599 - ipfs_kit_py.libp2p.crypto_compat - WARNING - Failed to import libp2p.crypto.keys: No module named 'libp2p'
+2025-04-10 22:12:20,600 - ipfs_kit_py.libp2p.crypto_compat - WARNING - Failed to import libp2p.crypto.serialization: No module named 'libp2p'
+2025-04-10 22:12:20,600 - ipfs_kit_py.libp2p_peer - WARNING - libp2p dependencies are not available, peer-to-peer functionality will be limited
+2025-04-10 22:12:20,601 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-10 22:12:20,602 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not import enhanced protocol negotiation: No module named 'semver'
+2025-04-10 22:12:20,602 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-10 22:12:20,602 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not apply recursive routing extensions: No module named 'multiaddr'
+2025-04-10 22:12:20,603 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-10 22:12:21,120 - datasets - INFO - PyTorch version 2.4.0 available.
+2025-04-10 22:12:23,262 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-04-10 22:12:23,262 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-04-10 22:12:23,263 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies status: NUMPY=True, CV2=True, AV=False, AIORTC=False
+2025-04-10 22:12:23,263 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC availability: False
+2025-04-10 22:12:23,263 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=False
+2025-04-10 22:12:23,263 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]
+2025-04-10 22:12:23,263 - ipfs_kit_py.high_level_api - INFO - WebRTC benchmark helpers: anyio_support=True
+2025-04-10 22:12:23,265 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 22:12:23,981 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:23,981 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 22:12:23,981 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 22:12:29,202 - ipfs_kit_py.ipfs_kit - ERROR - Failed to start IPFS daemon: Daemon failed to start
+2025-04-10 22:12:29,234 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:29,322 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:29,322 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 22:12:29,322 - ipfs_kit_py.high_level_api - WARNING - Could not apply LibP2P integration: No module named 'ipfs_kit_py.high_level_api.libp2p_integration'; 'ipfs_kit_py.high_level_api' is not a package
+2025-04-10 22:12:29,323 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-10 22:12:29,324 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-10 22:12:29,324 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 22:12:29,324 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 22:12:29,324 - ipfs_kit_py.high_level_api - INFO - Successfully imported IPFSSimpleAPI from high_level_api.py
+2025-04-10 22:12:29,377 - ipfs_kit_py.lassie_kit - INFO - Lassie binary available: False
+2025-04-10 22:12:29,568 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 22:12:30,385 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:30,385 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 22:12:30,385 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 22:12:35,596 - ipfs_kit_py.ipfs_kit - ERROR - Failed to start IPFS daemon: Daemon failed to start
+2025-04-10 22:12:35,627 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:35,717 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:35,717 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 22:12:35,717 - ipfs_kit_py.high_level_api - WARNING - Could not apply LibP2P integration: No module named 'ipfs_kit_py.high_level_api.libp2p_integration'; 'ipfs_kit_py.high_level_api' is not a package
+2025-04-10 22:12:35,718 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 22:12:35,718 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 22:12:35,719 - ipfs_kit_py.api - INFO - LibP2P functionality integrated into High-Level API.
+2025-04-10 22:12:35,742 - ipfs_kit_py.api - INFO - WebRTC API available at /api/v0/webrtc
+2025-04-10 22:12:35,756 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-10 22:12:35,765 - ipfs_kit_py.api - INFO - Storage Backends API available at /api/v0/storage
+2025-04-10 22:12:35,778 - ipfs_kit_py.api - INFO - Observability API available at /api/v0/observability
+2025-04-10 22:12:36 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-10 22:12:36,050 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-10 22:12:36,050 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-10 22:12:36,050 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-10 22:12:36 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-10 22:12:36,051 - ipfs_kit_py.mcp.server - INFO - Creating new IPFS kit instance
+2025-04-10 22:12:36,783 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:36,783 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 22:12:36,783 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 22:12:42,037 - ipfs_kit_py.ipfs_kit - ERROR - Failed to start IPFS daemon: Daemon failed to start
+2025-04-10 22:12:42,066 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:42,150 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:42,150 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 22:12:42,150 - ipfs_kit_py.mcp.models.storage_manager - INFO - Initializing S3 kit with resources={}, config={}
+2025-04-10 22:12:42,156 - ipfs_kit_py.mcp.models.storage_manager - ERROR - Failed to initialize S3 Model: s3_config must contain accessKey, secretKey, and endpoint
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/storage_manager.py", line 77, in _init_storage_models
+    s3_kit_instance = s3_kit(resources=s3_resources, meta={"s3cfg": s3_config})
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 47, in __init__
+    self.get_session(meta["s3cfg"])
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 509, in get_session
+    self.session = Session().client(**self.config_to_boto(s3_config))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 532, in config_to_boto
+    raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
+Exception: s3_config must contain accessKey, secretKey, and endpoint
+2025-04-10 22:12:42,275 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:42,275 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 0ed07868-9e98-4c8e-8e63-86d29cd136b0
+2025-04-10 22:12:42,275 - ipfs_kit_py.mcp.models.storage.huggingface_model - INFO - Hugging Face Model initialized
+2025-04-10 22:12:42,275 - ipfs_kit_py.mcp.models.storage_manager - INFO - Hugging Face Model initialized
+2025-04-10 22:12:42,821 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Storacha Model initialized
+2025-04-10 22:12:42,821 - ipfs_kit_py.mcp.models.storage.storacha_model - INFO - Storacha Model initialized
+2025-04-10 22:12:42,821 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storacha Model initialized
+2025-04-10 22:12:42,822 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:42,904 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:42,905 - ipfs_kit_py.lotus_kit - INFO - Attempting to start Lotus daemon...
+2025-04-10 22:12:42,992 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:43,074 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:43,074 - ipfs_kit_py.lotus_daemon - INFO - Lotus lock file detected at /home/barberb/.lotus/repo.lock
+2025-04-10 22:12:43,074 - ipfs_kit_py.lotus_daemon - INFO - Removed stale lock file: /home/barberb/.lotus/repo.lock
+2025-04-10 22:12:43,075 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:43,075 - ipfs_kit_py.lotus_daemon - INFO - Using specific Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:43,175 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-10 22:12:43,226 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-10 22:12:43,226 - ipfs_kit_py.lotus_daemon - INFO - API endpoint file not found, running initialization first
+2025-04-10 22:12:43,277 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version does not support the network flag, using standard init
+2025-04-10 22:12:43,328 - ipfs_kit_py.lotus_daemon - INFO - Initial API setup successful
+2025-04-10 22:12:43,328 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon process started with PID 812984, waiting 2 seconds for initial stability
+2025-04-10 22:12:45,329 - ipfs_kit_py.lotus_daemon - ERROR - Failed to start daemon - Check logs: stdout=/home/barberb/.lotus/daemon_stdout.log, stderr=/home/barberb/.lotus/daemon_stderr.log
+2025-04-10 22:12:45,382 - ipfs_kit_py.lotus_daemon - INFO - Real daemon failed, but simulation mode is working - will use as fallback
+2025-04-10 22:12:45,382 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully: simulation_mode_fallback
+2025-04-10 22:12:45,382 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully during initialization (PID: None)
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Filecoin Model initialized
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage.filecoin_model - INFO - Filecoin Model initialized
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage_manager - INFO - Filecoin Model initialized
+2025-04-10 22:12:45,382 - ipfs_kit_py.lassie_kit - INFO - Lassie kit initialized with simulation_mode: True
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 93e187f4-1ae5-4777-8f3a-c7e19ec149d7
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage.lassie_model - INFO - Lassie Model initialized
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage_manager - INFO - Lassie Model initialized
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storage Manager initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-10 22:12:45 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.server - INFO - Storage model huggingface added
+2025-04-10 22:12:45 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.server - INFO - Storage model storacha added
+2025-04-10 22:12:45 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-10 22:12:45,382 - ipfs_kit_py.mcp.server - INFO - Storage model filecoin added
+2025-04-10 22:12:45 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-10 22:12:45,383 - ipfs_kit_py.mcp.server - INFO - Storage model lassie added
+2025-04-10 22:12:45,383 - ipfs_kit_py.mcp.models.storage_bridge - INFO - Storage Bridge Model initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-10 22:12:45 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model added
+2025-04-10 22:12:45,383 - ipfs_kit_py.mcp.server - INFO - Storage Bridge Model added
+2025-04-10 22:12:45 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model integrated with Storage Manager
+2025-04-10 22:12:45,383 - ipfs_kit_py.mcp.server - INFO - Storage Bridge Model integrated with Storage Manager
+2025-04-10 22:12:45,383 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-10 22:12:45,383 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 22:12:46,103 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:46,104 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 22:12:46,104 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 22:12:51,359 - ipfs_kit_py.ipfs_kit - ERROR - Failed to start IPFS daemon: Daemon failed to start
+2025-04-10 22:12:51,385 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:51,468 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:51,468 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 22:12:51,469 - ipfs_kit_py.high_level_api - WARNING - Could not apply LibP2P integration: No module named 'ipfs_kit_py.high_level_api.libp2p_integration'; 'ipfs_kit_py.high_level_api' is not a package
+2025-04-10 22:12:51,469 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 22:12:51,469 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Manager Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Storage Manager Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Hugging Face Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Hugging Face Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Storacha Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Filecoin Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Lassie Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Scheduled WebRTC cleanup task with AnyIO task group
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized with AnyIO and resource management
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
+2025-04-10 22:12:51,469 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-10 22:12:51,469 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
+2025-04-10 22:12:51,474 - ipfs_kit_py.aria2_kit - INFO - Found aria2 version: aria2 version 1.37.0
+2025-04-10 22:12:51,474 - ipfs_kit_py.mcp.models.aria2_model - INFO - Aria2 model initialized
+2025-04-10 22:12:51,474 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Aria2 controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-10 22:12:51,474 - ipfs_kit_py.mcp.server - INFO - Aria2 Controller added
+2025-04-10 22:12:51,474 - ipfs_kit_py.mcp.models.libp2p_model - WARNING - libp2p dependencies are not available. P2P functionality will be limited.
+2025-04-10 22:12:51,474 - ipfs_kit_py.mcp.models.libp2p_model - WARNING - libp2p functionality disabled due to missing dependencies
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-10 22:12:51,474 - ipfs_kit_py.mcp.server - INFO - LibP2P Controller added
+2025-04-10 22:12:51,475 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - MCP Discovery Model initialized with ID d0f424a2-739d-4abd-9492-9e3bfb995ef6 and role master
+2025-04-10 22:12:51,475 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - Features: peer_websocket, ipfs_daemon
+2025-04-10 22:12:51,475 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller initialized
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-10 22:12:51,475 - ipfs_kit_py.mcp.server - INFO - MCP Discovery Controller added
+2025-04-10 22:12:51,509 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-10 22:12:51,577 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-10 22:12:51,582 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-10 22:12:51,587 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller routes registered
+2025-04-10 22:12:51,593 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face routes registered
+2025-04-10 22:12:51,599 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha routes registered
+2025-04-10 22:12:51,619 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin routes registered
+2025-04-10 22:12:51,623 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie routes registered
+2025-04-10 22:12:51,636 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-10 22:12:51,644 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-10 22:12:51,650 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket endpoint registered at /peer/websocket
+2025-04-10 22:12:51,650 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-10 22:12:51,650 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-10 22:12:51,665 - mcp.controllers.fs_journal - INFO - Registered 18 Filesystem Journal routes
+2025-04-10 22:12:51,672 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Registered 15 Aria2 endpoints
+2025-04-10 22:12:51,687 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - Registered libp2p controller routes: 32 endpoints
+2025-04-10 22:12:51,698 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller routes registered
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: d0f424a2-739d-4abd-9492-9e3bfb995ef6
+2025-04-10 22:12:51,699 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: d0f424a2-739d-4abd-9492-9e3bfb995ef6
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-10 22:12:51,699 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-10 22:12:51 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-10 22:12:51,699 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-10 22:12:52 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-10 22:12:52,013 - ipfs_kit_py.mcp.server - INFO - Debug middleware added to FastAPI app
+2025-04-10 22:12:52 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0
+2025-04-10 22:12:52,013 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0
+/home/barberb/ipfs_kit_py/run_mcp_server.py:137: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+2025-04-10 22:12:52,013 - __main__ - INFO - Starting MCP server
+2025-04-10 22:12:52 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-10 22:12:52 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-10 22:12:52,014 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-10 22:12:52,014 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-10 22:12:52,014 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-10 22:12:52 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-10 22:12:52 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-10 22:12:52,014 - ipfs_kit_py.mcp.server - INFO - Creating new IPFS kit instance
+2025-04-10 22:12:52,714 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:52,715 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 22:12:52,715 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 22:12:57,955 - ipfs_kit_py.ipfs_kit - ERROR - Failed to start IPFS daemon: Daemon failed to start
+2025-04-10 22:12:57,988 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:58,069 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:58,070 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 22:12:58,070 - ipfs_kit_py.mcp.models.storage_manager - INFO - Initializing S3 kit with resources={}, config={}
+2025-04-10 22:12:58,075 - ipfs_kit_py.mcp.models.storage_manager - ERROR - Failed to initialize S3 Model: s3_config must contain accessKey, secretKey, and endpoint
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/storage_manager.py", line 77, in _init_storage_models
+    s3_kit_instance = s3_kit(resources=s3_resources, meta={"s3cfg": s3_config})
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 47, in __init__
+    self.get_session(meta["s3cfg"])
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 509, in get_session
+    self.session = Session().client(**self.config_to_boto(s3_config))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 532, in config_to_boto
+    raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
+Exception: s3_config must contain accessKey, secretKey, and endpoint
+2025-04-10 22:12:58,229 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:12:58,229 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 2ceeaec5-530d-421e-8268-d85426bc2b28
+2025-04-10 22:12:58,229 - ipfs_kit_py.mcp.models.storage.huggingface_model - INFO - Hugging Face Model initialized
+2025-04-10 22:12:58,230 - ipfs_kit_py.mcp.models.storage_manager - INFO - Hugging Face Model initialized
+2025-04-10 22:12:58,803 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Storacha Model initialized
+2025-04-10 22:12:58,803 - ipfs_kit_py.mcp.models.storage.storacha_model - INFO - Storacha Model initialized
+2025-04-10 22:12:58,803 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storacha Model initialized
+2025-04-10 22:12:58,803 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:58,886 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:58,886 - ipfs_kit_py.lotus_kit - INFO - Attempting to start Lotus daemon...
+2025-04-10 22:12:58,968 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:59,051 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:12:59,052 - ipfs_kit_py.lotus_daemon - INFO - Lotus lock file detected at /home/barberb/.lotus/repo.lock
+2025-04-10 22:12:59,052 - ipfs_kit_py.lotus_daemon - INFO - Removed stale lock file: /home/barberb/.lotus/repo.lock
+2025-04-10 22:12:59,052 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:59,052 - ipfs_kit_py.lotus_daemon - INFO - Using specific Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:12:59,150 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-10 22:12:59,201 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-10 22:12:59,202 - ipfs_kit_py.lotus_daemon - INFO - API endpoint file not found, running initialization first
+2025-04-10 22:12:59,251 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version does not support the network flag, using standard init
+2025-04-10 22:12:59,300 - ipfs_kit_py.lotus_daemon - INFO - Initial API setup successful
+2025-04-10 22:12:59,300 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon process started with PID 814349, waiting 2 seconds for initial stability
+2025-04-10 22:13:01,301 - ipfs_kit_py.lotus_daemon - ERROR - Failed to start daemon - Check logs: stdout=/home/barberb/.lotus/daemon_stdout.log, stderr=/home/barberb/.lotus/daemon_stderr.log
+2025-04-10 22:13:01,350 - ipfs_kit_py.lotus_daemon - INFO - Real daemon failed, but simulation mode is working - will use as fallback
+2025-04-10 22:13:01,350 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully: simulation_mode_fallback
+2025-04-10 22:13:01,350 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully during initialization (PID: None)
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Filecoin Model initialized
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage.filecoin_model - INFO - Filecoin Model initialized
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage_manager - INFO - Filecoin Model initialized
+2025-04-10 22:13:01,350 - ipfs_kit_py.lassie_kit - INFO - Lassie kit initialized with simulation_mode: True
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 4afac1e8-78d7-43af-849c-1e8daa926da1
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage.lassie_model - INFO - Lassie Model initialized
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage_manager - INFO - Lassie Model initialized
+2025-04-10 22:13:01,350 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storage Manager initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.server - INFO - Storage model huggingface added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.server - INFO - Storage model storacha added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.server - INFO - Storage model filecoin added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.server - INFO - Storage model lassie added
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.models.storage_bridge - INFO - Storage Bridge Model initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model added
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.server - INFO - Storage Bridge Model added
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model integrated with Storage Manager
+2025-04-10 22:13:01 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model integrated with Storage Manager
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.server - INFO - Storage Bridge Model integrated with Storage Manager
+2025-04-10 22:13:01,351 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-10 22:13:01,351 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-10 22:13:02,020 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-10 22:13:02,020 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-10 22:13:02,020 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-10 22:13:07,223 - ipfs_kit_py.ipfs_kit - ERROR - Failed to start IPFS daemon: Daemon failed to start
+2025-04-10 22:13:07,251 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-10 22:13:07,335 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:13:07,336 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: lotus
+2025-04-10 22:13:07,336 - ipfs_kit_py.high_level_api - WARNING - Could not apply LibP2P integration: No module named 'ipfs_kit_py.high_level_api.libp2p_integration'; 'ipfs_kit_py.high_level_api' is not a package
+2025-04-10 22:13:07,336 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-10 22:13:07,336 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Manager Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Manager Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.server - INFO - Storage Manager Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Hugging Face Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Hugging Face Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.server - INFO - Hugging Face Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.server - INFO - Storacha Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.server - INFO - Filecoin Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.server - INFO - Lassie Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-10 22:13:07,336 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-10 22:13:07,337 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Scheduled WebRTC cleanup task with AnyIO task group
+2025-04-10 22:13:07,337 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized with AnyIO and resource management
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] WebRTC Controller added
+2025-04-10 22:13:07,337 - ipfs_kit_py.mcp.server - INFO - WebRTC Controller added
+2025-04-10 22:13:07,337 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer WebSocket Controller added
+2025-04-10 22:13:07,337 - ipfs_kit_py.mcp.server - INFO - Peer WebSocket Controller added
+2025-04-10 22:13:07,337 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filesystem Journal Controller added
+2025-04-10 22:13:07,337 - ipfs_kit_py.mcp.server - INFO - Filesystem Journal Controller added
+2025-04-10 22:13:07,341 - ipfs_kit_py.aria2_kit - INFO - Found aria2 version: aria2 version 1.37.0
+2025-04-10 22:13:07,341 - ipfs_kit_py.mcp.models.aria2_model - INFO - Aria2 model initialized
+2025-04-10 22:13:07,341 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Aria2 controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.server - INFO - Aria2 Controller added
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.models.libp2p_model - WARNING - libp2p dependencies are not available. P2P functionality will be limited.
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.models.libp2p_model - WARNING - libp2p functionality disabled due to missing dependencies
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.server - INFO - LibP2P Controller added
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - MCP Discovery Model initialized with ID a4e9ace4-51bd-4301-ab77-60dbcd933504 and role master
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - Features: peer_websocket, ipfs_daemon
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller initialized
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-10 22:13:07,342 - ipfs_kit_py.mcp.server - INFO - MCP Discovery Controller added
+2025-04-10 22:13:07,376 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-10 22:13:07,453 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-10 22:13:07,458 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-10 22:13:07,465 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller routes registered
+2025-04-10 22:13:07,472 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face routes registered
+2025-04-10 22:13:07,479 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha routes registered
+2025-04-10 22:13:07,499 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin routes registered
+2025-04-10 22:13:07,503 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie routes registered
+2025-04-10 22:13:07,517 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-10 22:13:07,522 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-10 22:13:07,527 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket endpoint registered at /peer/websocket
+2025-04-10 22:13:07,527 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-10 22:13:07,527 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-10 22:13:07,540 - mcp.controllers.fs_journal - INFO - Registered 18 Filesystem Journal routes
+2025-04-10 22:13:07,547 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Registered 15 Aria2 endpoints
+2025-04-10 22:13:07,560 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - Registered libp2p controller routes: 32 endpoints
+2025-04-10 22:13:07,569 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller routes registered
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: a4e9ace4-51bd-4301-ab77-60dbcd933504
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: a4e9ace4-51bd-4301-ab77-60dbcd933504
+2025-04-10 22:13:07,569 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: a4e9ace4-51bd-4301-ab77-60dbcd933504
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-10 22:13:07,569 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-10 22:13:07,569 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-10 22:13:07,809 - ipfs_kit_py.mcp.server - INFO - Debug middleware added to FastAPI app
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server registered with FastAPI app at prefix: /api/v0
+2025-04-10 22:13:07,809 - ipfs_kit_py.mcp.server - INFO - MCP Server registered with FastAPI app at prefix: /api/v0
+2025-04-10 22:13:07,809 - __main__ - INFO - MCP server configured successfully, ready to start uvicorn
+Successfully initialized MCP server!
+To run the server, use:
+  uvicorn run_mcp_server:app --reload --port 8000
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-10 22:13:07,946 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Stopping cache cleanup thread...
+2025-04-10 22:13:07 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Stopping cache cleanup thread...
+2025-04-10 22:13:07,946 - ipfs_kit_py.mcp.server - INFO - Stopping cache cleanup thread...
+2025-04-10 22:13:07,947 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-10 22:13:12,954 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache cleanup thread stopped
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache cleanup thread stopped
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache cleanup thread stopped
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Cache cleanup thread stopped
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Saving cache metadata...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Saving cache metadata...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Saving cache metadata...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache metadata saved
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache metadata saved
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Cache metadata saved
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ensuring credential persistence...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ensuring credential persistence...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Ensuring credential persistence...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials persisted
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials persisted
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Credentials persisted
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Shutting down Peer WebSocket Controller...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] peer_websocket controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] peer_websocket controller shutdown complete
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - peer_websocket controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-10 22:13:12,955 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller shutdown initiated
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Attempting to cancel cleanup task (type: dict)
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Task is being tracked as: task_group
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Performing final resource cleanup before shutdown
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Cleaning up 0 remaining streaming servers
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Cleaning up 0 remaining connections
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Closed all WebRTC connections
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Final resource cleanup completed
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Closing all WebRTC streaming servers: 0
+2025-04-10 22:13:12,956 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - All WebRTC streaming servers closed
+2025-04-10 22:13:12,958 - ipfs_kit_py.mcp.controllers.webrtc_controller - ERROR - Error closing WebRTC connections during shutdown: can't create new thread at interpreter shutdown
+2025-04-10 22:13:12,958 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller shutdown completed
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] webrtc controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] webrtc controller shutdown complete
+2025-04-10 22:13:12,958 - ipfs_kit_py.mcp.server - INFO - webrtc controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller shutdown initiated
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Performing final resource cleanup before shutdown
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Cleaning up 0 remaining streaming servers
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Cleaning up 0 remaining connections
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.models.ipfs_model - INFO - Closed all WebRTC connections
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Final resource cleanup completed
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Closing all WebRTC streaming servers: 0
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - All WebRTC streaming servers closed
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - ERROR - Error closing WebRTC connections during shutdown: can't create new thread at interpreter shutdown
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller shutdown completed
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] webrtc controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] webrtc controller shutdown complete
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.server - INFO - webrtc controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Shutting down Peer WebSocket Controller...
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] peer_websocket controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] peer_websocket controller shutdown complete
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.server - INFO - peer_websocket controller shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage models...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage models...
+2025-04-10 22:13:12,959 - ipfs_kit_py.mcp.server - INFO - Shutting down storage models...
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: bd2ce9e5-69b0-4d60-8617-124ef47c35de
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Storacha Model statistics reset
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Filecoin Model statistics reset
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: d81ef201-fa1f-4c26-9242-de8239acf635
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.models.storage_manager - INFO - All storage models reset
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage bridge...
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage bridge...
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.server - INFO - Shutting down storage bridge...
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.models.storage_bridge - INFO - Reset StorageBridgeModel state, new ID: 2383af8b-d07a-4bc3-8af9-968981ab2c9e
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage bridge shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage bridge shutdown complete
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.server - INFO - Storage bridge shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage models shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage models shutdown complete
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.server - INFO - Storage models shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutdown complete
+2025-04-10 22:13:12 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutdown complete
+2025-04-10 22:13:12,960 - ipfs_kit_py.mcp.server - INFO - MCP Server shutdown complete
+2025-04-10 22:13:13,044 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-10 22:13:13,044 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon is not running, no need to stop

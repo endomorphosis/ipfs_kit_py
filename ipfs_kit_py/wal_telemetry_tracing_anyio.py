@@ -70,7 +70,8 @@ try:
     )
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-    from opentelemetry.context.context import Context
+    # from opentelemetry.context.context import Context # This line was causing the NameError, Context is imported below
+    from opentelemetry.context import Context # Correct import location
     from opentelemetry.trace.span import Span, SpanContext, TraceState, format_span_id, format_trace_id
     from opentelemetry.trace.status import Status, StatusCode
     
@@ -376,7 +377,7 @@ class WALTracingAnyIO:
             attributes=attributes
         )
         
-    def extract_context(self, carrier: Dict[str, str]) -> Optional[Context]:
+    def extract_context(self, carrier: Dict[str, str]) -> Optional['Context']: # Use string literal
         """
         Extract trace context from a carrier (e.g., HTTP headers).
         

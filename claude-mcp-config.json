@@ -1,0 +1,14 @@
+{
+  "mcps": {
+    "mcp_ipfs_kit": {
+      "name": "mcp_ipfs_kit",
+      "displayName": "IPFS Kit MCP",
+      "path": "/home/barberb/ipfs_kit_py",
+      "server": {
+        "url": "http://localhost:8766",
+        "startCommand": "bash start_mcp_server.sh",
+        "healthCheckPath": "/api/v0/mcp/health"
+      }
+    }
+  }
+}

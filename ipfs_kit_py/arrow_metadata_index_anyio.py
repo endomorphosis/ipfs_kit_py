@@ -122,8 +122,9 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         
         try:
             # Run the add operation in a thread
+            # Pass self explicitly to avoid super() issues in lambda
             result = await anyio.to_thread.run_sync(
-                lambda: super().add(record)
+                lambda: ArrowMetadataIndex.add(self, record)
             )
             
             return result
@@ -158,7 +159,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the get_by_cid operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().get_by_cid(cid)
+                lambda: ArrowMetadataIndex.get_by_cid(self, cid)
             )
             
         except Exception as e:
@@ -191,7 +192,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the update_stats operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().update_stats(cid, access_type)
+                lambda: ArrowMetadataIndex.update_stats(self, cid, access_type)
             )
             
         except Exception as e:
@@ -222,7 +223,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the delete_by_cid operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().delete_by_cid(cid)
+                lambda: ArrowMetadataIndex.delete_by_cid(self, cid)
             )
             
         except Exception as e:
@@ -267,7 +268,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the query operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().query(filters, columns, limit)
+                lambda: ArrowMetadataIndex.query(self, filters, columns, limit)
             )
             
         except Exception as e:
@@ -322,7 +323,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the search_text operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().search_text(text, fields, limit)
+                lambda: ArrowMetadataIndex.search_text(self, text, fields, limit)
             )
             
         except Exception as e:
@@ -363,7 +364,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the count operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().count(filters)
+                lambda: ArrowMetadataIndex.count(self, filters)
             )
             
         except Exception as e:
@@ -396,7 +397,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the _sync_with_peers operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super()._sync_with_peers()
+                lambda: ArrowMetadataIndex._sync_with_peers(self)
             )
             
         except Exception as e:
@@ -422,7 +423,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the handle_partition_request operation in a thread
             await anyio.to_thread.run_sync(
-                lambda: super().handle_partition_request(request_data)
+                lambda: ArrowMetadataIndex.handle_partition_request(self, request_data)
             )
             
         except Exception as e:
@@ -446,7 +447,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the handle_partition_data_request operation in a thread
             await anyio.to_thread.run_sync(
-                lambda: super().handle_partition_data_request(request_data)
+                lambda: ArrowMetadataIndex.handle_partition_data_request(self, request_data)
             )
             
         except Exception as e:
@@ -470,7 +471,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the publish_index_dag operation in a thread
             return await anyio.to_thread.run_sync(
-                lambda: super().publish_index_dag()
+                lambda: ArrowMetadataIndex.publish_index_dag(self)
             )
             
         except Exception as e:
@@ -487,7 +488,7 @@ class ArrowMetadataIndexAnyIO(ArrowMetadataIndex):
         try:
             # Run the close operation in a thread
             await anyio.to_thread.run_sync(
-                lambda: super().close()
+                lambda: ArrowMetadataIndex.close(self)
             )
             
         except Exception as e:

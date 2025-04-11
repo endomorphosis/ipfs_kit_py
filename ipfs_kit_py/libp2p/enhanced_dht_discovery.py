@@ -12,9 +12,21 @@ import logging
 import random
 import threading
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
 import base58
+
+def get_enhanced_dht_discovery() -> Type["EnhancedDHTDiscovery"]:
+    """
+    Get the EnhancedDHTDiscovery class.
+    
+    This function is used by the recursive routing module to access
+    the EnhancedDHTDiscovery class without creating circular imports.
+    
+    Returns:
+        The EnhancedDHTDiscovery class
+    """
+    return EnhancedDHTDiscovery
 
 
 class EnhancedDHTDiscovery:

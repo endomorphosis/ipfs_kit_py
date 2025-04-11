@@ -17,8 +17,19 @@ import unittest
 import json
 import logging
 import pytest
-import pytest_asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
+
+# Check for pytest_asyncio availability
+try:
+    import pytest_asyncio
+    HAS_PYTEST_ASYNCIO = True
+except ImportError:
+    HAS_PYTEST_ASYNCIO = False
+    # Create dummy decorator for compatibility
+    class DummyAsyncioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -107,6 +118,8 @@ import sys
 if 'ipfs_kit_py.libp2p_peer' in sys.modules:
     sys.modules['ipfs_kit_py.libp2p_peer'].HAS_LIBP2P = True
 
+# Skip the entire test class if pytest_asyncio is not available
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio is not available")
 @pytest.mark.asyncio
 class TestMCPServerCommunication:
     """Test communication between MCP server and ipfs_kit_py components."""

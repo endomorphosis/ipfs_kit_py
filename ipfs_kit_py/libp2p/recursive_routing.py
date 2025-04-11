@@ -7,6 +7,63 @@ These features improve content discoverability in the network while reducing the
 on resource-constrained devices.
 """
 
+# Add the function for enhanced routing that is imported in other modules
+def enhance_with_recursive_routing(peer_instance):
+    """
+    Enhance a libp2p peer instance with recursive routing capabilities.
+    
+    Args:
+        peer_instance: The IPFSLibp2pPeer instance to enhance
+    
+    Returns:
+        The enhanced peer instance
+    """
+    from ipfs_kit_py.libp2p.enhanced_dht_discovery import get_enhanced_dht_discovery
+    
+    # If the peer has a DHT, enhance it with recursive routing
+    if hasattr(peer_instance, 'dht') and peer_instance.dht:
+        # Get the enhanced DHT discovery class
+        EnhancedDHTDiscovery = get_enhanced_dht_discovery()
+        
+        # Create an enhanced DHT discovery instance
+        dht_discovery = EnhancedDHTDiscovery(peer_instance)
+        
+        # Create a recursive content router
+        recursive_router = RecursiveContentRouter(dht_discovery)
+        
+        # Add the recursive router to the peer
+        peer_instance.recursive_router = recursive_router
+        
+        # Enhance the find_providers method
+        original_find_providers = peer_instance.find_providers
+        
+        def enhanced_find_providers(cid, timeout=30):
+            """Enhanced version of find_providers that uses recursive routing."""
+            # For synchronous API compatibility, we'll use the event loop directly
+            import asyncio
+            
+            try:
+                # Create a new event loop if necessary
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Run the recursive find with a timeout
+                future = recursive_router.find_providers(cid, timeout=timeout)
+                return loop.run_until_complete(asyncio.wait_for(future, timeout=timeout))
+            except Exception as e:
+                # Fall back to original method on error
+                import logging
+                logging.getLogger(__name__).warning(f"Error in recursive routing: {e}, falling back to standard DHT")
+                return original_find_providers(cid, timeout)
+        
+        # Apply the enhancement
+        peer_instance.find_providers = enhanced_find_providers
+        
+    return peer_instance
+
 import asyncio
 import json
 import logging

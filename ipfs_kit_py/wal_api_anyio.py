@@ -130,7 +130,7 @@ if FASTAPI_AVAILABLE:
         success: bool = Field(True, description="Operation success status")
         operation: str = Field("list_operations", description="Name of the operation performed")
         timestamp: float = Field(..., description="Timestamp of the operation")
-        operations: List[WALOperationModel] = Field(default_factory=list, description="List of operations")
+        operations: List['WALOperationModel'] = Field(default_factory=list, description="List of operations") # Use string literal
         count: int = Field(0, description="Total number of operations")
         
     class WALOperationStatusResponse(BaseModel):
@@ -138,7 +138,7 @@ if FASTAPI_AVAILABLE:
         success: bool = Field(True, description="Operation success status")
         operation: str = Field("get_operation", description="Name of the operation performed")
         timestamp: float = Field(..., description="Timestamp of the operation")
-        operation_data: WALOperationModel = Field(..., description="Operation data")
+        operation_data: 'WALOperationModel' = Field(..., description="Operation data") # Use string literal
         
     class WALMetricsResponse(BaseModel):
         """Response model for WAL metrics."""
@@ -158,7 +158,41 @@ if FASTAPI_AVAILABLE:
         timestamp: float = Field(..., description="Timestamp of the operation")
         operation_id: str = Field(..., description="Operation ID")
         new_status: str = Field(..., description="New status of the operation")
-        
+
+    class WALOperationListResponse(BaseModel):
+        """Response model for operation list."""
+        success: bool = Field(True, description="Operation success status")
+        operation: str = Field("list_operations", description="Name of the operation performed")
+        timestamp: float = Field(..., description="Timestamp of the operation")
+        operations: List['WALOperationModel'] = Field(default_factory=list, description="List of operations") # Use string literal for forward reference
+        count: int = Field(0, description="Total number of operations")
+
+    class WALOperationStatusResponse(BaseModel):
+        """Response model for operation status."""
+        success: bool = Field(True, description="Operation success status")
+        operation: str = Field("get_operation", description="Name of the operation performed")
+        timestamp: float = Field(..., description="Timestamp of the operation")
+        operation_data: 'WALOperationModel' = Field(..., description="Operation data") # Use string literal for forward reference
+
+    class WALMetricsResponse(BaseModel):
+        """Response model for WAL metrics."""
+        success: bool = Field(True, description="Operation success status")
+        operation: str = Field("get_metrics", description="Name of the operation performed")
+        timestamp: float = Field(..., description="Timestamp of the operation")
+        total_operations: int = Field(0, description="Total number of operations")
+        pending_operations: int = Field(0, description="Number of pending operations")
+        completed_operations: int = Field(0, description="Number of completed operations")
+        failed_operations: int = Field(0, description="Number of failed operations")
+        backend_status: Dict[str, bool] = Field(default_factory=dict, description="Status of each backend")
+
+    class WALRetryResponse(BaseModel):
+        """Response model for retry operation."""
+        success: bool = Field(True, description="Operation success status")
+        operation: str = Field("retry_operation", description="Name of the operation performed")
+        timestamp: float = Field(..., description="Timestamp of the operation")
+        operation_id: str = Field(..., description="Operation ID")
+        new_status: str = Field(..., description="New status of the operation")
+
     class WALConfigModel(BaseModel):
         """Model for WAL configuration."""
         base_path: Optional[str] = Field(None, description="Base directory for WAL storage")

@@ -251,10 +251,13 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
         # Create a dummy model
         dummy_model = {"type": "dummy_model", "params": {"layers": 2}}
 
-        # Add model to registry
-        result = self.model_registry.add_model(
-            model=dummy_model, model_name="test_model", version="1.0.0"
-        )
+        # Mock framework detection and save registry to avoid serialization issues
+        with patch.object(self.model_registry, "_detect_framework", return_value="sklearn"), \
+             patch.object(self.model_registry, "_save_registry"):
+            # Add model to registry
+            result = self.model_registry.add_model(
+                model=dummy_model, model_name="test_model", version="1.0.0"
+            )
 
         # Verify model was added successfully using attribute access
         self.assertTrue(result.success)

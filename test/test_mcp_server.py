@@ -4144,3 +4144,680 @@ class TestMCPServerCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(not MCP_AVAILABLE or not FASTAPI_AVAILABLE, "MCP server or FastAPI not available")
+class TestLibP2PControllerEndpoints(unittest.TestCase):
+    """Tests for the LibP2PController endpoints."""
+
+    def setUp(self):
+        """Set up test environment before each test."""
+        self.temp_dir = tempfile.mkdtemp(prefix="ipfs_mcp_libp2p_test_")
+
+        # Mock the LibP2P model
+        self.mock_libp2p_model = MagicMock()
+
+        # Create MCP server instance, injecting the mock model
+        self.mcp_server = MCPServer(
+            debug_mode=True,
+            isolation_mode=True,
+            persistence_path=self.temp_dir
+        )
+        # Replace the actual libp2p model if it exists
+        if "libp2p" in self.mcp_server.models:
+            self.mcp_server.models["libp2p"] = self.mock_libp2p_model
+        else:
+             # If the model wasn't created (e.g., libp2p deps missing), add the mock
+             self.mcp_server.models["libp2p"] = self.mock_libp2p_model
+             # Also need to add the controller if it wasn't added
+             if "libp2p" not in self.mcp_server.controllers:
+                 try:
+                     from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
+                     self.mcp_server.controllers["libp2p"] = LibP2PController(self.mock_libp2p_model)
+                     # Re-create the router to include the new controller
+                     self.mcp_server.router = self.mcp_server._create_router()
+                 except ImportError:
+                     self.skipTest("LibP2PController not available")
+
+
+        # Create FastAPI app and client
+        self.app = FastAPI()
+        self.mcp_server.register_with_app(self.app, prefix="/api/v0/mcp")
+        self.client = TestClient(self.app)
+
+    def tearDown(self):
+        """Clean up after each test."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_libp2p_health_endpoint(self):
+        """Test the /libp2p/health endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.get_health.return_value = {
+            "success": True,
+            "libp2p_available": True,
+            "peer_initialized": True,
+            "peer_id": "QmSimulatedPeerID",
+            "addresses": ["/ip4/127.0.0.1/tcp/4001"],
+            "connected_peers": 5,
+            "dht_peers": 100,
+            "protocols": ["/ipfs/ping/1.0.0"],
+            "role": "master",
+            "stats": {"operation_count": 10}
+        }
+
+        # Make request
+        response = self.client.get("/api/v0/mcp/libp2p/health")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertTrue(data["libp2p_available"])
+        self.assertTrue(data["peer_initialized"])
+        self.assertEqual(data["peer_id"], "QmSimulatedPeerID")
+        self.assertEqual(data["connected_peers"], 5)
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_health.assert_called_once()
+
+    def test_libp2p_discover_peers_endpoint(self):
+        """Test the /libp2p/discover endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.discover_peers.return_value = {
+            "success": True,
+            "peers": ["/ip4/1.2.3.4/tcp/4001/p2p/QmPeer1", "/ip4/5.6.7.8/tcp/4001/p2p/QmPeer2"],
+            "peer_count": 2
+        }
+
+        # Make request
+        response = self.client.post("/api/v0/mcp/libp2p/discover", json={"limit": 5})
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["peers"]), 2)
+        self.assertIn("/ip4/1.2.3.4/tcp/4001/p2p/QmPeer1", data["peers"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.discover_peers.assert_called_once_with(discovery_method="all", limit=5)
+
+    def test_libp2p_get_peers_endpoint(self):
+        """Test the GET /libp2p/peers endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.discover_peers.return_value = {
+            "success": True,
+            "peers": ["/ip4/1.2.3.4/tcp/4001/p2p/QmPeer1"],
+            "peer_count": 1
+        }
+
+        # Make request
+        response = self.client.get("/api/v0/mcp/libp2p/peers?limit=1")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["peers"]), 1)
+
+        # Verify model method was called
+        self.mock_libp2p_model.discover_peers.assert_called_once_with(discovery_method="all", limit=1)
+
+    def test_libp2p_connect_peer_endpoint(self):
+        """Test the /libp2p/connect endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.connect_peer.return_value = {
+            "success": True,
+            "peer_info": {"id": "QmPeer1", "addrs": ["/ip4/1.2.3.4/tcp/4001"]}
+        }
+        peer_addr = "/ip4/1.2.3.4/tcp/4001/p2p/QmPeer1"
+
+        # Make request
+        response = self.client.post("/api/v0/mcp/libp2p/connect", json={"peer_addr": peer_addr})
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertIn("peer_info", data)
+
+        # Verify model method was called
+        self.mock_libp2p_model.connect_peer.assert_called_once_with(peer_addr)
+
+    def test_libp2p_find_providers_endpoint(self):
+        """Test the GET /libp2p/providers/{cid} endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        cid = "QmTestContentCID"
+        self.mock_libp2p_model.find_content.return_value = {
+            "success": True,
+            "providers": ["/ip4/1.1.1.1/tcp/4001/p2p/QmProvider1"],
+            "provider_count": 1
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/providers/{cid}?timeout=10")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["providers"]), 1)
+        self.assertEqual(data["providers"][0], "/ip4/1.1.1.1/tcp/4001/p2p/QmProvider1")
+
+        # Verify model method was called
+        self.mock_libp2p_model.find_content.assert_called_once_with(cid, timeout=10)
+
+    def test_libp2p_retrieve_content_info_endpoint(self):
+        """Test the GET /libp2p/content/info/{cid} endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        cid = "QmTestContentCID"
+        self.mock_libp2p_model.retrieve_content.return_value = {
+            "success": True,
+            "cid": cid,
+            "size": 1024,
+            "content_available": True
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/content/info/{cid}")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["cid"], cid)
+        self.assertEqual(data["size"], 1024)
+
+        # Verify model method was called
+        self.mock_libp2p_model.retrieve_content.assert_called_once_with(cid, timeout=60)
+
+    def test_libp2p_retrieve_content_info_not_found(self):
+        """Test the GET /libp2p/content/info/{cid} endpoint when content not found."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        cid = "QmNotFoundCID"
+        self.mock_libp2p_model.retrieve_content.return_value = {
+            "success": False,
+            "error": f"Content not found: {cid}",
+            "error_type": "content_not_found"
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/content/info/{cid}")
+
+        # Verify response (should be 404 Not Found)
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn(f"Content not found: {cid}", data["detail"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.retrieve_content.assert_called_once_with(cid, timeout=60)
+
+    def test_libp2p_retrieve_content_endpoint(self):
+        """Test the GET /libp2p/content/{cid} endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        cid = "QmTestContentCID"
+        content_data = b"This is the test content data"
+        self.mock_libp2p_model.get_content.return_value = {
+            "success": True,
+            "data": content_data,
+            "size": len(content_data)
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/content/{cid}")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, content_data)
+        self.assertEqual(response.headers["content-type"], "application/octet-stream") # Default type
+        self.assertEqual(response.headers["x-content-cid"], cid)
+        self.assertEqual(response.headers["x-content-size"], str(len(content_data)))
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_content.assert_called_once_with(cid, timeout=60)
+
+    def test_libp2p_retrieve_content_endpoint_not_found(self):
+        """Test the GET /libp2p/content/{cid} endpoint when content not found."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        cid = "QmNotFoundCID"
+        self.mock_libp2p_model.get_content.return_value = {
+            "success": False,
+            "error": f"Content not found: {cid}",
+            "error_type": "content_not_found"
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/content/{cid}")
+
+        # Verify response (should be 404 Not Found)
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn(f"Content not found: {cid}", data["detail"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_content.assert_called_once_with(cid, timeout=60)
+
+    def test_libp2p_announce_content_endpoint(self):
+        """Test the /libp2p/announce endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        cid = "QmAnnounceCID"
+        content_data = b"Content to announce"
+        self.mock_libp2p_model.announce_content.return_value = {
+            "success": True,
+            "content_stored": True
+        }
+
+        # Make request
+        response = self.client.post(
+            "/api/v0/mcp/libp2p/announce",
+            json={"cid": cid, "data": content_data.hex()} # Send data as hex
+        )
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertTrue(data["content_stored"])
+
+        # Verify model method was called
+        # Note: The controller decodes hex data back to bytes
+        self.mock_libp2p_model.announce_content.assert_called_once_with(cid, data=content_data)
+
+    def test_libp2p_get_connected_peers_endpoint(self):
+        """Test the GET /libp2p/connected endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.get_connected_peers.return_value = {
+            "success": True,
+            "peers": [{"id": "QmPeer1", "addrs": ["/ip4/1.1.1.1/tcp/4001"]}],
+            "peer_count": 1
+        }
+
+        # Make request
+        response = self.client.get("/api/v0/mcp/libp2p/connected")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["peers"]), 1)
+        self.assertEqual(data["peers"][0]["id"], "QmPeer1")
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_connected_peers.assert_called_once()
+
+    def test_libp2p_get_peer_info_endpoint(self):
+        """Test the GET /libp2p/peer/{peer_id} endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        peer_id = "QmPeer1"
+        self.mock_libp2p_model.get_peer_info.return_value = {
+            "success": True,
+            "id": peer_id,
+            "addrs": ["/ip4/1.1.1.1/tcp/4001"],
+            "protocols": ["/ipfs/ping/1.0.0"]
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/peer/{peer_id}")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["id"], peer_id)
+        self.assertIn("/ipfs/ping/1.0.0", data["protocols"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_peer_info.assert_called_once_with(peer_id)
+
+    def test_libp2p_get_peer_info_not_found(self):
+        """Test the GET /libp2p/peer/{peer_id} endpoint when peer not found."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        peer_id = "QmNotFoundPeer"
+        self.mock_libp2p_model.get_peer_info.return_value = {
+            "success": False,
+            "error": f"Peer not found: {peer_id}",
+            "error_type": "peer_not_found"
+        }
+
+        # Make request
+        response = self.client.get(f"/api/v0/mcp/libp2p/peer/{peer_id}")
+
+        # Verify response (should be 404 Not Found)
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn(f"Peer not found: {peer_id}", data["detail"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_peer_info.assert_called_once_with(peer_id)
+
+    def test_libp2p_get_stats_endpoint(self):
+        """Test the GET /libp2p/stats endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.get_stats.return_value = {
+            "success": True,
+            "stats": {"operation_count": 50, "bytes_retrieved": 10240},
+            "uptime": 3600.5
+        }
+
+        # Make request
+        response = self.client.get("/api/v0/mcp/libp2p/stats")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["stats"]["operation_count"], 50)
+        self.assertEqual(data["stats"]["bytes_retrieved"], 10240)
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_stats.assert_called_once()
+
+    def test_libp2p_reset_endpoint(self):
+        """Test the POST /libp2p/reset endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.reset.return_value = {"success": True}
+
+        # Make request
+        response = self.client.post("/api/v0/mcp/libp2p/reset")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.reset.assert_called_once()
+
+    def test_libp2p_start_endpoint(self):
+        """Test the POST /libp2p/start endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.start.return_value = {
+            "success": True,
+            "action": "start",
+            "status": "running",
+            "newly_started": True
+        }
+
+        # Make request
+        response = self.client.post("/api/v0/mcp/libp2p/start")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["action"], "start")
+        self.assertEqual(data["status"], "running")
+
+        # Verify model method was called
+        self.mock_libp2p_model.start.assert_called_once()
+
+    def test_libp2p_stop_endpoint(self):
+        """Test the POST /libp2p/stop endpoint."""
+        # Configure mock model response
+        self.mock_libp2p_model.stop.return_value = {
+            "success": True,
+            "action": "stop",
+            "status": "stopped"
+        }
+
+        # Make request
+        response = self.client.post("/api/v0/mcp/libp2p/stop")
+
+        # Verify response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["action"], "stop")
+        self.assertEqual(data["status"], "stopped")
+
+        # Verify model method was called
+        self.mock_libp2p_model.stop.assert_called_once()
+
+    # --- DHT Endpoint Tests ---
+
+    def test_libp2p_dht_find_peer_endpoint(self):
+        """Test the POST /libp2p/dht/find_peer endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        peer_id_to_find = "QmFindThisPeer"
+        self.mock_libp2p_model.dht_find_peer.return_value = {
+            "success": True,
+            "addresses": ["/ip4/2.2.2.2/tcp/4001"]
+        }
+
+        response = self.client.post("/api/v0/mcp/libp2p/dht/find_peer", json={"peer_id": peer_id_to_find, "timeout": 15})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["addresses"], ["/ip4/2.2.2.2/tcp/4001"])
+        self.mock_libp2p_model.dht_find_peer.assert_called_once_with(peer_id_to_find, timeout=15)
+
+    def test_libp2p_dht_provide_endpoint(self):
+        """Test the POST /libp2p/dht/provide endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        cid_to_provide = "QmProvideThisCID"
+        self.mock_libp2p_model.dht_provide.return_value = {"success": True}
+
+        response = self.client.post("/api/v0/mcp/libp2p/dht/provide", json={"cid": cid_to_provide})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.mock_libp2p_model.dht_provide.assert_called_once_with(cid_to_provide)
+
+    def test_libp2p_dht_find_providers_endpoint(self):
+        """Test the POST /libp2p/dht/find_providers endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        cid_to_find = "QmFindProvidersForThisCID"
+        self.mock_libp2p_model.dht_find_providers.return_value = {
+            "success": True,
+            "providers": ["/ip4/3.3.3.3/tcp/4001/p2p/QmProvider3"],
+            "provider_count": 1
+        }
+
+        response = self.client.post("/api/v0/mcp/libp2p/dht/find_providers", json={"cid": cid_to_find, "limit": 10})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["providers"]), 1)
+        self.mock_libp2p_model.dht_find_providers.assert_called_once_with(cid_to_find, timeout=30, limit=10)
+
+    # --- PubSub Endpoint Tests ---
+
+    def test_libp2p_pubsub_publish_endpoint(self):
+        """Test the POST /libp2p/pubsub/publish endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.pubsub_publish.return_value = {"success": True}
+        topic = "test-topic"
+        message = "hello world"
+
+        response = self.client.post("/api/v0/mcp/libp2p/pubsub/publish", json={"topic": topic, "message": message})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.mock_libp2p_model.pubsub_publish.assert_called_once_with(topic, message)
+
+    def test_libp2p_pubsub_subscribe_endpoint(self):
+        """Test the POST /libp2p/pubsub/subscribe endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        handler_id = "sub-handler-1"
+        self.mock_libp2p_model.pubsub_subscribe.return_value = {"success": True, "handler_id": handler_id}
+        topic = "test-topic"
+
+        response = self.client.post("/api/v0/mcp/libp2p/pubsub/subscribe", json={"topic": topic, "handler_id": handler_id})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["handler_id"], handler_id)
+        self.mock_libp2p_model.pubsub_subscribe.assert_called_once_with(topic, handler_id=handler_id)
+
+    def test_libp2p_pubsub_unsubscribe_endpoint(self):
+        """Test the POST /libp2p/pubsub/unsubscribe endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.pubsub_unsubscribe.return_value = {"success": True, "handler_removed": True}
+        topic = "test-topic"
+        handler_id = "sub-handler-1"
+
+        response = self.client.post("/api/v0/mcp/libp2p/pubsub/unsubscribe", json={"topic": topic, "handler_id": handler_id})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertTrue(data["handler_removed"])
+        self.mock_libp2p_model.pubsub_unsubscribe.assert_called_once_with(topic, handler_id=handler_id)
+
+    def test_libp2p_pubsub_get_topics_endpoint(self):
+        """Test the GET /libp2p/pubsub/topics endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.pubsub_get_topics.return_value = {
+            "success": True,
+            "topics": ["topic1", "topic2"],
+            "topic_count": 2
+        }
+
+        response = self.client.get("/api/v0/mcp/libp2p/pubsub/topics")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["topics"], ["topic1", "topic2"])
+        self.mock_libp2p_model.pubsub_get_topics.assert_called_once()
+
+    def test_libp2p_pubsub_get_peers_endpoint(self):
+        """Test the GET /libp2p/pubsub/peers endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        topic = "topic1"
+        self.mock_libp2p_model.pubsub_get_peers.return_value = {
+            "success": True,
+            "peers": ["QmPeerA", "QmPeerB"],
+            "peer_count": 2
+        }
+
+        response = self.client.get(f"/api/v0/mcp/libp2p/pubsub/peers?topic={topic}")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["peers"], ["QmPeerA", "QmPeerB"])
+        self.mock_libp2p_model.pubsub_get_peers.assert_called_once_with(topic)
+
+    # --- Handler Management Endpoint Tests ---
+
+    def test_libp2p_register_handler_endpoint(self):
+        """Test the POST /libp2p/handlers/register endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.register_message_handler.return_value = {"success": True}
+        handler_id = "ping-handler"
+        protocol_id = "/ipfs/ping/1.0.0"
+
+        response = self.client.post("/api/v0/mcp/libp2p/handlers/register", json={
+            "handler_id": handler_id,
+            "protocol_id": protocol_id,
+            "description": "Ping handler"
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.mock_libp2p_model.register_message_handler.assert_called_once_with(
+            handler_id=handler_id, protocol_id=protocol_id, description="Ping handler"
+        )
+
+    def test_libp2p_unregister_handler_endpoint(self):
+        """Test the POST /libp2p/handlers/unregister endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.unregister_message_handler.return_value = {"success": True}
+        handler_id = "ping-handler"
+        protocol_id = "/ipfs/ping/1.0.0"
+
+        response = self.client.post("/api/v0/mcp/libp2p/handlers/unregister", json={
+            "handler_id": handler_id,
+            "protocol_id": protocol_id
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.mock_libp2p_model.unregister_message_handler.assert_called_once_with(
+            handler_id=handler_id, protocol_id=protocol_id
+        )
+
+    def test_libp2p_list_handlers_endpoint(self):
+        """Test the GET /libp2p/handlers/list endpoint."""
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.list_message_handlers.return_value = {
+            "success": True,
+            "handlers": {
+                "/ipfs/ping/1.0.0": [{"handler_id": "ping-handler", "topic": None}]
+            },
+            "handler_count": 1
+        }
+
+        response = self.client.get("/api/v0/mcp/libp2p/handlers/list")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertIn("/ipfs/ping/1.0.0", data["handlers"])
+        self.assertEqual(data["handler_count"], 1)
+        self.mock_libp2p_model.list_message_handlers.assert_called_once()
+
+    def test_libp2p_connect_peer_endpoint_failure(self):
+        """Test the /libp2p/connect endpoint failure case."""
+        # Configure mock model response
+        self.mock_libp2p_model.is_available.return_value = True
+        self.mock_libp2p_model.connect_peer.return_value = {
+            "success": False,
+            "error": "Connection failed",
+            "error_type": "connection_failed"
+        }
+        peer_addr = "/ip4/1.2.3.4/tcp/4001/p2p/QmPeer1"
+
+        # Make request
+        response = self.client.post("/api/v0/mcp/libp2p/connect", json={"peer_addr": peer_addr})
+
+        # Verify response (should be 500 Internal Server Error)
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("Connection failed", data["detail"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.connect_peer.assert_called_once_with(peer_addr)
+
+    def test_libp2p_health_endpoint_unavailable(self):
+        """Test the /libp2p/health endpoint when libp2p is unavailable."""
+        # Configure mock model response for unavailable state
+        self.mock_libp2p_model.get_health.return_value = {
+            "success": False,
+            "libp2p_available": False,
+            "peer_initialized": False,
+            "error": "libp2p service unavailable",
+            "error_type": "initialization_error"
+        }
+
+        # Make request
+        response = self.client.get("/api/v0/mcp/libp2p/health")
+
+        # Verify response (should be 503 Service Unavailable)
+        self.assertEqual(response.status_code, 503)
+        data = response.json()
+        self.assertIn("libp2p service unavailable", data["detail"])
+
+        # Verify model method was called
+        self.mock_libp2p_model.get_health.assert_called_once()

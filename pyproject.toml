@@ -105,7 +105,7 @@ dev = [
     "build>=0.10.0",
     "twine>=4.0.2",
     "pytest-asyncio", # Added for async test support
-    "pytest-anyio>=1.0.0", # Added for anyio test support
+    # "pytest-anyio>=1.0.0", # Removed - anyio plugin is included in the core anyio package
 ]
 full = [
     "fsspec>=2023.3.0",

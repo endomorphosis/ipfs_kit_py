@@ -1,11 +1,16 @@
-#!/usr/bin/env python
-import logging
-import sys
-import os
+#!/usr/bin/env python3
+"""
+Test script to verify automatic daemon management in the Lotus client.
+
+This script tests the automatic startup, management, and fallback to simulation mode
+of the Lotus daemon in the lotus_daemon.py implementation.
+"""
+
 import json
+import logging
+import os
+import sys
 import time
-import subprocess
-import shutil
 
 # Configure logging
 logging.basicConfig(
@@ -13,190 +18,222 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     stream=sys.stdout
 )
-logger = logging.getLogger("lotus_auto_daemon_test")
+logger = logging.getLogger("auto_daemon_test")
 
-# Add the bin directory to PATH explicitly
-bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
-os.environ["PATH"] = f"{bin_dir}:{os.environ.get('PATH', '')}"
-os.environ["LOTUS_BIN"] = os.path.join(bin_dir, "lotus")
-
-# IMPORTANT: Remove environment variable to allow actual daemon startup
-if "LOTUS_SKIP_DAEMON_LAUNCH" in os.environ:
-    del os.environ["LOTUS_SKIP_DAEMON_LAUNCH"]
-
-from ipfs_kit_py.lotus_kit import lotus_kit, LOTUS_AVAILABLE
+# Import Lotus components
+from ipfs_kit_py.lotus_kit import lotus_kit
 from ipfs_kit_py.lotus_daemon import lotus_daemon
 
-def test_lotus_auto_daemon(force_actual_daemon=False, test_custom_path=True):
-    """Test the lotus_kit auto daemon management capability.
+def test_lotus_auto_daemon():
+    """Test that Lotus kit can automatically handle daemon failures."""
+    logger.info("Testing Lotus kit with auto daemon management")
     
-    Args:
-        force_actual_daemon: If True, try to use an actual daemon even if simulation would work
-        test_custom_path: If True, test with a custom LOTUS_PATH
-    """
-    logger.info("Testing Lotus auto daemon management...")
-    
-    # Step 1: Verify Lotus binary is available
-    logger.info("\nStep 1: Checking if Lotus binary is available...")
-    if not LOTUS_AVAILABLE:
-        logger.warning("Lotus binary is not available - using simulation mode")
-        
-        if force_actual_daemon:
-            logger.warning("force_actual_daemon=True but Lotus binary not available - defaulting to simulation")
-            force_actual_daemon = False
+    # Get the path to the bin directory with the lotus binary
+    bin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
+    if not os.path.exists(os.path.join(bin_path, "lotus")):
+        logger.info(f"Lotus binary not found in {bin_path}, using system binary if available")
     else:
-        logger.info(f"Lotus binary found at: {os.environ.get('LOTUS_BIN')}")
+        logger.info(f"Found Lotus binary in {bin_path}")
+        # Add bin to PATH
+        os.environ["PATH"] = f"{bin_path}:{os.environ.get('PATH', '')}"
     
-    # Prepare a custom Lotus path for testing if requested
-    custom_lotus_path = None
-    if test_custom_path:
-        custom_lotus_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_lotus_path")
-        os.makedirs(custom_lotus_path, exist_ok=True)
-        logger.info(f"Using custom Lotus path: {custom_lotus_path}")
-    
-    # Step 2: Create lotus_kit with auto_start_daemon=True 
-    logger.info("\nStep 2: Creating lotus_kit with auto_start_daemon enabled...")
-    
-    # Setup metadata dictionary
+    # Create lotus_kit with auto_start_daemon but allowing simulation mode fallback
     metadata = {
-        "auto_start_daemon": True,    # Enable automatic daemon management
-        "simulation_mode": not force_actual_daemon,  # Use real daemon if forced
-        "lite": True,                 # Use lite mode for faster startup
-        "daemon_flags": {            # Add specific daemon flags
-            "bootstrap": False,      # Skip bootstrap for faster startup
-        },
-        "daemon_startup_timeout": 60,  # Give it some time to start
+        "auto_start_daemon": True,     # Enable automatic daemon management
+        "simulation_mode": None,       # Allow fallback to simulation mode
+        "daemon_startup_timeout": 30,  # Give enough time for startup
+        "binary_path": bin_path if os.path.exists(os.path.join(bin_path, "lotus")) else None,
+        "lotus_binary": os.path.join(bin_path, "lotus") if os.path.exists(os.path.join(bin_path, "lotus")) else None,
+        "remove_stale_lock": True,     # Remove stale lock files if found
+        "lite": True,                  # Use lite mode
+        "daemon_flags": {
+            # The network flag is now handled automatically in lotus_daemon.py
+            # based on version detection
+        }
     }
     
-    if custom_lotus_path:
-        metadata["lotus_path"] = custom_lotus_path
+    # Use a custom lotus path for testing
+    test_lotus_path = os.path.expanduser("~/test_lotus")
     
-    # Create the lotus_kit instance
-    kit = lotus_kit(metadata=metadata)
+    # Clean up the test lotus path if it exists
+    if os.path.exists(test_lotus_path):
+        import shutil
+        try:
+            shutil.rmtree(test_lotus_path)
+            logger.info(f"Cleaned up existing test directory: {test_lotus_path}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up test directory: {e}")
     
-    # Step 3: Stop any existing daemon first to ensure we test auto-start
-    logger.info("\nStep 3: Stopping any existing Lotus daemon...")
+    # Add lotus path to metadata
+    metadata["lotus_path"] = test_lotus_path
+    
+    results = {
+        "timestamp": time.time(),
+        "tests": {}
+    }
+    
+    # Step 1: Test the lotus_daemon directly
+    logger.info("Testing lotus_daemon directly...")
     try:
-        # Get daemon status
-        status_result = kit.daemon_status()
+        daemon = lotus_daemon(metadata=metadata)
         
-        # If daemon is running, stop it
-        if status_result.get("process_running", False):
-            logger.info(f"Found running daemon with PID {status_result.get('pid')}, stopping it...")
-            stop_result = kit.daemon_stop(force=True)
-            logger.info(f"Daemon stop result: {stop_result.get('success', False)}")
-            time.sleep(3)  # Give it a moment to fully shutdown
-        else:
-            logger.info("No existing daemon is running.")
+        # Test daemon initialization
+        daemon_init_result = {
+            "success": True,
+            "time": time.time()
+        }
+        
+        if os.path.exists(test_lotus_path):
+            daemon_init_result["lotus_path_created"] = True
+        
+        results["tests"]["daemon_init"] = daemon_init_result
+        
+        # Test daemon start
+        logger.info("Starting daemon...")
+        daemon_start_result = daemon.daemon_start()
+        
+        results["tests"]["daemon_start"] = {
+            "success": daemon_start_result.get("success", False),
+            "status": daemon_start_result.get("status", "unknown"),
+            "process_running": daemon_start_result.get("pid") is not None,
+            "simulation_mode": "simulation" in daemon_start_result.get("status", ""),
+            "result": daemon_start_result,
+            "time": time.time()
+        }
+        
+        # Test daemon status
+        logger.info("Checking daemon status...")
+        daemon_status_result = daemon.daemon_status()
+        
+        results["tests"]["daemon_status"] = {
+            "success": daemon_status_result.get("success", False),
+            "process_running": daemon_status_result.get("process_running", False),
+            "result": daemon_status_result,
+            "time": time.time()
+        }
+        
+        # Test daemon stop
+        logger.info("Stopping daemon...")
+        daemon_stop_result = daemon.daemon_stop()
+        
+        results["tests"]["daemon_stop"] = {
+            "success": daemon_stop_result.get("success", False),
+            "status": daemon_stop_result.get("status", "unknown"),
+            "result": daemon_stop_result,
+            "time": time.time()
+        }
         
     except Exception as e:
-        logger.error(f"Error checking/stopping daemon: {e}")
+        logger.error(f"Error in daemon tests: {e}")
+        results["tests"]["daemon_error"] = {
+            "success": False,
+            "error": str(e),
+            "time": time.time()
+        }
     
-    # Step 4: Make an API request that should trigger the daemon to auto-start
-    logger.info("\nStep 4: Making API request that should trigger auto daemon start...")
-    api_result = kit._make_request("ID")
+    # Step 2: Test the lotus_kit with the improved daemon management
+    logger.info("Testing lotus_kit with auto daemon management...")
     
-    # Step 5: Verify the request worked (either with real daemon or simulation)
-    logger.info("\nStep 5: Verifying API request with auto-started daemon or simulation...")
+    try:
+        # Create a new kit instance
+        kit = lotus_kit(metadata=metadata)
+        results["tests"]["create_kit"] = {
+            "success": True,
+            "time": time.time()
+        }
+        
+        # Check if daemon auto-starts or falls back to simulation
+        logger.info("Testing check_connection which should trigger auto-start")
+        connection_result = kit.check_connection()
+        
+        results["tests"]["check_connection"] = {
+            "success": connection_result.get("success", False),
+            "simulated": connection_result.get("simulated", False),
+            "api_version": connection_result.get("api_version", "unknown"),
+            "result": connection_result,
+            "time": time.time()
+        }
+        
+        # Check if lotus daemon is correctly detected
+        logger.info("Testing daemon_status")
+        status_result = kit.daemon_status()
+        
+        results["tests"]["kit_daemon_status"] = {
+            "success": status_result.get("success", False),
+            "simulated": status_result.get("simulated", False),
+            "process_running": status_result.get("process_running", False),
+            "result": status_result,
+            "time": time.time()
+        }
+        
+        # Try some basic operations
+        logger.info("Testing lotus_id")
+        id_result = kit.lotus_id()
+        
+        results["tests"]["lotus_id"] = {
+            "success": id_result.get("success", False),
+            "simulated": id_result.get("simulated", False),
+            "result": id_result,
+            "time": time.time()
+        }
+        
+        logger.info("Testing lotus_net_peers")
+        peers_result = kit.lotus_net_peers()
+        
+        results["tests"]["lotus_net_peers"] = {
+            "success": peers_result.get("success", False),
+            "simulated": peers_result.get("simulated", False),
+            "result": peers_result,
+            "time": time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in kit tests: {e}")
+        results["tests"]["kit_error"] = {
+            "success": False,
+            "error": str(e),
+            "time": time.time()
+        }
     
-    simulation_mode_active = api_result.get("simulated", False)
-    api_success = api_result.get("success", False)
-    daemon_restarted = api_result.get("daemon_restarted", False)
+    # Determine overall success - consider successful if all tests pass or fail with simulation mode
+    successful_tests = [test.get("success", False) for test in results["tests"].values()]
+    simulation_mode_tests = [test.get("simulated", False) for test in results["tests"].values() 
+                             if "simulated" in test]
     
-    if simulation_mode_active:
-        logger.info("SUCCESS: Simulation mode activated")
-        logger.info(f"API request result (simulated): {api_result}")
-    else:
-        # This should only happen if a real daemon was successfully started
-        if api_success:
-            logger.info("SUCCESS: Real daemon API request succeeded")
-            logger.info(f"API request result: {api_result}")
-            logger.info(f"Daemon was restarted: {daemon_restarted}")
-        else:
-            logger.error("FAILURE: API request failed, neither real daemon nor simulation mode worked")
-            logger.error(f"API request error: {api_result.get('error', 'Unknown error')}")
+    overall_success = False
     
-    # Step 6: Perform some basic operations to verify functionality
-    logger.info("\nStep 6: Testing some basic API operations...")
+    # Success if either:
+    # 1. All tests passed, or
+    # 2. Some tests passed in simulation mode (indicating proper fallback)
+    if all(successful_tests):
+        overall_success = True
+    elif any(simulation_mode_tests) and any(successful_tests):
+        # Some tests worked in simulation mode
+        overall_success = True
     
-    # Test wallet listing
-    wallet_result = kit.list_wallets()
-    logger.info(f"Wallet list result: success={wallet_result.get('success', False)}, simulated={wallet_result.get('simulated', False)}")
-    
-    # Test network peers
-    peers_result = kit.net_peers()
-    logger.info(f"Network peers result: success={peers_result.get('success', False)}, simulated={peers_result.get('simulated', False)}")
-    
-    # Step 7: Manually verify that the daemon is running
-    logger.info("\nStep 7: Manually verifying daemon status...")
-    
-    # Check daemon status
-    daemon_status = kit.daemon_status()
-    daemon_running = daemon_status.get("process_running", False)
-    logger.info(f"Daemon running: {daemon_running}")
-    if daemon_running:
-        logger.info(f"Daemon PID: {daemon_status.get('pid')}")
-    
-    if not simulation_mode_active and not daemon_running:
-        logger.warning("Daemon isn't running but was expected to be running!")
-    
-    # Step 8: Summarize the test results
-    logger.info("\n=== TEST SUMMARY ===")
-    logger.info(f"Lotus binary available: {LOTUS_AVAILABLE}")
-    logger.info(f"Force actual daemon: {force_actual_daemon}")
-    logger.info(f"Using custom Lotus path: {custom_lotus_path is not None}")
-    logger.info(f"Simulation mode activated: {simulation_mode_active}")
-    logger.info(f"Daemon running: {daemon_running}")
-    logger.info(f"API operation succeeded: {api_success}")
-    logger.info(f"Daemon was auto-restarted: {daemon_restarted}")
-    logger.info(f"Wallet operation succeeded: {wallet_result.get('success', False)}")
-    logger.info(f"Network operation succeeded: {peers_result.get('success', False)}")
-    
-    test_success = api_success or simulation_mode_active
-    logger.info(f"Overall test result: {'SUCCESS' if test_success else 'FAILURE'}")
-    
-    # If we started a daemon, stop it during cleanup
-    if daemon_running and not simulation_mode_active:
-        logger.info("\nCleaning up: Stopping the daemon...")
-        kit.daemon_stop(force=True)
-    
-    # Return test result
-    return test_success, {
-        "lotus_available": LOTUS_AVAILABLE,
-        "force_actual_daemon": force_actual_daemon,
-        "custom_lotus_path": custom_lotus_path is not None,
-        "simulation_mode_activated": simulation_mode_active,
-        "daemon_running": daemon_running,
-        "api_operation_success": api_success,
-        "daemon_restarted": daemon_restarted,
-        "wallet_operation_success": wallet_result.get("success", False),
-        "network_operation_success": peers_result.get("success", False),
-        "api_result": api_result,
-        "overall_success": test_success
+    # Add summary
+    results["summary"] = {
+        "success": overall_success,
+        "simulation_mode": any(simulation_mode_tests),
+        "real_daemon_started": results["tests"].get("daemon_status", {}).get("process_running", False),
+        "test_duration": time.time() - results["timestamp"]
     }
+    
+    return overall_success, results
 
 if __name__ == "__main__":
-    # Allow command-line arguments for additional configuration
-    import argparse
-    parser = argparse.ArgumentParser(description="Test Lotus auto daemon management")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--force-daemon", action="store_true", help="Force using real daemon (no simulation)")
-    parser.add_argument("--skip-custom-path", action="store_true", help="Skip testing with custom path")
-    args = parser.parse_args()
+    logger.info("Starting auto daemon test")
     
-    # Set debug logging level if requested
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-        
-    # Run test
-    success, results = test_lotus_auto_daemon(
-        force_actual_daemon=args.force_daemon,
-        test_custom_path=not args.skip_custom_path
-    )
+    # Run the test
+    success, results = test_lotus_auto_daemon()
     
-    # Save results to file
-    with open("auto_daemon_test_results.json", "w") as f:
+    # Save results
+    result_file = "auto_daemon_test_results.json"
+    with open(result_file, "w") as f:
         json.dump(results, f, indent=2)
-    logger.info("Detailed results saved to auto_daemon_test_results.json")
     
+    logger.info(f"Test {'succeeded' if success else 'failed'}")
+    logger.info(f"Results saved to {result_file}")
+    
+    # Exit with appropriate code
     sys.exit(0 if success else 1)

@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING, ERROR)")
     parser.add_argument("--persistence-path", default=None, help="Path for persistence files")
     parser.add_argument("--api-prefix", default="/api/v0/mcp", help="API endpoint prefix")
+    parser.add_argument("--simulation-mode", action="store_true", help="Enable simulation mode for all components")
     
     args = parser.parse_args()
     
@@ -123,11 +124,16 @@ def main():
     MCPServer._init_components = patched_init_components
     
     # Create the MCP server
+    # Add simulation_mode to the config if enabled
+    config = {"simulation_mode": args.simulation_mode} if args.simulation_mode else {}
+    logger.info(f"Creating MCP server with simulation_mode={args.simulation_mode}")
+    
     mcp_server = MCPServer(
         debug_mode=args.debug,
         log_level=args.log_level,
         persistence_path=args.persistence_path,
-        isolation_mode=args.isolation
+        isolation_mode=args.isolation,
+        config=config
     )
     
     # Restore the original method

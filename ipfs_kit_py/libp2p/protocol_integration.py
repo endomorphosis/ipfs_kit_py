@@ -487,59 +487,57 @@ def apply_kademlia_extensions(peer_class: Type) -> Type:
         The enhanced peer class
     """
     try:
-        # Store original initialization method
-        original_init = peer_class.__init__
-        
-        # Define new initialization that sets up Kademlia components
-        def enhanced_init(self, *args, **kwargs):
-            # Call original init first
-            original_init(self, *args, **kwargs)
-            
-            # Extract DHT configuration
-            dht_config = kwargs.get('dht_config', {})
-            
-            # Set up Kademlia attributes if they don't exist
-            if not hasattr(self, 'kademlia_initialized'):
+        # Instead of replacing __init__, we'll create a new class that inherits from the original
+        class EnhancedKademliaPeer(peer_class):
+            def __init__(self, *args, **kwargs):
+                # Call the parent class's __init__
+                super().__init__(*args, **kwargs)
+                
+                # Extract DHT configuration
+                dht_config = kwargs.get('dht_config', {})
+                
+                # Set up Kademlia attributes
                 self.kademlia_initialized = False
-                
-            if not hasattr(self, 'kad_routing_table'):
                 self.kad_routing_table = None
-                
-            if not hasattr(self, 'kad_datastore'):
                 self.kad_datastore = None
                 
-            # Store DHT configuration
-            self.dht_config = dht_config
-        
-        # Replace the initialization method
-        peer_class.__init__ = enhanced_init
-        
-        # Store original start method
-        if hasattr(peer_class, 'start') and callable(getattr(peer_class, 'start')):
-            original_start = peer_class.start
-            
-            # Create enhanced start method that initializes Kademlia
-            async def enhanced_start(self):
-                # Call original start method
-                result = original_start(self)
+                # Store DHT configuration
+                self.dht_config = dht_config
                 
-                # Check if we need to await the result
-                if inspect.isawaitable(result):
-                    await result
+            async def start(self):
+                # Call the parent class's start method
+                if hasattr(super(), 'start'):
+                    result = super().start()
+                    if inspect.isawaitable(result):
+                        await result
                 
                 # Initialize Kademlia if needed
                 if hasattr(self, 'initialize_kademlia') and not self.kademlia_initialized:
                     await self.initialize_kademlia()
                 
-                return result
+                return None
+        
+        # Copy the original class's attributes and methods to avoid losing anything
+        for attr_name in dir(peer_class):
+            # Skip special methods and attributes
+            if attr_name.startswith('__') and attr_name != '__init__':
+                continue
+                
+            # Get the attribute from the original class
+            attr = getattr(peer_class, attr_name)
             
-            # Replace the start method
-            peer_class.start = enhanced_start
+            # Skip if the attribute is already in the new class
+            if hasattr(EnhancedKademliaPeer, attr_name):
+                continue
+                
+            # Copy the attribute to the new class
+            setattr(EnhancedKademliaPeer, attr_name, attr)
         
-        # Add Kademlia methods
-        add_kademlia_methods(peer_class)
+        # Add Kademlia methods to the new class
+        add_kademlia_methods(EnhancedKademliaPeer)
         
-        return peer_class
+        # Return the enhanced class
+        return EnhancedKademliaPeer
         
     except Exception as e:
         logger.error(f"Error applying Kademlia extensions: {e}")

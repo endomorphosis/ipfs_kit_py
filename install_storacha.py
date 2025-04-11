@@ -290,8 +290,22 @@ def verify_storacha_functionality():
         logger.error("W3 CLI verification: Failed - command not found")
         return False
         
+    # Set up environment for W3 CLI
+    # Create config directories if they don't exist
+    w3_config_dir = os.path.expanduser("~/.w3")
+    if not os.path.exists(w3_config_dir):
+        try:
+            os.makedirs(w3_config_dir, exist_ok=True)
+            logger.info(f"Created W3 configuration directory at {w3_config_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to create W3 configuration directory: {e}")
+    
     # Test basic functionality
     try:
+        # Set correct environment variables for W3 CLI
+        env = os.environ.copy()
+        env['W3_AGENT_DIR'] = w3_config_dir
+        
         # Try to run a simple w3 command to check if it works
         cmd = ["npx", "w3", "--help"] if platform.system() == "Windows" else ["w3", "--help"]
         
@@ -300,7 +314,8 @@ def verify_storacha_functionality():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=True,
-            encoding="utf-8"
+            encoding="utf-8",
+            env=env  # Use the environment with W3_AGENT_DIR set
         )
         
         if "Usage" in result.stdout:

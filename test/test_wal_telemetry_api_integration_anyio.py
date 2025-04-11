@@ -22,6 +22,12 @@ import pytest
 # Set up logging to capture events during tests
 logging.basicConfig(level=logging.DEBUG)
 
+# Default values in case imports fail
+ALL_COMPONENTS_AVAILABLE = False
+PROMETHEUS_AVAILABLE = False
+OPENTELEMETRY_AVAILABLE = False
+FASTAPI_AVAILABLE = False
+
 # Try to import the necessary components
 try:
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
@@ -53,7 +59,8 @@ try:
 except ImportError as e:
     # Print helpful information about missing components
     logging.warning(f"Skipping WAL telemetry API tests: {str(e)}")
-    ALL_COMPONENTS_AVAILABLE = False
+    # ALL_COMPONENTS_AVAILABLE remains False
+    # PROMETHEUS_AVAILABLE and others retain their default False values
 
 @unittest.skipIf(not ALL_COMPONENTS_AVAILABLE, "Required components not available")
 class TestWALTelemetryAPIIntegrationAnyIO(unittest.TestCase):

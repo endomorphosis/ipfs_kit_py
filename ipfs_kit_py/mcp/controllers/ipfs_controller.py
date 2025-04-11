@@ -208,17 +208,14 @@ class GetTarResponse(OperationResponse):
     files: List[str] = Field([], description="List of files in the archive")
 
 
-class FileUploadForm:
+class FileUploadForm(BaseModel):
     """Form model for file uploads."""
-    def __init__(
-        self,
-        file: UploadFile = File(...),
-        pin: bool = Form(False),
-        wrap_with_directory: bool = Form(False)
-    ):
-        self.file = file
-        self.pin = pin
-        self.wrap_with_directory = wrap_with_directory
+    file: UploadFile
+    pin: bool = False
+    wrap_with_directory: bool = False
+    
+    class Config:
+        arbitrary_types_allowed = True  # Required to allow UploadFile type
 
 
 class IPFSController:
@@ -677,7 +674,7 @@ class IPFSController:
             result["cid"] = result["Hash"]
         return result
     
-    async def add_file(self, form_data: FileUploadForm = Depends()) -> Dict[str, Any]:
+    async def add_file(self, form_data: FileUploadForm) -> Dict[str, Any]:
         """
         Add a file to IPFS.
         
@@ -1542,16 +1539,73 @@ class IPFSController:
         Returns:
             Dictionary with daemon status information
         """
-        daemon_type = request.daemon_type
-        logger.debug(f"Checking daemon status for: {daemon_type or 'all daemons'}")
-        
         # Start timing for operation metrics
         start_time = time.time()
         operation_id = f"check_daemon_{int(start_time * 1000)}"
         
         try:
-            # Call IPFS model to check daemon status
-            result = self.ipfs_model.check_daemon_status(daemon_type)
+            # Extract daemon_type from request, handling potential None values safely
+            daemon_type = getattr(request, 'daemon_type', None)
+            logger.debug(f"Checking daemon status for: {daemon_type or 'all daemons'}")
+            
+            # Call IPFS model to check daemon status with detailed error logging
+            try:
+                logger.debug(f"Calling ipfs_model.check_daemon_status with daemon_type={daemon_type}")
+                # Handle daemon type specific checks
+                if daemon_type in ["ipfs_cluster_service", "ipfs_cluster_follow"]:
+                    logger.debug(f"Checking cluster daemon status for type: {daemon_type}")
+                    try:
+                        # Import the appropriate module based on daemon type
+                        if daemon_type == "ipfs_cluster_service":
+                            from ipfs_kit_py.ipfs_cluster_service import ipfs_cluster_service
+                            cluster_service = ipfs_cluster_service()
+                            cluster_result = cluster_service.ipfs_cluster_service_status()
+                        else:  # ipfs_cluster_follow
+                            from ipfs_kit_py.ipfs_cluster_follow import ipfs_cluster_follow
+                            cluster_follow = ipfs_cluster_follow()
+                            cluster_result = cluster_follow.ipfs_cluster_follow_status()
+                        
+                        # Create a standardized result
+                        result = {
+                            "success": cluster_result.get("success", False),
+                            "operation": f"check_{daemon_type}_status",
+                            "operation_id": operation_id,
+                            "overall_status": "running" if cluster_result.get("process_running", False) else "stopped",
+                            "daemons": {
+                                daemon_type: {
+                                    "running": cluster_result.get("process_running", False),
+                                    "type": daemon_type,
+                                    "process_count": cluster_result.get("process_count", 0),
+                                    "details": cluster_result
+                                }
+                            }
+                        }
+                    except Exception as cluster_error:
+                        logger.error(f"Error checking {daemon_type} status: {cluster_error}")
+                        logger.error(traceback.format_exc())
+                        result = {
+                            "success": False,
+                            "operation": f"check_{daemon_type}_status",
+                            "operation_id": operation_id,
+                            "overall_status": "error",
+                            "error": str(cluster_error),
+                            "error_type": type(cluster_error).__name__,
+                            "daemons": {
+                                daemon_type: {
+                                    "running": False,
+                                    "type": daemon_type,
+                                    "error": str(cluster_error)
+                                }
+                            }
+                        }
+                else:
+                    # Standard IPFS daemon check
+                    result = self.ipfs_model.check_daemon_status(daemon_type)
+                logger.debug(f"check_daemon_status result: {result}")
+            except Exception as model_error:
+                logger.error(f"Error in model.check_daemon_status: {model_error}")
+                logger.error(traceback.format_exc())
+                raise model_error
             
             # Add operation tracking fields for consistency
             if "operation_id" not in result:
@@ -1561,6 +1615,30 @@ class IPFSController:
                 result["duration_ms"] = (time.time() - start_time) * 1000
             
             logger.debug(f"Daemon status check result: {result['overall_status']}")
+            # Transform result to match the response model expectations
+            # If result doesn't already have daemon_status, add it
+            if "daemon_status" not in result:
+                result["daemon_status"] = {
+                    "overall": result.get("overall_status", "unknown"),
+                    "daemons": result.get("daemons", {})
+                }
+            
+            # Add status code if missing
+            if "status_code" not in result:
+                result["status_code"] = 200 if result.get("success", False) else 500
+                
+            # Transform result to match the response model expectations
+            # If result doesn't already have daemon_status, add it
+            if "daemon_status" not in result:
+                result["daemon_status"] = {
+                    "overall": result.get("overall_status", "unknown"),
+                    "daemons": result.get("daemons", {})
+                }
+            
+            # Add status code if missing
+            if "status_code" not in result:
+                result["status_code"] = 200 if result.get("success", False) else 500
+                
             return result
             
         except Exception as e:
@@ -1573,12 +1651,15 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "daemon_status": {},
-                "overall_status": "critical",
+                "daemon_status": {
+                    "overall": "error",
+                    "daemons": {}
+                },
                 "status_code": 500,
+                "overall_status": "critical",
                 "daemon_type": daemon_type
             }
-    
+            
     def reset(self):
         """Reset the controller state."""
         logger.info("IPFS Controller state reset")
@@ -3680,7 +3761,9 @@ class IPFSController:
         self,
         request: Request,
         content_request: Optional[ContentRequest] = None,
-        form_data: Optional[FileUploadForm] = None
+        file: Optional[UploadFile] = File(None),
+        pin: bool = Form(False),
+        wrap_with_directory: bool = Form(False)
     ) -> Dict[str, Any]:
         """
         Handle both JSON and form data for add requests.
@@ -3701,9 +3784,14 @@ class IPFSController:
         logger.debug(f"Handling add request (operation_id={operation_id})")
         
         try:
-            # Check if form data is provided
-            if form_data and form_data.file:
-                logger.debug(f"Processing file upload form: {form_data.file.filename}")
+            # Check if file is provided directly
+            if file:
+                logger.debug(f"Processing file upload: {file.filename}")
+                form_data = FileUploadForm(
+                    file=file,
+                    pin=pin,
+                    wrap_with_directory=wrap_with_directory
+                )
                 return await self.add_file(form_data)
                 
             # Check if JSON content is provided
@@ -3718,11 +3806,11 @@ class IPFSController:
             if content_type.startswith("multipart/form-data"):
                 try:
                     form = await request.form()
-                    file = form.get("file")
-                    if file:
+                    uploaded_file = form.get("file")
+                    if uploaded_file:
                         # Create a FileUploadForm and delegate to add_file
                         form_data = FileUploadForm(
-                            file=file,
+                            file=uploaded_file,
                             pin=form.get("pin", "false").lower() == "true",
                             wrap_with_directory=form.get("wrap_with_directory", "false").lower() == "true"
                         )

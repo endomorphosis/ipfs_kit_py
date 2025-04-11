@@ -196,7 +196,21 @@ class MCPServer:
     def _init_components(self):
         """Initialize MCP components."""
         # Create directories if needed
-        os.makedirs(self.persistence_path, exist_ok=True)
+        try:
+            os.makedirs(self.persistence_path, exist_ok=True)
+        except OSError as e:
+            logger.error(f"Failed to create persistence directory at {self.persistence_path}: {e}")
+            # Use a temporary directory as fallback
+            import tempfile
+            self.persistence_path = tempfile.mkdtemp(prefix="mcp_server_")
+            logger.warning(f"Using temporary directory for persistence: {self.persistence_path}")
+            
+        # Initialize result tracking for component initialization
+        self.initialization_results = {
+            "success": True,
+            "errors": [],
+            "warnings": []
+        }
 
         # Initialize core components
         cache_config = self.config.get("cache", {})
@@ -213,188 +227,347 @@ class MCPServer:
                 debug_mode=self.debug_mode,
                 config=cache_config
             )
-        except TypeError as e:
+        except Exception as e:
+            logger.warning(f"Error initializing cache manager with config: {e}")
+            self.initialization_results["warnings"].append(f"Cache manager initialization with config failed: {e}")
+            
             # Fall back to older constructor without config parameter
-            logger.info(f"Using compatible MCPCacheManager initialization: {e}")
-            self.cache_manager = MCPCacheManager(
-                base_path=os.path.join(self.persistence_path, "cache"),
-                memory_limit=memory_limit,
-                disk_limit=disk_limit,
-                debug_mode=self.debug_mode
-            )
+            try:
+                logger.info("Falling back to legacy cache manager initialization")
+                self.cache_manager = MCPCacheManager(
+                    base_path=os.path.join(self.persistence_path, "cache"),
+                    memory_limit=memory_limit,
+                    disk_limit=disk_limit,
+                    debug_mode=self.debug_mode
+                )
+            except Exception as e:
+                logger.error(f"Failed to initialize cache manager: {e}")
+                self.initialization_results["success"] = False
+                self.initialization_results["errors"].append(f"Cache manager initialization failed: {e}")
+                # Use a minimal in-memory cache as fallback
+                from collections import OrderedDict
+                class MinimalCache:
+                    def __init__(self):
+                        self.cache = OrderedDict()
+                        self.get_cache_info = lambda: {"type": "minimal", "size": len(self.cache)}
+                        self.put = lambda k, v, **kwargs: self.cache.update({k: v})
+                        self.get = lambda k, **kwargs: self.cache.get(k)
+                        self.clear = lambda: self.cache.clear()
+                        self._save_metadata = lambda: None
+                        
+                self.cache_manager = MinimalCache()
+                logger.warning("Using minimal in-memory cache as fallback")
 
         # Initialize credential manager
-        self.credential_manager = CredentialManager(
-            config={
-                "credential_store": "file",  # Use file-based storage for server persistence
-                "credential_file_path": os.path.join(self.persistence_path, "credentials.json"),
-                "encrypt_file_credentials": True
-            }
-        )
+        try:
+            self.credential_manager = CredentialManager(
+                config={
+                    "credential_store": "file",  # Use file-based storage for server persistence
+                    "credential_file_path": os.path.join(self.persistence_path, "credentials.json"),
+                    "encrypt_file_credentials": True
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize credential manager: {e}")
+            self.initialization_results["success"] = False
+            self.initialization_results["errors"].append(f"Credential manager initialization failed: {e}")
+            # Create a minimal credential manager for basic functionality
+            class MinimalCredentialManager:
+                def __init__(self):
+                    self.credential_cache = {}
+                    self.config = {"credential_store": "memory"}
+                    self.list_credentials = lambda: []
+                    self.add_credential = lambda s, n, c: self.credential_cache.update({f"{s}_{n}": {"credentials": c}})
+                    self.get_credential = lambda s, n: None
+                    
+            self.credential_manager = MinimalCredentialManager()
+            logger.warning("Using minimal in-memory credential manager as fallback")
 
         # Initialize IPFS kit instance with automatic daemon management
-        if self.ipfs_kit_instance:
-            # Use the provided IPFS kit instance
-            logger.info("Using provided IPFS kit instance")
-            self.ipfs_kit = self.ipfs_kit_instance
-        else:
-            # Create a new IPFS kit instance
-            kit_options = {}
-            if self.isolation_mode:
-                # Use isolated IPFS path for testing
-                kit_options["metadata"] = {
-                    "ipfs_path": os.path.join(self.persistence_path, "ipfs"),
-                    "role": "leecher",  # Use lightweight role for testing
-                    "test_mode": True
-                }
+        try:
+            if self.ipfs_kit_instance:
+                # Use the provided IPFS kit instance
+                logger.info("Using provided IPFS kit instance")
+                self.ipfs_kit = self.ipfs_kit_instance
+            else:
+                # Create a new IPFS kit instance
+                kit_options = {}
+                if self.isolation_mode:
+                    # Use isolated IPFS path for testing
+                    kit_options["metadata"] = {
+                        "ipfs_path": os.path.join(self.persistence_path, "ipfs"),
+                        "role": "leecher",  # Use lightweight role for testing
+                        "test_mode": True
+                    }
 
-            # Enable automatic daemon management
-            logger.info("Creating new IPFS kit instance")
-            self.ipfs_kit = ipfs_kit(
-                metadata=kit_options.get("metadata"),
-                auto_start_daemons=True  # Automatically start daemons when needed
-            )
+                # Enable automatic daemon management
+                logger.info("Creating new IPFS kit instance")
+                self.ipfs_kit = ipfs_kit(
+                    metadata=kit_options.get("metadata"),
+                    auto_start_daemons=True  # Automatically start daemons when needed
+                )
+        except Exception as e:
+            logger.error(f"Failed to initialize IPFS kit: {e}")
+            self.initialization_results["success"] = False
+            self.initialization_results["errors"].append(f"IPFS kit initialization failed: {e}")
+            # Create minimal ipfs_kit instance for basic functionality
+            class MinimalIPFSKit:
+                def __init__(self):
+                    self.resources = {}
+                    self.metadata = {}
+                    
+            self.ipfs_kit = MinimalIPFSKit()
+            logger.warning("Using minimal IPFS kit as fallback")
 
         # Start daemon health monitoring to ensure they keep running
-        if not self.debug_mode and hasattr(self.ipfs_kit, 'start_daemon_health_monitor'):  # In debug mode, we might want more control
-            self.ipfs_kit.start_daemon_health_monitor(
-                check_interval=60,  # Check health every minute
-                auto_restart=True   # Automatically restart failed daemons
-            )
+        if not self.debug_mode and hasattr(self.ipfs_kit, 'start_daemon_health_monitor'):
+            try:
+                self.ipfs_kit.start_daemon_health_monitor(
+                    check_interval=60,  # Check health every minute
+                    auto_restart=True   # Automatically restart failed daemons
+                )
+            except Exception as e:
+                logger.warning(f"Failed to start daemon health monitor: {e}")
+                self.initialization_results["warnings"].append(f"Daemon health monitor failed: {e}")
 
-        # Initialize MVC components
-        self.models = {
-            "ipfs": IPFSModel(
+        # Initialize models dictionary
+        self.models = {}
+        
+        # Initialize IPFS model
+        try:
+            self.models["ipfs"] = IPFSModel(
                 ipfs_kit_instance=self.ipfs_kit,
                 cache_manager=self.cache_manager,
                 credential_manager=self.credential_manager
             )
-        }
+            logger.info("IPFS Model initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize IPFS model: {e}")
+            self.initialization_results["success"] = False
+            self.initialization_results["errors"].append(f"IPFS model initialization failed: {e}")
+            # Create a minimal IPFS model for basic functionality
+            class MinimalIPFSModel:
+                def __init__(self):
+                    self.get_stats = lambda: {"status": "minimal"}
+                    self.reset = lambda: None
+                    
+            self.models["ipfs"] = MinimalIPFSModel()
+            logger.warning("Using minimal IPFS model as fallback")
 
-        # Initialize Storage Manager
-        # Extract resources and metadata from ipfs_kit if available
-        resources = getattr(self.ipfs_kit, 'resources', {})
-        metadata = getattr(self.ipfs_kit, 'metadata', {})
+        # Initialize Storage Manager with proper error handling
+        try:
+            # Extract resources and metadata from ipfs_kit if available
+            resources = getattr(self.ipfs_kit, 'resources', {})
+            metadata = getattr(self.ipfs_kit, 'metadata', {})
 
-        self.storage_manager = StorageManager(
-            ipfs_model=self.models["ipfs"],
-            cache_manager=self.cache_manager,
-            credential_manager=self.credential_manager,
-            resources=resources,
-            metadata=metadata
-        )
-
-        # Add models from storage manager to models dictionary
-        for name, model in self.storage_manager.get_all_models().items():
-            self.models[f"storage_{name}"] = model
-            logger.info(f"Storage model {name} added")
-            
-        # Initialize Storage Bridge Model
-        self.storage_bridge = StorageBridgeModel(
-            ipfs_model=self.models["ipfs"],
-            backends=self.storage_manager.get_all_models(),
-            cache_manager=self.cache_manager
-        )
-        
-        # Add storage bridge to the models dictionary
-        self.models["storage_bridge"] = self.storage_bridge
-        logger.info("Storage Bridge Model added")
-        
-        # Integrate the storage bridge with the storage manager
-        self.storage_manager.storage_bridge = self.storage_bridge
-        logger.info("Storage Bridge Model integrated with Storage Manager")
-
-        self.controllers = {
-            "ipfs": IPFSController(self.models["ipfs"]),
-            "cli": CliController(self.models["ipfs"]),
-            "credentials": CredentialController(self.credential_manager),
-            "storage_manager": StorageManagerController(self.storage_manager)
-        }
-        logger.info("Storage Manager Controller added")
-
-        # Add storage controllers if available
-        if HAS_S3_CONTROLLER and "storage_s3" in self.models:
-            self.controllers["storage_s3"] = S3Controller(self.models["storage_s3"])
-            logger.info("S3 Controller added")
-
-        if HAS_HUGGINGFACE_CONTROLLER and "storage_huggingface" in self.models:
-            self.controllers["storage_huggingface"] = HuggingFaceController(self.models["storage_huggingface"])
-            logger.info("Hugging Face Controller added")
-
-        if HAS_STORACHA_CONTROLLER and "storage_storacha" in self.models:
-            self.controllers["storage_storacha"] = StorachaController(self.models["storage_storacha"])
-            logger.info("Storacha Controller added")
-
-        if HAS_FILECOIN_CONTROLLER and "storage_filecoin" in self.models:
-            self.controllers["storage_filecoin"] = FilecoinController(self.models["storage_filecoin"])
-            logger.info("Filecoin Controller added")
-
-        if HAS_LASSIE_CONTROLLER and "storage_lassie" in self.models:
-            self.controllers["storage_lassie"] = LassieController(self.models["storage_lassie"])
-            logger.info("Lassie Controller added")
-
-        # Add optional controllers if available
-        if HAS_DISTRIBUTED_CONTROLLER:
-            self.controllers["distributed"] = DistributedController(self.models["ipfs"])
-            logger.info("Distributed Controller added")
-
-        if HAS_WEBRTC_CONTROLLER:
-            self.controllers["webrtc"] = WebRTCController(self.models["ipfs"])
-            logger.info("WebRTC Controller added")
-
-        if HAS_PEER_WEBSOCKET_CONTROLLER:
-            self.controllers["peer_websocket"] = PeerWebSocketController(self.models["ipfs"])
-            logger.info("Peer WebSocket Controller added")
-
-        if HAS_FS_JOURNAL_CONTROLLER:
-            self.controllers["fs_journal"] = FsJournalController(self.models["ipfs"])
-            logger.info("Filesystem Journal Controller added")
-            
-        # Add Aria2 controller if available
-        if HAS_ARIA2_CONTROLLER:
-            # Initialize Aria2 model
-            self.models["aria2"] = Aria2Model(
-                aria2_kit_instance=None,  # Will be created by the model
-                cache_manager=self.cache_manager,
-                credential_manager=self.credential_manager
-            )
-            # Initialize and add Aria2 controller
-            self.controllers["aria2"] = Aria2Controller(self.models["aria2"])
-            logger.info("Aria2 Controller added")
-            
-        # Add LibP2P controller if available
-        if HAS_LIBP2P_CONTROLLER:
-            # Initialize LibP2P model
-            self.models["libp2p"] = LibP2PModel(
-                libp2p_peer_instance=None,  # Will be created by the model
+            self.storage_manager = StorageManager(
+                ipfs_model=self.models["ipfs"],
                 cache_manager=self.cache_manager,
                 credential_manager=self.credential_manager,
                 resources=resources,
                 metadata=metadata
             )
-            # Initialize and add LibP2P controller
-            self.controllers["libp2p"] = LibP2PController(self.models["libp2p"])
-            logger.info("LibP2P Controller added")
+            logger.info("Storage Manager initialized")
             
-        # Add MCP Discovery controller if available
-        if HAS_MCP_DISCOVERY_CONTROLLER:
-            # Initialize MCP Discovery model
-            self.models["mcp_discovery"] = MCPDiscoveryModel(
-                server_id=self.instance_id,
-                role="master",  # MCP server is typically a master
-                libp2p_model=self.models.get("libp2p"),
-                ipfs_model=self.models.get("ipfs"),
-                cache_manager=self.cache_manager,
-                credential_manager=self.credential_manager,
-                resources=resources,
-                metadata=metadata
-            )
-            # Initialize and add MCP Discovery controller
-            self.controllers["mcp_discovery"] = MCPDiscoveryController(self.models["mcp_discovery"])
-            logger.info("MCP Discovery Controller added")
+            # Add models from storage manager to models dictionary
+            for name, model in self.storage_manager.get_all_models().items():
+                self.models[f"storage_{name}"] = model
+                logger.info(f"Storage model {name} added")
+                
+            # Initialize Storage Bridge Model
+            try:
+                self.storage_bridge = StorageBridgeModel(
+                    ipfs_model=self.models["ipfs"],
+                    backends=self.storage_manager.get_all_models(),
+                    cache_manager=self.cache_manager
+                )
+                
+                # Add storage bridge to the models dictionary
+                self.models["storage_bridge"] = self.storage_bridge
+                logger.info("Storage Bridge Model added")
+                
+                # Integrate the storage bridge with the storage manager
+                self.storage_manager.storage_bridge = self.storage_bridge
+                logger.info("Storage Bridge Model integrated with Storage Manager")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Storage Bridge: {e}")
+                self.initialization_results["warnings"].append(f"Storage Bridge initialization failed: {e}")
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize Storage Manager: {e}")
+            self.initialization_results["success"] = False
+            self.initialization_results["errors"].append(f"Storage Manager initialization failed: {e}")
+            
+            # Create minimal versions for basic functionality
+            class MinimalStorageManager:
+                def __init__(self):
+                    self.get_all_models = lambda: {}
+                    self.get_available_backends = lambda: []
+                    self.get_stats = lambda: {"status": "minimal"}
+                    self.reset = lambda: None
+                    self.storage_bridge = None
+                    
+            self.storage_manager = MinimalStorageManager()
+            logger.warning("Using minimal Storage Manager as fallback")
+
+        # Initialize controllers with proper error handling
+        self.controllers = {}
+        
+        # Initialize core controllers
+        self._init_core_controllers()
+        
+        # Initialize storage controllers
+        self._init_storage_controllers()
+        
+        # Initialize optional controllers
+        self._init_optional_controllers()
 
         # Set the persistence manager
         self.persistence = self.cache_manager
+        
+        # Log initialization results
+        if not self.initialization_results["success"]:
+            logger.warning(f"MCP Server initialized with errors: {len(self.initialization_results['errors'])} errors, "
+                          f"{len(self.initialization_results['warnings'])} warnings")
+        elif self.initialization_results["warnings"]:
+            logger.info(f"MCP Server initialized with {len(self.initialization_results['warnings'])} warnings")
+        else:
+            logger.info("MCP Server initialized successfully")
+            
+    def _init_core_controllers(self):
+        """Initialize the core controllers with proper error handling."""
+        # Core controllers (IPFS, CLI, Credentials, Storage Manager)
+        core_controllers = [
+            ("ipfs", lambda: IPFSController(self.models["ipfs"])),
+            ("cli", lambda: CliController(self.models["ipfs"])),
+            ("credentials", lambda: CredentialController(self.credential_manager)),
+            ("storage_manager", lambda: StorageManagerController(self.storage_manager))
+        ]
+        
+        for name, constructor in core_controllers:
+            try:
+                self.controllers[name] = constructor()
+                logger.info(f"{name.capitalize()} Controller added")
+            except Exception as e:
+                logger.error(f"Failed to initialize {name} controller: {e}")
+                self.initialization_results["errors"].append(f"{name} controller initialization failed: {e}")
+                # Core controllers are required, so mark initialization as failed
+                self.initialization_results["success"] = False
+    
+    def _init_storage_controllers(self):
+        """Initialize storage controllers with proper error handling."""
+        # Storage controllers
+        storage_controllers = [
+            ("storage_s3", HAS_S3_CONTROLLER, lambda: S3Controller(self.models["storage_s3"])),
+            ("storage_huggingface", HAS_HUGGINGFACE_CONTROLLER, lambda: HuggingFaceController(self.models["storage_huggingface"])),
+            ("storage_storacha", HAS_STORACHA_CONTROLLER, lambda: StorachaController(self.models["storage_storacha"])),
+            ("storage_filecoin", HAS_FILECOIN_CONTROLLER, lambda: FilecoinController(self.models["storage_filecoin"])),
+            ("storage_lassie", HAS_LASSIE_CONTROLLER, lambda: LassieController(self.models["storage_lassie"]))
+        ]
+        
+        for controller_name, has_controller, constructor in storage_controllers:
+            if has_controller and controller_name in self.models:
+                try:
+                    self.controllers[controller_name] = constructor()
+                    logger.info(f"{controller_name.split('_')[1].capitalize()} Controller added")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize {controller_name} controller: {e}")
+                    self.initialization_results["warnings"].append(f"{controller_name} controller initialization failed: {e}")
+    
+    def _init_optional_controllers(self):
+        """Initialize optional controllers with proper error handling."""
+        # Aria2 Controller with model creation
+        if HAS_ARIA2_CONTROLLER:
+            try:
+                # Initialize Aria2 model
+                self.models["aria2"] = Aria2Model(
+                    aria2_kit_instance=None,  # Will be created by the model
+                    cache_manager=self.cache_manager,
+                    credential_manager=self.credential_manager
+                )
+                # Initialize and add Aria2 controller
+                self.controllers["aria2"] = Aria2Controller(self.models["aria2"])
+                logger.info("Aria2 Controller added")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Aria2 controller: {e}")
+                self.initialization_results["warnings"].append(f"Aria2 controller initialization failed: {e}")
+                # Clean up model if controller initialization failed
+                if "aria2" in self.models:
+                    del self.models["aria2"]
+                    
+        # LibP2P Controller with model creation
+        if HAS_LIBP2P_CONTROLLER:
+            try:
+                # Extract resources and metadata
+                resources = getattr(self.ipfs_kit, 'resources', {})
+                metadata = getattr(self.ipfs_kit, 'metadata', {})
+                
+                # Initialize LibP2P model
+                self.models["libp2p"] = LibP2PModel(
+                    libp2p_peer_instance=None,  # Will be created by the model
+                    cache_manager=self.cache_manager,
+                    credential_manager=self.credential_manager,
+                    resources=resources,
+                    metadata=metadata
+                )
+                # Initialize and add LibP2P controller
+                self.controllers["libp2p"] = LibP2PController(self.models["libp2p"])
+                logger.info("LibP2P Controller added")
+            except Exception as e:
+                logger.warning(f"Failed to initialize LibP2P controller: {e}")
+                self.initialization_results["warnings"].append(f"LibP2P controller initialization failed: {e}")
+                # Clean up model if controller initialization failed
+                if "libp2p" in self.models:
+                    del self.models["libp2p"]
+        
+        # MCP Discovery Controller with model creation
+        if HAS_MCP_DISCOVERY_CONTROLLER:
+            try:
+                # Extract resources and metadata
+                resources = getattr(self.ipfs_kit, 'resources', {})
+                metadata = getattr(self.ipfs_kit, 'metadata', {})
+                
+                # Get role from metadata if available, otherwise use "master"
+                role = metadata.get("role", "master")
+                
+                # Initialize MCP Discovery model
+                self.models["mcp_discovery"] = MCPDiscoveryModel(
+                    server_id=self.instance_id,
+                    role=role,  # Use role from metadata or default to master
+                    libp2p_model=self.models.get("libp2p"),  # Safely get libp2p model if available
+                    ipfs_model=self.models.get("ipfs"),  # Safely get ipfs model if available
+                    cache_manager=self.cache_manager,
+                    credential_manager=self.credential_manager,
+                    resources=resources,
+                    metadata=metadata
+                )
+                # Initialize and add MCP Discovery controller
+                self.controllers["mcp_discovery"] = MCPDiscoveryController(self.models["mcp_discovery"])
+                logger.info("MCP Discovery Controller added")
+            except Exception as e:
+                logger.warning(f"Failed to initialize MCP Discovery controller: {e}")
+                self.initialization_results["warnings"].append(f"MCP Discovery controller initialization failed: {e}")
+                # Clean up model if controller initialization failed
+                if "mcp_discovery" in self.models:
+                    del self.models["mcp_discovery"]
+        
+        # Optional controllers that use the IPFS model
+        optional_controllers = [
+            ("distributed", HAS_DISTRIBUTED_CONTROLLER, lambda: DistributedController(self.models["ipfs"])),
+            ("webrtc", HAS_WEBRTC_CONTROLLER, lambda: WebRTCController(self.models["ipfs"])),
+            ("peer_websocket", HAS_PEER_WEBSOCKET_CONTROLLER, lambda: PeerWebSocketController(self.models["ipfs"])),
+            ("fs_journal", HAS_FS_JOURNAL_CONTROLLER, lambda: FsJournalController(self.models["ipfs"]))
+        ]
+        
+        for name, has_controller, constructor in optional_controllers:
+            if has_controller and "ipfs" in self.models:
+                try:
+                    self.controllers[name] = constructor()
+                    logger.info(f"{name.capitalize()} Controller added")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize {name} controller: {e}")
+                    self.initialization_results["warnings"].append(f"{name} controller initialization failed: {e}")
+                    # Optional controllers don't affect overall success
 
     def get_router(self) -> APIRouter:
         """Get an API router with all controller routes registered.
@@ -403,71 +576,78 @@ class MCPServer:
             FastAPI router with all registered controller routes
         """
         return self._create_router()
+        
+    def register_controllers(self) -> APIRouter:
+        """Register all controllers with a router.
+        
+        This method is primarily for testing purposes and similar to _create_router,
+        but it assumes the router and controllers are already set up.
+        
+        Returns:
+            The router with controllers registered
+        """
+        if not hasattr(self, 'router') or not self.router:
+            self.router = APIRouter(prefix="", tags=["mcp"])
+        
+        # Register core endpoints with error handling
+        core_endpoints = [
+            ("/health", self.health_check, ["GET"]),
+            ("/debug", self.get_debug_state, ["GET"]),
+            ("/operations", self.get_operation_log, ["GET"]),
+            ("/daemon/start/{daemon_type}", self.start_daemon, ["POST"]),
+            ("/daemon/stop/{daemon_type}", self.stop_daemon, ["POST"]),
+            ("/daemon/status", self.get_daemon_status, ["GET"]),
+            ("/daemon/monitor/start", self.start_daemon_monitor, ["POST"]),
+            ("/daemon/monitor/stop", self.stop_daemon_monitor, ["POST"])
+        ]
+        
+        errors = []
+        
+        for path, endpoint, methods in core_endpoints:
+            try:
+                self.router.add_api_route(path, endpoint, methods=methods)
+                logger.debug(f"Registered core endpoint: {methods[0]} {path}")
+            except Exception as e:
+                error_msg = f"Failed to register core endpoint {path}: {e}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+
+        # Register controller routes using our robust method
+        self._register_controller_routes(self.router)
+                
+        # If we had any errors, log them together
+        if errors:
+            logger.error(f"Failed to register {len(errors)} core endpoints: {errors}")
+                
+        return self.router
 
     def _create_router(self) -> APIRouter:
         """Create FastAPI router for MCP endpoints."""
         router = APIRouter(prefix="", tags=["mcp"])
 
-        # Register core endpoints
-        router.add_api_route("/health", self.health_check, methods=["GET"])
+        # Register core endpoints with error handling
+        core_endpoints = [
+            ("/health", self.health_check, ["GET"]),
+            ("/debug", self.get_debug_state, ["GET"]),
+            ("/operations", self.get_operation_log, ["GET"]),
+            ("/daemon/start/{daemon_type}", self.start_daemon, ["POST"]),
+            ("/daemon/stop/{daemon_type}", self.stop_daemon, ["POST"]),
+            ("/daemon/status", self.get_daemon_status, ["GET"]),
+            ("/daemon/monitor/start", self.start_daemon_monitor, ["POST"]),
+            ("/daemon/monitor/stop", self.stop_daemon_monitor, ["POST"])
+        ]
         
-        # Always add debug endpoints - they'll return error responses when debug mode is disabled
-        router.add_api_route("/debug", self.get_debug_state, methods=["GET"])
-        router.add_api_route("/operations", self.get_operation_log, methods=["GET"])
+        for path, endpoint, methods in core_endpoints:
+            try:
+                router.add_api_route(path, endpoint, methods=methods)
+                logger.debug(f"Registered core endpoint: {methods[0]} {path}")
+            except Exception as e:
+                logger.error(f"Failed to register core endpoint {path}: {e}")
+                # Core endpoints are essential, so we should track this error
+                self.initialization_results["errors"].append(f"Failed to register core endpoint {path}: {e}")
 
-        # Daemon management endpoints (admin only)
-        router.add_api_route("/daemon/start/{daemon_type}", self.start_daemon, methods=["POST"])
-        router.add_api_route("/daemon/stop/{daemon_type}", self.stop_daemon, methods=["POST"])
-        router.add_api_route("/daemon/status", self.get_daemon_status, methods=["GET"])
-        router.add_api_route("/daemon/monitor/start", self.start_daemon_monitor, methods=["POST"])
-        router.add_api_route("/daemon/monitor/stop", self.stop_daemon_monitor, methods=["POST"])
-
-        # Register controller endpoints
-        self.controllers["ipfs"].register_routes(router)
-        self.controllers["cli"].register_routes(router)
-        self.controllers["credentials"].register_routes(router)
-        self.controllers["storage_manager"].register_routes(router)
-
-        # Register storage controllers
-        if "storage_s3" in self.controllers:
-            self.controllers["storage_s3"].register_routes(router)
-
-        if "storage_huggingface" in self.controllers:
-            self.controllers["storage_huggingface"].register_routes(router)
-
-        if "storage_storacha" in self.controllers:
-            self.controllers["storage_storacha"].register_routes(router)
-
-        if "storage_filecoin" in self.controllers:
-            self.controllers["storage_filecoin"].register_routes(router)
-
-        if "storage_lassie" in self.controllers:
-            self.controllers["storage_lassie"].register_routes(router)
-
-        # Register optional controllers
-        if "distributed" in self.controllers:
-            self.controllers["distributed"].register_routes(router)
-
-        if "webrtc" in self.controllers:
-            self.controllers["webrtc"].register_routes(router)
-
-        if "peer_websocket" in self.controllers:
-            self.controllers["peer_websocket"].register_routes(router)
-
-        if "fs_journal" in self.controllers:
-            self.controllers["fs_journal"].register_routes(router)
-            
-        # Register Aria2 controller routes if available
-        if "aria2" in self.controllers:
-            self.controllers["aria2"].register_routes(router)
-            
-        # Register LibP2P controller routes if available
-        if "libp2p" in self.controllers:
-            self.controllers["libp2p"].register_routes(router)
-            
-        # Register MCP Discovery controller routes if available
-        if "mcp_discovery" in self.controllers:
-            self.controllers["mcp_discovery"].register_routes(router)
+        # Register controller endpoints with proper error handling
+        self._register_controller_routes(router)
 
         # Define debug middleware function to be attached when registering with app
         self.debug_middleware = None
@@ -487,31 +667,141 @@ class MCPServer:
                 })
 
                 # Process request
-                response = await call_next(request)
+                try:
+                    response = await call_next(request)
+                    
+                    # Log response
+                    process_time = time.time() - start_time
+                    status_code = response.status_code
 
-                # Log response
-                process_time = time.time() - start_time
-                status_code = response.status_code
+                    self._log_operation({
+                        "type": "response",
+                        "session_id": session_id,
+                        "path": request.url.path,
+                        "method": request.method,
+                        "status_code": status_code,
+                        "process_time": process_time,
+                        "timestamp": time.time()
+                    })
 
-                self._log_operation({
-                    "type": "response",
-                    "session_id": session_id,
-                    "path": request.url.path,
-                    "method": request.method,
-                    "status_code": status_code,
-                    "process_time": process_time,
-                    "timestamp": time.time()
-                })
+                    # Add debug headers
+                    response.headers["X-MCP-Session-ID"] = session_id
+                    response.headers["X-MCP-Process-Time"] = f"{process_time:.6f}"
 
-                # Add debug headers
-                response.headers["X-MCP-Session-ID"] = session_id
-                response.headers["X-MCP-Process-Time"] = f"{process_time:.6f}"
-
-                return response
+                    return response
+                except Exception as e:
+                    # Log error and return a 500 response
+                    process_time = time.time() - start_time
+                    logger.error(f"Error in middleware: {e}")
+                    
+                    self._log_operation({
+                        "type": "error",
+                        "session_id": session_id,
+                        "path": request.url.path,
+                        "method": request.method,
+                        "error": str(e),
+                        "process_time": process_time,
+                        "timestamp": time.time()
+                    })
+                    
+                    # Create error response
+                    from fastapi.responses import JSONResponse
+                    error_response = JSONResponse(
+                        status_code=500,
+                        content={
+                            "success": False,
+                            "error": "Internal server error",
+                            "error_type": "UnhandledException",
+                            "timestamp": time.time()
+                        }
+                    )
+                    
+                    # Add debug headers
+                    error_response.headers["X-MCP-Session-ID"] = session_id
+                    error_response.headers["X-MCP-Process-Time"] = f"{process_time:.6f}"
+                    
+                    return error_response
 
             self.debug_middleware = debug_middleware
 
         return router
+        
+    def _register_controller_routes(self, router: APIRouter):
+        """Register all controller routes with error handling.
+        
+        Args:
+            router: The FastAPI router to register routes with
+        """
+        # Define all controllers to register
+        core_controllers = ["ipfs", "cli", "credentials", "storage_manager"]
+        storage_controllers = [
+            "storage_s3", "storage_huggingface", "storage_storacha", 
+            "storage_filecoin", "storage_lassie"
+        ]
+        optional_controllers = [
+            "distributed", "webrtc", "peer_websocket", "fs_journal",
+            "aria2", "libp2p", "mcp_discovery"
+        ]
+        
+        # Register core controllers (required for functionality)
+        for controller_name in core_controllers:
+            if controller_name in self.controllers:
+                try:
+                    controller = self.controllers[controller_name]
+                    if hasattr(controller, 'register_routes') and callable(controller.register_routes):
+                        controller.register_routes(router)
+                        logger.info(f"Registered routes for {controller_name} controller")
+                    else:
+                        logger.warning(f"{controller_name} controller does not have a register_routes method")
+                        self.initialization_results["warnings"].append(
+                            f"{controller_name} controller does not have a register_routes method"
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to register routes for {controller_name} controller: {e}")
+                    self.initialization_results["errors"].append(
+                        f"Failed to register routes for {controller_name} controller: {e}"
+                    )
+            else:
+                logger.error(f"Core controller {controller_name} not found, required for functionality")
+                self.initialization_results["errors"].append(f"Core controller {controller_name} not found")
+                
+        # Register storage controllers (optional, but important)
+        for controller_name in storage_controllers:
+            if controller_name in self.controllers:
+                try:
+                    controller = self.controllers[controller_name]
+                    if hasattr(controller, 'register_routes') and callable(controller.register_routes):
+                        controller.register_routes(router)
+                        logger.info(f"Registered routes for {controller_name} controller")
+                    else:
+                        logger.warning(f"{controller_name} controller does not have a register_routes method")
+                        self.initialization_results["warnings"].append(
+                            f"{controller_name} controller does not have a register_routes method"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to register routes for {controller_name} controller: {e}")
+                    self.initialization_results["warnings"].append(
+                        f"Failed to register routes for {controller_name} controller: {e}"
+                    )
+                    
+        # Register optional controllers (nice to have)
+        for controller_name in optional_controllers:
+            if controller_name in self.controllers:
+                try:
+                    controller = self.controllers[controller_name]
+                    if hasattr(controller, 'register_routes') and callable(controller.register_routes):
+                        controller.register_routes(router)
+                        logger.info(f"Registered routes for {controller_name} controller")
+                    else:
+                        logger.warning(f"{controller_name} controller does not have a register_routes method")
+                        self.initialization_results["warnings"].append(
+                            f"{controller_name} controller does not have a register_routes method"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to register routes for {controller_name} controller: {e}")
+                    self.initialization_results["warnings"].append(
+                        f"Failed to register routes for {controller_name} controller: {e}"
+                    )
 
     def register_with_app(self, app: FastAPI, prefix: str = "/mcp"):
         """
@@ -521,35 +811,132 @@ class MCPServer:
             app: FastAPI application instance
             prefix: URL prefix for MCP endpoints
         """
+        # Track registration success
+        registration_success = True
+        errors = []
+        
         # Mount the router
-        app.include_router(self.router, prefix=prefix)
+        try:
+            app.include_router(self.router, prefix=prefix)
+            logger.info(f"MCP Server router registered at prefix: {prefix}")
+        except Exception as e:
+            error_msg = f"Failed to register MCP router at prefix {prefix}: {e}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+            registration_success = False
 
         # Add debug middleware if enabled
         if self.debug_mode and self.debug_middleware:
-            app.middleware("http")(self.debug_middleware)
-            logger.info(f"Debug middleware added to FastAPI app")
+            try:
+                app.middleware("http")(self.debug_middleware)
+                logger.info(f"Debug middleware added to FastAPI app")
+            except Exception as e:
+                error_msg = f"Failed to register debug middleware: {e}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+                # Non-critical error, continue with registration
         else:
             logger.info(f"Debug mode is disabled, middleware not added")
 
         # For compatibility with tests that expect endpoints at /api/v0/..., register these endpoints directly
         # This ensures we respond to both /mcp/... and /api/v0/... endpoints
         if prefix != "/api/v0":
-            api_v0_router = APIRouter(prefix="/api/v0", tags=["mcp-api-v0"])
-
-            # Register core endpoints to match test expectations
-            api_v0_router.add_api_route("/health", self.health_check, methods=["GET"])
-            
-            # Always register debug endpoints - they'll return error responses when debug mode is disabled
-            api_v0_router.add_api_route("/debug", self.get_debug_state, methods=["GET"])
-            api_v0_router.add_api_route("/operations", self.get_operation_log, methods=["GET"])
+            try:
+                # Create compatibility router
+                api_v0_router = APIRouter(prefix="/api/v0", tags=["mcp-api-v0"])
                 
-            api_v0_router.add_api_route("/daemon/status", self.get_daemon_status, methods=["GET"])
+                # Core endpoints for test compatibility
+                compat_endpoints = [
+                    ("/health", self.health_check, ["GET"]),
+                    ("/debug", self.get_debug_state, ["GET"]),
+                    ("/operations", self.get_operation_log, ["GET"]),
+                    ("/daemon/status", self.get_daemon_status, ["GET"])
+                ]
+                
+                # Register compatibility endpoints with error handling
+                for path, endpoint, methods in compat_endpoints:
+                    try:
+                        api_v0_router.add_api_route(path, endpoint, methods=methods)
+                        logger.debug(f"Registered compatibility endpoint: {methods[0]} /api/v0{path}")
+                    except Exception as e:
+                        error_msg = f"Failed to register compatibility endpoint /api/v0{path}: {e}"
+                        logger.warning(error_msg)
+                        # Non-critical error for backward compatibility, continue with registration
+                
+                # Include compatibility router in the app
+                app.include_router(api_v0_router)
+                logger.info(f"MCP Server also registered at /api/v0 for test compatibility")
+            except Exception as e:
+                error_msg = f"Failed to register compatibility router at /api/v0: {e}"
+                logger.warning(error_msg)
+                errors.append(error_msg)
+                # Non-critical error, continue with registration
 
-            # Include this specialized router in the app
-            app.include_router(api_v0_router)
-            logger.info(f"MCP Server also registered at /api/v0 for test compatibility")
+        # Register error handler for global exception handling
+        try:
+            @app.exception_handler(Exception)
+            async def global_exception_handler(request: Request, exc: Exception):
+                """Global exception handler for unhandled exceptions."""
+                error_id = str(uuid.uuid4())
+                logger.error(f"Unhandled exception in request {request.url.path} [{error_id}]: {exc}")
+                
+                # Log detailed information in debug mode
+                if self.debug_mode:
+                    import traceback
+                    logger.debug(f"Exception traceback [{error_id}]:\n{traceback.format_exc()}")
+                    
+                    # Log the request details
+                    try:
+                        body = await request.body()
+                        logger.debug(f"Request details [{error_id}]:\n"
+                                   f"URL: {request.url}\n"
+                                   f"Headers: {request.headers}\n"
+                                   f"Body: {body.decode('utf-8', errors='replace')[:1000]}")
+                    except Exception as e:
+                        logger.debug(f"Could not log request details [{error_id}]: {e}")
+                
+                # Return standardized error response
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "success": False,
+                        "error": "Internal server error",
+                        "error_type": type(exc).__name__,
+                        "error_id": error_id,
+                        "timestamp": time.time()
+                    }
+                )
+            
+            logger.info("Registered global exception handler for improved error reporting")
+        except Exception as e:
+            error_msg = f"Failed to register global exception handler: {e}"
+            logger.warning(error_msg)
+            errors.append(error_msg)
+            # Non-critical error, continue with registration
 
-        logger.info(f"MCP Server registered with FastAPI app at prefix: {prefix}")
+        # Log overall registration results
+        if registration_success:
+            logger.info(f"MCP Server successfully registered with FastAPI app")
+            
+            # Log any non-critical errors
+            if errors:
+                logger.warning(f"MCP Server registered with {len(errors)} non-critical errors")
+                for i, error in enumerate(errors):
+                    logger.warning(f"Non-critical error {i+1}: {error}")
+        else:
+            logger.error(f"MCP Server registration failed with FastAPI app")
+            for i, error in enumerate(errors):
+                logger.error(f"Error {i+1}: {error}")
+            
+        # Record registration results in initialization results if available
+        if hasattr(self, 'initialization_results'):
+            self.initialization_results["api_registration"] = {
+                "success": registration_success,
+                "errors": errors,
+                "prefix": prefix,
+                "timestamp": time.time()
+            }
 
     def _log_operation(self, operation: Dict[str, Any]):
         """Log an operation for debugging purposes."""
@@ -564,44 +951,174 @@ class MCPServer:
         """
         Health check endpoint.
 
-        Returns information about the MCP server status, including daemon status
-        and automatic daemon management configuration.
+        Returns information about the MCP server status, including daemon status,
+        controller availability, and initialization results.
         """
+        # Record start time to track health check execution time
+        start_time = time.time()
+        
         # Build basic health information
         health_info = {
             "success": True,
             "status": "ok",
-            "timestamp": time.time(),
+            "timestamp": start_time,
             "server_id": self.instance_id,
             "debug_mode": self.debug_mode,
             "isolation_mode": self.isolation_mode
         }
+        
+        # Add initialization results if available
+        if hasattr(self, 'initialization_results'):
+            # Add basic information from initialization results
+            initialization_success = self.initialization_results.get("success", True)
+            error_count = len(self.initialization_results.get("errors", []))
+            warning_count = len(self.initialization_results.get("warnings", []))
+            
+            health_info["initialization"] = {
+                "success": initialization_success,
+                "error_count": error_count,
+                "warning_count": warning_count
+            }
+            
+            # Update overall status based on initialization results
+            if not initialization_success:
+                health_info["status"] = "degraded"
+                if error_count > 0:
+                    # Include the most recent errors for diagnostics
+                    health_info["initialization"]["recent_errors"] = self.initialization_results["errors"][-5:]
 
         # Add daemon status information if available
+        daemon_info = {}
         try:
             # Check if the ipfs_kit has the necessary daemon status methods
             if hasattr(self.ipfs_kit, 'check_daemon_status'):
-                daemon_status = self.ipfs_kit.check_daemon_status()
-                daemons = daemon_status.get("daemons", {})
+                try:
+                    daemon_status = self.ipfs_kit.check_daemon_status()
+                    daemons = daemon_status.get("daemons", {})
 
-                # Check IPFS daemon status
-                if "ipfs" in daemons:
-                    health_info["ipfs_daemon_running"] = daemons["ipfs"].get("running", False)
-
-                # Check cluster daemon status
-                if "ipfs_cluster_service" in daemons:
-                    health_info["ipfs_cluster_daemon_running"] = daemons["ipfs_cluster_service"].get("running", False)
+                    # Check each daemon's status
+                    daemon_names = ["ipfs", "ipfs_cluster_service", "ipfs_cluster_follow"]
+                    for daemon_name in daemon_names:
+                        if daemon_name in daemons:
+                            daemon_info[daemon_name] = {
+                                "running": daemons[daemon_name].get("running", False),
+                                "pid": daemons[daemon_name].get("pid")
+                            }
+                            
+                            # Add detailed status if available
+                            if "status" in daemons[daemon_name]:
+                                daemon_info[daemon_name]["status"] = daemons[daemon_name]["status"]
+                            
+                            # Add error information if available
+                            if "error" in daemons[daemon_name]:
+                                daemon_info[daemon_name]["error"] = daemons[daemon_name]["error"]
+                                
+                            # Check if any daemons are not running
+                            if daemon_name == "ipfs" and not daemons[daemon_name].get("running", False):
+                                health_info["status"] = "degraded"  # IPFS daemon is critical
+                                health_info["success"] = False
+                except Exception as e:
+                    daemon_info["status_check_error"] = str(e)
+                    daemon_info["error_type"] = type(e).__name__
+                    health_info["status"] = "degraded"  # Can't check daemon status
+            else:
+                daemon_info["status"] = "unknown"  # Can't check daemon status
 
             # Add auto-retry configuration status
             if hasattr(self.ipfs_kit, 'auto_start_daemons'):
-                health_info["auto_start_daemons_enabled"] = self.ipfs_kit.auto_start_daemons
+                daemon_info["auto_start_daemons_enabled"] = self.ipfs_kit.auto_start_daemons
 
             # Add daemon health monitor status
             if hasattr(self.ipfs_kit, 'is_daemon_health_monitor_running'):
-                health_info["daemon_health_monitor_running"] = self.ipfs_kit.is_daemon_health_monitor_running()
+                try:
+                    daemon_info["health_monitor_running"] = self.ipfs_kit.is_daemon_health_monitor_running()
+                except Exception as e:
+                    daemon_info["health_monitor_error"] = str(e)
         except Exception as e:
             # Don't fail the health check if daemon status check fails
-            health_info["daemon_status_check_error"] = str(e)
+            daemon_info["status_check_error"] = str(e)
+            daemon_info["error_type"] = type(e).__name__
+        
+        # Add daemon info to health info
+        health_info["daemons"] = daemon_info
+
+        # Add information about controllers
+        controllers_info = {}
+        controller_errors = 0
+        
+        for controller_name, controller in self.controllers.items():
+            # Initialize with basic information
+            controllers_info[controller_name] = {
+                "available": True  # Default to available
+            }
+            
+            # If the controller has get_health method, try to use it
+            if hasattr(controller, 'get_health') and callable(controller.get_health):
+                try:
+                    controller_health = await controller.get_health()
+                    
+                    # If get_health returns a dictionary with status information
+                    if isinstance(controller_health, dict):
+                        # Add basic availability
+                        if "available" in controller_health:
+                            controllers_info[controller_name]["available"] = controller_health["available"]
+                            
+                        # Add status if available
+                        if "status" in controller_health:
+                            controllers_info[controller_name]["status"] = controller_health["status"]
+                            
+                        # Add error information if available
+                        if "error" in controller_health:
+                            controllers_info[controller_name]["error"] = controller_health["error"]
+                            controllers_info[controller_name]["available"] = False
+                            controller_errors += 1
+                            
+                        # Add additional metrics if available
+                        for key in ["operation_count", "success_count", "error_count"]:
+                            if key in controller_health:
+                                controllers_info[controller_name][key] = controller_health[key]
+                    else:
+                        # If not a dict, just use the result directly as available status
+                        controllers_info[controller_name]["available"] = bool(controller_health)
+                        
+                except Exception as e:
+                    # If health check fails, log the error and mark as unavailable
+                    controllers_info[controller_name]["available"] = False
+                    controllers_info[controller_name]["error"] = str(e)
+                    controllers_info[controller_name]["error_type"] = type(e).__name__
+                    controller_errors += 1
+            else:
+                # No health check method, so just mark as available (best effort)
+                controllers_info[controller_name]["available"] = True
+                controllers_info[controller_name]["health_check"] = "not_implemented"
+        
+        # Update overall status based on controller health
+        if controller_errors > 0:
+            if controller_errors == len(self.controllers):
+                # All controllers have errors
+                health_info["status"] = "critical"
+                health_info["success"] = False
+            else:
+                # Some controllers have errors
+                health_info["status"] = "degraded"
+        
+        # Add controllers to health info
+        health_info["controllers"] = controllers_info
+        
+        # Add cache status information if available
+        if hasattr(self, 'cache_manager') and hasattr(self.cache_manager, 'get_cache_info'):
+            try:
+                cache_info = self.cache_manager.get_cache_info()
+                health_info["cache"] = cache_info
+            except Exception as e:
+                health_info["cache"] = {
+                    "status": "error",
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+        
+        # Add execution time for the health check itself
+        health_info["execution_time_ms"] = round((time.time() - start_time) * 1000, 2)
 
         return health_info
 
@@ -1255,14 +1772,24 @@ class MCPServer:
 
         This prevents 'I/O operation on closed file' errors during shutdown.
         """
-        for handler in list(logger.handlers):
+        # Use a local reference to avoid potential attribute errors
+        local_logger = logger
+        if not hasattr(local_logger, 'handlers'):
+            return
+            
+        # Get a copy of handlers to avoid modification during iteration
+        handlers_copy = list(local_logger.handlers)
+        for handler in handlers_copy:
             try:
                 # Flush any remaining logs
-                handler.flush()
+                if hasattr(handler, 'flush'):
+                    handler.flush()
                 # Close the handler
-                handler.close()
+                if hasattr(handler, 'close'):
+                    handler.close()
                 # Remove the handler from the logger
-                logger.removeHandler(handler)
+                if handler in local_logger.handlers:
+                    local_logger.removeHandler(handler)
             except Exception:
                 # Ignore errors during handler cleanup
                 pass
@@ -1282,43 +1809,53 @@ class MCPServer:
                 pass
             return
 
+        # Define a safe logging function
+        def safe_log(level, message):
+            """Log message safely, avoiding errors during shutdown"""
+            try:
+                if level == 'info':
+                    logger.info(message)
+                elif level == 'error':
+                    logger.error(message)
+                elif level == 'warning':
+                    logger.warning(message)
+            except Exception:
+                # If logging fails, silently continue
+                pass
+
         # Start with a message that we're shutting down
-        try:
-            logger.info("MCP Server shutting down")
-        except Exception:
-            # If logging fails, we're likely in shutdown already
-            return
+        safe_log('info', "MCP Server shutting down")
 
         # Stop daemon health monitor first to prevent daemon restarts during shutdown
         if hasattr(self.ipfs_kit, 'stop_daemon_health_monitor'):
             try:
-                logger.info("Stopping daemon health monitor...")
+                safe_log('info', "Stopping daemon health monitor...")
                 self.ipfs_kit.stop_daemon_health_monitor()
-                logger.info("Daemon health monitor stopped")
+                safe_log('info', "Daemon health monitor stopped")
             except Exception as e:
-                logger.error(f"Error stopping daemon health monitor: {e}")
+                safe_log('error', f"Error stopping daemon health monitor: {e}")
 
         # Stop cache manager cleanup thread
         if hasattr(self.cache_manager, 'stop_cleanup_thread'):
             try:
-                logger.info("Stopping cache cleanup thread...")
+                safe_log('info', "Stopping cache cleanup thread...")
                 self.cache_manager.stop_cleanup_thread()
-                logger.info("Cache cleanup thread stopped")
+                safe_log('info', "Cache cleanup thread stopped")
             except Exception as e:
-                logger.error(f"Error stopping cache cleanup thread: {e}")
+                safe_log('error', f"Error stopping cache cleanup thread: {e}")
 
         # Save cache metadata
         try:
-            logger.info("Saving cache metadata...")
+            safe_log('info', "Saving cache metadata...")
             self.cache_manager._save_metadata()
-            logger.info("Cache metadata saved")
+            safe_log('info', "Cache metadata saved")
         except Exception as e:
-            logger.error(f"Error saving cache metadata during shutdown: {e}")
+            safe_log('error', f"Error saving cache metadata during shutdown: {e}")
 
         # Make sure any in-memory credential changes are persisted
         if hasattr(self, 'credential_manager'):
             try:
-                logger.info("Ensuring credential persistence...")
+                safe_log('info', "Ensuring credential persistence...")
                 # The credential manager automatically persists changes, but we can
                 # explicitly save by re-adding the credentials that are in cache
                 for cred_key, cred_record in self.credential_manager.credential_cache.items():
@@ -1327,9 +1864,9 @@ class MCPServer:
                         self.credential_manager.add_credential(
                             service, name, cred_record["credentials"]
                         )
-                logger.info("Credentials persisted")
+                safe_log('info', "Credentials persisted")
             except Exception as e:
-                logger.error(f"Error persisting credentials during shutdown: {e}")
+                safe_log('error', f"Error persisting credentials during shutdown: {e}")
 
         # Special handling for peer WebSocket and WebRTC controllers to ensure async resources are cleaned up
         for controller_name in ["peer_websocket", "webrtc"]:
@@ -1339,7 +1876,7 @@ class MCPServer:
 
                     # Use the controller's shutdown method
                     if hasattr(controller, "shutdown"):
-                        logger.info(f"Shutting down {controller_name} controller...")
+                        safe_log('info', f"Shutting down {controller_name} controller...")
 
                         # Create event loop for async shutdown
                         import asyncio
@@ -1357,9 +1894,9 @@ class MCPServer:
                             else:
                                 controller.shutdown()
 
-                            logger.info(f"{controller_name} controller shutdown complete")
+                            safe_log('info', f"{controller_name} controller shutdown complete")
                         except Exception as e:
-                            logger.error(f"Error in {controller_name} controller shutdown: {e}")
+                            safe_log('error', f"Error in {controller_name} controller shutdown: {e}")
 
                             # Fallback to direct cleanup if shutdown method failed
                             if controller_name == "peer_websocket":
@@ -1369,18 +1906,18 @@ class MCPServer:
                                         if not loop.is_closed():
                                             loop.run_until_complete(controller.peer_websocket_server.stop())
                                         controller.peer_websocket_server = None
-                                        logger.info("Peer WebSocket server stopped directly")
+                                        safe_log('info', "Peer WebSocket server stopped directly")
                                     except Exception as server_error:
-                                        logger.error(f"Error stopping peer WebSocket server directly: {server_error}")
+                                        safe_log('error', f"Error stopping peer WebSocket server directly: {server_error}")
 
                                 if hasattr(controller, "peer_websocket_client") and controller.peer_websocket_client:
                                     try:
                                         if not loop.is_closed():
                                             loop.run_until_complete(controller.peer_websocket_client.stop())
                                         controller.peer_websocket_client = None
-                                        logger.info("Peer WebSocket client stopped directly")
+                                        safe_log('info', "Peer WebSocket client stopped directly")
                                     except Exception as client_error:
-                                        logger.error(f"Error stopping peer WebSocket client directly: {client_error}")
+                                        safe_log('error', f"Error stopping peer WebSocket client directly: {client_error}")
 
                             elif controller_name == "webrtc":
                                 # Handle WebRTC specific cleanup
@@ -1391,9 +1928,9 @@ class MCPServer:
                                                 loop.run_until_complete(controller.close_all_streaming_servers())
                                             else:
                                                 controller.close_all_streaming_servers()
-                                        logger.info("WebRTC streaming servers stopped directly")
+                                        safe_log('info', "WebRTC streaming servers stopped directly")
                                     except Exception as srv_error:
-                                        logger.error(f"Error stopping WebRTC streaming servers directly: {srv_error}")
+                                        safe_log('error', f"Error stopping WebRTC streaming servers directly: {srv_error}")
 
                                 # Access model to perform additional cleanup
                                 if hasattr(controller, "ipfs_model") and hasattr(controller.ipfs_model, "close_all_webrtc_connections"):
@@ -1403,20 +1940,20 @@ class MCPServer:
                                                 loop.run_until_complete(controller.ipfs_model.close_all_webrtc_connections())
                                             else:
                                                 controller.ipfs_model.close_all_webrtc_connections()
-                                        logger.info("WebRTC connections closed directly")
+                                        safe_log('info', "WebRTC connections closed directly")
                                     except Exception as conn_error:
-                                        logger.error(f"Error closing WebRTC connections directly: {conn_error}")
+                                        safe_log('error', f"Error closing WebRTC connections directly: {conn_error}")
                     else:
-                        logger.error(f"{controller_name} controller does not have a shutdown method")
+                        safe_log('error', f"{controller_name} controller does not have a shutdown method")
 
                 except Exception as e:
-                    logger.error(f"Error during {controller_name} controller shutdown: {e}")
+                    safe_log('error', f"Error during {controller_name} controller shutdown: {e}")
 
         # Shutdown all controllers
         for controller_name, controller in self.controllers.items():
             if hasattr(controller, 'shutdown'):
                 try:
-                    logger.info(f"Shutting down {controller_name} controller...")
+                    safe_log('info', f"Shutting down {controller_name} controller...")
                     # Check if it's an async shutdown method that needs to be awaited
                     import inspect
                     if inspect.iscoroutinefunction(controller.shutdown):
@@ -1436,14 +1973,14 @@ class MCPServer:
                     else:
                         # Regular synchronous shutdown
                         controller.shutdown()
-                    logger.info(f"{controller_name} controller shutdown complete")
+                    safe_log('info', f"{controller_name} controller shutdown complete")
                 except Exception as e:
-                    logger.error(f"Error shutting down {controller_name} controller: {e}")
+                    safe_log('error', f"Error shutting down {controller_name} controller: {e}")
 
         # Shutdown storage models
         if hasattr(self, "storage_manager"):
             try:
-                logger.info("Shutting down storage models...")
+                safe_log('info', "Shutting down storage models...")
 
                 # Reset all storage models to save their state
                 self.storage_manager.reset()
@@ -1451,28 +1988,28 @@ class MCPServer:
                 # Reset storage bridge if it exists
                 if hasattr(self, "storage_bridge"):
                     try:
-                        logger.info("Shutting down storage bridge...")
+                        safe_log('info', "Shutting down storage bridge...")
                         self.storage_bridge.reset()
-                        logger.info("Storage bridge shutdown complete")
+                        safe_log('info', "Storage bridge shutdown complete")
                     except Exception as e:
-                        logger.error(f"Error shutting down storage bridge: {e}")
+                        safe_log('error', f"Error shutting down storage bridge: {e}")
 
                 # Close any open connections
                 for name, model in self.storage_manager.get_all_models().items():
                     if hasattr(model, "shutdown"):
                         try:
-                            logger.info(f"Shutting down {name} storage model...")
+                            safe_log('info', f"Shutting down {name} storage model...")
                             model.shutdown()
-                            logger.info(f"{name} storage model shutdown complete")
+                            safe_log('info', f"{name} storage model shutdown complete")
                         except Exception as e:
-                            logger.error(f"Error shutting down {name} storage model: {e}")
+                            safe_log('error', f"Error shutting down {name} storage model: {e}")
 
-                logger.info("Storage models shutdown complete")
+                safe_log('info', "Storage models shutdown complete")
             except Exception as e:
-                logger.error(f"Error shutting down storage manager: {e}")
+                safe_log('error', f"Error shutting down storage manager: {e}")
 
         # Log final state
-        logger.info("MCP Server shutdown complete")
+        safe_log('info', "MCP Server shutdown complete")
 
         # Close logger handlers if requested
         if close_logger:
@@ -1525,7 +2062,8 @@ class MCPServer:
                 return
 
             # If not in interpreter shutdown, do a full shutdown
-            self.shutdown()
+            # Use close_logger=True to prevent logging after shutdown
+            self.shutdown(close_logger=True)
         except Exception:
             # Last resort - if anything fails during __del__, just pass
             # We can't safely log or handle errors during __del__

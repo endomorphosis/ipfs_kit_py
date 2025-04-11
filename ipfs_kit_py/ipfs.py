@@ -541,14 +541,55 @@ class ipfs_py:
                         result["error_type"] = "lock_file_error"
                         return handle_error(result, IPFSError(lock_error_msg))
                     else:
-                        # Propagate the general error
-                        return handle_error(result, IPFSError(f"Daemon failed to start: {stderr}"))
+                        # Enhanced error diagnostics
+                        error_details = {
+                            "stderr": stderr,
+                            "return_code": proc.returncode,
+                            "daemon_path": daemon_path,
+                            "ipfs_path": self.ipfs_path,
+                            "has_config": os.path.exists(os.path.join(self.ipfs_path, "config")) if hasattr(self, "ipfs_path") else False
+                        }
+                        self.logger.debug(f"IPFS daemon start diagnostic details: {error_details}")
+                        return handle_error(result, IPFSError(f"Daemon failed to start: {stderr}"), error_details)
 
             except Exception as e:
+                # Enhanced exception handling with automatic repo cleanup if needed
+                error_info = {
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+                
+                # Check for common issues and try to recover
+                if hasattr(self, "ipfs_path") and os.path.exists(self.ipfs_path):
+                    # Check for lock files that might prevent daemon startup
+                    lock_file = os.path.join(self.ipfs_path, "repo.lock")
+                    api_file = os.path.join(self.ipfs_path, "api")
+                    
+                    if os.path.exists(lock_file) or os.path.exists(api_file):
+                        self.logger.warning("Found lock files, attempting to clean up...")
+                        try:
+                            if os.path.exists(lock_file):
+                                os.remove(lock_file)
+                                self.logger.info(f"Removed lock file: {lock_file}")
+                                error_info["lock_file_removed"] = True
+                            
+                            if os.path.exists(api_file):
+                                os.remove(api_file)
+                                self.logger.info(f"Removed API file: {api_file}")
+                                error_info["api_file_removed"] = True
+                                
+                            # Try starting again
+                            self.logger.info("Retrying daemon start after lock cleanup...")
+                            return self.daemon_start()
+                        except Exception as cleanup_e:
+                            error_info["cleanup_error"] = str(cleanup_e)
+                            self.logger.error(f"Error cleaning up locks: {cleanup_e}")
+                
                 start_attempts["direct"] = {
                     "success": False,
                     "error": str(e),
                     "error_type": type(e).__name__,
+                    "details": error_info
                 }
                 return handle_error(result, e, {"attempts": start_attempts})
 

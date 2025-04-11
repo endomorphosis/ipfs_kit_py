@@ -781,3 +781,258 @@ class IPFSModelAnyIO:
             # Add duration
             result["duration_ms"] = (time.time() - start_time) * 1000
             return result
+    
+    async def check_daemon_status_anyio(self, daemon_type: str = None) -> Dict[str, Any]:
+        """
+        AnyIO-compatible version of daemon status check.
+        
+        Args:
+            daemon_type: Optional daemon type to check (ipfs, ipfs_cluster_service, etc.)
+            
+        Returns:
+            Dictionary with daemon status information
+        """
+        operation_id = f"check_daemon_status_anyio_{int(time.time() * 1000)}"
+        start_time = time.time()
+        
+        result = {
+            "success": False,
+            "operation": "check_daemon_status",
+            "operation_id": operation_id,
+            "timestamp": time.time(),
+            "overall_status": "unknown"
+        }
+        
+        if daemon_type:
+            result["daemon_type"] = daemon_type
+        
+        try:
+            # Check if we have a synchronous model implementation with the check_daemon_status method
+            if hasattr(self.ipfs, 'check_daemon_status'):
+                # Run the synchronous method in a thread
+                daemon_status = await anyio.to_thread.run_sync(
+                    lambda: self.ipfs.check_daemon_status(daemon_type)
+                )
+                
+                # Process the response
+                result.update(daemon_status)
+                
+            else:
+                # Manual status check if check_daemon_status not available
+                # This is simplified for now - in a real implementation we would do more thorough checks
+                daemons = {}
+                
+                # Check IPFS daemon
+                if daemon_type is None or daemon_type == "ipfs":
+                    # Run in thread for non-blocking operation
+                    ipfs_status = await anyio.to_thread.run_sync(self._check_ipfs_daemon_status_sync)
+                    daemons["ipfs"] = ipfs_status
+                
+                # Check IPFS Cluster service daemon
+                if daemon_type is None or daemon_type == "ipfs_cluster_service":
+                    # Run in thread for non-blocking operation
+                    cluster_status = await anyio.to_thread.run_sync(self._check_cluster_daemon_status_sync)
+                    daemons["ipfs_cluster_service"] = cluster_status
+                
+                # Check IPFS Cluster follow daemon
+                if daemon_type is None or daemon_type == "ipfs_cluster_follow":
+                    # Run in thread for non-blocking operation
+                    follow_status = await anyio.to_thread.run_sync(self._check_cluster_follow_daemon_status_sync)
+                    daemons["ipfs_cluster_follow"] = follow_status
+                
+                # Set overall status based on requested daemon or all daemons
+                if daemon_type:
+                    if daemon_type in daemons:
+                        result["daemon_info"] = daemons[daemon_type]
+                        result["running"] = daemons[daemon_type].get("running", False)
+                        result["overall_status"] = "running" if result["running"] else "stopped"
+                else:
+                    running_daemons = [d for d in daemons.values() if d.get("running", False)]
+                    result["running_count"] = len(running_daemons)
+                    result["daemon_count"] = len(daemons)
+                    result["overall_status"] = "running" if running_daemons else "stopped"
+                
+                result["daemons"] = daemons
+                result["success"] = True
+            
+            # Add duration information
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+        except Exception as e:
+            # Handle error
+            result["error"] = str(e)
+            result["error_type"] = "daemon_status_error"
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            
+            logger.error(f"Error in check_daemon_status_anyio: {e}")
+            
+        return result
+    
+    def check_daemon_status(self, daemon_type: str = None) -> Dict[str, Any]:
+        """
+        Check the status of IPFS daemons.
+        
+        Args:
+            daemon_type: Optional daemon type to check (ipfs, ipfs_cluster_service, etc.)
+            
+        Returns:
+            Dictionary with daemon status information
+        """
+        # Use the AnyIO version with anyio.run
+        try:
+            return anyio.run(self.check_daemon_status_anyio, daemon_type)
+        except Exception as e:
+            logger.error(f"Error running check_daemon_status_anyio with anyio.run: {e}")
+            
+            # Fallback to synchronous implementation
+            operation_id = f"check_daemon_status_{int(time.time() * 1000)}"
+            start_time = time.time()
+            
+            result = {
+                "success": False,
+                "operation": "check_daemon_status",
+                "operation_id": operation_id,
+                "timestamp": time.time(),
+                "overall_status": "unknown"
+            }
+            
+            if daemon_type:
+                result["daemon_type"] = daemon_type
+            
+            try:
+                # Check if we have a synchronous model implementation with the check_daemon_status method
+                if hasattr(self.ipfs, 'check_daemon_status'):
+                    # Call the synchronous method directly
+                    daemon_status = self.ipfs.check_daemon_status(daemon_type)
+                    
+                    # Process the response
+                    result.update(daemon_status)
+                    
+                else:
+                    # Manual status check if check_daemon_status not available
+                    daemons = {}
+                    
+                    # Check IPFS daemon
+                    if daemon_type is None or daemon_type == "ipfs":
+                        ipfs_status = self._check_ipfs_daemon_status_sync()
+                        daemons["ipfs"] = ipfs_status
+                    
+                    # Check IPFS Cluster service daemon
+                    if daemon_type is None or daemon_type == "ipfs_cluster_service":
+                        cluster_status = self._check_cluster_daemon_status_sync()
+                        daemons["ipfs_cluster_service"] = cluster_status
+                    
+                    # Check IPFS Cluster follow daemon
+                    if daemon_type is None or daemon_type == "ipfs_cluster_follow":
+                        follow_status = self._check_cluster_follow_daemon_status_sync()
+                        daemons["ipfs_cluster_follow"] = follow_status
+                    
+                    # Set overall status based on requested daemon or all daemons
+                    if daemon_type:
+                        if daemon_type in daemons:
+                            result["daemon_info"] = daemons[daemon_type]
+                            result["running"] = daemons[daemon_type].get("running", False)
+                            result["overall_status"] = "running" if result["running"] else "stopped"
+                    else:
+                        running_daemons = [d for d in daemons.values() if d.get("running", False)]
+                        result["running_count"] = len(running_daemons)
+                        result["daemon_count"] = len(daemons)
+                        result["overall_status"] = "running" if running_daemons else "stopped"
+                    
+                    result["daemons"] = daemons
+                    result["success"] = True
+                
+                # Add duration information
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                
+            except Exception as e:
+                # Handle error
+                result["error"] = str(e)
+                result["error_type"] = "daemon_status_error"
+                result["duration_ms"] = (time.time() - start_time) * 1000
+                
+                logger.error(f"Error in check_daemon_status: {e}")
+                
+            return result
+                    
+    def _check_ipfs_daemon_status_sync(self) -> Dict[str, Any]:
+        """Check if IPFS daemon is running (synchronous version)."""
+        status = {
+            "running": False,
+            "pid": None
+        }
+        
+        try:
+            # Try to get IPFS ID as a simple API check
+            if hasattr(self.ipfs, "id"):
+                id_result = self.ipfs.id()
+                status["running"] = "ID" in id_result or "id" in id_result
+                status["info"] = id_result
+            else:
+                # Fall back to simpler check
+                status["running"] = False
+                status["error"] = "No ID method found"
+                
+        except Exception as e:
+            status["running"] = False
+            status["error"] = str(e)
+            status["error_type"] = type(e).__name__
+            
+        status["last_checked"] = time.time()
+        return status
+    
+    def _check_cluster_daemon_status_sync(self) -> Dict[str, Any]:
+        """Check if IPFS Cluster service daemon is running (synchronous version)."""
+        status = {
+            "running": False,
+            "pid": None
+        }
+        
+        try:
+            # Check if ipfs_cluster_service is available
+            if hasattr(self.ipfs_kit, "ipfs_cluster_service"):
+                # Simple check if the service is running
+                if hasattr(self.ipfs_kit.ipfs_cluster_service, "is_running"):
+                    status["running"] = self.ipfs_kit.ipfs_cluster_service.is_running()
+                else:
+                    status["running"] = False
+                    status["error"] = "No is_running method found"
+            else:
+                status["running"] = False
+                status["error"] = "IPFS Cluster service not available"
+                
+        except Exception as e:
+            status["running"] = False
+            status["error"] = str(e)
+            status["error_type"] = type(e).__name__
+            
+        status["last_checked"] = time.time()
+        return status
+    
+    def _check_cluster_follow_daemon_status_sync(self) -> Dict[str, Any]:
+        """Check if IPFS Cluster follow daemon is running (synchronous version)."""
+        status = {
+            "running": False,
+            "pid": None
+        }
+        
+        try:
+            # Check if ipfs_cluster_follow is available
+            if hasattr(self.ipfs_kit, "ipfs_cluster_follow"):
+                # Simple check if the follower is running
+                if hasattr(self.ipfs_kit.ipfs_cluster_follow, "is_running"):
+                    status["running"] = self.ipfs_kit.ipfs_cluster_follow.is_running()
+                else:
+                    status["running"] = False
+                    status["error"] = "No is_running method found"
+            else:
+                status["running"] = False
+                status["error"] = "IPFS Cluster follow not available"
+                
+        except Exception as e:
+            status["running"] = False
+            status["error"] = str(e)
+            status["error_type"] = type(e).__name__
+            
+        status["last_checked"] = time.time()
+        return status

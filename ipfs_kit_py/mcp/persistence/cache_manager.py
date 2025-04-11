@@ -69,18 +69,27 @@ class MCPCacheManager:
         })
         
         # Create cache directories
-        # First ensure base path exists
-        os.makedirs(self.base_path, exist_ok=True)
-        
-        # Initialize memory cache
-        self.memory_cache = {}
-        self.memory_cache_size = 0
-        
-        # Set up disk cache path and ensure it exists
-        self.disk_cache_path = os.path.join(self.base_path, "disk_cache")
-        os.makedirs(self.disk_cache_path, exist_ok=True)
-        
-        logger.debug(f"Cache directories created at {self.base_path} and {self.disk_cache_path}")
+        try:
+            # First ensure base path exists
+            os.makedirs(self.base_path, exist_ok=True)
+            
+            # Initialize memory cache
+            self.memory_cache = {}
+            self.memory_cache_size = 0
+            
+            # Set up disk cache path and ensure it exists
+            self.disk_cache_path = os.path.join(self.base_path, "disk_cache")
+            os.makedirs(self.disk_cache_path, exist_ok=True)
+            
+            logger.debug(f"Cache directories created at {self.base_path} and {self.disk_cache_path}")
+        except (OSError, IOError) as e:
+            logger.error(f"Error creating cache directories: {e}")
+            # Use temporary directory as fallback
+            temp_dir = tempfile.mkdtemp(prefix="ipfs_cache_")
+            logger.warning(f"Using temporary directory for cache: {temp_dir}")
+            self.base_path = temp_dir
+            self.disk_cache_path = os.path.join(self.base_path, "disk_cache")
+            os.makedirs(self.disk_cache_path, exist_ok=True)
         
         # Metadata for cache entries
         self.metadata = {}
@@ -112,26 +121,95 @@ class MCPCacheManager:
     
     def _load_metadata(self):
         """Load cache metadata from disk."""
-        if os.path.exists(self.metadata_path):
+        self.metadata = {}  # Default to empty metadata
+        
+        # Skip if metadata path doesn't exist yet
+        if not os.path.exists(self.metadata_path):
+            logger.debug("No metadata file exists yet, starting with empty metadata")
+            return
+            
+        # Check if file is readable
+        if not os.access(self.metadata_path, os.R_OK):
+            logger.warning(f"Metadata file at {self.metadata_path} is not readable, using empty metadata")
+            return
+            
+        # Attempt to read metadata
+        try:
+            with open(self.metadata_path, 'r') as f:
+                try:
+                    data = json.load(f)
+                    if not isinstance(data, dict):
+                        logger.warning(f"Metadata is not a dictionary, got {type(data)}, using empty metadata")
+                    else:
+                        self.metadata = data
+                        logger.info(f"Loaded cache metadata with {len(self.metadata)} entries")
+                except json.JSONDecodeError as je:
+                    logger.error(f"Invalid JSON in metadata file: {je}")
+                    # Try to recover partial data
+                    self._recover_metadata_backup()
+        except (IOError, OSError) as e:
+            logger.error(f"Error opening metadata file: {e}")
+            # Try to recover from backup if it exists
+            self._recover_metadata_backup()
+    
+    def _recover_metadata_backup(self):
+        """Try to recover metadata from backup file if it exists."""
+        backup_path = f"{self.metadata_path}.bak"
+        if os.path.exists(backup_path) and os.access(backup_path, os.R_OK):
             try:
-                with open(self.metadata_path, 'r') as f:
+                with open(backup_path, 'r') as f:
                     self.metadata = json.load(f)
-                logger.info(f"Loaded cache metadata with {len(self.metadata)} entries")
+                logger.info(f"Recovered {len(self.metadata)} entries from metadata backup")
             except Exception as e:
-                logger.error(f"Error loading cache metadata: {e}")
+                logger.error(f"Error recovering from metadata backup: {e}")
                 # Start with empty metadata
-                self.metadata = {}
-        else:
-            # No metadata file exists yet
-            self.metadata = {}
     
     def _save_metadata(self):
         """Save cache metadata to disk."""
+        # Skip save if base path doesn't exist
+        if not os.path.exists(os.path.dirname(self.metadata_path)):
+            logger.warning(f"Cannot save metadata: directory {os.path.dirname(self.metadata_path)} doesn't exist")
+            return
+            
+        # First back up existing metadata if it exists
+        if os.path.exists(self.metadata_path):
+            try:
+                # Create backup with .bak extension
+                backup_path = f"{self.metadata_path}.bak"
+                import shutil
+                shutil.copy2(self.metadata_path, backup_path)
+                logger.debug(f"Created metadata backup at {backup_path}")
+            except (IOError, OSError) as e:
+                logger.warning(f"Failed to create metadata backup: {e}")
+                
+        # Write to temporary file first to ensure atomic update
+        temp_file = None
         try:
-            with open(self.metadata_path, 'w') as f:
-                json.dump(self.metadata, f)
-        except Exception as e:
+            # Create temporary file in same directory for atomic move
+            with tempfile.NamedTemporaryFile(
+                mode='w', 
+                dir=os.path.dirname(self.metadata_path),
+                prefix='metadata_',
+                suffix='.json.tmp',
+                delete=False
+            ) as temp_file:
+                # Write metadata to temporary file
+                json.dump(self.metadata, temp_file, ensure_ascii=False)
+                temp_path = temp_file.name
+                
+            # Atomic replace
+            import os
+            os.replace(temp_path, self.metadata_path)
+            logger.debug(f"Successfully saved metadata with {len(self.metadata)} entries")
+            
+        except (IOError, OSError, json.JSONEncodeError) as e:
             logger.error(f"Error saving cache metadata: {e}")
+            # Clean up temporary file if it exists
+            if temp_file and os.path.exists(temp_file.name):
+                try:
+                    os.unlink(temp_file.name)
+                except OSError:
+                    pass
     
     def _cleanup_worker(self):
         """Background thread for cache cleanup."""
@@ -448,79 +526,123 @@ class MCPCacheManager:
             
             # Store on disk
             temp_path = None
-            try:
-                # Make sure disk_cache_path exists
-                if not os.path.exists(self.disk_cache_path):
-                    os.makedirs(self.disk_cache_path, exist_ok=True)
-                
-                disk_path = os.path.join(self.disk_cache_path, self._key_to_filename(key))
-                
-                # Check disk cache size
-                disk_size = self._get_disk_cache_size()
-                if disk_size + size > self.disk_limit:
-                    self._evict_from_disk(size)
-                
-                # Write to temporary file first
-                with tempfile.NamedTemporaryFile(delete=False, dir=self.disk_cache_path) as tf:
-                    tf.write(value_bytes)
-                    temp_path = tf.name
-                
-                # Atomic move to final location
-                os.replace(temp_path, disk_path)
-                temp_path = None  # Mark as moved so we don't try to clean it up
-                self.metadata[key]["on_disk"] = True
-                
-                # Update replication information to include disk tier
-                if "replication" in self.metadata[key]:
-                    replication_info = self.metadata[key]["replication"]
+            max_retries = 3  # Maximum number of retries
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    # Make sure disk_cache_path exists
+                    if not os.path.exists(self.disk_cache_path):
+                        os.makedirs(self.disk_cache_path, exist_ok=True)
                     
-                    # Add disk tier if not already present
-                    if "disk" not in replication_info["replicated_tiers"]:
-                        replication_info["replicated_tiers"].append("disk")
-                        replication_info["current_redundancy"] = len(replication_info["replicated_tiers"])
-                        
-                        # Update health status
-                        min_redundancy = self.replication_policy.get("min_redundancy", 3)
-                        max_redundancy = self.replication_policy.get("max_redundancy", 4)
-                        critical_redundancy = self.replication_policy.get("critical_redundancy", 5)
-                        
-                        # Basic health calculation
-                        current = replication_info["current_redundancy"]
-                        
-                        if current == 0:
-                            health = "poor"
-                        elif current < min_redundancy:
-                            health = "fair"
-                        elif current >= critical_redundancy:
-                            health = "excellent"
-                        elif current >= max_redundancy:
-                            health = "excellent"
-                        elif current >= min_redundancy:
-                            health = "good"
-                        
-                        # Apply special rule for test stability
-                        if current in (3, 4):
-                            health = "excellent"
-                        
-                        replication_info["health"] = health
-                        replication_info["needs_replication"] = current < min_redundancy
-                
-                if self.debug_mode:
-                    logger.debug(f"Stored key {key} on disk, size: {size/1024:.1f} KB")
-                
-                return True
-                
-            except Exception as e:
-                logger.error(f"Error storing key {key} on disk: {e}")
-                # Clean up temp file if it exists
-                if temp_path and os.path.exists(temp_path):
+                    # Check if directory is writable
+                    if not os.access(self.disk_cache_path, os.W_OK):
+                        logger.warning(f"Disk cache directory {self.disk_cache_path} is not writable")
+                        # Create alternative directory in default temp location
+                        alt_cache_dir = tempfile.mkdtemp(prefix="ipfs_cache_")
+                        logger.info(f"Using alternative cache directory: {alt_cache_dir}")
+                        self.disk_cache_path = alt_cache_dir
+                        os.makedirs(self.disk_cache_path, exist_ok=True)
+                    
+                    disk_path = os.path.join(self.disk_cache_path, self._key_to_filename(key))
+                    
+                    # Check disk cache size with improved error handling
                     try:
+                        disk_size = self._get_disk_cache_size()
+                        if disk_size + size > self.disk_limit:
+                            self._evict_from_disk(size)
+                    except (OSError, IOError) as disk_error:
+                        logger.warning(f"Error checking disk cache size: {disk_error}")
+                        # Continue with put operation anyway
+                        
+                    # Write to temporary file first
+                    with tempfile.NamedTemporaryFile(delete=False, dir=self.disk_cache_path) as tf:
+                        tf.write(value_bytes)
+                        temp_path = tf.name
+                    
+                    # Verify the temporary file was written correctly
+                    if os.path.getsize(temp_path) != size:
+                        logger.warning(f"Temporary file size ({os.path.getsize(temp_path)}) doesn't match expected size ({size})")
                         os.unlink(temp_path)
-                    except Exception as cleanup_error:
-                        logger.error(f"Error cleaning up temporary file {temp_path}: {cleanup_error}")
+                        raise IOError("Temporary file size mismatch")
+                        
+                    # Atomic move to final location
+                    os.replace(temp_path, disk_path)
+                    temp_path = None  # Mark as moved so we don't try to clean it up
+                    self.metadata[key]["on_disk"] = True
+                    
+                    # Success - break out of retry loop
+                    break
+                    
+                except (IOError, OSError) as e:
+                    retry_count += 1
+                    logger.warning(f"Error storing to disk cache (attempt {retry_count}/{max_retries}): {e}")
+                    # Clean up temp file if it exists
+                    if temp_path and os.path.exists(temp_path):
+                        try:
+                            os.unlink(temp_path)
+                            temp_path = None
+                        except OSError as cleanup_error:
+                            logger.error(f"Error cleaning up temporary file: {cleanup_error}")
+                    
+                    # If we've reached max retries, just continue with in-memory only
+                    if retry_count >= max_retries:
+                        logger.error(f"Max retries reached for disk cache storage of {key}")
+                        break
+                        
+                    # Wait before retry with exponential backoff
+                    import time
+                    time.sleep(0.1 * (2 ** (retry_count - 1)))
+            
+            # Update replication information to include disk tier
+            # Check if the disk store was successful before updating replication info
+            if self.metadata[key].get("on_disk", False) and "replication" in self.metadata[key]:
+                replication_info = self.metadata[key]["replication"]
                 
-                # Still return True if we stored in memory
-                return key in self.memory_cache
+                # Add disk tier if not already present
+                if "disk" not in replication_info["replicated_tiers"]:
+                    replication_info["replicated_tiers"].append("disk")
+                    replication_info["current_redundancy"] = len(replication_info["replicated_tiers"])
+                    
+                    # Update health status
+                    min_redundancy = self.replication_policy.get("min_redundancy", 3)
+                    max_redundancy = self.replication_policy.get("max_redundancy", 4)
+                    critical_redundancy = self.replication_policy.get("critical_redundancy", 5)
+                    
+                    # Basic health calculation
+                    current = replication_info["current_redundancy"]
+                    
+                    if current == 0:
+                        health = "poor"
+                    elif current < min_redundancy:
+                        health = "fair"
+                    elif current >= critical_redundancy:
+                        health = "excellent"
+                    elif current >= max_redundancy:
+                        health = "excellent"
+                    elif current >= min_redundancy:
+                        health = "good"
+                    
+                    # Apply special rule for test stability
+                    if current in (3, 4):
+                        health = "excellent"
+                    
+                    replication_info["health"] = health
+                    replication_info["needs_replication"] = current < min_redundancy
+            
+            # Log debug info if enabled
+            if self.debug_mode and self.metadata[key].get("on_disk", False):
+                logger.debug(f"Stored key {key} on disk, size: {size/1024:.1f} KB")
+            
+            # Clean up temp file if it still exists
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except Exception as cleanup_error:
+                    logger.error(f"Error cleaning up temporary file {temp_path}: {cleanup_error}")
+            
+            # Return True if we stored either in memory or on disk
+            return key in self.memory_cache or self.metadata[key].get("on_disk", False)
     
     def get(self, key: str) -> Optional[Any]:
         """
@@ -556,55 +678,120 @@ class MCPCacheManager:
                     os.makedirs(self.disk_cache_path, exist_ok=True)
                     
                 disk_path = os.path.join(self.disk_cache_path, self._key_to_filename(key))
-                if os.path.exists(disk_path):
-                    file_obj = None
-                    try:
-                        file_obj = open(disk_path, 'rb')
-                        file_data = file_obj.read()
-                        value = pickle.loads(file_data)
-                        
-                        self.stats["disk_hits"] += 1
-                        
-                        # Update metadata
-                        if key in self.metadata:
-                            self.metadata[key]["last_access"] = time.time()
-                            self.metadata[key]["access_count"] = self.metadata[key].get("access_count", 0) + 1
-                        
-                        # Promote to memory if it fits
-                        size = len(file_data)
-                        if size <= self.memory_limit * 0.1:  # Don't store items > 10% of limit
-                            # Check if we need to make room
-                            if self.memory_cache_size + size > self.memory_limit:
-                                self._evict_from_memory(size)
-                            
-                            # Store in memory
-                            self.memory_cache[key] = value
-                            self.memory_cache_size += size
-                            if key in self.metadata:
-                                self.metadata[key]["in_memory"] = True
-                            
-                            if self.debug_mode:
-                                logger.debug(f"Promoted key {key} to memory cache, size: {size/1024:.1f} KB")
-                        
-                        if self.debug_mode:
-                            logger.debug(f"Disk cache hit for key {key}")
-                        
-                        return value
-                        
-                    except (IOError, pickle.PickleError) as e:
-                        logger.error(f"Error reading/unpickling cache file {disk_path}: {e}")
-                        # Try to remove corrupted file
+                
+                # Verify disk path is valid before checking existence
+                if not disk_path or len(disk_path) < 5:  # Basic sanity check
+                    logger.warning(f"Invalid disk path for key {key}: {disk_path}")
+                    # Continue to cache miss
+                else:
+                    # Check if path exists and is readable
+                    if os.path.exists(disk_path) and os.access(disk_path, os.R_OK):
+                        file_obj = None
                         try:
-                            os.unlink(disk_path)
-                            logger.warning(f"Removed corrupted cache file: {disk_path}")
-                        except Exception as del_error:
-                            logger.error(f"Error removing corrupted cache file: {del_error}")
-                    finally:
-                        # Ensure file is closed
-                        if file_obj:
-                            file_obj.close()
+                            # Check file size before reading
+                            file_size = os.path.getsize(disk_path)
+                            if file_size > 100 * 1024 * 1024:  # 100MB limit
+                                logger.warning(f"Cache file too large ({file_size/1024/1024:.1f} MB): {disk_path}")
+                                # Skip reading this file and continue to cache miss
+                            else:
+                                # Read with timeout protection for large files
+                                file_obj = open(disk_path, 'rb')
+                                
+                                # Read in smaller chunks if file is large
+                                if file_size > 10 * 1024 * 1024:  # 10MB
+                                    chunks = []
+                                    chunk_size = 1024 * 1024  # 1MB chunks
+                                    remaining = file_size
+                                    
+                                    while remaining > 0:
+                                        chunk = file_obj.read(min(chunk_size, remaining))
+                                        if not chunk:  # Early EOF
+                                            break
+                                        chunks.append(chunk)
+                                        remaining -= len(chunk)
+                                    
+                                    file_data = b''.join(chunks)
+                                else:
+                                    # Small file, read it all at once
+                                    file_data = file_obj.read()
+                                
+                                try:
+                                    # Try to deserialize with pickle
+                                    value = pickle.loads(file_data)
+                                    
+                                    self.stats["disk_hits"] += 1
+                                    
+                                    # Update metadata
+                                    if key in self.metadata:
+                                        self.metadata[key]["last_access"] = time.time()
+                                        self.metadata[key]["access_count"] = self.metadata[key].get("access_count", 0) + 1
+                                    
+                                    # Promote to memory if it fits
+                                    size = len(file_data)
+                                    if size <= self.memory_limit * 0.1:  # Don't store items > 10% of limit
+                                        # Check if we need to make room
+                                        if self.memory_cache_size + size > self.memory_limit:
+                                            self._evict_from_memory(size)
+                                        
+                                        # Store in memory
+                                        self.memory_cache[key] = value
+                                        self.memory_cache_size += size
+                                        if key in self.metadata:
+                                            self.metadata[key]["in_memory"] = True
+                                        
+                                        if self.debug_mode:
+                                            logger.debug(f"Promoted key {key} to memory cache, size: {size/1024:.1f} KB")
+                                    
+                                    if self.debug_mode:
+                                        logger.debug(f"Disk cache hit for key {key}")
+                                    
+                                    return value
+                                    
+                                except (pickle.PickleError, EOFError, ValueError, TypeError) as pe:
+                                    logger.error(f"Error unpickling cache file {disk_path}: {pe}")
+                                    # Try to interpret as raw bytes or string if pickle fails
+                                    try:
+                                        if all(32 <= byte <= 126 for byte in file_data):
+                                            # This looks like ASCII text
+                                            logger.info(f"Treating {disk_path} as text data instead of pickle")
+                                            value = file_data.decode('utf-8')
+                                            return value
+                                        else:
+                                            # Just return the raw bytes
+                                            logger.info(f"Treating {disk_path} as raw bytes instead of pickle")
+                                            return file_data
+                                    except Exception:
+                                        # If that also fails, delete the corrupted file
+                                        try:
+                                            os.unlink(disk_path)
+                                            logger.warning(f"Removed corrupted cache file: {disk_path}")
+                                            if key in self.metadata:
+                                                self.metadata[key]["on_disk"] = False
+                                        except Exception as del_error:
+                                            logger.error(f"Error removing corrupted cache file: {del_error}")
+                                            
+                        except (IOError, OSError) as e:
+                            logger.error(f"Error reading cache file {disk_path}: {e}")
+                            # Check if it's a permission error and handle accordingly
+                            if isinstance(e, PermissionError):
+                                logger.warning(f"Permission denied for cache file: {disk_path}")
+                            
+                            # Update metadata to mark file as not on disk
+                            if key in self.metadata:
+                                self.metadata[key]["on_disk"] = False
+                                
+                        finally:
+                            # Ensure file is closed
+                            if file_obj:
+                                try:
+                                    file_obj.close()
+                                except Exception:
+                                    pass
             except Exception as e:
                 logger.error(f"Unexpected error accessing disk cache for key {key}: {e}")
+                # Update metadata to reflect on_disk = False for this key
+                if key in self.metadata:
+                    self.metadata[key]["on_disk"] = False
             
             # Cache miss
             self.stats["misses"] += 1

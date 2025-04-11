@@ -216,6 +216,9 @@ class IPFSLibp2pPeer:
         # Declare global variable upfront to avoid shadowing
         global HAS_LIBP2P
         
+        # Initialize metadata dictionary - moved earlier to fix attribute access issue
+        self.metadata = metadata or {}
+        
         # Auto-install dependencies on first run if they're not already installed
         if not self.metadata.get("skip_dependency_check", False):
             if not self._check_and_install_dependencies():
@@ -232,9 +235,6 @@ class IPFSLibp2pPeer:
             (role in ["master", "worker"]) and enable_relay and HAS_NAT_TRAVERSAL
         )
         self.tiered_storage_manager = tiered_storage_manager
-        
-        # Initialize metadata dictionary
-        self.metadata = metadata or {}
 
         # Default listen addresses if none provided
         if listen_addrs is None:
@@ -3796,3 +3796,26 @@ def extract_peer_id_from_multiaddr(multiaddr_str: str) -> Optional[str]:
 
     except Exception:
         return None
+
+# Add start method to IPFSLibp2pPeer class
+def start(self) -> bool:
+    """Start the libp2p peer if it's not already running.
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if self._running:
+        self.logger.debug("LibP2P peer is already running")
+        return True
+        
+    try:
+        # We're already initialized in __init__, so just set running flag if needed
+        self._running = True
+        self.logger.info(f"LibP2P peer {self.get_peer_id()} started successfully")
+        return True
+    except Exception as e:
+        self.logger.error(f"Failed to start libp2p peer: {str(e)}")
+        return False
+
+# Add the method to the class
+IPFSLibp2pPeer.start = start

@@ -164,7 +164,9 @@ class TestBaseStorageModel(unittest.TestCase):
     def test_update_stats(self):
         """Test updating statistics."""
         # Test upload success
-        self.model._update_stats("upload", True, 1024)
+        # The method signature is: _update_stats(operation, success, duration_ms, bytes_count=None)
+        # Note: duration_ms is required
+        self.model._update_stats("upload", True, 100.0, 1024)  # Add duration_ms parameter
         self.assertEqual(self.model.operation_stats["upload_count"], 1)
         self.assertEqual(self.model.operation_stats["total_operations"], 1)
         self.assertEqual(self.model.operation_stats["success_count"], 1)
@@ -173,7 +175,7 @@ class TestBaseStorageModel(unittest.TestCase):
         self.assertIsNotNone(self.model.operation_stats["last_operation_time"])
         
         # Test download failure
-        self.model._update_stats("download", False, 512)
+        self.model._update_stats("download", False, 200.0, 512)  # Add duration_ms parameter
         self.assertEqual(self.model.operation_stats["download_count"], 1)
         self.assertEqual(self.model.operation_stats["total_operations"], 2)
         self.assertEqual(self.model.operation_stats["success_count"], 1)
@@ -181,13 +183,13 @@ class TestBaseStorageModel(unittest.TestCase):
         self.assertEqual(self.model.operation_stats["bytes_downloaded"], 512)
         
         # Test list operation
-        self.model._update_stats("list", True)
+        self.model._update_stats("list", True, 50.0)  # Add duration_ms parameter
         self.assertEqual(self.model.operation_stats["list_count"], 1)
         self.assertEqual(self.model.operation_stats["total_operations"], 3)
         self.assertEqual(self.model.operation_stats["success_count"], 2)
         
         # Test delete operation
-        self.model._update_stats("delete", True)
+        self.model._update_stats("delete", True, 75.0)  # Add duration_ms parameter
         self.assertEqual(self.model.operation_stats["delete_count"], 1)
         self.assertEqual(self.model.operation_stats["total_operations"], 4)
         self.assertEqual(self.model.operation_stats["success_count"], 3)

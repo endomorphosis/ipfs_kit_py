@@ -1,0 +1,29 @@
+{
+  "timestamp": 1744312217.2329485,
+  "platform": "linux",
+  "python_version": "3.12.3 (main, Feb  4 2025, 14:48:35) [GCC 13.3.0]",
+  "dependencies": {
+    "has_libp2p": true,
+    "has_mcp_deps": true,
+    "auto_install_enabled": false
+  },
+  "phases": {
+    "mcp_server": {
+      "server_start": {
+        "success": false,
+        "timestamp": 1744312229.8856416
+      },
+      "libp2p_integration": {
+        "success": false,
+        "error": "Skipped due to server start failure",
+        "skipped": true
+      },
+      "dht_operations": {
+        "success": false,
+        "error": "Skipped due to server start failure",
+        "skipped": true
+      }
+    }
+  },
+  "success": false
+}

@@ -20,7 +20,18 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import asyncio
 import uuid
 import pytest
-import pytest_asyncio
+# Handle pytest_asyncio dependency gracefully
+try:
+    import pytest_asyncio
+    HAS_PYTEST_ASYNCIO = True
+except ImportError:
+    HAS_PYTEST_ASYNCIO = False
+    # Create dummy versions for compatibility
+    class DummyAsyncioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    
+    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
 # MCP components
 from ipfs_kit_py.mcp.server import MCPServer
@@ -81,6 +92,7 @@ else:
     _can_test_webrtc = HAVE_WEBRTC
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 class TestMCPWebRTCMetadataReplication(unittest.TestCase):
     """Test MCP server integration with WebRTC streaming and metadata replication."""
     

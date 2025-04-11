@@ -24,7 +24,18 @@ import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 import uuid
 import pytest
-import pytest_asyncio
+# Handle pytest_asyncio dependency gracefully
+try:
+    import pytest_asyncio
+    HAS_PYTEST_ASYNCIO = True
+except ImportError:
+    HAS_PYTEST_ASYNCIO = False
+    # Create dummy versions for compatibility
+    class DummyAsyncioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    
+    pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
 # Import components to test
 from ipfs_kit_py.webrtc_streaming import (
@@ -51,10 +62,12 @@ else:
     _can_test_webrtc = HAVE_WEBRTC
 
 
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest.mark.asyncio
 class TestWebRTCMetadataReplication:
     """Test WebRTC integration with metadata replication."""
     
+    @pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
     @pytest_asyncio.fixture
     async def setup(self):
         """Set up test environment with WebRTC manager and replication system."""

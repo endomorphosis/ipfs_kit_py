@@ -7,7 +7,7 @@ Simpler script to check for syntax errors in ai_ml_integration.py
 import os
 import sys
 
-filename = 'ipfs_kit_py/ai_ml_integration.py'
+filename = 'ipfs_kit_py/mcp/models/libp2p_model.py'
 
 try:
     with open(filename, 'r') as f:

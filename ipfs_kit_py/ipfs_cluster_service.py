@@ -83,7 +83,7 @@ class ipfs_cluster_service:
                 raise IPFSConfigurationError(f"Failed to initialize IPFS Cluster Service: {str(e)}")
 
     def run_cluster_service_command(
-        self, cmd_args, check=True, timeout=30, correlation_id=None, shell=False
+        self, cmd_args, check=True, timeout=30, correlation_id=None, shell=False, env=None
     ):
         """Run IPFS cluster-service command with proper error handling.
 
@@ -93,6 +93,7 @@ class ipfs_cluster_service:
             timeout: Command timeout in seconds
             correlation_id: ID for tracking related operations
             shell: Whether to use shell execution (avoid if possible)
+            env: Environment variables to set for the command
 
         Returns:
             Dictionary with command result information
@@ -231,6 +232,284 @@ class ipfs_cluster_service:
             # Get bootstrap peers from kwargs or instance attribute
             bootstrap_peers = kwargs.get("bootstrap_peers", getattr(self, "bootstrap_peers", []))
 
+            # Check if IPFS cluster service config exists, if not, initialize it
+            cluster_config_path = os.path.expanduser("~/.ipfs-cluster/service.json")
+            if not os.path.exists(cluster_config_path):
+                logger.info("IPFS cluster service configuration not found. Initializing...")
+                # Set up initialization result tracking
+                result["initialization_attempted"] = True
+                
+                # Use a verified ID and private key pair
+                # These were generated together and are known to work properly
+                peer_id = "12D3KooWSipNgSzxfHJLBUVBwxih8yYzFzJ6e5WrrUVPbNRBgXXu"
+                private_key = "CAESQK+BaRfdTsG0zF7kJ78bfBmTkP1oP3XJw4OKKaX3xDWEyxpXgpF/fJzA/pDnpwsRB2dIBQl/C5PgOLUHvdE2V5g="
+                
+                # Create installation metadata with sane defaults
+                install_metadata = {
+                    "role": getattr(self, "role", "leecher"),
+                    "ipfs_path": getattr(self, "ipfs_path", os.path.expanduser("~/.ipfs")),
+                    "cluster_name": "ipfs_kit_cluster",
+                    "cluster_location": "/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWSipNgSzxfHJLBUVBwxih8yYzFzJ6e5WrrUVPbNRBgXXu"
+                }
+                
+                # First, ensure the cluster directory exists
+                try:
+                    cluster_dir = os.path.expanduser("~/.ipfs-cluster")
+                    if not os.path.exists(cluster_dir):
+                        os.makedirs(cluster_dir, exist_ok=True)
+                        logger.info(f"Created IPFS cluster directory at {cluster_dir}")
+                    
+                    result["cluster_dir_created"] = os.path.exists(cluster_dir)
+                    
+                    # Create necessary directories for proper operation
+                    for subdir in ["raft", "datastore", "peerstore"]:
+                        subdir_path = os.path.join(cluster_dir, subdir)
+                        if not os.path.exists(subdir_path):
+                            os.makedirs(subdir_path, exist_ok=True)
+                            logger.info(f"Created {subdir} directory at {subdir_path}")
+                    
+                    # Create a comprehensive configuration file based on the role
+                    config_path = os.path.join(cluster_dir, "service.json")
+                    if not os.path.exists(config_path):
+                        logger.info("Creating service.json configuration file")
+                        
+                        # Create role-specific configuration
+                        if install_metadata["role"] == "master":
+                            basic_config = {
+                                "cluster": {
+                                    "id": peer_id,
+                                    "peername": f"master-{os.getenv('USER', 'user')}",
+                                    "secret": "",  # Empty secret for single-node testing
+                                    "leave_on_shutdown": False,
+                                    "listen_multiaddress": ["/ip4/0.0.0.0/tcp/9096"],
+                                    "state_sync_interval": "5m",
+                                    "ipfs_sync_interval": "2m"
+                                },
+                                "consensus": {
+                                    "crdt": {
+                                        "cluster_name": install_metadata["cluster_name"],
+                                        "trusted_peers": []
+                                    }
+                                },
+                                "api": {
+                                    "ipfsproxy": {
+                                        "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095"
+                                    },
+                                    "restapi": {
+                                        "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
+                                        "headers": {
+                                            "Access-Control-Allow-Origin": ["*"],
+                                            "Access-Control-Allow-Methods": ["GET", "POST", "OPTIONS"],
+                                            "Access-Control-Allow-Headers": ["X-Requested-With", "Range", "Content-Type"]
+                                        }
+                                    }
+                                },
+                                "ipfs_connector": {
+                                    "ipfshttp": {
+                                        "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+                                        "connect_swarms_delay": "30s",
+                                        "pin_method": "pin",
+                                        "unpin_disable": False
+                                    }
+                                },
+                                "pintracker": {
+                                    "stateless": {
+                                        "max_pin_queue_size": 50000,
+                                        "concurrent_pins": 10
+                                    }
+                                },
+                                "monitor": {
+                                    "monbasic": {
+                                        "check_interval": "15s"
+                                    }
+                                },
+                                "informer": {
+                                    "disk": {
+                                        "metric_ttl": "30s",
+                                        "metric_type": "freespace"
+                                    }
+                                }
+                            }
+                        elif install_metadata["role"] == "worker":
+                            basic_config = {
+                                "cluster": {
+                                    "id": peer_id,
+                                    "peername": f"worker-{os.getenv('USER', 'user')}",
+                                    "secret": "",  # Empty secret for single-node testing
+                                    "leave_on_shutdown": False,
+                                    "listen_multiaddress": ["/ip4/0.0.0.0/tcp/9096"],
+                                    "state_sync_interval": "5m",
+                                    "ipfs_sync_interval": "2m"
+                                },
+                                "consensus": {
+                                    "crdt": {
+                                        "cluster_name": install_metadata["cluster_name"],
+                                        "trusted_peers": []
+                                    }
+                                },
+                                "api": {
+                                    "ipfsproxy": {
+                                        "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095"
+                                    },
+                                    "restapi": {
+                                        "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094"
+                                    }
+                                },
+                                "ipfs_connector": {
+                                    "ipfshttp": {
+                                        "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+                                        "connect_swarms_delay": "30s"
+                                    }
+                                }
+                            }
+                        else:  # leecher or default
+                            basic_config = {
+                                "cluster": {
+                                    "id": peer_id,
+                                    "peername": f"leecher-{os.getenv('USER', 'user')}",
+                                    "secret": "",
+                                    "leave_on_shutdown": True,
+                                    "listen_multiaddress": ["/ip4/0.0.0.0/tcp/9096"],
+                                    "state_sync_interval": "5m",
+                                    "ipfs_sync_interval": "2m"
+                                },
+                                "consensus": {
+                                    "crdt": {
+                                        "cluster_name": install_metadata["cluster_name"],
+                                        "trusted_peers": []
+                                    }
+                                },
+                                "api": {
+                                    "ipfsproxy": {
+                                        "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095"
+                                    },
+                                    "restapi": {
+                                        "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094"
+                                    }
+                                },
+                                "ipfs_connector": {
+                                    "ipfshttp": {
+                                        "node_multiaddress": "/ip4/127.0.0.1/tcp/5001"
+                                    }
+                                }
+                            }
+                        
+                        # Write configuration to file with proper error handling
+                        try:
+                            with open(config_path, 'w') as f:
+                                import json
+                                json.dump(basic_config, f, indent=2)
+                            
+                            logger.info(f"Created role-specific configuration at {config_path}")
+                            result["config_created"] = True
+                        except Exception as e:
+                            logger.error(f"Failed to create configuration file: {str(e)}")
+                            result["config_created"] = False
+                            result["config_error"] = str(e)
+                    else:
+                        logger.info(f"Configuration file already exists at {config_path}")
+                        result["config_created"] = False
+                        result["config_exists"] = True
+                    
+                    # Initialize identity.json file which is required for the service to start
+                    identity_path = os.path.join(cluster_dir, "identity.json")
+                    if not os.path.exists(identity_path):
+                        logger.info("Creating identity.json file")
+                        
+                        # Create identity file with the same peer ID used in configuration
+                        identity_config = {
+                            "id": peer_id,
+                            "private_key": private_key
+                        }
+                        
+                        try:
+                            with open(identity_path, 'w') as f:
+                                import json
+                                json.dump(identity_config, f, indent=2)
+                            
+                            logger.info(f"Created identity file at {identity_path}")
+                            result["identity_created"] = True
+                        except Exception as e:
+                            logger.error(f"Failed to create identity file: {str(e)}")
+                            result["identity_created"] = False
+                            result["identity_error"] = str(e)
+                    else:
+                        logger.info(f"Identity file already exists at {identity_path}")
+                        result["identity_created"] = False
+                        result["identity_exists"] = True
+                    
+                    # Attempt binary installation as a secondary step
+                    # This may fail if permissions or dependencies are issues, but we will
+                    # still try to use what's available in the PATH
+                    try:
+                        # Import only when needed to handle potential import errors gracefully
+                        from .install_ipfs import install_ipfs
+                        
+                        # Initialize installer with proper resources and metadata
+                        installer = install_ipfs(resources=self.resources, metadata=install_metadata)
+                        
+                        # Install appropriate binaries based on role
+                        if install_metadata["role"] == "master":
+                            bin_result = installer.install_ipfs_cluster_service()
+                            result["binary_installation"] = {
+                                "type": "cluster-service",
+                                "success": True if bin_result is True else False,
+                                "path": str(bin_result) if bin_result is not False else ""
+                            }
+                            logger.info(f"IPFS cluster service binary installation: {bin_result}")
+                            
+                        elif install_metadata["role"] == "worker":
+                            bin_result = installer.install_ipfs_cluster_follow()
+                            result["binary_installation"] = {
+                                "type": "cluster-follow",
+                                "success": True if bin_result is True else False,
+                                "path": str(bin_result) if bin_result is not False else ""
+                            }
+                            logger.info(f"IPFS cluster follow binary installation: {bin_result}")
+                        
+                        else:  # leecher doesn't require cluster binaries, but we'll install ipfs-cluster-ctl
+                            bin_result = installer.install_ipfs_cluster_ctl()
+                            result["binary_installation"] = {
+                                "type": "cluster-ctl",
+                                "success": True if bin_result is True else False,
+                                "path": str(bin_result) if bin_result is not False else ""
+                            }
+                            logger.info(f"IPFS cluster ctl binary installation: {bin_result}")
+                        
+                    except ImportError as e:
+                        logger.warning(f"Could not import install_ipfs module for binary installation: {str(e)}")
+                        result["binary_installation"] = {
+                            "success": False,
+                            "error": f"Import error: {str(e)}"
+                        }
+                    except Exception as e:
+                        logger.warning(f"Optional binary installation step had issues: {str(e)}")
+                        result["binary_installation"] = {
+                            "success": False,
+                            "error": str(e)
+                        }
+                
+                except Exception as e:
+                    logger.error(f"Error during cluster initialization: {str(e)}")
+                    result["initialization_error"] = str(e)
+                    # Include traceback for debugging
+                    import traceback
+                    result["initialization_traceback"] = traceback.format_exc()
+                
+                # Record overall initialization status
+                initialization_success = (
+                    result.get("cluster_dir_created", False) and 
+                    (result.get("config_created", False) or result.get("config_exists", False)) and
+                    (result.get("identity_created", False) or result.get("identity_exists", False))
+                )
+                
+                if initialization_success:
+                    logger.info("IPFS cluster service initialization completed successfully")
+                    result["initialization"] = "completed"
+                else:
+                    logger.warning("IPFS cluster service initialization had issues")
+                    result["initialization"] = "partial"
+
             # Different execution paths based on user privileges
             if os.getuid() == 0:
                 # Running as root, use systemctl
@@ -253,6 +532,11 @@ class ipfs_cluster_service:
 
                 # Construct command arguments as a list for security
                 cmd_args = ["ipfs-cluster-service", "daemon"]
+                
+                # Create environment with necessary variables
+                env = os.environ.copy()
+                env["IPFS_CLUSTER_PATH"] = self.ipfs_cluster_path
+                result["environment_setup"] = True
 
                 # Add bootstrap peers if provided
                 if bootstrap_peers:
@@ -339,9 +623,13 @@ class ipfs_cluster_service:
                         # Build command arguments
                         cmd_args = ["ipfs-cluster-service", "daemon"]
 
-                        # Add bootstrap peers
-                        for peer in validated_peers:
-                            cmd_args.extend(["--bootstrap", peer])
+                        # Add bootstrap peers if we have them
+                        # Use bootstrap_peers from earlier context to avoid variable scope issue
+                        if bootstrap_peers:
+                            # We need to revalidate the peers for security
+                            for peer in bootstrap_peers:
+                                if isinstance(peer, str) and re.match(r"^/(?:ip[46]|dns[46]?|unix|p2p)/", peer):
+                                    cmd_args.extend(["--bootstrap", peer])
 
                         # Start the process
                         process = subprocess.Popen(

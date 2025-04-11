@@ -50,6 +50,9 @@ class PeerDiscoveryResponse(BaseModel):
 
 class PeerConnectionRequest(BaseModel):
     peer_addr: str = Field(..., description="Peer multiaddress to connect to")
+    
+class PeerDisconnectRequest(BaseModel):
+    peer_id: str = Field(..., description="Peer ID to disconnect from")
 
 class ContentRequest(BaseModel):
     cid: str = Field(..., description="Content ID to retrieve or announce")
@@ -178,6 +181,18 @@ class LibP2PController:
                 tags=["libp2p"]
             )
             self.initialized_endpoints.add("/libp2p/connect")
+            
+        # Disconnect from peer endpoint
+        if "/libp2p/disconnect" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/disconnect",
+                self.disconnect_peer,
+                methods=["POST"],
+                summary="Disconnect from peer",
+                description="Disconnect from a specific peer using peer ID",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/disconnect")
             
         # Find content providers endpoint
         if "/libp2p/providers/{cid}" not in self.initialized_endpoints:
@@ -313,6 +328,18 @@ class LibP2PController:
                 tags=["libp2p-dht"]
             )
             self.initialized_endpoints.add("/libp2p/dht/find_peer")
+            
+        # Add camelCase version for compatibility with tests
+        if "/libp2p/dht/findpeer" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/dht/findpeer",
+                self.dht_find_peer,
+                methods=["POST"],
+                summary="Find peer in DHT",
+                description="Find a peer's addresses using the DHT (camelCase version)",
+                tags=["libp2p-dht"]
+            )
+            self.initialized_endpoints.add("/libp2p/dht/findpeer")
 
         if "/libp2p/dht/provide" not in self.initialized_endpoints:
             router.add_api_route(
@@ -335,7 +362,67 @@ class LibP2PController:
                 tags=["libp2p-dht"]
             )
             self.initialized_endpoints.add("/libp2p/dht/find_providers")
+            
+        # Add camelCase version for compatibility with tests
+        if "/libp2p/dht/findproviders" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/dht/findproviders",
+                self.dht_find_providers,
+                methods=["POST"],
+                summary="Find providers in DHT",
+                description="Find providers for a CID using the DHT (camelCase version)",
+                tags=["libp2p-dht"]
+            )
+            self.initialized_endpoints.add("/libp2p/dht/findproviders")
 
+        # Add publish message endpoint for compatibility with tests
+        if "/libp2p/publish" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/publish",
+                self.publish_message,
+                methods=["POST"],
+                summary="Publish message",
+                description="Publish a message to a topic",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/publish")
+            
+        # Add subscribe topic endpoint for compatibility with tests
+        if "/libp2p/subscribe" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/subscribe",
+                self.subscribe_topic,
+                methods=["POST"],
+                summary="Subscribe to topic",
+                description="Subscribe to a topic",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/subscribe")
+            
+        # Add unsubscribe topic endpoint for compatibility with tests
+        if "/libp2p/unsubscribe" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/unsubscribe",
+                self.unsubscribe_topic,
+                methods=["POST"],
+                summary="Unsubscribe from topic",
+                description="Unsubscribe from a topic",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/unsubscribe")
+            
+        # Add info endpoint for compatibility with tests
+        if "/libp2p/info" not in self.initialized_endpoints:
+            router.add_api_route(
+                "/libp2p/info",
+                self.get_peer_info_endpoint,
+                methods=["GET"],
+                summary="Get peer info",
+                description="Get information about the current peer",
+                tags=["libp2p"]
+            )
+            self.initialized_endpoints.add("/libp2p/info")
+            
         # Add PubSub operation endpoints
         if "/libp2p/pubsub/publish" not in self.initialized_endpoints:
             router.add_api_route(
@@ -468,14 +555,14 @@ class LibP2PController:
             dict: Discovered peers information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.discover_peers(
+        result = await self.libp2p_model.discover_peers(
             discovery_method=request.discovery_method,
             limit=request.limit
         )
@@ -505,14 +592,14 @@ class LibP2PController:
             dict: Discovered peers information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.discover_peers(
+        result = await self.libp2p_model.discover_peers(
             discovery_method=method,
             limit=limit
         )
@@ -537,20 +624,49 @@ class LibP2PController:
             dict: Connection status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.connect_peer(request.peer_addr)
+        result = await self.libp2p_model.connect_peer(request.peer_addr)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=result.get("error", "Failed to connect to peer")
+            )
+            
+        return result
+        
+    async def disconnect_peer(self, request: PeerDisconnectRequest):
+        """
+        Disconnect from a specific peer.
+        
+        Args:
+            request: Peer disconnect request parameters
+        
+        Returns:
+            dict: Disconnection status
+        """
+        # Check if libp2p is available
+        if not await self.libp2p_model.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method
+        result = await self.libp2p_model.disconnect_peer(peer_id=request.peer_id)
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to disconnect from peer")
             )
             
         return result
@@ -571,14 +687,14 @@ class LibP2PController:
             dict: Content providers information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.find_content(cid, timeout=timeout)
+        result = await self.libp2p_model.find_content(cid, timeout=timeout)
         
         # If not successful but it's just that no providers were found,
         # return empty result instead of error
@@ -606,14 +722,14 @@ class LibP2PController:
             dict: Content metadata
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.retrieve_content(cid, timeout=timeout)
+        result = await self.libp2p_model.retrieve_content(cid, timeout=timeout)
         
         # If not successful and content not found, return 404
         if not result.get("success") and result.get("error_type") == "content_not_found":
@@ -647,14 +763,14 @@ class LibP2PController:
             bytes: Content data or error response
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.get_content(cid, timeout=timeout)
+        result = await self.libp2p_model.get_content(cid, timeout=timeout)
         
         # If not successful and content not found, return 404
         if not result.get("success") and result.get("error_type") == "content_not_found":
@@ -720,14 +836,14 @@ class LibP2PController:
             dict: Announcement status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.announce_content(request.cid, data=request.data)
+        result = await self.libp2p_model.announce_content(request.cid, data=request.data)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -746,14 +862,14 @@ class LibP2PController:
             dict: Connected peers information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.get_connected_peers()
+        result = await self.libp2p_model.get_connected_peers()
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -775,14 +891,14 @@ class LibP2PController:
             dict: Peer information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.get_peer_info(peer_id)
+        result = await self.libp2p_model.get_peer_info(peer_id)
         
         # If not successful and peer not found, return 404
         if not result.get("success") and result.get("error_type") == "peer_not_found":
@@ -832,7 +948,7 @@ class LibP2PController:
             )
         
         # Call model method
-        result = self.libp2p_model.reset()
+        result = await self.libp2p_model.reset()
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -858,7 +974,7 @@ class LibP2PController:
             )
         
         # Call model method
-        result = self.libp2p_model.start()
+        result = await self.libp2p_model.start()
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -884,7 +1000,7 @@ class LibP2PController:
             )
         
         # Call model method
-        result = self.libp2p_model.stop()
+        result = await self.libp2p_model.stop()
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -906,14 +1022,14 @@ class LibP2PController:
             dict: Peer addresses information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.dht_find_peer(request.peer_id, timeout=request.timeout)
+        result = await self.libp2p_model.dht_find_peer(request.peer_id, timeout=request.timeout)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -935,14 +1051,14 @@ class LibP2PController:
             dict: Provide status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.dht_provide(request.cid)
+        result = await self.libp2p_model.dht_provide(request.cid)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -964,14 +1080,14 @@ class LibP2PController:
             dict: Provider information
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.dht_find_providers(
+        result = await self.libp2p_model.dht_find_providers(
             request.cid, 
             timeout=request.timeout, 
             limit=request.limit
@@ -986,6 +1102,40 @@ class LibP2PController:
             
         return result
 
+    async def publish_message(self, request: PubSubPublishRequest):
+        """
+        Publish a message to a topic.
+        
+        This is a compatibility endpoint that maps to pubsub_publish.
+        
+        Args:
+            request: PubSub publish request parameters
+        
+        Returns:
+            dict: Publish status
+        """
+        # Check if libp2p is available
+        if not await self.libp2p_model.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method
+        result = await self.libp2p_model.publish_message(
+            topic=request.topic, 
+            message=request.message
+        )
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to publish message")
+            )
+            
+        return result
+    
     async def pubsub_publish(self, request: PubSubPublishRequest):
         """
         Publish a message to a PubSub topic.
@@ -997,14 +1147,14 @@ class LibP2PController:
             dict: Publish status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.pubsub_publish(request.topic, request.message)
+        result = await self.libp2p_model.pubsub_publish(request.topic, request.message)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -1015,6 +1165,37 @@ class LibP2PController:
             
         return result
 
+    async def subscribe_topic(self, request: PubSubSubscribeRequest):
+        """
+        Subscribe to a topic.
+        
+        This is a compatibility endpoint that maps to subscribe_topic.
+        
+        Args:
+            request: PubSub subscribe request parameters
+        
+        Returns:
+            dict: Subscription status
+        """
+        # Check if libp2p is available
+        if not await self.libp2p_model.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method
+        result = await self.libp2p_model.subscribe_topic(topic=request.topic)
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to subscribe to topic")
+            )
+            
+        return result
+    
     async def pubsub_subscribe(self, request: PubSubSubscribeRequest):
         """
         Subscribe to a PubSub topic.
@@ -1026,14 +1207,14 @@ class LibP2PController:
             dict: Subscription status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.pubsub_subscribe(request.topic, handler_id=request.handler_id)
+        result = await self.libp2p_model.pubsub_subscribe(request.topic, handler_id=request.handler_id)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -1044,6 +1225,37 @@ class LibP2PController:
             
         return result
 
+    async def unsubscribe_topic(self, request: PubSubUnsubscribeRequest):
+        """
+        Unsubscribe from a topic.
+        
+        This is a compatibility endpoint that maps to unsubscribe_topic.
+        
+        Args:
+            request: PubSub unsubscribe request parameters
+        
+        Returns:
+            dict: Unsubscription status
+        """
+        # Check if libp2p is available
+        if not await self.libp2p_model.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method
+        result = await self.libp2p_model.unsubscribe_topic(topic=request.topic)
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to unsubscribe from topic")
+            )
+            
+        return result
+    
     async def pubsub_unsubscribe(self, request: PubSubUnsubscribeRequest):
         """
         Unsubscribe from a PubSub topic.
@@ -1055,14 +1267,14 @@ class LibP2PController:
             dict: Unsubscription status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.pubsub_unsubscribe(request.topic, handler_id=request.handler_id)
+        result = await self.libp2p_model.pubsub_unsubscribe(request.topic, handler_id=request.handler_id)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -1081,14 +1293,14 @@ class LibP2PController:
             dict: Topic list
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.pubsub_get_topics()
+        result = await self.libp2p_model.pubsub_get_topics()
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -1113,14 +1325,14 @@ class LibP2PController:
             dict: Peer list
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.pubsub_get_peers(topic)
+        result = await self.libp2p_model.pubsub_get_peers(topic)
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
@@ -1142,14 +1354,14 @@ class LibP2PController:
             dict: Registration status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.register_message_handler(
+        result = await self.libp2p_model.register_message_handler(
             handler_id=request.handler_id, 
             protocol_id=request.protocol_id,
             description=request.description
@@ -1175,14 +1387,14 @@ class LibP2PController:
             dict: Unregistration status
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.unregister_message_handler(
+        result = await self.libp2p_model.unregister_message_handler(
             handler_id=request.handler_id, 
             protocol_id=request.protocol_id
         )
@@ -1204,20 +1416,46 @@ class LibP2PController:
             dict: Handler list
         """
         # Check if libp2p is available
-        if not self.libp2p_model.is_available():
+        if not await self.libp2p_model.is_available():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="libp2p is not available"
             )
         
         # Call model method
-        result = self.libp2p_model.list_message_handlers()
+        result = await self.libp2p_model.list_message_handlers()
         
         # If not successful, raise HTTP exception
         if not result.get("success"):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=result.get("error", "Failed to list message handlers")
+            )
+            
+        return result
+        
+    async def get_peer_info_endpoint(self):
+        """
+        Get information about the current peer.
+        
+        Returns:
+            dict: Peer information
+        """
+        # Check if libp2p is available
+        if not await self.libp2p_model.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="libp2p is not available"
+            )
+        
+        # Call model method
+        result = await self.libp2p_model.peer_info()
+        
+        # If not successful, raise HTTP exception
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Failed to get peer information")
             )
             
         return result

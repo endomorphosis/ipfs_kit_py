@@ -4432,25 +4432,51 @@ class IPFSKit:
 
     def __init__(self, resources=None, metadata=None):
         """Initialize the IPFS Kit."""
+        import time
+        import os
+        import re
+        import threading
+        from unittest.mock import MagicMock
+        
+        # Import error handling utilities
+        try:
+            from .error import IPFSError, IPFSValidationError, create_result_dict, handle_error
+        except ImportError:
+            # For standalone testing
+            def create_result_dict(*args):
+                return {"success": False}
+                
+            def handle_error(result, error):
+                result["error"] = str(error)
+                return result
+        
+        # Try to import libp2p installation utilities
+        try:
+            from .install_libp2p import check_dependencies, install_dependencies_auto, check_dependency
+            self.HAS_LIBP2P = check_dependencies()
+        except ImportError:
+            self.HAS_LIBP2P = False
+            
+        # Import websocket peer discovery if available
+        try:
+            from .websocket_peer_discovery import (
+                PeerWebSocketServer, 
+                PeerWebSocketClient, 
+                create_peer_info_from_ipfs_kit
+            )
+            self.HAS_WEBSOCKET_PEER_DISCOVERY = True
+            self.WEBSOCKET_AVAILABLE = True
+        except ImportError:
+            self.HAS_WEBSOCKET_PEER_DISCOVERY = False
+            self.WEBSOCKET_AVAILABLE = False
+        
+        # Setup basic logger
+        import logging
+        self.logger = logging.getLogger("ipfs_kit")
+        
+        # Initialize mock for testing
         self.ipfs_get = lambda **kwargs: b"test content"
         self.fs = MagicMock()
-        self.metadata = metadata or {}
-        self.role = metadata.get("role", "leecher") if metadata else "leecher"
-
-        # Create mock ipfs component
-        self.ipfs = MagicMock()
-
-        # Set up common return values for tests
-        self.ipfs.add.return_value = {"success": True, "cid": "QmTest123"}
-        self.ipfs.cat.return_value = {"success": True, "data": b"Test content"}
-        self.ipfs.pin_add.return_value = {"success": True, "pins": ["QmTest123"]}
-        self.ipfs.pin_ls.return_value = {
-            "success": True,
-            "pins": {"QmTest123": {"type": "recursive"}},
-        }
-        self.ipfs.pin_rm.return_value = {"success": True, "pins": ["QmTest123"]}
-        self.ipfs.swarm_peers.return_value = {"success": True, "peers": [{"peer": "QmTest"}]}
-        self.ipfs.id.return_value = {"success": True, "id": "QmTest123"}
 
     def get_filesystem(self, enable_metrics=True, **kwargs):
         """
@@ -6286,6 +6312,89 @@ class IPFSKit:
             # Can't use logger here as it might already be destroyed
             if hasattr(self, 'logger'):
                 self.logger.warning(f"Error during cleanup in __del__: {str(e)}")
+
+    def start_ipfs_cluster_follow(self, **kwargs):
+        """Start the IPFS cluster-follow service.
+
+        Args:
+            **kwargs: Optional arguments
+                - cluster_name: Name of the cluster to follow (defaults to self.cluster_name)
+                - bootstrap_peer: Multiaddr of the trusted bootstrap peer to follow
+                - init: Whether to initialize before starting (defaults to True)
+                - timeout: Command timeout in seconds
+
+        Returns:
+            Dictionary with operation result information
+        """
+        result = {"success": False, "operation": "start_ipfs_cluster_follow"}
+        
+        try:
+            # Check if IPFS cluster follow is available
+            if not hasattr(self, "ipfs_cluster_follow") or self.ipfs_cluster_follow is None:
+                logger.error("IPFS Cluster Follow component not available")
+                result["error"] = "IPFS Cluster Follow component not available"
+                return result
+            
+            # Get cluster name from parameters or instance attribute
+            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
+            if not cluster_name:
+                logger.error("Missing required parameter: cluster_name")
+                result["error"] = "Missing required parameter: cluster_name"
+                return result
+                
+            # Determine if we need to initialize first
+            should_init = kwargs.get("init", True)
+            
+            if should_init:
+                # Check if bootstrap_peer is provided
+                bootstrap_peer = kwargs.get("bootstrap_peer")
+                if not bootstrap_peer:
+                    logger.error("Missing required parameter for initialization: bootstrap_peer")
+                    result["error"] = "Missing required parameter for initialization: bootstrap_peer"
+                    return result
+                    
+                # Run initialization first
+                logger.info(f"Initializing IPFS Cluster Follow for cluster: {cluster_name}")
+                init_result = self.ipfs_cluster_follow.ipfs_follow_init(
+                    cluster_name=cluster_name,
+                    bootstrap_peer=bootstrap_peer,
+                    timeout=kwargs.get("timeout", 60)
+                )
+                
+                # Check if initialization was successful
+                if not init_result.get("success", False):
+                    logger.error(f"Failed to initialize IPFS Cluster Follow: {init_result.get('error', 'Unknown error')}")
+                    result["error"] = f"Failed to initialize IPFS Cluster Follow: {init_result.get('error', 'Unknown error')}"
+                    result["init_result"] = init_result
+                    return result
+                    
+                logger.info(f"Successfully initialized IPFS Cluster Follow for cluster: {cluster_name}")
+                result["init_result"] = init_result
+            
+            # Start the IPFS cluster follow service
+            logger.info(f"Starting IPFS Cluster Follow for cluster: {cluster_name}")
+            start_result = self.ipfs_cluster_follow.ipfs_follow_start(
+                cluster_name=cluster_name,
+                timeout=kwargs.get("timeout", 30)
+            )
+            
+            # Set the result based on the start operation
+            result["success"] = start_result.get("success", False)
+            result["start_result"] = start_result
+            
+            if not result["success"]:
+                error_msg = start_result.get("error", "Unknown error")
+                logger.error(f"Failed to start IPFS Cluster Follow: {error_msg}")
+                result["error"] = f"Failed to start IPFS Cluster Follow: {error_msg}"
+            else:
+                logger.info(f"Successfully started IPFS Cluster Follow for cluster: {cluster_name}")
+                
+            return result
+            
+        except Exception as e:
+            logger.exception(f"Error in start_ipfs_cluster_follow: {str(e)}")
+            result["error"] = f"Error in start_ipfs_cluster_follow: {str(e)}"
+            return result
 
 # Extend the class with methods from ipfs_kit_extensions
 extend_ipfs_kit(ipfs_kit)
