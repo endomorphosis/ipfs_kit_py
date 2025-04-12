@@ -7,7 +7,7 @@ This module contains both:
 3. Async versions of these methods for use in FastAPI routes
 """
 
-import asyncio
+import anyio
 import time
 import logging
 from typing import Dict, Any, Optional, Callable
@@ -62,7 +62,7 @@ class AsyncEventLoopHandler:
         """
         try:
             # Try to get the current event loop
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
             
             # Check if the loop is already running (e.g., in FastAPI)
             if loop.is_running():
@@ -76,7 +76,7 @@ class AsyncEventLoopHandler:
                 
                 # Schedule the coroutine to run in the background, but don't wait for it
                 # This allows the operation to run eventually without blocking
-                asyncio.create_task(coro)
+                anyio.create_task(coro)
                 
                 return fallback_result
             else:
@@ -87,8 +87,8 @@ class AsyncEventLoopHandler:
         except RuntimeError:
             # No event loop in this thread, create a new one
             logger.info("Creating new event loop for operation")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(coro)
             finally:

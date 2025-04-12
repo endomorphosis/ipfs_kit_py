@@ -216,6 +216,27 @@ class PeerWebSocketController:
             logger.info("WebSocket peer discovery endpoint registered")
         
         logger.info("Peer WebSocket Controller routes registered")
+
+    async def _shutdown(self):
+        """Asynchronously shutdown the peer websocket components."""
+        if self.peer_websocket_server:
+            await self.peer_websocket_server.shutdown()
+            self.peer_websocket_server = None
+        if self.peer_websocket_client:
+            await self.peer_websocket_client.shutdown()
+            self.peer_websocket_client = None
+
+    def shutdown_sync(self):
+        """Synchronous wrapper to shutdown the peer websocket components."""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            asyncio.create_task(self._shutdown())
+        else:
+            asyncio.run(self._shutdown())
     
     async def check_websocket_support(self) -> Dict[str, Any]:
         """

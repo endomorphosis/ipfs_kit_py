@@ -14,7 +14,7 @@ This example requires the libp2p dependencies to be installed:
 pip install libp2p multiaddr base58 cryptography semver
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 from typing import Optional, List, Set, Dict
@@ -167,7 +167,7 @@ async def run_server():
     # Keep the server running
     try:
         while True:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
     except KeyboardInterrupt:
         logger.info("Shutting down server...")
     finally:
@@ -269,4 +269,4 @@ async def main():
         await run_server()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

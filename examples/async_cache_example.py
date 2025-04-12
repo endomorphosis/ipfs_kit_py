@@ -2,7 +2,7 @@
 Example demonstrating the AsyncParquetCIDCache functionality.
 
 This script shows how to use the AsyncParquetCIDCache to perform non-blocking
-cache operations using asyncio. It demonstrates basic operations, batch processing,
+cache operations using anyio. It demonstrates basic operations, batch processing,
 and typical usage patterns in an asyncio-based application.
 """
 
@@ -294,7 +294,7 @@ async def example_real_world_integration():
                 return False
             
             # Simulate content processing
-            await asyncio.sleep(0.2)  # Simulate processing time
+            await anyio.sleep(0.2)  # Simulate processing time
             
             # Update metadata with processing result
             size = metadata_table['size'][0].as_py()
@@ -323,7 +323,7 @@ async def example_real_world_integration():
         for i in range(5):  # Simulate 5 concurrent processing operations
             tasks.append(process_content(cid))
         
-        results = await asyncio.gather(*tasks)
+        results = await anyio.gather(*tasks)
         logger.info(f"Processed content {sum(results)}/{len(results)} times successfully")
         
         # 7. Final metadata retrieval
@@ -363,4 +363,4 @@ async def main():
 
 # Run the main function
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

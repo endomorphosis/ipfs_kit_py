@@ -1,7 +1,7 @@
 """Test the WebRTC streaming manager."""
 
 import unittest
-import asyncio
+import anyio
 from unittest.mock import patch, MagicMock, AsyncMock
 import uuid
 

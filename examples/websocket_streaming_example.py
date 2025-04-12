@@ -210,13 +210,13 @@ async def bidirectional_streaming(uri: str) -> None:
         print(f"Server: {welcome_data.get('message')}")
         
         # Set up stdin reader task
-        stdin_queue = asyncio.Queue()
+        stdin_queue = anyio.Queue()
         
         # Function to read from stdin
         async def stdin_reader():
             while True:
                 # Read line from stdin
-                line = await asyncio.get_event_loop().run_in_executor(
+                line = await anyio.get_event_loop().run_in_executor(
                     None, input, "> "
                 )
                 
@@ -228,19 +228,19 @@ async def bidirectional_streaming(uri: str) -> None:
                     break
         
         # Start stdin reader task
-        reader_task = asyncio.create_task(stdin_reader())
+        reader_task = anyio.create_task(stdin_reader())
         
         try:
             # Main loop
             while True:
                 # Create tasks for stdin and websocket
-                stdin_task = asyncio.create_task(stdin_queue.get())
-                ws_task = asyncio.create_task(websocket.recv())
+                stdin_task = anyio.create_task(stdin_queue.get())
+                ws_task = anyio.create_task(websocket.recv())
                 
                 # Wait for either task to complete
-                done, pending = await asyncio.wait(
+                done, pending = await anyio.wait(
                     [stdin_task, ws_task],
-                    return_when=asyncio.FIRST_COMPLETED
+                    return_when=anyio.FIRST_COMPLETED
                 )
                 
                 # Cancel pending tasks
@@ -257,7 +257,7 @@ async def bidirectional_streaming(uri: str) -> None:
                         if command.lower() == "exit":
                             # Send close command
                             await websocket.send(json.dumps({"command": "close"}))
-                            await asyncio.sleep(0.5)  # Give server time to respond
+                            await anyio.sleep(0.5)  # Give server time to respond
                             return
                         
                         # Parse command
@@ -459,4 +459,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

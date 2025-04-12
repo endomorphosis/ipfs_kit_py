@@ -10,7 +10,7 @@ the libp2p dependencies installed.
 import os
 import time
 import pytest
-import asyncio
+import anyio
 import sys
 import logging
 from unittest.mock import MagicMock, patch, AsyncMock, PropertyMock, call

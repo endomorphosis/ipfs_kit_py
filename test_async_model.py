@@ -4,7 +4,7 @@ Simple test script to verify our fixes for coroutine warnings in the libp2p mode
 This script specifically tests the async versions of model methods.
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 import warnings
@@ -108,5 +108,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = anyio.run(main())
     sys.exit(exit_code)

@@ -504,9 +504,11 @@ class s3_kit:
         return s3bucket.put_object(Key=dir)
 
     def get_session(self, s3_config):
-
+        boto_config = self.config_to_boto(s3_config)
+        if not boto_config or "service_name" not in boto_config:
+            raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
         if "session" not in self.__dict__:
-            self.session = Session().client(**self.config_to_boto(s3_config))
+            self.session = Session().client(**boto_config)
         return self.session
 
     def config_to_boto(self, s3_config):
@@ -529,4 +531,7 @@ class s3_kit:
             self.config = results
             return results
         else:
-            raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("s3_config is incomplete; skipping S3 configuration.")
+            return {}

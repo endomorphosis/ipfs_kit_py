@@ -9,7 +9,7 @@ ipfs_kit_py library, including:
 - DHT operations like storing values, finding values, and finding providers
 """
 
-import asyncio
+import anyio
 import os
 import random
 import sys
@@ -477,7 +477,7 @@ class TestKademliaNode(unittest.IsolatedAsyncioTestCase):
         await self.node.start()
         
         # Give it a moment to run the periodic refresh task
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         
         # Verify refresh methods were called
         # Note: This is racy and might fail if the task doesn't run in time

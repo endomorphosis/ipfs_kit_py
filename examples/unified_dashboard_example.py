@@ -136,7 +136,7 @@ class NotificationClient:
             logger.info(f"Connected to notification endpoint: {self.ws_url}")
             
             # Start listening for messages
-            asyncio.create_task(self._listen())
+            anyio.create_task(self._listen())
             return True
         except Exception as e:
             logger.error(f"Failed to connect to notification endpoint: {e}")
@@ -185,7 +185,7 @@ class NotificationClient:
             # Handle welcome message
             logger.info(f"Received welcome message: {data.get('message')}")
             # Subscribe to all notification types
-            asyncio.create_task(self.subscribe(["all_events"]))
+            anyio.create_task(self.subscribe(["all_events"]))
             
         elif msg_type == "notification":
             # Handle notification
@@ -349,7 +349,7 @@ class WebRTCClient:
             logger.info(f"Connected to WebRTC signaling endpoint: {self.ws_url}")
             
             # Start listening for messages
-            asyncio.create_task(self._listen())
+            anyio.create_task(self._listen())
             return True
         except Exception as e:
             logger.error(f"Failed to connect to WebRTC signaling endpoint: {e}")
@@ -739,7 +739,7 @@ class FrameProcessor:
         self.last_frames = {}  # track -> last frame
         
         # Start processing loop in a separate task
-        self.task = asyncio.create_task(self._process_frames())
+        self.task = anyio.create_task(self._process_frames())
     
     def add_track(self, track):
         """
@@ -770,7 +770,7 @@ class FrameProcessor:
             while self.running:
                 if not self.tracks:
                     # No tracks to process, wait a bit
-                    await asyncio.sleep(0.1)
+                    await anyio.sleep(0.1)
                     continue
                 
                 # Process frames from all tracks
@@ -797,9 +797,9 @@ class FrameProcessor:
                             del self.last_frames[track]
                 
                 # Give other tasks a chance to run
-                await asyncio.sleep(0.001)
+                await anyio.sleep(0.001)
                 
-        except asyncio.CancelledError:
+        except anyio.CancelledError:
             logger.info("Frame processor task cancelled")
         except Exception as e:
             logger.error(f"Error in frame processor: {e}")
@@ -843,14 +843,14 @@ class UnifiedDashboard:
         self.executor = ThreadPoolExecutor(max_workers=5)
         
         # Frame update lock
-        self.frame_lock = asyncio.Lock()
+        self.frame_lock = anyio.Lock()
         
         # Initialize UI
         self._init_ui()
         
         # Set up event loop
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
+        self.loop = anyio.new_event_loop()
+        anyio.set_event_loop(self.loop)
         
         # Start clients
         self.loop.run_until_complete(self._start_clients())
@@ -1010,19 +1010,19 @@ class UnifiedDashboard:
                     if self.notification_client and self.notification_client.connected:
                         await self.notification_client.ping()
                     
-                    await asyncio.sleep(30)
-                except asyncio.CancelledError:
+                    await anyio.sleep(30)
+                except anyio.CancelledError:
                     break
                 except Exception as e:
                     logger.error(f"Error in ping task: {e}")
-                    await asyncio.sleep(5)
+                    await anyio.sleep(5)
         
         # Start ping task
         self.notification_task = self.loop.create_task(ping_task())
         
         # Start event loop in a thread
         def run_event_loop():
-            asyncio.set_event_loop(self.loop)
+            anyio.set_event_loop(self.loop)
             try:
                 self.loop.run_forever()
             except Exception as e:
@@ -1040,7 +1040,7 @@ class UnifiedDashboard:
             return
         
         # Submit task to event loop
-        asyncio.run_coroutine_threadsafe(self._stream_cid(cid), self.loop)
+        anyio.run_coroutine_threadsafe(self._stream_cid(cid), self.loop)
     
     async def _stream_cid(self, cid):
         """
@@ -1072,7 +1072,7 @@ class UnifiedDashboard:
         """Handle stop button click."""
         if self.current_connection:
             # Submit task to event loop
-            asyncio.run_coroutine_threadsafe(self._stop_stream(), self.loop)
+            anyio.run_coroutine_threadsafe(self._stop_stream(), self.loop)
     
     async def _stop_stream(self):
         """Stop the current stream."""
@@ -1328,7 +1328,7 @@ class UnifiedDashboard:
             self.webrtc_task.cancel()
         
         # Schedule cleanup in event loop
-        asyncio.run_coroutine_threadsafe(self._cleanup(), self.loop)
+        anyio.run_coroutine_threadsafe(self._cleanup(), self.loop)
         
         # Stop event loop after a short delay
         self.loop.call_later(1, self._stop_loop)

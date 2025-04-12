@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch, MagicMock, call
 import json
 import time
-import asyncio
+import anyio
 import os
 import sys
 import tempfile

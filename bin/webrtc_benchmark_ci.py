@@ -154,7 +154,7 @@ class BenchmarkCI:
             
             # Run benchmark for the specified duration
             logger.info(f"Running benchmark for {duration} seconds...")
-            await asyncio.sleep(duration)
+            await anyio.sleep(duration)
             
             # Generate report
             logger.info("Generating benchmark report...")
@@ -704,11 +704,11 @@ def main() -> int:
     try:
         # Run appropriate command
         if args.command == 'run':
-            return asyncio.run(run_command(args))
+            return anyio.run(run_command(args))
         elif args.command == 'compare':
-            return asyncio.run(compare_command(args))
+            return anyio.run(compare_command(args))
         elif args.command == 'validate':
-            return asyncio.run(validate_command(args))
+            return anyio.run(validate_command(args))
         elif args.command == 'save-baseline':
             return save_baseline_command(args)
             

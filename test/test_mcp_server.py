@@ -20,7 +20,7 @@ import pickle
 import tempfile
 import unittest
 import shutil
-import asyncio
+import anyio
 from unittest.mock import MagicMock, patch, call
 from pathlib import Path
 
@@ -1737,13 +1737,13 @@ class TestMCPServerDebugging(unittest.TestCase):
         async def mock_call_next(request):
             return mock_response
 
-        # Run the async test with asyncio.run
+        # Run the async test with anyio.run
         async def run_middleware_test():
             # Call middleware
             response = await middleware(mock_request, mock_call_next)
             return response
 
-        response = asyncio.run(run_middleware_test())
+        response = anyio.run(run_middleware_test())
 
         # Check that operations were logged
         self.assertGreaterEqual(len(self.mcp_server.operation_log), 1)
@@ -3080,8 +3080,8 @@ class TestMCPServerAdditionalMethods(unittest.TestCase):
     def test_health_check_response_format(self):
         """Test the format of the health check response."""
         # Call health check directly
-        import asyncio
-        health_response = asyncio.run(self.mcp_server.health_check())
+        import anyio
+        health_response = anyio.run(self.mcp_server.health_check())
 
         # Verify response format
         self.assertTrue(health_response["success"], "Health check should report success")
@@ -3100,8 +3100,8 @@ class TestMCPServerAdditionalMethods(unittest.TestCase):
     def test_get_debug_state_response_format(self):
         """Test the format of the debug state response."""
         # Call debug state endpoint directly
-        import asyncio
-        debug_response = asyncio.run(self.mcp_server.get_debug_state())
+        import anyio
+        debug_response = anyio.run(self.mcp_server.get_debug_state())
 
         # Verify response format
         self.assertTrue(debug_response["success"], "Debug response should report success")
@@ -3123,7 +3123,7 @@ class TestMCPServerAdditionalMethods(unittest.TestCase):
 
         # Add some operations to test operation_count
         self.mcp_server._log_operation({"type": "test_debug_op", "timestamp": time.time()})
-        debug_response2 = asyncio.run(self.mcp_server.get_debug_state())
+        debug_response2 = anyio.run(self.mcp_server.get_debug_state())
 
         # Check that operation count increased
         self.assertEqual(debug_response2["server_info"]["operation_count"],
@@ -3138,8 +3138,8 @@ class TestMCPServerAdditionalMethods(unittest.TestCase):
         self.mcp_server._log_operation({"type": "test_op2", "timestamp": time.time()})
 
         # Call operation log endpoint directly
-        import asyncio
-        log_response = asyncio.run(self.mcp_server.get_operation_log())
+        import anyio
+        log_response = anyio.run(self.mcp_server.get_operation_log())
 
         # Verify response format
         self.assertTrue(log_response["success"], "Log response should report success")
@@ -3171,8 +3171,8 @@ class TestMCPServerAdditionalMethods(unittest.TestCase):
         )
 
         # Call operation log endpoint directly
-        import asyncio
-        log_response = asyncio.run(no_debug_server.get_operation_log())
+        import anyio
+        log_response = anyio.run(no_debug_server.get_operation_log())
 
         # Verify error response
         self.assertFalse(log_response["success"], "Log response should report failure")

@@ -214,7 +214,7 @@ class WALTelemetryAPIExample:
         @app.post("/simulate")
         async def simulate(count: int = 10, delay: float = 0.5):
             # Run simulation in background task
-            asyncio.create_task(
+            anyio.create_task(
                 self._run_simulation_async(count, delay)
             )
             return {
@@ -229,7 +229,7 @@ class WALTelemetryAPIExample:
     
     async def _run_simulation_async(self, count, delay):
         """Run the simulation in an async context."""
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         await loop.run_in_executor(None, self.simulate_operations, count, delay)
     
     def simulate_operations(self, count=10, delay=0.5):

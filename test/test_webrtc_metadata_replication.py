@@ -20,7 +20,7 @@ import json
 import tempfile
 import time
 import unittest
-import asyncio
+import anyio
 from unittest.mock import patch, MagicMock, AsyncMock
 import uuid
 import pytest
@@ -68,7 +68,7 @@ class TestWebRTCMetadataReplication:
     """Test WebRTC integration with metadata replication."""
     
     @pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment with WebRTC manager and replication system."""
         # Create temp directory for test data

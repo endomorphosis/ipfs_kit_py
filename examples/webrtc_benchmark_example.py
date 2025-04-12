@@ -99,7 +99,7 @@ async def run_benchmark(cid, duration=60):
     
     # Wait for the benchmark duration
     logger.info(f"Running benchmark for {duration} seconds...")
-    await asyncio.sleep(duration)
+    await anyio.sleep(duration)
     
     # Get benchmark stats
     stats = manager.get_benchmark_stats(pc_id)
@@ -276,12 +276,12 @@ async def manual_benchmark():
     benchmark.record_connection_event("ice_gathering_start", {})
     
     # Wait a bit to simulate ICE gathering
-    await asyncio.sleep(0.5)
+    await anyio.sleep(0.5)
     benchmark.record_connection_event("ice_gathering_complete", {})
     
     # Record ICE connection
     benchmark.record_connection_event("ice_connection_start", {})
-    await asyncio.sleep(1.0)
+    await anyio.sleep(1.0)
     benchmark.record_connection_event("ice_connected", {})
     
     # Record first frame
@@ -327,7 +327,7 @@ async def manual_benchmark():
             "packets_lost_delta": 2
         })
         
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
     
     # Get summary stats
     summary = benchmark.get_summary_stats()
@@ -391,4 +391,4 @@ async def main():
         
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

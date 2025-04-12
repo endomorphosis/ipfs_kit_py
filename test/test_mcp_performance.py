@@ -14,7 +14,7 @@ import unittest
 import statistics
 import tempfile
 import threading
-import asyncio
+import anyio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any, Optional
 
@@ -532,7 +532,7 @@ class TestMCPPerformanceAnyIO(unittest.TestCase):
         # Create tasks for health check
         start_time = time.time()
         tasks = [self._async_request("/mcp/health") for _ in range(concurrency)]
-        results = await asyncio.gather(*tasks)
+        results = await anyio.gather(*tasks)
         end_time = time.time()
         
         # Calculate throughput
@@ -551,7 +551,7 @@ class TestMCPPerformanceAnyIO(unittest.TestCase):
         # Test content retrieval concurrency
         start_time = time.time()
         tasks = [self._async_request(f"/mcp/ipfs/cat/{test_cid}") for _ in range(concurrency)]
-        results = await asyncio.gather(*tasks)
+        results = await anyio.gather(*tasks)
         end_time = time.time()
         
         # Calculate throughput

@@ -412,7 +412,7 @@ class MockMCPDiscoveryControllerAnyIO:
     
     def get_local_server_info(self):
         """Get information about the local server."""
-        # In a real implementation, this would use asyncio.run(),
+        # In a real implementation, this would use anyio.run(),
         # but for testing purposes we'll just return a dummy response
         return {
             "success": True,

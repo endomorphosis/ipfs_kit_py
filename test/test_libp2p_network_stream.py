@@ -8,7 +8,7 @@ This module tests the implementation of the libp2p network stream interface, inc
 - StreamHandler helper class
 """
 
-import asyncio
+import anyio
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 import sys
@@ -31,8 +31,8 @@ class TestINetStreamInterface(unittest.TestCase):
         stream = INetStream()
         
         # Create an event loop for testing async methods
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = anyio.new_event_loop()
+        anyio.set_event_loop(loop)
         
         try:
             # Test read method
@@ -73,8 +73,8 @@ class TestNetStream(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         # Create mock StreamReader and StreamWriter
-        self.reader = AsyncMock(spec=asyncio.StreamReader)
-        self.writer = AsyncMock(spec=asyncio.StreamWriter)
+        self.reader = AsyncMock(spec=anyio.StreamReader)
+        self.writer = AsyncMock(spec=anyio.StreamWriter)
         
         # Create a NetStream instance
         self.stream = NetStream(
@@ -85,8 +85,8 @@ class TestNetStream(unittest.TestCase):
         )
         
         # Create an event loop for testing async methods
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
+        self.loop = anyio.new_event_loop()
+        anyio.set_event_loop(self.loop)
 
     def tearDown(self):
         """Clean up after tests."""
@@ -296,8 +296,8 @@ class TestStreamHandler(unittest.TestCase):
         self.stream.reset = AsyncMock()
         
         # Create an event loop for testing async methods
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
+        self.loop = anyio.new_event_loop()
+        anyio.set_event_loop(self.loop)
 
     def tearDown(self):
         """Clean up after tests."""

@@ -32,7 +32,7 @@ except ImportError:
     HAS_NUMPY = False
 
 try:
-    import asyncio
+    import anyio
     HAS_ASYNCIO = True
 except ImportError:
     HAS_ASYNCIO = False

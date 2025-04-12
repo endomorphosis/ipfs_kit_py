@@ -14,7 +14,7 @@ import json
 import os
 import sys
 import pytest
-import asyncio
+import anyio
 import logging
 from unittest.mock import MagicMock, patch, AsyncMock
 

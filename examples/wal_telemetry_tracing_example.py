@@ -198,7 +198,7 @@ class SimulationService:
             logger.info(f"[{self.service_name}] API server started on port {self.port}")
             
             # Give it a moment to start
-            await asyncio.sleep(0.5)
+            await anyio.sleep(0.5)
             
     def close(self):
         """Clean up resources."""
@@ -408,7 +408,7 @@ class MasterService(SimulationService):
                                     return
                         else:
                             # Simulate a worker response without aiohttp
-                            await asyncio.sleep(0.5)  # Simulate network delay
+                            await anyio.sleep(0.5)  # Simulate network delay
                             
                             # Randomly succeed or fail
                             success = random.random() > OPERATION_ERROR_PROBABILITY
@@ -442,7 +442,7 @@ class MasterService(SimulationService):
         """Process an operation locally."""
         try:
             # Simulate processing time
-            await asyncio.sleep(random.uniform(0.1, 1.0))
+            await anyio.sleep(random.uniform(0.1, 1.0))
             
             # Simulate random errors
             if random.random() < OPERATION_ERROR_PROBABILITY:
@@ -495,7 +495,7 @@ class MasterService(SimulationService):
                     self.health_monitor.update_backend_status(backend, "online")
                     
             # Wait before next health check
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
             
     async def check_worker_health(self):
         """Check the health of worker services."""
@@ -516,7 +516,7 @@ class MasterService(SimulationService):
                     self.worker_health[worker_url] = False
                     
             # Wait before next check
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
 
 
 class WorkerService(SimulationService):
@@ -578,7 +578,7 @@ class WorkerService(SimulationService):
                     try:
                         # Simulate processing time
                         processing_time = random.uniform(0.2, 2.0)
-                        await asyncio.sleep(processing_time)
+                        await anyio.sleep(processing_time)
                         
                         # Record processing time
                         span.set_attribute("processing.time_seconds", processing_time)
@@ -672,8 +672,8 @@ async def run_simulation(args):
         await worker.start()
         
     # Run background health simulation
-    asyncio.create_task(master.simulate_backend_health())
-    asyncio.create_task(master.check_worker_health())
+    anyio.create_task(master.simulate_backend_health())
+    anyio.create_task(master.check_worker_health())
     
     # Run simulation for specified duration
     end_time = time.time() + args.duration
@@ -703,13 +703,13 @@ async def run_simulation(args):
                     logger.info(f"Simulated {operations_sent} operations")
             
             # Wait for next operation
-            await asyncio.sleep(args.interval)
+            await anyio.sleep(args.interval)
             
         logger.info(f"Simulation completed with {operations_sent} operations")
         
         # Wait a bit for processing to complete
         logger.info("Allowing time for final processing...")
-        await asyncio.sleep(5)
+        await anyio.sleep(5)
         
     except KeyboardInterrupt:
         logger.info("Simulation interrupted by user")
@@ -766,7 +766,7 @@ def main():
     
     # Run simulation
     try:
-        asyncio.run(run_simulation(args))
+        anyio.run(run_simulation(args))
     except KeyboardInterrupt:
         print("\nSimulation stopped by user.")
 

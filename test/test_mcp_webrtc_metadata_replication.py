@@ -17,7 +17,7 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
-import asyncio
+import anyio
 import uuid
 import pytest
 # Handle pytest_asyncio dependency gracefully

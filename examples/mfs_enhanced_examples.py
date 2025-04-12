@@ -6,7 +6,7 @@ This file contains practical examples for using the enhanced MFS features
 implemented in the ipfs_kit_py.mfs_enhanced module.
 """
 
-import asyncio
+import anyio
 import os
 import tempfile
 import time
@@ -278,16 +278,16 @@ async def example_mfs_change_watcher():
     # Make some changes to MFS
     print("\nMaking changes to MFS directory...")
     await ipfs.files_write(f"{test_dir}/file1.txt", "Initial content".encode(), create=True)
-    await asyncio.sleep(1.5)  # Wait for polling to detect changes
+    await anyio.sleep(1.5)  # Wait for polling to detect changes
     
     await ipfs.files_write(f"{test_dir}/file1.txt", "Modified content".encode(), create=True)
-    await asyncio.sleep(1.5)
+    await anyio.sleep(1.5)
     
     await ipfs.files_mkdir(f"{test_dir}/subdir")
-    await asyncio.sleep(1.5)
+    await anyio.sleep(1.5)
     
     await ipfs.files_rm(f"{test_dir}/file1.txt")
-    await asyncio.sleep(1.5)
+    await anyio.sleep(1.5)
     
     # Stop the watcher
     await watcher.stop()
@@ -368,4 +368,4 @@ async def main():
     print("\n=== Examples Completed ===")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

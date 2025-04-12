@@ -19,7 +19,7 @@ This module serves as the integration point between the multi-peer streaming sys
 the IPFS Kit API, and client applications.
 """
 
-import asyncio
+import anyio
 import logging
 import json
 import time

@@ -16,7 +16,7 @@ import sys
 import time
 import json
 import shutil
-import asyncio
+import anyio
 import unittest
 import tempfile
 from unittest.mock import MagicMock, patch, ANY

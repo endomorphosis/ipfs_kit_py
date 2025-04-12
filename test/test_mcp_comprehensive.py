@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 import json
-import asyncio
+import anyio
 import shutil
 import time
 from unittest.mock import MagicMock, patch, AsyncMock
@@ -511,7 +511,7 @@ class TestMCPAsyncFunctionality(unittest.TestCase):
             return result
         
         # Run the async test
-        response = asyncio.run(run_test())
+        response = anyio.run(run_test())
         
         # Should get the response back
         self.assertEqual(response, response)
@@ -540,7 +540,7 @@ class TestMCPAsyncFunctionality(unittest.TestCase):
             return result
         
         # Run the async test
-        response = asyncio.run(run_test())
+        response = anyio.run(run_test())
         
         # Should get the response back with X-MCP-Session-ID header
         self.assertIn("X-MCP-Session-ID", response.headers)
@@ -558,7 +558,7 @@ class TestMCPAsyncFunctionality(unittest.TestCase):
             
             # Create call_next mock that waits a bit
             async def mock_call_next(*args, **kwargs):
-                await asyncio.sleep(0.01)  # Short delay
+                await anyio.sleep(0.01)  # Short delay
                 return response
             
             # Set up operations list
@@ -574,7 +574,7 @@ class TestMCPAsyncFunctionality(unittest.TestCase):
             return result, operations
         
         # Run the async test
-        response, operations = asyncio.run(run_test())
+        response, operations = anyio.run(run_test())
         
         # Should get the response back
         self.assertEqual(response, response)

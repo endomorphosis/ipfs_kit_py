@@ -7,7 +7,7 @@ This controller provides an interface to the CLI functionality through the MCP A
 import logging
 import json
 import time
-import asyncio
+import anyio
 # Import anyio for cross-backend compatibility
 try:
     import anyio
@@ -1287,7 +1287,7 @@ class CliController:
                                     
                                 yield chunk
                                 
-                                # Give other tasks a chance to run - use anyio.sleep instead of asyncio.sleep
+                                # Give other tasks a chance to run - use anyio.sleep instead of anyio.sleep
                                 await anyio.sleep(0)
                                 
                     except Exception as e:
@@ -1403,7 +1403,7 @@ class CliController:
                             yield chunk
                             
                             # Give other tasks a chance to run
-                            await asyncio.sleep(0)
+                            await anyio.sleep(0)
                             
                 except Exception as e:
                     logger.exception(f"Error streaming file {cid}: {str(e)}")
@@ -1463,7 +1463,7 @@ class CliController:
                             end_byte=end_byte
                         )
                         
-                        # Stream chunks - using anyio.sleep instead of asyncio.sleep
+                        # Stream chunks - using anyio.sleep instead of anyio.sleep
                         for chunk in stream_iter:
                             yield chunk
                             # Give other tasks a chance to run
@@ -1543,7 +1543,7 @@ class CliController:
                     for chunk in stream_iter:
                         yield chunk
                         # Give other tasks a chance to run
-                        await asyncio.sleep(0)
+                        await anyio.sleep(0)
                         
                 except Exception as e:
                     logger.exception(f"Error streaming media {cid}: {str(e)}")

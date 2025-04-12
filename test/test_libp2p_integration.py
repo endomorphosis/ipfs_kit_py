@@ -10,20 +10,20 @@ import sys
 import tempfile
 import time
 import unittest
-import asyncio
+import anyio
 import atexit
 from unittest.mock import MagicMock, patch
 
 # Track all event loops to ensure proper cleanup
 all_event_loops = []
-original_new_event_loop = asyncio.new_event_loop
+original_new_event_loop = anyio.new_event_loop
 
 def patched_new_event_loop(*args, **kwargs):
     loop = original_new_event_loop(*args, **kwargs)
     all_event_loops.append(loop)
     return loop
 
-asyncio.new_event_loop = patched_new_event_loop
+anyio.new_event_loop = patched_new_event_loop
 
 # Ensure all event loops are closed at exit
 def cleanup_event_loops():
@@ -58,7 +58,7 @@ try:
             except Exception:
                 pass
         # Use the class event loop instead
-        instance._event_loop = asyncio.get_event_loop()
+        instance._event_loop = anyio.get_event_loop()
         return instance
     
     # Apply the patch
@@ -503,10 +503,10 @@ class TestLibP2PNetworkWithFixtures(unittest.TestCase):
         """Set up resources for all tests in the class."""
         # Initialize the event loop for the class to prevent ResourceWarning
         # Store the original event loop policy
-        cls._original_policy = asyncio.get_event_loop_policy()
+        cls._original_policy = anyio.get_event_loop_policy()
         # Create a new event loop for the tests
-        cls._event_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(cls._event_loop)
+        cls._event_loop = anyio.new_event_loop()
+        anyio.set_event_loop(cls._event_loop)
     
     @classmethod
     def tearDownClass(cls):
@@ -515,7 +515,7 @@ class TestLibP2PNetworkWithFixtures(unittest.TestCase):
         if hasattr(cls, '_event_loop'):
             try:
                 # Make sure any pending tasks are cancelled
-                pending_tasks = asyncio.all_tasks(cls._event_loop)
+                pending_tasks = anyio.all_tasks(cls._event_loop)
                 if pending_tasks:
                     print(f"Warning: Found {len(pending_tasks)} pending tasks. Cancelling them.")
                     for task in pending_tasks:
@@ -524,7 +524,7 @@ class TestLibP2PNetworkWithFixtures(unittest.TestCase):
                 # Run the event loop until all tasks are done
                 if pending_tasks:
                     cls._event_loop.run_until_complete(
-                        asyncio.gather(*pending_tasks, return_exceptions=True)
+                        anyio.gather(*pending_tasks, return_exceptions=True)
                     )
                 
                 # Close the event loop
@@ -536,7 +536,7 @@ class TestLibP2PNetworkWithFixtures(unittest.TestCase):
         # Restore the original event loop policy
         if hasattr(cls, '_original_policy'):
             try:
-                asyncio.set_event_loop_policy(cls._original_policy)
+                anyio.set_event_loop_policy(cls._original_policy)
                 print("Event loop policy restored")
             except Exception as e:
                 print(f"Error restoring event loop policy: {e}")

@@ -527,7 +527,7 @@ class OptimizedStreamingExample:
         # Keep the server running
         try:
             while True:
-                await asyncio.sleep(3600)  # Sleep for an hour (or until interrupted)
+                await anyio.sleep(3600)  # Sleep for an hour (or until interrupted)
         finally:
             logger.info("Shutting down server")
             await runner.cleanup()
@@ -545,7 +545,7 @@ def main():
     
     try:
         # Run the asyncio event loop
-        asyncio.run(example.start())
+        anyio.run(example.start())
     except KeyboardInterrupt:
         logger.info("Example stopped by user")
 

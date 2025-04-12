@@ -6,7 +6,7 @@ This script tests the basic functionality of the AnyIO-based MCP server,
 including both asyncio and trio backends.
 """
 
-import asyncio
+import anyio
 import sys
 import time
 import json

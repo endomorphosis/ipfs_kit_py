@@ -424,5 +424,5 @@ async def main():
     await run_tests()
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    import anyio
+    anyio.run(main())

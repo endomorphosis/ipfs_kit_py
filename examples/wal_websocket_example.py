@@ -325,7 +325,7 @@ async def run_example(host="localhost", port=8000, duration=60):
     
     try:
         # Start message processing in background
-        message_task = asyncio.create_task(process_messages(websocket))
+        message_task = anyio.create_task(process_messages(websocket))
         
         # Create test operations
         await create_test_operations(api, count=3)
@@ -356,7 +356,7 @@ async def run_example(host="localhost", port=8000, duration=60):
         end_time = time.time() + duration
         
         while time.time() < end_time and connected:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
         
         # Clean up subscriptions
         for subscription_id in list(subscriptions.keys()):
@@ -366,7 +366,7 @@ async def run_example(host="localhost", port=8000, duration=60):
         message_task.cancel()
         try:
             await message_task
-        except asyncio.CancelledError:
+        except anyio.CancelledError:
             pass
         
     except KeyboardInterrupt:
@@ -390,7 +390,7 @@ def main():
     
     args = parser.parse_args()
     
-    asyncio.run(run_example(args.host, args.port, args.duration))
+    anyio.run(run_example(args.host, args.port, args.duration))
 
 if __name__ == "__main__":
     main()

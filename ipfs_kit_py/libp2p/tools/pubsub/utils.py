@@ -9,7 +9,7 @@ suitable for direct inclusion in the libp2p-py library.
 import logging
 import time
 import uuid
-import asyncio
+import anyio
 from typing import Callable, Dict, List, Any, Optional, Union, Type, Set
 
 try:
@@ -128,7 +128,7 @@ def create_pubsub_subscription_handler(callback: Callable) -> Callable:
         A handler function suitable for use with pubsub subscriptions
     """
     # Check if the callback is async
-    is_async = asyncio.iscoroutinefunction(callback)
+    is_async = anyio.iscoroutinefunction(callback)
     
     if is_async:
         async def async_handler(message):
@@ -377,9 +377,9 @@ class MockPubSub:
             for handler in self.subscriptions[topic_id]:
                 try:
                     # Check if handler is async
-                    if asyncio.iscoroutinefunction(handler):
+                    if anyio.iscoroutinefunction(handler):
                         # Schedule as task to prevent blocking
-                        asyncio.create_task(handler(message))
+                        anyio.create_task(handler(message))
                     else:
                         # Call synchronously
                         handler(message)

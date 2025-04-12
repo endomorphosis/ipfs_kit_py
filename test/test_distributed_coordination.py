@@ -10,7 +10,7 @@ This module tests the distributed coordination features (Phase 3B), including:
 - Resource-aware allocation strategies
 """
 
-import asyncio
+import anyio
 import json
 import os
 import tempfile

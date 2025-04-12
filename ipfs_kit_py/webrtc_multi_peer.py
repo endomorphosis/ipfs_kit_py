@@ -18,7 +18,7 @@ This module builds on the core WebRTC streaming functionality and integrates wit
 the notification system for signaling and session coordination.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -1254,13 +1254,13 @@ class SessionManager:
     
     def _start_cleanup_task(self):
         """Start background task for session cleanup."""
-        asyncio.create_task(self._periodic_cleanup())
+        anyio.create_task(self._periodic_cleanup())
     
     async def _periodic_cleanup(self):
         """Periodically check for inactive sessions and clean them up."""
         while True:
             try:
-                await asyncio.sleep(self.cleanup_interval)
+                await anyio.sleep(self.cleanup_interval)
                 await self.cleanup_inactive_sessions()
             except Exception as e:
                 self.logger.error(f"Error in session cleanup: {e}")

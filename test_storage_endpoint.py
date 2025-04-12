@@ -4,7 +4,7 @@ Test script for the storage status endpoint.
 """
 
 import uvicorn
-import asyncio
+import anyio
 import logging
 import aiohttp
 from ipfs_kit_py.mcp.server_anyio import MCPServer
@@ -21,10 +21,10 @@ async def test_storage_endpoint():
     # Start server in the background
     config = uvicorn.Config(app, host='127.0.0.1', port=8000, log_level='info')
     uvicorn_server = uvicorn.Server(config)
-    server_task = asyncio.create_task(uvicorn_server.serve())
+    server_task = anyio.create_task(uvicorn_server.serve())
     
     # Wait for server to start
-    await asyncio.sleep(5)
+    await anyio.sleep(5)
     
     try:
         # Make a request to the storage status endpoint
@@ -46,5 +46,5 @@ async def test_storage_endpoint():
         await server_task
 
 if __name__ == "__main__":
-    result = asyncio.run(test_storage_endpoint())
+    result = anyio.run(test_storage_endpoint())
     exit(0 if result else 1)

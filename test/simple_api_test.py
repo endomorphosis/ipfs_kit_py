@@ -11,7 +11,7 @@ import unittest
 
 unittest.skip("Deprecated test file")
 
-import asyncio
+import anyio
 import base64
 import json
 import unittest
@@ -39,7 +39,7 @@ class AsyncTestCase(unittest.TestCase):
 
     def run_async(self, coro):
         """Run a coroutine and return its result."""
-        return asyncio.run(coro)
+        return anyio.run(coro)
 
 
 @unittest.skip("Deprecated test class")

@@ -15,9 +15,9 @@ except ImportError:
     # Mock pytest_asyncio functionality for environments without it
     import pytest
     
-    # Create a minimal mock for pytest_asyncio.fixture
+    # Create a minimal mock for pytest_anyio.fixture
     def fixture(*args, **kwargs):
-        """Mock pytest_asyncio.fixture that falls back to pytest.fixture"""
+        """Mock pytest_anyio.fixture that falls back to pytest.fixture"""
         # Just use regular pytest fixture
         return pytest.fixture(*args, **kwargs)
     
@@ -111,7 +111,7 @@ if (os.environ.get('FORCE_WEBRTC_TESTS') == '1' or
 class TestWebRTCStreaming:
     """Test WebRTC streaming functionality."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -378,7 +378,7 @@ class TestWebRTCStreaming:
 class TestAsyncWebRTCStreaming:
     """Test asynchronous WebRTC streaming functionality."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -444,7 +444,7 @@ class TestAsyncWebRTCStreaming:
 class TestWebRTCMetrics:
     """Test WebRTC metrics collection functionality."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -555,7 +555,7 @@ class TestWebRTCMetrics:
             async def mock_collect_metrics():
                 # Run in a loop until cancelled
                 try:
-                    # Use anyio.CancelScope instead of trying to catch asyncio.CancelledError
+                    # Use anyio.CancelScope instead of trying to catch anyio.CancelledError
                     async with anyio.CancelScope() as scope:
                         while True:
                             # Update metrics
@@ -737,7 +737,7 @@ if os.environ.get('FORCE_NOTIFICATION_TESTS') == '1':
 class TestWebRTCNotifications:
     """Test WebRTC integration with the notification system."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -753,7 +753,7 @@ class TestWebRTCNotifications:
 class TestWebRTCResourceCleanup:
     """Test proper cleanup of WebRTC resources to prevent ResourceWarnings."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment with proper cleanup."""
         api = IPFSSimpleAPI()
@@ -798,7 +798,7 @@ class TestWebRTCResourceCleanup:
                     if hasattr(pc, 'close') and callable(pc.close):
                         try:
                             # Handle asynchronous close methods
-                            if asyncio.iscoroutinefunction(pc.close) or isinstance(pc.close, AsyncMock):
+                            if anyio.iscoroutinefunction(pc.close) or isinstance(pc.close, AsyncMock):
                                 # Use anyio.sleep(0) as a safe way to yield control for both backends
                                 # This allows any pending close operations to complete
                                 await anyio.sleep(0)

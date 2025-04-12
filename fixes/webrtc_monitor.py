@@ -11,7 +11,7 @@ import re
 import time
 import json
 import logging
-# import asyncio # Replaced by anyio
+# import anyio # Replaced by anyio
 import threading
 from typing import Dict, List, Any, Optional, Set
 from dataclasses import dataclass, field, asdict
@@ -592,10 +592,10 @@ class AsyncTaskTracker:
         
         for i, coro in enumerate(coros):
             task_name = f"{task_prefix or 'batch'}_{i}"
-            task = asyncio.create_task(self.track_task(connection_id, coro, task_name))
+            task = anyio.create_task(self.track_task(connection_id, coro, task_name))
             tasks.append(task)
         
-        return await asyncio.gather(*tasks, return_exceptions=True)
+        return await anyio.gather(*tasks, return_exceptions=True)
 
 # Helper functions for using the monitor with the WebRTC AnyIO fix
 

@@ -10,7 +10,7 @@ References:
 - IPLD specs: https://github.com/ipld/specs
 """
 
-import asyncio
+import anyio
 import hashlib
 import json
 import logging
@@ -334,7 +334,7 @@ class DAGExchange:
             await stream.write(len(serialized).to_bytes(4, 'big') + serialized)
             
             # Process responses in the background
-            asyncio.create_task(self._process_responses(stream, request_id))
+            anyio.create_task(self._process_responses(stream, request_id))
             
             return request_id
             
@@ -478,7 +478,7 @@ class DAGExchange:
         }
         
         # Process request
-        asyncio.create_task(self._process_request(request, stream))
+        anyio.create_task(self._process_request(request, stream))
         
     async def _process_request(self, request, stream):
         """

@@ -10,7 +10,7 @@ References:
 - https://github.com/libp2p/specs/blob/master/autonat/README.md
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import random
@@ -104,7 +104,7 @@ class AutoNAT:
         self.host.set_stream_handler(self.PROTOCOL_ID, self._handle_dial_back)
         
         # Start periodic checking
-        self.periodic_task = asyncio.create_task(self._periodic_check())
+        self.periodic_task = anyio.create_task(self._periodic_check())
         self.logger.info("AutoNAT service started")
         
     async def stop(self):
@@ -119,7 +119,7 @@ class AutoNAT:
             self.periodic_task.cancel()
             try:
                 await self.periodic_task
-            except asyncio.CancelledError:
+            except anyio.CancelledError:
                 pass
             self.periodic_task = None
             
@@ -136,7 +136,7 @@ class AutoNAT:
                 self.logger.error(f"Error checking NAT status: {e}")
                 
             # Wait for next check
-            await asyncio.sleep(self.query_interval)
+            await anyio.sleep(self.query_interval)
             
     async def check_nat_status(self):
         """
@@ -416,7 +416,7 @@ class AutoNAT:
             
             try:
                 # Try to open a stream with timeout
-                stream = await asyncio.wait_for(
+                stream = await anyio.wait_for(
                     self.host.new_stream(peer_id, [ping_protocol], [addr]),
                     timeout=dial_timeout
                 )
@@ -425,7 +425,7 @@ class AutoNAT:
                     await stream.close()
                     return True
                 
-            except asyncio.TimeoutError:
+            except anyio.TimeoutError:
                 self.logger.debug(f"Timeout dialing {addr_str}")
                 return False
                 

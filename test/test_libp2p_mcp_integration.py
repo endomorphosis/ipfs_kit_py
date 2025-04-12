@@ -15,7 +15,7 @@ import time
 import logging
 import unittest
 import pytest
-import asyncio
+import anyio
 import tempfile
 from unittest.mock import MagicMock, patch
 from pathlib import Path

@@ -144,7 +144,7 @@ class IPFSWebRTCClient:
         }
         
         # Event for signaling when the connection is established
-        self.connection_established = asyncio.Event()
+        self.connection_established = anyio.Event()
         
         # Flag for detecting if the process was interrupted
         self.interrupted = False
@@ -320,7 +320,7 @@ class IPFSWebRTCClient:
                 # Handle video tracks
                 if HAVE_CV2:
                     # Start video display in a separate task
-                    asyncio.create_task(self.display_video(track))
+                    anyio.create_task(self.display_video(track))
                 else:
                     logger.warning("OpenCV not available, falling back to recording")
                     # Fallback to just recording
@@ -376,14 +376,14 @@ class IPFSWebRTCClient:
             logger.info("Sent answer to server")
             
             # Start handling signaling messages in a separate task
-            asyncio.create_task(self.handle_signaling())
+            anyio.create_task(self.handle_signaling())
             
             # Wait for connection to be established with timeout
             try:
-                await asyncio.wait_for(self.connection_established.wait(), timeout=30)
+                await anyio.wait_for(self.connection_established.wait(), timeout=30)
                 logger.info("WebRTC connection established successfully")
                 return True
-            except asyncio.TimeoutError:
+            except anyio.TimeoutError:
                 logger.error("Connection establishment timed out")
                 return False
                 
@@ -476,7 +476,7 @@ class IPFSWebRTCClient:
             while not self.interrupted:
                 try:
                     # Get next frame with timeout
-                    frame = await asyncio.wait_for(track.recv(), timeout=5.0)
+                    frame = await anyio.wait_for(track.recv(), timeout=5.0)
                     
                     # Update statistics
                     frame_count += 1
@@ -526,14 +526,14 @@ class IPFSWebRTCClient:
                         break
                     
                     # Small sleep to give the UI a chance to update
-                    await asyncio.sleep(0.01)
+                    await anyio.sleep(0.01)
                     
-                except asyncio.TimeoutError:
+                except anyio.TimeoutError:
                     logger.warning("Timeout waiting for video frame")
                     continue
                 except Exception as e:
                     logger.error(f"Error receiving/displaying frame: {e}")
-                    await asyncio.sleep(0.1)  # Avoid tight loop on errors
+                    await anyio.sleep(0.1)  # Avoid tight loop on errors
                 
         except Exception as e:
             logger.error(f"Error in video display loop: {e}")
@@ -570,7 +570,7 @@ async def run_client(args):
         
         # Keep running until user interrupts or connection fails
         while not client.interrupted:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
             
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
@@ -728,7 +728,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        exit_code = asyncio.run(main())
+        exit_code = anyio.run(main())
         sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\nExiting...")

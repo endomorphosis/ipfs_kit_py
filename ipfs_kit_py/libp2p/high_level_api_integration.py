@@ -13,7 +13,7 @@ to the high-level API class.
 
 import logging
 import time
-import asyncio
+import anyio
 import json
 import uuid
 from typing import Any, Dict, List, Optional, Union, Type, Callable
@@ -139,9 +139,9 @@ def extend_high_level_api_class(high_level_api_cls):
                         # Local network discovery
                         self.libp2p_peer.start_discovery("ipfs-discovery")
                         # Sleep a bit to let mDNS work
-                        import asyncio
-                        loop = asyncio.get_event_loop()
-                        loop.run_until_complete(asyncio.sleep(min(2, remaining_time)))
+                        import anyio
+                        loop = anyio.get_event_loop()
+                        loop.run_until_complete(anyio.sleep(min(2, remaining_time)))
 
                     elif source == "dht":
                         # Import our enhanced discovery
@@ -164,9 +164,9 @@ def extend_high_level_api_class(high_level_api_cls):
                                 max(max_peers - len(discovered_peers), 5)
                             )
 
-                        loop = asyncio.get_event_loop()
+                        loop = anyio.get_event_loop()
                         dht_peers = loop.run_until_complete(
-                            asyncio.wait_for(find_dht_peers(), timeout=remaining_time)
+                            anyio.wait_for(find_dht_peers(), timeout=remaining_time)
                         )
 
                         source_peers = dht_peers or []

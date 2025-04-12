@@ -5,7 +5,7 @@ Simple test script to verify that the health endpoint returns controller informa
 
 import json
 import time
-import asyncio
+import anyio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

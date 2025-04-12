@@ -198,7 +198,6 @@ class MCPCacheManager:
                 temp_path = temp_file.name
                 
             # Atomic replace
-            import os
             os.replace(temp_path, self.metadata_path)
             logger.debug(f"Successfully saved metadata with {len(self.metadata)} entries")
             

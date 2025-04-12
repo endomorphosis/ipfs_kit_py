@@ -9,7 +9,7 @@ import os
 import json
 import logging
 import time
-import asyncio
+import anyio
 from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 import glob
@@ -75,7 +75,7 @@ class WebRTCBenchmarkIntegration:
             logger.info(f"Running benchmark for {duration} seconds...")
             
             # Wait for the benchmark duration
-            await asyncio.sleep(duration)
+            await anyio.sleep(duration)
             
             # Generate benchmark report
             logger.info("Generating benchmark report...")

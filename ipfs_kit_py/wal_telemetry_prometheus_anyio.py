@@ -523,13 +523,13 @@ def add_wal_metrics_endpoint(app, telemetry, path: str = "/metrics/wal", use_any
     # Prefer AnyIO implementation if specified or if in async context
     if use_anyio or in_async_context:
         # Run the async version of the function
-        import asyncio
+        import anyio
         try:
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
         except RuntimeError:
             # No event loop in this thread, create one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
         
         return loop.run_until_complete(add_wal_metrics_endpoint_async(app, telemetry, path))
     
@@ -770,8 +770,8 @@ if __name__ == "__main__":
     # sync_example()
     
     # Uncomment to run async example with asyncio
-    # import asyncio
-    # asyncio.run(async_example())
+    # import anyio
+    # anyio.run(async_example())
     
     # Uncomment to run async example with trio
     # import trio

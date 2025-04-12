@@ -6,7 +6,7 @@ GossipSub protocol methods and enhanced DHT discovery methods are available
 and working properly.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import sys

@@ -1,5 +1,5 @@
 import unittest
-import asyncio
+import anyio
 import os
 import tempfile
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -226,16 +226,16 @@ class TestAsyncStreaming:
     """Test asynchronous streaming functionality."""
     pytestmark = pytest.mark.asyncio
     
-    # Use pytest_asyncio.fixture instead of pytest.fixture to fix warnings
+    # Use pytest_anyio.fixture instead of pytest.fixture to fix warnings
     @pytest.fixture(autouse=True)
     def setup_and_cleanup(self, event_loop):
         """Setup and cleanup fixture that runs for each test."""
         # Use the provided event loop
-        asyncio.set_event_loop(event_loop)
+        anyio.set_event_loop(event_loop)
         yield
         # Clean up any remaining tasks in the loop
-        for task in asyncio.all_tasks(event_loop):
-            if task is not asyncio.current_task():
+        for task in anyio.all_tasks(event_loop):
+            if task is not anyio.current_task():
                 task.cancel()
     
     @pytest.fixture
@@ -329,11 +329,11 @@ class TestWebSocketStreaming:
     def setup_and_cleanup(self, event_loop):
         """Setup and cleanup fixture that runs for each test."""
         # Use the provided event loop
-        asyncio.set_event_loop(event_loop)
+        anyio.set_event_loop(event_loop)
         yield
         # Clean up any remaining tasks in the loop
-        for task in asyncio.all_tasks(event_loop):
-            if task is not asyncio.current_task():
+        for task in anyio.all_tasks(event_loop):
+            if task is not anyio.current_task():
                 task.cancel()
     
     @pytest.fixture
@@ -424,7 +424,7 @@ class TestWebSocketStreaming:
         # 3. Finally a "complete" message
         
         # Create a queue of messages to return
-        message_queue = asyncio.Queue()
+        message_queue = anyio.Queue()
         
         # Add metadata message
         await message_queue.put({
@@ -504,7 +504,7 @@ class TestWebSocketStreaming:
             mock_websocket.close = AsyncMock()
             
             # Setup the receive sequence for commands
-            command_queue = asyncio.Queue()
+            command_queue = anyio.Queue()
             
             # Add a 'get' command
             await command_queue.put({
@@ -580,8 +580,8 @@ class TestWebSocketStreaming:
                 pass
                 
             # Clean up any remaining tasks
-            for task in asyncio.all_tasks():
-                if task is not asyncio.current_task():
+            for task in anyio.all_tasks():
+                if task is not anyio.current_task():
                     try:
                         task.cancel()
                     except Exception:
@@ -627,8 +627,8 @@ class TestWebSocketStreaming:
             pytest.fail(f"Test failed with exception: {str(e)}")
         finally:
             # Clean up resources
-            for task in asyncio.all_tasks():
-                if task is not asyncio.current_task():
+            for task in anyio.all_tasks():
+                if task is not anyio.current_task():
                     try:
                         task.cancel()
                     except Exception:

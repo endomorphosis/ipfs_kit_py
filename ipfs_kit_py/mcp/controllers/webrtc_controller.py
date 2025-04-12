@@ -316,7 +316,7 @@ class WebRTCController:
             """Handle cancellation in asyncio context"""
             try:
                 # Try to get the event loop and cancel the task
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_event_loop()
                 self.cleanup_task.cancel()
                 
                 # Wait for the task to be cancelled (with timeout)
@@ -328,12 +328,12 @@ class WebRTCController:
                 
                 try:
                     # Use a timeout to prevent hanging
-                    loop.run_until_complete(asyncio.wait_for(
-                        asyncio.shield(self.cleanup_task), 
+                    loop.run_until_complete(anyio.wait_for(
+                        anyio.shield(self.cleanup_task), 
                         timeout=2.0
                     ))
                     logger.info("Cleanup task cancelled successfully")
-                except (asyncio.TimeoutError, asyncio.CancelledError):
+                except (anyio.TimeoutError, anyio.CancelledError):
                     # Task either timed out or was cancelled, which is expected
                     logger.info("Cleanup task cancellation completed")
                 except RuntimeError as e:
@@ -390,7 +390,7 @@ class WebRTCController:
             logger.info(f"Attempting to cancel cleanup task (type: {type(self.cleanup_task).__name__})")
             
             # Import asyncio for handling asyncio tasks
-            import asyncio
+            import anyio
             
             # Use AnyIO since we already imported it at the top of the file
             handle_anyio_cancel()

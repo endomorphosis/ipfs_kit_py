@@ -21,7 +21,7 @@ import os
 import sys
 import time
 import json
-import asyncio
+import anyio
 import logging
 import argparse
 import random
@@ -265,7 +265,7 @@ async def find_and_fetch_content(peer, content_id):
             
             # Set up a response handler
             content_response = None
-            response_event = asyncio.Event()
+            response_event = anyio.Event()
             
             async def handle_content_response(peer_id, message):
                 nonlocal content_response
@@ -294,14 +294,14 @@ async def find_and_fetch_content(peer, content_id):
             
             # Wait for response with timeout
             try:
-                await asyncio.wait_for(response_event.wait(), timeout=10.0)
+                await anyio.wait_for(response_event.wait(), timeout=10.0)
                 
                 if content_response:
                     logger.info(f"Successfully retrieved content via GossipSub")
                     # Store locally
                     CONTENT_STORE[content_id] = content_response
                     return content_response
-            except asyncio.TimeoutError:
+            except anyio.TimeoutError:
                 logger.warning(f"No response received via GossipSub within timeout")
             
             # Unsubscribe from response topic
@@ -403,7 +403,7 @@ async def run_publisher_node(bootstrap_peer=None):
         content_ids.append(content_id)
         
         # Wait a bit between announcements
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
     
     # Set up content request handler
     await setup_content_request_handler(peer)
@@ -418,7 +418,7 @@ async def run_publisher_node(bootstrap_peer=None):
                 await store_and_announce_content(peer, content_id, CONTENT_STORE[content_id])
             
             # Wait before next announcement cycle
-            await asyncio.sleep(60)
+            await anyio.sleep(60)
     except KeyboardInterrupt:
         logger.info("Shutting down publisher node...")
     finally:
@@ -434,7 +434,7 @@ async def run_consumer_node(bootstrap_peer, publisher_content_ids=None):
     # Wait for DHT to be initialized if available
     if hasattr(peer, 'initialize_kademlia'):
         await peer.initialize_kademlia()
-        await asyncio.sleep(5)  # Give some time for DHT operations to start
+        await anyio.sleep(5)  # Give some time for DHT operations to start
     
     # Set up GossipSub subscriptions if available
     if hasattr(peer, 'subscribe'):
@@ -475,12 +475,12 @@ async def run_consumer_node(bootstrap_peer, publisher_content_ids=None):
                 logger.warning(f"Failed to fetch content: {content_id}")
             
             # Wait a bit between fetches
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
     
     # Keep running and listening for announcements
     try:
         while True:
-            await asyncio.sleep(10)
+            await anyio.sleep(10)
             logger.info(f"Consumer has {len(CONTENT_STORE)} content items")
     except KeyboardInterrupt:
         logger.info("Shutting down consumer node...")
@@ -516,7 +516,7 @@ async def run_demo():
         # Keep running
         try:
             while True:
-                await asyncio.sleep(60)
+                await anyio.sleep(60)
                 
                 # Log connected peers
                 if hasattr(peer, 'kad_routing_table') and peer.kad_routing_table:
@@ -550,6 +550,6 @@ async def run_demo():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_demo())
+        anyio.run(run_demo())
     except KeyboardInterrupt:
         print("\nExiting...")

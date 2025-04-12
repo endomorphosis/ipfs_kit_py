@@ -30,7 +30,7 @@ import anyio
 from anyio.to_thread import run_sync
 # Import asyncio for compatibility with aiortc
 # Will be fully replaced with anyio once all migration is complete
-import asyncio
+import anyio
 
 # Try to detect current async context
 try:

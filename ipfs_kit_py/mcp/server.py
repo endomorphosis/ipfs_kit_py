@@ -1879,17 +1879,17 @@ class MCPServer:
                         safe_log('info', f"Shutting down {controller_name} controller...")
 
                         # Create event loop for async shutdown
-                        import asyncio
+                        import anyio
                         try:
                             # Try to get existing event loop, create a new one if needed
                             try:
-                                loop = asyncio.get_event_loop()
+                                loop = anyio.get_event_loop()
                             except RuntimeError:
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
+                                loop = anyio.new_event_loop()
+                                anyio.set_event_loop(loop)
 
                             # Run the shutdown method
-                            if asyncio.iscoroutinefunction(controller.shutdown):
+                            if anyio.iscoroutinefunction(controller.shutdown):
                                 loop.run_until_complete(controller.shutdown())
                             else:
                                 controller.shutdown()
@@ -1924,7 +1924,7 @@ class MCPServer:
                                 if hasattr(controller, "close_all_streaming_servers"):
                                     try:
                                         if not loop.is_closed():
-                                            if asyncio.iscoroutinefunction(controller.close_all_streaming_servers):
+                                            if anyio.iscoroutinefunction(controller.close_all_streaming_servers):
                                                 loop.run_until_complete(controller.close_all_streaming_servers())
                                             else:
                                                 controller.close_all_streaming_servers()
@@ -1936,7 +1936,7 @@ class MCPServer:
                                 if hasattr(controller, "ipfs_model") and hasattr(controller.ipfs_model, "close_all_webrtc_connections"):
                                     try:
                                         if not loop.is_closed():
-                                            if asyncio.iscoroutinefunction(controller.ipfs_model.close_all_webrtc_connections):
+                                            if anyio.iscoroutinefunction(controller.ipfs_model.close_all_webrtc_connections):
                                                 loop.run_until_complete(controller.ipfs_model.close_all_webrtc_connections())
                                             else:
                                                 controller.ipfs_model.close_all_webrtc_connections()
@@ -1962,14 +1962,11 @@ class MCPServer:
                             controller.sync_shutdown()
                         else:
                             # Create event loop and run the coroutine if no sync version
-                            import asyncio
+                            import anyio
                             try:
-                                loop = asyncio.get_event_loop()
-                            except RuntimeError:
-                                # Create a new event loop if no event loop is set
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                            loop.run_until_complete(controller.shutdown())
+                                anyio.run(controller.shutdown)
+                            except Exception as e:
+                                safe_log('error', f"Error in async shutdown: {e}")
                     else:
                         # Regular synchronous shutdown
                         controller.shutdown()

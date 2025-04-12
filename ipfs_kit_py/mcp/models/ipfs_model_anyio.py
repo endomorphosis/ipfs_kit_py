@@ -20,9 +20,9 @@ from typing import Dict, List, Any, Optional, Union, BinaryIO
 import anyio
 import sniffio
 
-# Try to import asyncio for compatibility with existing code during transition
+# Try to import anyio for compatibility with existing code during transition
 try:
-    import asyncio
+    import anyio
     HAS_ASYNCIO = True
 except ImportError:
     HAS_ASYNCIO = False
@@ -732,11 +732,11 @@ class IPFSModelAnyIO:
                         try:
                             # Try to get event loop
                             try:
-                                loop = asyncio.get_event_loop()
+                                loop = anyio.get_event_loop()
                             except RuntimeError:
                                 # No event loop exists in this thread
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
+                                loop = anyio.new_event_loop()
+                                anyio.set_event_loop(loop)
                             
                             # Discovery task
                             async def do_discovery():
@@ -753,7 +753,7 @@ class IPFSModelAnyIO:
                             # Run with timeout
                             try:
                                 peers = loop.run_until_complete(
-                                    asyncio.wait_for(do_discovery(), timeout)
+                                    anyio.wait_for(do_discovery(), timeout)
                                 )
                                 
                                 # Add peers to result
@@ -761,7 +761,7 @@ class IPFSModelAnyIO:
                                 result["success"] = True
                                 result["count"] = len(result["peers"])
                                 
-                            except asyncio.TimeoutError:
+                            except anyio.TimeoutError:
                                 logger.warning(f"WebSocket peer discovery timed out after {timeout} seconds")
                         except Exception as asyncio_error:
                             logger.error(f"Error during asyncio peer discovery: {asyncio_error}")

@@ -134,8 +134,8 @@ class IPFSClusterStatusTest(unittest.TestCase):
                         return {"daemon_type": "ipfs_cluster_service"}
                 
                 # Test controller method
-                import asyncio
-                loop = asyncio.get_event_loop()
+                import anyio
+                loop = anyio.get_event_loop()
                 result = loop.run_until_complete(controller.check_daemon_status(MockRequest()))
                 
                 # Verify result
@@ -163,7 +163,7 @@ class IPFSClusterStatusTest(unittest.TestCase):
                         return {"daemon_type": "ipfs_cluster_follow"}
                 
                 # Test controller method
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_event_loop()
                 result = loop.run_until_complete(controller.check_daemon_status(MockRequest()))
                 
                 # Verify result

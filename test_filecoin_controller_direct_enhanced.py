@@ -782,5 +782,5 @@ if __name__ == "__main__":
         logger.info("Using custom API token from command line")
     
     # Run the tests
-    import asyncio
-    asyncio.run(main())
+    import anyio
+    anyio.run(main())

@@ -7,7 +7,7 @@ routing algorithms, better content provider tracking, and integration with
 the role-based architecture.
 """
 
-import asyncio
+import anyio
 import logging
 import random
 import threading
@@ -80,11 +80,11 @@ class EnhancedDHTDiscovery:
     def _initialize_event_loop(self):
         """Initialize the event loop for async operations."""
         try:
-            self.event_loop = asyncio.get_event_loop()
+            self.event_loop = anyio.get_event_loop()
         except RuntimeError:
             # Create a new event loop if one doesn't exist in this thread
-            self.event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.event_loop)
+            self.event_loop = anyio.new_event_loop()
+            anyio.set_event_loop(self.event_loop)
 
         # Start a background thread for the event loop if not running
         if not self.event_loop.is_running():
@@ -93,7 +93,7 @@ class EnhancedDHTDiscovery:
 
     def _run_event_loop(self):
         """Run the event loop in a separate thread."""
-        asyncio.set_event_loop(self.event_loop)
+        anyio.set_event_loop(self.event_loop)
         self.event_loop.run_forever()
 
     def _connect_to_bootstrap_peers(self):
@@ -215,7 +215,7 @@ class EnhancedDHTDiscovery:
                 self.event_loop.call_later(interval, self._refresh_bucket, bucket_idx, interval)
 
         # Submit the refresh task to the event loop
-        asyncio.run_coroutine_threadsafe(_do_refresh(), self.event_loop)
+        anyio.run_coroutine_threadsafe(_do_refresh(), self.event_loop)
 
     def _generate_id_in_bucket(self, bucket_idx):
         """Generate a random ID that would belong in the specified bucket."""
@@ -432,7 +432,7 @@ class EnhancedDHTDiscovery:
         """
         # Create a future for the result
         loop = self.event_loop
-        future = asyncio.run_coroutine_threadsafe(self._find_providers_async(cid, count), loop)
+        future = anyio.run_coroutine_threadsafe(self._find_providers_async(cid, count), loop)
 
         # Register callback if provided
         if callback:
@@ -717,7 +717,7 @@ class ContentRoutingManager:
         preferred_peers = options.get("preferred_peers", [])
 
         # Create a future for the result
-        future = asyncio.run_coroutine_threadsafe(
+        future = anyio.run_coroutine_threadsafe(
             self._find_content_async(cid, timeout, max_providers, preferred_peers),
             self.dht_discovery.event_loop,
         )
@@ -737,7 +737,7 @@ class ContentRoutingManager:
         # Find providers using DHT discovery
         try:
             providers_future = self.dht_discovery.find_providers(cid, count=max_providers * 2)
-            providers = await asyncio.wait_for(asyncio.wrap_future(providers_future), timeout)
+            providers = await anyio.wait_for(anyio.wrap_future(providers_future), timeout)
 
             # No providers found
             if not providers:
@@ -757,7 +757,7 @@ class ContentRoutingManager:
 
             return optimal_providers
 
-        except asyncio.TimeoutError:
+        except anyio.TimeoutError:
             self.logger.warning(f"Timeout finding providers for {cid}")
             return []
 
@@ -783,7 +783,7 @@ class ContentRoutingManager:
         max_size = options.get("max_size", 1024 * 1024 * 50)  # 50MB default
 
         # Create a future for the result
-        future = asyncio.run_coroutine_threadsafe(
+        future = anyio.run_coroutine_threadsafe(
             self._retrieve_content_async(cid, timeout, max_size), self.dht_discovery.event_loop
         )
 
@@ -857,7 +857,7 @@ class ContentRoutingManager:
             await self._ensure_peer_connection(peer_id)
 
             # Open a stream using the bitswap protocol
-            stream = await asyncio.wait_for(
+            stream = await anyio.wait_for(
                 self.libp2p_peer.host.new_stream(peer_id, ["/ipfs/bitswap/1.2.0"]), timeout=10
             )
 
@@ -876,7 +876,7 @@ class ContentRoutingManager:
                 start_time = time.time()
 
                 while True:
-                    chunk = await asyncio.wait_for(
+                    chunk = await anyio.wait_for(
                         stream.read(chunk_size), timeout=timeout - (time.time() - start_time)
                     )
 

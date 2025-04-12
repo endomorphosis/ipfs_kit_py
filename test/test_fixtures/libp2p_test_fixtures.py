@@ -5,7 +5,7 @@ This module provides specialized fixtures for testing peer-to-peer networking wi
 including simulated network environments, protocol mocking, and more.
 """
 
-import asyncio
+import anyio
 import os
 import random
 import sys
@@ -40,7 +40,7 @@ class SimulatedNode:
         self.subscribed_topics = {}
         self.protocols = self._get_default_protocols()
         self.is_running = True
-        self.event_loop = asyncio.new_event_loop()
+        self.event_loop = anyio.new_event_loop()
         self.lock = threading.RLock()
     
     def _get_default_protocols(self):
@@ -126,7 +126,7 @@ class SimulatedNode:
         """Simulate network latency and packet loss."""
         # Simulate latency
         if self.latency_ms > 0:
-            await asyncio.sleep(self.latency_ms / 1000.0)
+            await anyio.sleep(self.latency_ms / 1000.0)
         
         # Simulate packet loss
         if self.packet_loss > 0 and random.random() < self.packet_loss:

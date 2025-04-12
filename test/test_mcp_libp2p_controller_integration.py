@@ -11,7 +11,7 @@ with the MCP server architecture, focusing on:
 
 import pytest
 import logging
-import asyncio
+import anyio
 import os
 import sys
 import json

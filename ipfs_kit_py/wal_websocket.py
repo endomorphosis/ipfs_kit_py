@@ -1399,7 +1399,7 @@ PYTHON_CLIENT_EXAMPLE = """
 # Example Python client for WAL WebSocket
 import json
 import time
-import asyncio
+import anyio
 import logging
 from typing import Dict, Any, Callable, Optional, List
 import websockets
@@ -1417,7 +1417,7 @@ class WALWebSocketClient:
         self.reconnect_attempts = 0
         self.max_reconnect_attempts = 5
         self.running = False
-        self.message_queue = asyncio.Queue()
+        self.message_queue = anyio.Queue()
         self.receive_task = None
         
     async def connect(self):
@@ -1429,7 +1429,7 @@ class WALWebSocketClient:
             
             # Start message processing
             self.running = True
-            self.receive_task = asyncio.create_task(self._receive_loop())
+            self.receive_task = anyio.create_task(self._receive_loop())
             
             # Wait for welcome message
             welcome_msg = await self.websocket.recv()
@@ -1464,7 +1464,7 @@ class WALWebSocketClient:
                     
                 except Exception as e:
                     logging.error(f"Error processing message: {e}")
-        except asyncio.CancelledError:
+        except anyio.CancelledError:
             # Task was cancelled
             logging.info("Receive loop cancelled")
         except Exception as e:
@@ -1495,7 +1495,7 @@ class WALWebSocketClient:
         delay = 2 ** self.reconnect_attempts  # Exponential backoff
         
         logging.info(f"Reconnecting in {delay}s (attempt {self.reconnect_attempts})")
-        await asyncio.sleep(delay)
+        await anyio.sleep(delay)
         
         success = await self.connect()
         if success:
@@ -1733,7 +1733,7 @@ async def demo():
     # Wait for updates
     try:
         while True:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
     except KeyboardInterrupt:
         logging.info("Demo stopped")
     finally:
@@ -1741,7 +1741,7 @@ async def demo():
         
 # Run demo
 # if __name__ == "__main__":
-#     asyncio.run(demo())
+#     anyio.run(demo())
 """
 
 if __name__ == "__main__":

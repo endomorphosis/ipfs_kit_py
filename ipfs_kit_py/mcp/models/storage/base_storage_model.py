@@ -10,7 +10,7 @@ import time
 import uuid
 import logging
 import os
-import asyncio
+import anyio
 import inspect
 from functools import wraps
 from typing import Any, Dict, List, Optional, Union, Callable, TypeVar, Awaitable, Tuple, Set
@@ -549,7 +549,7 @@ class BaseStorageModel:
                     await listener(event_type, event_data)
                 else:
                     # Run synchronous listeners in the executor to avoid blocking
-                    await asyncio.get_event_loop().run_in_executor(
+                    await anyio.get_event_loop().run_in_executor(
                         None, listener, event_type, event_data
                     )
             except Exception as e:
@@ -670,7 +670,7 @@ class BaseStorageModel:
             })
             
             # Wait before retry
-            await asyncio.sleep(delay)
+            await anyio.sleep(delay)
             attempt += 1
         
         # If we get here, all retries failed
@@ -972,11 +972,11 @@ class BaseStorageModel:
         def sync_wrapper(self, *args, **kwargs):
             # Get the current event loop
             try:
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_event_loop()
             except RuntimeError:
                 # Create a new event loop if none exists
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
                 
             # Run the async method in the event loop
             return loop.run_until_complete(async_method(self, *args, **kwargs))

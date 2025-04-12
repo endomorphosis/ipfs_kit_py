@@ -6,7 +6,7 @@ high-level API and the underlying libp2p protocols. These adapters handle
 protocol negotiation, message formatting, and stream management.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time
@@ -355,7 +355,7 @@ class BitswapAdapter(ProtocolAdapter):
         for _ in range(10):  # Try for up to 10 seconds
             if cid in self.blocks:
                 return self.blocks[cid]
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
         
         return None
 

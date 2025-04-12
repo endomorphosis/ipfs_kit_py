@@ -18,7 +18,7 @@ Key features:
 - Configurable permission enforcement
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os
@@ -365,8 +365,8 @@ class ResumableFileOperations:
         self.active_operations: Dict[str, ResumableFileState] = {}
         self.progress_callbacks: Dict[str, Callable] = {}
         self.max_concurrent_transfers = max_concurrent_transfers
-        self.transfer_semaphores: Dict[str, asyncio.Semaphore] = {}
-        self.active_transfers: Dict[str, Dict[int, asyncio.Task]] = {}
+        self.transfer_semaphores: Dict[str, anyio.Semaphore] = {}
+        self.active_transfers: Dict[str, Dict[int, anyio.Task]] = {}
         
         # Initialize permissions
         self.enforce_permissions = enforce_permissions
@@ -473,7 +473,7 @@ class ResumableFileOperations:
         self.active_operations[file_id] = state
         
         # Save to disk for persistence
-        async with asyncio.Lock():
+        async with anyio.Lock():
             with open(state_path, "w") as f:
                 json.dump(state.to_dict(), f)
     
@@ -580,7 +580,7 @@ class ResumableFileOperations:
         # Call the callback
         try:
             callback = self.progress_callbacks[file_id]
-            if asyncio.iscoroutinefunction(callback):
+            if anyio.iscoroutinefunction(callback):
                 await callback(progress_info)
             else:
                 callback(progress_info)
@@ -706,7 +706,7 @@ class ResumableFileOperations:
         # Create semaphore for this operation if parallel transfers are enabled
         if parallel_transfers:
             max_parallel = max_parallel_chunks or self.max_concurrent_transfers
-            self.transfer_semaphores[file_id] = asyncio.Semaphore(max_parallel)
+            self.transfer_semaphores[file_id] = anyio.Semaphore(max_parallel)
             self.active_transfers[file_id] = {}
         
         # Save state
@@ -900,7 +900,7 @@ class ResumableFileOperations:
                 async with self.transfer_semaphores[file_id]:
                     return await self._write_single_chunk(file_id, chunk_data, chunk, idx)
             
-            task = asyncio.create_task(write_with_semaphore())
+            task = anyio.create_task(write_with_semaphore())
             self.active_transfers[file_id][idx] = task
             
             # Return the result of the task
@@ -1075,7 +1075,7 @@ class ResumableFileOperations:
             # Create semaphore for this operation if parallel transfers are enabled
             if parallel_transfers:
                 max_parallel = max_parallel_chunks or self.max_concurrent_transfers
-                self.transfer_semaphores[file_id] = asyncio.Semaphore(max_parallel)
+                self.transfer_semaphores[file_id] = anyio.Semaphore(max_parallel)
                 self.active_transfers[file_id] = {}
             
             # Save state
@@ -1252,7 +1252,7 @@ class ResumableFileOperations:
                 async with self.transfer_semaphores[file_id]:
                     return await self._read_single_chunk(file_id, chunk, idx)
             
-            task = asyncio.create_task(read_with_semaphore())
+            task = anyio.create_task(read_with_semaphore())
             self.active_transfers[file_id][idx] = task
             
             # Return the result of the task
@@ -1414,7 +1414,7 @@ class ResumableFileOperations:
                     async with self.transfer_semaphores[file_id]:
                         return await self._read_single_chunk(file_id, chunk_data, chunk_idx)
                 
-                task = asyncio.create_task(read_with_semaphore(idx, chunk))
+                task = anyio.create_task(read_with_semaphore(idx, chunk))
                 self.active_transfers.setdefault(file_id, {})[idx] = task
                 tasks.append((idx, task))
         
@@ -1547,7 +1547,7 @@ class ResumableFileOperations:
                     async with self.transfer_semaphores[file_id]:
                         return await self._write_single_chunk(file_id, chunk_data, chunk_obj, chunk_idx)
                 
-                task = asyncio.create_task(write_with_semaphore(idx, data, chunk))
+                task = anyio.create_task(write_with_semaphore(idx, data, chunk))
                 self.active_transfers.setdefault(file_id, {})[idx] = task
                 tasks.append((idx, task))
         

@@ -5,7 +5,7 @@ This module provides a Kademlia DHT implementation for libp2p,
 based on the Kademlia paper and the libp2p implementation.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 import random
@@ -700,7 +700,7 @@ class KademliaNode:
             return
             
         self._running = True
-        self._refresh_task = asyncio.create_task(self._periodic_refresh())
+        self._refresh_task = anyio.create_task(self._periodic_refresh())
         logger.info(f"Kademlia node started with peer ID: {self.peer_id}")
     
     async def stop(self):
@@ -713,7 +713,7 @@ class KademliaNode:
             self._refresh_task.cancel()
             try:
                 await self._refresh_task
-            except asyncio.CancelledError:
+            except anyio.CancelledError:
                 pass
             self._refresh_task = None
         
@@ -825,9 +825,9 @@ class KademliaNode:
                 logger.debug(f"Maintenance cycle completed in {refresh_time:.2f}s. "
                             f"Next cycle in {wait_time:.0f}s")
                 
-                await asyncio.sleep(wait_time)
+                await anyio.sleep(wait_time)
             
-            except asyncio.CancelledError:
+            except anyio.CancelledError:
                 logger.info("Refresh task cancelled")
                 break
             except Exception as e:
@@ -837,7 +837,7 @@ class KademliaNode:
                 # Use exponential backoff for failures, but cap at 5 minutes
                 backoff = min(300, 60 * (2 ** min(metrics["refresh_failures"], 3)))
                 logger.warning(f"Backing off for {backoff}s before next refresh attempt")
-                await asyncio.sleep(backoff)
+                await anyio.sleep(backoff)
     
     async def _refresh_specific_buckets(self, bucket_indices):
         """
@@ -1194,7 +1194,7 @@ class KademliaNode:
                     break
                     
                 # Query these peers in parallel
-                results = await asyncio.gather(*[
+                results = await anyio.gather(*[
                     self._query_peer_for_providers(peer, key)
                     for peer in peers_to_query
                 ], return_exceptions=True)

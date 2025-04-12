@@ -472,8 +472,8 @@ class StorageManagerAnyIO:
             
             # Run the async function in the appropriate event loop
             if backend == "asyncio":
-                import asyncio
-                asyncio.create_task(run_async())
+                import anyio
+                anyio.create_task(run_async())
             elif backend == "trio":
                 import trio
                 trio.lowlevel.spawn_system_task(run_async)

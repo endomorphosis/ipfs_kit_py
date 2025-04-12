@@ -226,7 +226,7 @@ async def handle_websocket_upload_stream(
         # Process content chunks (existing implementation)
         while True:
             try:
-                message = await asyncio.wait_for(
+                message = await anyio.wait_for(
                     websocket.receive(), 
                     timeout=timeout or 30
                 )

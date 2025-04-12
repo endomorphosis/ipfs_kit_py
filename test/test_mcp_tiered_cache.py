@@ -796,7 +796,7 @@ class TestMCPReplicationPolicy(unittest.TestCase):
     
     def test_mcp_replication_api_endpoint(self):
         """Test the MCP API endpoint for getting replication status."""
-        import asyncio
+        import anyio
         
         # Create test content
         test_content = b"Test MCP replication API content"
@@ -813,8 +813,8 @@ class TestMCPReplicationPolicy(unittest.TestCase):
         mock_request.query_params = {"cid": test_key}
         
         # Create a new event loop for testing async functions
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = anyio.new_event_loop()
+        anyio.set_event_loop(loop)
         
         try:
             # Call the replication status endpoint and await the result

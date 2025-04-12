@@ -1067,7 +1067,7 @@ class WALTelemetryClientAnyIO:
                 metrics = await self.get_realtime_metrics_async()
                 
                 # Call callback with metrics (use anyio.to_thread.run_sync if callback is blocking)
-                if asyncio.iscoroutinefunction(callback):
+                if anyio.iscoroutinefunction(callback):
                     await callback(metrics, iteration)
                 else:
                     await anyio.to_thread.run_sync(
@@ -1134,7 +1134,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     # Import asyncio for example
-    import asyncio
+    import anyio
     
     # Example monitor callback
     def print_metrics(metrics, iteration):
@@ -1176,7 +1176,7 @@ if __name__ == "__main__":
             print(f"Error in async example: {str(e)}")
     
     # Run async example with asyncio
-    # asyncio.run(async_example())
+    # anyio.run(async_example())
     
     # Run async example with trio (uncomment to test)
     # import trio

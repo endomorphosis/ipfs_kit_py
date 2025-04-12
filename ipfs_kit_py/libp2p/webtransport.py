@@ -14,7 +14,7 @@ Requirements:
 - aioquic: For QUIC and HTTP/3 implementation
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import ssl
@@ -75,11 +75,11 @@ class WebTransportStream(INetStream):
         
         # Buffer for received data
         self.receive_buffer = bytearray()
-        self.message_event = asyncio.Event()
+        self.message_event = anyio.Event()
         
         # Status tracking
         self.closed = False
-        self.open_event = asyncio.Event()
+        self.open_event = anyio.Event()
         self.open_event.set()  # WebTransport streams are open when created
         
     def add_data(self, data):
@@ -111,8 +111,8 @@ class WebTransportStream(INetStream):
         if not self.receive_buffer:
             self.message_event.clear()
             try:
-                await asyncio.wait_for(self.message_event.wait(), timeout=30)
-            except asyncio.TimeoutError:
+                await anyio.wait_for(self.message_event.wait(), timeout=30)
+            except anyio.TimeoutError:
                 # Return empty bytes on timeout
                 return b""
         
@@ -235,7 +235,7 @@ class WebTransportConnection(IRawConnection):
         
         # Status tracking
         self.closed = False
-        self.ready = asyncio.Event()
+        self.ready = anyio.Event()
         self.ready.set()  # WebTransport connections are ready when created
     
     async def send_stream_data(self, stream_id, data):
@@ -389,7 +389,7 @@ class WebTransportProtocolHandler(QuicConnectionProtocol):
         
         # Notify transport handler
         if self.transport_handler:
-            asyncio.create_task(self.transport_handler.handle_session(
+            anyio.create_task(self.transport_handler.handle_session(
                 session_id=session_id,
                 path=headers.get(":path", "/"),
                 peer_id=self.peer_id,
@@ -412,7 +412,7 @@ class WebTransportProtocolHandler(QuicConnectionProtocol):
             
         # The transport handler will determine the protocol
         # based on initial data or negotiation
-        asyncio.create_task(self.transport_handler.handle_stream(
+        anyio.create_task(self.transport_handler.handle_stream(
             session_id=session_id,
             stream_id=stream_id,
             initial_data=initial_data,
@@ -652,7 +652,7 @@ class WebTransport:
         if protocol_id in self.protocol_handlers:
             # Call the protocol handler
             handler = self.protocol_handlers[protocol_id]
-            asyncio.create_task(handler(stream))
+            anyio.create_task(handler(stream))
         else:
             self.logger.warning(f"No handler for protocol: {protocol_id}")
             await stream.close()

@@ -13,7 +13,7 @@ import time
 import json
 import pytest
 import logging
-import asyncio
+import anyio
 import tempfile
 from unittest.mock import MagicMock, patch, AsyncMock
 from fastapi import FastAPI
