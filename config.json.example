@@ -1,0 +1,60 @@
+{
+  "ipfs": {
+    "api_url": "http://localhost:5001/api/v0",
+    "gateway_url": "http://localhost:8080/ipfs",
+    "repo_path": "~/.ipfs",
+    "daemon_flags": [
+      "--enable-pubsub-experiment"
+    ],
+    "auto_start": true,
+    "timeout": 30
+  },
+  "lotus": {
+    "api_url": "http://localhost:1234/rpc/v0",
+    "token_path": "~/.lotus/token",
+    "auto_start": false,
+    "simulation_mode": true
+  },
+  "storage": {
+    "cache": {
+      "memory_size_mb": 100,
+      "disk_size_gb": 1,
+      "disk_path": "~/.ipfs_kit/cache"
+    },
+    "backends": {
+      "s3": {
+        "enabled": false,
+        "bucket": "ipfs-kit-storage",
+        "region": "us-east-1"
+      },
+      "huggingface": {
+        "enabled": false,
+        "repo_id": "ipfs-kit-repo"
+      },
+      "storacha": {
+        "enabled": false
+      },
+      "filecoin": {
+        "enabled": false,
+        "use_lotus": true
+      },
+      "lassie": {
+        "enabled": false
+      }
+    }
+  },
+  "mcp": {
+    "host": "127.0.0.1",
+    "port": 9990,
+    "log_level": "info",
+    "enable_cors": true,
+    "allowed_origins": ["*"],
+    "auth_required": false
+  },
+  "logging": {
+    "level": "info",
+    "file": "~/.ipfs_kit/ipfs_kit.log",
+    "max_size_mb": 10,
+    "backup_count": 3
+  }
+}

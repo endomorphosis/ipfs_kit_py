@@ -4510,6 +4510,9 @@ class lotus_kit:
         """
         # Forward to the main implementation
         return self.client_retrieve(data_cid, out_file, **kwargs)
+    
+        # Forward to the main implementation
+        return self.client_retrieve(data_cid, out_file, **kwargs)
 
     def client_find_data(self, data_cid, **kwargs):
         """Find where data is stored.

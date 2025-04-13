@@ -488,8 +488,8 @@ Backend Status:")
         # IPFS upload
         ipfs_success = self.results["ipfs_upload"].get("success", False)
         ipfs_cid = self.results["ipfs_upload"].get("cid", "N/A")
-        print(f"
-IPFS Upload: {'✅ Success' if ipfs_success else '❌ Failed'}")
+        print(f"""
+IPFS Upload: {'✅ Success' if ipfs_success else '❌ Failed'}""")
         if ipfs_success:
             print(f"  CID: {ipfs_cid}")
         

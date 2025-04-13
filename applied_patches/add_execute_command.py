@@ -131,7 +131,7 @@ def add_execute_command_to_ipfs_model():
             return result
         
         # Add the method to the class
-        IPFSModel.execute_command = execute_command
+        # IPFSModel.execute_command = execute_command
         logger.info("Added execute_command method to IPFSModel")
         
         # Verify the method was added successfully

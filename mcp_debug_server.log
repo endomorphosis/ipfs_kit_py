@@ -1,9 +1,0 @@
-2025-04-07 22:15:53,027 - datasets - INFO - PyTorch version 2.4.0 available.
-2025-04-07 22:15:56,847 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
-2025-04-07 22:15:56,847 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
-2025-04-07 22:15:57,284 - mcp_debug - INFO - Successfully patched IPFSDataLoader methods
-2025-04-07 22:15:57,287 - mcp_debug - INFO - Starting debug MCP server on http://localhost:8765
-2025-04-07 22:15:57,287 - mcp_debug - INFO - Set MCP_DEBUG_URL=http://localhost:8765 when running your tests
-2025-04-07 22:15:57,287 - mcp_debug - INFO - Dashboard will be available at http://localhost:8765/debug/dashboard
-2025-04-08 00:27:10,883 - mcp_debug - ERROR - Error executing command: cannot access local variable 'sys' where it is not associated with a value
-2025-04-08 00:27:18,828 - mcp_debug - ERROR - Error executing command: cannot access local variable 'sys' where it is not associated with a value

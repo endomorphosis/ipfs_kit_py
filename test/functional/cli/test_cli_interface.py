@@ -1364,10 +1364,9 @@ peers:
                 self.assertEqual(call_kwargs['peer'], "/ip4/127.0.0.1/tcp/4001/p2p/QmTest")
                 
             # These kwargs should be from the --param options
-            # Note: The current CLI implementation doesn't properly handle --param timeout=60
-            # Instead it uses the default timeout of 30 from the parser definition
-            # A proper fix would require modifying parse_kwargs in cli.py
+            # Check that the CLI properly parses and applies the timeout=60 parameter
             self.assertTrue('timeout' in call_kwargs, "Timeout parameter not found in function call")
+            self.assertEqual(call_kwargs['timeout'], 60, "Timeout should be 60 from --param timeout=60")
             self.assertTrue('retry' in call_kwargs, "Retry parameter not found in function call")
             
             # Retry from --param should be properly parsed

@@ -943,27 +943,26 @@ class LibP2PModel:
         # Use anyio to run the synchronous version in a thread
         import anyio
         return await anyio.to_thread.run_sync(_pubsub_get_peers_sync)
-        
     
-    async def register_message_handler(self, handler_id: str, protocol_id: str, description: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Async version of register_message_handler for use with async controllers.
-        
-        Args:
-            handler_id: Unique identifier for the handler
-            protocol_id: Protocol ID to handle
-            description: Optional description of the handler
-            
-        Returns:
-            Dict with registration status
-        """
-        # Create a dummy handler function
-        def dummy_handler(message):
-            pass
+            async def register_message_handler(self, handler_id: str, protocol_id: str, description: Optional[str] = None) -> Dict[str, Any]:
+        # Async version of register_message_handler for use with async controllers
+        #
+        # Args:
+        #     handler_id: Unique identifier for the handler
+        #     protocol_id: Protocol ID to handle
+        #     description: Optional description of the handler
+        #            
+        # Returns:
+        #     Dict with registration status
         
         # Define a helper function to avoid parameter issues
         def _register_message_handler_sync():
-            return LibP2PModel.register_message_handler(self, protocol_id, dummy_handler, handler_id)
+            # Create a dummy handler function
+            def dummy_handler(message):
+                pass
+                
+            # Call the synchronous method with the correct parameter order
+            return self.register_message_handler(protocol_id, dummy_handler, handler_id)
             
         # Use anyio to run the synchronous version in a thread
         import anyio

@@ -1,0 +1,44 @@
+include LICENSE
+include README.md
+include README-PyPI.md
+include CHANGELOG.md
+include CLAUDE.md
+include pyproject.toml
+include requirements.txt
+include PYPI_RELEASE_CHECKLIST.md
+
+recursive-include ipfs_kit_py *.py
+# We're not including binary files in the package
+# The install_ipfs.py script will download these as needed
+# recursive-include ipfs_kit_py/bin *
+recursive-include ipfs_kit_py *.json
+recursive-include ipfs_kit_py *.service
+
+# Include documentation
+recursive-include docs *.md
+recursive-include docs *.py
+recursive-include docs *.yml
+
+# Include examples
+recursive-include examples *.py
+recursive-include examples *.md
+
+# Include tests
+recursive-include test *.py
+recursive-include test *.md
+recursive-include test *.json
+
+# GitHub files
+recursive-include .github *.yml
+
+# Exclude bytecode files
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude *.so
+global-exclude *.pyd
+global-exclude .git*
+global-exclude .DS_Store
+global-exclude node_modules/
+global-exclude dist/
+global-exclude build/
+global-exclude *.egg-info

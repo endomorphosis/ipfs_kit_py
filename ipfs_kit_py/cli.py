@@ -2698,7 +2698,8 @@ def parse_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
         kwargs['timeout'] = args.timeout
     
     # Handle command-specific timeouts (e.g., timeout_get for get command)
-    if hasattr(args, 'command'):
+    # Only apply command-specific timeouts if not already provided via --param
+    if hasattr(args, 'command') and 'timeout' not in kwargs:
         timeout_attr = f'timeout_{args.command}'
         if hasattr(args, timeout_attr):
             kwargs['timeout'] = getattr(args, timeout_attr)
