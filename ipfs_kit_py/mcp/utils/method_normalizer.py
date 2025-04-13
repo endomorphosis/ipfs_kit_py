@@ -26,14 +26,14 @@ METHOD_MAPPINGS = {
     # Pin operations
     "pin": ["ipfs_pin_add", "pin_add", "pin"],
     "unpin": ["ipfs_pin_rm", "pin_rm", "unpin"],
-    "list_pins": ["ipfs_pin_ls", "pin_ls", "list_pins"],
+    "list_pins": ["ipfs_pin_ls", "pin_ls", "list_pins", "pins"],
     
     # Identity operations
     "id": ["ipfs_id", "id", "get_id"],
     
     # Node operations
     "swarm_peers": ["ipfs_swarm_peers", "swarm_peers"],
-    "swarm_connect": ["ipfs_swarm_connect", "swarm_connect"],
+    "swarm_connect": ["ipfs_swarm_connect", "swarm_connect", "connect", "connect_peer"],
     
     # DHT operations
     "dht_findprovs": ["ipfs_dht_findprovs", "dht_findprovs"],
@@ -53,8 +53,8 @@ METHOD_MAPPINGS = {
     "block_put": ["ipfs_block_put", "block_put"],
     
     # IPNS operations
-    "name_publish": ["ipfs_name_publish", "name_publish"],
-    "name_resolve": ["ipfs_name_resolve", "name_resolve"],
+    "name_publish": ["ipfs_name_publish", "name_publish", "publish"],
+    "name_resolve": ["ipfs_name_resolve", "name_resolve", "resolve", "resolve_name", "resolve_ipns"],
     
     # Key operations
     "key_list": ["ipfs_key_list", "key_list"],

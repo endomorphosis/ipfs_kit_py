@@ -13,10 +13,11 @@ The `AIMLMetrics` class offers context managers and methods tailored to common A
 *   **Comprehensive Reporting**: Methods to retrieve aggregated metrics for models, inference, training, datasets, and distributed components.
 *   **Analysis & Recommendations**: Generates analysis summaries and potential optimization recommendations based on collected AI/ML metrics.
 *   **Formatted Reports**: Can generate reports in Markdown or plain text.
+*   **Integration with AI safety and compliance tools**: Ensures metrics align with regulatory requirements.
 
 ## Implementation (`AIMLMetrics`)
 
-*   **Initialization**: Can be initialized standalone or potentially integrated within the main `IPFSSimpleAPI` or `AIMLIntegration` classes.
+*   **Initialization**: Can be initialized standalone.
 *   **Context Managers**: Provides `with` statement contexts (e.g., `track_inference`, `track_training_epoch`) that automatically measure duration and potentially other system stats during the block.
 *   **Manual Recording**: Methods like `record_training_stats`, `record_worker_utilization` allow manual logging of specific metrics.
 *   **Data Aggregation**: Internally aggregates collected data points (latencies, counts, sizes, etc.).
@@ -133,6 +134,7 @@ print(markdown_report)
 *   **Granularity**: Tracks specific stages like loading, inference, training epochs separately.
 *   **Actionable Insights**: Reports include analysis and recommendations tailored to AI/ML performance.
 *   **Framework Agnostic**: Designed to work across different ML frameworks.
+*   **Integration with AI safety and compliance tools**: Ensures metrics align with regulatory requirements.
 
 ## Relationship to General `PerformanceMetrics`
 

@@ -128,6 +128,7 @@ class CliController:
         """
         self.ipfs_model = ipfs_model
         self.api = IPFSSimpleAPI()  # Create high-level API instance
+        self.is_shutting_down = False  # Flag to track shutdown state
         logger.info("CLI Controller initialized")
     
     def register_routes(self, router: APIRouter):
@@ -4138,3 +4139,305 @@ class CliController:
                 "success": False,
                 "result": {"error": str(e)}
             }
+    async def resolve_name(self, name: str, request: Request) -> Dict[str, Any]:
+        """
+        Resolve an IPNS name to its IPFS path.
+        
+        Args:
+            name: IPNS name to resolve
+            request: FastAPI request object
+            
+        Returns:
+            Resolution result
+        """
+        try:
+            # Get parameters from query params
+            params = dict(request.query_params)
+            
+            # Validate name
+            if not name or name == "":
+                return {
+                    "success": False,
+                    "error": "Invalid IPNS name"
+                }
+            
+            # Parse additional parameters
+            recursive = params.get("recursive", "false").lower() in ["true", "1", "yes"]
+            nocache = params.get("nocache", "false").lower() in ["true", "1", "yes"]
+            dht_timeout = params.get("dht_timeout")
+            if dht_timeout:
+                try:
+                    dht_timeout = int(dht_timeout)
+                except ValueError:
+                    dht_timeout = None
+            
+            # Normalize IPNS name format
+            if not name.startswith("/ipns/"):
+                name = f"/ipns/{name}"
+            
+            # Call the high-level API to resolve the name
+            try:
+                # Try async version if available
+                if hasattr(self.api, "resolve_async"):
+                    result = await self.api.resolve_async(
+                        name=name,
+                        recursive=recursive,
+                        nocache=nocache,
+                        dht_timeout=dht_timeout
+                    )
+                else:
+                    # Fall back to synchronous version
+                    result = self.api.resolve(
+                        name=name,
+                        recursive=recursive,
+                        nocache=nocache,
+                        dht_timeout=dht_timeout
+                    )
+                    
+                # Return result
+                return {
+                    "success": True,
+                    "result": {
+                        "Path": result.get("Path", ""),
+                        "operation": "resolve_name",
+                        "timestamp": time.time()
+                    }
+                }
+            except Exception as e:
+                # Try model-based resolution if API method fails
+                try:
+                    ipns_result = self.ipfs_model.name_resolve(
+                        name.replace("/ipns/", ""),
+                        recursive=recursive,
+                        nocache=nocache,
+                        dht_timeout=dht_timeout
+                    )
+                    
+                    # Check if operation was successful
+                    if ipns_result.get("success", False):
+                        return {
+                            "success": True,
+                            "result": {
+                                "Path": ipns_result.get("Path", ""),
+                                "operation": "resolve_name",
+                                "timestamp": time.time()
+                            }
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "error": ipns_result.get("error", "Failed to resolve IPNS name")
+                        }
+                except Exception as e2:
+                    logger.error(f"Both API and model IPNS resolution failed: {e2}")
+                    return {
+                        "success": False,
+                        "error": f"Failed to resolve IPNS name: {str(e2)}"
+                    }
+            
+        except Exception as e:
+            logger.error(f"Error resolving IPNS name: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def connect_peer(self, peer: str, request: Request) -> Dict[str, Any]:
+        """
+        Connect to a peer using the peer ID or multiaddress.
+        
+        Args:
+            peer: Peer ID or multiaddress to connect to
+            request: FastAPI request object
+            
+        Returns:
+            Connection result
+        """
+        try:
+            # Get parameters from query params
+            params = dict(request.query_params)
+            
+            # Validate peer ID
+            if not peer or peer == "":
+                return {
+                    "success": False,
+                    "error": "Invalid peer ID or multiaddress"
+                }
+            
+            # Parse additional parameters
+            timeout = params.get("timeout")
+            if timeout:
+                try:
+                    timeout = int(timeout)
+                except ValueError:
+                    timeout = None
+            
+            # Call the high-level API to connect to the peer
+            try:
+                # Try async version if available
+                if hasattr(self.api, "connect_async"):
+                    result = await self.api.connect_async(
+                        peer=peer,
+                        timeout=timeout
+                    )
+                else:
+                    # Fall back to synchronous version
+                    result = self.api.connect(
+                        peer=peer,
+                        timeout=timeout
+                    )
+                    
+                # Return result
+                return {
+                    "success": True,
+                    "result": {
+                        "Strings": result.get("Strings", [f"Connection to {peer} established"]),
+                        "operation": "connect_peer",
+                        "timestamp": time.time()
+                    }
+                }
+            except Exception as e:
+                # Try model-based connection if API method fails
+                try:
+                    connect_result = self.ipfs_model.swarm_connect(
+                        peer=peer,
+                        timeout=timeout
+                    )
+                    
+                    # Check if operation was successful
+                    if connect_result.get("success", False):
+                        return {
+                            "success": True,
+                            "result": {
+                                "Strings": connect_result.get("Strings", [f"Connection to {peer} established"]),
+                                "operation": "connect_peer",
+                                "timestamp": time.time()
+                            }
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "error": connect_result.get("error", f"Failed to connect to peer {peer}")
+                        }
+                except Exception as e2:
+                    logger.error(f"Both API and model peer connection failed: {e2}")
+                    return {
+                        "success": False,
+                        "error": f"Failed to connect to peer: {str(e2)}"
+                    }
+            
+        except Exception as e:
+            logger.error(f"Error connecting to peer: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def shutdown(self):
+        """
+        Safely shut down the CLI Controller.
+        
+        This method ensures proper cleanup of CLI-related resources.
+        """
+        logger.info("CLI Controller shutdown initiated")
+        
+        # Signal that we're shutting down to prevent new operations
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # Close the high-level API if it has a close/shutdown method
+        try:
+            # Check for various shutdown methods
+            if hasattr(self.api, 'shutdown'):
+                await self.api.shutdown()
+            elif hasattr(self.api, 'close'):
+                await self.api.close()
+            elif hasattr(self.api, 'async_shutdown'):
+                await self.api.async_shutdown()
+            
+            # For sync methods, we need to handle differently
+            elif hasattr(self.api, 'sync_shutdown'):
+                # Use anyio to run in a thread if available
+                if HAS_ANYIO:
+                    try:
+                        current_async_lib = sniffio.current_async_library()
+                        await anyio.to_thread.run_sync(self.api.sync_shutdown)
+                    except Exception as e:
+                        logger.error(f"Error during API sync_shutdown via anyio: {e}")
+                        errors.append(str(e))
+                else:
+                    # Fallback to running directly (might block)
+                    try:
+                        self.api.sync_shutdown()
+                    except Exception as e:
+                        logger.error(f"Error during API sync_shutdown direct call: {e}")
+                        errors.append(str(e))
+            
+        except Exception as e:
+            logger.error(f"Error shutting down IPFSSimpleAPI: {e}")
+            errors.append(str(e))
+        
+        # Allow for GC to clean up resources
+        try:
+            self.api = None
+        except Exception as e:
+            logger.error(f"Error clearing API reference: {e}")
+            errors.append(str(e))
+        
+        # Report shutdown completion
+        if errors:
+            logger.warning(f"CLI Controller shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("CLI Controller shutdown completed successfully")
+    
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown.
+        
+        This can be called in contexts where async is not available.
+        """
+        logger.info("CLI Controller sync_shutdown initiated")
+        
+        # Set shutdown flag
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # Close the high-level API if it has a close/shutdown method
+        try:
+            # Check for sync shutdown methods first
+            if hasattr(self.api, 'sync_shutdown'):
+                self.api.sync_shutdown()
+            elif hasattr(self.api, 'close'):
+                # Try direct call for sync methods
+                if not asyncio.iscoroutinefunction(self.api.close):
+                    self.api.close()
+            elif hasattr(self.api, 'shutdown'):
+                # Try direct call for sync methods
+                if not asyncio.iscoroutinefunction(self.api.shutdown):
+                    self.api.shutdown()
+            
+            # For async methods in a sync context, we have limited options
+            # The best we can do is log that we can't properly close
+            elif hasattr(self.api, 'shutdown') or hasattr(self.api, 'async_shutdown'):
+                logger.warning("Cannot properly call async shutdown methods in sync context")
+            
+        except Exception as e:
+            logger.error(f"Error during sync shutdown of IPFSSimpleAPI: {e}")
+            errors.append(str(e))
+        
+        # Allow for GC to clean up resources
+        try:
+            self.api = None
+        except Exception as e:
+            logger.error(f"Error clearing API reference: {e}")
+            errors.append(str(e))
+        
+        # Report shutdown completion
+        if errors:
+            logger.warning(f"CLI Controller sync_shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("CLI Controller sync_shutdown completed successfully")

@@ -102,7 +102,187 @@ class StorageManagerController:
             storage_manager: The storage manager to use for operations
         """
         self.storage_manager = storage_manager
+        self.is_shutting_down = False
+        self.active_transfers = {}
         logger.info("Storage Manager Controller initialized")
+        
+    async def shutdown(self):
+        """
+        Safely shut down the Storage Manager Controller.
+        
+        This method ensures proper cleanup of all storage-related resources,
+        including closing active transfers and connections to storage backends.
+        """
+        logger.info("Storage Manager Controller shutdown initiated")
+        
+        # Signal that we're shutting down to prevent new operations
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # 1. Clean up any active transfers
+        if hasattr(self, 'active_transfers') and self.active_transfers:
+            logger.info(f"Cleaning up {len(self.active_transfers)} active transfers")
+            for transfer_id, transfer_info in list(self.active_transfers.items()):
+                try:
+                    logger.debug(f"Cancelling transfer {transfer_id}")
+                    # Add specific cancellation logic here if needed
+                    # For now, just remove from tracking
+                    if transfer_id in self.active_transfers:
+                        del self.active_transfers[transfer_id]
+                except Exception as e:
+                    error_msg = f"Error cancelling transfer {transfer_id}: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+        
+        # 2. Reset all models in the storage manager
+        if hasattr(self.storage_manager, 'reset'):
+            try:
+                logger.info("Resetting all storage models")
+                self.storage_manager.reset()
+            except Exception as e:
+                error_msg = f"Error resetting storage models: {str(e)}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+        
+        # 3. Clean up each storage model individually
+        if hasattr(self.storage_manager, 'get_all_models'):
+            try:
+                models = self.storage_manager.get_all_models()
+                logger.info(f"Shutting down {len(models)} storage models")
+                
+                for model_name, model in models.items():
+                    try:
+                        # Try to call shutdown method if it exists
+                        if hasattr(model, 'shutdown'):
+                            logger.debug(f"Shutting down {model_name} model")
+                            model.shutdown()
+                        elif hasattr(model, 'close'):
+                            logger.debug(f"Closing {model_name} model")
+                            model.close()
+                    except Exception as e:
+                        error_msg = f"Error shutting down {model_name} model: {str(e)}"
+                        logger.error(error_msg)
+                        errors.append(error_msg)
+            except Exception as e:
+                error_msg = f"Error accessing storage models: {str(e)}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+        
+        # 4. Clean up storage bridge if it exists
+        if hasattr(self.storage_manager, 'storage_bridge') and self.storage_manager.storage_bridge is not None:
+            try:
+                bridge = self.storage_manager.storage_bridge
+                if hasattr(bridge, 'shutdown'):
+                    logger.info("Shutting down storage bridge")
+                    bridge.shutdown()
+                elif hasattr(bridge, 'close'):
+                    logger.info("Closing storage bridge")
+                    bridge.close()
+            except Exception as e:
+                error_msg = f"Error shutting down storage bridge: {str(e)}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+        
+        # 5. Final cleanup of any remaining resources
+        try:
+            # Clear any dictionaries or references that might hold resources
+            if hasattr(self, 'active_transfers'):
+                self.active_transfers.clear()
+        except Exception as e:
+            error_msg = f"Error in final cleanup: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+        
+        # Log shutdown status
+        if errors:
+            logger.warning(f"Storage Manager Controller shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("Storage Manager Controller shutdown completed successfully")
+    
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown for backward compatibility.
+        
+        This method provides a synchronous way to shut down the controller
+        for contexts where async/await cannot be used directly.
+        """
+        logger.info("Running synchronous shutdown for Storage Manager Controller")
+        
+        # Signal that we're shutting down
+        self.is_shutting_down = True
+        
+        # Check for interpreter shutdown
+        import sys
+        is_interpreter_shutdown = hasattr(sys, 'is_finalizing') and sys.is_finalizing()
+        
+        # Fast path for interpreter shutdown
+        if is_interpreter_shutdown:
+            logger.warning("Detected interpreter shutdown, using simplified cleanup")
+            try:
+                # Clear active resources without trying to create new threads
+                if hasattr(self, 'active_transfers'):
+                    self.active_transfers.clear()
+                
+                logger.info("Simplified Storage Manager Controller shutdown completed during interpreter shutdown")
+                return
+            except Exception as e:
+                logger.error(f"Error during simplified shutdown: {e}")
+                # Continue with standard shutdown which might fail gracefully
+        
+        try:
+            # Try using anyio
+            try:
+                import anyio
+                anyio.run(self.shutdown)
+                return
+            except ImportError:
+                logger.warning("anyio not available, falling back to asyncio")
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            
+            # Fallback to asyncio
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if needed and not in shutdown
+                if is_interpreter_shutdown:
+                    logger.warning("Cannot get event loop during interpreter shutdown")
+                    # Just clear resources directly
+                    if hasattr(self, 'active_transfers'):
+                        self.active_transfers.clear()
+                    return
+                
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run the shutdown method
+            try:
+                loop.run_until_complete(self.shutdown())
+            except RuntimeError as e:
+                if "This event loop is already running" in str(e):
+                    logger.warning("Cannot use run_until_complete in a running event loop")
+                    # Cannot handle properly in this case
+                elif "can't create new thread" in str(e):
+                    logger.warning("Thread creation failed during interpreter shutdown")
+                    # Clear resources directly
+                    if hasattr(self, 'active_transfers'):
+                        self.active_transfers.clear()
+                else:
+                    raise
+                    
+        except Exception as e:
+            logger.error(f"Error in sync_shutdown for Storage Manager Controller: {e}")
+            # Ensure resources are cleared even on error
+            try:
+                if hasattr(self, 'active_transfers'):
+                    self.active_transfers.clear()
+            except Exception as clear_error:
+                logger.error(f"Error clearing resources during error handling: {clear_error}")
+        
+        logger.info("Synchronous shutdown for Storage Manager Controller completed")
     
     def register_routes(self, router: APIRouter):
         """
@@ -888,6 +1068,9 @@ class StorageManagerController:
         """
         Get a method from a backend if it exists.
         
+        This function provides robust error handling when attempting to access
+        backend methods, with specific error detection for common issues.
+        
         Args:
             backend_name: Name of the storage backend
             method_name: Name of the method to get
@@ -895,24 +1078,58 @@ class StorageManagerController:
         Returns:
             Method if it exists, None otherwise
         """
+        # Verify storage_manager is available
+        if not hasattr(self, "storage_manager") or self.storage_manager is None:
+            logger.error("Storage manager is not available")
+            return None
+            
         try:
-            backend_model = self.storage_manager.get_model(backend_name)
+            # Get backend model with error handling
+            try:
+                backend_model = self.storage_manager.get_model(backend_name)
+            except AttributeError:
+                logger.error("Storage manager doesn't have get_model method")
+                return None
+            except Exception as e:
+                logger.error(f"Error calling get_model on storage manager: {str(e)}")
+                return None
+                
+            # Check if backend exists
             if not backend_model:
                 logger.debug(f"Backend model not found: {backend_name}")
                 return None
-            
+                
+            # Validate method_name parameter
+            if not method_name or not isinstance(method_name, str):
+                logger.error(f"Invalid method name: {method_name}")
+                return None
+                
+            # Get method from backend model
             try:
                 method = getattr(backend_model, method_name, None)
-                if callable(method):
-                    return method
-                else:
+                
+                # Check if method exists and is callable
+                if method is None:
+                    logger.debug(f"Method {method_name} not found on {backend_name}")
+                    return None
+                    
+                if not callable(method):
                     logger.debug(f"Method {method_name} exists on {backend_name} but is not callable")
                     return None
-            except Exception as e:
-                logger.error(f"Error accessing method {method_name} on {backend_name}: {str(e)}")
+                    
+                # Method exists and is callable
+                return method
+                
+            except AttributeError as e:
+                logger.error(f"AttributeError accessing {method_name} on {backend_name}: {str(e)}")
                 return None
+            except Exception as e:
+                logger.error(f"Error accessing method {method_name} on {backend_name}: {type(e).__name__}: {str(e)}")
+                return None
+                
         except Exception as e:
-            logger.error(f"Error getting backend model for {backend_name}: {str(e)}")
+            # Catch-all for any unexpected errors
+            logger.error(f"Unexpected error in _get_backend_method for {backend_name}.{method_name}: {type(e).__name__}: {str(e)}")
             return None
     
     async def handle_replication_policy_request(self, request: ReplicationPolicyRequest):

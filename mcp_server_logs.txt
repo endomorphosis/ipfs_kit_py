@@ -1,0 +1,895 @@
+2025-04-11 15:14:15,146 - ipfs_kit_py.libp2p - INFO - Optional dependencies missing: google-protobuf, eth-hash, eth-keys
+2025-04-11 15:14:15,147 - ipfs_kit_py.libp2p - INFO - Some advanced functionality may be limited
+2025-04-11 15:14:15,147 - ipfs_kit_py.libp2p - INFO - libp2p dependencies are available
+2025-04-11 15:14:15,147 - ipfs_kit_py.libp2p - WARNING - Could not patch stream read_until method: No module named 'libp2p.network.stream.net_stream_interface'
+2025-04-11 15:14:15,148 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+2025-04-11 15:14:15,151 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+2025-04-11 15:14:15,152 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+2025-04-11 15:14:15,160 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+2025-04-11 15:14:15,160 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.typing module not available: No module named 'libp2p.typing'. Using fallback TProtocol type.
+2025-04-11 15:14:15,163 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:15,169 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-11 15:14:15,170 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:15,170 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:15,170 - ipfs_kit_py.high_level_api.libp2p_integration - INFO - Adding libp2p methods to IPFSSimpleAPI
+2025-04-11 15:14:15,170 - ipfs_kit_py.high_level_api - INFO - LibP2P integration module imported
+2025-04-11 15:14:15,171 - ipfs_kit_py.high_level_api - INFO - Successfully imported WebRTCBenchmarkIntegrationAnyIO
+2025-04-11 15:14:15,379 - ipfs_kit_py.lotus_kit - INFO - Lotus binary available: True
+2025-04-11 15:14:15,379 - ipfs_kit_py.lotus_kit - INFO - Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:15,516 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:15,516 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-11 15:14:15,517 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:15,517 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:15,707 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-04-11 15:14:15,727 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-04-11 15:14:15,732 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-04-11 15:14:16.751548: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1744409656.769159  214723 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1744409656.774679  214723 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1744409656.785324  214723 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744409656.785372  214723 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744409656.785379  214723 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744409656.785393  214723 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-11 15:14:16.788618: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+2025-04-11 15:14:20,051 - ipfs_kit_py.high_level_api - INFO - FSSpec is available
+2025-04-11 15:14:20,052 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem imported successfully (relative import)
+2025-04-11 15:14:20,204 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies status: NUMPY=True, CV2=True, AV=True, AIORTC=True
+2025-04-11 15:14:20,205 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC availability: True
+2025-04-11 15:14:20,205 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=True
+2025-04-11 15:14:20,205 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is available and enabled
+2025-04-11 15:14:20,205 - ipfs_kit_py.high_level_api - INFO - WebRTC benchmark helpers: anyio_support=True
+2025-04-11 15:14:20,207 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-11 15:14:21,001 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:21,002 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-11 15:14:21,002 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-11 15:14:21,053 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-11 15:14:21,086 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:21,178 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is running with PID 215008
+2025-04-11 15:14:21,178 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: ipfs
+2025-04-11 15:14:21,178 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-11 15:14:21,179 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized tiered cache system with 100.0MB memory cache, 1.0GB disk cache
+2025-04-11 15:14:21,180 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized IPFSFileSystem with role leecher
+2025-04-11 15:14:21,180 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-11 15:14:21,180 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-11 15:14:21,180 - ipfs_kit_py.high_level_api - INFO - Successfully imported IPFSSimpleAPI from high_level_api.py
+2025-04-11 15:14:21,226 - ipfs_kit_py.lassie_kit - INFO - Lassie binary available: False
+2025-04-11 15:14:21,332 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-11 15:14:22,039 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:22,039 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-11 15:14:22,039 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-11 15:14:22,082 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-11 15:14:22,116 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:22,208 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:22,209 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: ipfs, lotus
+2025-04-11 15:14:22,209 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-11 15:14:22,209 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-11 15:14:22,209 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-11 15:14:22,217 - ipfs_kit_py.api - INFO - LibP2P functionality integrated into High-Level API.
+2025-04-11 15:14:22,234 - ipfs_kit_py.api - INFO - WebRTC API available at /api/v0/webrtc
+2025-04-11 15:14:22,234 - ipfs_kit_py.api - WARNING - Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.
+2025-04-11 15:14:22,244 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-04-11 15:14:22,249 - ipfs_kit_py.api - INFO - Storage Backends API available at /api/v0/storage
+2025-04-11 15:14:22,260 - ipfs_kit_py.api - INFO - Observability API available at /api/v0/observability
+2025-04-11 15:14:22,261 - ipfs_kit_py.prometheus_exporter - INFO - Added Prometheus metrics endpoint at /metrics
+2025-04-11 15:14:22,261 - ipfs_kit_py.api - INFO - Prometheus metrics endpoint added at /metrics
+2025-04-11 15:14:22,409 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:22,410 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-04-11 15:14:22,410 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:22,410 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-04-11 15:14:22 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-11 15:14:22,438 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-11 15:14:22,438 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-11 15:14:22,438 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-11 15:14:22 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-11 15:14:22,439 - ipfs_kit_py.mcp.server - INFO - Creating new IPFS kit instance
+2025-04-11 15:14:23,168 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:23,169 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-11 15:14:23,169 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-11 15:14:23,210 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-11 15:14:23,243 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:23,331 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:23,331 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: ipfs, lotus
+2025-04-11 15:14:23 [INFO    ] [MCP:ipfs_kit_py.mcp.server] IPFS Model initialized
+2025-04-11 15:14:23,331 - ipfs_kit_py.mcp.server - INFO - IPFS Model initialized
+2025-04-11 15:14:23 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Storage Manager...
+2025-04-11 15:14:23,331 - ipfs_kit_py.mcp.server - INFO - Initializing Storage Manager...
+2025-04-11 15:14:23,331 - ipfs_kit_py.mcp.models.storage_manager - INFO - Initializing S3 kit with resources={}, config={}
+2025-04-11 15:14:23,337 - ipfs_kit_py.mcp.models.storage_manager - ERROR - Failed to initialize S3 Model: s3_config must contain accessKey, secretKey, and endpoint
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/storage_manager.py", line 77, in _init_storage_models
+    s3_kit_instance = s3_kit(resources=s3_resources, meta={"s3cfg": s3_config})
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 47, in __init__
+    self.get_session(meta["s3cfg"])
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 509, in get_session
+    self.session = Session().client(**self.config_to_boto(s3_config))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 532, in config_to_boto
+    raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
+Exception: s3_config must contain accessKey, secretKey, and endpoint
+2025-04-11 15:14:23,462 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:23,462 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 068c60e9-8dd4-4314-a627-486b9bfaa3eb
+2025-04-11 15:14:23,462 - ipfs_kit_py.mcp.models.storage.huggingface_model - INFO - Hugging Face Model initialized
+2025-04-11 15:14:23,462 - ipfs_kit_py.mcp.models.storage_manager - INFO - Hugging Face Model initialized
+2025-04-11 15:14:24,057 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Storacha Model initialized
+2025-04-11 15:14:24,058 - ipfs_kit_py.mcp.models.storage.storacha_model - INFO - Storacha Model initialized
+2025-04-11 15:14:24,058 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storacha Model initialized
+2025-04-11 15:14:24,058 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:24,145 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:24,145 - ipfs_kit_py.lotus_kit - INFO - Attempting to start Lotus daemon...
+2025-04-11 15:14:24,233 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:24,321 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:24,321 - ipfs_kit_py.lotus_daemon - INFO - Lotus lock file detected at /home/barberb/.lotus/repo.lock
+2025-04-11 15:14:24,321 - ipfs_kit_py.lotus_daemon - INFO - Removed stale lock file: /home/barberb/.lotus/repo.lock
+2025-04-11 15:14:24,322 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:24,322 - ipfs_kit_py.lotus_daemon - INFO - Using specific Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:24,416 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-11 15:14:24,464 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-11 15:14:24,464 - ipfs_kit_py.lotus_daemon - INFO - API endpoint file not found, running initialization first
+2025-04-11 15:14:24,512 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version does not support the network flag, using standard init
+2025-04-11 15:14:24,561 - ipfs_kit_py.lotus_daemon - INFO - Initial API setup successful
+2025-04-11 15:14:24,561 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon process started with PID 215389, waiting 2 seconds for initial stability
+2025-04-11 15:14:26,562 - ipfs_kit_py.lotus_daemon - ERROR - Failed to start daemon - Check logs: stdout=/home/barberb/.lotus/daemon_stdout.log, stderr=/home/barberb/.lotus/daemon_stderr.log
+2025-04-11 15:14:26,611 - ipfs_kit_py.lotus_daemon - INFO - Real daemon failed, but simulation mode is working - will use as fallback
+2025-04-11 15:14:26,611 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully: simulation_mode_fallback
+2025-04-11 15:14:26,611 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully during initialization (PID: None)
+2025-04-11 15:14:26,611 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Filecoin Model initialized
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.models.storage.filecoin_model - INFO - Filecoin Model initialized
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.models.storage_manager - INFO - Filecoin Model initialized
+2025-04-11 15:14:26,612 - ipfs_kit_py.lassie_kit - INFO - Lassie kit initialized with simulation_mode: True
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 6bdf4b26-967c-444d-9af2-19afc7165dbd
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.models.storage.lassie_model - INFO - Lassie Model initialized
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.models.storage_manager - INFO - Lassie Model initialized
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storage Manager initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Manager initialized
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.server - INFO - Storage Manager initialized
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.server - INFO - Storage model huggingface added
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.server - INFO - Storage model storacha added
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.server - INFO - Storage model filecoin added
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-11 15:14:26,612 - ipfs_kit_py.mcp.server - INFO - Storage model lassie added
+2025-04-11 15:14:26,613 - ipfs_kit_py.mcp.models.storage_bridge - INFO - Storage Bridge Model initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model added
+2025-04-11 15:14:26,613 - ipfs_kit_py.mcp.server - INFO - Storage Bridge Model added
+2025-04-11 15:14:26 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Storage manager doesn't support bridge integration
+2025-04-11 15:14:26,613 - ipfs_kit_py.mcp.server - WARNING - Storage manager doesn't support bridge integration
+2025-04-11 15:14:26,613 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-11 15:14:26 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ipfs Controller added
+2025-04-11 15:14:26,613 - ipfs_kit_py.mcp.server - INFO - Ipfs Controller added
+2025-04-11 15:14:26,613 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-11 15:14:27,370 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:27,371 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-11 15:14:27,371 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-11 15:14:27,411 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-11 15:14:27,444 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:27,534 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:27,534 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: ipfs, lotus
+2025-04-11 15:14:27,534 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-11 15:14:27,534 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-11 15:14:27,534 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-11 15:14:27,534 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cli Controller added
+2025-04-11 15:14:27,534 - ipfs_kit_py.mcp.server - INFO - Cli Controller added
+2025-04-11 15:14:27,534 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials Controller added
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Credentials Controller added
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage_manager Controller added
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Storage_manager Controller added
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing storage controllers (available backends: 5)
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Initializing storage controllers (available backends: 5)
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing HuggingFace controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Initializing HuggingFace controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] HuggingFace Controller added successfully
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - HuggingFace Controller added successfully
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Storacha controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Initializing Storacha controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added successfully
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Storacha Controller added successfully
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Filecoin controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Initializing Filecoin controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added successfully
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Filecoin Controller added successfully
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Lassie controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Initializing Lassie controller...
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie Controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added successfully
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Lassie Controller added successfully
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage controllers initialization completed: 4 successful, 0 failed, 1 skipped
+2025-04-11 15:14:27,535 - ipfs_kit_py.mcp.server - INFO - Storage controllers initialization completed: 4 successful, 0 failed, 1 skipped
+2025-04-11 15:14:27,540 - ipfs_kit_py.aria2_kit - INFO - Found aria2 version: aria2 version 1.37.0
+2025-04-11 15:14:27,540 - ipfs_kit_py.mcp.models.aria2_model - INFO - Aria2 model initialized
+2025-04-11 15:14:27,540 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Aria2 controller initialized
+2025-04-11 15:14:27 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-11 15:14:27,540 - ipfs_kit_py.mcp.server - INFO - Aria2 Controller added
+2025-04-11 15:14:27,540 - ipfs_kit_py.libp2p_peer - ERROR - Failed to load identity: {'key_type': 0, 'key': 'private_key'}
+/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/__init__.py:1174: RuntimeWarning: coroutine 'Swarm.listen' was never awaited
+  host.get_network().listen(addr)
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p_peer.py:333: RuntimeWarning: coroutine 'Swarm.listen' was never awaited
+  self.host.get_network().listen()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:27,615 - ipfs_kit_py.libp2p_peer - INFO - Peer QmW1FHkhzRANVDEWGnH6ioxKt3idJjZ9QWsFnDzXNuW5Tj listening on: 
+2025-04-11 15:14:29,617 - ipfs_kit_py.libp2p_peer - WARNING - No connected peers available for DHT bootstrapping
+2025-04-11 15:14:29,617 - ipfs_kit_py.libp2p_peer - INFO - DHT initialized in client mode
+2025-04-11 15:14:29,617 - ipfs_kit_py.libp2p_peer - WARNING - PubSub functionality disabled due to missing libp2p.tools.pubsub module
+2025-04-11 15:14:29,618 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,618 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,619 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,619 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,619 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,619 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p_peer - INFO - libp2p peer initialized with ID: QmW1FHkhzRANVDEWGnH6ioxKt3idJjZ9QWsFnDzXNuW5Tj
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p.protocol_integration - INFO - Enhanced protocol negotiation initialized
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not apply recursive routing methods: cannot import name 'add_recursive_routing_methods' from 'ipfs_kit_py.libp2p.recursive_routing' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/recursive_routing.py)
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT methods to IPFSLibp2pPeer instance
+2025-04-11 15:14:29,620 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied all protocol extensions to IPFSLibp2pPeer instance
+2025-04-11 15:14:29,621 - ipfs_kit_py.mcp.models.libp2p_model - INFO - Initialized libp2p peer with ID: QmW1FHkhzRANVDEWGnH6ioxKt3idJjZ9QWsFnDzXNuW5Tj
+2025-04-11 15:14:29,621 - ipfs_kit_py.mcp.models.libp2p_model - INFO - LibP2P peer started successfully
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-11 15:14:29,621 - ipfs_kit_py.mcp.server - INFO - LibP2P Controller added
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/mcp_discovery_model.py:316: RuntimeWarning: coroutine 'LibP2PModel.is_available' was never awaited
+  if self.libp2p_model.is_available():
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:29,621 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - MCP Discovery Model initialized with ID cc49141d-1e9e-4afb-9a70-8364849ac66a and role leecher
+2025-04-11 15:14:29,621 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - Features: ipfs_daemon, libp2p, peer_websocket
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:761: RuntimeWarning: coroutine 'LibP2PModel.is_available' was never awaited
+  self.models["mcp_discovery"] = MCPDiscoveryModel(
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller initialized
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.server - INFO - MCP Discovery Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Scheduled WebRTC cleanup task with AnyIO task group
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized with AnyIO and resource management
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Webrtc Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.server - INFO - Webrtc Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer_websocket Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.server - INFO - Peer_websocket Controller added
+2025-04-11 15:14:29,622 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Fs_journal Controller added
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.server - INFO - Fs_journal Controller added
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with 1 warnings
+2025-04-11 15:14:29,622 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with 1 warnings
+/usr/lib/python3.12/copy.py:61: RuntimeWarning: coroutine 'apply_kademlia_extensions.<locals>.EnhancedKademliaPeer.start' was never awaited
+  def copy(x):
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:29,650 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for ipfs controller
+2025-04-11 15:14:29,650 - ipfs_kit_py.mcp.server - INFO - Registered routes for ipfs controller
+2025-04-11 15:14:29,721 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for cli controller
+2025-04-11 15:14:29,721 - ipfs_kit_py.mcp.server - INFO - Registered routes for cli controller
+2025-04-11 15:14:29,725 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for credentials controller
+2025-04-11 15:14:29,725 - ipfs_kit_py.mcp.server - INFO - Registered routes for credentials controller
+2025-04-11 15:14:29,730 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_manager controller
+2025-04-11 15:14:29,730 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_manager controller
+2025-04-11 15:14:29,736 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_huggingface controller
+2025-04-11 15:14:29,736 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_huggingface controller
+2025-04-11 15:14:29,741 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_storacha controller
+2025-04-11 15:14:29,741 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_storacha controller
+2025-04-11 15:14:29,757 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_filecoin controller
+2025-04-11 15:14:29,757 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_filecoin controller
+2025-04-11 15:14:29,761 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_lassie controller
+2025-04-11 15:14:29,761 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_lassie controller
+2025-04-11 15:14:29,770 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for distributed controller
+2025-04-11 15:14:29,770 - ipfs_kit_py.mcp.server - INFO - Registered routes for distributed controller
+2025-04-11 15:14:29,775 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for webrtc controller
+2025-04-11 15:14:29,775 - ipfs_kit_py.mcp.server - INFO - Registered routes for webrtc controller
+2025-04-11 15:14:29,779 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket endpoint registered at /peer/websocket
+2025-04-11 15:14:29,780 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-11 15:14:29,780 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for peer_websocket controller
+2025-04-11 15:14:29,780 - ipfs_kit_py.mcp.server - INFO - Registered routes for peer_websocket controller
+2025-04-11 15:14:29,791 - mcp.controllers.fs_journal - INFO - Registered 18 Filesystem Journal routes
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for fs_journal controller
+2025-04-11 15:14:29,791 - ipfs_kit_py.mcp.server - INFO - Registered routes for fs_journal controller
+2025-04-11 15:14:29,797 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Registered 15 Aria2 endpoints
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for aria2 controller
+2025-04-11 15:14:29,797 - ipfs_kit_py.mcp.server - INFO - Registered routes for aria2 controller
+2025-04-11 15:14:29,808 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - Registered libp2p controller routes: 32 endpoints
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for libp2p controller
+2025-04-11 15:14:29,808 - ipfs_kit_py.mcp.server - INFO - Registered routes for libp2p controller
+2025-04-11 15:14:29,815 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller routes registered
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for mcp_discovery controller
+2025-04-11 15:14:29,815 - ipfs_kit_py.mcp.server - INFO - Registered routes for mcp_discovery controller
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: cc49141d-1e9e-4afb-9a70-8364849ac66a
+2025-04-11 15:14:29,815 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: cc49141d-1e9e-4afb-9a70-8364849ac66a
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-11 15:14:29,815 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-11 15:14:29 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-11 15:14:29,815 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server router registered at prefix: /api/v0
+2025-04-11 15:14:30,159 - ipfs_kit_py.mcp.server - INFO - MCP Server router registered at prefix: /api/v0
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-11 15:14:30,160 - ipfs_kit_py.mcp.server - INFO - Debug middleware added to FastAPI app
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered global exception handler for improved error reporting
+2025-04-11 15:14:30,160 - ipfs_kit_py.mcp.server - INFO - Registered global exception handler for improved error reporting
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server successfully registered with FastAPI app
+2025-04-11 15:14:30,160 - ipfs_kit_py.mcp.server - INFO - MCP Server successfully registered with FastAPI app
+/home/barberb/ipfs_kit_py/run_mcp_server.py:137: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+2025-04-11 15:14:30,160 - __main__ - INFO - Starting MCP server
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server logging initialized at level INFO
+2025-04-11 15:14:30,160 - ipfs_kit_py.mcp.server - INFO - MCP Server logging initialized at level INFO
+2025-04-11 15:14:30,160 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Loaded cache metadata with 2 entries
+2025-04-11 15:14:30,161 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache Manager initialized with 100.0 MB memory cache, 1.0 GB disk cache
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-11 15:14:30 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Creating new IPFS kit instance
+2025-04-11 15:14:30,161 - ipfs_kit_py.mcp.server - INFO - Creating new IPFS kit instance
+2025-04-11 15:14:30,902 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:30,903 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-11 15:14:30,903 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-11 15:14:30,952 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-11 15:14:30,985 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:31,077 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:31,077 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: ipfs, lotus
+2025-04-11 15:14:31 [INFO    ] [MCP:ipfs_kit_py.mcp.server] IPFS Model initialized
+2025-04-11 15:14:31 [INFO    ] [MCP:ipfs_kit_py.mcp.server] IPFS Model initialized
+2025-04-11 15:14:31,077 - ipfs_kit_py.mcp.server - INFO - IPFS Model initialized
+2025-04-11 15:14:31 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Storage Manager...
+2025-04-11 15:14:31 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Storage Manager...
+2025-04-11 15:14:31,078 - ipfs_kit_py.mcp.server - INFO - Initializing Storage Manager...
+2025-04-11 15:14:31,078 - ipfs_kit_py.mcp.models.storage_manager - INFO - Initializing S3 kit with resources={}, config={}
+2025-04-11 15:14:31,083 - ipfs_kit_py.mcp.models.storage_manager - ERROR - Failed to initialize S3 Model: s3_config must contain accessKey, secretKey, and endpoint
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/storage_manager.py", line 77, in _init_storage_models
+    s3_kit_instance = s3_kit(resources=s3_resources, meta={"s3cfg": s3_config})
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 47, in __init__
+    self.get_session(meta["s3cfg"])
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 509, in get_session
+    self.session = Session().client(**self.config_to_boto(s3_config))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/s3_kit.py", line 532, in config_to_boto
+    raise Exception("s3_config must contain accessKey, secretKey, and endpoint")
+Exception: s3_config must contain accessKey, secretKey, and endpoint
+2025-04-11 15:14:31,199 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:31,199 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 3320bae9-1513-4d7c-80b5-893b1cf0f71f
+2025-04-11 15:14:31,199 - ipfs_kit_py.mcp.models.storage.huggingface_model - INFO - Hugging Face Model initialized
+2025-04-11 15:14:31,199 - ipfs_kit_py.mcp.models.storage_manager - INFO - Hugging Face Model initialized
+2025-04-11 15:14:31,838 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Storacha Model initialized
+2025-04-11 15:14:31,838 - ipfs_kit_py.mcp.models.storage.storacha_model - INFO - Storacha Model initialized
+2025-04-11 15:14:31,839 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storacha Model initialized
+2025-04-11 15:14:31,839 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:31,930 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:31,930 - ipfs_kit_py.lotus_kit - INFO - Attempting to start Lotus daemon...
+2025-04-11 15:14:32,023 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:32,115 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:32,115 - ipfs_kit_py.lotus_daemon - INFO - Lotus lock file detected at /home/barberb/.lotus/repo.lock
+2025-04-11 15:14:32,115 - ipfs_kit_py.lotus_daemon - INFO - Removed stale lock file: /home/barberb/.lotus/repo.lock
+2025-04-11 15:14:32,115 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:32,115 - ipfs_kit_py.lotus_daemon - INFO - Using specific Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:32,214 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-11 15:14:32,265 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag
+2025-04-11 15:14:32,265 - ipfs_kit_py.lotus_daemon - INFO - API endpoint file not found, running initialization first
+2025-04-11 15:14:32,316 - ipfs_kit_py.lotus_daemon - INFO - This Lotus version does not support the network flag, using standard init
+2025-04-11 15:14:32,364 - ipfs_kit_py.lotus_daemon - INFO - Initial API setup successful
+2025-04-11 15:14:32,365 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon process started with PID 215895, waiting 2 seconds for initial stability
+2025-04-11 15:14:34,365 - ipfs_kit_py.lotus_daemon - ERROR - Failed to start daemon - Check logs: stdout=/home/barberb/.lotus/daemon_stdout.log, stderr=/home/barberb/.lotus/daemon_stderr.log
+2025-04-11 15:14:34,418 - ipfs_kit_py.lotus_daemon - INFO - Real daemon failed, but simulation mode is working - will use as fallback
+2025-04-11 15:14:34,418 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully: simulation_mode_fallback
+2025-04-11 15:14:34,418 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon started successfully during initialization (PID: None)
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Filecoin Model initialized
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage.filecoin_model - INFO - Filecoin Model initialized
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage_manager - INFO - Filecoin Model initialized
+2025-04-11 15:14:34,418 - ipfs_kit_py.lassie_kit - INFO - Lassie kit initialized with simulation_mode: True
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage - INFO - Initialized BaseStorageModel with ID: 496a99ef-0792-4497-b262-11bdc0d4a8f4
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage.lassie_model - INFO - Lassie Model initialized
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage_manager - INFO - Lassie Model initialized
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.models.storage_manager - INFO - Storage Manager initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Manager initialized
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Manager initialized
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.server - INFO - Storage Manager initialized
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model huggingface added
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.server - INFO - Storage model huggingface added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model storacha added
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.server - INFO - Storage model storacha added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model filecoin added
+2025-04-11 15:14:34,418 - ipfs_kit_py.mcp.server - INFO - Storage model filecoin added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage model lassie added
+2025-04-11 15:14:34,419 - ipfs_kit_py.mcp.server - INFO - Storage model lassie added
+2025-04-11 15:14:34,419 - ipfs_kit_py.mcp.models.storage_bridge - INFO - Storage Bridge Model initialized with backends: huggingface, storacha, filecoin, lassie
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage Bridge Model added
+2025-04-11 15:14:34,419 - ipfs_kit_py.mcp.server - INFO - Storage Bridge Model added
+2025-04-11 15:14:34 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Storage manager doesn't support bridge integration
+2025-04-11 15:14:34 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Storage manager doesn't support bridge integration
+2025-04-11 15:14:34,419 - ipfs_kit_py.mcp.server - WARNING - Storage manager doesn't support bridge integration
+2025-04-11 15:14:34,419 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller initialized
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ipfs Controller added
+2025-04-11 15:14:34 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ipfs Controller added
+2025-04-11 15:14:34,419 - ipfs_kit_py.mcp.server - INFO - Ipfs Controller added
+2025-04-11 15:14:34,419 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-04-11 15:14:35,140 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as LAION-AI
+2025-04-11 15:14:35,140 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-04-11 15:14:35,140 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-04-11 15:14:35,181 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-04-11 15:14:35,214 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-04-11 15:14:35,308 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:35,308 - ipfs_kit_py.ipfs_kit - WARNING - Not all daemons are running. Non-running daemons: ipfs, lotus
+2025-04-11 15:14:35,308 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-04-11 15:14:35,308 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-04-11 15:14:35,308 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cli Controller added
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cli Controller added
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.server - INFO - Cli Controller added
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials Controller added
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials Controller added
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.server - INFO - Credentials Controller added
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage_manager Controller added
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage_manager Controller added
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.server - INFO - Storage_manager Controller added
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing storage controllers (available backends: 5)
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing storage controllers (available backends: 5)
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.server - INFO - Initializing storage controllers (available backends: 5)
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing HuggingFace controller...
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing HuggingFace controller...
+2025-04-11 15:14:35,308 - ipfs_kit_py.mcp.server - INFO - Initializing HuggingFace controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] HuggingFace Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] HuggingFace Controller added successfully
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - HuggingFace Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Storacha controller...
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Storacha controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Initializing Storacha controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storacha Controller added successfully
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Storacha Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Filecoin controller...
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Filecoin controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Initializing Filecoin controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Filecoin Controller added successfully
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Filecoin Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Lassie controller...
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Initializing Lassie controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Initializing Lassie controller...
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie Controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Lassie Controller added successfully
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Lassie Controller added successfully
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage controllers initialization completed: 4 successful, 0 failed, 1 skipped
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage controllers initialization completed: 4 successful, 0 failed, 1 skipped
+2025-04-11 15:14:35,309 - ipfs_kit_py.mcp.server - INFO - Storage controllers initialization completed: 4 successful, 0 failed, 1 skipped
+2025-04-11 15:14:35,314 - ipfs_kit_py.aria2_kit - INFO - Found aria2 version: aria2 version 1.37.0
+2025-04-11 15:14:35,314 - ipfs_kit_py.mcp.models.aria2_model - INFO - Aria2 model initialized
+2025-04-11 15:14:35,314 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Aria2 controller initialized
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-11 15:14:35 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Aria2 Controller added
+2025-04-11 15:14:35,314 - ipfs_kit_py.mcp.server - INFO - Aria2 Controller added
+2025-04-11 15:14:35,315 - ipfs_kit_py.libp2p_peer - ERROR - Failed to load identity: {'key_type': 0, 'key': 'private_key'}
+/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/__init__.py:1174: RuntimeWarning: coroutine 'Swarm.listen' was never awaited
+  host.get_network().listen(addr)
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p_peer.py:333: RuntimeWarning: coroutine 'Swarm.listen' was never awaited
+  self.host.get_network().listen()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:35,642 - ipfs_kit_py.libp2p_peer - INFO - Peer QmbiJkuA7hoGqaX189pZ6Q4w9RBogobA3p82vTicF7wXG6 listening on: 
+2025-04-11 15:14:37,642 - ipfs_kit_py.libp2p_peer - WARNING - No connected peers available for DHT bootstrapping
+2025-04-11 15:14:37,643 - ipfs_kit_py.libp2p_peer - INFO - DHT initialized in client mode
+2025-04-11 15:14:37,643 - ipfs_kit_py.libp2p_peer - WARNING - PubSub functionality disabled due to missing libp2p.tools.pubsub module
+2025-04-11 15:14:37,645 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,647 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,648 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,648 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,648 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,649 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p_peer - ERROR - Connection failed: must be called from async context
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p_peer - INFO - libp2p peer initialized with ID: QmbiJkuA7hoGqaX189pZ6Q4w9RBogobA3p82vTicF7wXG6
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p.protocol_integration - INFO - Enhanced protocol negotiation initialized
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p.protocol_integration - WARNING - Could not apply recursive routing methods: cannot import name 'add_recursive_routing_methods' from 'ipfs_kit_py.libp2p.recursive_routing' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/recursive_routing.py)
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT methods to IPFSLibp2pPeer instance
+2025-04-11 15:14:37,650 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied all protocol extensions to IPFSLibp2pPeer instance
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.models.libp2p_model - INFO - Initialized libp2p peer with ID: QmbiJkuA7hoGqaX189pZ6Q4w9RBogobA3p82vTicF7wXG6
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.models.libp2p_model - INFO - LibP2P peer started successfully
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] LibP2P Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - LibP2P Controller added
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/mcp_discovery_model.py:316: RuntimeWarning: coroutine 'LibP2PModel.is_available' was never awaited
+  if self.libp2p_model.is_available():
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - MCP Discovery Model initialized with ID 58ea7783-3d4d-4288-9e64-6c832f1611da and role leecher
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.models.mcp_discovery_model - INFO - Features: ipfs_daemon, libp2p, peer_websocket
+/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server.py:761: RuntimeWarning: coroutine 'LibP2PModel.is_available' was never awaited
+  self.models["mcp_discovery"] = MCPDiscoveryModel(
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller initialized
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Discovery Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - MCP Discovery Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller initialized
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Distributed Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - Distributed Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Scheduled WebRTC cleanup task with AnyIO task group
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller initialized with AnyIO and resource management
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Webrtc Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Webrtc Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - Webrtc Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller initialized
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer_websocket Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Peer_websocket Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - Peer_websocket Controller added
+2025-04-11 15:14:37,651 - mcp.controllers.fs_journal - INFO - Filesystem Journal controller initialized
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Fs_journal Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Fs_journal Controller added
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - Fs_journal Controller added
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with 1 warnings
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with 1 warnings
+2025-04-11 15:14:37,651 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with 1 warnings
+2025-04-11 15:14:37,675 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - IPFS Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for ipfs controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for ipfs controller
+2025-04-11 15:14:37,676 - ipfs_kit_py.mcp.server - INFO - Registered routes for ipfs controller
+2025-04-11 15:14:37,723 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for cli controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for cli controller
+2025-04-11 15:14:37,723 - ipfs_kit_py.mcp.server - INFO - Registered routes for cli controller
+2025-04-11 15:14:37,726 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Credential Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for credentials controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for credentials controller
+2025-04-11 15:14:37,726 - ipfs_kit_py.mcp.server - INFO - Registered routes for credentials controller
+2025-04-11 15:14:37,729 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Storage Manager Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_manager controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_manager controller
+2025-04-11 15:14:37,729 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_manager controller
+2025-04-11 15:14:37,733 - ipfs_kit_py.mcp.controllers.storage.huggingface_controller - INFO - Hugging Face routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_huggingface controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_huggingface controller
+2025-04-11 15:14:37,733 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_huggingface controller
+2025-04-11 15:14:37,738 - ipfs_kit_py.mcp.controllers.storage.storacha_controller - INFO - Storacha routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_storacha controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_storacha controller
+2025-04-11 15:14:37,738 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_storacha controller
+2025-04-11 15:14:37,751 - ipfs_kit_py.mcp.controllers.storage.filecoin_controller - INFO - Filecoin routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_filecoin controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_filecoin controller
+2025-04-11 15:14:37,751 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_filecoin controller
+2025-04-11 15:14:37,753 - ipfs_kit_py.mcp.controllers.storage.lassie_controller - INFO - Lassie routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_lassie controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for storage_lassie controller
+2025-04-11 15:14:37,753 - ipfs_kit_py.mcp.server - INFO - Registered routes for storage_lassie controller
+2025-04-11 15:14:37,762 - ipfs_kit_py.mcp.controllers.distributed_controller - INFO - Distributed Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for distributed controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for distributed controller
+2025-04-11 15:14:37,762 - ipfs_kit_py.mcp.server - INFO - Registered routes for distributed controller
+2025-04-11 15:14:37,766 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - WebRTC Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for webrtc controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for webrtc controller
+2025-04-11 15:14:37,766 - ipfs_kit_py.mcp.server - INFO - Registered routes for webrtc controller
+2025-04-11 15:14:37,770 - ipfs_kit_py.peer_websocket_anyio - INFO - Peer WebSocket endpoint registered at /peer/websocket
+2025-04-11 15:14:37,770 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - WebSocket peer discovery endpoint registered
+2025-04-11 15:14:37,770 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for peer_websocket controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for peer_websocket controller
+2025-04-11 15:14:37,770 - ipfs_kit_py.mcp.server - INFO - Registered routes for peer_websocket controller
+2025-04-11 15:14:37,780 - mcp.controllers.fs_journal - INFO - Registered 18 Filesystem Journal routes
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for fs_journal controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for fs_journal controller
+2025-04-11 15:14:37,780 - ipfs_kit_py.mcp.server - INFO - Registered routes for fs_journal controller
+2025-04-11 15:14:37,785 - ipfs_kit_py.mcp.controllers.aria2_controller - INFO - Registered 15 Aria2 endpoints
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for aria2 controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for aria2 controller
+2025-04-11 15:14:37,785 - ipfs_kit_py.mcp.server - INFO - Registered routes for aria2 controller
+2025-04-11 15:14:37,795 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - Registered libp2p controller routes: 32 endpoints
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for libp2p controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for libp2p controller
+2025-04-11 15:14:37,795 - ipfs_kit_py.mcp.server - INFO - Registered routes for libp2p controller
+2025-04-11 15:14:37,801 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller routes registered
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for mcp_discovery controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered routes for mcp_discovery controller
+2025-04-11 15:14:37,801 - ipfs_kit_py.mcp.server - INFO - Registered routes for mcp_discovery controller
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 58ea7783-3d4d-4288-9e64-6c832f1611da
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server initialized with ID: 58ea7783-3d4d-4288-9e64-6c832f1611da
+2025-04-11 15:14:37,801 - ipfs_kit_py.mcp.server - INFO - MCP Server initialized with ID: 58ea7783-3d4d-4288-9e64-6c832f1611da
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug mode enabled
+2025-04-11 15:14:37,801 - ipfs_kit_py.mcp.server - INFO - Debug mode enabled
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Isolation mode enabled
+2025-04-11 15:14:37,801 - ipfs_kit_py.mcp.server - INFO - Isolation mode enabled
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server router registered at prefix: /api/v0
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server router registered at prefix: /api/v0
+2025-04-11 15:14:37,944 - ipfs_kit_py.mcp.server - INFO - MCP Server router registered at prefix: /api/v0
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Debug middleware added to FastAPI app
+2025-04-11 15:14:37,944 - ipfs_kit_py.mcp.server - INFO - Debug middleware added to FastAPI app
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered global exception handler for improved error reporting
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Registered global exception handler for improved error reporting
+2025-04-11 15:14:37,944 - ipfs_kit_py.mcp.server - INFO - Registered global exception handler for improved error reporting
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server successfully registered with FastAPI app
+2025-04-11 15:14:37 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server successfully registered with FastAPI app
+2025-04-11 15:14:37,945 - ipfs_kit_py.mcp.server - INFO - MCP Server successfully registered with FastAPI app
+2025-04-11 15:14:37,945 - __main__ - INFO - MCP server configured successfully, ready to start uvicorn
+Successfully initialized MCP server!
+To run the server, use:
+  uvicorn run_mcp_server:app --reload --port 8000
+2025-04-11 15:14:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-11 15:14:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutting down
+2025-04-11 15:14:38,136 - ipfs_kit_py.mcp.server - INFO - MCP Server shutting down
+2025-04-11 15:14:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Stopping cache cleanup thread...
+2025-04-11 15:14:38 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Stopping cache cleanup thread...
+2025-04-11 15:14:38,136 - ipfs_kit_py.mcp.server - INFO - Stopping cache cleanup thread...
+2025-04-11 15:14:38,136 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Stopping cache cleanup thread
+2025-04-11 15:14:43,143 - ipfs_kit_py.mcp.persistence.cache_manager - INFO - Cache cleanup thread stopped
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache cleanup thread stopped
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache cleanup thread stopped
+2025-04-11 15:14:43,144 - ipfs_kit_py.mcp.server - INFO - Cache cleanup thread stopped
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Saving cache metadata...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Saving cache metadata...
+2025-04-11 15:14:43,144 - ipfs_kit_py.mcp.server - INFO - Saving cache metadata...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache metadata saved
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Cache metadata saved
+2025-04-11 15:14:43,144 - ipfs_kit_py.mcp.server - INFO - Cache metadata saved
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ensuring credential persistence...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Ensuring credential persistence...
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - Ensuring credential persistence...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials persisted
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Credentials persisted
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - Credentials persisted
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down peer_websocket controller...
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - Shutting down peer_websocket controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for peer_websocket
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for peer_websocket
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for peer_websocket
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Running synchronous shutdown for Peer WebSocket Controller
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Shutting down Peer WebSocket Controller...
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.controllers.peer_websocket_controller - INFO - Peer WebSocket Controller shutdown complete
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] peer_websocket controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] peer_websocket controller shutdown successful
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - peer_websocket controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down webrtc controller...
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - Shutting down webrtc controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for webrtc
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for webrtc
+2025-04-11 15:14:43,145 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for webrtc
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Running synchronous shutdown for WebRTC Controller
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.webrtc_controller - WARNING - Detected interpreter shutdown, using simplified cleanup
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.webrtc_controller - INFO - Simplified WebRTC Controller shutdown completed during interpreter shutdown
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] webrtc controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] webrtc controller shutdown successful
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - webrtc controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down ipfs controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down ipfs controller...
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - Shutting down ipfs controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for ipfs
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for ipfs
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for ipfs
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - Running synchronous shutdown for IPFS Controller
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.ipfs_controller - WARNING - Detected interpreter shutdown, using simplified cleanup
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - Simplified IPFS Controller shutdown completed during interpreter shutdown
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] ipfs controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] ipfs controller shutdown successful
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - ipfs controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down cli controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down cli controller...
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - Shutting down cli controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for cli
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for cli
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for cli
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller sync_shutdown initiated
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.controllers.cli_controller - INFO - CLI Controller sync_shutdown completed successfully
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] cli controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] cli controller shutdown successful
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - cli controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down credentials controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down credentials controller...
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - Shutting down credentials controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for credentials
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for credentials
+2025-04-11 15:14:43,146 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for credentials
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Running synchronous shutdown for Credential Controller
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.controllers.credential_controller - WARNING - Detected interpreter shutdown, using simplified cleanup
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.controllers.credential_controller - INFO - Simplified Credential Controller shutdown completed during interpreter shutdown
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] credentials controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] credentials controller shutdown successful
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - credentials controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_manager controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_manager controller...
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - Shutting down storage_manager controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for storage_manager
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for storage_manager
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for storage_manager
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Running synchronous shutdown for Storage Manager Controller
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.controllers.storage_manager_controller - WARNING - Detected interpreter shutdown, using simplified cleanup
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.controllers.storage_manager_controller - INFO - Simplified Storage Manager Controller shutdown completed during interpreter shutdown
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] storage_manager controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] storage_manager controller shutdown successful
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - storage_manager controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_huggingface controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_huggingface controller...
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - Shutting down storage_huggingface controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_huggingface has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_huggingface has no shutdown method
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - WARNING - storage_huggingface has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_huggingface, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_huggingface, attempting direct cleanup
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for storage_huggingface, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_huggingface
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_huggingface
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for storage_huggingface
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_huggingface
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_huggingface
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for storage_huggingface
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_storacha controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_storacha controller...
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - INFO - Shutting down storage_storacha controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_storacha has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_storacha has no shutdown method
+2025-04-11 15:14:43,147 - ipfs_kit_py.mcp.server - WARNING - storage_storacha has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_storacha, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_storacha, attempting direct cleanup
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for storage_storacha, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_storacha
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_storacha
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for storage_storacha
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_storacha
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_storacha
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for storage_storacha
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_filecoin controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_filecoin controller...
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Shutting down storage_filecoin controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_filecoin has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_filecoin has no shutdown method
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - WARNING - storage_filecoin has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_filecoin, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_filecoin, attempting direct cleanup
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for storage_filecoin, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_filecoin
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_filecoin
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for storage_filecoin
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_filecoin
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_filecoin
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for storage_filecoin
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_lassie controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage_lassie controller...
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Shutting down storage_lassie controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_lassie has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] storage_lassie has no shutdown method
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - WARNING - storage_lassie has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_lassie, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for storage_lassie, attempting direct cleanup
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for storage_lassie, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_lassie
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for storage_lassie
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for storage_lassie
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_lassie
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for storage_lassie
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for storage_lassie
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down aria2 controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down aria2 controller...
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - INFO - Shutting down aria2 controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] aria2 has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] aria2 has no shutdown method
+2025-04-11 15:14:43,148 - ipfs_kit_py.mcp.server - WARNING - aria2 has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for aria2, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for aria2, attempting direct cleanup
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for aria2, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for aria2
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for aria2
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for aria2
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for aria2
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for aria2
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for aria2
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down libp2p controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down libp2p controller...
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Shutting down libp2p controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for libp2p
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for libp2p
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for libp2p
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - LibP2P Controller sync_shutdown initiated
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.controllers.libp2p_controller - INFO - LibP2P Controller sync_shutdown completed successfully
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] libp2p controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] libp2p controller shutdown successful
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - libp2p controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down mcp_discovery controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down mcp_discovery controller...
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Shutting down mcp_discovery controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for mcp_discovery
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Using sync_shutdown for mcp_discovery
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Using sync_shutdown for mcp_discovery
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller sync_shutdown initiated
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.controllers.mcp_discovery_controller - INFO - MCP Discovery Controller sync_shutdown completed successfully
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] mcp_discovery controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] mcp_discovery controller shutdown successful
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - mcp_discovery controller shutdown successful
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down distributed controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down distributed controller...
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Shutting down distributed controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] distributed has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] distributed has no shutdown method
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - WARNING - distributed has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for distributed, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for distributed, attempting direct cleanup
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for distributed, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for distributed
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for distributed
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for distributed
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for distributed
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for distributed
+2025-04-11 15:14:43,149 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for distributed
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down fs_journal controller...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down fs_journal controller...
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Shutting down fs_journal controller...
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] fs_journal has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] fs_journal has no shutdown method
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - WARNING - fs_journal has no shutdown method
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for fs_journal, attempting direct cleanup
+2025-04-11 15:14:43 [WARNING ] [MCP:ipfs_kit_py.mcp.server] Normal shutdown failed for fs_journal, attempting direct cleanup
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - WARNING - Normal shutdown failed for fs_journal, attempting direct cleanup
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for fs_journal
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Attempting direct cleanup for fs_journal
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Attempting direct cleanup for fs_journal
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for fs_journal
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Direct cleanup successful for fs_journal
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Direct cleanup successful for fs_journal
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage models...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage models...
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Shutting down storage models...
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: 9664de3f-08c7-4f6d-9eaf-3b57bd9ef6ff
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Storacha Model statistics reset
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.models.storage.base_storage_model - INFO - Filecoin Model statistics reset
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.models.storage - INFO - Reset BaseStorageModel state, new ID: 061a0902-01c1-4503-a003-b4ab109fa393
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.models.storage_manager - INFO - All storage models reset
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage bridge...
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Shutting down storage bridge...
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Shutting down storage bridge...
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.models.storage_bridge - INFO - Reset StorageBridgeModel state, new ID: 6ef1e1d9-4d22-4e54-b945-59e9d86fb221
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage bridge shutdown complete
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage bridge shutdown complete
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Storage bridge shutdown complete
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage models shutdown complete
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] Storage models shutdown complete
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - Storage models shutdown complete
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutdown complete
+2025-04-11 15:14:43 [INFO    ] [MCP:ipfs_kit_py.mcp.server] MCP Server shutdown complete
+2025-04-11 15:14:43,150 - ipfs_kit_py.mcp.server - INFO - MCP Server shutdown complete
+2025-04-11 15:14:43,239 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is not running
+2025-04-11 15:14:43,239 - ipfs_kit_py.lotus_kit - INFO - Lotus daemon is not running, no need to stop
+sys:1: RuntimeWarning: coroutine 'apply_kademlia_extensions.<locals>.EnhancedKademliaPeer.start' was never awaited
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback

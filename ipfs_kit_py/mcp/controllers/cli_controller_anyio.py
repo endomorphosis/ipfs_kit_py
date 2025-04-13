@@ -212,6 +212,16 @@ class CliControllerAnyIO:
             description="List pinned content using the CLI interface"
         )
         
+        # Add a new reliable pins endpoint without parameters
+        router.add_api_route(
+            "/cli/pins_simple",
+            self.list_pins_simple,
+            methods=["GET"],
+            response_model=CliCommandResponse,
+            summary="List pins via CLI (simple)",
+            description="List pinned content using the CLI interface without parameters"
+        )
+        
         # Check if WAL CLI integration is available
         if WAL_CLI_AVAILABLE:
             # Add WAL CLI endpoints
@@ -593,10 +603,44 @@ class CliControllerAnyIO:
             List pins operation result
         """
         try:
-            # List pins using the high-level API
-            result = await anyio.to_thread.run_sync(
-                lambda: self.api.pins(type=pin_type, quiet=quiet)
-            )
+            # Attempt several methods to get pins, handling each error
+            result = None
+            error = None
+            
+            try:
+                # Try direct call to list_pins first
+                result = await anyio.to_thread.run_sync(lambda: self.api.list_pins())
+            except Exception as e1:
+                error = f"list_pins failed: {str(e1)}"
+                try:
+                    # Try pins method without arguments
+                    result = await anyio.to_thread.run_sync(lambda: self.api.pins())
+                except Exception as e2:
+                    error = f"{error}, pins() failed: {str(e2)}"
+                    try:
+                        # Try direct IPFS call as last resort
+                        if hasattr(self.ipfs_model, 'ipfs') and hasattr(self.ipfs_model.ipfs, 'pin_ls'):
+                            result = await anyio.to_thread.run_sync(
+                                lambda: self.ipfs_model.ipfs.pin_ls()
+                            )
+                        else:
+                            result = {"success": False, "error": "No pin listing method available"}
+                    except Exception as e3:
+                        error = f"{error}, ipfs.pin_ls() failed: {str(e3)}"
+                        result = {"success": False, "error": error}
+            
+            # Apply filtering here if needed
+            if result and pin_type != "all" and isinstance(result, dict) and "pins" in result:
+                pins = result["pins"]
+                filtered_pins = {}
+                for cid, pin_info in pins.items():
+                    if isinstance(pin_info, dict) and pin_info.get("type") == pin_type:
+                        filtered_pins[cid] = pin_info
+                result["pins"] = filtered_pins
+            
+            # Return only CIDs if quiet is True
+            if result and quiet and isinstance(result, dict) and "pins" in result:
+                result["pins"] = list(result["pins"].keys())
             
             # Check if result indicates failure
             success = True
@@ -605,13 +649,96 @@ class CliControllerAnyIO:
             
             return {
                 "success": success,
-                "result": result
+                "result": result or {"error": error or "Unknown error"}
             }
         except Exception as e:
             logger.error(f"Error listing pins: {e}")
             return {
                 "success": False,
                 "result": {"error": str(e)}
+            }
+            
+    async def list_pins_simple(self) -> Dict[str, Any]:
+        """
+        Simple list pins operation without parameters.
+        
+        Returns:
+            Dictionary with pin listing results
+        """
+        try:
+            # Create a fallback result
+            fallback_result = {
+                "success": False,
+                "result": {
+                    "pins": {}
+                }
+            }
+            
+            # Try three different methods to get pins
+            try:
+                # First try exec_direct to run pin ls command directly
+                command_result = await anyio.to_thread.run_sync(
+                    lambda: self.ipfs_model.exec_direct("pin ls")
+                )
+                if isinstance(command_result, dict) and command_result.get("success", False):
+                    output = command_result.get("stdout", "")
+                    # Parse the output to get pins
+                    pins = {}
+                    for line in output.strip().split('\n'):
+                        if line.strip():
+                            parts = line.strip().split(' ')
+                            if len(parts) >= 2:
+                                pin_type = parts[0].rstrip(':')
+                                cid = parts[1]
+                                pins[cid] = {"type": pin_type}
+                    
+                    return {
+                        "success": True,
+                        "result": {
+                            "pins": pins
+                        }
+                    }
+            except Exception as e1:
+                logger.debug(f"Direct command failed: {e1}")
+            
+            # Second try using ipfs.pin_ls() from the model
+            try:
+                if hasattr(self.ipfs_model, 'ipfs') and hasattr(self.ipfs_model.ipfs, 'pin_ls'):
+                    pin_result = await anyio.to_thread.run_sync(
+                        lambda: self.ipfs_model.ipfs.pin_ls()
+                    )
+                    if isinstance(pin_result, dict) and "pins" in pin_result:
+                        return {
+                            "success": True,
+                            "result": pin_result
+                        }
+            except Exception as e2:
+                logger.debug(f"ipfs.pin_ls failed: {e2}")
+            
+            # Finally try list_pins API directly
+            try:
+                list_pins_result = await anyio.to_thread.run_sync(
+                    lambda: self.api.list_pins() if hasattr(self.api, 'list_pins') else None
+                )
+                if list_pins_result:
+                    return {
+                        "success": True,
+                        "result": list_pins_result
+                    }
+            except Exception as e3:
+                logger.debug(f"api.list_pins failed: {e3}")
+            
+            # Return fallback result if all methods fail
+            return fallback_result
+            
+        except Exception as e:
+            logger.error(f"Error in simple pins listing: {e}")
+            return {
+                "success": False,
+                "result": {
+                    "error": str(e),
+                    "pins": {}
+                }
             }
     
     async def wal_command(self, command: str = Path(..., description="WAL command to execute"),

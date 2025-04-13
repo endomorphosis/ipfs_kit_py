@@ -133,9 +133,150 @@ class LibP2PControllerAnyIO(LibP2PController):
         # Store dependency status for health check
         self.libp2p_dependencies_available = libp2p_available
         
+        # Add shutdown-related attributes
+        self.is_shutting_down = False
+        self.event_loop_thread = None
+        self.cleanup_task = None
+        self.host = None
+        self.peer = None
+        self.swarm = None
+        
         # Initialize the parent class
         super().__init__(libp2p_model)
         logger.info(f"LibP2P controller with AnyIO initialized (dependencies available: {libp2p_available})")
+    
+    async def shutdown(self):
+        """
+        Shutdown the controller and clean up resources.
+        
+        This method ensures all LibP2P-related resources are properly cleaned up
+        when the MCP server is shutting down. It handles:
+        1. Stopping the LibP2P peer/host
+        2. Cleaning up connections and swarm resources
+        3. Closing any open streams
+        4. Handling event loop threads for proper cleanup
+        5. Cancelling any ongoing tasks
+        """
+        logger.info("Shutting down LibP2P Controller...")
+        
+        # Set a flag to indicate shutdown in progress
+        self.is_shutting_down = True
+        
+        # Stop libp2p peer if running
+        if hasattr(self, "peer") and self.peer is not None:
+            try:
+                logger.info("Stopping LibP2P peer...")
+                
+                # Try to close any open streams or connections first
+                if hasattr(self.peer, "swarm") and self.peer.swarm is not None:
+                    try:
+                        logger.info("Closing LibP2P swarm connections...")
+                        
+                        # Try to access connections if available
+                        if hasattr(self.peer.swarm, "connections") and isinstance(self.peer.swarm.connections, dict):
+                            connections = list(self.peer.swarm.connections.items())
+                            logger.info(f"Closing {len(connections)} LibP2P connections")
+                            
+                            # Close each connection
+                            for peer_id, conn_list in connections:
+                                try:
+                                    logger.info(f"Closing connections to peer {peer_id}")
+                                    for conn in conn_list:
+                                        # Try multiple methods for closing
+                                        for method_name in ["close", "disconnect", "stop"]:
+                                            if hasattr(conn, method_name) and callable(getattr(conn, method_name)):
+                                                try:
+                                                    await anyio.to_thread.run_sync(getattr(conn, method_name))
+                                                    break
+                                                except Exception as close_err:
+                                                    logger.error(f"Error calling {method_name} on connection: {close_err}")
+                                except Exception as conn_err:
+                                    logger.error(f"Error closing connections to peer {peer_id}: {conn_err}")
+                            
+                            # Clear the connections dictionary
+                            self.peer.swarm.connections.clear()
+                    except Exception as swarm_err:
+                        logger.error(f"Error cleaning up LibP2P swarm: {swarm_err}")
+                
+                # Stop the peer using model method
+                if self.libp2p_model and hasattr(self.libp2p_model, "stop"):
+                    try:
+                        logger.info("Calling model.stop() to shutdown LibP2P peer")
+                        await anyio.to_thread.run_sync(self.libp2p_model.stop)
+                        logger.info("LibP2P peer stopped via model")
+                    except Exception as model_err:
+                        logger.error(f"Error stopping LibP2P peer via model: {model_err}")
+                        
+                        # Try direct method on peer if model method fails
+                        if hasattr(self.peer, "stop") and callable(self.peer.stop):
+                            try:
+                                logger.info("Calling direct peer.stop() method")
+                                await anyio.to_thread.run_sync(self.peer.stop)
+                                logger.info("LibP2P peer stopped via direct method")
+                            except Exception as direct_err:
+                                logger.error(f"Error stopping LibP2P peer via direct method: {direct_err}")
+                
+                # Clear references
+                self.peer = None
+                self.host = None
+                self.swarm = None
+                logger.info("Cleared LibP2P peer references")
+            except Exception as e:
+                logger.error(f"Error stopping LibP2P peer: {e}")
+        
+        # Clean up event loop thread if it exists
+        if hasattr(self, "event_loop_thread") and self.event_loop_thread is not None:
+            try:
+                logger.info("Cleaning up LibP2P event loop thread...")
+                
+                # Try to access event_loop attribute if it exists
+                if hasattr(self.event_loop_thread, "event_loop") and self.event_loop_thread.event_loop:
+                    try:
+                        # Set shutdown flag if it exists
+                        if hasattr(self.event_loop_thread.event_loop, "should_exit"):
+                            self.event_loop_thread.event_loop.should_exit = True
+                            logger.info("Set should_exit flag on LibP2P event loop")
+                        
+                        # Try to call stop on the event loop if it exists
+                        if hasattr(self.event_loop_thread.event_loop, "stop") and callable(self.event_loop_thread.event_loop.stop):
+                            self.event_loop_thread.event_loop.stop()
+                            logger.info("Called stop() on LibP2P event loop")
+                    except Exception as e:
+                        logger.error(f"Error stopping LibP2P event loop: {e}")
+                
+                # Try to join thread with timeout if it's a Thread object
+                if hasattr(self.event_loop_thread, "join") and callable(self.event_loop_thread.join):
+                    self.event_loop_thread.join(timeout=1.0)
+                    logger.info("Successfully joined LibP2P event_loop_thread")
+                
+                # Set to None to help with garbage collection
+                self.event_loop_thread = None
+                logger.info("Cleared LibP2P event_loop_thread reference")
+            except Exception as e:
+                logger.error(f"Error cleaning up LibP2P event loop thread: {e}")
+        
+        # Clean up cleanup_task if it exists
+        if hasattr(self, "cleanup_task") and self.cleanup_task is not None:
+            try:
+                logger.info("Cancelling LibP2P cleanup task...")
+                
+                # Handle different types of task objects
+                if hasattr(self.cleanup_task, 'cancel'):
+                    # It's a standard task
+                    self.cleanup_task.cancel()
+                    logger.info("Cancelled LibP2P cleanup task")
+                elif hasattr(self.cleanup_task, 'cancel_scope'):
+                    # It's a task with cancel scope
+                    self.cleanup_task.cancel_scope.cancel()
+                    logger.info("Cancelled LibP2P cleanup task scope")
+                
+                # Set to None to help with garbage collection
+                self.cleanup_task = None
+                logger.info("Cleared LibP2P cleanup_task reference")
+            except Exception as e:
+                logger.error(f"Error cancelling LibP2P cleanup task: {e}")
+        
+        logger.info("LibP2P Controller shutdown complete")
     
     @staticmethod
     def get_backend():

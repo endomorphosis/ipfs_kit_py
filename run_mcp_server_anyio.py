@@ -1,3 +1,17 @@
+#!/usr/bin/env python3
+"""
+DEPRECATED: This script has been replaced by run_mcp_server_unified.py
+
+This file is kept for reference only. Please use the unified script instead,
+which provides all functionality with more options:
+
+    python run_mcp_server_unified.py --help
+
+Backup of the original script is at: run_mcp_server_anyio.py.bak_20250412_202314
+"""
+
+# Original content follows:
+
 #!/usr/bin/env python
 """
 Run the MCP server with AnyIO support for testing.
@@ -20,7 +34,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the MCP server runner script."""
     logger.info("Starting MCP server with AnyIO support for tests")
     
     # Parse arguments from command line
@@ -36,6 +51,8 @@ if __name__ == "__main__":
     parser.add_argument("--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING, ERROR)")
     parser.add_argument("--backend", default="asyncio", choices=["asyncio", "trio"], 
                         help="AnyIO backend to use")
+    parser.add_argument("--skip-daemon", action="store_true", 
+                        help="Skip IPFS daemon initialization (run in daemon-less mode)")
     
     # Parse args and run server
     args = parser.parse_args()
@@ -43,20 +60,31 @@ if __name__ == "__main__":
     # Additional logging
     logger.info(f"MCP server initialized and registered with app")
     logger.info(f"Starting MCP server on port {args.port} for tests with AnyIO {args.backend} backend")
+    logger.info(f"Skip daemon: {args.skip_daemon}")
     
-    # Convert args to list for main function
-    arg_list = []
+    # Build arguments for server_anyio.main
+    parsed_args = [
+        "--port", str(args.port),
+        "--host", args.host,
+        "--api-prefix", args.api_prefix,
+        "--log-level", args.log_level,
+        "--backend", args.backend,
+    ]
+    
+    # Add flag arguments if enabled
     if args.debug:
-        arg_list.append("--debug")
+        parsed_args.append("--debug")
     if args.isolation:
-        arg_list.append("--isolation")
-    arg_list.extend(["--port", str(args.port)])
-    arg_list.extend(["--host", args.host])
-    if args.persistence_path:
-        arg_list.extend(["--persistence-path", args.persistence_path])
-    arg_list.extend(["--api-prefix", args.api_prefix])
-    arg_list.extend(["--log-level", args.log_level])
-    arg_list.extend(["--backend", args.backend])
+        parsed_args.append("--isolation")
+    if args.skip_daemon:
+        parsed_args.append("--skip-daemon")
     
-    # Run the server
-    run_server(arg_list)
+    # Add persistence path if specified
+    if args.persistence_path:
+        parsed_args.extend(["--persistence-path", args.persistence_path])
+    
+    # Run the server with parsed arguments
+    return run_server(parsed_args)
+
+if __name__ == "__main__":
+    sys.exit(main())

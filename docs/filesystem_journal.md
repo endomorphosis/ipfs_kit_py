@@ -514,7 +514,7 @@ with journaled_fs.transaction(name="create_project") as txn:
     txn.create_directory("/virtual_fs/project/tests")
     
     # Add some files
-    txn.write_file("/virtual_fs/project/README.md", "# Sample Project\n\nThis is a sample project.")
+    txn.write_file("/virtual_fs/project/README.md", "# Sample Project\n\nThis is a test project.")
     txn.write_file("/virtual_fs/project/src/main.py", "def main():\n    print('Hello, World!')\n\nif __name__ == '__main__':\n    main()")
     txn.write_file("/virtual_fs/project/tests/test_main.py", "def test_main():\n    assert True")
     
@@ -684,3 +684,5 @@ except Exception as e:
 - [Error Handling](error_handling.md): Information on error handling in IPFS Kit
 - [IPFS Content Addressing](ipfs_content_addressing.md): Understanding IPFS content addressing
 - [Distributed Coordination](distributed_coordination.md): Coordinating filesystem operations across distributed nodes
+
+**Note:** IPFS Cluster specific storage logic is not yet implemented.

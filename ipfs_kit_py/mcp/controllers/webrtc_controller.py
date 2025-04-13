@@ -409,12 +409,31 @@ class WebRTCController:
         
         # Close all WebRTC connections via the model
         try:
-            if hasattr(self.ipfs_model, "async_close_all_webrtc_connections"):
+            # Check if we're in interpreter shutdown
+            import sys
+            is_shutdown = hasattr(sys, 'is_finalizing') and sys.is_finalizing()
+            
+            if is_shutdown:
+                # During interpreter shutdown, thread creation might fail
+                # Just log and continue without trying thread operations
+                logger.warning("Interpreter is shutting down, skipping thread-based WebRTC connection closure")
+                result = {"success": True, "warning": "Interpreter shutting down, connections may not be fully closed"}
+            elif hasattr(self.ipfs_model, "async_close_all_webrtc_connections"):
                 # Use async version if available
                 result = await self.ipfs_model.async_close_all_webrtc_connections()
             elif hasattr(self.ipfs_model, "close_all_webrtc_connections"):
-                # Fall back to sync version
-                result = await anyio.to_thread.run_sync(self.ipfs_model.close_all_webrtc_connections)
+                # Fall back to sync version, but check for interpreter shutdown first
+                if not is_shutdown:
+                    try:
+                        result = await anyio.to_thread.run_sync(self.ipfs_model.close_all_webrtc_connections)
+                    except RuntimeError as e:
+                        if "can't create new thread" in str(e):
+                            logger.warning("Thread creation failed during interpreter shutdown")
+                            result = {"success": True, "warning": "Interpreter shutting down, connections may not be fully closed"}
+                        else:
+                            raise
+                else:
+                    result = {"success": True, "warning": "Interpreter shutting down, connections may not be fully closed"}
             else:
                 logger.warning("No method available to close WebRTC connections")
                 result = {"success": False, "error": "Method not available"}
@@ -434,8 +453,93 @@ class WebRTCController:
     
     # Synchronous version of shutdown for compatibility
     def sync_shutdown(self):
-        """Synchronous version of shutdown for backward compatibility."""
-        anyio.run(self.shutdown)
+        """
+        Synchronous version of shutdown for backward compatibility.
+        
+        This method provides a synchronous way to shut down the controller
+        for contexts where async/await cannot be used directly.
+        """
+        logger.info("Running synchronous shutdown for WebRTC Controller")
+        
+        # Check for interpreter shutdown
+        import sys
+        is_interpreter_shutdown = hasattr(sys, 'is_finalizing') and sys.is_finalizing()
+        
+        # Special fast shutdown path for interpreter shutdown to avoid thread creation
+        if is_interpreter_shutdown:
+            logger.warning("Detected interpreter shutdown, using simplified cleanup")
+            try:
+                # Signal the cleanup task to stop
+                self.is_shutting_down = True
+                
+                # Clear active resources without trying to create new threads
+                self.active_streaming_servers.clear()
+                self.active_connections.clear()
+                
+                # Set cleanup task to None to avoid further processing
+                self.cleanup_task = None
+                
+                logger.info("Simplified WebRTC Controller shutdown completed during interpreter shutdown")
+                return
+            except Exception as e:
+                logger.error(f"Error during simplified shutdown: {e}")
+                # Continue with standard shutdown which might fail gracefully
+        
+        try:
+            # Try using anyio (preferred method)
+            try:
+                import anyio
+                anyio.run(self.shutdown)
+                return
+            except ImportError:
+                logger.warning("anyio not available, falling back to asyncio")
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            
+            # Fallback to asyncio
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Don't create a new event loop during interpreter shutdown
+                if is_interpreter_shutdown:
+                    logger.warning("Cannot get event loop during interpreter shutdown")
+                    # Signal shutdown and clear resources directly
+                    self.is_shutting_down = True
+                    self.active_streaming_servers.clear()
+                    self.active_connections.clear()
+                    return
+                
+                # Create a new event loop if no event loop is set and not in shutdown
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            # Run the shutdown method
+            try:
+                loop.run_until_complete(self.shutdown())
+            except RuntimeError as e:
+                if "This event loop is already running" in str(e):
+                    logger.warning("Cannot use run_until_complete in a running event loop")
+                    # Cannot handle properly in this case - controller shutdown might be incomplete
+                elif "can't create new thread" in str(e):
+                    logger.warning("Thread creation failed during interpreter shutdown")
+                    # Signal shutdown and clear resources directly
+                    self.is_shutting_down = True
+                    self.active_streaming_servers.clear()
+                    self.active_connections.clear()
+                else:
+                    raise
+        except Exception as e:
+            logger.error(f"Error in sync_shutdown for WebRTC Controller: {e}")
+            # Ensure resources are cleared even on error
+            try:
+                self.is_shutting_down = True
+                self.active_streaming_servers.clear()
+                self.active_connections.clear()
+            except Exception as clear_error:
+                logger.error(f"Error clearing resources during error handling: {clear_error}")
+            
+        logger.info("Synchronous shutdown for WebRTC Controller completed")
     
     async def _perform_final_cleanup(self):
         """
@@ -483,9 +587,21 @@ class WebRTCController:
         
         # 3. For extra safety, try calling close_all_webrtc_connections
         try:
-            if hasattr(self.ipfs_model, 'close_all_webrtc_connections'):
+            # Check if we're in interpreter shutdown
+            import sys
+            is_shutdown = hasattr(sys, 'is_finalizing') and sys.is_finalizing()
+            
+            if is_shutdown:
+                logger.debug("Skipping final close_all_webrtc_connections due to interpreter shutdown")
+            elif hasattr(self.ipfs_model, 'close_all_webrtc_connections'):
                 logger.debug("Calling close_all_webrtc_connections as final safety measure")
-                self.ipfs_model.close_all_webrtc_connections()
+                try:
+                    self.ipfs_model.close_all_webrtc_connections()
+                except RuntimeError as e:
+                    if "can't create new thread" in str(e):
+                        logger.warning("Thread creation failed during interpreter shutdown in final cleanup")
+                    else:
+                        raise
         except Exception as e:
             logger.warning(f"Error during final close_all_webrtc_connections: {e}")
         

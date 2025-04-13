@@ -50,6 +50,13 @@ class MCPCacheManager:
         self.disk_limit = self.config.get("local_cache_size", disk_limit)
         self.debug_mode = debug_mode
         
+        # Initialize cleanup thread flags
+        self._stop_cleanup = False
+        self._cleanup_thread_running = False
+        
+        # Memory mapped files tracking
+        self.mmap_files = {}
+        
         # Extract replication policy from config
         self.replication_policy = self.config.get("replication_policy", {
             "mode": "selective",
@@ -197,8 +204,7 @@ class MCPCacheManager:
                 json.dump(self.metadata, temp_file, ensure_ascii=False)
                 temp_path = temp_file.name
                 
-            # Atomic replace
-            import os
+            # Atomic replace - don't reimport 'os' here as it's already imported at the module level
             os.replace(temp_path, self.metadata_path)
             logger.debug(f"Successfully saved metadata with {len(self.metadata)} entries")
             
@@ -213,10 +219,46 @@ class MCPCacheManager:
     
     def _cleanup_worker(self):
         """Background thread for cache cleanup."""
-        # Flag to indicate if thread should stop
-        self._stop_cleanup = False
-        self._cleanup_thread_running = True
+        # Import necessary modules inside the function to avoid any access issues
+        import os as local_os
+        import time as local_time
+        import logging as local_logging
+
+        # Set up a local logger in case global logger isn't available
+        local_logger = local_logging.getLogger(__name__)
         
+        # Set thread as running (flag should already be initialized in __init__)
+        # Add defensive check to ensure the flag is properly initialized
+        if not hasattr(self, '_cleanup_thread_running'):
+            self._cleanup_thread_running = True
+        else:
+            self._cleanup_thread_running = True
+        
+        # Ensure stop flag is also initialized properly
+        if not hasattr(self, '_stop_cleanup'):
+            self._stop_cleanup = False
+        
+        # Ensure mmap_files dictionary is initialized
+        if not hasattr(self, 'mmap_files'):
+            self.mmap_files = {}
+        
+        # Create local references to attributes to avoid access issues
+        try:
+            base_path = self.base_path
+            disk_cache_path = self.disk_cache_path
+            memory_limit = self.memory_limit
+            disk_limit = self.disk_limit
+            lock = self.lock
+        except AttributeError as e:
+            local_logger.error(f"Could not initialize local references in cleanup worker: {e}")
+            # Set defaults
+            base_path = "~/.ipfs_kit/mcp/cache"
+            disk_cache_path = local_os.path.join(base_path, "disk_cache")
+            memory_limit = 100 * 1024 * 1024  # 100 MB
+            disk_limit = 1024 * 1024 * 1024   # 1 GB
+            import threading
+            lock = threading.RLock()
+            
         try:
             while not self._stop_cleanup:
                 try:
@@ -224,50 +266,129 @@ class MCPCacheManager:
                     for _ in range(60):  # Check every minute in 1-second increments
                         if self._stop_cleanup:
                             break
-                        time.sleep(1)
+                        local_time.sleep(1)
                     
                     if self._stop_cleanup:
                         break
                     
                     # Check if cleanup is needed and if directories exist
-                    with self.lock:
+                    with lock:
                         # Verify that directories exist before attempting cleanup
-                        if not os.path.exists(self.base_path):
-                            logger.warning(f"Cache base path {self.base_path} no longer exists, skipping cleanup")
+                        if not local_os.path.exists(base_path):
+                            local_logger.warning(f"Cache base path {base_path} no longer exists, skipping cleanup")
                             continue
                             
-                        if not os.path.exists(self.disk_cache_path):
-                            logger.warning(f"Disk cache path {self.disk_cache_path} no longer exists, skipping cleanup")
+                        if not local_os.path.exists(disk_cache_path):
+                            local_logger.warning(f"Disk cache path {disk_cache_path} no longer exists, skipping cleanup")
                             continue
                         
-                        memory_usage = self.memory_cache_size
-                        if memory_usage > self.memory_limit * 0.9:  # 90% full
-                            self._evict_from_memory(memory_usage - self.memory_limit * 0.7)  # Target 70% usage
+                        # Close any stale memory-mapped files - thread-safe with explicit lock
+                        if hasattr(self, 'mmap_files') and self.mmap_files:
+                            # Get a copy of the keys to avoid modification during iteration
+                            mmap_paths = list(self.mmap_files.keys())
+                            for path in mmap_paths:
+                                if not local_os.path.exists(path):
+                                    try:
+                                        # Only access the value if the path is still in the dictionary
+                                        if path in self.mmap_files:
+                                            file_obj, mmap_obj = self.mmap_files[path]
+                                            mmap_obj.close()
+                                            file_obj.close()
+                                            # Thread-safe removal with lock
+                                            with lock:
+                                                if path in self.mmap_files:  # Check again in case of concurrent modification
+                                                    del self.mmap_files[path]
+                                            local_logger.debug(f"Closed memory-mapped file that no longer exists: {path}")
+                                    except Exception as e:
+                                        local_logger.warning(f"Error closing stale mmap file {path}: {e}")
+                        
+                        # Ensure memory_cache_size exists and has a valid value
+                        if not hasattr(self, 'memory_cache_size'):
+                            self.memory_cache_size = 0
+                            local_logger.warning("memory_cache_size not found, initializing to 0")
+                            
+                        memory_usage = getattr(self, 'memory_cache_size', 0)
+                        if memory_usage > memory_limit * 0.9:  # 90% full
+                            try:
+                                self._evict_from_memory(memory_usage - memory_limit * 0.7)  # Target 70% usage
+                            except Exception as e:
+                                local_logger.error(f"Error evicting from memory: {e}")
                             
                         # Check disk usage
                         try:
-                            disk_usage = self._get_disk_cache_size()
-                            if disk_usage > self.disk_limit * 0.9:  # 90% full
-                                self._evict_from_disk(disk_usage - self.disk_limit * 0.7)  # Target 70% usage
+                            if hasattr(self, '_get_disk_cache_size'):
+                                disk_usage = self._get_disk_cache_size()
+                                if disk_usage > disk_limit * 0.9:  # 90% full
+                                    self._evict_from_disk(disk_usage - disk_limit * 0.7)  # Target 70% usage
                         except (FileNotFoundError, OSError) as e:
-                            logger.warning(f"Disk cache access error during cleanup: {e}")
+                            local_logger.warning(f"Disk cache access error during cleanup: {e}")
                             
                         # Save metadata periodically
                         try:
-                            self._save_metadata()
-                        except (FileNotFoundError, OSError) as e:
-                            logger.warning(f"Metadata save error during cleanup: {e}")
+                            if hasattr(self, '_save_metadata'):
+                                self._save_metadata()
+                        except Exception as e:
+                            local_logger.warning(f"Metadata save error during cleanup: {e}")
                         
                 except Exception as e:
-                    logger.error(f"Error in cache cleanup worker: {e}")
+                    local_logger.error(f"Error in cache cleanup worker: {e}")
                     # Sleep briefly after an error to avoid tight error loops
                     for _ in range(5):  # 5-second sleep in 1-second increments
                         if self._stop_cleanup:
                             break
-                        time.sleep(1)
+                        local_time.sleep(1)
         finally:
-            logger.info("Cache cleanup worker thread exiting")
+            local_logger.info("Cache cleanup worker thread exiting")
             self._cleanup_thread_running = False
+            
+            # Clean up any remaining mmap files when the thread exits
+            try:
+                # Use method if available, otherwise use inline implementation with thread safety
+                if hasattr(self, '_close_mmap_files'):
+                    # Try the method first
+                    try:
+                        self._close_mmap_files()
+                    except Exception as method_error:
+                        local_logger.error(f"Error using _close_mmap_files method: {method_error}")
+                        # Fall through to direct cleanup
+                        raise ValueError("Fallback to direct cleanup") 
+                else:
+                    # No method available, use direct approach
+                    raise ValueError("No _close_mmap_files method, using direct cleanup")
+                    
+            except Exception as e:
+                # Direct cleanup approach with thread safety
+                local_logger.warning(f"Using direct mmap file cleanup approach: {e}")
+                
+                try:
+                    if hasattr(self, 'mmap_files') and self.mmap_files:
+                        # Acquire lock for thread safety if available
+                        if hasattr(self, 'lock') and self.lock:
+                            lock_obj = self.lock
+                        else:
+                            # Create a dummy context manager if no lock is available
+                            import contextlib
+                            lock_obj = contextlib.nullcontext()
+                            
+                        with lock_obj:
+                            # Get a snapshot of the dictionary to avoid modification during iteration
+                            paths_to_close = list(self.mmap_files.items())
+                            
+                        # Close files outside the lock to minimize lock contention
+                        for path, (file_obj, mmap_obj) in paths_to_close:
+                            try:
+                                mmap_obj.close()
+                                file_obj.close()
+                                local_logger.debug(f"Closed memory-mapped file {path}")
+                            except Exception as close_error:
+                                local_logger.error(f"Error closing mmap file {path}: {close_error}")
+                                
+                        # Clear the dictionary under lock
+                        with lock_obj:
+                            self.mmap_files.clear()
+                            
+                except Exception as final_error:
+                    local_logger.error(f"Final error in cleanup worker mmap file handling: {final_error}")
             
     def stop_cleanup_thread(self):
         """Stop the cleanup thread gracefully."""
@@ -279,6 +400,48 @@ class MCPCacheManager:
             while self._cleanup_thread_running and time.time() - start_time < 5:
                 time.sleep(0.1)
             logger.info("Cache cleanup thread stopped")
+        
+        # Clean up any memory-mapped files
+        self._close_mmap_files()
+    
+    def _close_mmap_files(self):
+        """Close any memory-mapped files to prevent leaks in a thread-safe manner."""
+        if hasattr(self, 'mmap_files'):
+            try:
+                # Acquire lock to safely get a copy of the files to close
+                with self.lock:
+                    # Get a snapshot of the dictionary to avoid modification during iteration
+                    paths_to_close = list(self.mmap_files.items())
+
+                # Close files outside the lock to minimize lock contention
+                for path, (file_obj, mmap_obj) in paths_to_close:
+                    try:
+                        if hasattr(mmap_obj, 'close'):
+                            mmap_obj.close()
+                        else:
+                            logger.warning(f"mmap object for {path} does not have close method")
+                    except Exception as e:
+                        logger.warning(f"Error closing mmap object for {path}: {e}")
+                    
+                    try:
+                        if hasattr(file_obj, 'close'):
+                            file_obj.close()
+                        else:
+                            logger.warning(f"file object for {path} does not have close method")
+                    except Exception as e:
+                        logger.warning(f"Error closing file object for {path}: {e}")
+
+                # Clear the dictionary under lock
+                with self.lock:
+                    paths_closed = set(path for path, _ in paths_to_close)
+                    # Only remove the paths we closed - in case new entries were added concurrently
+                    for path in paths_closed:
+                        if path in self.mmap_files:
+                            del self.mmap_files[path]
+                    
+                logger.debug(f"Closed {len(paths_to_close)} memory-mapped files")
+            except Exception as e:
+                logger.error(f"Error during memory-mapped file cleanup: {e}")
             
     def __del__(self):
         """Destructor to ensure cleanup resources."""
@@ -556,15 +719,26 @@ class MCPCacheManager:
                         # Continue with put operation anyway
                         
                     # Write to temporary file first
-                    with tempfile.NamedTemporaryFile(delete=False, dir=self.disk_cache_path) as tf:
-                        tf.write(value_bytes)
-                        temp_path = tf.name
-                    
-                    # Verify the temporary file was written correctly
-                    if os.path.getsize(temp_path) != size:
-                        logger.warning(f"Temporary file size ({os.path.getsize(temp_path)}) doesn't match expected size ({size})")
-                        os.unlink(temp_path)
-                        raise IOError("Temporary file size mismatch")
+                    temp_path = None
+                    try:
+                        with tempfile.NamedTemporaryFile(delete=False, dir=self.disk_cache_path) as tf:
+                            tf.write(value_bytes)
+                            temp_path = tf.name
+                        
+                        # Verify the temporary file was written correctly
+                        if os.path.getsize(temp_path) != size:
+                            logger.warning(f"Temporary file size ({os.path.getsize(temp_path)}) doesn't match expected size ({size})")
+                            raise IOError("Temporary file size mismatch")
+                    except IOError as io_error:
+                        # Ensure the temp file is removed
+                        if temp_path and os.path.exists(temp_path):
+                            try:
+                                os.unlink(temp_path)
+                                temp_path = None
+                            except OSError as cleanup_error:
+                                logger.error(f"Error cleaning up temporary file: {cleanup_error}")
+                        # Re-raise the original error
+                        raise io_error
                         
                     # Atomic move to final location
                     os.replace(temp_path, disk_path)
@@ -591,7 +765,7 @@ class MCPCacheManager:
                         break
                         
                     # Wait before retry with exponential backoff
-                    import time
+                    # time is already imported at the module level
                     time.sleep(0.1 * (2 ** (retry_count - 1)))
             
             # Update replication information to include disk tier
@@ -919,6 +1093,33 @@ class MCPCacheManager:
                 "memory_item_count": len(self.memory_cache),
                 "replication_policy": self.replication_policy,
                 "timestamp": time.time()
+            }
+            
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get simplified statistics for testing compatibility.
+        
+        Returns:
+            Dictionary with basic cache statistics
+        """
+        with self.lock:
+            total_gets = self.stats["memory_hits"] + self.stats["disk_hits"] + self.stats["misses"]
+            hit_rate = (self.stats["memory_hits"] + self.stats["disk_hits"]) / total_gets if total_gets > 0 else 0
+            memory_size = sum(self.metadata.get(k, {}).get("size", 0) for k in self.memory_cache)
+            
+            # Return format matches the format expected by the test
+            return {
+                "memory_hits": self.stats["memory_hits"],
+                "disk_hits": self.stats["disk_hits"],
+                "misses": self.stats["misses"],
+                "total_hits": self.stats["memory_hits"] + self.stats["disk_hits"],
+                "hit_rate": hit_rate,
+                "memory_size": memory_size,
+                "item_count": len(self.memory_cache),
+                "memory_evictions": self.stats["memory_evictions"],
+                "disk_evictions": self.stats["disk_evictions"],
+                "get_operations": self.stats["get_operations"],
+                "put_operations": self.stats["put_operations"],
             }
             
     def list_keys(self) -> List[str]:

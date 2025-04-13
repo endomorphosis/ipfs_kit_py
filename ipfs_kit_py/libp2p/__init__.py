@@ -26,6 +26,56 @@ import subprocess
 from importlib.util import find_spec
 from typing import Any, Callable, Dict, List, Optional, Union, Type, Tuple
 
+# Apply protobuf compatibility patches early and more aggressively
+try:
+    # Check if protobuf is already loaded
+    if 'google.protobuf.message_factory' in sys.modules:
+        # Check if MessageFactory has GetPrototype
+        from google.protobuf.message_factory import MessageFactory
+        has_prototype = hasattr(MessageFactory, 'GetPrototype')
+        if not has_prototype:
+            # Import and apply monkey patch more aggressively
+            from ipfs_kit_py.tools.protobuf_compat import monkey_patch_message_factory, PROTOBUF_VERSION
+            
+            # Force the patch to be applied
+            success = monkey_patch_message_factory()
+            if success:
+                logger.info(f"Applied MessageFactory compatibility patch for protobuf {PROTOBUF_VERSION}")
+                
+                # Double-check the patch worked
+                if hasattr(MessageFactory, 'GetPrototype'):
+                    logger.info("Verified MessageFactory.GetPrototype patch is working")
+                else:
+                    logger.warning("MessageFactory.GetPrototype patch did not apply correctly")
+                    
+                    # Try a direct approach
+                    try:
+                        # Define a simple compatibility function for GetPrototype
+                        def get_prototype(self, descriptor):
+                            """Direct compatibility implementation of GetPrototype."""
+                            from google.protobuf.message_factory import message_factory_for_descriptor_pool
+                            from google.protobuf.descriptor_pool import DescriptorPool
+                            pool = getattr(self, '_descriptor_pool', None) or DescriptorPool()
+                            factory = message_factory_for_descriptor_pool(pool)
+                            return factory.GetPrototype(descriptor)
+                            
+                        # Add the method directly
+                        MessageFactory.GetPrototype = get_prototype
+                        logger.info("Applied direct MessageFactory.GetPrototype patch")
+                    except Exception as e:
+                        logger.error(f"Failed to apply direct GetPrototype patch: {e}")
+    else:
+        # Try to apply the patch before MessageFactory is imported elsewhere
+        from ipfs_kit_py.tools.protobuf_compat import monkey_patch_message_factory, PROTOBUF_VERSION
+        success = monkey_patch_message_factory()
+        if success:
+            logger.info(f"Preemptively applied MessageFactory compatibility patch for protobuf {PROTOBUF_VERSION}")
+except ImportError as e:
+    # This is fine if the tools module is not available
+    logger.debug(f"Couldn't apply protobuf compatibility patch: {e}")
+except Exception as e:
+    logger.warning(f"Error applying protobuf compatibility patch: {e}")
+
 # Import hooks to automatically apply protocol extensions
 try:
     import ipfs_kit_py.libp2p.hooks
@@ -378,8 +428,14 @@ def patch_stream_read_until():
         return  # No libp2p available to patch
     
     try:
-        # Check if we need to patch by attempting to import
-        from libp2p.network.stream.net_stream_interface import INetStream
+        # First try to import our custom interface
+        try:
+            from ipfs_kit_py.libp2p.network.stream.net_stream_interface import INetStream
+            logger.debug("Using custom stream interface from ipfs_kit_py")
+        except ImportError:
+            # Fall back to standard libp2p if available
+            from libp2p.network.stream.net_stream_interface import INetStream
+            logger.debug("Using standard libp2p stream interface")
         
         # Check if read_until is already defined
         if hasattr(INetStream, 'read_until'):

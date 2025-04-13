@@ -252,96 +252,185 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         """
         logger.info(f"Registering routes for StorageManagerControllerAnyIO with router: {router}")
         
-        # Get status of all storage backends
-        try:
-            router.add_api_route(
-                "/storage/status",
-                self.handle_status_request_async,
-                methods=["GET"],
-                response_model=AllBackendsStatusResponse,
-                summary="Storage Status",
-                description="Get status of all storage backends"
-            )
-            logger.info("Successfully registered /storage/status endpoint")
-        except Exception as e:
-            logger.error(f"Error registering /storage/status endpoint: {e}")
+        # Tracks whether all critical routes were registered
+        all_routes_registered = True
+        registration_errors = {}
         
-        # Get status of a specific backend
-        try:
-            router.add_api_route(
-                "/storage/{backend_name}/status",
-                self.handle_backend_status_request_async,
-                methods=["GET"],
-                response_model=BackendStatusResponse,
-                summary="Backend Status",
-                description="Get status of a specific storage backend"
-            )
-            logger.info("Successfully registered /storage/{backend_name}/status endpoint")
-        except Exception as e:
-            logger.error(f"Error registering /storage/{{backend_name}}/status endpoint: {e}")
+        # Route definitions with fallback mechanisms
+        routes = [
+            {
+                "path": "/storage/status",
+                "handler": self.handle_status_request_async,
+                "methods": ["GET"],
+                "response_model": AllBackendsStatusResponse,
+                "summary": "Storage Status",
+                "description": "Get status of all storage backends",
+                "critical": True,  # This is a critical route that must be registered
+                "fallback": self._create_fallback_status  # Fallback function to use if registration fails
+            },
+            {
+                "path": "/storage/{backend_name}/status",
+                "handler": self.handle_backend_status_request_async,
+                "methods": ["GET"],
+                "response_model": BackendStatusResponse,
+                "summary": "Backend Status",
+                "description": "Get status of a specific storage backend",
+                "critical": True,
+                "fallback": self._create_fallback_backend_status
+            },
+            {
+                "path": "/storage/transfer",
+                "handler": self.handle_transfer_request_async,
+                "methods": ["POST"],
+                "response_model": StorageTransferResponse,
+                "summary": "Transfer Content",
+                "description": "Transfer content between storage backends",
+                "critical": True,
+                "fallback": self._create_fallback_transfer
+            },
+            {
+                "path": "/storage/verify",
+                "handler": self.handle_verify_request_async,
+                "methods": ["POST"],
+                "response_model": OperationResponse,
+                "summary": "Verify Content",
+                "description": "Verify content across storage backends",
+                "critical": False
+            },
+            {
+                "path": "/storage/migrate",
+                "handler": self.handle_migration_request_async,
+                "methods": ["POST"],
+                "response_model": ContentMigrationResponse,
+                "summary": "Migrate Content",
+                "description": "Migrate content between storage backends",
+                "critical": False
+            },
+            {
+                "path": "/storage/apply-policy",
+                "handler": self.handle_replication_policy_request_async,
+                "methods": ["POST"],
+                "response_model": ReplicationPolicyResponse,
+                "summary": "Apply Replication Policy",
+                "description": "Apply storage replication policy to content based on content characteristics",
+                "critical": False
+            }
+        ]
         
-        # Transfer content between backends
-        try:
-            router.add_api_route(
-                "/storage/transfer",
-                self.handle_transfer_request_async,
-                methods=["POST"],
-                response_model=StorageTransferResponse,
-                summary="Transfer Content",
-                description="Transfer content between storage backends"
-            )
-            logger.info("Successfully registered /storage/transfer endpoint")
-        except Exception as e:
-            logger.error(f"Error registering /storage/transfer endpoint: {e}")
-        
-        # Register routes for storage bridge operations
-        try:
-            router.add_api_route(
-                "/storage/verify",
-                self.handle_verify_request_async,
-                methods=["POST"],
-                response_model=OperationResponse,
-                summary="Verify Content",
-                description="Verify content across storage backends"
-            )
-            logger.info("Successfully registered /storage/verify endpoint")
-        except Exception as e:
-            logger.error(f"Error registering /storage/verify endpoint: {e}")
-        
-        # Register migration endpoint
-        try:
-            router.add_api_route(
-                "/storage/migrate",
-                self.handle_migration_request_async,
-                methods=["POST"],
-                response_model=ContentMigrationResponse,
-                summary="Migrate Content",
-                description="Migrate content between storage backends"
-            )
-            logger.info("Successfully registered /storage/migrate endpoint")
-        except Exception as e:
-            logger.error(f"Error registering /storage/migrate endpoint: {e}")
-        
-        # Register replication policy endpoint
-        try:
-            router.add_api_route(
-                "/storage/apply-policy",
-                self.handle_replication_policy_request_async,
-                methods=["POST"],
-                response_model=ReplicationPolicyResponse,
-                summary="Apply Replication Policy",
-                description="Apply storage replication policy to content based on content characteristics"
-            )
-            logger.info("Successfully registered /storage/apply-policy endpoint")
-        except Exception as e:
-            logger.error(f"Error registering /storage/apply-policy endpoint: {e}")
+        # Register each route with error handling
+        for route in routes:
+            try:
+                router.add_api_route(
+                    route["path"],
+                    route["handler"],
+                    methods=route["methods"],
+                    response_model=route.get("response_model"),
+                    summary=route.get("summary"),
+                    description=route.get("description")
+                )
+                logger.info(f"Successfully registered {route['path']} endpoint")
+            except Exception as e:
+                error_msg = f"Error registering {route['path']} endpoint: {str(e)}"
+                logger.error(error_msg)
+                registration_errors[route["path"]] = str(e)
+                
+                # If this is a critical route, mark registration as failed
+                if route.get("critical", False):
+                    all_routes_registered = False
+                    
+                    # Check if we have a fallback handler
+                    if "fallback" in route and callable(route["fallback"]):
+                        try:
+                            # Register the fallback handler
+                            fallback_handler = route["fallback"]()
+                            router.add_api_route(
+                                route["path"],
+                                fallback_handler,
+                                methods=route["methods"],
+                                summary=f"{route.get('summary')} (Fallback)",
+                                description=f"Fallback handler for {route['path']}"
+                            )
+                            logger.info(f"Registered fallback handler for {route['path']}")
+                        except Exception as fallback_e:
+                            logger.error(f"Error registering fallback for {route['path']}: {fallback_e}")
         
         # List all routes in the router after registration
         try:
             logger.info("Routes in router after registration:")
+            route_paths = set()
             for route in router.routes:
-                logger.info(f"  Path: {route.path}, Methods: {route.methods}")
+                route_info = f"  Path: {route.path}"
+                if hasattr(route, 'methods'):
+                    route_info += f", Methods: {route.methods}"
+                logger.info(route_info)
+                route_paths.add(route.path)
+            
+            # Check for missing critical routes
+            for route in routes:
+                if route.get("critical", False) and route["path"] not in route_paths:
+                    logger.error(f"Critical route {route['path']} not registered")
         except Exception as e:
             logger.error(f"Error listing router routes: {e}")
-            
+        
+        # Log summary of registration
+        if all_routes_registered:
+            logger.info("All critical Storage Manager Controller routes registered successfully")
+        else:
+            logger.warning(f"Some critical routes failed to register: {registration_errors}")
+        
         logger.info("Storage Manager Controller routes registered with AnyIO support")
+    
+    def _create_fallback_status(self):
+        """Create a fallback handler for the status endpoint."""
+        async def fallback_storage_status():
+            """Fallback for storage status endpoint."""
+            start_time = time.time()
+            return {
+                "success": True,
+                "operation_id": f"storage_status_{int(start_time * 1000)}",
+                "backends": {},
+                "available_count": 0,
+                "total_count": 0,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "fallback": True,
+                "timestamp": time.time()
+            }
+        return fallback_storage_status
+        
+    def _create_fallback_backend_status(self):
+        """Create a fallback handler for the backend status endpoint."""
+        async def fallback_backend_status(backend_name: str):
+            """Fallback for backend status endpoint."""
+            start_time = time.time()
+            return {
+                "success": False,
+                "operation_id": f"backend_status_{int(start_time * 1000)}",
+                "backend_name": backend_name,
+                "is_available": False,
+                "capabilities": [],
+                "error": "Backend status unavailable due to route registration failure",
+                "error_type": "FallbackHandlerError",
+                "fallback": True,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "timestamp": time.time()
+            }
+        return fallback_backend_status
+    
+    def _create_fallback_transfer(self):
+        """Create a fallback handler for the transfer endpoint."""
+        async def fallback_transfer(request: StorageTransferRequest):
+            """Fallback for transfer endpoint."""
+            start_time = time.time()
+            return {
+                "success": False,
+                "operation_id": f"transfer_{int(start_time * 1000)}",
+                "source_backend": request.source_backend,
+                "target_backend": request.target_backend,
+                "content_id": request.content_id,
+                "error": "Transfer unavailable due to route registration failure",
+                "error_type": "FallbackHandlerError",
+                "fallback": True,
+                "duration_ms": (time.time() - start_time) * 1000,
+                "timestamp": time.time()
+            }
+        return fallback_transfer

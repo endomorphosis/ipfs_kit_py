@@ -634,3 +634,43 @@ class PeerWebSocketController:
                 logger.error(f"Error stopping WebSocket peer client: {e}")
                 
         logger.info("Peer WebSocket Controller shutdown complete")
+        
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown for backward compatibility.
+        
+        This method provides a synchronous way to shut down the controller
+        for contexts where async/await cannot be used directly.
+        """
+        logger.info("Running synchronous shutdown for Peer WebSocket Controller")
+        try:
+            # Try using anyio first (preferred method)
+            try:
+                import anyio
+                anyio.run(self.shutdown)
+                return
+            except ImportError:
+                logger.warning("anyio not available, falling back to asyncio")
+            
+            # Fallback to asyncio
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if no event loop is set
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            # Run the shutdown method
+            try:
+                loop.run_until_complete(self.shutdown())
+            except RuntimeError as e:
+                if "This event loop is already running" in str(e):
+                    logger.warning("Cannot use run_until_complete in a running event loop")
+                    # Cannot handle properly in this case - controller shutdown might be incomplete
+                else:
+                    raise
+        except Exception as e:
+            logger.error(f"Error in sync_shutdown for Peer WebSocket Controller: {e}")
+            
+        logger.info("Synchronous shutdown for Peer WebSocket Controller completed")

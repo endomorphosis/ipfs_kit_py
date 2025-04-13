@@ -1254,7 +1254,20 @@ class SessionManager:
     
     def _start_cleanup_task(self):
         """Start background task for session cleanup."""
-        asyncio.create_task(self._periodic_cleanup())
+        # Create task and store it for proper cancellation during shutdown
+        if not hasattr(self, 'cleanup_task') or self.cleanup_task is None:
+            self.cleanup_task = asyncio.create_task(self._periodic_cleanup())
+            # Make sure the task doesn't disappear due to garbage collection
+            self.cleanup_task.add_done_callback(lambda t: self._handle_cleanup_task_done(t))
+    
+    def _handle_cleanup_task_done(self, task):
+        """Handle cleanup task completion."""
+        # Only log if the task wasn't cancelled as part of normal shutdown
+        if not task.cancelled() and task.exception() is not None:
+            self.logger.error(f"Cleanup task failed with error: {task.exception()}")
+        # Clear the reference if this matches our current cleanup task
+        if hasattr(self, 'cleanup_task') and self.cleanup_task == task:
+            self.cleanup_task = None
     
     async def _periodic_cleanup(self):
         """Periodically check for inactive sessions and clean them up."""
@@ -1352,6 +1365,61 @@ class SessionManager:
                 "error": f"Error creating session: {str(e)}",
                 "session_id": session_id
             }
+    
+    async def shutdown(self) -> Dict[str, Any]:
+        """
+        Shut down the multi-peer controller and clean up all resources.
+        
+        Returns:
+            Dict with shutdown results
+        """
+        self.logger.info("Shutting down WebRTC multi-peer controller")
+        
+        result = {
+            "success": True,
+            "component": "webrtc_multi_peer",
+            "sessions_closed": 0,
+            "errors": []
+        }
+        
+        # Cancel cleanup task first
+        if hasattr(self, 'cleanup_task') and self.cleanup_task is not None:
+            try:
+                if not self.cleanup_task.done() and not self.cleanup_task.cancelled():
+                    self.cleanup_task.cancel()
+                    # Wait for cancellation to complete with timeout
+                    try:
+                        await asyncio.wait_for(asyncio.gather(self.cleanup_task, return_exceptions=True), timeout=2.0)
+                    except (asyncio.TimeoutError, asyncio.CancelledError):
+                        pass
+                self.cleanup_task = None
+            except Exception as e:
+                error_msg = f"Error cancelling cleanup task: {str(e)}"
+                self.logger.error(error_msg)
+                result["errors"].append(error_msg)
+        
+        # Close all active sessions
+        for session_id in list(self.sessions.keys()):
+            try:
+                close_result = await self.close_session(session_id)
+                if close_result.get("success", False):
+                    result["sessions_closed"] += 1
+                else:
+                    result["errors"].append(f"Failed to close session {session_id}: {close_result.get('error', 'Unknown error')}")
+            except Exception as e:
+                error_msg = f"Error closing session {session_id}: {str(e)}"
+                self.logger.error(error_msg)
+                result["errors"].append(error_msg)
+        
+        # Clean up resources
+        self.sessions.clear()
+        
+        # Update overall success status
+        if result["errors"]:
+            result["success"] = False
+            
+        self.logger.info(f"WebRTC multi-peer controller shutdown complete. Closed {result['sessions_closed']} sessions with {len(result['errors'])} errors")
+        return result
     
     async def close_session(self, session_id: str) -> Dict[str, Any]:
         """

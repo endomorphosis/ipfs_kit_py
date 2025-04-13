@@ -178,15 +178,16 @@ Retrieves the current telemetry configuration.
 {
   "success": true,
   "operation": "get_telemetry_config",
-  "timestamp": 1714953237.4568963,
-  "config": {
-    "metrics_path": "~/.ipfs_kit/telemetry",
-    "retention_days": 30,
-    "sampling_interval": 60,
-    "enable_detailed_timing": true,
-    "operation_hooks": true
+    "timestamp": 1714953237.4568963,
+    "config": {
+      "metrics_path": "~/.ipfs_kit/telemetry",
+      "retention_days": 30,
+      "sampling_interval": 60,
+      "enable_detailed_timing": true,
+      "operation_hooks": true
+    },
+    "note": "The service version is pulled from the `__version__` variable in `ipfs_kit_py/__init__.py`."
   }
-}
 ```
 
 ### Update Telemetry Configuration

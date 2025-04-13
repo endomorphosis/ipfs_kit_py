@@ -3106,8 +3106,11 @@ class ipfs_py:
         result = self.run_ipfs_command(args + [json.dumps(listen_addrs)])
         return result
         
-    def daemon_start(self):
+    def daemon_start(self, force=False):
         """Start the IPFS daemon.
+        
+        Args:
+            force: If True, force removes lock files regardless of their state
         
         Returns:
             Result dictionary with status of daemon start operation
@@ -3119,6 +3122,51 @@ class ipfs_py:
         }
         
         try:
+            # Validate IPFS repository configuration
+            config_path = os.path.join(self.ipfs_path, "config")
+            if not os.path.exists(config_path):
+                result["error"] = f"IPFS repository not initialized at {self.ipfs_path}"
+                result["error_type"] = "RepositoryError"
+                logger.error(f"Daemon cannot start: {result['error']}")
+                
+                # Attempt to initialize the repository
+                try:
+                    logger.info(f"Attempting to initialize repository at {self.ipfs_path}")
+                    os.makedirs(self.ipfs_path, exist_ok=True)
+                    
+                    # Choose initialization profile based on whether testing flag is set
+                    profile_arg = "--profile=test"
+                    if hasattr(self, 'metadata') and isinstance(self.metadata, dict):
+                        # If test_mode is explicitly False, use larger/standard profile
+                        if self.metadata.get('test_mode') is False:
+                            profile_arg = ""  # Use default profile
+                    
+                    init_cmd = ["ipfs", "init"]
+                    if profile_arg:
+                        init_cmd.append(profile_arg)
+                        
+                    init_env = {"IPFS_PATH": self.ipfs_path, "PATH": self.path}
+                    logger.info(f"Running init command: {' '.join(init_cmd)}")
+                    
+                    init_result = subprocess.run(
+                        init_cmd,
+                        env=init_env,
+                        capture_output=True,
+                        text=True
+                    )
+                    if init_result.returncode == 0:
+                        logger.info(f"Successfully initialized IPFS repository at {self.ipfs_path}")
+                        # Continue with daemon startup
+                        result["init_success"] = True
+                    else:
+                        logger.error(f"Failed to initialize repository: {init_result.stderr}")
+                        result["init_error"] = init_result.stderr
+                        return result
+                except Exception as init_e:
+                    logger.error(f"Error initializing repository: {init_e}")
+                    result["init_error"] = str(init_e)
+                    return result
+            
             # Check if daemon is already running
             daemon_status = self.daemon_status()
             if daemon_status.get("running", False):
@@ -3128,38 +3176,148 @@ class ipfs_py:
                 result["pid"] = daemon_status.get("pid")
                 return result
             
-            # Check for lock file
+            # Handle daemon.pid file - sometimes left over from previous runs
+            daemon_pid_path = os.path.join(self.ipfs_path, "daemon.pid")
+            if os.path.exists(daemon_pid_path):
+                try:
+                    with open(daemon_pid_path, 'r') as f:
+                        pid_str = f.read().strip()
+                        try:
+                            pid = int(pid_str)
+                            # Check if process is actually running
+                            try:
+                                os.kill(pid, 0)  # This will raise an error if process doesn't exist
+                                if force:
+                                    logger.warning(f"Force removing daemon.pid file for active PID {pid}")
+                                    os.remove(daemon_pid_path)
+                                else:
+                                    logger.warning(f"Process with PID {pid} from daemon.pid still running - possible zombie process")
+                            except OSError:
+                                # Process doesn't exist, pid file is stale
+                                logger.info(f"Removing stale daemon.pid file for PID {pid}")
+                                os.remove(daemon_pid_path)
+                        except ValueError:
+                            # Not a valid PID, remove file
+                            logger.info(f"Removing invalid daemon.pid file: {pid_str}")
+                            os.remove(daemon_pid_path)
+                except Exception as e:
+                    logger.warning(f"Error handling daemon.pid file: {e}")
+                    if force:
+                        try:
+                            os.remove(daemon_pid_path)
+                            logger.info(f"Force removed daemon.pid file")
+                        except Exception as rm_e:
+                            logger.error(f"Failed to remove daemon.pid file: {rm_e}")
+            
+            # Check for repository lock file
             lock_path = os.path.join(self.ipfs_path, "repo.lock")
             if os.path.exists(lock_path):
                 # Read the lock file to get PID
                 try:
                     with open(lock_path, 'r') as f:
-                        pid = int(f.read().strip())
-                        
-                    # Check if process is actually running
-                    try:
-                        os.kill(pid, 0)  # This will raise an error if process doesn't exist
-                        # Process actually exists, can't start daemon
-                        result["lock_file_detected"] = True
-                        result["lock_pid"] = pid
-                        result["lock_is_stale"] = False
-                        result["message"] = f"Daemon cannot start because lock file exists with active PID: {pid}"
-                        return result
-                    except OSError:
-                        # Process doesn't exist, lock is stale
-                        logger.info(f"Removing stale lock file for PID {pid}")
-                        os.remove(lock_path)
-                        result["success"] = True  # Mark as success when handling stale lock
-                        result["lock_file_removed"] = True
-                        result["lock_was_stale"] = True
+                        pid_str = f.read().strip()
+                        try:
+                            pid = int(pid_str)
+                            
+                            # Check if process is actually running
+                            try:
+                                if force:
+                                    # Force removal regardless of process state
+                                    logger.warning(f"Force removing repo.lock file at {lock_path} for PID {pid}")
+                                    os.remove(lock_path)
+                                    result["lock_file_removed"] = True
+                                    result["force_remove"] = True
+                                else:
+                                    os.kill(pid, 0)  # This will raise an error if process doesn't exist
+                                    # Process actually exists, can't start daemon
+                                    result["lock_file_detected"] = True
+                                    result["lock_pid"] = pid
+                                    result["lock_is_stale"] = False
+                                    result["message"] = f"Daemon cannot start because lock file exists with active PID: {pid}"
+                                    logger.error(f"Cannot start daemon: lock file exists with active PID: {pid}")
+                                    result["error"] = f"Daemon cannot start because lock file exists with active PID: {pid}"
+                                    return result
+                            except OSError:
+                                # Process doesn't exist, lock is stale
+                                logger.info(f"Removing stale repo.lock file for PID {pid}")
+                                os.remove(lock_path)
+                                result["lock_file_removed"] = True
+                                result["lock_was_stale"] = True
+                        except ValueError:
+                            # Not a valid PID, remove file
+                            logger.info(f"Removing invalid repo.lock file: {pid_str}")
+                            os.remove(lock_path)
+                            result["lock_file_removed"] = True
+                            result["lock_was_invalid"] = True
                 except (ValueError, IOError) as e:
-                    # Invalid PID in lock file, remove it
+                    # Invalid content in lock file, remove it
                     logger.info(f"Removing invalid lock file: {e}")
-                    os.remove(lock_path)
-                    result["lock_file_removed"] = True
-                    result["lock_was_invalid"] = True
+                    try:
+                        os.remove(lock_path)
+                        result["lock_file_removed"] = True
+                        result["lock_was_invalid"] = True
+                    except Exception as rm_e:
+                        logger.error(f"Failed to remove lock file: {rm_e}")
+                        if force:
+                            try:
+                                # Try harder with force option
+                                import stat
+                                # Make file writable
+                                os.chmod(lock_path, stat.S_IWRITE | stat.S_IREAD)
+                                os.remove(lock_path)
+                                logger.info(f"Force removed lock file after chmod")
+                                result["lock_file_removed"] = True
+                                result["force_remove"] = True
+                            except Exception as force_rm_e:
+                                logger.error(f"Failed to force remove lock file: {force_rm_e}")
+            
+            # Check IPFS repository for corruptions or inconsistencies
+            try:
+                logger.info("Verifying IPFS repository before starting daemon")
+                verify_cmd = ["ipfs", "repo", "verify"]
+                verify_env = {"IPFS_PATH": self.ipfs_path, "PATH": self.path}
+                
+                verify_result = subprocess.run(
+                    verify_cmd,
+                    env=verify_env,
+                    capture_output=True,
+                    text=True,
+                    timeout=30  # Add timeout to prevent hanging
+                )
+                
+                if verify_result.returncode != 0:
+                    error_msg = verify_result.stderr or verify_result.stdout
+                    logger.warning(f"Repository verification failed: {error_msg}")
+                    result["repo_verify_failed"] = True
+                    result["repo_verify_error"] = error_msg
+                    
+                    if force:
+                        logger.info("Continuing with daemon start despite repository verification failure (force=True)")
+                    else:
+                        logger.error("Cannot start daemon due to repository verification failure")
+                        result["error"] = f"Repository verification failed: {error_msg}"
+                        result["error_type"] = "RepositoryError"
+                        return result
+                else:
+                    logger.info("Repository verification succeeded")
+                    result["repo_verify_success"] = True
+            except subprocess.TimeoutExpired:
+                logger.warning("Repository verification timed out")
+                result["repo_verify_timeout"] = True
+                if not force:
+                    result["error"] = "Repository verification timed out"
+                    result["error_type"] = "RepositoryVerificationTimeout"
+                    return result
+            except Exception as verify_e:
+                logger.warning(f"Error during repository verification: {verify_e}")
+                result["repo_verify_error"] = str(verify_e)
+                if not force and "Invalid IPFS_PATH" not in str(verify_e):
+                    result["error"] = f"Repository verification error: {str(verify_e)}"
+                    result["error_type"] = "RepositoryVerificationError"
+                    return result
             
             # Start the daemon
+            logger.info("Starting IPFS daemon process")
             cmd = ["ipfs", "daemon"]
             
             # Run as background process
@@ -3171,22 +3329,44 @@ class ipfs_py:
                 start_new_session=True  # To prevent signal propagation
             )
             
-            # Wait a moment for daemon to initialize
-            for _ in range(10):  # Try for up to 5 seconds
-                time.sleep(0.5)
-                if self.daemon_status().get("running", False):
+            # Wait for daemon to initialize with increasing backoff
+            max_attempts = 20  # Maximum number of attempts
+            wait_time = 0.1    # Starting wait time in seconds
+            for attempt in range(max_attempts):
+                time.sleep(wait_time)
+                daemon_status = self.daemon_status()
+                if daemon_status.get("running", False):
+                    logger.info(f"Daemon started successfully after {attempt+1} attempts")
                     break
+                # Increase wait time with each attempt (exponential backoff)
+                wait_time = min(wait_time * 1.5, 2.0)  # Cap at 2 seconds per attempt
             
-            # Check if daemon started successfully
+            # Final check if daemon started successfully
             daemon_status = self.daemon_status()
             if daemon_status.get("running", False):
                 result["success"] = True
                 result["pid"] = daemon_status.get("pid")
                 result["message"] = "IPFS daemon started successfully"
+                logger.info(f"IPFS daemon successfully started with PID {daemon_status.get('pid')}")
             else:
                 result["success"] = False
                 result["error"] = "Daemon failed to start"
                 result["error_type"] = "DaemonStartError"
+                
+                # Try to get error output from daemon process without blocking
+                try:
+                    # Non-blocking read from stderr
+                    import select
+                    if select.select([daemon_process.stderr], [], [], 0.1)[0]:
+                        error_output = daemon_process.stderr.read(4096)
+                        if error_output:
+                            error_text = error_output.decode('utf-8', errors='replace')
+                            result["stderr"] = error_text
+                            logger.error(f"Daemon error output: {error_text}")
+                except Exception as e:
+                    logger.warning(f"Failed to read daemon error output: {e}")
+                
+                logger.error("IPFS daemon failed to start")
             
             return result
             

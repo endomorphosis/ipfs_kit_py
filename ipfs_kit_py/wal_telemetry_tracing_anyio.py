@@ -73,27 +73,32 @@ try:
     # from opentelemetry.context.context import Context # This line was causing the NameError, Context is imported below
     from opentelemetry.context import Context # Correct import location
     from opentelemetry.trace.span import Span, SpanContext, TraceState, format_span_id, format_trace_id
+    from ipfs_kit_py import __version__
+
     from opentelemetry.trace.status import Status, StatusCode
-    
+
     # Optional exporters
     try:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
         OTLP_AVAILABLE = True
     except ImportError:
         OTLP_AVAILABLE = False
-        
+
     try:
         from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+
         JAEGER_AVAILABLE = True
     except ImportError:
         JAEGER_AVAILABLE = False
-        
+
     try:
         from opentelemetry.exporter.zipkin.json import ZipkinExporter
+
         ZIPKIN_AVAILABLE = True
     except ImportError:
         ZIPKIN_AVAILABLE = False
-        
+
     OPENTELEMETRY_AVAILABLE = True
 except ImportError:
     OPENTELEMETRY_AVAILABLE = False
@@ -244,7 +249,7 @@ class WALTracingAnyIO:
             resource = Resource.create({
                 "service.name": self.service_name,
                 "service.namespace": "ipfs.kit",
-                "service.version": "0.1.0",  # TODO: Pull from version module
+                "service.version": __version__,  # Pull from version module
                 "service.instance.id": str(uuid.uuid4())
             })
             

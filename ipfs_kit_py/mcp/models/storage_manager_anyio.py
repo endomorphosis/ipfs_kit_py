@@ -212,13 +212,68 @@ class StorageManagerAnyIO:
             
             async def run_init():
                 await self._init_storage_models_async()
-                
-            # Create a task with anyio instead of trying to create a new event loop
+            
+            # Create and immediately run the initialization function
             try:
-                # Use anyio.create_task if available (safer in running loop)
-                anyio.create_task(run_init())
-                logger.info("Created async task for storage model initialization")
-            except (AttributeError, RuntimeError) as e:
+                # Using anyio.run is not appropriate here as it tries to start a new event loop
+                # Instead, schedule the task properly in the current event loop
+                if backend == "asyncio":
+                    import asyncio
+                    # Get the current event loop and create a task
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(run_init())
+                    logger.info("Created asyncio task for storage model initialization")
+                elif backend == "trio":
+                    # For trio, we need to use the nursery pattern, but since we don't have
+                    # access to a nursery here, we'll use a background task
+                    import trio
+                    
+                    # Track the task to prevent "coroutine was never awaited" warnings
+                    if not hasattr(self, '_background_tasks'):
+                        self._background_tasks = set()
+                        
+                    async def background_init():
+                        """Run in background to avoid blocking."""
+                        try:
+                            async with trio.open_nursery() as nursery:
+                                nursery.start_soon(run_init)
+                        except Exception as e:
+                            logger.error(f"Error in trio background_init: {e}")
+                        finally:
+                            # Remove task reference once complete
+                            if hasattr(self, '_background_tasks'):
+                                self._background_tasks.discard(background_init)
+                    
+                    # Add to tracking set
+                    self._background_tasks.add(background_init)
+                    
+                    try:
+                        # Use trio's low-level API to start this as a "system task"
+                        # This is not the ideal way to do it in trio, but works as a fallback
+                        # when we don't have access to a proper nursery
+                        trio_token = trio.lowlevel.current_trio_token()
+                        task = trio.lowlevel.spawn_system_task(
+                            background_init,
+                            run_sync_soon_threadsafe=trio_token.run_sync_soon
+                        )
+                        # Store the task for proper cleanup during shutdown
+                        if not hasattr(self, '_task_tokens'):
+                            self._task_tokens = []
+                        self._task_tokens.append((trio_token, task))
+                        logger.info("Created trio task for storage model initialization")
+                    except Exception as e:
+                        logger.error(f"Failed to create trio system task: {e}")
+                        # Remove from tracking set on error
+                        if hasattr(self, '_background_tasks'):
+                            self._background_tasks.discard(background_init)
+                        # Fallback to synchronous initialization
+                        logger.warning("Falling back to synchronous initialization")
+                        self._init_storage_models_sync()
+                else:
+                    # Unknown async backend, fallback to sync
+                    logger.warning(f"Unknown async backend: {backend}, falling back to sync initialization")
+                    self._init_storage_models_sync()
+            except (AttributeError, RuntimeError, ImportError) as e:
                 logger.warning(f"Could not create async task: {e}")
                 # Fall back to synchronous initialization
                 self._init_storage_models_sync()
@@ -446,14 +501,259 @@ class StorageManagerAnyIO:
     
     async def reset_async(self):
         """Reset all storage models asynchronously."""
-        for model in self.storage_models.values():
-            # Check if model has async reset method
-            if hasattr(model, "reset_async") and callable(getattr(model, "reset_async")):
-                await model.reset_async()
-            else:
-                # Fall back to synchronous method
-                await anyio.to_thread.run_sync(model.reset)
-        logger.info("All storage models reset (async)")
+        # Track any tasks created during reset
+        reset_tasks = []
+        backend = self.get_backend()
+        
+        for model_name, model in list(self.storage_models.items()):
+            try:
+                # Check if model has async reset method
+                if hasattr(model, "reset_async") and callable(getattr(model, "reset_async")):
+                    if backend == "asyncio":
+                        # For asyncio, create and track tasks
+                        import asyncio
+                        task = asyncio.create_task(model.reset_async())
+                        reset_tasks.append(task)
+                    else:
+                        # For other backends or unknown, await directly
+                        await model.reset_async()
+                else:
+                    # Fall back to synchronous method
+                    await anyio.to_thread.run_sync(model.reset)
+                
+                logger.debug(f"Reset storage model {model_name}")
+            except Exception as e:
+                logger.warning(f"Error resetting storage model {model_name}: {e}")
+        
+        # Wait for all asyncio tasks to complete if needed
+        if reset_tasks and backend == "asyncio":
+            import asyncio
+            try:
+                # Wait for all reset tasks to complete with timeout
+                await asyncio.gather(*reset_tasks, return_exceptions=True)
+                logger.debug(f"All {len(reset_tasks)} async reset tasks completed")
+            except Exception as e:
+                logger.error(f"Error waiting for reset tasks: {e}")
+    
+    async def shutdown_async(self):
+        """
+        Asynchronously shut down the storage manager and all models.
+        
+        This method performs comprehensive cleanup of all storage models,
+        cancels any running tasks, and releases resources. It should be
+        used during graceful shutdown of the MCP server.
+        
+        Returns:
+            Dict with shutdown status information
+        """
+        logger.info("Shutting down Storage Manager asynchronously")
+        
+        result = {
+            "success": True,
+            "component": "storage_manager",
+            "errors": [],
+            "models_shutdown": 0,
+            "models_failed": 0
+        }
+        
+        # Stop any background processing tasks
+        backend = self.get_backend()
+        
+        # Clean up asyncio background tasks if any
+        if backend == "asyncio":
+            if hasattr(self, '_background_tasks') and self._background_tasks:
+                import asyncio
+                for task in list(self._background_tasks):
+                    if isinstance(task, asyncio.Task) and not task.done() and not task.cancelled():
+                        try:
+                            logger.debug(f"Cancelling asyncio background task: {task}")
+                            task.cancel()
+                        except Exception as e:
+                            logger.debug(f"Non-critical error cancelling task: {e}")
+                
+                # Clear the set to help with garbage collection
+                self._background_tasks.clear()
+                
+        # Handle trio tasks if any
+        elif backend == "trio":
+            if hasattr(self, '_task_tokens') and self._task_tokens:
+                import trio
+                for token, task in self._task_tokens:
+                    try:
+                        # There's no direct way to cancel trio system tasks
+                        # Just log that we're aware of them
+                        logger.debug(f"Noted trio task with token {token} for cleanup")
+                    except Exception as e:
+                        logger.debug(f"Non-critical error handling trio task: {e}")
+                
+                # Clear the list to help with garbage collection
+                self._task_tokens.clear()
+        
+        # Clear reference to any background coroutines (for both asyncio and trio)
+        if hasattr(self, '_background_tasks'):
+            try:
+                self._background_tasks.clear()
+                logger.debug("Cleared background tasks set")
+            except Exception as e:
+                logger.debug(f"Non-critical error clearing background tasks: {e}")
+        
+        # Shut down all storage models
+        for model_name, model in list(self.storage_models.items()):
+            try:
+                logger.debug(f"Shutting down storage model: {model_name}")
+                
+                # Try different shutdown methods in order of preference
+                if hasattr(model, "shutdown_async") and callable(getattr(model, "shutdown_async")):
+                    # Preferred: Use async shutdown
+                    await model.shutdown_async()
+                    logger.debug(f"Successfully shut down {model_name} model with shutdown_async")
+                elif hasattr(model, "close_async") and callable(getattr(model, "close_async")):
+                    # Alternative: Use async close method
+                    await model.close_async()
+                    logger.debug(f"Successfully shut down {model_name} model with close_async")
+                elif hasattr(model, "reset_async") and callable(getattr(model, "reset_async")):
+                    # Fallback: Use async reset method
+                    await model.reset_async()
+                    logger.debug(f"Successfully reset {model_name} model with reset_async")
+                elif hasattr(model, "shutdown") and callable(getattr(model, "shutdown")):
+                    # Fallback: Use sync shutdown method in async manner
+                    await anyio.to_thread.run_sync(model.shutdown)
+                    logger.debug(f"Successfully shut down {model_name} model with sync shutdown")
+                elif hasattr(model, "close") and callable(getattr(model, "close")):
+                    # Fallback: Use sync close method in async manner
+                    await anyio.to_thread.run_sync(model.close)
+                    logger.debug(f"Successfully shut down {model_name} model with sync close")
+                elif hasattr(model, "reset") and callable(getattr(model, "reset")):
+                    # Last resort: Use sync reset method in async manner
+                    await anyio.to_thread.run_sync(model.reset)
+                    logger.debug(f"Successfully reset {model_name} model with sync reset")
+                else:
+                    # No suitable method found, just log a warning
+                    logger.warning(f"No shutdown method found for {model_name} model")
+                
+                # Count successful shutdown
+                result["models_shutdown"] += 1
+                
+            except Exception as e:
+                error_msg = f"Error shutting down {model_name} model: {str(e)}"
+                logger.error(error_msg)
+                result["errors"].append(error_msg)
+                result["models_failed"] += 1
+        
+        # Clear all references to models to aid garbage collection
+        self.storage_models.clear()
+        
+        # Update overall success status
+        if result["errors"]:
+            result["success"] = False
+        
+        logger.info(f"Storage Manager shutdown completed with {result['models_shutdown']} models shut down and {result['models_failed']} failures")
+        return result
+    
+    def shutdown(self):
+        """
+        Synchronously shut down the storage manager and all models.
+        
+        This is a convenience wrapper for shutdown_async that works
+        in non-async contexts. For async contexts, use shutdown_async directly.
+        
+        Returns:
+            Dict with shutdown status information
+        """
+        logger.info("Shutting down Storage Manager synchronously")
+        
+        # Default result in case we can't run the async method
+        result = {
+            "success": False,
+            "component": "storage_manager",
+            "errors": ["Async shutdown could not be executed"],
+            "models_shutdown": 0,
+            "models_failed": 0,
+            "sync_fallback": True
+        }
+        
+        # Check if we can run the async method directly
+        backend = self.get_backend()
+        if backend:
+            # We're in an async context, but being called synchronously
+            logger.warning(f"Storage Manager shutdown called synchronously in async context ({backend})")
+            
+            if backend == "asyncio":
+                # For asyncio, we can use run_until_complete
+                try:
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        logger.warning("Cannot use run_until_complete in a running loop, using manual shutdown")
+                        # Fall through to manual cleanup
+                    else:
+                        # We can use run_until_complete
+                        result = loop.run_until_complete(self.shutdown_async())
+                        return result
+                except (RuntimeError, ImportError) as e:
+                    logger.error(f"Error running asyncio shutdown: {e}")
+                    # Fall through to manual cleanup
+            elif backend == "trio":
+                # For trio, we need a different approach
+                try:
+                    import trio
+                    # Try to run directly if possible
+                    result = trio.run(self.shutdown_async)
+                    return result
+                except (RuntimeError, ImportError) as e:
+                    logger.error(f"Error running trio shutdown: {e}")
+                    # Fall through to manual cleanup
+        
+        # Perform manual synchronous cleanup
+        logger.info("Performing manual synchronous cleanup")
+        
+        # Reset result for manual process
+        result = {
+            "success": True,
+            "component": "storage_manager",
+            "errors": [],
+            "models_shutdown": 0,
+            "models_failed": 0,
+            "sync_manual": True
+        }
+        
+        # Clean up each model
+        for model_name, model in list(self.storage_models.items()):
+            try:
+                logger.debug(f"Manually shutting down storage model: {model_name}")
+                
+                # Try different methods in order of preference
+                if hasattr(model, "shutdown") and callable(getattr(model, "shutdown")):
+                    model.shutdown()
+                    logger.debug(f"Successfully shut down {model_name} model with shutdown")
+                elif hasattr(model, "close") and callable(getattr(model, "close")):
+                    model.close()
+                    logger.debug(f"Successfully shut down {model_name} model with close")
+                elif hasattr(model, "reset") and callable(getattr(model, "reset")):
+                    model.reset()
+                    logger.debug(f"Successfully reset {model_name} model with reset")
+                else:
+                    # No suitable method found, just log a warning
+                    logger.warning(f"No shutdown method found for {model_name} model")
+                
+                # Count successful shutdown
+                result["models_shutdown"] += 1
+                
+            except Exception as e:
+                error_msg = f"Error shutting down {model_name} model: {str(e)}"
+                logger.error(error_msg)
+                result["errors"].append(error_msg)
+                result["models_failed"] += 1
+        
+        # Clear all references to models
+        self.storage_models.clear()
+        
+        # Update overall success status
+        if result["errors"]:
+            result["success"] = False
+        
+        logger.info(f"Manual storage manager shutdown completed with {result['models_shutdown']} models shut down and {result['models_failed']} failures")
+        return result
     
     def reset(self):
         """Reset all storage models.
@@ -471,15 +771,106 @@ class StorageManagerAnyIO:
                 await self.reset_async()
             
             # Run the async function in the appropriate event loop
+            # Store task reference to prevent "coroutine was never awaited" warnings
+            task_ref = None
+            
             if backend == "asyncio":
                 import asyncio
-                asyncio.create_task(run_async())
+                task_ref = asyncio.create_task(run_async())
             elif backend == "trio":
                 import trio
+                # For trio, we use system task as it doesn't require a nursery
+                # Get a reference to current trio token to ensure proper context
+                token = trio.lowlevel.current_trio_token()
                 trio.lowlevel.spawn_system_task(run_async)
             return
         
-        # Synchronous implementation
-        for model in self.storage_models.values():
-            model.reset()
+        # Synchronous implementation - directly call reset on each model
+        for model_name, model in list(self.storage_models.items()):
+            try:
+                model.reset()
+                logger.debug(f"Reset storage model {model_name}")
+            except Exception as e:
+                logger.warning(f"Error resetting storage model {model_name}: {e}")
+        
         logger.info("All storage models reset")
+        
+    async def shutdown_async(self):
+        """Properly shut down all storage models and clean up resources asynchronously."""
+        logger.info("Shutting down storage manager (async)")
+        
+        # Reset all models first to ensure proper cleanup
+        await self.reset_async()
+        
+        # Perform additional cleanup for specific model types if needed
+        for model_name, model in list(self.storage_models.items()):
+            try:
+                # Check if model has specialized shutdown methods
+                if hasattr(model, "shutdown_async") and callable(getattr(model, "shutdown_async")):
+                    await model.shutdown_async()
+                elif hasattr(model, "shutdown") and callable(getattr(model, "shutdown")):
+                    await anyio.to_thread.run_sync(model.shutdown)
+                elif hasattr(model, "close") and callable(getattr(model, "close")):
+                    await anyio.to_thread.run_sync(model.close)
+                    
+                logger.debug(f"Shut down storage model {model_name}")
+            except Exception as e:
+                logger.warning(f"Error shutting down storage model {model_name}: {e}")
+        
+        # Clear all references to help with garbage collection
+        self.storage_models.clear()
+        
+        logger.info("Storage manager async shutdown completed")
+        
+    def shutdown(self):
+        """Properly shut down all storage models and clean up resources.
+        
+        This method supports both sync and async contexts.
+        In async contexts, it delegates to shutdown_async.
+        """
+        backend = self.get_backend()
+        if backend:
+            # We're in an async context, but this is a sync method
+            # Log a warning - caller should use shutdown_async
+            logger.warning(f"Called sync shutdown() in async context ({backend}). Consider using shutdown_async() instead")
+            
+            # Try our best to handle it anyway
+            async def run_async():
+                await self.shutdown_async()
+            
+            # Run the async function in the appropriate event loop
+            # Store task reference to prevent "coroutine was never awaited" warnings
+            task_ref = None
+            
+            if backend == "asyncio":
+                import asyncio
+                task_ref = asyncio.create_task(run_async())
+            elif backend == "trio":
+                import trio
+                # For trio, we use system task as it doesn't require a nursery
+                trio.lowlevel.spawn_system_task(run_async)
+            return
+            
+        # Synchronous implementation
+        logger.info("Shutting down storage manager")
+        
+        # Reset all models first (this includes basic model shutdown)
+        self.reset()
+        
+        # Perform additional cleanup for specific model types
+        for model_name, model in list(self.storage_models.items()):
+            try:
+                # Check for various shutdown methods
+                if hasattr(model, "shutdown") and callable(getattr(model, "shutdown")):
+                    model.shutdown()
+                elif hasattr(model, "close") and callable(getattr(model, "close")):
+                    model.close()
+                    
+                logger.debug(f"Shut down storage model {model_name}")
+            except Exception as e:
+                logger.warning(f"Error shutting down storage model {model_name}: {e}")
+                
+        # Clear all references to help with garbage collection
+        self.storage_models.clear()
+        
+        logger.info("Storage manager shutdown completed")

@@ -102,6 +102,11 @@ class PeerWebSocketControllerAnyIO:
         self.peer_websocket_server = None
         self.peer_websocket_client = None
         self.local_peer_info = None
+        self.is_shutting_down = False
+        self.cleanup_task = None
+        self.event_loop_thread = None
+        self.peers = {}
+        self.peer_map = {}
         
         logger.info("Peer WebSocket Controller (AnyIO) initialized")
         
@@ -617,14 +622,38 @@ class PeerWebSocketControllerAnyIO:
         Shutdown the controller and clean up resources.
         
         This method ensures all WebSocket-related resources are properly cleaned up
-        when the MCP server is shutting down.
+        when the MCP server is shutting down. It handles:
+        1. Closing all active WebSocket connections
+        2. Stopping server and client components
+        3. Clearing connection maps to prevent resource leaks
+        4. Handling event loop threads for proper cleanup
         """
         logger.info("Shutting down Peer WebSocket Controller...")
         
-        # Stop server if running
+        # Set a flag to indicate shutdown in progress
+        self.is_shutting_down = True
+        
+        # Stop server if running - with proper connection cleanup
         if hasattr(self, "peer_websocket_server") and self.peer_websocket_server is not None:
             try:
                 logger.info("Stopping WebSocket peer discovery server...")
+                
+                # Close all active connections first
+                if hasattr(self.peer_websocket_server, "connections") and isinstance(self.peer_websocket_server.connections, dict):
+                    connections = list(self.peer_websocket_server.connections.items())
+                    logger.info(f"Closing {len(connections)} active WebSocket connections")
+                    
+                    for websocket, peer_id in connections:
+                        try:
+                            logger.info(f"Closing connection to peer {peer_id}")
+                            await websocket.close(1001, "Server shutting down")
+                        except Exception as conn_err:
+                            logger.error(f"Error closing connection to peer {peer_id}: {conn_err}")
+                    
+                    # Clear the connections dictionary
+                    self.peer_websocket_server.connections.clear()
+                
+                # Stop the server
                 await self.peer_websocket_server.stop()
                 self.peer_websocket_server = None
                 logger.info("WebSocket peer discovery server stopped")
@@ -640,7 +669,68 @@ class PeerWebSocketControllerAnyIO:
                 logger.info("WebSocket peer discovery client stopped")
             except Exception as e:
                 logger.error(f"Error stopping WebSocket peer client: {e}")
+        
+        # Clean up additional connection maps and peer tracking
+        for attr_name in ["peers", "peer_map"]:
+            if hasattr(self, attr_name) and isinstance(getattr(self, attr_name), dict):
+                try:
+                    getattr(self, attr_name).clear()
+                    logger.info(f"Cleared {attr_name} dictionary")
+                except Exception as e:
+                    logger.error(f"Error clearing {attr_name} dictionary: {e}")
+        
+        # Clean up event loop thread if it exists
+        if hasattr(self, "event_loop_thread") and self.event_loop_thread is not None:
+            try:
+                logger.info("Cleaning up event loop thread...")
                 
+                # Try to access event_loop attribute if it exists
+                if hasattr(self.event_loop_thread, "event_loop") and self.event_loop_thread.event_loop:
+                    try:
+                        # Set shutdown flag if it exists
+                        if hasattr(self.event_loop_thread.event_loop, "should_exit"):
+                            self.event_loop_thread.event_loop.should_exit = True
+                            logger.info("Set should_exit flag on event loop")
+                        
+                        # Try to call stop on the event loop if it exists
+                        if hasattr(self.event_loop_thread.event_loop, "stop") and callable(self.event_loop_thread.event_loop.stop):
+                            self.event_loop_thread.event_loop.stop()
+                            logger.info("Called stop() on event loop")
+                    except Exception as e:
+                        logger.error(f"Error stopping event loop: {e}")
+                
+                # Try to join thread with timeout if it's a Thread object
+                if hasattr(self.event_loop_thread, "join") and callable(self.event_loop_thread.join):
+                    self.event_loop_thread.join(timeout=1.0)
+                    logger.info("Successfully joined event_loop_thread")
+                
+                # Set to None to help with garbage collection
+                self.event_loop_thread = None
+                logger.info("Cleared event_loop_thread reference")
+            except Exception as e:
+                logger.error(f"Error cleaning up event loop thread: {e}")
+        
+        # Clean up task groups or background tasks
+        if hasattr(self, "cleanup_task") and self.cleanup_task is not None:
+            try:
+                logger.info("Cancelling cleanup task...")
+                
+                # Handle different types of task objects
+                if hasattr(self.cleanup_task, 'cancel'):
+                    # It's a standard task
+                    self.cleanup_task.cancel()
+                    logger.info("Cancelled cleanup task")
+                elif hasattr(self.cleanup_task, 'cancel_scope'):
+                    # It's a task with cancel scope
+                    self.cleanup_task.cancel_scope.cancel()
+                    logger.info("Cancelled cleanup task scope")
+                
+                # Set to None to help with garbage collection
+                self.cleanup_task = None
+                logger.info("Cleared cleanup_task reference")
+            except Exception as e:
+                logger.error(f"Error cancelling cleanup task: {e}")
+        
         logger.info("Peer WebSocket Controller shutdown complete")
         
     @staticmethod

@@ -6,6 +6,8 @@ It relies on the huggingface_kit module for underlying functionality.
 """
 
 import logging
+import huggingface_hub
+from huggingface_hub import HfApi, HfFolder
 import os
 import tempfile
 import time

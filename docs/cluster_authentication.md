@@ -19,7 +19,7 @@ The `ClusterAuthManager` centralizes authentication and authorization logic:
 
 *   **Initialization**: Loads or generates necessary cryptographic materials (CA certificate, node certificate/key, UCAN keys, auth tokens) based on the node's role (Master, Worker, Leecher) and configuration.
 *   **Certificate Management**: Handles generation of CA and node certificates, saving/loading them, and verifying peer certificates against the trusted CA.
-*   **UCAN Management**: Generates the node's DID (Decentralized Identifier) from its key pair, issues UCAN tokens with specific capabilities and audiences, and verifies received UCANs.
+*   **UCAN Management**: Generates the node's DID (Decentralized Identifier) from its key pair, issues UCAN tokens with specific capabilities and audiences, and verifies received UCANs. **Note: Signature verification is not yet implemented.**
 *   **Token Management**: Issues, verifies, and potentially revokes cluster-specific authentication tokens.
 *   **Secure Connection Establishment**: Integrates with the underlying networking layer (e.g., libp2p) to enforce mTLS during peer connections.
 *   **RPC Security**: Provides methods to wrap or verify RPC calls, ensuring the caller is authenticated and authorized.

@@ -1415,7 +1415,8 @@ MIT
             
     def stream_media(
         self, 
-        path:"""
+        path: str):
+        """
         Stream media content from IPFS path with chunked access.
         
         This method provides efficient streaming access to media content,

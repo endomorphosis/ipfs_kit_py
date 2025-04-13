@@ -703,3 +703,5 @@ python examples/libp2p_example.py
 ```
 
 The example provides a practical demonstration of how to use the libp2p integration for direct peer-to-peer content exchange, making it an excellent starting point for developers integrating this functionality into their own applications.
+
+Also, the 'ls' command is not currently supported in enhanced mode.

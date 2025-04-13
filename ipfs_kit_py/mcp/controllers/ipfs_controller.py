@@ -234,7 +234,189 @@ class IPFSController:
             ipfs_model: IPFS model to use for operations
         """
         self.ipfs_model = ipfs_model
+        self.is_shutting_down = False
+        self.active_operations = {}
         logger.info("IPFS Controller initialized")
+        
+    async def shutdown(self):
+        """
+        Safely shut down the IPFS Controller.
+        
+        This method ensures proper cleanup of IPFS-related resources,
+        including any active operations and connections to the IPFS daemon.
+        """
+        logger.info("IPFS Controller shutdown initiated")
+        
+        # Signal that we're shutting down to prevent new operations
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # 1. Cancel any active operations
+        if hasattr(self, 'active_operations') and self.active_operations:
+            logger.info(f"Cleaning up {len(self.active_operations)} active operations")
+            for op_id, op_info in list(self.active_operations.items()):
+                try:
+                    logger.debug(f"Cancelling operation {op_id}")
+                    # Add specific cancellation logic here if needed
+                    if op_id in self.active_operations:
+                        del self.active_operations[op_id]
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                    return {"success": False, "error": str(e), "error_type": type(e).__name__}
+                except Exception as e:
+                    error_msg = f"Error cancelling operation {op_id}: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+        
+        # 2. Clean up IPFS model resources
+        try:
+            # If the IPFS model has a shutdown method, call it
+            if hasattr(self.ipfs_model, 'shutdown'):
+                logger.debug("Calling ipfs_model.shutdown()")
+                if callable(getattr(self.ipfs_model, 'shutdown')):
+                    await self.ipfs_model.shutdown()
+            elif hasattr(self.ipfs_model, 'async_shutdown'):
+                logger.debug("Calling ipfs_model.async_shutdown()")
+                if callable(getattr(self.ipfs_model, 'async_shutdown')):
+                    await self.ipfs_model.async_shutdown()
+            elif hasattr(self.ipfs_model, 'close'):
+                logger.debug("Calling ipfs_model.close()")
+                if callable(getattr(self.ipfs_model, 'close')):
+                    self.ipfs_model.close()
+            # Handle specific IPFS daemon management if needed
+            elif hasattr(self.ipfs_model, 'stop_daemon'):
+                logger.debug("Calling ipfs_model.stop_daemon()")
+                if callable(getattr(self.ipfs_model, 'stop_daemon')):
+                    self.ipfs_model.stop_daemon()
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
+            error_msg = f"Error shutting down IPFS model: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+        
+        # 3. Clear any temporary resources
+        try:
+            # Clear operation tracking
+            if hasattr(self, 'active_operations'):
+                self.active_operations.clear()
+                
+            # Clear any other temporary resources
+            if hasattr(self, 'temp_files') and hasattr(self.temp_files, 'clear'):
+                self.temp_files.clear()
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
+            error_msg = f"Error clearing temporary resources: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+        
+        # Log shutdown status
+        if errors:
+            logger.warning(f"IPFS Controller shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("IPFS Controller shutdown completed successfully")
+    
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown for backward compatibility.
+        
+        This method provides a synchronous way to shut down the controller
+        for contexts where async/await cannot be used directly.
+        """
+        logger.info("Running synchronous shutdown for IPFS Controller")
+        
+        # Signal that we're shutting down
+        self.is_shutting_down = True
+        
+        # Check for interpreter shutdown
+        import sys
+        is_interpreter_shutdown = hasattr(sys, 'is_finalizing') and sys.is_finalizing()
+        
+        # Fast path for interpreter shutdown
+        if is_interpreter_shutdown:
+            logger.warning("Detected interpreter shutdown, using simplified cleanup")
+            try:
+                # Clear active resources without trying to create new threads
+                if hasattr(self, 'active_operations'):
+                    self.active_operations.clear()
+                
+                logger.info("Simplified IPFS Controller shutdown completed during interpreter shutdown")
+                return
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except Exception as e:
+                logger.error(f"Error during simplified shutdown: {e}")
+                # Continue with standard shutdown which might fail gracefully
+        
+        try:
+            # Try using anyio
+            try:
+                import anyio
+                anyio.run(self.shutdown)
+                return
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except ImportError:
+                logger.warning("anyio not available, falling back to asyncio")
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            
+            # Fallback to asyncio
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except RuntimeError:
+                # Create a new event loop if needed and not in shutdown
+                if is_interpreter_shutdown:
+                    logger.warning("Cannot get event loop during interpreter shutdown")
+                    # Just clear resources directly
+                    if hasattr(self, 'active_operations'):
+                        self.active_operations.clear()
+                    return
+                
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run the shutdown method
+            try:
+                loop.run_until_complete(self.shutdown())
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except RuntimeError as e:
+                if "This event loop is already running" in str(e):
+                    logger.warning("Cannot use run_until_complete in a running event loop")
+                    # Cannot handle properly in this case
+                elif "can't create new thread" in str(e):
+                    logger.warning("Thread creation failed during interpreter shutdown")
+                    # Clear resources directly
+                    if hasattr(self, 'active_operations'):
+                        self.active_operations.clear()
+                else:
+                    raise
+        except Exception as e:
+            logger.error(f"Error in sync_shutdown for IPFS Controller: {e}")
+            # Ensure resources are cleared even on error
+            try:
+                if hasattr(self, 'active_operations'):
+                    self.active_operations.clear()
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except Exception as clear_error:
+                logger.error(f"Error clearing resources during error handling: {clear_error}")
+        
+        logger.info("Synchronous shutdown for IPFS Controller completed")
     
     def register_routes(self, router: APIRouter):
         """
@@ -698,6 +880,9 @@ class IPFSController:
                 result["cid"] = result["Hash"]
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error adding file: {str(e)}")
             raise HTTPException(
                 status_code=500,
@@ -766,6 +951,9 @@ class IPFSController:
             logger.debug(f"Successfully retrieved content as TAR for CID {cid}, files: {len(result.get('files', []))} items")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error getting content as TAR for {cid}: {e}")
             
@@ -907,6 +1095,9 @@ class IPFSController:
                     import json
                     json.loads(data)
                     media_type = "application/json"
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                    return {"success": False, "error": str(e), "error_type": type(e).__name__}
                 except:
                     pass
             elif all(c < 128 and c >= 32 or c in (9, 10, 13) for c in data[:min(1000, len(data))]):
@@ -1008,6 +1199,9 @@ class IPFSController:
                 cid = body.get("cid")
                 logger.debug(f"Got CID from request body: {cid}")
             except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except Exception as e:
                 logger.warning(f"Failed to parse request body as JSON: {e}")
         
         # If still no CID and we have a query parameter, use that
@@ -1032,6 +1226,9 @@ class IPFSController:
             verify_result = None
             try:
                 verify_result = self.ipfs_model.get_content(cid=cid)
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
             except Exception as e:
                 logger.warning(f"Failed to verify CID existence: {e}")
                 # Continue anyway - some implementations might allow pinning non-existent content
@@ -1163,6 +1360,9 @@ class IPFSController:
                 cid = body.get("cid")
                 logger.debug(f"Got CID from request body: {cid}")
             except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
+            except Exception as e:
                 logger.warning(f"Failed to parse request body as JSON: {e}")
         
         # If still no CID and we have a query parameter, use that
@@ -1205,6 +1405,9 @@ class IPFSController:
                     # Check Pins array format
                     elif "Pins" in pin_list_result and isinstance(pin_list_result["Pins"], list):
                         is_pinned = cid in pin_list_result["Pins"]
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
             except Exception as e:
                 logger.warning(f"Failed to check current pin status: {e}")
                 # Proceed anyway assuming it's pinned
@@ -1475,6 +1678,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error listing pins: {e}")
             duration_ms = (time.time() - start_time) * 1000
             
@@ -1516,6 +1722,9 @@ class IPFSController:
             logger.debug("Successfully retrieved IPFS operation statistics")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error retrieving IPFS statistics: {e}")
             
@@ -1580,6 +1789,9 @@ class IPFSController:
                                 }
                             }
                         }
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+                        return {"success": False, "error": str(e), "error_type": type(e).__name__}
                     except Exception as cluster_error:
                         logger.error(f"Error checking {daemon_type} status: {cluster_error}")
                         logger.error(traceback.format_exc())
@@ -1774,6 +1986,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting replication status for {cid}: {e}")
             
             # Return error in standardized format
@@ -1867,6 +2082,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting IPFS node identity: {e}")
             
             # Return error in standardized format
@@ -1931,6 +2149,9 @@ class IPFSController:
             logger.debug(f"Got IPFS version: {result.get('Version', 'unknown')}")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error getting IPFS version: {e}")
             
@@ -2030,6 +2251,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error listing IPFS peers: {e}")
             
             # Return error in standardized format
@@ -2108,6 +2332,9 @@ class IPFSController:
             logger.debug(f"Connect result: {result.get('success', False)}")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error connecting to peer {address}: {e}")
             
@@ -2188,6 +2415,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error disconnecting from peer {address}: {e}")
             
             # Return error in standardized format
@@ -2262,6 +2492,9 @@ class IPFSController:
             logger.debug(f"Found {result.get('peers_found', 0)} peers for peer ID {request.peer_id}")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error finding peer {request.peer_id}: {e}")
             
@@ -2340,6 +2573,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error finding providers for CID {request.cid}: {e}")
             
             # Return error in standardized format
@@ -2376,6 +2612,9 @@ class IPFSController:
             # Return the result
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error listing files in MFS: {str(e)}")
             raise HTTPException(
                 status_code=500,
@@ -2406,6 +2645,9 @@ class IPFSController:
             # Return the result
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error creating directory in MFS: {str(e)}")
             raise HTTPException(
                 status_code=500,
@@ -2431,6 +2673,9 @@ class IPFSController:
             
             # Return the result
             return result
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error getting stats for MFS path: {str(e)}")
             raise HTTPException(
@@ -2461,6 +2706,9 @@ class IPFSController:
             
             # Return the result
             return result
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error reading file from MFS: {str(e)}")
             raise HTTPException(
@@ -2495,6 +2743,9 @@ class IPFSController:
             # Return the result
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error writing to file in MFS: {str(e)}")
             raise HTTPException(
                 status_code=500,
@@ -2525,6 +2776,9 @@ class IPFSController:
             # Return the result
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error removing from MFS: {str(e)}")
             raise HTTPException(
                 status_code=500,
@@ -2544,6 +2798,9 @@ class IPFSController:
             # Get node ID from IPFS model
             result = self.ipfs_model.get_node_id()
             return result
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error getting node ID: {str(e)}")
             raise HTTPException(
@@ -2654,6 +2911,9 @@ class IPFSController:
             logger.debug(f"Wrote to file in MFS path {path}: written={result.get('written', 'unknown')}")
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             # Handle unexpected errors
             logger.exception(f"Unexpected error writing to file in MFS path {path}: {e}")
             
@@ -2744,6 +3004,9 @@ class IPFSController:
             logger.debug(f"Removed file/directory from MFS path {path}: success={result.get('success', False)}")
             return result
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             # Handle unexpected errors
             logger.exception(f"Unexpected error removing file/directory from MFS path {path}: {e}")
             
@@ -2833,6 +3096,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting file info for MFS path {path}: {e}")
             
             # Return error in standardized format
@@ -2909,6 +3175,9 @@ class IPFSController:
             logger.debug(f"Directory creation result for {path}: {result.get('success', False)}")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error creating directory {path} in MFS: {e}")
             
@@ -2993,6 +3262,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error publishing {path} to IPNS: {e}")
             
             # Return error in standardized format
@@ -3066,6 +3338,9 @@ class IPFSController:
             logger.debug(f"Resolved IPNS name {name} to: {result.get('Path', 'unknown')}")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error resolving IPNS name {name}: {e}")
             
@@ -3171,6 +3446,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting DAG node {cid} (path: {path}): {e}")
             
             # Return error in standardized format
@@ -3253,6 +3531,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error putting DAG node: {e}")
             
             # Return error in standardized format
@@ -3328,6 +3609,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting block information for {cid}: {e}")
             
             # Return error in standardized format
@@ -3356,11 +3640,17 @@ class IPFSController:
                 # Try to get CID from request body
                 request_data = await request.json()
                 cid = request_data.get("cid")
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
             except:
                 # If parsing fails, try form data
                 try:
                     form_data = await request.form()
                     cid = form_data.get("cid")
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                    return {"success": False, "error": str(e), "error_type": type(e).__name__}
                 except:
                     # No CID available
                     logger.error("No CID provided for block_get operation")
@@ -3423,6 +3713,9 @@ class IPFSController:
                 "timestamp": time.time()
             }
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.exception(f"Error in block_get_json for CID {cid}: {e}")
             
@@ -3527,6 +3820,9 @@ class IPFSController:
                 headers=headers
             )
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error getting block {cid}: {e}")
             
@@ -3643,6 +3939,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error finding peer {peer_id}: {e}")
             
             # Return error in standardized format
@@ -3743,6 +4042,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error finding providers for {cid}: {e}")
             
             # Return error in standardized format
@@ -3818,6 +4120,9 @@ class IPFSController:
                     else:
                         raise HTTPException(status_code=400, detail="Missing file field in form data")
                 except Exception as e:
+                    logger.error(f"Error: {e}")
+                    return {"success": False, "error": str(e), "error_type": type(e).__name__}
+                except Exception as e:
                     logger.error(f"Error processing form data: {str(e)}")
                     raise HTTPException(status_code=400, detail=f"Invalid form data: {str(e)}")
             
@@ -3830,6 +4135,9 @@ class IPFSController:
                         filename=body.get("filename")
                     )
                     return await self.add_content(content_req)
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                    return {"success": False, "error": str(e), "error_type": type(e).__name__}
                 except Exception as e:
                     logger.error(f"Error processing JSON data: {str(e)}")
                     raise HTTPException(status_code=400, detail=f"Invalid JSON data: {str(e)}")
@@ -3899,6 +4207,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error adding DAG node: {e}")
             
             # Return error in standardized format
@@ -3944,6 +4255,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting DAG node: {e}")
             
             # Return error in standardized format
@@ -3988,6 +4302,9 @@ class IPFSController:
             return result
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error resolving DAG path: {e}")
             
             # Return error in standardized format
@@ -4021,6 +4338,9 @@ class IPFSController:
             import base64
             try:
                 binary_data = base64.b64decode(block_request.data)
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                return {"success": False, "error": str(e), "error_type": type(e).__name__}
             except Exception as e:
                 logger.error(f"Error decoding base64 data: {e}")
                 return {
@@ -4117,6 +4437,9 @@ class IPFSController:
             )
             
         except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+        except Exception as e:
             logger.error(f"Error getting block: {e}")
             
             # Return error response
@@ -4155,6 +4478,9 @@ class IPFSController:
             logger.debug(f"Block stats retrieved for CID: {cid}")
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             logger.error(f"Error getting block stats: {e}")
             
@@ -4195,6 +4521,9 @@ class IPFSController:
             # Return the result directly
             return result
             
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
         except Exception as e:
             # Handle exceptions
             logger.error(f"Error getting IPFS version: {e}")

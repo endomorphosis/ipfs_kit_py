@@ -1,0 +1,24 @@
+Could not patch stream read_until method: No module named 'libp2p.network.stream.net_stream_interface'
+libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/ipfs_kit_py/.venv/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+libp2p.typing module not available: No module named 'libp2p.typing'. Using fallback TProtocol type.
+2025-04-11 15:16:47.076257: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1744409807.090492  217362 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1744409807.094778  217362 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1744409807.105452  217362 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744409807.105511  217362 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744409807.105519  217362 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1744409807.105524  217362 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2025-04-11 15:16:47.108869: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+Not all daemons are running. Non-running daemons: ipfs, lotus
+2025-04-11 15:16:51,673 - ipfs_kit_py.lassie_kit - INFO - Lassie binary available: False
+2025-04-11 15:16:51,778 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json

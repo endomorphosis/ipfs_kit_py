@@ -84,6 +84,7 @@ class MCPDiscoveryController:
             discovery_model: MCP Discovery model
         """
         self.discovery_model = discovery_model
+        self.is_shutting_down = False  # Flag to track shutdown state
         logger.info("MCP Discovery Controller initialized")
     
     def register_routes(self, router: APIRouter):
@@ -613,3 +614,119 @@ class MCPDiscoveryController:
             "operation_id": str(uuid.uuid4()),
             "timestamp": time.time()
         }
+        
+    async def shutdown(self):
+        """
+        Safely shut down the MCP Discovery Controller.
+        
+        This method ensures proper cleanup of discovery-related resources.
+        """
+        logger.info("MCP Discovery Controller shutdown initiated")
+        
+        # Signal that we're shutting down to prevent new operations
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # Clean up discovery model resources
+        try:
+            # Check for various shutdown methods
+            if hasattr(self.discovery_model, 'shutdown'):
+                await self.discovery_model.shutdown()
+            elif hasattr(self.discovery_model, 'close'):
+                await self.discovery_model.close()
+            elif hasattr(self.discovery_model, 'async_shutdown'):
+                await self.discovery_model.async_shutdown()
+            elif hasattr(self.discovery_model, 'cancel_all_tasks'):
+                await self.discovery_model.cancel_all_tasks()
+            
+            # For sync methods, we need to handle differently
+            elif hasattr(self.discovery_model, 'sync_shutdown'):
+                # Use anyio to run in a thread if available
+                try:
+                    import anyio
+                    import sniffio
+                    current_async_lib = sniffio.current_async_library()
+                    await anyio.to_thread.run_sync(self.discovery_model.sync_shutdown)
+                except (ImportError, ModuleNotFoundError):
+                    # Fallback to running directly (might block)
+                    try:
+                        self.discovery_model.sync_shutdown()
+                    except Exception as e:
+                        logger.error(f"Error during model sync_shutdown direct call: {e}")
+                        errors.append(str(e))
+                except Exception as e:
+                    logger.error(f"Error during model sync_shutdown via anyio: {e}")
+                    errors.append(str(e))
+            
+            # Additional model-specific cleanup
+            if hasattr(self.discovery_model, 'reset'):
+                # Reset the model to clear state
+                try:
+                    self.discovery_model.reset()
+                except Exception as e:
+                    logger.error(f"Error resetting discovery model: {e}")
+                    errors.append(str(e))
+            
+        except Exception as e:
+            logger.error(f"Error shutting down discovery model: {e}")
+            errors.append(str(e))
+        
+        # Report shutdown completion
+        if errors:
+            logger.warning(f"MCP Discovery Controller shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("MCP Discovery Controller shutdown completed successfully")
+    
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown.
+        
+        This can be called in contexts where async is not available.
+        """
+        logger.info("MCP Discovery Controller sync_shutdown initiated")
+        
+        # Set shutdown flag
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # Clean up discovery model resources
+        try:
+            # Check for sync shutdown methods first
+            if hasattr(self.discovery_model, 'sync_shutdown'):
+                self.discovery_model.sync_shutdown()
+            elif hasattr(self.discovery_model, 'close'):
+                # Try direct call for sync methods
+                if not asyncio.iscoroutinefunction(self.discovery_model.close):
+                    self.discovery_model.close()
+            elif hasattr(self.discovery_model, 'shutdown'):
+                # Try direct call for sync methods
+                if not asyncio.iscoroutinefunction(self.discovery_model.shutdown):
+                    self.discovery_model.shutdown()
+            
+            # For async methods in a sync context, we have limited options
+            # The best we can do is log that we can't properly close
+            elif hasattr(self.discovery_model, 'shutdown') or hasattr(self.discovery_model, 'async_shutdown'):
+                logger.warning("Cannot properly call async shutdown methods in sync context")
+            
+            # Additional model-specific cleanup
+            if hasattr(self.discovery_model, 'reset'):
+                # Reset the model to clear state
+                try:
+                    self.discovery_model.reset()
+                except Exception as e:
+                    logger.error(f"Error resetting discovery model: {e}")
+                    errors.append(str(e))
+            
+        except Exception as e:
+            logger.error(f"Error during sync shutdown of discovery model: {e}")
+            errors.append(str(e))
+        
+        # Report shutdown completion
+        if errors:
+            logger.warning(f"MCP Discovery Controller sync_shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("MCP Discovery Controller sync_shutdown completed successfully")

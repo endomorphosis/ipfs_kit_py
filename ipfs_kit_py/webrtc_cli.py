@@ -138,7 +138,7 @@ def handle_stream_content_command(args, api):
                 ice_servers = json.loads(ice_servers)
             except json.JSONDecodeError:
                 print(f"{Colors.RED}Invalid ice_servers format. Must be a valid JSON array of objects.{Colors.ENDC}")
-                print(f"Example: '[{\"urls\": [\"stun:stun.l.google.com:19302\"]}]'")
+                print("Example: '[{\"urls\": [\"stun:stun.l.google.com:19302\"]}]'")
                 return 1
         
         # Create streaming manager

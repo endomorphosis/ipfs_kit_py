@@ -9,9 +9,16 @@ for peer discovery, content routing, and direct content exchange.
 import logging
 import time
 import json
+import sys
 from typing import Dict, List, Any, Optional, Set, Union, Annotated
 from fastapi import APIRouter, HTTPException, Body, Query, Path, status, Response
 from pydantic import BaseModel, Field
+
+# Use anyio for async operations (compatible with both asyncio and trio)
+import anyio
+import sniffio
+
+# Configure logger
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -123,6 +130,7 @@ class LibP2PController:
         """
         self.libp2p_model = libp2p_model
         self.initialized_endpoints = set()
+        self.is_shutting_down = False  # Flag to track shutdown state
         
     def register_routes(self, router: APIRouter):
         """
@@ -528,21 +536,67 @@ class LibP2PController:
                 "success": False,
                 "libp2p_available": False,
                 "peer_initialized": False,
+                "peer_id": None,
+                "addresses": None,
+                "connected_peers": None,
+                "dht_peers": None,
+                "protocols": None,
+                "role": None,
+                "stats": None,
                 "error": "libp2p model not initialized",
                 "error_type": "initialization_error"
             }
         
-        # Get health from model
-        result = self.libp2p_model.get_health()
-        
-        # If not successful, raise HTTP exception
-        if not result.get("success") and not result.get("peer_initialized"):
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=result.get("error", "libp2p service unavailable")
-            )
+        try:
+            # Use get_health_async instead of get_health
+            if hasattr(self.libp2p_model, 'get_health_async'):
+                result = await self.libp2p_model.get_health_async()
+            else:
+                # Fallback to using get_health with anyio
+                import anyio
+                result = await anyio.to_thread.run_sync(self.libp2p_model.get_health)
             
-        return result
+            # If not successful and no peer, raise HTTP exception
+            if not result.get("success") and not result.get("peer_initialized", False):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=result.get("error", "libp2p service unavailable")
+                )
+                
+            # Ensure all required fields are present according to HealthResponse model
+            complete_result = {
+                "success": result.get("success", False),
+                "libp2p_available": result.get("dependency_status", {}).get("libp2p_available", False),
+                "peer_initialized": result.get("peer_available", False),
+                "peer_id": result.get("peer_id"),
+                "addresses": result.get("addresses"),
+                "connected_peers": result.get("connected_peers"),
+                "dht_peers": result.get("dht_peers"),
+                "protocols": result.get("protocols"),
+                "role": result.get("role"),
+                "stats": result.get("stats"),
+                "error": result.get("error"),
+                "error_type": result.get("error_type")
+            }
+                
+            return complete_result
+        except Exception as e:
+            logger.error(f"Error getting libp2p health: {str(e)}")
+            # Return a structured error response with all required fields
+            return {
+                "success": False,
+                "libp2p_available": False, 
+                "peer_initialized": False,
+                "peer_id": None,
+                "addresses": None,
+                "connected_peers": None,
+                "dht_peers": None,
+                "protocols": None,
+                "role": None,
+                "stats": None,
+                "error": f"Error checking libp2p health: {str(e)}",
+                "error_type": "health_check_error"
+            }
     
     async def discover_peers(self, request: PeerDiscoveryRequest):
         """
@@ -1459,3 +1513,164 @@ class LibP2PController:
             )
             
         return result
+        
+    async def shutdown(self):
+        """
+        Safely shut down the LibP2P Controller.
+        
+        This method ensures proper cleanup of libp2p-related resources,
+        including network connections and DHT resources.
+        """
+        logger.info("LibP2P Controller shutdown initiated")
+        
+        # Signal that we're shutting down to prevent new operations
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # Clean up model resources
+        try:
+            # Check for explicit async shutdown methods first
+            if hasattr(self.libp2p_model, 'async_shutdown'):
+                await self.libp2p_model.async_shutdown()
+            elif hasattr(self.libp2p_model, 'shutdown'):
+                # Check if it's a coroutine function
+                method = self.libp2p_model.shutdown
+                if hasattr(method, '__await__') or getattr(method, '_is_coroutine', False):
+                    await self.libp2p_model.shutdown()
+                else:
+                    # Run synchronous method in a thread
+                    await anyio.to_thread.run_sync(self.libp2p_model.shutdown)
+            elif hasattr(self.libp2p_model, 'close'):
+                # Check if it's a coroutine function
+                method = self.libp2p_model.close
+                if hasattr(method, '__await__') or getattr(method, '_is_coroutine', False):
+                    await self.libp2p_model.close()
+                else:
+                    # Run synchronous method in a thread
+                    await anyio.to_thread.run_sync(self.libp2p_model.close)
+            elif hasattr(self.libp2p_model, 'stop_peer'):
+                # Check if it's a coroutine function
+                method = self.libp2p_model.stop_peer
+                if hasattr(method, '__await__') or getattr(method, '_is_coroutine', False):
+                    await self.libp2p_model.stop_peer()
+                else:
+                    # Run synchronous method in a thread
+                    await anyio.to_thread.run_sync(self.libp2p_model.stop_peer)
+            elif hasattr(self.libp2p_model, 'sync_shutdown'):
+                # Run synchronous shutdown in a thread
+                await anyio.to_thread.run_sync(self.libp2p_model.sync_shutdown)
+            
+            # Additional libp2p-specific cleanup
+            # Clean up any peer subscriptions that might persist
+            if hasattr(self.libp2p_model, 'unsubscribe_all'):
+                try:
+                    method = self.libp2p_model.unsubscribe_all
+                    if hasattr(method, '__await__') or getattr(method, '_is_coroutine', False):
+                        await self.libp2p_model.unsubscribe_all()
+                    else:
+                        await anyio.to_thread.run_sync(self.libp2p_model.unsubscribe_all)
+                except Exception as e:
+                    logger.error(f"Error unsubscribing from all topics: {e}")
+                    errors.append(str(e))
+                    
+            # Disconnect from all peers
+            if hasattr(self.libp2p_model, 'disconnect_all_peers'):
+                try:
+                    method = self.libp2p_model.disconnect_all_peers
+                    if hasattr(method, '__await__') or getattr(method, '_is_coroutine', False):
+                        await self.libp2p_model.disconnect_all_peers()
+                    else:
+                        await anyio.to_thread.run_sync(self.libp2p_model.disconnect_all_peers)
+                except Exception as e:
+                    logger.error(f"Error disconnecting from peers: {e}")
+                    errors.append(str(e))
+            
+        except Exception as e:
+            logger.error(f"Error shutting down libp2p model: {e}")
+            errors.append(str(e))
+        
+        # Clear any local resources
+        try:
+            self.initialized_endpoints.clear()
+        except Exception as e:
+            logger.error(f"Error clearing initialized endpoints: {e}")
+            errors.append(str(e))
+        
+        # Report shutdown completion
+        if errors:
+            logger.warning(f"LibP2P Controller shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("LibP2P Controller shutdown completed successfully")
+    
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown.
+        
+        This can be called in contexts where async is not available.
+        """
+        logger.info("LibP2P Controller sync_shutdown initiated")
+        
+        # Set shutdown flag
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # Clean up model resources
+        try:
+            # Check for sync shutdown methods first
+            if hasattr(self.libp2p_model, 'sync_shutdown'):
+                self.libp2p_model.sync_shutdown()
+            elif hasattr(self.libp2p_model, 'close'):
+                # Try direct call for sync methods
+                method = self.libp2p_model.close
+                if not (hasattr(method, '__await__') or getattr(method, '_is_coroutine', False)):
+                    self.libp2p_model.close()
+                else:
+                    # Try to use anyio to run on main thread if possible
+                    try:
+                        # Check if we're in an event loop
+                        current_async_lib = sniffio.current_async_library()
+                        logger.info(f"Running sync_shutdown in {current_async_lib} context")
+                        
+                        # Use anyio.run to execute the async method
+                        async def run_async_close():
+                            await self.libp2p_model.close()
+                        
+                        anyio.run(run_async_close)
+                    except (sniffio.AsyncLibraryNotFoundError, ImportError):
+                        logger.warning("Cannot properly call async close method in sync context")
+            elif hasattr(self.libp2p_model, 'shutdown'):
+                # Try direct call for sync methods
+                method = self.libp2p_model.shutdown
+                if not (hasattr(method, '__await__') or getattr(method, '_is_coroutine', False)):
+                    self.libp2p_model.shutdown()
+                else:
+                    logger.warning("Cannot properly call async shutdown method in sync context")
+            
+            # Direct stop of the peer if available
+            elif hasattr(self.libp2p_model, 'stop_peer'):
+                method = self.libp2p_model.stop_peer
+                if not (hasattr(method, '__await__') or getattr(method, '_is_coroutine', False)):
+                    self.libp2p_model.stop_peer()
+                else:
+                    logger.warning("Cannot properly call async stop_peer method in sync context")
+            
+        except Exception as e:
+            logger.error(f"Error during sync shutdown of libp2p model: {e}")
+            errors.append(str(e))
+        
+        # Clear local resources
+        try:
+            self.initialized_endpoints.clear()
+        except Exception as e:
+            logger.error(f"Error clearing initialized endpoints: {e}")
+            errors.append(str(e))
+        
+        # Report shutdown completion
+        if errors:
+            logger.warning(f"LibP2P Controller sync_shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("LibP2P Controller sync_shutdown completed successfully")

@@ -1,199 +1,229 @@
-"""
-Fix script for the IPFS controller in the MCP server.
+#\!/usr/bin/env python3
 
-This script demonstrates how to fix the most critical issues
-in the IPFS controller implementation:
-1. Route registration mismatch
-2. Form data handling issues
-"""
+import re
+import sys
 
-import logging
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from typing import Dict, Any, Optional, Union
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def fix_ipfs_controller():
+def fix_handle_add_request():
+    file_path = "ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
+    
+    with open(file_path, 'r') as f:
+        content = f.read()
+    
+    # Find the handle_add_request method
+    pattern = re.compile(r'async def handle_add_request\(self, request: Request\).*?(?=async def|$)', re.DOTALL)
+    match = pattern.search(content)
+    
+    if not match:
+        print("Could not find handle_add_request method")
+        return False
+    
+    old_method = match.group(0)
+    
+    # New method with fixed form handling
+    new_method = '''async def handle_add_request(
+    self, 
+    request: Request, 
+    content_request: Optional[ContentRequest] = None,
+    file: Optional[UploadFile] = File(None),
+    pin: bool = Form(False),
+    wrap_with_directory: bool = Form(False)
+) -> Dict[str, Any]:
     """
-    Create a patched version of the register_routes method for the IPFS controller.
+    Handle combined add request that supports both JSON and form data.
+    
+    This unified endpoint accepts content either as JSON payload or as file upload
+    to simplify client integration.
+    
+    Args:
+        request: The incoming request which may be JSON or form data
+        content_request: Optional JSON content request (provided by FastAPI when JSON body is sent)
+        file: Optional file upload from form data 
+        pin: Whether to pin the content (form field)
+        wrap_with_directory: Whether to wrap the content in a directory (form field)
+        
+    Returns:
+        Dictionary with operation results
     """
-    # Import the original controller
+    start_time = time.time()
+    operation_id = f"add_{int(start_time * 1000)}"
+    logger.debug(f"Handling add request (operation_id={operation_id})")
+    
     try:
-        from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
-    except ImportError:
-        logger.error("Could not import IPFSController. Make sure ipfs_kit_py is installed.")
-        return
-
-    # Create a patched version of the register_routes method
-    original_register_routes = IPFSController.register_routes
-
-    def patched_register_routes(self, router: APIRouter):
-        """
-        Patched register_routes method with fixed route registration.
-        """
-        # First, register the original routes
-        original_register_routes(self, router)
-        
-        # Add alias routes that match expected patterns
-        # 1. Content add routes
-        router.add_api_route(
-            "/ipfs/add",
-            self.handle_add_request,
-            methods=["POST"],
-            summary="Add content to IPFS (JSON or form)",
-            description="Add content to IPFS using either JSON payload or file upload"
-        )
-        
-        # 2. Pinning routes (aliases)
-        router.add_api_route(
-            "/ipfs/pin",
-            self.pin_content,
-            methods=["POST"],
-            summary="Pin content (alias)"
-        )
-        
-        router.add_api_route(
-            "/ipfs/unpin",
-            self.unpin_content,
-            methods=["POST"],
-            summary="Unpin content (alias)"
-        )
-        
-        router.add_api_route(
-            "/ipfs/pins",
-            self.list_pins,
-            methods=["GET"],
-            summary="List pins (alias)"
-        )
-        
-        logger.info("IPFS Controller routes patched successfully")
-
-    # Create the new handle_add_request method
-    async def handle_add_request(
-        self,
-        file: Optional[UploadFile] = File(None),
-        content: Optional[str] = Form(None),
-        filename: Optional[str] = Form(None)
-    ) -> Dict[str, Any]:
-        """
-        Handle both JSON and form data for add requests.
-        
-        Args:
-            file: Optional file upload
-            content: Optional content string (for form submissions)
-            filename: Optional filename (for form submissions)
+        # Check if file is provided directly through dependency injection
+        if file:
+            logger.debug(f"Processing file upload: {file.filename}")
+            content = await file.read()
+            result = await anyio.to_thread.run_sync(
+                self.ipfs_model.add_content,
+                content=content,
+                filename=file.filename,
+                pin=pin,
+                wrap_with_directory=wrap_with_directory
+            )
+            return result
             
-        Returns:
-            Dictionary with operation results
-        """
-        try:
-            # Case 1: File upload
-            if file is not None:
-                logger.info(f"Processing file upload: {file.filename}")
-                file_content = await file.read()
-                result = self.ipfs_model.add_content(
-                    content=file_content,
-                    filename=file.filename
-                )
-                return result
+        # Check if JSON content is provided through dependency injection
+        elif content_request:
+            logger.debug("Processing JSON content request")
+            result = await anyio.to_thread.run_sync(
+                self.ipfs_model.add_content,
+                content=content_request.content,
+                filename=content_request.filename
+            )
+            return result
+        
+        # Content type detection fallback
+        content_type = request.headers.get("content-type", "")
+        
+        # Handle multipart form data
+        if content_type.startswith("multipart/form-data"):
+            try:
+                form = await request.form()
+                uploaded_file = form.get("file")
+                if uploaded_file:
+                    content = await uploaded_file.read()
+                    pin_value = form.get("pin", "false").lower() == "true"
+                    wrap_dir_value = form.get("wrap_with_directory", "false").lower() == "true"
+                    
+                    result = await anyio.to_thread.run_sync(
+                        self.ipfs_model.add_content,
+                        content=content,
+                        filename=uploaded_file.filename,
+                        pin=pin_value,
+                        wrap_with_directory=wrap_dir_value
+                    )
+                    return result
+                else:
+                    raise HTTPException(status_code=400, detail="Missing file field in form data")
+            except Exception as e:
+                logger.error(f"Error processing form data: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid form data: {str(e)}")
+        
+        # Handle JSON content
+        elif content_type.startswith("application/json"):
+            try:
+                body = await request.json()
+                content = body.get("content", "")
+                filename = body.get("filename")
                 
-            # Case 2: Form content
-            elif content is not None:
-                logger.info(f"Processing form content submission, length: {len(content)} bytes")
-                result = self.ipfs_model.add_content(
+                result = await anyio.to_thread.run_sync(
+                    self.ipfs_model.add_content,
                     content=content,
                     filename=filename
                 )
                 return result
-                
-            # Case 3: None of the above, try to get JSON from request body
-            else:
-                # Let the original add_content method handle JSON content
-                logger.info("No file or form content found, delegating to JSON handler")
-                from fastapi import Request
-                request = Request.scope["request"]
-                try:
-                    import json
-                    body = await request.body()
-                    json_data = json.loads(body)
-                    
-                    # Create a ContentRequest-like object
-                    class ContentRequest:
-                        pass
-                    
-                    content_request = ContentRequest()
-                    content_request.content = json_data.get("content", "")
-                    content_request.filename = json_data.get("filename")
-                    
-                    return await self.add_content(content_request)
-                except Exception as e:
-                    logger.error(f"Error processing JSON content: {e}")
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Invalid content format"
-                    )
+            except Exception as e:
+                logger.error(f"Error processing JSON data: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid JSON data: {str(e)}")
         
-        except Exception as e:
-            logger.error(f"Error handling add request: {e}")
+        # Handle unknown content type
+        else:
             raise HTTPException(
-                status_code=500, 
-                detail=f"Error adding content: {str(e)}"
+                status_code=415,
+                detail="Unsupported media type. Use application/json or multipart/form-data"
             )
-
-    # Add the new method to the class
-    IPFSController.handle_add_request = handle_add_request
-    
-    # Replace the original method with our patched version
-    IPFSController.register_routes = patched_register_routes
-    
-    logger.info("IPFS Controller patched successfully")
-    return IPFSController
-
-def apply_patch():
-    """Apply the patch to the IPFS controller."""
-    try:
-        # First, make a backup of the original file
-        import os
-        import shutil
-        from pathlib import Path
-        
-        # Find the package directory
-        import ipfs_kit_py
-        package_dir = Path(ipfs_kit_py.__file__).parent
-        
-        # Locate the IPFS controller file
-        controller_path = package_dir / "mcp" / "controllers" / "ipfs_controller.py"
-        
-        if not controller_path.exists():
-            logger.error(f"Controller file not found at {controller_path}")
-            return False
             
-        # Create a backup
-        backup_path = controller_path.with_suffix(".py.bak")
-        shutil.copy(controller_path, backup_path)
-        logger.info(f"Created backup of controller at {backup_path}")
-        
-        # Patch the controller
-        patched_controller = fix_ipfs_controller()
-        if patched_controller:
-            logger.info("IPFS Controller successfully patched in memory")
-            logger.info("To apply the patch to the actual file, you would need to:")
-            logger.info("1. Add the new handle_add_request method to the IPFSController class")
-            logger.info("2. Update the register_routes method to include alias routes")
-            return True
-        
-        return False
-        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        logger.error(f"Error applying patch: {e}")
+        logger.error(f"Error handling add request: {str(e)}")
+        
+        # Return proper error response
+        return {
+            "success": False,
+            "operation_id": operation_id,
+            "duration_ms": (time.time() - start_time) * 1000,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }'''
+    
+    # Replace the method
+    updated_content = content.replace(old_method, new_method)
+    
+    with open(file_path, 'w') as f:
+        f.write(updated_content)
+    
+    print("Successfully updated handle_add_request method")
+    return True
+
+def fix_add_file():
+    file_path = "ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
+    
+    with open(file_path, 'r') as f:
+        content = f.read()
+    
+    # Find the add_file method
+    pattern = re.compile(r'async def add_file\(self, file: UploadFile = File\(\.\.\.\)\).*?(?=async def|$)', re.DOTALL)
+    match = pattern.search(content)
+    
+    if not match:
+        print("Could not find add_file method")
         return False
+    
+    old_method = match.group(0)
+    
+    # New method with fixed form handling
+    new_method = '''async def add_file(
+    self, 
+    file: UploadFile = File(...),
+    pin: bool = Form(False),
+    wrap_with_directory: bool = Form(False)
+) -> Dict[str, Any]:
+    """
+    Add a file to IPFS.
+    
+    Args:
+        file: File to upload
+        pin: Whether to pin the content
+        wrap_with_directory: Whether to wrap the content in a directory
+        
+    Returns:
+        Dictionary with operation results
+    """
+    logger.debug(f"Adding file to IPFS: {file.filename}")
+    
+    try:
+        # Use anyio to read the file
+        content = await file.read()
+        
+        # Use anyio to run model method in thread pool
+        result = await anyio.to_thread.run_sync(
+            self.ipfs_model.add_content,
+            content=content,
+            filename=file.filename,
+            pin=pin,
+            wrap_with_directory=wrap_with_directory
+        )
+        
+        # Ensure the result has the proper Hash and cid fields
+        if result.get("success", False) and "Hash" in result and "cid" not in result:
+            result["cid"] = result["Hash"]
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error adding file: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error adding file: {str(e)}"
+        )'''
+    
+    # Replace the method
+    updated_content = content.replace(old_method, new_method)
+    
+    with open(file_path, 'w') as f:
+        f.write(updated_content)
+    
+    print("Successfully updated add_file method")
+    return True
 
 if __name__ == "__main__":
-    success = apply_patch()
-    if success:
-        print("Patch applied successfully!")
-        print("To test the patch, restart the MCP server and run the test scripts again.")
+    success1 = fix_handle_add_request()
+    success2 = fix_add_file()
+    
+    if success1 and success2:
+        print("Successfully fixed form data handling in IPFS controller")
+        sys.exit(0)
     else:
-        print("Failed to apply patch. See log for details.")
+        print("Failed to fix form data handling in IPFS controller")
+        sys.exit(1)

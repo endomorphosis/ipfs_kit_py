@@ -354,31 +354,73 @@ class MCPServer:
             self.models["ipfs"] = MinimalIPFSModel()
             logger.warning("Using minimal IPFS model as fallback")
 
-        # Initialize Storage Manager with proper error handling
+        # Initialize Storage Manager with comprehensive error handling
         try:
+            logger.info("Initializing Storage Manager...")
+            
+            # Validate required dependencies before initializing
+            if "ipfs" not in self.models:
+                logger.warning("IPFS model not available, using minimal version for storage manager")
+                raise ValueError("IPFS model not available, required for storage manager")
+            
             # Extract resources and metadata from ipfs_kit if available
-            resources = getattr(self.ipfs_kit, 'resources', {})
-            metadata = getattr(self.ipfs_kit, 'metadata', {})
-
+            resources = getattr(self.ipfs_kit, 'resources', {}) or {}
+            metadata = getattr(self.ipfs_kit, 'metadata', {}) or {}
+            
+            # Initialize storage manager with validated parameters
+            storage_resources = resources.get("storage", {})
+            storage_metadata = metadata.get("storage", {})
+            
             self.storage_manager = StorageManager(
                 ipfs_model=self.models["ipfs"],
                 cache_manager=self.cache_manager,
                 credential_manager=self.credential_manager,
-                resources=resources,
-                metadata=metadata
+                resources=storage_resources,
+                metadata=storage_metadata
             )
+            
+            # Add to models dictionary
+            self.models["storage_manager"] = self.storage_manager
             logger.info("Storage Manager initialized")
             
-            # Add models from storage manager to models dictionary
-            for name, model in self.storage_manager.get_all_models().items():
-                self.models[f"storage_{name}"] = model
-                logger.info(f"Storage model {name} added")
-                
-            # Initialize Storage Bridge Model
+            # Add storage backend models with validation
             try:
+                if hasattr(self.storage_manager, "get_all_models"):
+                    backend_models = self.storage_manager.get_all_models()
+                    if backend_models:
+                        for name, model in backend_models.items():
+                            if model is not None:
+                                self.models[f"storage_{name}"] = model
+                                logger.info(f"Storage model {name} added")
+                            else:
+                                logger.warning(f"Storage model {name} is None, skipping")
+                    else:
+                        logger.warning("No backend models returned from storage_manager.get_all_models()")
+                else:
+                    logger.warning("Storage manager doesn't have get_all_models method")
+            except Exception as e:
+                logger.error(f"Error adding backend models: {str(e)}")
+                self.initialization_results["warnings"].append(f"Failed to add backend models: {str(e)}")
+            
+            # Initialize Storage Bridge Model with validation
+            try:
+                # Verify prerequisites
+                if "ipfs" not in self.models:
+                    raise ValueError("IPFS model required for storage bridge")
+                
+                # Get backends with validation
+                backends = {}
+                if hasattr(self.storage_manager, "get_all_models"):
+                    try:
+                        backends = self.storage_manager.get_all_models() or {}
+                    except Exception as e:
+                        logger.warning(f"Error getting backends for bridge: {str(e)}")
+                        # Continue with empty backends
+                
+                # Create storage bridge
                 self.storage_bridge = StorageBridgeModel(
                     ipfs_model=self.models["ipfs"],
-                    backends=self.storage_manager.get_all_models(),
+                    backends=backends,
                     cache_manager=self.cache_manager
                 )
                 
@@ -386,29 +428,70 @@ class MCPServer:
                 self.models["storage_bridge"] = self.storage_bridge
                 logger.info("Storage Bridge Model added")
                 
-                # Integrate the storage bridge with the storage manager
-                self.storage_manager.storage_bridge = self.storage_bridge
-                logger.info("Storage Bridge Model integrated with Storage Manager")
+                # Integrate the storage bridge with the storage manager with validation
+                if hasattr(self.storage_manager, "storage_bridge"):
+                    self.storage_manager.storage_bridge = self.storage_bridge
+                    logger.info("Storage Bridge Model integrated with Storage Manager")
+                else:
+                    logger.warning("Storage manager doesn't support bridge integration")
+                    self.initialization_results["warnings"].append(
+                        "Storage manager doesn't have storage_bridge attribute"
+                    )
             except Exception as e:
                 logger.warning(f"Failed to initialize Storage Bridge: {e}")
                 self.initialization_results["warnings"].append(f"Storage Bridge initialization failed: {e}")
+                self.storage_bridge = None
                 
         except Exception as e:
             logger.error(f"Failed to initialize Storage Manager: {e}")
             self.initialization_results["success"] = False
             self.initialization_results["errors"].append(f"Storage Manager initialization failed: {e}")
             
-            # Create minimal versions for basic functionality
+            # Create MinimalStorageManager class with complete implementation
+            # This provides graceful degradation with proper error handling
             class MinimalStorageManager:
+                """Fallback implementation when real storage manager fails."""
+                
                 def __init__(self):
-                    self.get_all_models = lambda: {}
-                    self.get_available_backends = lambda: []
-                    self.get_stats = lambda: {"status": "minimal"}
-                    self.reset = lambda: None
                     self.storage_bridge = None
-                    
+                    self.available_backends = {}
+                    self.models = {}
+                    logger.info("MinimalStorageManager initialized as fallback")
+                
+                def get_model(self, backend_name):
+                    """Safe implementation of get_model."""
+                    return self.models.get(backend_name)
+                
+                def get_all_models(self):
+                    """Safe implementation of get_all_models."""
+                    return self.models
+                
+                def get_available_backends(self):
+                    """Safe implementation of get_available_backends."""
+                    return {name: False for name in ["s3", "huggingface", "storacha", "filecoin", "lassie"]}
+                
+                def get_stats(self):
+                    """Safe implementation of get_stats."""
+                    return {
+                        "status": "minimal",
+                        "error": "Using fallback minimal storage manager",
+                        "timestamp": time.time(),
+                        "backends": [],
+                        "aggregate": {
+                            "total_operations": 0,
+                            "bytes_uploaded": 0,
+                            "bytes_downloaded": 0,
+                            "backend_count": 0
+                        }
+                    }
+                
+                def reset(self):
+                    """Safe implementation of reset."""
+                    return {"success": True, "status": "minimal_reset"}
+            
+            # Create the minimal instance
             self.storage_manager = MinimalStorageManager()
-            logger.warning("Using minimal Storage Manager as fallback")
+            logger.warning("Using MinimalStorageManager as fallback")
 
         # Initialize controllers with proper error handling
         self.controllers = {}
@@ -455,24 +538,168 @@ class MCPServer:
                 self.initialization_results["success"] = False
     
     def _init_storage_controllers(self):
-        """Initialize storage controllers with proper error handling."""
-        # Storage controllers
+        """
+        Initialize storage controllers with comprehensive error handling.
+        
+        This method implements robust error detection and graceful degradation when
+        storage controllers initialization fails, while providing detailed logging
+        about the nature of failures.
+        """
+        # Track initialization status for comprehensive reporting
+        results = {
+            "success_count": 0,
+            "failed_count": 0,
+            "skipped_count": 0,
+            "failures": {},
+            "warnings": {}
+        }
+        
+        # Storage controllers with their initialization dependencies
         storage_controllers = [
-            ("storage_s3", HAS_S3_CONTROLLER, lambda: S3Controller(self.models["storage_s3"])),
-            ("storage_huggingface", HAS_HUGGINGFACE_CONTROLLER, lambda: HuggingFaceController(self.models["storage_huggingface"])),
-            ("storage_storacha", HAS_STORACHA_CONTROLLER, lambda: StorachaController(self.models["storage_storacha"])),
-            ("storage_filecoin", HAS_FILECOIN_CONTROLLER, lambda: FilecoinController(self.models["storage_filecoin"])),
-            ("storage_lassie", HAS_LASSIE_CONTROLLER, lambda: LassieController(self.models["storage_lassie"]))
+            {
+                "name": "storage_s3", 
+                "has_module": HAS_S3_CONTROLLER,
+                "model_name": "storage_s3",
+                "constructor": lambda: S3Controller(self.models["storage_s3"]),
+                "display_name": "S3"
+            },
+            {
+                "name": "storage_huggingface", 
+                "has_module": HAS_HUGGINGFACE_CONTROLLER,
+                "model_name": "storage_huggingface",
+                "constructor": lambda: HuggingFaceController(self.models["storage_huggingface"]),
+                "display_name": "HuggingFace"
+            },
+            {
+                "name": "storage_storacha", 
+                "has_module": HAS_STORACHA_CONTROLLER,
+                "model_name": "storage_storacha",
+                "constructor": lambda: StorachaController(self.models["storage_storacha"]),
+                "display_name": "Storacha"
+            },
+            {
+                "name": "storage_filecoin", 
+                "has_module": HAS_FILECOIN_CONTROLLER,
+                "model_name": "storage_filecoin",
+                "constructor": lambda: FilecoinController(self.models["storage_filecoin"]),
+                "display_name": "Filecoin"
+            },
+            {
+                "name": "storage_lassie", 
+                "has_module": HAS_LASSIE_CONTROLLER,
+                "model_name": "storage_lassie",
+                "constructor": lambda: LassieController(self.models["storage_lassie"]),
+                "display_name": "Lassie"
+            }
         ]
         
-        for controller_name, has_controller, constructor in storage_controllers:
-            if has_controller and controller_name in self.models:
+        # Verify storage_manager is properly initialized
+        if not hasattr(self, "storage_manager") or self.storage_manager is None:
+            logger.error("Cannot initialize storage controllers: storage_manager is not available")
+            self.initialization_results["errors"].append("Storage controllers initialization skipped: storage_manager not available")
+            return
+        
+        # Log that we're starting storage controller initialization
+        logger.info(f"Initializing storage controllers (available backends: {len(self.models.get('storage_manager', {}).get_available_backends() if hasattr(self.models.get('storage_manager', {}), 'get_available_backends') else {})})")
+        
+        # Initialize each controller with comprehensive error handling
+        for controller_info in storage_controllers:
+            controller_name = controller_info["name"]
+            model_name = controller_info["model_name"]
+            has_module = controller_info["has_module"]
+            constructor = controller_info["constructor"]
+            display_name = controller_info["display_name"]
+            
+            # Initialize with full validation of prerequisites
+            try:
+                # Check if the module is available
+                if not has_module:
+                    logger.debug(f"Skipping {display_name} controller: Module not available")
+                    results["skipped_count"] += 1
+                    results["warnings"][controller_name] = f"{display_name} controller module not available"
+                    continue
+                
+                # Check if the backend model is available
+                if model_name not in self.models:
+                    logger.debug(f"Skipping {display_name} controller: Model {model_name} not available")
+                    results["skipped_count"] += 1
+                    results["warnings"][controller_name] = f"{display_name} controller model {model_name} not available"
+                    continue
+                
+                # Verify model is not None
+                if self.models[model_name] is None:
+                    logger.warning(f"Skipping {display_name} controller: Model {model_name} is None")
+                    results["skipped_count"] += 1
+                    results["warnings"][controller_name] = f"{display_name} controller model {model_name} is None"
+                    continue
+                
+                # Check if backend is available in the storage manager
+                available_backends = {}
                 try:
-                    self.controllers[controller_name] = constructor()
-                    logger.info(f"{controller_name.split('_')[1].capitalize()} Controller added")
+                    if hasattr(self.storage_manager, 'get_available_backends'):
+                        available_backends = self.storage_manager.get_available_backends() or {}
+                        backend_name = model_name.replace('storage_', '')
+                        if backend_name in available_backends and not available_backends[backend_name]:
+                            logger.warning(f"Initializing {display_name} controller with unavailable backend")
+                            results["warnings"][controller_name] = f"{display_name} backend marked as unavailable but proceeding"
                 except Exception as e:
-                    logger.warning(f"Failed to initialize {controller_name} controller: {e}")
-                    self.initialization_results["warnings"].append(f"{controller_name} controller initialization failed: {e}")
+                    logger.warning(f"Error checking backend availability for {display_name}: {e}")
+                    # Continue anyway - this is just an informational check
+                
+                # Initialize the controller using the constructor
+                logger.info(f"Initializing {display_name} controller...")
+                self.controllers[controller_name] = constructor()
+                
+                # Successfully initialized
+                logger.info(f"{display_name} Controller added successfully")
+                results["success_count"] += 1
+                
+            except ImportError as e:
+                # Module import issues
+                logger.warning(f"Import error initializing {display_name} controller: {e}")
+                self.initialization_results["warnings"].append(f"{display_name} controller initialization failed: {e}")
+                results["failed_count"] += 1
+                results["failures"][controller_name] = {
+                    "error": str(e),
+                    "error_type": "ImportError"
+                }
+                
+            except AttributeError as e:
+                # Missing attribute or method
+                logger.warning(f"Attribute error initializing {display_name} controller: {e}")
+                self.initialization_results["warnings"].append(f"{display_name} controller initialization failed: {e}")
+                results["failed_count"] += 1
+                results["failures"][controller_name] = {
+                    "error": str(e),
+                    "error_type": "AttributeError"
+                }
+                
+            except TypeError as e:
+                # Type error, likely due to incorrect parameters
+                logger.warning(f"Type error initializing {display_name} controller: {e}")
+                self.initialization_results["warnings"].append(f"{display_name} controller initialization failed: {e}")
+                results["failed_count"] += 1
+                results["failures"][controller_name] = {
+                    "error": str(e),
+                    "error_type": "TypeError"
+                }
+                
+            except Exception as e:
+                # Generic fallback for any other exceptions
+                logger.warning(f"Failed to initialize {display_name} controller: {e}")
+                self.initialization_results["warnings"].append(f"{display_name} controller initialization failed: {e}")
+                results["failed_count"] += 1
+                results["failures"][controller_name] = {
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+        
+        # Add initialization results to the main results
+        self.initialization_results["storage_controllers"] = results
+        
+        # Log overall initialization results
+        logger.info(f"Storage controllers initialization completed: {results['success_count']} successful, "
+                   f"{results['failed_count']} failed, {results['skipped_count']} skipped")
     
     def _init_optional_controllers(self):
         """Initialize optional controllers with proper error handling."""
@@ -591,7 +818,11 @@ class MCPServer:
         
         # Register core endpoints with error handling
         core_endpoints = [
-            ("/health", self.health_check, ["GET"]),
+            ("/health", self.health_check, ["GET",
+
+            ("", self.mcp_root, ["GET"]),
+
+            ("/versions", self.versions_endpoint, ["GET"])]),
             ("/debug", self.get_debug_state, ["GET"]),
             ("/operations", self.get_operation_log, ["GET"]),
             ("/daemon/start/{daemon_type}", self.start_daemon, ["POST"]),
@@ -941,11 +1172,58 @@ class MCPServer:
     def _log_operation(self, operation: Dict[str, Any]):
         """Log an operation for debugging purposes."""
         if self.debug_mode:
+            # Check size first to avoid growing too large before truncating
+            if len(self.operation_log) >= 1000:
+                self.operation_log = self.operation_log[-999:]  # Keep space for the new entry
+            
+            # Add the new operation
             self.operation_log.append(operation)
-
-            # Keep log size reasonable
-            if len(self.operation_log) > 1000:
-                self.operation_log = self.operation_log[-1000:]
+    
+    def format_error_response(self, error: Exception, operation_id: str = None) -> Dict[str, Any]:
+        """
+        Create a standardized error response.
+        
+        Args:
+            error: The exception that occurred
+            operation_id: Optional operation ID to include in the response
+            
+        Returns:
+            Standardized error response dictionary
+        """
+        # Generate operation ID if not provided
+        if operation_id is None:
+            operation_id = f"error_{int(time.time() * 1000)}"
+            
+        # Build standard error response
+        response = {
+            "success": False,
+            "operation_id": operation_id,
+            "timestamp": time.time(),
+            "error": str(error),
+            "error_type": type(error).__name__,
+            "duration_ms": 0  # No duration for errors with no operation
+        }
+        
+        # Log error details if debug mode is enabled
+        if self.debug_mode:
+            import traceback
+            stack_trace = traceback.format_exc()
+            if stack_trace != "NoneType: None\n":  # Only include if there's a real trace
+                response["debug_info"] = {
+                    "stack_trace": stack_trace,
+                    "error_args": getattr(error, "args", [])
+                }
+            
+        # Log the error operation
+        self._log_operation({
+            "type": "error",
+            "operation_id": operation_id,
+            "timestamp": time.time(),
+            "error": str(error),
+            "error_type": type(error).__name__
+        })
+        
+        return response
 
     async def health_check(self):
         """
@@ -1826,6 +2104,27 @@ class MCPServer:
         # Start with a message that we're shutting down
         safe_log('info', "MCP Server shutting down")
 
+        # Pre-import libraries to avoid import errors during shutdown
+        import asyncio
+        import inspect
+        try:
+            import anyio
+            has_anyio = True
+        except ImportError:
+            has_anyio = False
+        
+        # Get existing event loop or create a new one early
+        event_loop = None
+        try:
+            event_loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # Only create a new loop if we're not in a running event loop
+            try:
+                event_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(event_loop)
+            except Exception as e:
+                safe_log('warning', f"Error setting up event loop: {e}, will use anyio fallback if available")
+
         # Stop daemon health monitor first to prevent daemon restarts during shutdown
         if hasattr(self.ipfs_kit, 'stop_daemon_health_monitor'):
             try:
@@ -1858,124 +2157,233 @@ class MCPServer:
                 safe_log('info', "Ensuring credential persistence...")
                 # The credential manager automatically persists changes, but we can
                 # explicitly save by re-adding the credentials that are in cache
-                for cred_key, cred_record in self.credential_manager.credential_cache.items():
-                    if "_" in cred_key:
-                        service, name = cred_key.split("_", 1)
-                        self.credential_manager.add_credential(
-                            service, name, cred_record["credentials"]
-                        )
+                if hasattr(self.credential_manager, 'credential_cache'):
+                    for cred_key, cred_record in self.credential_manager.credential_cache.items():
+                        if "_" in cred_key and hasattr(self.credential_manager, 'add_credential'):
+                            service, name = cred_key.split("_", 1)
+                            self.credential_manager.add_credential(
+                                service, name, cred_record["credentials"]
+                            )
                 safe_log('info', "Credentials persisted")
             except Exception as e:
                 safe_log('error', f"Error persisting credentials during shutdown: {e}")
 
-        # Special handling for peer WebSocket and WebRTC controllers to ensure async resources are cleaned up
+        # Helper function to safely shutdown an async controller
+        def shutdown_async_controller(controller, controller_name):
+            """Safely shutdown an async controller using the appropriate method"""
+            try:
+                # First try sync_shutdown if available (preferred method)
+                if hasattr(controller, 'sync_shutdown'):
+                    safe_log('info', f"Using sync_shutdown for {controller_name}")
+                    controller.sync_shutdown()
+                    return True
+                    
+                # If not available, try shutdown method
+                if not hasattr(controller, 'shutdown'):
+                    safe_log('warning', f"{controller_name} has no shutdown method")
+                    return False
+                    
+                # Check if it's async
+                if not inspect.iscoroutinefunction(controller.shutdown):
+                    # Regular synchronous shutdown
+                    controller.shutdown()
+                    return True
+                    
+                # Handle async shutdown
+                shutdown_coro = controller.shutdown()
+                
+                # Three approaches in order of preference:
+                # 1. Use the event loop if available and not running
+                if event_loop and not event_loop.is_running():
+                    try:
+                        event_loop.run_until_complete(shutdown_coro)
+                        return True
+                    except Exception as e:
+                        safe_log('warning', f"Error using event_loop.run_until_complete: {e}")
+                
+                # 2. Use anyio.run if available
+                if has_anyio:
+                    try:
+                        # Create a new coroutine - don't reuse the existing one
+                        anyio.run(controller.shutdown)
+                        return True
+                    except Exception as e:
+                        safe_log('warning', f"Error using anyio.run: {e}")
+                
+                # 3. Last resort - create a new event loop in a separate thread
+                # but only if we're not in interpreter shutdown
+                if not self._is_interpreter_shutting_down():
+                    try:
+                        import threading
+                        import concurrent.futures
+                        
+                        def run_in_new_loop():
+                            """Run shutdown in a new event loop in a separate thread"""
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            # Get a fresh coroutine
+                            loop.run_until_complete(controller.shutdown())
+                            loop.close()
+                        
+                        # Run with a timeout to avoid hanging
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                            future = executor.submit(run_in_new_loop)
+                            future.result(timeout=5)  # 5 second timeout
+                        return True
+                    except Exception as e:
+                        safe_log('error', f"All shutdown approaches failed for {controller_name}: {e}")
+                
+                return False
+                    
+            except Exception as e:
+                safe_log('error', f"Error in shutdown_async_controller for {controller_name}: {e}")
+                return False
+
+        # Helper function for direct controller cleanup when shutdown fails
+        def direct_cleanup(controller, controller_name):
+            """Directly clean up controller resources when shutdown method fails"""
+            try:
+                safe_log('info', f"Attempting direct cleanup for {controller_name}")
+                
+                # Handle WebRTC specific cleanup
+                if controller_name == "webrtc":
+                    # Close all servers
+                    if hasattr(controller, "streaming_servers"):
+                        try:
+                            for server in controller.streaming_servers.values():
+                                if hasattr(server, "close") and callable(server.close):
+                                    server.close()
+                            controller.streaming_servers = {}
+                            safe_log('info', "WebRTC streaming servers closed directly")
+                        except Exception as e:
+                            safe_log('error', f"Error closing WebRTC streaming servers: {e}")
+                            
+                    # Close all connections
+                    if hasattr(controller, "active_connections"):
+                        try:
+                            for conn in controller.active_connections.values():
+                                if hasattr(conn, "close") and callable(conn.close):
+                                    conn.close()
+                            controller.active_connections = {}
+                            safe_log('info', "WebRTC connections closed directly")
+                        except Exception as e:
+                            safe_log('error', f"Error closing WebRTC connections: {e}")
+                    
+                    # Cancel pending tasks
+                    if hasattr(controller, "tasks") and isinstance(controller.tasks, dict):
+                        try:
+                            for task in controller.tasks.values():
+                                if hasattr(task, "cancel") and callable(task.cancel):
+                                    task.cancel()
+                            controller.tasks = {}
+                            safe_log('info', "WebRTC tasks cancelled directly")
+                        except Exception as e:
+                            safe_log('error', f"Error cancelling WebRTC tasks: {e}")
+                            
+                # Handle peer WebSocket specific cleanup
+                elif controller_name == "peer_websocket":
+                    # Stop WebSocket server
+                    if hasattr(controller, "websocket_server") and controller.websocket_server:
+                        try:
+                            if hasattr(controller.websocket_server, "close"):
+                                controller.websocket_server.close()
+                            controller.websocket_server = None
+                            safe_log('info', "WebSocket server closed directly")
+                        except Exception as e:
+                            safe_log('error', f"Error closing WebSocket server: {e}")
+                    
+                    # Close WebSocket connections
+                    if hasattr(controller, "websocket_connections"):
+                        try:
+                            for conn in controller.websocket_connections.values():
+                                if hasattr(conn, "close"):
+                                    conn.close()
+                            controller.websocket_connections = {}
+                            safe_log('info', "WebSocket connections closed directly")
+                        except Exception as e:
+                            safe_log('error', f"Error closing WebSocket connections: {e}")
+                    
+                # Handle other controllers with common cleanup patterns
+                else:
+                    # Look for and close common resource types
+                    for attr_name in dir(controller):
+                        # Skip special/private attributes
+                        if attr_name.startswith('_'):
+                            continue
+                            
+                        try:
+                            attr = getattr(controller, attr_name)
+                            
+                            # Close open files
+                            if hasattr(attr, 'close') and hasattr(attr, 'read'):
+                                attr.close()
+                                safe_log('info', f"Closed file {attr_name} in {controller_name}")
+                                
+                            # Cancel pending tasks
+                            elif hasattr(attr, 'cancel') and callable(attr.cancel):
+                                attr.cancel()
+                                safe_log('info', f"Cancelled task {attr_name} in {controller_name}")
+                                
+                            # Close connections
+                            elif isinstance(attr, dict) and any(hasattr(v, 'close') for v in attr.values()):
+                                for k, v in list(attr.items()):
+                                    if hasattr(v, 'close'):
+                                        try:
+                                            v.close()
+                                        except Exception:
+                                            pass  # Ignore errors in individual closures
+                                safe_log('info', f"Closed connections in {attr_name} for {controller_name}")
+                        except Exception:
+                            pass  # Skip attributes that can't be accessed
+                            
+                return True
+            except Exception as e:
+                safe_log('error', f"Error in direct cleanup for {controller_name}: {e}")
+                return False
+
+        # Initialize track of controllers already shut down
+        already_shutdown = set()
+
+        # First, handle special controllers (peer_websocket and webrtc) that need particular attention
         for controller_name in ["peer_websocket", "webrtc"]:
             if controller_name in self.controllers:
-                try:
-                    controller = self.controllers[controller_name]
-
-                    # Use the controller's shutdown method
-                    if hasattr(controller, "shutdown"):
-                        safe_log('info', f"Shutting down {controller_name} controller...")
-
-                        # Create event loop for async shutdown
-                        import asyncio
-                        try:
-                            # Try to get existing event loop, create a new one if needed
-                            try:
-                                loop = asyncio.get_event_loop()
-                            except RuntimeError:
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-
-                            # Run the shutdown method
-                            if asyncio.iscoroutinefunction(controller.shutdown):
-                                loop.run_until_complete(controller.shutdown())
-                            else:
-                                controller.shutdown()
-
-                            safe_log('info', f"{controller_name} controller shutdown complete")
-                        except Exception as e:
-                            safe_log('error', f"Error in {controller_name} controller shutdown: {e}")
-
-                            # Fallback to direct cleanup if shutdown method failed
-                            if controller_name == "peer_websocket":
-                                # Handle peer WebSocket specific cleanup
-                                if hasattr(controller, "peer_websocket_server") and controller.peer_websocket_server:
-                                    try:
-                                        if not loop.is_closed():
-                                            loop.run_until_complete(controller.peer_websocket_server.stop())
-                                        controller.peer_websocket_server = None
-                                        safe_log('info', "Peer WebSocket server stopped directly")
-                                    except Exception as server_error:
-                                        safe_log('error', f"Error stopping peer WebSocket server directly: {server_error}")
-
-                                if hasattr(controller, "peer_websocket_client") and controller.peer_websocket_client:
-                                    try:
-                                        if not loop.is_closed():
-                                            loop.run_until_complete(controller.peer_websocket_client.stop())
-                                        controller.peer_websocket_client = None
-                                        safe_log('info', "Peer WebSocket client stopped directly")
-                                    except Exception as client_error:
-                                        safe_log('error', f"Error stopping peer WebSocket client directly: {client_error}")
-
-                            elif controller_name == "webrtc":
-                                # Handle WebRTC specific cleanup
-                                if hasattr(controller, "close_all_streaming_servers"):
-                                    try:
-                                        if not loop.is_closed():
-                                            if asyncio.iscoroutinefunction(controller.close_all_streaming_servers):
-                                                loop.run_until_complete(controller.close_all_streaming_servers())
-                                            else:
-                                                controller.close_all_streaming_servers()
-                                        safe_log('info', "WebRTC streaming servers stopped directly")
-                                    except Exception as srv_error:
-                                        safe_log('error', f"Error stopping WebRTC streaming servers directly: {srv_error}")
-
-                                # Access model to perform additional cleanup
-                                if hasattr(controller, "ipfs_model") and hasattr(controller.ipfs_model, "close_all_webrtc_connections"):
-                                    try:
-                                        if not loop.is_closed():
-                                            if asyncio.iscoroutinefunction(controller.ipfs_model.close_all_webrtc_connections):
-                                                loop.run_until_complete(controller.ipfs_model.close_all_webrtc_connections())
-                                            else:
-                                                controller.ipfs_model.close_all_webrtc_connections()
-                                        safe_log('info', "WebRTC connections closed directly")
-                                    except Exception as conn_error:
-                                        safe_log('error', f"Error closing WebRTC connections directly: {conn_error}")
+                controller = self.controllers[controller_name]
+                
+                # Attempt normal shutdown
+                safe_log('info', f"Shutting down {controller_name} controller...")
+                success = shutdown_async_controller(controller, controller_name)
+                
+                if success:
+                    safe_log('info', f"{controller_name} controller shutdown successful")
+                    already_shutdown.add(controller_name)
+                else:
+                    # If normal shutdown fails, attempt direct cleanup
+                    safe_log('warning', f"Normal shutdown failed for {controller_name}, attempting direct cleanup")
+                    if direct_cleanup(controller, controller_name):
+                        safe_log('info', f"Direct cleanup successful for {controller_name}")
+                        already_shutdown.add(controller_name)
                     else:
-                        safe_log('error', f"{controller_name} controller does not have a shutdown method")
+                        safe_log('error', f"Both shutdown and direct cleanup failed for {controller_name}")
 
-                except Exception as e:
-                    safe_log('error', f"Error during {controller_name} controller shutdown: {e}")
-
-        # Shutdown all controllers
+        # Shutdown remaining controllers (skipping those already shut down)
         for controller_name, controller in self.controllers.items():
-            if hasattr(controller, 'shutdown'):
-                try:
-                    safe_log('info', f"Shutting down {controller_name} controller...")
-                    # Check if it's an async shutdown method that needs to be awaited
-                    import inspect
-                    if inspect.iscoroutinefunction(controller.shutdown):
-                        # Use sync_shutdown for async controllers if available
-                        if hasattr(controller, 'sync_shutdown'):
-                            controller.sync_shutdown()
-                        else:
-                            # Create event loop and run the coroutine if no sync version
-                            import asyncio
-                            try:
-                                loop = asyncio.get_event_loop()
-                            except RuntimeError:
-                                # Create a new event loop if no event loop is set
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                            loop.run_until_complete(controller.shutdown())
-                    else:
-                        # Regular synchronous shutdown
-                        controller.shutdown()
-                    safe_log('info', f"{controller_name} controller shutdown complete")
-                except Exception as e:
-                    safe_log('error', f"Error shutting down {controller_name} controller: {e}")
+            # Skip controllers that were already shut down
+            if controller_name in already_shutdown:
+                continue
+                
+            # Attempt normal shutdown
+            safe_log('info', f"Shutting down {controller_name} controller...")
+            success = shutdown_async_controller(controller, controller_name)
+            
+            if success:
+                safe_log('info', f"{controller_name} controller shutdown successful")
+            else:
+                # If normal shutdown fails, attempt direct cleanup
+                safe_log('warning', f"Normal shutdown failed for {controller_name}, attempting direct cleanup")
+                if direct_cleanup(controller, controller_name):
+                    safe_log('info', f"Direct cleanup successful for {controller_name}")
+                else:
+                    safe_log('error', f"Both shutdown and direct cleanup failed for {controller_name}")
 
         # Shutdown storage models
         if hasattr(self, "storage_manager"):
@@ -1983,10 +2391,14 @@ class MCPServer:
                 safe_log('info', "Shutting down storage models...")
 
                 # Reset all storage models to save their state
-                self.storage_manager.reset()
+                if hasattr(self.storage_manager, 'reset'):
+                    try:
+                        self.storage_manager.reset()
+                    except Exception as e:
+                        safe_log('error', f"Error resetting storage manager: {e}")
                 
                 # Reset storage bridge if it exists
-                if hasattr(self, "storage_bridge"):
+                if hasattr(self, "storage_bridge") and self.storage_bridge and hasattr(self.storage_bridge, 'reset'):
                     try:
                         safe_log('info', "Shutting down storage bridge...")
                         self.storage_bridge.reset()
@@ -1995,18 +2407,31 @@ class MCPServer:
                         safe_log('error', f"Error shutting down storage bridge: {e}")
 
                 # Close any open connections
-                for name, model in self.storage_manager.get_all_models().items():
-                    if hasattr(model, "shutdown"):
-                        try:
-                            safe_log('info', f"Shutting down {name} storage model...")
-                            model.shutdown()
-                            safe_log('info', f"{name} storage model shutdown complete")
-                        except Exception as e:
-                            safe_log('error', f"Error shutting down {name} storage model: {e}")
+                if hasattr(self.storage_manager, 'get_all_models'):
+                    try:
+                        for name, model in self.storage_manager.get_all_models().items():
+                            if model and hasattr(model, "shutdown"):
+                                try:
+                                    safe_log('info', f"Shutting down {name} storage model...")
+                                    model.shutdown()
+                                    safe_log('info', f"{name} storage model shutdown complete")
+                                except Exception as e:
+                                    safe_log('error', f"Error shutting down {name} storage model: {e}")
+                    except Exception as e:
+                        safe_log('error', f"Error getting storage models: {e}")
 
                 safe_log('info', "Storage models shutdown complete")
             except Exception as e:
                 safe_log('error', f"Error shutting down storage manager: {e}")
+
+        # Close the event loop if we created one
+        if event_loop and not self._is_interpreter_shutting_down():
+            try:
+                # Only close if it's not the main event loop and not already closed
+                if not event_loop.is_running() and not event_loop.is_closed():
+                    event_loop.close()
+            except Exception as e:
+                safe_log('warning', f"Error closing event loop: {e}")
 
         # Log final state
         safe_log('info', "MCP Server shutdown complete")
@@ -2014,6 +2439,16 @@ class MCPServer:
         # Close logger handlers if requested
         if close_logger:
             self._close_logger_handlers()
+            
+    def cleanup(self):
+        """
+        Clean up server resources before shutdown.
+        
+        This method is an alias for shutdown(close_logger=False) and is provided
+        for compatibility with test frameworks.
+        """
+        # Call the main shutdown method but don't close logger handlers
+        self.shutdown(close_logger=False)
 
     def _is_interpreter_shutting_down(self):
         """Check if the Python interpreter is shutting down.
@@ -2044,7 +2479,123 @@ class MCPServer:
                     if handler.stream.closed:
                         return True
                 except (AttributeError, ValueError):
-                    # If we can't access the stream, it's likely being shut down
+                    # If we ca
+
+
+    async def mcp_root(self):
+
+
+        """MCP root endpoint."""
+
+
+        return {
+
+
+            "message": "MCP Server is running",
+
+
+            "version": getattr(self, 'version', '0.1.0'),
+
+
+            "controllers": list(self.controllers.keys()),
+
+
+            "endpoints": {
+
+
+                "health": "/health",
+
+
+                "versions": "/versions"
+
+
+            }
+
+
+        }
+
+
+
+    async def versions_endpoint(self):
+
+
+        """Get component versions."""
+
+
+        import sys
+
+
+        import anyio
+
+
+        import fastapi
+
+
+        
+
+
+        versions = {}
+
+
+        if "ipfs" in self.models and hasattr(self.models["ipfs"], "get_version"):
+
+
+            try:
+
+
+                ipfs_version = await anyio.to_thread.run_sync(self.models["ipfs"].get_version)
+
+
+                versions["ipfs"] = ipfs_version
+
+
+            except Exception as e:
+
+
+                versions["ipfs"] = {"success": False, "error": str(e)}
+
+
+        else:
+
+
+            versions["ipfs"] = {"success": False, "version": "unknown"}
+
+
+        
+
+
+        return {
+
+
+            "success": True,
+
+
+            "server": getattr(self, 'version', '0.1.0'),
+
+
+            "ipfs": versions.get("ipfs", {}).get("version", "unknown"),
+
+
+            "python": sys.version,
+
+
+            "dependencies": {
+
+
+                "ipfs_kit_py": getattr(self, 'version', '0.1.0'),
+
+
+                "fastapi": getattr(fastapi, "__version__", "unknown"),
+
+
+                "anyio": getattr(anyio, "__version__", "unknown")
+
+
+            }
+
+
+        }
+n't access the stream, it's likely being shut down
                     return True
 
         return False

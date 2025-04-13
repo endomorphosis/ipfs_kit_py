@@ -1,94 +1,95 @@
 #!/bin/bash
-# AnyIO MCP Server Launcher Script
+# Start the MCP AnyIO server in the background with proper error handling
 
-# Default values
-PORT=8002
-BACKEND="asyncio"
-DEBUG=false
-ISOLATION=false
-LOG_LEVEL="INFO"
-API_PREFIX="/api/v0/mcp"
-HOST="0.0.0.0"
-PERSISTENCE_PATH=""
+# Define default parameters
+PORT=9993
+DEBUG="--debug"
+ISOLATION="--isolation"
+SKIP_DAEMON="--skip-daemon"
+API_PREFIX="/api/v0"
+LOG_FILE="mcp_anyio_server.log"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
-  key="$1"
-  case $key in
-    -p|--port)
-      PORT="$2"
-      shift
+  case $1 in
+    --port=*)
+      PORT="${1#*=}"
       shift
       ;;
-    -b|--backend)
-      BACKEND="$2"
-      shift
-      shift
-      ;;
-    -d|--debug)
-      DEBUG=true
+    --no-debug)
+      DEBUG=""
       shift
       ;;
-    -i|--isolation)
-      ISOLATION=true
+    --no-isolation)
+      ISOLATION=""
       shift
       ;;
-    -l|--log-level)
-      LOG_LEVEL="$2"
-      shift
-      shift
-      ;;
-    --api-prefix)
-      API_PREFIX="$2"
-      shift
+    --no-skip-daemon)
+      SKIP_DAEMON=""
       shift
       ;;
-    -h|--host)
-      HOST="$2"
-      shift
+    --api-prefix=*)
+      API_PREFIX="${1#*=}"
       shift
       ;;
-    --persistence-path)
-      PERSISTENCE_PATH="$2"
+    --log-file=*)
+      LOG_FILE="${1#*=}"
       shift
-      shift
+      ;;
+    --help)
+      echo "Usage: $0 [options]"
+      echo "  --port=NUMBER       Port number to use (default: 9993)"
+      echo "  --no-debug          Disable debug mode"
+      echo "  --no-isolation      Disable isolation mode"
+      echo "  --no-skip-daemon    Don't skip daemon initialization"
+      echo "  --api-prefix=PATH   Set the API prefix (default: /api/v0)"
+      echo "  --log-file=FILE     Log file to use (default: mcp_anyio_server.log)"
+      echo "  --help              Show this help message"
+      exit 0
       ;;
     *)
-      echo "Unknown option: $key"
+      echo "Unknown option: $1"
+      echo "Use --help for usage information"
       exit 1
       ;;
   esac
 done
 
-# Build command arguments
-ARGS=("--port" "$PORT" "--host" "$HOST" "--log-level" "$LOG_LEVEL" "--api-prefix" "$API_PREFIX" "--backend" "$BACKEND")
-
-if $DEBUG; then
-  ARGS+=("--debug")
+# Build the command
+CMD="python run_mcp_server_anyio_fixed.py --port $PORT"
+if [ -n "$DEBUG" ]; then
+  CMD="$CMD $DEBUG"
 fi
-
-if $ISOLATION; then
-  ARGS+=("--isolation")
+if [ -n "$ISOLATION" ]; then
+  CMD="$CMD $ISOLATION"
 fi
-
-if [ -n "$PERSISTENCE_PATH" ]; then
-  ARGS+=("--persistence-path" "$PERSISTENCE_PATH")
+if [ -n "$SKIP_DAEMON" ]; then
+  CMD="$CMD $SKIP_DAEMON"
 fi
+CMD="$CMD --api-prefix=$API_PREFIX"
 
-# Print server info
-echo "Starting MCP server with AnyIO support"
-echo "-------------------------------------"
-echo "Host:                $HOST"
-echo "Port:                $PORT"
-echo "Backend:             $BACKEND"
-echo "Debug Mode:          $DEBUG"
-echo "Isolation Mode:      $ISOLATION"
-echo "Log Level:           $LOG_LEVEL"
-echo "API Prefix:          $API_PREFIX"
-if [ -n "$PERSISTENCE_PATH" ]; then
-  echo "Persistence Path:    $PERSISTENCE_PATH"
+# Print startup message
+echo "Starting MCP AnyIO server..."
+echo "Command: $CMD"
+echo "Server URL: http://localhost:$PORT"
+echo "Logs: $LOG_FILE"
+
+# Start server in background
+nohup $CMD > "$LOG_FILE" 2>&1 &
+PID=$!
+
+# Save PID to file for later reference
+echo $PID > mcp_anyio_server.pid
+
+# Wait briefly to check if process is still running
+sleep 2
+if kill -0 $PID 2>/dev/null; then
+  echo "Server started successfully with PID $PID"
+  echo "Run the following to stop the server:"
+  echo "  kill \$(cat mcp_anyio_server.pid)"
+  echo "Run the following to test the server:"
+  echo "  python test_mcp_api_anyio.py --url http://localhost:$PORT"
+else
+  echo "Server failed to start. Check $LOG_FILE for details."
+  exit 1
 fi
-echo "-------------------------------------"
-
-# Run the server
-python run_mcp_server_anyio.py "${ARGS[@]}"

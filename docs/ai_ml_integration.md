@@ -60,6 +60,8 @@ The `ModelRegistry` class provides a comprehensive solution for storing, version
 - Metadata storage and retrieval
 - Model discovery and sharing
 - Access control mechanisms
+- Support for Flax models
+- Integration with AI safety and compliance tools
 
 ### Usage
 
@@ -121,6 +123,7 @@ The ModelRegistry automatically detects and handles the following frameworks:
 - LightGBM
 - Hugging Face Transformers
 - Custom models (with serialization handlers)
+- Integration with AI safety and compliance tools
 
 ## Dataset Management
 

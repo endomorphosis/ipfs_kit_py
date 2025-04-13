@@ -1405,10 +1405,10 @@ from typing import Dict, Any, Callable, Optional, List
 import websockets
 
 class WALWebSocketClient:
-    """Client for the WAL WebSocket API."""
+    \"\"\"Client for the WAL WebSocket API.\"\"\"
     
     def __init__(self, url: str = "ws://localhost:8000/api/v0/wal/ws"):
-        """Initialize the client."""
+        \"\"\"Initialize the client.\"\"\"
         self.url = url
         self.websocket = None
         self.connected = False
@@ -1421,7 +1421,7 @@ class WALWebSocketClient:
         self.receive_task = None
         
     async def connect(self):
-        """Connect to the WebSocket server."""
+        \"\"\"Connect to the WebSocket server.\"\"\"
         try:
             self.websocket = await websockets.connect(self.url)
             self.connected = True
@@ -1446,7 +1446,7 @@ class WALWebSocketClient:
             return False
             
     async def _receive_loop(self):
-        """Process incoming messages."""
+        \"\"\"Process incoming messages.\"\"\"
         try:
             while self.running and self.connected:
                 try:
@@ -1471,7 +1471,7 @@ class WALWebSocketClient:
             logging.error(f"Error in receive loop: {e}")
             
     async def _handle_message(self, message: Dict[str, Any]):
-        """Handle a message from the server."""
+        \"\"\"Handle a message from the server.\"\"\"
         message_type = message.get("type")
         
         # Call any registered handler for this message type
@@ -1486,7 +1486,7 @@ class WALWebSocketClient:
         await self.message_queue.put(message)
         
     async def _try_reconnect(self):
-        """Try to reconnect to the server."""
+        \"\"\"Try to reconnect to the server.\"\"\"
         if self.reconnect_attempts >= self.max_reconnect_attempts:
             logging.error("Max reconnect attempts reached")
             return False
@@ -1509,7 +1509,7 @@ class WALWebSocketClient:
         return success
     
     async def disconnect(self):
-        """Disconnect from the WebSocket server."""
+        \"\"\"Disconnect from the WebSocket server.\"\"\"
         self.running = False
         if self.receive_task:
             self.receive_task.cancel()
@@ -1519,7 +1519,7 @@ class WALWebSocketClient:
             self.connected = False
             
     async def subscribe(self, subscription_type: str, parameters: Dict[str, Any] = None) -> str:
-        """
+        \"\"\"
         Subscribe to updates.
         
         Args:
@@ -1528,7 +1528,7 @@ class WALWebSocketClient:
             
         Returns:
             Subscription ID
-        """
+        \"\"\"
         if not self.connected:
             raise Exception("Not connected")
             
@@ -1558,7 +1558,7 @@ class WALWebSocketClient:
                 raise Exception(response.get("message"))
                 
     async def unsubscribe(self, subscription_id: str) -> bool:
-        """
+        \"\"\"
         Unsubscribe from updates.
         
         Args:
@@ -1566,7 +1566,7 @@ class WALWebSocketClient:
             
         Returns:
             Success status
-        """
+        \"\"\"
         if not self.connected:
             raise Exception("Not connected")
             
@@ -1593,7 +1593,7 @@ class WALWebSocketClient:
                 raise Exception(response.get("message"))
                 
     async def get_operation(self, operation_id: str) -> Dict[str, Any]:
-        """
+        \"\"\"
         Get operation details.
         
         Args:
@@ -1601,7 +1601,7 @@ class WALWebSocketClient:
             
         Returns:
             Operation details
-        """
+        \"\"\"
         if not self.connected:
             raise Exception("Not connected")
             
@@ -1622,7 +1622,7 @@ class WALWebSocketClient:
                 raise Exception(response.get("message"))
                 
     async def get_health(self, backend: str = None) -> Dict[str, Any]:
-        """
+        \"\"\"
         Get backend health status.
         
         Args:
@@ -1630,7 +1630,7 @@ class WALWebSocketClient:
             
         Returns:
             Health status data
-        """
+        \"\"\"
         if not self.connected:
             raise Exception("Not connected")
             
@@ -1651,12 +1651,12 @@ class WALWebSocketClient:
                 raise Exception(response.get("message"))
                 
     async def get_metrics(self) -> Dict[str, Any]:
-        """
+        \"\"\"
         Get WAL metrics.
         
         Returns:
             Metrics data
-        """
+        \"\"\"
         if not self.connected:
             raise Exception("Not connected")
             
@@ -1676,26 +1676,26 @@ class WALWebSocketClient:
                 raise Exception(response.get("message"))
                 
     def on_message(self, message_type: str, handler: Callable):
-        """
+        \"\"\"
         Register a message handler.
         
         Args:
             message_type: Type of message to handle
             handler: Async callback function
-        """
+        \"\"\"
         if message_type not in self.message_handlers:
             self.message_handlers[message_type] = []
             
         self.message_handlers[message_type].append(handler)
         
     def remove_handler(self, message_type: str, handler: Callable):
-        """
+        \"\"\"
         Remove a message handler.
         
         Args:
             message_type: Type of message
             handler: Handler to remove
-        """
+        \"\"\"
         if message_type in self.message_handlers:
             if handler in self.message_handlers[message_type]:
                 self.message_handlers[message_type].remove(handler)

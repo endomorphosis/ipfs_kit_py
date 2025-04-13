@@ -704,7 +704,7 @@ class WALTelemetry:
                 return
             
             for filename in os.listdir(self.metrics_path):
-                if not (filename.startswith("metrics_") and 
+                if not (filename.startswith("metrics_") and
                         (filename.endswith(".json") or filename.endswith(".parquet"))):
                     continue
                 
@@ -721,7 +721,8 @@ class WALTelemetry:
             logger.error(f"Error cleaning up old metrics: {e}")
     
     def record_operation_start(self, operation_id: str, operation_type: str, backend: str):
-        """
+        """Record the start of an operation.
+        
         Record the start of an operation.
         
         Args:

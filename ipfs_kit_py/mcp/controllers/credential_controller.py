@@ -82,7 +82,124 @@ class CredentialController:
             credential_manager: Credential manager to use for operations
         """
         self.credential_manager = credential_manager
+        self.is_shutting_down = False
         logger.info("Credential Controller initialized")
+        
+    async def shutdown(self):
+        """
+        Safely shut down the Credential Controller.
+        
+        This method ensures proper cleanup of credential-related resources.
+        """
+        logger.info("Credential Controller shutdown initiated")
+        
+        # Signal that we're shutting down to prevent new operations
+        self.is_shutting_down = True
+        
+        # Track any errors during shutdown
+        errors = []
+        
+        # 1. Secure credentials in memory
+        try:
+            # If credential manager has a shutdown method, call it
+            if hasattr(self.credential_manager, 'shutdown'):
+                logger.debug("Calling credential_manager.shutdown()")
+                self.credential_manager.shutdown()
+            elif hasattr(self.credential_manager, 'close'):
+                logger.debug("Calling credential_manager.close()")
+                self.credential_manager.close()
+            elif hasattr(self.credential_manager, 'flush'):
+                # If there's a flush method, ensure all credentials are saved
+                logger.debug("Calling credential_manager.flush()")
+                self.credential_manager.flush()
+        except Exception as e:
+            error_msg = f"Error shutting down credential manager: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+            
+        # 2. Clear any sensitive data in memory
+        try:
+            # Clear any stored credentials from memory (if any)
+            if hasattr(self, '_temp_credentials'):
+                logger.debug("Clearing temporary credentials from memory")
+                self._temp_credentials.clear()
+        except Exception as e:
+            error_msg = f"Error clearing temporary credentials: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+            
+        # Log shutdown status
+        if errors:
+            logger.warning(f"Credential Controller shutdown completed with {len(errors)} errors")
+        else:
+            logger.info("Credential Controller shutdown completed successfully")
+            
+    def sync_shutdown(self):
+        """
+        Synchronous version of shutdown for backward compatibility.
+        
+        This method provides a synchronous way to shut down the controller
+        for contexts where async/await cannot be used directly.
+        """
+        logger.info("Running synchronous shutdown for Credential Controller")
+        
+        # Signal that we're shutting down
+        self.is_shutting_down = True
+        
+        # Check for interpreter shutdown
+        import sys
+        is_interpreter_shutdown = hasattr(sys, 'is_finalizing') and sys.is_finalizing()
+        
+        # Fast path for interpreter shutdown
+        if is_interpreter_shutdown:
+            logger.warning("Detected interpreter shutdown, using simplified cleanup")
+            try:
+                # Since credential controller doesn't have heavy resources to clean up,
+                # we can just signal shutdown and return
+                self.is_shutting_down = True
+                logger.info("Simplified Credential Controller shutdown completed during interpreter shutdown")
+                return
+            except Exception as e:
+                logger.error(f"Error during simplified shutdown: {e}")
+        
+        try:
+            # Try using anyio
+            try:
+                import anyio
+                anyio.run(self.shutdown)
+                return
+            except ImportError:
+                logger.warning("anyio not available, falling back to asyncio")
+            except Exception as e:
+                logger.warning(f"Error using anyio.run for shutdown: {e}, falling back to asyncio")
+            
+            # Fallback to asyncio
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # Create a new event loop if needed and not in shutdown
+                if is_interpreter_shutdown:
+                    logger.warning("Cannot get event loop during interpreter shutdown")
+                    return
+                
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run the shutdown method
+            try:
+                loop.run_until_complete(self.shutdown())
+            except RuntimeError as e:
+                if "This event loop is already running" in str(e):
+                    logger.warning("Cannot use run_until_complete in a running event loop")
+                elif "can't create new thread" in str(e):
+                    logger.warning("Thread creation failed during interpreter shutdown")
+                else:
+                    raise
+        except Exception as e:
+            logger.error(f"Error in sync_shutdown for Credential Controller: {e}")
+            
+        logger.info("Synchronous shutdown for Credential Controller completed")
     
     def register_routes(self, router: APIRouter):
         """
