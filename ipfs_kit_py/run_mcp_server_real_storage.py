@@ -36,7 +36,7 @@ api_prefix = "/api/v0"  # Fixed prefix for consistency
 persistence_path = os.environ.get("MCP_PERSISTENCE_PATH", "~/.ipfs_kit/mcp_real_storage")
 
 # Port configuration
-port = int(os.environ.get("MCP_PORT", "9993"))  # Using a different port than other servers
+port = int(os.environ.get("MCP_PORT", "9994"))  # Using a different port than other servers
 
 def create_app():
     """Create and configure the FastAPI app with MCP server."""
@@ -49,7 +49,7 @@ def create_app():
     
     # Import MCP server
     try:
-        from ipfs_kit_py.mcp.server import MCPServer
+        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
         
         # Create MCP server
         mcp_server = MCPServer(
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     logger.info(f"Using REAL storage backend implementations (no simulation)")
     
     uvicorn.run(
-        "run_mcp_server_real_storage:app", 
+        "ipfs_kit_py.run_mcp_server_real_storage:app", 
         host="0.0.0.0", 
         port=port,
         reload=False,  # Disable reload to avoid duplicate process issues

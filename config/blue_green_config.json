@@ -1,0 +1,109 @@
+{
+    "blue": {
+        "ipfs": {
+            "api_url": "http://localhost:5001",
+            "gateway_url": "http://localhost:8080",
+            "connect_timeout": 10
+        },
+        "libp2p": {
+            "enabled": true,
+            "key_path": "keys/node_id_key",
+            "listen_addresses": ["/ip4/0.0.0.0/tcp/9090"]
+        },
+        "storage": {
+            "backends": ["local", "s3"],
+            "default_backend": "local",
+            "local": {
+                "path": "data/storage"
+            },
+            "s3": {
+                "bucket": "mcp-storage",
+                "region": "us-west-2"
+            }
+        }
+    },
+    "green": {
+        "ipfs": {
+            "api_url": "http://localhost:5001",
+            "gateway_url": "http://localhost:8080",
+            "connect_timeout": 10
+        },
+        "libp2p": {
+            "enabled": true,
+            "key_path": "keys/node_id_key_new",
+            "listen_addresses": ["/ip4/0.0.0.0/tcp/9091"]
+        },
+        "storage": {
+            "backends": ["local", "s3", "filecoin"],
+            "default_backend": "local",
+            "local": {
+                "path": "data/storage_new"
+            },
+            "s3": {
+                "bucket": "mcp-storage-new",
+                "region": "us-west-2"
+            },
+            "filecoin": {
+                "enabled": true,
+                "lotus_api_url": "http://localhost:1234/rpc/v0"
+            }
+        }
+    },
+    "deployment": {
+        "mode": "gradual",
+        "green_percentage": 10,
+        "step_size": 5,
+        "evaluation_interval": 60,
+        "health_check_interval": 30,
+        "auto": {
+            "enabled": true,
+            "promotion_delay": 1800,
+            "rollback_delay": 0,
+            "max_green_percentage": 100,
+            "gradual_rampup": true
+        },
+        "safety_thresholds": {
+            "min_success_rate": 99.0,
+            "max_error_rate_increase": 1.0,
+            "max_latency_increase": 20.0,
+            "critical_error_threshold": 5.0
+        }
+    },
+    "validation": {
+        "enabled": true,
+        "min_validation_count": 50,
+        "min_compatible_rate": 99.0,
+        "max_critical_diff_rate": 0.1,
+        "ignored_fields": [
+            "timestamp", 
+            "response_id", 
+            "request_time",
+            "server_id"
+        ],
+        "critical_fields": [
+            "success",
+            "cid",
+            "data_size",
+            "error_code"
+        ],
+        "similarity_threshold": 90.0
+    },
+    "monitoring": {
+        "enabled": true,
+        "prometheus": {
+            "enabled": true,
+            "port": 9100
+        },
+        "logging": {
+            "level": "INFO",
+            "file": "logs/blue_green_proxy.log"
+        }
+    },
+    "web_dashboard": {
+        "enabled": true,
+        "host": "localhost",
+        "port": 8090,
+        "refresh_interval": 5
+    },
+    "stats_dir": "logs/blue_green_stats"
+}

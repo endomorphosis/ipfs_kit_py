@@ -163,7 +163,7 @@ def handle_daemon(api, args):
 
 def handle_server(args):
     """Handle 'server' command."""
-    from ipfs_kit_py.mcp.server import MCPServer
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
     
     print(f"Starting MCP server on http://{args.host}:{args.port}")
     server = MCPServer(host=args.host, port=args.port)

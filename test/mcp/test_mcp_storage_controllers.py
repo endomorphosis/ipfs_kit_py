@@ -40,7 +40,7 @@ except ImportError:
 
 # Import MCP server components
 try:
-    from ipfs_kit_py.mcp.server import MCPServer
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
     from ipfs_kit_py.mcp.models.storage_manager import StorageManager
     from ipfs_kit_py.mcp.models.storage.s3_model import S3Model
     from ipfs_kit_py.mcp.models.storage.storacha_model import StorachaModel

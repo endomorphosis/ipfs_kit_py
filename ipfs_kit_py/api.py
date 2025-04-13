@@ -155,7 +155,7 @@ except ImportError as e:
 try:
     # First try relative imports (when used as a package)
     from .error import IPFSError
-    from .high_level_api import IPFSSimpleAPI
+    from .simulated_api import IPFSSimpleAPI  # Emergency fix
     
     # Import WebSocket notifications
     try:
@@ -247,7 +247,7 @@ except ImportError:
     # Add parent directory to path
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ipfs_kit_py.error import IPFSError
-    from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+    from ipfs_kit_py.simulated_api import IPFSSimpleAPI  # Emergency fix
 
     # Try to import AI/ML integration
     try:

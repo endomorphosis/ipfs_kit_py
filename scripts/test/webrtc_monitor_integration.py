@@ -49,7 +49,7 @@ except ImportError:
 
 # Try to import from ipfs_kit_py modules
 try:
-    from ipfs_kit_py.mcp.server import MCPServer
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
     from ipfs_kit_py.fixes.webrtc_monitor import WebRTCMonitor, WebRTCStreamBuffer
     HAS_MCP = True
 except ImportError:

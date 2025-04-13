@@ -8,8 +8,8 @@ from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
 # Import the controller and model classes
-from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
-from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel # Needed for mock spec
+from ipfs_kit_py.mcp_server.controllers.libp2p_controller import LibP2PController
+from ipfs_kit_py.mcp_server.models.libp2p_model import LibP2PModel # Needed for mock spec
 
 # --- Fixtures ---
 

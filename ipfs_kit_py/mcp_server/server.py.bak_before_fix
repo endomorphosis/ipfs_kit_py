@@ -1,0 +1,64 @@
+                    # If we can't access the stream, it's likely being shut down
+                    return True
+
+        return False
+
+    def __del__(self):
+        """Ensure resources are cleaned up when the server is deleted."""
+        try:
+            # First check if we're in interpreter shutdown
+            if self._is_interpreter_shutting_down():
+                # Just close logger handlers without any other cleanup
+                try:
+                    self._close_logger_handlers()
+                except Exception:
+                    pass
+                return
+
+            # If not in interpreter shutdown, do a full shutdown
+            # Use close_logger=True to prevent logging after shutdown
+            self.shutdown(close_logger=True)
+        except Exception:
+            # Last resort - if anything fails during __del__, just pass
+            # We can't safely log or handle errors during __del__
+            pass
+
+    async def mcp_root(self):
+        """MCP root endpoint."""
+        return {
+            "message": "MCP Server is running",
+            "version": getattr(self, 'version', '0.1.0'),
+            "controllers": list(self.controllers.keys()),
+            "endpoints": {
+                "health": "/health",
+                "versions": "/versions"
+            }
+        }
+
+    async def versions_endpoint(self):
+        """Get component versions."""
+        import sys
+        import anyio
+        import fastapi
+        
+        versions = {}
+        if "ipfs" in self.models and hasattr(self.models["ipfs"], "get_version"):
+            try:
+                ipfs_version = await anyio.to_thread.run_sync(self.models["ipfs"].get_version)
+                versions["ipfs"] = ipfs_version
+            except Exception as e:
+                versions["ipfs"] = {"success": False, "error": str(e)}
+        else:
+            versions["ipfs"] = {"success": False, "version": "unknown"}
+        
+        return {
+            "success": True,
+            "server": getattr(self, 'version', '0.1.0'),
+            "ipfs": versions.get("ipfs", {}).get("version", "unknown"),
+            "python": sys.version,
+            "dependencies": {
+                "ipfs_kit_py": getattr(self, 'version', '0.1.0'),
+                "fastapi": getattr(fastapi, "__version__", "unknown"),
+                "anyio": getattr(anyio, "__version__", "unknown")
+            }
+        }

@@ -340,7 +340,7 @@ def add_compatibility_methods():
 def patch_mcp_server():
     """Patch the MCP server to use our compatibility layer."""
     try:
-        from ipfs_kit_py.mcp.server import MCPServer
+        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
         
         # Store original method
         original_start_daemon = MCPServer.start_daemon

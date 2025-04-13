@@ -43,7 +43,7 @@ async def main():
 
     # Import and initialize MCP server
     try:
-        from ipfs_kit_py.mcp.server import MCPServer
+        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
         from ipfs_kit_py.ipfs_kit import ipfs_kit
         
         # Create kit instance

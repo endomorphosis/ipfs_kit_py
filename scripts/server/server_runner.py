@@ -89,7 +89,7 @@ def get_server_class(server_type: str):
     try:
         if server_type == 'sync':
             # Import synchronous server
-            from ipfs_kit_py.mcp.server import MCPServer
+            from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
             return MCPServer
         elif server_type == 'anyio':
             # Import AnyIO server

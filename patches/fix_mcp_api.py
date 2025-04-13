@@ -554,7 +554,7 @@ This script starts the MCP server with proper configuration to address known iss
 import logging
 import uvicorn
 from fastapi import FastAPI
-from ipfs_kit_py.mcp.server import MCPServer
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Import the MCP server and relevant components
-from ipfs_kit_py.mcp.server import MCPServer
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 class TestMCPStorageControllers(unittest.TestCase):
     """Test the MCP storage controller initialization."""

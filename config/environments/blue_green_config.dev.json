@@ -1,0 +1,91 @@
+{
+    "blue": {
+        "ipfs": {
+            "api_url": "http://ipfs:5001",
+            "gateway_url": "http://ipfs:8080",
+            "connect_timeout": 5
+        },
+        "libp2p": {
+            "enabled": true,
+            "key_path": "keys/node_id_key",
+            "listen_addresses": ["/ip4/0.0.0.0/tcp/9090"]
+        },
+        "storage": {
+            "backends": ["local", "s3"],
+            "default_backend": "local",
+            "local": {
+                "path": "/app/data/storage_blue"
+            },
+            "s3": {
+                "bucket": "mcp-dev-storage",
+                "region": "us-west-2"
+            }
+        }
+    },
+    "green": {
+        "ipfs": {
+            "api_url": "http://ipfs:5001",
+            "gateway_url": "http://ipfs:8080",
+            "connect_timeout": 5
+        },
+        "libp2p": {
+            "enabled": true,
+            "key_path": "keys/node_id_key_new",
+            "listen_addresses": ["/ip4/0.0.0.0/tcp/9091"]
+        },
+        "storage": {
+            "backends": ["local", "s3", "filecoin"],
+            "default_backend": "local",
+            "local": {
+                "path": "/app/data/storage_green"
+            },
+            "s3": {
+                "bucket": "mcp-dev-storage-new",
+                "region": "us-west-2"
+            }
+        }
+    },
+    "deployment": {
+        "mode": "blue",
+        "green_percentage": 0,
+        "step_size": 5,
+        "evaluation_interval": 30,
+        "health_check_interval": 15,
+        "auto": {
+            "enabled": false,
+            "promotion_delay": 900,
+            "rollback_delay": 0,
+            "max_green_percentage": 50,
+            "gradual_rampup": true
+        },
+        "safety_thresholds": {
+            "min_success_rate": 99.0,
+            "max_error_rate_increase": 1.0,
+            "max_latency_increase": 30.0,
+            "critical_error_threshold": 5.0
+        }
+    },
+    "validation": {
+        "enabled": true,
+        "min_validation_count": 20,
+        "min_compatible_rate": 99.0,
+        "max_critical_diff_rate": 0.5
+    },
+    "monitoring": {
+        "enabled": true,
+        "prometheus": {
+            "enabled": true,
+            "port": 9100
+        },
+        "logging": {
+            "level": "DEBUG",
+            "file": "/app/logs/blue_green_proxy_dev.log"
+        }
+    },
+    "web_dashboard": {
+        "enabled": true,
+        "host": "0.0.0.0",
+        "port": 8090
+    },
+    "stats_dir": "/app/data/stats"
+}

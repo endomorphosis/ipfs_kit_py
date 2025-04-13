@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from ipfs_kit_py.mcp.controllers.credential_controller import CredentialController
-from ipfs_kit_py.mcp.server import MCPServer
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 
 class TestMCPCredentialController(unittest.TestCase):

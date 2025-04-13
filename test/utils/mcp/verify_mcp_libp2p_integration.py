@@ -343,7 +343,7 @@ class TestMCPLibP2PIntegration(unittest.TestCase):
         
         try:
             # Import the server module
-            from ipfs_kit_py.mcp.server import MCPServer
+            from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
             
             # Create FastAPI app
             app = FastAPI(title="IPFS MCP Server Test")

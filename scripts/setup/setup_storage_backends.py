@@ -466,7 +466,7 @@ def create_app():
     
     # Import MCP server
     try:
-        from ipfs_kit_py.mcp.server import MCPServer
+        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
         
         # Create MCP server
         mcp_server = MCPServer(

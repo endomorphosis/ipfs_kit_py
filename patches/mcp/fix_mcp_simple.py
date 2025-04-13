@@ -385,173 +385,112 @@ def start_lotus_daemon():
 
 def create_mcp_server_script():
     """Create a script to start MCP server with daemon support."""
-    script_content = """#!/usr/bin/env python3
-\"\"\"
-Run the MCP server with daemon support enabled.
-
-This script ensures:
-1. The IPFS daemon is properly initialized and running
-2. The IPFS Cluster service is properly initialized and running
-3. The Lotus daemon is properly initialized and running (if available)
-4. The MCP server is configured to work with these daemons
-\"\"\"
-
-import os
-import sys
-import time
-import subprocess
-import logging
-from pathlib import Path
-
-# Import helper functions
-try:
-    from fix_mcp_simple import start_ipfs_daemon, start_ipfs_cluster_service, start_lotus_daemon
-except ImportError:
-    print("Could not import daemon helper functions. Please run this script from the same directory as fix_mcp_simple.py")
-    sys.exit(1)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-def setup_daemons():
-    """Ensure all required daemons are running."""
-    # Start IPFS daemon
-    if not start_ipfs_daemon():
-        logger.error("Failed to start IPFS daemon")
-        return False
-    
-    # Start IPFS Cluster service
-    if not start_ipfs_cluster_service():
-        logger.warning("Failed to start IPFS Cluster service - continuing anyway")
-    
-    # Try to start Lotus daemon
-    try:
-        start_lotus_daemon()
-    except Exception as e:
-        logger.warning(f"Error starting Lotus daemon: {e} - continuing anyway")
-    
-    return True
-
-def find_mcp_server_script():
-    """Find the appropriate MCP server script to run."""
-    # Order of preference for server scripts
-    script_candidates = [
-        "run_mcp_server_anyio.py",
-        "run_mcp_server_fixed.py",
-        "run_mcp_server.py"
-    ]
-    
-    # Check current directory and ipfs_kit_py subdirectory for each script
-    search_paths = [
-        ".",
-        "ipfs_kit_py"
-    ]
-    
-    for path in search_paths:
-        for script in script_candidates:
-            script_path = os.path.join(path, script)
-            if os.path.exists(script_path):
-                return script_path
-    
-    return None
-
-def start_mcp_server():
-    """Start the MCP server with daemon support."""
-    # Find the best server script to use
-    server_script = find_mcp_server_script()
-    if not server_script:
-        logger.error("Could not find an MCP server script to run")
-        return False
-    
-    logger.info(f"Starting MCP server using {server_script}")
-    
-    # Build command line with appropriate parameters
-    cmd = [
-        "python",
-        server_script,
-        "--debug",
-        "--isolation",
-        "--port", "8002",
-        "--host", "localhost"
-    ]
-    
-    # Make sure we DON'T use the --skip-daemon flag
-    
-    # Start the server
-    try:
-        # Use Popen to detach the server process
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            start_new_session=True  # Detach from parent process
-        )
-        
-        # Give it a moment to start
-        logger.info("Waiting for MCP server to start...")
-        time.sleep(5)
-        
-        # Check if the server started successfully
-        try:
-            # Try to connect to the server's health endpoint
-            check_cmd = ["curl", "-s", "http://localhost:8002/api/v0/mcp/health"]
-            result = subprocess.run(
-                check_cmd,
-                check=False,
-                capture_output=True,
-                text=True
-            )
-            
-            if result.returncode == 0 and "success" in result.stdout:
-                logger.info("MCP server started successfully")
-                return True
-            else:
-                logger.warning(f"MCP server may not have started properly: {result.stdout}")
-                return False
-        except Exception as e:
-            logger.warning(f"Error checking MCP server: {e}")
-            return False
-    except Exception as e:
-        logger.error(f"Error starting MCP server: {e}")
-        return False
-
-def main():
-    """Main function."""
-    logger.info("Setting up daemons and MCP server")
-    
-    # Set up daemons
-    if not setup_daemons():
-        logger.error("Failed to set up daemons, MCP server may not work properly")
-        
-    # Start MCP server
-    if start_mcp_server():
-        logger.info("MCP server is running with daemon support")
-        # Print a message for users
-        print("\\nMCP server is running with daemon support")
-        print("API URL: http://localhost:8002/api/v0/mcp")
-        print("Documentation: http://localhost:8002/docs")
-        print("\\nTo access the old server that was running before:")
-        print("API URL: http://localhost:9990/api/v0/mcp")
-        print("Documentation: http://localhost:9990/docs")
-    else:
-        logger.error("Failed to start MCP server with daemon support")
-        return 1
-    
-    return 0
-
-if __name__ == "__main__":
-    sys.exit(main())
-"""
-    
-    # Write the script to disk
     script_path = "run_mcp_with_daemons.py"
+    
+    # Write a simpler version of the script without triple quotes
     with open(script_path, "w") as f:
-        f.write(script_content)
+        f.write("#!/usr/bin/env python3\n\n")
+        f.write("# MCP server with daemon support enabled\n\n")
+        f.write("import os\n")
+        f.write("import sys\n")
+        f.write("import time\n")
+        f.write("import subprocess\n")
+        f.write("import logging\n\n")
+        
+        f.write("# Import helper functions\n")
+        f.write("try:\n")
+        f.write("    from fix_mcp_simple import start_ipfs_daemon, start_ipfs_cluster_service, start_lotus_daemon\n")
+        f.write("except ImportError:\n")
+        f.write("    print('Could not import daemon helper functions')\n")
+        f.write("    sys.exit(1)\n\n")
+        
+        f.write("# Configure logging\n")
+        f.write("logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')\n")
+        f.write("logger = logging.getLogger(__name__)\n\n")
+        
+        f.write("def setup_daemons():\n")
+        f.write("    # Start IPFS daemon\n")
+        f.write("    if not start_ipfs_daemon():\n")
+        f.write("        logger.error('Failed to start IPFS daemon')\n")
+        f.write("        return False\n\n")
+        f.write("    # Start IPFS Cluster service\n")
+        f.write("    if not start_ipfs_cluster_service():\n")
+        f.write("        logger.warning('Failed to start IPFS Cluster service - continuing anyway')\n\n")
+        f.write("    # Try to start Lotus daemon\n")
+        f.write("    try:\n")
+        f.write("        start_lotus_daemon()\n")
+        f.write("    except Exception as e:\n")
+        f.write("        logger.warning(f'Error starting Lotus daemon: {e} - continuing anyway')\n\n")
+        f.write("    return True\n\n")
+        
+        f.write("def find_mcp_server_script():\n")
+        f.write("    # Order of preference for server scripts\n")
+        f.write("    script_candidates = [\n")
+        f.write("        'run_mcp_server_anyio.py',\n")
+        f.write("        'run_mcp_server_fixed.py',\n")
+        f.write("        'run_mcp_server.py'\n")
+        f.write("    ]\n\n")
+        f.write("    # Check current directory and ipfs_kit_py subdirectory for each script\n")
+        f.write("    search_paths = ['.', 'ipfs_kit_py']\n\n")
+        f.write("    for path in search_paths:\n")
+        f.write("        for script in script_candidates:\n")
+        f.write("            script_path = os.path.join(path, script)\n")
+        f.write("            if os.path.exists(script_path):\n")
+        f.write("                return script_path\n\n")
+        f.write("    return None\n\n")
+        
+        f.write("def start_mcp_server():\n")
+        f.write("    # Find the best server script to use\n")
+        f.write("    server_script = find_mcp_server_script()\n")
+        f.write("    if not server_script:\n")
+        f.write("        logger.error('Could not find an MCP server script to run')\n")
+        f.write("        return False\n\n")
+        f.write("    logger.info(f'Starting MCP server using {server_script}')\n\n")
+        f.write("    # Build command line with appropriate parameters\n")
+        f.write("    cmd = ['python', server_script, '--debug', '--isolation', '--port', '8002', '--host', 'localhost']\n\n")
+        f.write("    # Start the server\n")
+        f.write("    try:\n")
+        f.write("        process = subprocess.Popen(\n")
+        f.write("            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True\n")
+        f.write("        )\n\n")
+        f.write("        # Give it a moment to start\n")
+        f.write("        logger.info('Waiting for MCP server to start...')\n")
+        f.write("        time.sleep(5)\n\n")
+        f.write("        # Check if the server started successfully\n")
+        f.write("        try:\n")
+        f.write("            check_cmd = ['curl', '-s', 'http://localhost:8002/api/v0/mcp/health']\n")
+        f.write("            result = subprocess.run(check_cmd, check=False, capture_output=True, text=True)\n\n")
+        f.write("            if result.returncode == 0 and 'success' in result.stdout:\n")
+        f.write("                logger.info('MCP server started successfully')\n")
+        f.write("                return True\n")
+        f.write("            else:\n")
+        f.write("                logger.warning(f'MCP server may not have started properly: {result.stdout}')\n")
+        f.write("                return False\n")
+        f.write("        except Exception as e:\n")
+        f.write("            logger.warning(f'Error checking MCP server: {e}')\n")
+        f.write("            return False\n")
+        f.write("    except Exception as e:\n")
+        f.write("        logger.error(f'Error starting MCP server: {e}')\n")
+        f.write("        return False\n\n")
+        
+        f.write("def main():\n")
+        f.write("    logger.info('Setting up daemons and MCP server')\n\n")
+        f.write("    # Set up daemons\n")
+        f.write("    if not setup_daemons():\n")
+        f.write("        logger.error('Failed to set up daemons, MCP server may not work properly')\n\n")
+        f.write("    # Start MCP server\n")
+        f.write("    if start_mcp_server():\n")
+        f.write("        logger.info('MCP server is running with daemon support')\n")
+        f.write("        print('\\nMCP server is running with daemon support')\n")
+        f.write("        print('API URL: http://localhost:8002/api/v0/mcp')\n")
+        f.write("        print('Documentation: http://localhost:8002/docs')\n")
+        f.write("    else:\n")
+        f.write("        logger.error('Failed to start MCP server with daemon support')\n")
+        f.write("        return 1\n\n")
+        f.write("    return 0\n\n")
+        
+        f.write("if __name__ == '__main__':\n")
+        f.write("    sys.exit(main())\n")
     
     os.chmod(script_path, 0o755)  # Make executable
     
