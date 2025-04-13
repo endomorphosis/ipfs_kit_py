@@ -11,7 +11,7 @@ import sys
 import json
 import time
 import logging
-import asyncio
+import anyio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -162,8 +162,8 @@ async def main():
 if __name__ == "__main__":
     # Run the async main function
     if sys.version_info >= (3, 7):
-        asyncio.run(main())
+        anyio.run(main())
     else:
         # For Python 3.6
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         loop.run_until_complete(main())

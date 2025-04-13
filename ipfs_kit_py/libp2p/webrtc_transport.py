@@ -11,7 +11,7 @@ Requirements:
 - cryptography: For secure communication
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import uuid
@@ -65,7 +65,7 @@ class WebRTCStream(INetStream):
         
         # Buffer for received data
         self.receive_buffer = bytearray()
-        self.message_event = asyncio.Event()
+        self.message_event = anyio.Event()
         
         # Set up data channel callbacks
         data_channel.add_listener("message", self._on_message)
@@ -73,7 +73,7 @@ class WebRTCStream(INetStream):
         data_channel.add_listener("close", self._on_close)
         
         # State tracking
-        self.is_open = asyncio.Event()
+        self.is_open = anyio.Event()
         if data_channel.readyState == "open":
             self.is_open.set()
         
@@ -110,8 +110,8 @@ class WebRTCStream(INetStream):
         if not self.receive_buffer and self.data_channel.readyState == "open":
             self.message_event.clear()
             try:
-                await asyncio.wait_for(self.message_event.wait(), timeout=30)
-            except asyncio.TimeoutError:
+                await anyio.wait_for(self.message_event.wait(), timeout=30)
+            except anyio.TimeoutError:
                 # Return empty bytes on timeout
                 return b""
         
@@ -232,7 +232,7 @@ class WebRTCRawConnection(IRawConnection):
         # Wait for the main data channel to open
         if self.main_channel and self.main_channel.readyState != "open":
             # Create a future to wait for the main channel to open
-            future = asyncio.Future()
+            future = anyio.Future()
             
             def on_open():
                 future.set_result(None)
@@ -240,8 +240,8 @@ class WebRTCRawConnection(IRawConnection):
             self.main_channel.add_listener("open", on_open)
             
             try:
-                await asyncio.wait_for(future, timeout=30)
-            except asyncio.TimeoutError:
+                await anyio.wait_for(future, timeout=30)
+            except anyio.TimeoutError:
                 raise ConnectionError("Timed out waiting for data channel to open")
                 
         return True
@@ -266,7 +266,7 @@ class WebRTCRawConnection(IRawConnection):
         self.data_channels[label] = channel
         
         # Wait for the channel to open
-        future = asyncio.Future()
+        future = anyio.Future()
         
         def on_open():
             future.set_result(None)
@@ -274,8 +274,8 @@ class WebRTCRawConnection(IRawConnection):
         channel.add_listener("open", on_open)
         
         try:
-            await asyncio.wait_for(future, timeout=30)
-        except asyncio.TimeoutError:
+            await anyio.wait_for(future, timeout=30)
+        except anyio.TimeoutError:
             raise ConnectionError("Timed out waiting for data channel to open")
             
         return channel
@@ -507,8 +507,8 @@ class WebRTCTransport:
             
             # Wait for connection establishment
             try:
-                await asyncio.wait_for(raw_conn.open(), timeout=timeout)
-            except asyncio.TimeoutError:
+                await anyio.wait_for(raw_conn.open(), timeout=timeout)
+            except anyio.TimeoutError:
                 raise ConnectionError(f"Timed out waiting for WebRTC connection to peer {peer_id}")
                 
             # Create network connection

@@ -15,7 +15,7 @@ Key features:
 8. SOP/CORS Protection: Security for browser-based clients
 """
 
-import asyncio
+import anyio
 import base64
 import hashlib
 import hmac

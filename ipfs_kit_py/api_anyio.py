@@ -852,7 +852,7 @@ if FASTAPI_AVAILABLE:
             logger.info(f"Getting content for CID: {cid}, timeout={timeout}")
             
             try:
-                # Use anyio.fail_after instead of asyncio.wait_for
+                # Use anyio.fail_after instead of anyio.wait_for
                 with anyio.fail_after(timeout):
                     # Make sure to await the get method
                     content = await api.get(cid)
@@ -908,7 +908,7 @@ if FASTAPI_AVAILABLE:
             # Create async generator for streaming content
             async def content_generator():
                 try:
-                    # Use anyio move_on_after instead of asyncio.wait_for for timeouts
+                    # Use anyio move_on_after instead of anyio.wait_for for timeouts
                     with anyio.move_on_after(timeout):
                         # Use the async streaming method
                         async for chunk in api.stream_media_async(
@@ -998,7 +998,7 @@ if FASTAPI_AVAILABLE:
             # Create async generator for streaming content
             async def content_generator():
                 try:
-                    # Use anyio move_on_after instead of asyncio.wait_for for timeouts
+                    # Use anyio move_on_after instead of anyio.wait_for for timeouts
                     with anyio.move_on_after(timeout):
                         # Use the async streaming method
                         async for chunk in api.stream_media_async(

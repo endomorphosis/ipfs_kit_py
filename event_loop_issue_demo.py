@@ -6,7 +6,7 @@ This script demonstrates the event loop issue in async functions
 and how our AsyncEventLoopHandler fix resolves it.
 """
 
-import asyncio
+import anyio
 import time
 import logging
 from contextlib import asynccontextmanager
@@ -25,7 +25,7 @@ from fixes.webrtc_event_loop_fix import AsyncEventLoopHandler
 async def sample_coroutine(seconds=1):
     """A sample coroutine that sleeps for a given time."""
     logger.info(f"Starting coroutine, will sleep for {seconds} second(s)")
-    await asyncio.sleep(seconds)
+    await anyio.sleep(seconds)
     logger.info("Coroutine completed!")
     return {"success": True, "slept_for": seconds}
 
@@ -44,18 +44,18 @@ def problematic_method():
     try:
         # Get or create event loop (problematic pattern)
         try:
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
             if loop.is_running():
                 # Create a new event loop for this operation
                 logger.info("Loop is running, creating a new one (THIS WILL FAIL IN FASTAPI)")
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
+                new_loop = anyio.new_event_loop()
+                anyio.set_event_loop(new_loop)
                 loop = new_loop
         except RuntimeError:
             # No event loop in this thread
             logger.info("No event loop in this thread, creating one")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
         
         # Run the coroutine using run_until_complete
         logger.info("Running coroutine with run_until_complete")
@@ -114,7 +114,7 @@ async def lifespan(app):
     # Set up stuff
     yield
     # Clean up stuff
-    await asyncio.sleep(1.5)  # Wait for background tasks to complete
+    await anyio.sleep(1.5)  # Wait for background tasks to complete
 
 async def simulate_fastapi_endpoint_calls():
     """Simulate FastAPI endpoint calls in an already running event loop."""
@@ -162,9 +162,9 @@ async def run_demo():
     
     # Wait to ensure any background tasks complete
     logger.info("\nWaiting for background tasks to complete...")
-    await asyncio.sleep(2)
+    await anyio.sleep(2)
     
     logger.info("\n=== DEMO COMPLETE ===")
 
 if __name__ == "__main__":
-    asyncio.run(run_demo())
+    anyio.run(run_demo())

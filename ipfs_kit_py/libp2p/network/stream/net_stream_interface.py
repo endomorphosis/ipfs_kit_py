@@ -5,7 +5,7 @@ This module provides interfaces and implementations for working with
 network streams in the libp2p networking stack.
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Optional, Union, List, Dict, Any, Callable, Awaitable
 
@@ -102,7 +102,7 @@ class NetStream(INetStream):
     interface using Python's asyncio capabilities.
     """
     
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, 
+    def __init__(self, reader: anyio.StreamReader, writer: anyio.StreamWriter, 
                  protocol_id: str, peer_id: str):
         """
         Initialize a new network stream.

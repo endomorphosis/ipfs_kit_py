@@ -16,7 +16,7 @@ The module uses dependency injection to avoid circular imports, where the
 IPFSKit instance or class is passed as a parameter rather than importing it directly.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import os

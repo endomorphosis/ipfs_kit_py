@@ -9,7 +9,7 @@ efficient content discovery and retrieval.
 import os
 import sys
 import time
-import asyncio
+import anyio
 import logging
 import json
 from typing import Dict, List, Any, Optional, Callable, Union, Tuple, Set
@@ -612,12 +612,12 @@ class EnhancedContentRouter:
                 data = self.peer.retrieve_content(cid)
                 return data
             elif hasattr(self.peer, "has_content") and callable(self.peer.has_content):
-                has_content = await self.peer.has_content(cid) if asyncio.iscoroutinefunction(self.peer.has_content) else self.peer.has_content(cid)
+                has_content = await self.peer.has_content(cid) if anyio.iscoroutinefunction(self.peer.has_content) else self.peer.has_content(cid)
                 
                 if has_content:
                     # Try to get the data
                     if hasattr(self.peer, "get_block") and callable(self.peer.get_block):
-                        data = await self.peer.get_block(cid) if asyncio.iscoroutinefunction(self.peer.get_block) else self.peer.get_block(cid)
+                        data = await self.peer.get_block(cid) if anyio.iscoroutinefunction(self.peer.get_block) else self.peer.get_block(cid)
                         return data
             
             return None
@@ -649,7 +649,7 @@ class EnhancedContentRouter:
         try:
             # Connect to the peer if not already connected
             if hasattr(self.peer, "connect_peer") and callable(self.peer.connect_peer):
-                connected = await self.peer.connect_peer(provider_id) if asyncio.iscoroutinefunction(self.peer.connect_peer) else self.peer.connect_peer(provider_id)
+                connected = await self.peer.connect_peer(provider_id) if anyio.iscoroutinefunction(self.peer.connect_peer) else self.peer.connect_peer(provider_id)
                 
                 if not connected:
                     logger.warning(f"Failed to connect to provider {provider_id}")
@@ -657,7 +657,7 @@ class EnhancedContentRouter:
             
             # Try to get the content using standard methods
             if hasattr(self.peer, "get_block") and callable(self.peer.get_block):
-                content = await self.peer.get_block(cid) if asyncio.iscoroutinefunction(self.peer.get_block) else self.peer.get_block(cid)
+                content = await self.peer.get_block(cid) if anyio.iscoroutinefunction(self.peer.get_block) else self.peer.get_block(cid)
                 return content
                 
             return None
@@ -694,7 +694,7 @@ class EnhancedContentRouter:
         try:
             # Try to find providers using DHT
             if hasattr(self.peer, "find_providers") and callable(self.peer.find_providers):
-                dht_providers = await self.peer.find_providers(cid) if asyncio.iscoroutinefunction(self.peer.find_providers) else self.peer.find_providers(cid)
+                dht_providers = await self.peer.find_providers(cid) if anyio.iscoroutinefunction(self.peer.find_providers) else self.peer.find_providers(cid)
                 
                 # Handle different provider formats
                 for provider in dht_providers:
@@ -887,7 +887,7 @@ class RecursiveContentRouter(EnhancedContentRouter):
                         has_protocol = await self.peer.has_protocol(
                             peer_id, 
                             "/ipfs-kit/discovery/1.0.0"
-                        ) if asyncio.iscoroutinefunction(self.peer.has_protocol) else self.peer.has_protocol(
+                        ) if anyio.iscoroutinefunction(self.peer.has_protocol) else self.peer.has_protocol(
                             peer_id, 
                             "/ipfs-kit/discovery/1.0.0"
                         )

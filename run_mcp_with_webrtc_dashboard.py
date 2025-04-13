@@ -21,7 +21,7 @@ import time
 import logging
 import argparse
 import importlib
-import asyncio
+import anyio
 import multiprocessing
 import webbrowser
 from typing import Dict, List, Optional, Any
@@ -74,8 +74,8 @@ def force_webrtc_availability():
     mock_aiortc = types.ModuleType("aiortc")
     mock_aiortc.RTCPeerConnection = type("RTCPeerConnection", (), {
         "__init__": lambda self, **kwargs: None,
-        "createOffer": lambda self: asyncio.Future(),
-        "createAnswer": lambda self: asyncio.Future(),
+        "createOffer": lambda self: anyio.Future(),
+        "createAnswer": lambda self: anyio.Future(),
         "close": lambda self: None,
     })
     sys.modules["aiortc"] = mock_aiortc

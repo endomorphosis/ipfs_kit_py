@@ -1775,7 +1775,7 @@ def start_api_server_thread(
         
     # Create thread to run the server
     def run_server():
-        # Use anyio.run instead of asyncio.run for backend flexibility
+        # Use anyio.run instead of anyio.run for backend flexibility
         anyio.run(start_api_server, app, host, port, log_level)
         
     thread = threading.Thread(target=run_server, daemon=True)

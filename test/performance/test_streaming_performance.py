@@ -1,5 +1,5 @@
 import unittest
-import asyncio
+import anyio
 import os
 import time
 import tempfile
@@ -211,7 +211,7 @@ class TestAsyncStreamingPerformance:
         async def mock_stream_media_async(cid, chunk_size=1024, **kwargs):
             for _ in range(3):  # Simulate a few chunks
                 yield b"X" * chunk_size
-                await asyncio.sleep(0.01)  # Tiny sleep for async behavior
+                await anyio.sleep(0.01)  # Tiny sleep for async behavior
                 
         # Set the mock on the API
         self.api.stream_media_async = mock_stream_media_async

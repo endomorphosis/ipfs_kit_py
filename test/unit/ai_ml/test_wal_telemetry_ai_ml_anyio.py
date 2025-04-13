@@ -10,7 +10,7 @@ for backend-agnostic async operations.
 import unittest
 import time
 import json
-import asyncio
+import anyio
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import logging

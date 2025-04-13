@@ -310,98 +310,98 @@ class MCPDiscoveryControllerAnyIO:
         self._warn_if_async_context("get_local_server_info")
         # Call the original implementation
         # For now, we'll simulate by calling the async version
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.get_local_server_info_async())
     
     def update_local_server(self, request: UpdateServerRequest):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("update_local_server")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.update_local_server_async(request))
     
     def announce_server(self, request: Optional[AnnounceRequest] = None):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("announce_server")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.announce_server_async(request))
     
     def discover_servers(self, request: DiscoverServersRequest):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("discover_servers")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.discover_servers_async(request))
     
     def get_known_servers(self, filter_role: Optional[str] = None, filter_features: Optional[str] = None):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("get_known_servers")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.get_known_servers_async(filter_role, filter_features))
     
     def get_compatible_servers(self, feature_requirements: Optional[str] = None):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("get_compatible_servers")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.get_compatible_servers_async(feature_requirements))
     
     def get_server_by_id(self, server_id: str):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("get_server_by_id")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.get_server_by_id_async(server_id))
     
     def register_server(self, request: RegisterServerRequest):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("register_server")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.register_server_async(request))
     
     def remove_server(self, server_id: str):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("remove_server")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.remove_server_async(server_id))
     
     def clean_stale_servers(self, max_age_seconds: int = 3600):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("clean_stale_servers")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.clean_stale_servers_async(max_age_seconds))
     
     def check_server_health(self, server_id: str):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("check_server_health")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.check_server_health_async(server_id))
     
     def dispatch_task(self, request: DispatchTaskRequest):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("dispatch_task")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.dispatch_task_async(request))
     
     def get_stats(self):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("get_stats")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.get_stats_async())
     
     def reset(self):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("reset")
         # Call the original implementation
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return loop.run_until_complete(self.reset_async())
     
     # Implement async versions of all methods

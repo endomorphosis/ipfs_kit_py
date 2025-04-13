@@ -80,7 +80,7 @@ class DummyWebRTCManager:
         logger.info(f"Closing connection: {connection_id}")
         
         # Simulate async operation
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         
         # Check if connection exists
         if connection_id in self.connections:
@@ -94,7 +94,7 @@ class DummyWebRTCManager:
         logger.info(f"Closing all connections: {len(self.connections)}")
         
         # Simulate async operation
-        await asyncio.sleep(0.2)
+        await anyio.sleep(0.2)
         
         # Count connections and clear
         count = len(self.connections)
@@ -178,7 +178,7 @@ async def run_async_tests(model, monitor):
     
     # Wait a moment for background tasks
     print("\nWaiting for background tasks...")
-    await asyncio.sleep(1)
+    await anyio.sleep(1)
 
 async def run_simulated_fastapi_context_tests(model, monitor):
     """Run tests that simulate a FastAPI context (with running event loop)."""
@@ -203,7 +203,7 @@ async def run_simulated_fastapi_context_tests(model, monitor):
     
     # Wait for background task to complete
     print("\nWaiting for background task to complete...")
-    await asyncio.sleep(1)
+    await anyio.sleep(1)
     
     # Check if the connection was actually closed in the background
     print("\nFastAPI-1 connection should be closed. Current connections:")

@@ -10,7 +10,7 @@ This module tests the monitoring and management capabilities (Phase 3B), includi
 - Automated recovery procedures
 """
 
-import asyncio
+import anyio
 import json
 import os
 import tempfile
@@ -84,8 +84,8 @@ class TestClusterHealthMonitoring:
     @classmethod
     def setup_class(cls):
         """Set up the event loop for all tests in this class."""
-        cls.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(cls.loop)
+        cls.loop = anyio.new_event_loop()
+        anyio.set_event_loop(cls.loop)
         
     @classmethod
     def teardown_class(cls):
@@ -487,8 +487,8 @@ class TestPerformanceVisualization:
     @classmethod
     def setup_class(cls):
         """Set up the event loop for all tests in this class."""
-        cls.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(cls.loop)
+        cls.loop = anyio.new_event_loop()
+        anyio.set_event_loop(cls.loop)
         
     @classmethod
     def teardown_class(cls):
@@ -810,8 +810,8 @@ class TestConfigurationManagement:
     @classmethod
     def setup_class(cls):
         """Set up the event loop for all tests in this class."""
-        cls.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(cls.loop)
+        cls.loop = anyio.new_event_loop()
+        anyio.set_event_loop(cls.loop)
         
     @classmethod
     def teardown_class(cls):

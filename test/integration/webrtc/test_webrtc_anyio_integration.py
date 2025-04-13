@@ -10,7 +10,7 @@ import os
 import sys
 import time
 import uuid
-import asyncio
+import anyio
 import logging
 import unittest
 import multiprocessing
@@ -52,7 +52,7 @@ class MockWebRTCManager:
     async def close_connection(self, connection_id):
         """Mock async method to close a connection."""
         logger.info(f"Closing connection: {connection_id}")
-        await asyncio.sleep(0.2)  # Simulate work
+        await anyio.sleep(0.2)  # Simulate work
         if connection_id in self.connections:
             self.connections.pop(connection_id)
             return {"success": True, "connection_id": connection_id}
@@ -61,7 +61,7 @@ class MockWebRTCManager:
     async def close_all_connections(self):
         """Mock async method to close all connections."""
         logger.info(f"Closing all connections: {len(self.connections)}")
-        await asyncio.sleep(0.3)  # Simulate work
+        await anyio.sleep(0.3)  # Simulate work
         connection_count = len(self.connections)
         self.connections.clear()
         return {"success": True, "connections_closed": connection_count}
@@ -104,16 +104,16 @@ class MockIPFSModel:
         try:
             # Problematic pattern
             try:
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_event_loop()
                 if loop.is_running():
                     # This is the problem - creating a new loop in a running loop
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
+                    new_loop = anyio.new_event_loop()
+                    anyio.set_event_loop(new_loop)
                     loop = new_loop
             except RuntimeError:
                 # No event loop in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
             
             # Try to run_until_complete in a running loop
             close_result = loop.run_until_complete(
@@ -140,16 +140,16 @@ class MockIPFSModel:
         try:
             # Problematic pattern
             try:
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_event_loop()
                 if loop.is_running():
                     # This is the problem - creating a new loop in a running loop
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
+                    new_loop = anyio.new_event_loop()
+                    anyio.set_event_loop(new_loop)
                     loop = new_loop
             except RuntimeError:
                 # No event loop in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
             
             # Try to run_until_complete in a running loop
             close_result = loop.run_until_complete(
@@ -177,16 +177,16 @@ class MockIPFSModel:
         try:
             # Problematic pattern
             try:
-                loop = asyncio.get_event_loop()
+                loop = anyio.get_event_loop()
                 if loop.is_running():
                     # This is the problem - creating a new loop in a running loop
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
+                    new_loop = anyio.new_event_loop()
+                    anyio.set_event_loop(new_loop)
                     loop = new_loop
             except RuntimeError:
                 # No event loop in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
             
             # Try to run_until_complete in a running loop
             stats = self.webrtc_manager.get_stats()

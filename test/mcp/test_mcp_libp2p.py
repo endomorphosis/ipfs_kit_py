@@ -16,7 +16,7 @@ import logging
 import argparse
 import time
 import json
-import asyncio
+import anyio
 from pprint import pprint
 
 # Configure logging

@@ -1,4 +1,15 @@
-import asyncio
+"""
+Tests for Kademlia DHT implementation in ipfs_kit_py.
+
+This module tests the Kademlia Distributed Hash Table implementation in the
+ipfs_kit_py library, including:
+- Routing table management
+- Content storage and retrieval
+- Peer discovery and content provider tracking
+- DHT operations like storing values, finding values, and finding providers
+"""
+
+import anyio
 import os
 import random
 import tempfile
@@ -551,7 +562,7 @@ Test periodic refresh behavior.
         await self.node.start()
         
         # Give it a moment to run the periodic refresh task
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         
         # Verify refresh methods were called
         # Note: This is racy and might fail if the task doesn't run in time

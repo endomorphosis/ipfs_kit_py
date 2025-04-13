@@ -9,7 +9,7 @@ properly expose libp2p functionality.
 import os
 import sys
 import time
-import asyncio
+import anyio
 import pytest
 import tempfile
 import logging

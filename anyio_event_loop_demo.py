@@ -7,7 +7,7 @@ and how our AnyIOEventLoopHandler fix resolves it, working with
 multiple async backends.
 """
 
-import asyncio
+import anyio
 import time
 import logging
 import sys
@@ -55,18 +55,18 @@ def problematic_method():
     try:
         # Get or create event loop (problematic pattern)
         try:
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
             if loop.is_running():
                 # Create a new event loop for this operation
                 logger.info("Loop is running, creating a new one (THIS WILL FAIL IN FASTAPI)")
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
+                new_loop = anyio.new_event_loop()
+                anyio.set_event_loop(new_loop)
                 loop = new_loop
         except RuntimeError:
             # No event loop in this thread
             logger.info("No event loop in this thread, creating one")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
         
         # Run the coroutine using run_until_complete
         logger.info("Running coroutine with run_until_complete")

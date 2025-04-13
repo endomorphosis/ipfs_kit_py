@@ -3,7 +3,7 @@
 Unit tests for the enhanced MFS functionality.
 """
 
-import asyncio
+import anyio
 import os
 import tempfile
 import unittest
@@ -145,11 +145,11 @@ class TestMFSTransaction(unittest.TestCase):
 
     def test_successful_transaction(self):
         """Run async test for successful transaction."""
-        asyncio.run(self.async_test_successful_transaction())
+        anyio.run(self.async_test_successful_transaction())
 
     def test_failed_transaction(self):
         """Run async test for failed transaction."""
-        asyncio.run(self.async_test_failed_transaction())
+        anyio.run(self.async_test_failed_transaction())
 
 
 class TestDirectorySynchronizer(unittest.TestCase):
@@ -224,7 +224,7 @@ class TestDirectorySynchronizer(unittest.TestCase):
 
     def test_sync_local_to_mfs(self):
         """Run async test for sync_local_to_mfs."""
-        asyncio.run(self.async_test_sync_local_to_mfs())
+        anyio.run(self.async_test_sync_local_to_mfs())
 
 
 class TestContentTypeDetector(unittest.TestCase):
@@ -271,11 +271,11 @@ class TestContentTypeDetector(unittest.TestCase):
 
     def test_detect_by_extension(self):
         """Run async test for detect_by_extension."""
-        asyncio.run(self.async_test_detect_by_extension())
+        anyio.run(self.async_test_detect_by_extension())
 
     def test_detect_by_content(self):
         """Run async test for detect_by_content."""
-        asyncio.run(self.async_test_detect_by_content())
+        anyio.run(self.async_test_detect_by_content())
 
 
 class TestMFSChangeWatcher(unittest.TestCase):
@@ -341,7 +341,7 @@ class TestMFSChangeWatcher(unittest.TestCase):
 
     def test_detect_changes(self):
         """Run async test for detect_changes."""
-        asyncio.run(self.async_test_detect_changes())
+        anyio.run(self.async_test_detect_changes())
 
 
 class TestBatchOperations(unittest.TestCase):
@@ -391,11 +391,11 @@ class TestBatchOperations(unittest.TestCase):
 
     def test_copy_content_batch(self):
         """Run async test for copy_content_batch."""
-        asyncio.run(self.async_test_copy_content_batch())
+        anyio.run(self.async_test_copy_content_batch())
 
     def test_move_content_batch(self):
         """Run async test for move_content_batch."""
-        asyncio.run(self.async_test_move_content_batch())
+        anyio.run(self.async_test_move_content_batch())
 
 
 class TestUtilityFunctions(unittest.TestCase):
@@ -470,11 +470,11 @@ class TestUtilityFunctions(unittest.TestCase):
 
     def test_create_empty_directory_structure(self):
         """Run async test for create_empty_directory_structure."""
-        asyncio.run(self.async_test_create_empty_directory_structure())
+        anyio.run(self.async_test_create_empty_directory_structure())
 
     def test_create_file_with_type(self):
         """Run async test for create_file_with_type."""
-        asyncio.run(self.async_test_create_file_with_type())
+        anyio.run(self.async_test_create_file_with_type())
 
 
 if __name__ == "__main__":

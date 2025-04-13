@@ -2,7 +2,7 @@
 """Test WebRTC benchmarking capabilities."""
 
 import unittest
-import asyncio
+import anyio
 import os
 import json
 import tempfile
@@ -362,7 +362,7 @@ class TestWebRTCBenchmark(unittest.TestCase):
         await self.benchmark.start_monitoring()
         
         # Wait a bit for the task to run
-        await asyncio.sleep(0.2)
+        await anyio.sleep(0.2)
         
         # Verify the task was started
         self.assertIsNotNone(self.benchmark._task)

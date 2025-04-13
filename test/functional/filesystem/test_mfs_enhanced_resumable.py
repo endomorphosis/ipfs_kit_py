@@ -6,7 +6,7 @@ This module tests the resumable file operations for IPFS MFS,
 including parallel transfers functionality.
 """
 
-import asyncio
+import anyio
 import os
 import random
 import time
@@ -324,7 +324,7 @@ async def test_concurrent_same_chunk_request_deduplication(resumable_ops):
     
     # Configure mock to delay responses
     async def delayed_write(*args, **kwargs):
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         return {"Hash": "test-hash"}
         
     mock_ipfs.files_write.side_effect = delayed_write
@@ -335,13 +335,13 @@ async def test_concurrent_same_chunk_request_deduplication(resumable_ops):
     # Create multiple concurrent requests for the same chunk
     tasks = []
     for _ in range(3):
-        task = asyncio.create_task(
+        task = anyio.create_task(
             resumable.write_chunk(file_id, chunk_data, chunk_index=0)
         )
         tasks.append(task)
     
     # Wait for all tasks to complete
-    results = await asyncio.gather(*tasks)
+    results = await anyio.gather(*tasks)
     
     # Verify all tasks succeeded
     for result in results:
@@ -361,7 +361,7 @@ async def test_parallel_read_performance(resumable_ops):
     
     # Configure mock to simulate network delay
     async def slow_read(path, offset, count):
-        await asyncio.sleep(0.05)  # 50ms per read
+        await anyio.sleep(0.05)  # 50ms per read
         return b"x" * count
         
     mock_ipfs.files_read.side_effect = slow_read

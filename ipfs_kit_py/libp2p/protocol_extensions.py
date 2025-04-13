@@ -11,7 +11,7 @@ This module provides advanced protocol extensions for libp2p, including:
 import os
 import sys
 import time
-import asyncio
+import anyio
 import logging
 import json
 from typing import Dict, List, Any, Optional, Callable, Union, Tuple

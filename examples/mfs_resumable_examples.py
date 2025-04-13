@@ -6,7 +6,7 @@ This file provides practical examples for using the resumable file operations
 for IPFS MFS, allowing operations to be paused and resumed after connection loss.
 """
 
-import asyncio
+import anyio
 import os
 import random
 import tempfile
@@ -455,7 +455,7 @@ async def example_progress_monitoring():
         # Add a random delay to simulate network conditions
         delay = random.uniform(0.1, 1.0)
         print(f"Waiting {delay:.2f} seconds before writing chunk {i+1}...")
-        await asyncio.sleep(delay)
+        await anyio.sleep(delay)
         
         # Write the chunk
         result = await resumable.write_chunk(file_id, chunk_data, chunk_index=i)
@@ -465,7 +465,7 @@ async def example_progress_monitoring():
     
     # Simulate longer interrupt
     print("\nSimulating longer interruption (3 seconds)...")
-    await asyncio.sleep(3)
+    await anyio.sleep(3)
     
     # Resume operation
     resume_result = await resumable.resume_operation(file_id)
@@ -481,7 +481,7 @@ async def example_progress_monitoring():
         # Add a different delay pattern to simulate changed network conditions
         delay = random.uniform(0.05, 0.5)  # Faster after "resuming"
         print(f"Waiting {delay:.2f} seconds before writing chunk {i+1}...")
-        await asyncio.sleep(delay)
+        await anyio.sleep(delay)
         
         # Write the chunk
         result = await resumable.write_chunk(file_id, chunk_data, chunk_index=i)
@@ -561,7 +561,7 @@ async def example_adaptive_chunking():
         
         # Add artificial delay to simulate slow network
         delay = random.uniform(0.5, 1.0)  # Longer delay
-        await asyncio.sleep(delay)
+        await anyio.sleep(delay)
         
         # Write the chunk
         result = await resumable.write_chunk(file_id, chunk_data, chunk_index=i)
@@ -577,7 +577,7 @@ async def example_adaptive_chunking():
         
         # Add shorter artificial delay to simulate faster network
         delay = random.uniform(0.05, 0.2)  # Shorter delay
-        await asyncio.sleep(delay)
+        await anyio.sleep(delay)
         
         # Write the chunk
         result = await resumable.write_chunk(file_id, chunk_data, chunk_index=i)
@@ -805,4 +805,4 @@ async def main():
     print("\n=== Examples Completed ===")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main())

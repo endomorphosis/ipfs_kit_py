@@ -775,8 +775,8 @@ class StorageManagerAnyIO:
             task_ref = None
             
             if backend == "asyncio":
-                import asyncio
-                task_ref = asyncio.create_task(run_async())
+                import anyio
+                anyio.create_task(run_async())
             elif backend == "trio":
                 import trio
                 # For trio, we use system task as it doesn't require a nursery

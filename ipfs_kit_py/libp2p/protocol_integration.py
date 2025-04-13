@@ -24,7 +24,7 @@ Usage:
 """
 
 import logging
-import asyncio
+import anyio
 import inspect
 import importlib
 from typing import Any, Type, Dict, List, Set, Optional, Callable, Union, Tuple
@@ -128,10 +128,10 @@ def apply_protocol_extensions_to_instance(peer_instance: Any) -> Any:
         if hasattr(peer_instance, '_is_started') and peer_instance._is_started:
             # Initialize enhanced components
             if hasattr(peer_instance, 'initialize_gossipsub'):
-                asyncio.run(peer_instance.initialize_gossipsub())
+                anyio.run(peer_instance.initialize_gossipsub())
                 
             if hasattr(peer_instance, 'initialize_recursive_routing'):
-                asyncio.run(peer_instance.initialize_recursive_routing())
+                anyio.run(peer_instance.initialize_recursive_routing())
         
         logger.info("Successfully applied all protocol extensions to IPFSLibp2pPeer instance")
         return peer_instance

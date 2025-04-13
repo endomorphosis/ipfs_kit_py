@@ -29,7 +29,7 @@ import argparse
 import importlib
 from pathlib import Path
 import multiprocessing
-import asyncio
+import anyio
 import uuid
 from typing import Dict, List, Any, Optional
 
@@ -241,7 +241,7 @@ def create_async_test_endpoint(monitor):
         })
         
         # Simulate some async work
-        await asyncio.sleep(0.5)
+        await anyio.sleep(0.5)
         
         # Update connection state
         monitor.update_connection_state(connection_id, "connection", "connected")
@@ -251,7 +251,7 @@ def create_async_test_endpoint(monitor):
         monitor.add_async_task(connection_id, task_id)
         
         # Simulate some more async work
-        await asyncio.sleep(0.5)
+        await anyio.sleep(0.5)
         
         # Complete the task
         monitor.remove_async_task(connection_id, task_id)

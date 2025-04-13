@@ -14,7 +14,7 @@ Key features:
 - Resilient error handling and recovery patterns
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import random
@@ -309,10 +309,10 @@ class GossipSubProtocol:
                     logger.error(f"Error in GossipSub heartbeat: {e}")
                     
                 # Sleep until next heartbeat
-                await asyncio.sleep(self.heartbeat_interval)
+                await anyio.sleep(self.heartbeat_interval)
                 
         # Create and store the task
-        self._heartbeat_task = asyncio.create_task(heartbeat_loop())
+        self._heartbeat_task = anyio.create_task(heartbeat_loop())
         
     def _stop_heartbeat(self):
         """Stop the heartbeat task."""
@@ -614,7 +614,7 @@ class GossipSubProtocol:
                 import inspect
                 if inspect.iscoroutinefunction(handler):
                     # Schedule as task to prevent blocking
-                    asyncio.create_task(handler(message))
+                    anyio.create_task(handler(message))
                 else:
                     # Submit to thread pool for synchronous handlers
                     self.thread_pool.submit(handler, message)
@@ -1137,7 +1137,7 @@ def add_enhanced_dht_discovery_methods(peer_class):
             )
             
             # Wait for the result with timeout
-            import asyncio
+            import anyio
             providers = future.result(timeout=timeout)
             
             if providers:

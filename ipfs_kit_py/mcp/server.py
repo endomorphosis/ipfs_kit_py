@@ -818,11 +818,7 @@ class MCPServer:
         
         # Register core endpoints with error handling
         core_endpoints = [
-            ("/health", self.health_check, ["GET",
-
-            ("", self.mcp_root, ["GET"]),
-
-            ("/versions", self.versions_endpoint, ["GET"])]),
+            ("/health", self.health_check, ["GET"]),
             ("/debug", self.get_debug_state, ["GET"]),
             ("/operations", self.get_operation_log, ["GET"]),
             ("/daemon/start/{daemon_type}", self.start_daemon, ["POST"]),
@@ -2479,123 +2475,7 @@ class MCPServer:
                     if handler.stream.closed:
                         return True
                 except (AttributeError, ValueError):
-                    # If we ca
-
-
-    async def mcp_root(self):
-
-
-        """MCP root endpoint."""
-
-
-        return {
-
-
-            "message": "MCP Server is running",
-
-
-            "version": getattr(self, 'version', '0.1.0'),
-
-
-            "controllers": list(self.controllers.keys()),
-
-
-            "endpoints": {
-
-
-                "health": "/health",
-
-
-                "versions": "/versions"
-
-
-            }
-
-
-        }
-
-
-
-    async def versions_endpoint(self):
-
-
-        """Get component versions."""
-
-
-        import sys
-
-
-        import anyio
-
-
-        import fastapi
-
-
-        
-
-
-        versions = {}
-
-
-        if "ipfs" in self.models and hasattr(self.models["ipfs"], "get_version"):
-
-
-            try:
-
-
-                ipfs_version = await anyio.to_thread.run_sync(self.models["ipfs"].get_version)
-
-
-                versions["ipfs"] = ipfs_version
-
-
-            except Exception as e:
-
-
-                versions["ipfs"] = {"success": False, "error": str(e)}
-
-
-        else:
-
-
-            versions["ipfs"] = {"success": False, "version": "unknown"}
-
-
-        
-
-
-        return {
-
-
-            "success": True,
-
-
-            "server": getattr(self, 'version', '0.1.0'),
-
-
-            "ipfs": versions.get("ipfs", {}).get("version", "unknown"),
-
-
-            "python": sys.version,
-
-
-            "dependencies": {
-
-
-                "ipfs_kit_py": getattr(self, 'version', '0.1.0'),
-
-
-                "fastapi": getattr(fastapi, "__version__", "unknown"),
-
-
-                "anyio": getattr(anyio, "__version__", "unknown")
-
-
-            }
-
-
-        }
-n't access the stream, it's likely being shut down
+                    # If we can't access the stream, it's likely being shut down
                     return True
 
         return False

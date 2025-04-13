@@ -40,19 +40,19 @@ def enhance_with_recursive_routing(peer_instance):
         def enhanced_find_providers(cid, timeout=30):
             """Enhanced version of find_providers that uses recursive routing."""
             # For synchronous API compatibility, we'll use the event loop directly
-            import asyncio
+            import anyio
             
             try:
                 # Create a new event loop if necessary
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = anyio.get_event_loop()
                 except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                    loop = anyio.new_event_loop()
+                    anyio.set_event_loop(loop)
                 
                 # Run the recursive find with a timeout
                 future = recursive_router.find_providers(cid, timeout=timeout)
-                return loop.run_until_complete(asyncio.wait_for(future, timeout=timeout))
+                return loop.run_until_complete(anyio.wait_for(future, timeout=timeout))
             except Exception as e:
                 # Fall back to original method on error
                 import logging
@@ -64,7 +64,7 @@ def enhance_with_recursive_routing(peer_instance):
         
     return peer_instance
 
-import asyncio
+import anyio
 import json
 import logging
 import random
@@ -147,7 +147,7 @@ class RecursiveContentRouter:
         
         # Start recursive search
         try:
-            results = await asyncio.wait_for(
+            results = await anyio.wait_for(
                 self._recursive_find(query_id),
                 timeout=timeout
             )
@@ -182,7 +182,7 @@ class RecursiveContentRouter:
             
             return results[:count]
             
-        except asyncio.TimeoutError:
+        except anyio.TimeoutError:
             self.logger.warning(f"Recursive lookup for {cid} timed out")
             
             # Return partial results if any
@@ -254,7 +254,7 @@ class RecursiveContentRouter:
                 
             # Query these peers in parallel
             tasks = [self._query_peer(query_id, peer, cid) for peer in peers_this_round]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results = await anyio.gather(*tasks, return_exceptions=True)
             
             # Process results
             next_peers = set()
@@ -299,7 +299,7 @@ class RecursiveContentRouter:
         try:
             # Use the underlying DHT discovery for direct lookup
             providers_future = self.dht_discovery.find_providers(cid, count=5)
-            providers = await asyncio.wrap_future(providers_future)
+            providers = await anyio.wrap_future(providers_future)
             return providers
         except Exception as e:
             self.logger.warning(f"Error in direct query for {cid}: {e}")
@@ -634,7 +634,7 @@ class DelegatedContentRouter:
             for delegate in delegates_to_query
         ]
         
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await anyio.gather(*tasks, return_exceptions=True)
         
         # Combine results
         all_providers = []
@@ -683,7 +683,7 @@ class DelegatedContentRouter:
             await self._ensure_delegate_connection(delegate_id)
             
             # Open a stream to the delegate
-            stream = await asyncio.wait_for(
+            stream = await anyio.wait_for(
                 self.libp2p_peer.host.new_stream(delegate_id, [self.PROTOCOL_ID]),
                 timeout=timeout/3
             )
@@ -703,7 +703,7 @@ class DelegatedContentRouter:
                 await stream.write(json.dumps(request).encode() + b"\n")
                 
                 # Wait for response
-                response_data = await asyncio.wait_for(
+                response_data = await anyio.wait_for(
                     stream.read(1024 * 1024),  # 1MB max
                     timeout=timeout
                 )
@@ -733,7 +733,7 @@ class DelegatedContentRouter:
             finally:
                 await stream.close()
                 
-        except asyncio.TimeoutError:
+        except anyio.TimeoutError:
             self.logger.warning(f"Timeout querying delegate {delegate_id} for {cid}")
             return []
             
@@ -1649,7 +1649,7 @@ class ContentRoutingSystem:
             try:
                 self.logger.debug(f"Using direct DHT routing for {cid}")
                 providers_future = self.dht_discovery.find_providers(cid, count=count)
-                providers = await asyncio.wait_for(asyncio.wrap_future(providers_future), timeout)
+                providers = await anyio.wait_for(anyio.wrap_future(providers_future), timeout)
                 self.router_usage["direct"] += 1
             except Exception as e:
                 self.logger.warning(f"Direct routing failed for {cid}: {e}")
@@ -1679,7 +1679,7 @@ class ContentRoutingSystem:
                 try:
                     self.logger.debug(f"Trying direct DHT routing fallback for {cid}")
                     providers_future = self.dht_discovery.find_providers(cid, count=count)
-                    providers = await asyncio.wait_for(asyncio.wrap_future(providers_future), timeout/2)
+                    providers = await anyio.wait_for(anyio.wrap_future(providers_future), timeout/2)
                     self.router_usage["direct"] += 1
                 except Exception as e:
                     self.logger.warning(f"Direct routing fallback failed for {cid}: {e}")
@@ -1725,7 +1725,7 @@ class ContentRoutingSystem:
                     self.libp2p_peer.announce_content(cid)
                     
                 if self.dht_discovery:
-                    await asyncio.wrap_future(
+                    await anyio.wrap_future(
                         self.dht_discovery.libp2p_peer.host.get_dht().provide_async(cid)
                     )
                     
@@ -1831,7 +1831,7 @@ class ContentRoutingSystem:
             await self.libp2p_peer.host.connect(peer_info)
             
             # Open a stream with bitswap protocol
-            stream = await asyncio.wait_for(
+            stream = await anyio.wait_for(
                 self.libp2p_peer.host.new_stream(peer_id, ["/ipfs/bitswap/1.2.0"]),
                 timeout=10
             )
@@ -1856,9 +1856,9 @@ class ContentRoutingSystem:
                 while True:
                     remaining_time = timeout - (time.time() - start_time)
                     if remaining_time <= 0:
-                        raise asyncio.TimeoutError("Retrieval timed out")
+                        raise anyio.TimeoutError("Retrieval timed out")
                         
-                    chunk = await asyncio.wait_for(
+                    chunk = await anyio.wait_for(
                         stream.read(chunk_size),
                         timeout=remaining_time
                     )

@@ -9,7 +9,7 @@ import os
 import time
 import unittest
 import unittest.mock as mock
-import asyncio
+import anyio
 import json
 import sys
 import tempfile
@@ -305,7 +305,7 @@ class TestWebRTCBufferOptimization(unittest.TestCase):
         
         # Fill the buffer with some frames
         num_frames = 5
-        asyncio.run(self.async_fill_buffer(track, num_frames))
+        anyio.run(self.async_fill_buffer(track, num_frames))
         
         # Get stats
         stats = track.get_stats()
@@ -317,7 +317,7 @@ class TestWebRTCBufferOptimization(unittest.TestCase):
         # Clean up
         track.stop()
 
-    @mock.patch('asyncio.sleep', side_effect=lambda x: None)  # Skip actual sleeping
+    @mock.patch('anyio.sleep', side_effect=lambda x: None)  # Skip actual sleeping
     async def async_test_progressive_fetch(self, mock_sleep):
         """Test that progressive fetch writes to the file properly."""
         # Create a temporary file
@@ -372,9 +372,9 @@ class TestWebRTCBufferOptimization(unittest.TestCase):
 
     def test_progressive_fetch(self):
         """Test wrapper for async_test_progressive_fetch."""
-        asyncio.run(self.async_test_progressive_fetch())
+        anyio.run(self.async_test_progressive_fetch())
         
-    @mock.patch('asyncio.sleep', side_effect=lambda x: None)  # Skip actual sleeping
+    @mock.patch('anyio.sleep', side_effect=lambda x: None)  # Skip actual sleeping
     async def async_test_recv_from_buffer(self, mock_sleep):
         """Test that frames are retrieved from the buffer."""
         # Create the track with a mock for av
@@ -428,9 +428,9 @@ class TestWebRTCBufferOptimization(unittest.TestCase):
 
     def test_recv_from_buffer(self):
         """Test wrapper for async_test_recv_from_buffer."""
-        asyncio.run(self.async_test_recv_from_buffer())
+        anyio.run(self.async_test_recv_from_buffer())
 
-    @mock.patch('asyncio.sleep', side_effect=lambda x: None)  # Skip actual sleeping
+    @mock.patch('anyio.sleep', side_effect=lambda x: None)  # Skip actual sleeping
     async def async_test_buffer_underflow(self, mock_sleep):
         """Test that buffer underflow increments the counter."""
         # Create the track with more complete mocking
@@ -492,7 +492,7 @@ class TestWebRTCBufferOptimization(unittest.TestCase):
 
     def test_buffer_underflow(self):
         """Test wrapper for async_test_buffer_underflow."""
-        asyncio.run(self.async_test_buffer_underflow())
+        anyio.run(self.async_test_buffer_underflow())
 
 
 if __name__ == '__main__':

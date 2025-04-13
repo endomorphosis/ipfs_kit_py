@@ -478,17 +478,17 @@ class DiskCache:
             
         # If we're called from an async context, return awaitable
         if self.loop and self.loop.is_running():
-            return asyncio.create_task(_async_impl())
+            return anyio.create_task(_async_impl())
             
         # If we're called from a synchronous context but asyncio is available,
         # run the async function to completion
         try:
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
             return loop.run_until_complete(_async_impl())
         except RuntimeError:
             # No event loop in this thread, create one temporarily
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(_async_impl())
             finally:
@@ -517,17 +517,17 @@ class DiskCache:
             
         # If we're called from an async context, return awaitable
         if self.loop and self.loop.is_running():
-            return asyncio.create_task(_async_impl())
+            return anyio.create_task(_async_impl())
             
         # If we're called from a synchronous context but asyncio is available,
         # run the async function to completion
         try:
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
             return loop.run_until_complete(_async_impl())
         except RuntimeError:
             # No event loop in this thread, create one temporarily
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(_async_impl())
             finally:
@@ -728,7 +728,7 @@ class DiskCache:
             return future.result()
             
         # If asyncio is available, run in executor to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(
             self.thread_pool, 
             lambda: self.optimize_compression_settings(adaptive)
@@ -938,7 +938,7 @@ class DiskCache:
             return future.result()
             
         # If asyncio is available, run in executor to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(
             self.thread_pool, 
             lambda: self.optimize_batch_operations(content_type_aware)
@@ -1231,13 +1231,13 @@ class DiskCache:
                 }
                 
                 # Create a semaphore to limit concurrency
-                semaphore = asyncio.Semaphore(max_concurrent)
+                semaphore = anyio.Semaphore(max_concurrent)
                 
                 # Create a function to process each CID
                 async def process_cid(cid):
                     async with semaphore:
                         # Run prefetch in thread pool to avoid blocking
-                        loop = asyncio.get_event_loop()
+                        loop = anyio.get_event_loop()
                         return await loop.run_in_executor(
                             self.thread_pool,
                             lambda: self.prefetch(cid)
@@ -1256,7 +1256,7 @@ class DiskCache:
                 
                 # Wait for all tasks to complete
                 if tasks:
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    results = await anyio.gather(*tasks, return_exceptions=True)
                     
                     # Process results
                     for i, prefetch_result in enumerate(results):
@@ -1291,7 +1291,7 @@ class DiskCache:
                 tasks.append(process_content_type(content_type, batch_cids))
                 
             # Wait for all content types to complete
-            content_type_results = await asyncio.gather(*tasks)
+            content_type_results = await anyio.gather(*tasks)
             
             # Process results
             for content_type, type_stats in content_type_results:
@@ -1827,7 +1827,7 @@ class DiskCache:
             return future.result()
             
         # If asyncio is available, run in executor to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(
             self.thread_pool, 
             lambda: self.batch_get_metadata_zero_copy(cids)
@@ -3563,7 +3563,7 @@ class DiskCache:
             return future.result()
             
         # If asyncio is available, run in executor to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(
             self.thread_pool, 
             lambda: self.batch_put_metadata_zero_copy(metadata_dict)

@@ -35,7 +35,7 @@ import time
 import shutil
 import logging
 import threading
-import asyncio
+import anyio
 from typing import Dict, List, Set, Optional, Any, Union, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
@@ -921,7 +921,7 @@ class PersistentDHTDatastore:
         Returns:
             The value, or None if not found or expired
         """
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(self._executor, self.get, key)
 
     async def async_put(self, key: str, value: bytes, publisher: str = None) -> bool:
@@ -936,7 +936,7 @@ class PersistentDHTDatastore:
         Returns:
             True if the value was stored, False otherwise
         """
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(
             self._executor, lambda: self.put(key, value, publisher)
         )
@@ -948,5 +948,5 @@ class PersistentDHTDatastore:
         Returns:
             True if successful, False otherwise
         """
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         return await loop.run_in_executor(self._executor, self._flush_to_disk)

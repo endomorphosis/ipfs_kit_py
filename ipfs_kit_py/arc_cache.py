@@ -1893,10 +1893,10 @@ class ParquetCIDCache:
         
         # For asyncio compatibility
         try:
-            import asyncio
+            import anyio
             self.has_asyncio = True
             # Create event loop for background tasks if needed
-            self.loop = asyncio.get_event_loop() if asyncio.get_event_loop().is_running() else None
+            self.loop = anyio.get_event_loop() if anyio.get_event_loop().is_running() else None
         except ImportError:
             self.has_asyncio = False
             
@@ -2756,10 +2756,10 @@ class ParquetCIDCache:
         Returns:
             Result of the function
         """
-        import asyncio
+        import anyio
         
         # Submit the task to the thread pool
-        return await asyncio.get_event_loop().run_in_executor(
+        return await anyio.get_event_loop().run_in_executor(
             self.thread_pool, 
             lambda: func(*args, **kwargs)
         )
@@ -3106,11 +3106,11 @@ class ParquetCIDCache:
             # Delegate disk operations to a background thread
             if needs_rotation or (self.auto_sync and (time.time() - self.last_sync_time > self.sync_interval)):
                 # Run disk operations in background
-                asyncio.create_task(self._async_disk_operations(needs_rotation))
+                anyio.create_task(self._async_disk_operations(needs_rotation))
         
             # Update C Data Interface if enabled (in background)
             if self.enable_c_data_interface:
-                asyncio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
+                anyio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
             
             return True
             
@@ -4684,7 +4684,7 @@ class ParquetCIDCache:
             return {}
             
         # Create task groups for concurrent execution
-        import asyncio
+        import anyio
         
         # Initialize results
         results = {cid: {"success": False, "reason": "Not processed"} for cid in cids}
@@ -4724,13 +4724,13 @@ class ParquetCIDCache:
         for content_type, type_cids in content_type_groups.items():
             if content_type == "parquet":
                 # Create task for Parquet batch processing
-                task = asyncio.create_task(
+                task = anyio.create_task(
                     self._async_batch_prefetch_parquet(type_cids, metadata)
                 )
                 tasks.append((content_type, task))
             elif content_type == "arrow":
                 # Create task for Arrow batch processing
-                task = asyncio.create_task(
+                task = anyio.create_task(
                     self._async_batch_prefetch_arrow(type_cids, metadata)
                 )
                 tasks.append((content_type, task))
@@ -4738,7 +4738,7 @@ class ParquetCIDCache:
                 # Generic processing - create individual tasks
                 for cid in type_cids:
                     cid_metadata = metadata.get(cid) if metadata else None
-                    task = asyncio.create_task(
+                    task = anyio.create_task(
                         self._async_prefetch_content(cid, cid_metadata)
                     )
                     tasks.append((cid, task))
@@ -5203,11 +5203,11 @@ class ParquetCIDCache:
             if in_memory_matches > 0 or match_found:
                 if self.modified_since_sync:
                     # Schedule sync in background
-                    asyncio.create_task(self._run_in_thread_pool(self.sync))
+                    anyio.create_task(self._run_in_thread_pool(self.sync))
                 
                 # Update C Data Interface if enabled (in background)
                 if self.enable_c_data_interface:
-                    asyncio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
+                    anyio.create_task(self._run_in_thread_pool(self._export_to_c_data_interface))
             
             return in_memory_matches > 0 or match_found
             

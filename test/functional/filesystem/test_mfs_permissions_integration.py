@@ -37,6 +37,8 @@ from ipfs_kit_py.mfs_enhanced_resumable import (
 
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
+@pytest_anyio.fixture
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 async def permission_manager():
     """Create a permission manager with test permissions."""
@@ -62,7 +64,10 @@ async def permission_manager():
 
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
+@pytest_anyio.fixture
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
+
 async def resumable_ops(permission_manager):
     """Create a resumable operations instance with mocked IPFS client and permissions."""
     # Create a temporary directory for state files
@@ -110,7 +115,10 @@ async def resumable_ops(permission_manager):
 
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
+@pytest_anyio.fixture
+@pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
+
 async def resumable_ops_no_permissions(permission_manager):
     """Create a resumable operations instance with enforcement disabled."""
     # Create a temporary directory for state files

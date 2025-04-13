@@ -4,7 +4,7 @@ Test script to verify that the async methods in LibP2PModel
 are properly implemented with anyio.to_thread.run_sync.
 """
 
-import asyncio
+import anyio
 import warnings
 import inspect
 
@@ -75,4 +75,4 @@ async def test_async_methods():
 
 if __name__ == "__main__":
     # Run the async tests
-    asyncio.run(test_async_methods())
+    anyio.run(test_async_methods())

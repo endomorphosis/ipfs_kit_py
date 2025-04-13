@@ -18,7 +18,7 @@ import json
 import time
 import tempfile
 import unittest
-import asyncio
+import anyio
 from unittest.mock import MagicMock, patch, call, AsyncMock
 from pathlib import Path
 
@@ -57,7 +57,7 @@ class MockWebSocket:
     def __init__(self):
         self.sent_messages = []
         self.client_state = 1  # Connected
-        self.received_queue = asyncio.Queue()
+        self.received_queue = anyio.Queue()
         
     async def accept(self):
         return
@@ -517,12 +517,12 @@ class TestMCPDistributed(unittest.TestCase):
         }
         
         # Run the WebSocket handler in a separate task
-        task = asyncio.create_task(
+        task = anyio.create_task(
             self.distributed_controller.cluster_events_websocket(websocket)
         )
         
         # Give the task time to start
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         
         # Verify that subscription confirmation was sent
         self.assertEqual(len(websocket.sent_messages), 1)
@@ -533,7 +533,7 @@ class TestMCPDistributed(unittest.TestCase):
         
         # Add a ping message to test handling
         websocket.add_received_message("ping")
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         
         # Verify pong response
         self.assertEqual(len(websocket.sent_messages), 2)
@@ -546,7 +546,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "events": ["node_status", "task_status", "peer_discovery"]
             }
         }))
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         
         # Verify subscription update was processed
         self.assertEqual(len(websocket.sent_messages), 3)
@@ -563,7 +563,7 @@ class TestMCPDistributed(unittest.TestCase):
         task.cancel()
         try:
             await task
-        except asyncio.CancelledError:
+        except anyio.CancelledError:
             pass
         
         # Verify that cleanup was performed

@@ -1554,8 +1554,8 @@ class IPFSLibp2pPeer:
                     # We're in a context where we can't create a new event loop
                     # Try to get or create an event loop in the current thread
                     try:
-                        import asyncio
-                        loop = asyncio.get_event_loop()
+                        import anyio
+                        loop = anyio.get_event_loop()
                         # Run the async function in this loop
                         success = loop.run_until_complete(publish_async())
                         result["success"] = bool(success)
@@ -1627,8 +1627,8 @@ class IPFSLibp2pPeer:
                     # We're in a context where we can't create a new event loop
                     # Try to get or create an event loop in the current thread
                     try:
-                        import asyncio
-                        loop = asyncio.get_event_loop()
+                        import anyio
+                        loop = anyio.get_event_loop()
                         # Run the async function in this loop
                         success = loop.run_until_complete(subscribe_async())
                         result["success"] = bool(success)
@@ -1694,8 +1694,8 @@ class IPFSLibp2pPeer:
                     # We're in a context where we can't create a new event loop
                     # Try to get or create an event loop in the current thread
                     try:
-                        import asyncio
-                        loop = asyncio.get_event_loop()
+                        import anyio
+                        loop = anyio.get_event_loop()
                         # Run the async function in this loop
                         success = loop.run_until_complete(unsubscribe_async())
                         result["success"] = bool(success)
@@ -2113,8 +2113,8 @@ class IPFSLibp2pPeer:
                             # We're in a context where we can't create a new event loop
                             # Try to get or create an event loop in the current thread
                             try:
-                                import asyncio
-                                loop = asyncio.get_event_loop()
+                                import anyio
+                                loop = anyio.get_event_loop()
                                 # Run the coroutine in this loop
                                 loop.run_until_complete(provide_content())
                             except Exception as inner_e:
@@ -2885,11 +2885,11 @@ class IPFSLibp2pPeer:
                     
                     # Try to get a running event loop or create a new one
                     try:
-                        loop = asyncio.get_event_loop()
+                        loop = anyio.get_event_loop()
                     except RuntimeError:
                         # No running event loop
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
+                        loop = anyio.new_event_loop()
+                        anyio.set_event_loop(loop)
                     
                     # Use anyio to run the task
                     try:
@@ -2951,11 +2951,11 @@ class IPFSLibp2pPeer:
                     
                     # Try to get a running event loop or create a new one
                     try:
-                        loop = asyncio.get_event_loop()
+                        loop = anyio.get_event_loop()
                     except RuntimeError:
                         # No running event loop
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
+                        loop = anyio.new_event_loop()
+                        anyio.set_event_loop(loop)
                     
                     # Use anyio to run the task
                     try:
@@ -3020,11 +3020,11 @@ class IPFSLibp2pPeer:
                     
                     # Try to get a running event loop or create a new one
                     try:
-                        loop = asyncio.get_event_loop()
+                        loop = anyio.get_event_loop()
                     except RuntimeError:
                         # No running event loop
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
+                        loop = anyio.new_event_loop()
+                        anyio.set_event_loop(loop)
                     
                     # Use anyio to run the task
                     try:
@@ -3258,7 +3258,7 @@ class IPFSLibp2pPeer:
             )
             
             # Wait for the result with timeout
-            import asyncio
+            import anyio
             providers = future.result(timeout=timeout)
             
             if providers:
@@ -3390,11 +3390,11 @@ def publish_to_topic(self, topic_id: str, data: Union[str, bytes]) -> Dict[str, 
                 
                 # Try to get a running event loop or create a new one
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = anyio.get_event_loop()
                 except RuntimeError:
                     # No running event loop
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                    loop = anyio.new_event_loop()
+                    anyio.set_event_loop(loop)
                 
                 # Use anyio to run the task
                 try:
@@ -3454,11 +3454,11 @@ def subscribe_to_topic(self, topic_id: str, handler: Callable) -> Dict[str, Any]
                 
                 # Try to get a running event loop or create a new one
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = anyio.get_event_loop()
                 except RuntimeError:
                     # No running event loop
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                    loop = anyio.new_event_loop()
+                    anyio.set_event_loop(loop)
                 
                 # Use anyio to run the task
                 try:
@@ -3521,11 +3521,11 @@ def unsubscribe_from_topic(self, topic_id: str, handler: Optional[Callable] = No
                 
                 # Try to get a running event loop or create a new one
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = anyio.get_event_loop()
                 except RuntimeError:
                     # No running event loop
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                    loop = anyio.new_event_loop()
+                    anyio.set_event_loop(loop)
                 
                 # Use anyio to run the task
                 try:

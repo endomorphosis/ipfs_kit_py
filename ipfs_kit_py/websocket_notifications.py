@@ -15,7 +15,7 @@ Key features:
 7. System Metrics: Real-time performance and health metrics
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time

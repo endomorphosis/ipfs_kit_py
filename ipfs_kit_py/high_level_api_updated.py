@@ -33,7 +33,7 @@ import sys
 import tempfile
 import time
 import mimetypes
-import asyncio
+import anyio
 from pathlib import Path
 from io import IOBase, BytesIO
 from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator
@@ -1541,7 +1541,7 @@ MIT
         # Convert to async iterator
         for chunk in sync_iterator:
             # Allow other async tasks to run between chunks
-            await asyncio.sleep(0)
+            await anyio.sleep(0)
             yield chunk
             
     def stream_to_ipfs(

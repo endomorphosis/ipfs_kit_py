@@ -23,7 +23,7 @@ from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 from ipfs_kit_py.predictive_cache_manager import PredictiveCacheManager
 
 try:
-    import asyncio
+    import anyio
     HAS_ASYNCIO = True
 except ImportError:
     HAS_ASYNCIO = False
@@ -576,10 +576,10 @@ class TestPredictiveCacheManager(unittest.TestCase):
             def _ensure_event_loop():
                 # Return current event loop or create new one
                 try:
-                    return asyncio.get_event_loop()
+                    return anyio.get_event_loop()
                 except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                    loop = anyio.new_event_loop()
+                    anyio.set_event_loop(loop)
                     return loop
             self.predictive_cache._ensure_event_loop = _ensure_event_loop
             
@@ -794,14 +794,14 @@ class TestPredictiveCacheManager(unittest.TestCase):
         
         # Verify we got a valid event loop
         self.assertIsNotNone(loop)
-        self.assertIsInstance(loop, asyncio.AbstractEventLoop)
+        self.assertIsInstance(loop, anyio.AbstractEventLoop)
 
     @unittest.skipIf(not HAS_ASYNCIO, "asyncio not available")
     def test_async_stream_prefetch(self):
         """Test async streaming prefetch functionality."""
         # Create a custom event loop for testing
-        test_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(test_loop)
+        test_loop = anyio.new_event_loop()
+        anyio.set_event_loop(test_loop)
         
         try:
             # Save the original method if it exists

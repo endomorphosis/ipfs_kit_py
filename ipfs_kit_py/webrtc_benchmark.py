@@ -19,7 +19,7 @@ This module can be used standalone or integrated with WebRTCStreamingManager.
 import os
 import time
 import json
-import asyncio
+import anyio
 import logging
 import uuid
 import statistics
@@ -186,7 +186,7 @@ class WebRTCBenchmark:
         # Internal state
         self._active = True
         self._task = None
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         
         # Start the benchmark
         logger.info(f"Starting WebRTC benchmark for connection {connection_id}")
@@ -194,7 +194,7 @@ class WebRTCBenchmark:
     async def start_monitoring(self):
         """Start the periodic monitoring task."""
         if self._task is None:
-            self._task = asyncio.create_task(self._monitoring_task())
+            self._task = anyio.create_task(self._monitoring_task())
             logger.debug(f"Benchmark monitoring started for connection {self.connection_id}")
     
     async def stop(self):
@@ -210,7 +210,7 @@ class WebRTCBenchmark:
             self._task.cancel()
             try:
                 await self._task
-            except asyncio.CancelledError:
+            except anyio.CancelledError:
                 pass
             self._task = None
         
@@ -226,8 +226,8 @@ class WebRTCBenchmark:
         try:
             while self._active:
                 await self._collect_periodic_metrics()
-                await asyncio.sleep(self.interval_ms / 1000)
-        except asyncio.CancelledError:
+                await anyio.sleep(self.interval_ms / 1000)
+        except anyio.CancelledError:
             logger.debug(f"Benchmark monitoring task cancelled for {self.connection_id}")
             raise
         except Exception as e:
@@ -761,7 +761,7 @@ class WebRTCStreamingManagerBenchmarkIntegration:
                 )
                 
                 # Start monitoring
-                asyncio.create_task(self.benchmarks[conn_id].start_monitoring())
+                anyio.create_task(self.benchmarks[conn_id].start_monitoring())
                 
                 # Record ICE events if we already have them
                 if conn_id in self.connection_stats:
@@ -779,7 +779,7 @@ class WebRTCStreamingManagerBenchmarkIntegration:
                         )
                 
                 # Set up to record RTC stats
-                asyncio.create_task(self._record_benchmark_stats(conn_id))
+                anyio.create_task(self._record_benchmark_stats(conn_id))
                 
                 result["benchmarks_started"].append({"pc_id": conn_id, "status": "started"})
                 
@@ -818,7 +818,7 @@ class WebRTCStreamingManagerBenchmarkIntegration:
                 summary = self.benchmarks[conn_id].get_summary_stats()
                 
                 # Schedule stop task
-                asyncio.create_task(self.benchmarks[conn_id].stop())
+                anyio.create_task(self.benchmarks[conn_id].stop())
                 
                 # Record result
                 result["benchmarks_stopped"].append({

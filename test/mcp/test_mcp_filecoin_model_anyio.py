@@ -8,7 +8,7 @@ asynchronous versions of the Filecoin operations for the MCP server.
 import unittest
 import os
 import tempfile
-import asyncio
+import anyio
 import anyio
 import warnings
 from unittest.mock import patch, MagicMock, AsyncMock, call
@@ -105,7 +105,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test using asyncio
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.check_connection_async(),
             expected_result
         ))
@@ -131,7 +131,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.list_wallets_async(),
             expected_result
         ))
@@ -157,7 +157,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.get_wallet_balance_async("wallet1"),
             expected_result
         ))
@@ -183,7 +183,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.create_wallet_async(),
             expected_result
         ))
@@ -205,7 +205,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        result = asyncio.run(self.filecoin_model.import_file_async(self.test_file_path))
+        result = anyio.run(self.filecoin_model.import_file_async(self.test_file_path))
         
         # Verify result
         self.assertTrue(result["success"])
@@ -240,7 +240,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.list_imports_async(),
             expected_result
         ))
@@ -273,7 +273,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.find_data_async("testcid"),
             expected_result
         ))
@@ -305,7 +305,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.list_deals_async(),
             expected_result
         ))
@@ -339,7 +339,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.get_deal_info_async(123),
             expected_result
         ))
@@ -356,7 +356,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        result = asyncio.run(self.filecoin_model.start_deal_async(
+        result = anyio.run(self.filecoin_model.start_deal_async(
             data_cid="test_data_cid",
             miner="miner1",
             price="100",
@@ -402,7 +402,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         
         try:
             # Run the async test
-            result = asyncio.run(self.filecoin_model.retrieve_data_async(
+            result = anyio.run(self.filecoin_model.retrieve_data_async(
                 data_cid="test_data_cid",
                 out_file=out_path
             ))
@@ -442,7 +442,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.list_miners_async(),
             expected_result
         ))
@@ -476,7 +476,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         }
         
         # Run the async test
-        asyncio.run(self._async_test_helper(
+        anyio.run(self._async_test_helper(
             self.filecoin_model.get_miner_info_async("miner1"),
             expected_result
         ))
@@ -507,7 +507,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         })
         
         # Run the async test
-        result = asyncio.run(self.filecoin_model.ipfs_to_filecoin_async(
+        result = anyio.run(self.filecoin_model.ipfs_to_filecoin_async(
             cid="ipfs_cid_123",
             miner="miner1",
             price="100",
@@ -558,7 +558,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         })
         
         # Run the async test
-        result = asyncio.run(self.filecoin_model.filecoin_to_ipfs_async(
+        result = anyio.run(self.filecoin_model.filecoin_to_ipfs_async(
             data_cid="data_cid_123",
             pin=True
         ))
@@ -578,7 +578,7 @@ class TestFilecoinModelAnyIO(unittest.TestCase):
         self.mock_lotus_kit.check_connection.side_effect = Exception("Test error")
         
         # Run the async test
-        result = asyncio.run(self.filecoin_model.check_connection_async())
+        result = anyio.run(self.filecoin_model.check_connection_async())
         
         # Verify error handling
         self.assertFalse(result["success"])

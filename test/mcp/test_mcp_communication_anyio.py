@@ -124,7 +124,7 @@ if 'ipfs_kit_py.libp2p_peer' in sys.modules:
 class TestMCPServerCommunication:
     """Test communication between MCP server and ipfs_kit_py components."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment with MCP server and ipfs_kit_py client."""
         # Create temp directory for test files

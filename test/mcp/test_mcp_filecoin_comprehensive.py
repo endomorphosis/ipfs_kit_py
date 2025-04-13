@@ -14,7 +14,7 @@ import sys
 import json
 import time
 import tempfile
-import asyncio
+import anyio
 import logging
 from pathlib import Path
 from typing import Dict, Any, List
@@ -584,5 +584,5 @@ async def main():
 
 if __name__ == "__main__":
     # Run the test
-    success = asyncio.run(main())
+    success = anyio.run(main())
     sys.exit(0 if success else 1)

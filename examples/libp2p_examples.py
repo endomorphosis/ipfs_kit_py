@@ -6,7 +6,7 @@ This script demonstrates how to use the custom libp2p modules
 developed for the ipfs_kit_py project.
 """
 
-import asyncio
+import anyio
 import logging
 import sys
 import time
@@ -65,7 +65,7 @@ async def demo_pubsub():
         await pubsub.publish("test-topic", message)
         
         # Wait a bit to let the message be processed
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
     
     # Unsubscribe
     await pubsub.unsubscribe("test-topic")
@@ -127,7 +127,7 @@ async def demo_netstream():
     logger.info("==== NetStream Demo ====")
     
     # Create mock reader and writer
-    reader = asyncio.StreamReader()
+    reader = anyio.StreamReader()
     writer = MockStreamWriter()
     
     # Create a NetStream
@@ -161,7 +161,7 @@ async def demo_netstream():
     handler = StreamHandler("/test/protocol/1.0.0", handle_stream)
     
     # Create a new stream to test the handler
-    reader = asyncio.StreamReader()
+    reader = anyio.StreamReader()
     writer = MockStreamWriter()
     stream = NetStream(reader, writer, "/test/protocol/1.0.0", "other-peer-id")
     
@@ -174,7 +174,7 @@ async def demo_netstream():
     logger.info(f"Handler wrote: {writer.get_written_data().decode('utf-8')}")
 
 class MockStreamWriter:
-    """Mock implementation of asyncio.StreamWriter for testing."""
+    """Mock implementation of anyio.StreamWriter for testing."""
     
     def __init__(self):
         self.buffer = bytearray()
@@ -186,7 +186,7 @@ class MockStreamWriter:
     
     async def drain(self):
         """Mock drain operation."""
-        await asyncio.sleep(0)
+        await anyio.sleep(0)
     
     def close(self):
         """Close the writer."""
@@ -194,7 +194,7 @@ class MockStreamWriter:
     
     async def wait_closed(self):
         """Wait for the writer to close."""
-        await asyncio.sleep(0)
+        await anyio.sleep(0)
     
     def get_written_data(self):
         """Get the data written to the buffer."""
@@ -225,7 +225,7 @@ async def main():
 
 if __name__ == "__main__":
     # Create and run the event loop
-    loop = asyncio.get_event_loop()
+    loop = anyio.get_event_loop()
     try:
         loop.run_until_complete(main())
     finally:

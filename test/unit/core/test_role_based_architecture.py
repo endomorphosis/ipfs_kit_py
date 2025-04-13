@@ -11,7 +11,7 @@ This module tests the role-based architecture (Phase 3B) features, including:
 - Failure detection and recovery
 """
 
-import asyncio
+import anyio
 import json
 import os
 import tempfile

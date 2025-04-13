@@ -6,7 +6,7 @@ concurrency and responsiveness. It implements non-blocking I/O for Parquet opera
 and maintains compatibility with asyncio-based applications.
 """
 
-import asyncio
+import anyio
 import functools
 import logging
 import time
@@ -88,10 +88,10 @@ class AsyncOperationManager:
         }
         
         # Semaphore to limit concurrent operations
-        self.semaphore = asyncio.Semaphore(max_workers + io_workers + compute_workers)
+        self.semaphore = anyio.Semaphore(max_workers + io_workers + compute_workers)
         
         # Task registry for cleanup and tracking
-        self.tasks: Dict[str, asyncio.Task] = {}
+        self.tasks: Dict[str, anyio.Task] = {}
         
         # Flag to track if the manager is being shut down
         self.shutting_down = False
@@ -137,7 +137,7 @@ class AsyncOperationManager:
         
         # Execute the function in the thread pool
         try:
-            loop = asyncio.get_event_loop()
+            loop = anyio.get_event_loop()
             async with self.semaphore:
                 result = await loop.run_in_executor(
                     executor, 
@@ -416,36 +416,36 @@ class AsyncOperationManager:
         tasks = []
         for item in items:
             if operation == "get":
-                task = asyncio.create_task(op_method(
+                task = anyio.create_task(op_method(
                     cache_instance,
                     item["cid"],
                     item.get("columns"),
                     item.get("filters")
                 ))
             elif operation == "put":
-                task = asyncio.create_task(op_method(
+                task = anyio.create_task(op_method(
                     cache_instance,
                     item["cid"],
                     item["table"],
                     item.get("metadata")
                 ))
             elif operation == "delete":
-                task = asyncio.create_task(op_method(
+                task = anyio.create_task(op_method(
                     cache_instance,
                     item["cid"]
                 ))
             elif operation == "contains":
-                task = asyncio.create_task(op_method(
+                task = anyio.create_task(op_method(
                     cache_instance,
                     item["cid"]
                 ))
             elif operation == "get_metadata":
-                task = asyncio.create_task(op_method(
+                task = anyio.create_task(op_method(
                     cache_instance,
                     item["cid"]
                 ))
             elif operation == "update_metadata":
-                task = asyncio.create_task(op_method(
+                task = anyio.create_task(op_method(
                     cache_instance,
                     item["cid"],
                     item["metadata"],
@@ -459,7 +459,7 @@ class AsyncOperationManager:
             self.stats["batch_sizes"].append(len(items))
         
         # Wait for all tasks to complete
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await anyio.gather(*tasks, return_exceptions=True)
         
         # Process results to reraise exceptions
         processed_results = []
@@ -493,7 +493,7 @@ class AsyncOperationManager:
             pending_tasks = [task for task in self.tasks.values() if not task.done()]
             if pending_tasks:
                 logger.info(f"Waiting for {len(pending_tasks)} tasks to complete")
-                await asyncio.gather(*pending_tasks, return_exceptions=True)
+                await anyio.gather(*pending_tasks, return_exceptions=True)
         
         # Shutdown thread pools
         self.io_pool.shutdown(wait=wait)
@@ -669,7 +669,7 @@ class AsyncParquetCIDCache:
         # Call sync close method if it exists
         if hasattr(self.cache, 'close') and callable(self.cache.close):
             # Run in executor to avoid blocking
-            await asyncio.get_event_loop().run_in_executor(None, self.cache.close)
+            await anyio.get_event_loop().run_in_executor(None, self.cache.close)
     
     # Context manager support
     async def __aenter__(self):
@@ -712,7 +712,7 @@ async def async_cache_get_or_create(
     
     if need_create:
         # Run creator function in a thread to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = anyio.get_event_loop()
         table, meta = await loop.run_in_executor(None, creator_func)
         
         # Add creation timestamp if not present

@@ -294,7 +294,7 @@ class IPFSNotificationClient:
                 
                 # Receive message with timeout
                 try:
-                    message = await asyncio.wait_for(self.websocket.recv(), timeout=1.0)
+                    message = await anyio.wait_for(self.websocket.recv(), timeout=1.0)
                     self.stats["last_activity"] = time.time()
                     
                     # Parse and handle notification
@@ -309,7 +309,7 @@ class IPFSNotificationClient:
                     elif notification.get("type") == "error":
                         logger.error(f"Error from server: {notification.get('error')}")
                     
-                except asyncio.TimeoutError:
+                except anyio.TimeoutError:
                     # No message received within timeout, send ping
                     await self._send_ping()
                     continue
@@ -387,7 +387,7 @@ async def print_notification_stats(client: IPFSNotificationClient, interval: int
                 print(f"  {n_type}: {count}")
         
         # Wait for next update
-        await asyncio.sleep(interval)
+        await anyio.sleep(interval)
 
 
 async def run_client(args):
@@ -406,7 +406,7 @@ async def run_client(args):
     
     # Start stats display in background if verbose
     if args.verbose:
-        asyncio.create_task(print_notification_stats(client))
+        anyio.create_task(print_notification_stats(client))
     
     # Add custom handlers for specific notification types
     client.add_handler("content_added", lambda n: 
@@ -472,7 +472,7 @@ if __name__ == "__main__":
     args = parse_arguments()
     
     try:
-        asyncio.run(run_client(args))
+        anyio.run(run_client(args))
     except KeyboardInterrupt:
         print("\nExiting...")
     except Exception as e:

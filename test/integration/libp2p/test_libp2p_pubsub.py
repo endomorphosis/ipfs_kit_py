@@ -8,7 +8,7 @@ This module tests the publish-subscribe utilities in the ipfs_kit_py library, in
 - Mock PubSub implementation for compatibility
 """
 
-import asyncio
+import anyio
 import inspect
 import sys
 import unittest

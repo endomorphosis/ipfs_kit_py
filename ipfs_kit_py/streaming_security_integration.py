@@ -12,7 +12,7 @@ Key integrations:
 5. Authorization Framework: Content-specific access control
 """
 
-import asyncio
+import anyio
 import logging
 from typing import Dict, List, Optional, Any, Union
 

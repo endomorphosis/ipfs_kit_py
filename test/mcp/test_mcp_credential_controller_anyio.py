@@ -8,7 +8,7 @@ and that async operations work correctly.
 
 import json
 import pytest
-import asyncio
+import anyio
 from unittest.mock import MagicMock, patch, AsyncMock
 
 import anyio

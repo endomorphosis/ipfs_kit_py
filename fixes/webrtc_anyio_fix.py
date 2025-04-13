@@ -11,7 +11,7 @@ async frameworks (asyncio, trio, curio) and works especially well with FastAPI
 which uses Starlette (built on AnyIO).
 """
 
-# import asyncio # Original import, replaced by anyio below
+# import anyio # Original import, replaced by anyio below
 import time
 import logging
 from typing import Dict, Any, Optional, Callable
@@ -115,7 +115,7 @@ class AnyIOEventLoopHandler:
                 # This is a simplified approach; real usage might need a nursery or task group
                 # passed in or managed differently depending on the calling context.
                 # If this code is truly called from a sync context trying to schedule async,
-                # it's inherently complex. The original asyncio.create_task might have relied
+                # it's inherently complex. The original anyio.create_task might have relied
                 # on an existing asyncio loop, which anyio handles differently.
                 
                 # Placeholder: Log a warning, as direct scheduling like this is tricky

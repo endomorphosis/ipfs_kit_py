@@ -8,7 +8,7 @@ import sys
 import os
 import json
 from unittest.mock import patch, MagicMock, AsyncMock
-import asyncio
+import anyio
 import pytest
 
 # Add parent directory to path for imports
@@ -205,7 +205,7 @@ class TestWALCLIIntegrationAnyIO(unittest.TestCase):
         # Set up run_async method for AnyIO compatibility
         def run_async_func(async_func, *args, **kwargs):
             """Run async function in a loop"""
-            loop = asyncio.new_event_loop()
+            loop = anyio.new_event_loop()
             try:
                 return loop.run_until_complete(async_func(*args, **kwargs))
             finally:

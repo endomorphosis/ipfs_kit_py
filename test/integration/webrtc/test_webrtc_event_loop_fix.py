@@ -165,7 +165,7 @@ async def test_concurrent_requests(server_url):
             logger.info(f"Making request to {endpoint}...")
             
             # Use aiohttp or similar for real async requests
-            loop = asyncio.get_running_loop()
+            loop = anyio.get_running_loop()
             
             if method == "get":
                 return await loop.run_in_executor(
@@ -193,7 +193,7 @@ async def test_concurrent_requests(server_url):
         ]
         
         # Run all tasks concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await anyio.gather(*tasks, return_exceptions=True)
         
         # Check all results
         success = True
@@ -241,7 +241,7 @@ def main(args):
     
     # Run concurrent requests test
     logger.info("Running concurrent requests test...")
-    asyncio.run(test_concurrent_requests(server_url))
+    anyio.run(test_concurrent_requests(server_url))
     
     # Print test results
     logger.info("\n--- Test Results ---")

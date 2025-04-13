@@ -7,7 +7,7 @@ without any "coroutine never awaited" warnings.
 """
 
 import sys
-import asyncio
+import anyio
 import warnings
 import logging
 from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
@@ -53,7 +53,7 @@ async def test_async_methods():
     
     # Run all tests
     logger.info("Running async tests...")
-    results = await asyncio.gather(*async_tests)
+    results = await anyio.gather(*async_tests)
     
     # Print summary
     success = all(results)
@@ -298,7 +298,7 @@ async def test_reset(model):
 if __name__ == "__main__":
     try:
         # Run the tests
-        exit_code = 0 if asyncio.run(test_async_methods()) else 1
+        exit_code = 0 if anyio.run(test_async_methods()) else 1
         sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Tests interrupted by user.")

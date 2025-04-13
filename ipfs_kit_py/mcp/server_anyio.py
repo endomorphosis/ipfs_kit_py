@@ -3106,7 +3106,7 @@ def main(args=None):
     # because Uvicorn has better support for asyncio
     if args.backend == "trio":
         print(f"IMPORTANT: Running server with asyncio backend instead of trio for better compatibility.")
-        print(f"Trio support will be emulated by using asyncio.")
+        print(f"Trio support will be emulated by using anyio.")
         anyio.run(server.serve, backend="asyncio")
     else:
         # For asyncio, we can use the standard approach

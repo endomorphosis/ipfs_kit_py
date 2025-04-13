@@ -146,7 +146,7 @@ class MCPWebRTCClient:
         self.first_frame_at = None
         
         # Event to signal when connection is established
-        self.connection_established = asyncio.Event()
+        self.connection_established = anyio.Event()
         
         # Statistics
         self.stats = {
@@ -262,12 +262,12 @@ class MCPWebRTCClient:
             }))
             
             # Start handling signaling messages
-            asyncio.create_task(self._handle_signaling())
+            anyio.create_task(self._handle_signaling())
             
             # Wait for connection to be established with timeout
             logger.info("Waiting for connection to be established...")
             try:
-                await asyncio.wait_for(
+                await anyio.wait_for(
                     self.connection_established.wait(),
                     timeout=30.0
                 )
@@ -280,7 +280,7 @@ class MCPWebRTCClient:
                 self.stream_active = True
                 return True
                 
-            except asyncio.TimeoutError:
+            except anyio.TimeoutError:
                 logger.error("Connection timed out after 30 seconds")
                 self.stats["connection_failures"] += 1
                 return False
@@ -345,7 +345,7 @@ class MCPWebRTCClient:
                 
                 # Start handling video frames
                 if self.display_video and HAVE_OPENCV:
-                    asyncio.create_task(self._process_video(track))
+                    anyio.create_task(self._process_video(track))
                 else:
                     # Just consume the track without displaying
                     player = MediaBlackhole()
@@ -490,7 +490,7 @@ class MCPWebRTCClient:
             while not self.interrupted:
                 try:
                     # Wait for next frame with timeout
-                    frame = await asyncio.wait_for(track.recv(), timeout=1.0)
+                    frame = await anyio.wait_for(track.recv(), timeout=1.0)
                     frame_time = time.time()
                     
                     # Update frame count and timing
@@ -551,17 +551,17 @@ class MCPWebRTCClient:
                         self.interrupted = True
                         break
                     
-                except asyncio.TimeoutError:
+                except anyio.TimeoutError:
                     logger.warning("Timeout waiting for video frame")
                     self.stats["frames_dropped"] += 1
                     dropped_frames += 1
                     
                 except Exception as e:
                     logger.error(f"Error processing video frame: {e}")
-                    await asyncio.sleep(0.1)  # Avoid tight loop on errors
+                    await anyio.sleep(0.1)  # Avoid tight loop on errors
                 
                 # Small sleep to avoid tight loop
-                await asyncio.sleep(0.001)
+                await anyio.sleep(0.001)
                 
         except Exception as e:
             logger.error(f"Error in video processing loop: {e}")
@@ -644,7 +644,7 @@ class MCPWebRTCClient:
                         logger.debug(f"WebRTC stats: {json.dumps(processed_stats, default=str)}")
                 
                 # Wait before next collection
-                await asyncio.sleep(1.0)
+                await anyio.sleep(1.0)
                 
         except Exception as e:
             logger.error(f"Error collecting stats: {e}")
@@ -892,14 +892,14 @@ async def run_client(args):
             return 1
         
         # Start stats collection in background
-        stats_task = asyncio.create_task(client.collect_stats())
+        stats_task = anyio.create_task(client.collect_stats())
         
         # Run for the specified duration
         if args.duration > 0:
             logger.info(f"Streaming for {args.duration} seconds...")
             try:
-                await asyncio.sleep(args.duration)
-            except asyncio.CancelledError:
+                await anyio.sleep(args.duration)
+            except anyio.CancelledError:
                 logger.info("Streaming interrupted by user")
         else:
             # Run until user interrupts with Ctrl+C
@@ -907,8 +907,8 @@ async def run_client(args):
             try:
                 # Keep running until interrupted
                 while not client.interrupted:
-                    await asyncio.sleep(1)
-            except asyncio.CancelledError:
+                    await anyio.sleep(1)
+            except anyio.CancelledError:
                 logger.info("Streaming interrupted by user")
         
         # Clean up
@@ -991,7 +991,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        sys.exit(asyncio.run(main()))
+        sys.exit(anyio.run(main()))
     except KeyboardInterrupt:
         logger.info("Program interrupted by user")
     except Exception as e:

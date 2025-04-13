@@ -13,7 +13,7 @@ import time
 import logging
 import json
 import argparse
-import asyncio
+import anyio
 from threading import Thread
 from typing import Dict, Any, List, Optional
 
@@ -420,9 +420,9 @@ class WebRTCMonitorIntegration:
         if not self.poll_task:
             if sys.version_info >= (3, 7):
                 # For Python 3.7+, use asyncio directly
-                self.poll_task = asyncio.create_task(self._poll_loop())
+                self.poll_task = anyio.create_task(self._poll_loop())
                 if HAS_VISUALIZATION and self.config["visualization"]["enabled"]:
-                    self.visualization_task = asyncio.create_task(self._visualization_loop())
+                    self.visualization_task = anyio.create_task(self._visualization_loop())
             else:
                 # For older Python versions, use background thread approach
                 self._start_background_tasks()
@@ -434,7 +434,7 @@ class WebRTCMonitorIntegration:
         """Start background tasks using threading for older Python versions."""
         # Start polling loop in a background thread
         def poll_thread_func():
-            asyncio.run(self._poll_loop())
+            anyio.run(self._poll_loop())
         
         poll_thread = Thread(target=poll_thread_func, daemon=True)
         poll_thread.start()
@@ -442,7 +442,7 @@ class WebRTCMonitorIntegration:
         # Start visualization loop in a background thread if enabled
         if HAS_VISUALIZATION and self.config["visualization"]["enabled"]:
             def viz_thread_func():
-                asyncio.run(self._visualization_loop())
+                anyio.run(self._visualization_loop())
             
             viz_thread = Thread(target=viz_thread_func, daemon=True)
             viz_thread.start()
@@ -461,14 +461,14 @@ class WebRTCMonitorIntegration:
                         await self.apply_optimizations()
                     
                     # Sleep until next poll interval
-                    await asyncio.sleep(self.poll_interval)
-                except asyncio.CancelledError:
+                    await anyio.sleep(self.poll_interval)
+                except anyio.CancelledError:
                     logger.info("Polling task cancelled")
                     break
                 except Exception as e:
                     logger.error(f"Error in polling loop: {e}")
                     # Sleep before retrying to avoid rapid error loops
-                    await asyncio.sleep(self.poll_interval)
+                    await anyio.sleep(self.poll_interval)
             
             logger.info("Polling loop stopped")
         except Exception as e:
@@ -487,13 +487,13 @@ class WebRTCMonitorIntegration:
                     self.update_visualizations()
                     
                     # Sleep until next visualization interval
-                    await asyncio.sleep(self.visualization_interval)
-                except asyncio.CancelledError:
+                    await anyio.sleep(self.visualization_interval)
+                except anyio.CancelledError:
                     logger.info("Visualization task cancelled")
                     break
                 except Exception as e:
                     logger.error(f"Error in visualization loop: {e}")
-                    await asyncio.sleep(self.visualization_interval)
+                    await anyio.sleep(self.visualization_interval)
             
             logger.info("Visualization loop stopped")
         except Exception as e:
@@ -1477,7 +1477,7 @@ async def run_monitor(monitor):
         
         # Keep running until interrupted
         while True:
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
     finally:
@@ -1514,7 +1514,7 @@ def main():
         # Create a background thread
         import threading
         def run_in_thread():
-            asyncio.run(run_monitor(monitor))
+            anyio.run(run_monitor(monitor))
         
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
@@ -1527,7 +1527,7 @@ def main():
         logger.info("Press Ctrl+C to stop")
         
         # Run until interrupted
-        asyncio.run(run_monitor(monitor))
+        anyio.run(run_monitor(monitor))
         
         logger.info("WebRTC monitor stopped")
 

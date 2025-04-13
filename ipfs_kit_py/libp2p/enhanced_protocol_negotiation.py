@@ -24,7 +24,7 @@ Usage:
 
 import re
 import logging
-import asyncio
+import anyio
 import semver
 from typing import Dict, List, Set, Tuple, Callable, Optional, Any, Union, Sequence
 from collections import defaultdict

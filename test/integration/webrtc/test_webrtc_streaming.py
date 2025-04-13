@@ -1,5 +1,5 @@
 import unittest
-import asyncio
+import anyio
 import json
 import os
 import tempfile
@@ -13,9 +13,9 @@ except ImportError:
     # Mock pytest_asyncio functionality for environments without it
     import pytest
     
-    # Create a minimal mock for pytest_asyncio.fixture
+    # Create a minimal mock for pytest_anyio.fixture
     def fixture(*args, **kwargs):
-        """Mock pytest_asyncio.fixture that falls back to pytest.fixture"""
+        """Mock pytest_anyio.fixture that falls back to pytest.fixture"""
         # Just use regular pytest fixture
         return pytest.fixture(*args, **kwargs)
     
@@ -109,7 +109,7 @@ if (os.environ.get('FORCE_WEBRTC_TESTS') == '1' or
 class TestWebRTCStreaming:
     """Test WebRTC streaming functionality."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -377,7 +377,7 @@ class TestWebRTCStreaming:
 class TestAsyncWebRTCStreaming:
     """Test asynchronous WebRTC streaming functionality."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -444,7 +444,7 @@ class TestAsyncWebRTCStreaming:
 class TestWebRTCMetrics:
     """Test WebRTC metrics collection functionality."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -566,8 +566,8 @@ class TestWebRTCMetrics:
                         await manager._cleanup_ended_connections()
                         
                         # Wait for next collection interval
-                        await asyncio.sleep(0.1)  # Short interval for tests
-                except asyncio.CancelledError:
+                        await anyio.sleep(0.1)  # Short interval for tests
+                except anyio.CancelledError:
                     # Expected when task is cancelled
                     pass
             
@@ -617,8 +617,8 @@ class TestWebRTCMetrics:
                     task.cancel()
                     try:
                         # Give it a moment to clean up
-                        await asyncio.wait_for(task, timeout=0.1)
-                    except (asyncio.CancelledError, asyncio.TimeoutError):
+                        await anyio.wait_for(task, timeout=0.1)
+                    except (anyio.CancelledError, anyio.TimeoutError):
                         # This is expected
                         pass
     
@@ -748,7 +748,7 @@ if os.environ.get('FORCE_NOTIFICATION_TESTS') == '1':
 class TestWebRTCNotifications:
     """Test WebRTC integration with the notification system."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -765,7 +765,7 @@ class TestWebRTCNotifications:
 class TestWebRTCResourceCleanup:
     """Test proper cleanup of WebRTC resources to prevent ResourceWarnings."""
     
-    @pytest_asyncio.fixture
+    @pytest_anyio.fixture
     async def setup(self):
         """Set up test environment with proper cleanup."""
         api = IPFSSimpleAPI()
@@ -810,9 +810,9 @@ class TestWebRTCResourceCleanup:
                     if hasattr(pc, 'close') and callable(pc.close):
                         try:
                             # Handle asynchronous close methods
-                            if asyncio.iscoroutinefunction(pc.close):
+                            if anyio.iscoroutinefunction(pc.close):
                                 # Get the current event loop and run the coroutine
-                                loop = asyncio.get_event_loop()
+                                loop = anyio.get_event_loop()
                                 # For AsyncMock objects, we need to handle them differently
                                 if isinstance(pc.close, AsyncMock):
                                     # Extract the coroutine and run it

@@ -168,7 +168,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
                         # Local network discovery
                         self.libp2p_peer.start_discovery("ipfs-discovery")
                         # Sleep a bit to let mDNS work
-                        # Use anyio.sleep instead of asyncio.sleep
+                        # Use anyio.sleep instead of anyio.sleep
                         anyio.run(lambda: anyio.sleep(min(2, remaining_time)))
 
                     elif source == "dht":

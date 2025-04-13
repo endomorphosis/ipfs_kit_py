@@ -11,7 +11,7 @@ import time
 import json
 import tempfile
 import logging
-import asyncio
+import anyio
 from typing import Dict, Any
 
 # Setup logging
@@ -269,4 +269,4 @@ async def main():
 
 if __name__ == "__main__":
     # Run the test
-    asyncio.run(main())
+    anyio.run(main())

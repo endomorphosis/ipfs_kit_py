@@ -9,7 +9,7 @@ specialized monitoring and tracing for AI/ML operations.
 import unittest
 import time
 import json
-import asyncio
+import anyio
 from unittest.mock import patch, MagicMock, AsyncMock
 import logging
 import sys

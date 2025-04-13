@@ -1,4 +1,4 @@
-import asyncio
+import anyio
 import datetime
 import io
 import json
@@ -5922,9 +5922,9 @@ class IPFSKit:
                 )
 
                 # Start server
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                import anyio
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
                 loop.run_until_complete(self._websocket_peer_server.start(host=host, port=port))
 
                 # Create server URL
@@ -5976,9 +5976,9 @@ class IPFSKit:
 
         try:
             # Stop server
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            import anyio
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             loop.run_until_complete(self._websocket_peer_server.stop())
 
             # Clear server reference
@@ -6069,15 +6069,15 @@ class IPFSKit:
                 )
 
                 # Start client
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                import anyio
+                loop = anyio.new_event_loop()
+                anyio.set_event_loop(loop)
                 loop.run_until_complete(self._websocket_peer_client.start())
 
             # Connect to server
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            import anyio
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             connection_result = loop.run_until_complete(
                 self._websocket_peer_client.connect_to_discovery_server(server_url)
             )
@@ -6125,9 +6125,9 @@ class IPFSKit:
 
         try:
             # Stop client
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            import anyio
+            loop = anyio.new_event_loop()
+            anyio.set_event_loop(loop)
             loop.run_until_complete(self._websocket_peer_client.stop())
 
             # Clear client reference

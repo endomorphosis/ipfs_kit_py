@@ -33,7 +33,7 @@ import os
 import sys
 import time
 import random
-import asyncio
+import anyio
 import argparse
 import logging
 from typing import Dict, Any, List
@@ -168,15 +168,15 @@ async def run_async_operations():
         for i in range(100):
             key = f"async_key_{i}"
             value = f"Async value {i}".encode()
-            # Use asyncio.create_task to avoid blocking
+            # Use anyio.create_task to avoid blocking
             tasks.append(
-                asyncio.create_task(
+                anyio.create_task(
                     datastore.async_put(key, value, publisher=f"peer{i % 5}")
                 )
             )
         
         # Wait for all tasks to complete
-        results = await asyncio.gather(*tasks)
+        results = await anyio.gather(*tasks)
         print(f"Put operations completed: {sum(results)} successful")
         
         # Read back values asynchronously
@@ -186,11 +186,11 @@ async def run_async_operations():
         for i in range(100):
             key = f"async_key_{i}"
             read_tasks.append(
-                asyncio.create_task(datastore.async_get(key))
+                anyio.create_task(datastore.async_get(key))
             )
         
         # Wait for all tasks to complete
-        values = await asyncio.gather(*read_tasks)
+        values = await anyio.gather(*read_tasks)
         successful_reads = sum(1 for v in values if v is not None)
         print(f"Get operations completed: {successful_reads} successful")
         
@@ -616,9 +616,9 @@ if __name__ == "__main__":
     elif args.persistence:
         run_persistence_test()
     elif getattr(args, 'async'):
-        asyncio.run(run_async_operations())
+        anyio.run(run_async_operations())
     elif args.kademlia:
-        asyncio.run(run_kademlia_integration())
+        anyio.run(run_kademlia_integration())
     else:
         # Default: run basic operations
         run_basic_operations()
