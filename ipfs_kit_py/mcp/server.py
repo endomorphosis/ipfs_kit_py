@@ -1,6 +1,6 @@
 """
-Auto-generated bridge module from mcp_server.server to mcp.server.
-This file was created by the import_fixer.py script.
+Import bridge for MCP server module.
+This file redirects imports from ipfs_kit_py.mcp.server to ipfs_kit_py.mcp_server.server
 """
 
 import sys
@@ -10,27 +10,40 @@ import importlib
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Import from the real module location
+# Import from the new module location
 try:
-    # Import the real module
-    _real_module = importlib.import_module("ipfs_kit_py.mcp_server.server")
+    # Get the real module
+    _real_module = importlib.import_module('ipfs_kit_py.mcp_server.server')
     
-    # Get the exported symbols
-    if hasattr(_real_module, "__all__"):
+    # Get all symbols from the real module
+    if hasattr(_real_module, '__all__'):
         __all__ = _real_module.__all__
     else:
-        __all__ = [name for name in dir(_real_module) if not name.startswith("_")]
+        __all__ = [name for name in dir(_real_module) if not name.startswith('_')]
     
-    # Import everything into this namespace
+    # Import all symbols into this namespace
     for name in __all__:
-        try:
-            globals()[name] = getattr(_real_module, name)
-            logger.debug(f"Imported {name} from ipfs_kit_py.mcp_server.server")
-        except AttributeError:
-            logger.warning(f"Failed to import {name} from ipfs_kit_py.mcp_server.server")
+        globals()[name] = getattr(_real_module, name)
     
-    logger.debug(f"Successfully imported from ipfs_kit_py.mcp_server.server")
+    # Import the MCPServer class directly since it's commonly used
+    if hasattr(_real_module, 'MCPServer'):
+        MCPServer = _real_module.MCPServer
+        if 'MCPServer' not in __all__:
+            __all__.append('MCPServer')
+        
+    logger.debug(f"Successfully imported server module from mcp_server")
+    
 except ImportError as e:
-    logger.error(f"Failed to import from ipfs_kit_py.mcp_server.server: {e}")
-    # No fallbacks provided here, will just raise the ImportError
-    raise
+    logger.error(f"Failed to import server from mcp_server: {e}")
+    
+    # Define a minimal MCPServer stub for backward compatibility
+    class MCPServer:
+        def __init__(self, *args, **kwargs):
+            logger.warning("Using stub implementation of MCPServer from server.py")
+            self.controllers = {}
+            self.models = {}
+            
+        def register_with_app(self, app, prefix=""):
+            return False
+            
+    __all__ = ['MCPServer']

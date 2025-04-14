@@ -1,737 +1,902 @@
 """
 HuggingFace backend implementation for the Unified Storage Manager.
 
-This module implements the BackendStorage interface for HuggingFace,
-allowing the Unified Storage Manager to interact with HuggingFace repositories.
+This module implements the BackendStorage interface for HuggingFace Hub,
+providing access to models, datasets, and other assets from the HuggingFace ecosystem.
 """
 
 import logging
 import time
 import os
-import tempfile
 import json
-from typing import Dict, List, Any, Optional, Union, BinaryIO
+import tempfile
+import shutil
+import uuid
+import threading
+from typing import Dict, Any, Optional, Union, BinaryIO, List, Tuple
+from urllib.parse import urljoin
 
+# Import the base class and storage types
 from ..backend_base import BackendStorage
 from ..storage_types import StorageBackendType
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Define constants
+DEFAULT_TIMEOUT = 60
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_CACHE_DIR = None  # Will be set to a temp directory if not provided
+
 
 class HuggingFaceBackend(BackendStorage):
-    """HuggingFace backend implementation."""
+    """HuggingFace Hub backend implementation for the unified storage manager."""
     
     def __init__(self, resources: Dict[str, Any], metadata: Dict[str, Any]):
-        """Initialize HuggingFace backend."""
-        super().__init__(StorageBackendType.HUGGINGFACE, resources, metadata)
-        
-        # Import dependencies
-        try:
-            from ipfs_kit_py.huggingface_kit import huggingface_kit
-            self.huggingface = huggingface_kit(resources, metadata)
-            logger.info("Initialized HuggingFace backend")
-        except ImportError as e:
-            logger.error(f"Failed to initialize HuggingFace backend: {e}")
-            raise ImportError(f"Failed to import huggingface_kit: {e}")
-        
-        # Configuration
-        self.default_repo = metadata.get("default_repo")
-        self.default_branch = metadata.get("default_branch", "main")
-        self.space_mode = metadata.get("space_mode", False)  # True for using Spaces instead of regular repos
-        
-    def store(
-        self, 
-        data: Union[bytes, BinaryIO, str],
-        container: Optional[str] = None,
-        path: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Store data in HuggingFace.
+        """Initialize HuggingFace backend.
         
         Args:
-            data: Data to store (bytes, file-like object, or string)
-            container: Repository name (overrides default_repo)
-            path: Path within repository
-            options: Additional options for storage
+            resources: Connection resources including API tokens
+            metadata: Additional configuration metadata
+        """
+        super().__init__(StorageBackendType.HUGGINGFACE, resources, metadata)
+        
+        # Try importing huggingface_hub
+        try:
+            import huggingface_hub
+            self.huggingface_hub = huggingface_hub
+            logger.info("Successfully imported huggingface_hub")
+        except ImportError:
+            logger.error("huggingface_hub package is required. Please install with 'pip install huggingface_hub'")
+            raise ImportError("huggingface_hub is required for HuggingFace backend")
+        
+        # Extract configuration from resources/metadata
+        self.api_token = resources.get("api_token") or os.environ.get("HUGGINGFACE_TOKEN")
+        self.timeout = int(resources.get("timeout", DEFAULT_TIMEOUT))
+        self.max_retries = int(resources.get("max_retries", DEFAULT_MAX_RETRIES))
+        self.default_repo = resources.get("default_repo")
+        
+        # Set up caching
+        self.cache_dir = resources.get("cache_dir", DEFAULT_CACHE_DIR)
+        if not self.cache_dir:
+            self.cache_dir = os.path.join(
+                tempfile.gettempdir(), f"mcp_huggingface_cache_{uuid.uuid4().hex[:8]}"
+            )
+            os.makedirs(self.cache_dir, exist_ok=True)
+            logger.info(f"Created HuggingFace cache directory: {self.cache_dir}")
+        
+        # Initialize huggingface_hub client and API
+        self._init_client()
+        
+        # Set up lock for thread safety
+        self.lock = threading.RLock()
+        
+        # Internal tracking for caching
+        self._cache_registry = {}
+    
+    def _init_client(self):
+        """Initialize the HuggingFace Hub client."""
+        # Create HuggingFace API client
+        self.api = self.huggingface_hub.HfApi(token=self.api_token)
+        logger.info("HuggingFace Hub API client initialized")
+        
+        # Test connection
+        try:
+            whoami = self.api.whoami()
+            self.username = whoami.get("name", "anonymous")
+            logger.info(f"Successfully connected to HuggingFace Hub as {self.username}")
+        except Exception as e:
+            if not self.api_token:
+                logger.warning("No API token provided, operating in read-only mode")
+                self.username = "anonymous"
+            else:
+                logger.error(f"Failed to authenticate with HuggingFace Hub: {e}")
+                self.username = "unknown"
+    
+    def get_name(self) -> str:
+        """Get the name of this backend implementation.
+        
+        Returns:
+            String representation of the backend name
+        """
+        return "huggingface"
+
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Add content to HuggingFace Hub.
+        
+        Args:
+            content: Content to add (file path, bytes, or file-like object)
+            metadata: Metadata for the content
             
         Returns:
-            Dictionary with operation result
+            Dict with operation result
         """
-        options = options or {}
-        
-        # Get repository name
-        repo_name = container or self.default_repo
-        if not repo_name:
+        repo_id = metadata.get("repo_id", self.default_repo) if metadata else self.default_repo
+        if not repo_id:
             return {
                 "success": False,
-                "error": "No HuggingFace repository specified",
-                "backend": self.get_name()
+                "error": "No repository specified, and no default repository configured",
+                "error_type": "ConfigurationError",
+                "backend": self.backend_type.value
             }
         
-        # Get path within repository
+        # Get path information
+        path = metadata.get("path", None) if metadata else None
         if not path:
-            # Generate a default path if none provided
-            path = f"content/{int(time.time())}"
-            # Add extension based on content type if available
-            content_type = options.get("content_type") or options.get("metadata", {}).get("content_type")
-            if content_type:
-                if content_type.startswith("text/"):
-                    path += ".txt"
-                elif content_type.startswith("image/"):
-                    ext = content_type.split("/")[1]
-                    path += f".{ext}"
-                elif content_type == "application/json":
-                    path += ".json"
-                elif content_type == "application/pdf":
-                    path += ".pdf"
+            # Generate a unique path if none provided
+            file_ext = ".bin"
+            if isinstance(content, str) and os.path.isfile(content):
+                _, file_ext = os.path.splitext(content)
+            path = f"mcp_upload_{int(time.time())}_{uuid.uuid4().hex[:8]}{file_ext}"
         
-        # Get branch name
-        branch = options.get("branch", self.default_branch)
+        # Get branch/revision information
+        repo_type = metadata.get("repo_type", "dataset") if metadata else "dataset"
+        branch = metadata.get("branch", "main") if metadata else "main"
+        commit_message = metadata.get("commit_message", f"Upload via MCP at {time.time()}") if metadata else None
         
-        # Get commit message
-        commit_message = options.get("commit_message", f"Upload {path}")
-        
-        # Use temporary file for upload
-        temp_file = None
+        # Prepare content for upload
         try:
-            with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                temp_file = tmp.name
-                
-                if isinstance(data, str):
-                    # If data is a string, encode to bytes first
-                    tmp.write(data.encode('utf-8'))
-                elif isinstance(data, bytes):
-                    # Write bytes to temporary file
-                    tmp.write(data)
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                if isinstance(content, str) and os.path.isfile(content):
+                    # If content is a file path, copy the file
+                    shutil.copyfile(content, temp_file.name)
+                    temp_path = temp_file.name
+                elif isinstance(content, (bytes, bytearray)):
+                    # If content is bytes, write directly
+                    temp_file.write(content)
+                    temp_path = temp_file.name
+                elif hasattr(content, 'read'):
+                    # If content is a file-like object, read and write
+                    shutil.copyfileobj(content, temp_file)
+                    temp_path = temp_file.name
                 else:
-                    # Write file-like object to temporary file
-                    data.seek(0)
-                    while True:
-                        chunk = data.read(8192)
-                        if not chunk:
-                            break
-                        tmp.write(chunk)
-                    data.seek(0)  # Reset file pointer
-            
-            # Upload to HuggingFace
-            if self.space_mode:
-                # For Spaces mode
-                result = self.huggingface.upload_to_space(
-                    space_name=repo_name,
-                    file_path=temp_file,
-                    path_in_space=path,
-                    commit_message=commit_message
-                )
-            else:
-                # For regular repos
-                result = self.huggingface.upload_file(
-                    repo_name=repo_name,
-                    file_path=temp_file,
-                    path_in_repo=path,
-                    branch=branch,
-                    commit_message=commit_message
-                )
-            
-            if result.get("success", False):
-                # Extract identifier information
-                identifier = result.get("url") or f"{repo_name}/{path}"
-                
-                # Add MCP metadata if supported
-                if options.get("add_metadata", True):
-                    metadata = {
-                        "mcp_added": time.time(),
-                        "mcp_backend": self.get_name()
+                    # Unsupported content type
+                    os.unlink(temp_file.name)
+                    return {
+                        "success": False,
+                        "error": f"Unsupported content type: {type(content)}",
+                        "error_type": "InvalidContentType",
+                        "backend": self.backend_type.value
                     }
-                    # Note: HuggingFace doesn't natively support custom metadata,
-                    # but we could potentially store it in a separate metadata file
-                    # This would be a future enhancement
-                
-                return {
-                    "success": True,
-                    "identifier": identifier,
-                    "repo_name": repo_name,
+            
+            # Upload file
+            response = self.api.upload_file(
+                path_or_fileobj=temp_path,
+                path_in_repo=path,
+                repo_id=repo_id,
+                repo_type=repo_type,
+                revision=branch,
+                commit_message=commit_message
+            )
+            
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            
+            # Generate a unique identifier that includes repo, path, and revision
+            identifier = f"{repo_id}/{path}"
+            if branch != "main":
+                identifier = f"{identifier}@{branch}"
+            
+            # Process response
+            return {
+                "success": True,
+                "identifier": identifier,
+                "backend": self.backend_type.value,
+                "details": {
+                    "repo_id": repo_id,
                     "path": path,
                     "branch": branch,
-                    "url": result.get("url"),
-                    "backend": self.get_name(),
-                    "details": result
+                    "repo_type": repo_type,
+                    "url": response
                 }
-            
-            return {
-                "success": False,
-                "error": result.get("error", "Failed to store data in HuggingFace"),
-                "backend": self.get_name(),
-                "details": result
             }
-            
+        
         except Exception as e:
-            logger.exception(f"Error storing data in HuggingFace: {e}")
+            # Clean up temporary file if it exists
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.unlink(temp_path)
+            
+            logger.error(f"Error uploading to HuggingFace Hub: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "backend": self.get_name()
+                "error_type": "HuggingFaceUploadError",
+                "backend": self.backend_type.value
             }
-        finally:
-            # Clean up temporary file
-            if temp_file and os.path.exists(temp_file):
-                try:
-                    os.unlink(temp_file)
-                except Exception as e:
-                    logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
-        
-    def retrieve(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Retrieve data from HuggingFace.
+
+    def get_content(self, content_id: str) -> Dict[str, Any]:
+        """Retrieve content from HuggingFace Hub.
         
         Args:
-            identifier: Path or URL to the content
-            container: Repository name (optional if included in identifier)
-            options: Additional options for retrieval
+            content_id: Content identifier (repo_id/path[@revision])
             
         Returns:
-            Dictionary with operation result and data
+            Dict with operation result including content data
         """
-        options = options or {}
-        
-        # Parse identifier and container
-        repo_name, path, branch = self._parse_identifier(identifier, container, options)
-        
-        if not repo_name:
-            return {
-                "success": False,
-                "error": "No HuggingFace repository specified",
-                "backend": self.get_name()
-            }
-        
-        # Use temporary file for download
-        temp_file = None
         try:
-            with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                temp_file = tmp.name
+            # Parse content_id to extract repo_id, path, and revision
+            repo_id, path, revision = self._parse_content_id(content_id)
             
-            # Download from HuggingFace
-            if self.space_mode:
-                # For Spaces mode
-                result = self.huggingface.download_from_space(
-                    space_name=repo_name,
-                    path_in_space=path,
-                    output_path=temp_file
-                )
-            else:
-                # For regular repos
-                result = self.huggingface.download_file(
-                    repo_name=repo_name,
-                    path_in_repo=path,
-                    output_path=temp_file,
-                    branch=branch
-                )
+            # Check cache first
+            cache_key = f"{repo_id}/{path}@{revision}"
+            cached_path = self._get_from_cache(cache_key)
             
-            if result.get("success", False):
-                # Read the data
-                with open(temp_file, 'rb') as f:
+            if cached_path and os.path.isfile(cached_path):
+                # Read from cache
+                with open(cached_path, 'rb') as f:
                     data = f.read()
-                    
+                
                 return {
                     "success": True,
                     "data": data,
-                    "backend": self.get_name(),
-                    "identifier": identifier,
-                    "repo_name": repo_name,
-                    "path": path,
-                    "branch": branch,
-                    "details": result
+                    "backend": self.backend_type.value,
+                    "identifier": content_id,
+                    "cached": True,
+                    "details": {
+                        "repo_id": repo_id,
+                        "path": path,
+                        "revision": revision,
+                        "cache_path": cached_path
+                    }
                 }
             
+            # Download from HuggingFace Hub
+            local_path = self.huggingface_hub.hf_hub_download(
+                repo_id=repo_id,
+                filename=path,
+                revision=revision,
+                cache_dir=self.cache_dir,
+                token=self.api_token,
+                local_files_only=False
+            )
+            
+            # Read the downloaded file
+            with open(local_path, 'rb') as f:
+                data = f.read()
+            
+            # Add to cache
+            self._add_to_cache(cache_key, local_path)
+            
+            return {
+                "success": True,
+                "data": data,
+                "backend": self.backend_type.value,
+                "identifier": content_id,
+                "details": {
+                    "repo_id": repo_id,
+                    "path": path,
+                    "revision": revision,
+                    "local_path": local_path
+                }
+            }
+        
+        except self.huggingface_hub.utils.RepositoryNotFoundError:
             return {
                 "success": False,
-                "error": result.get("error", "Failed to retrieve data from HuggingFace"),
-                "backend": self.get_name(),
-                "identifier": identifier,
-                "details": result
+                "error": f"Repository not found: {repo_id}",
+                "error_type": "RepositoryNotFound",
+                "backend": self.backend_type.value
             }
-            
+        
+        except self.huggingface_hub.utils.EntryNotFoundError:
+            return {
+                "success": False,
+                "error": f"File not found: {path} in {repo_id}@{revision}",
+                "error_type": "EntryNotFound",
+                "backend": self.backend_type.value
+            }
+        
+        except self.huggingface_hub.utils.RevisionNotFoundError:
+            return {
+                "success": False,
+                "error": f"Revision not found: {revision} in {repo_id}",
+                "error_type": "RevisionNotFound",
+                "backend": self.backend_type.value
+            }
+        
         except Exception as e:
-            logger.exception(f"Error retrieving data from HuggingFace: {e}")
+            logger.error(f"Error retrieving content from HuggingFace Hub: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "backend": self.get_name(),
-                "identifier": identifier
+                "error_type": "HuggingFaceDownloadError",
+                "backend": self.backend_type.value
             }
-        finally:
-            # Clean up temporary file
-            if temp_file and os.path.exists(temp_file):
+
+    def remove_content(self, content_id: str) -> Dict[str, Any]:
+        """Remove content from HuggingFace Hub.
+        
+        Args:
+            content_id: Content identifier (repo_id/path[@revision])
+            
+        Returns:
+            Dict with operation result
+        """
+        try:
+            # Parse content_id to extract repo_id, path, and revision
+            repo_id, path, revision = self._parse_content_id(content_id)
+            
+            # Check permissions
+            if not self.api_token:
+                return {
+                    "success": False,
+                    "error": "API token required for deletion operations",
+                    "error_type": "AuthenticationError",
+                    "backend": self.backend_type.value
+                }
+            
+            # Delete file
+            commit_url = self.api.delete_file(
+                path_in_repo=path,
+                repo_id=repo_id,
+                revision=revision,
+                commit_message=f"Delete {path} via MCP at {time.time()}"
+            )
+            
+            # Remove from cache if present
+            cache_key = f"{repo_id}/{path}@{revision}"
+            self._remove_from_cache(cache_key)
+            
+            return {
+                "success": True,
+                "backend": self.backend_type.value,
+                "identifier": content_id,
+                "details": {
+                    "repo_id": repo_id,
+                    "path": path,
+                    "revision": revision,
+                    "commit_url": commit_url
+                }
+            }
+        
+        except self.huggingface_hub.utils.RepositoryNotFoundError:
+            return {
+                "success": False,
+                "error": f"Repository not found: {repo_id}",
+                "error_type": "RepositoryNotFound",
+                "backend": self.backend_type.value
+            }
+        
+        except self.huggingface_hub.utils.EntryNotFoundError:
+            return {
+                "success": False,
+                "error": f"File not found: {path} in {repo_id}@{revision}",
+                "error_type": "EntryNotFound",
+                "backend": self.backend_type.value
+            }
+        
+        except Exception as e:
+            logger.error(f"Error deleting content from HuggingFace Hub: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": "HuggingFaceDeleteError",
+                "backend": self.backend_type.value
+            }
+
+    def get_metadata(self, content_id: str) -> Dict[str, Any]:
+        """Get metadata for content from HuggingFace Hub.
+        
+        Args:
+            content_id: Content identifier (repo_id/path[@revision])
+            
+        Returns:
+            Dict with operation result including metadata
+        """
+        try:
+            # Parse content_id to extract repo_id, path, and revision
+            repo_id, path, revision = self._parse_content_id(content_id)
+            
+            # Get file metadata
+            try:
+                file_info = self.api.model_info(
+                    repo_id=repo_id,
+                    revision=revision
+                )
+                
+                # Find the specific file in siblings
+                file_metadata = None
+                for sibling in file_info.siblings:
+                    if sibling.rfilename == path:
+                        file_metadata = {
+                            "size": sibling.size,
+                            "lfs": sibling.lfs,
+                            "blob_id": sibling.blob_id,
+                            "last_modified": sibling.lastModified
+                        }
+                        break
+                
+                if not file_metadata:
+                    # File exists but no detailed metadata found
+                    # Try to get basic info using api.repo_info
+                    repo_info = self.api.repo_info(
+                        repo_id=repo_id,
+                        revision=revision
+                    )
+                    
+                    file_metadata = {
+                        "last_modified": repo_info.lastModified,
+                        "exists": True,
+                        "limited_info": True
+                    }
+                
+                # Add repository metadata
+                metadata = {
+                    **file_metadata,
+                    "repo_id": repo_id,
+                    "path": path,
+                    "revision": revision,
+                    "backend": self.backend_type.value
+                }
+                
+                # Get repository info for additional metadata
+                repo_metadata = {
+                    "author": file_info.author,
+                    "tags": file_info.tags,
+                    "downloads": file_info.downloads,
+                    "likes": file_info.likes,
+                    "private": file_info.private
+                }
+                
+                return {
+                    "success": True,
+                    "metadata": metadata,
+                    "backend": self.backend_type.value,
+                    "identifier": content_id,
+                    "details": {
+                        "repo_metadata": repo_metadata
+                    }
+                }
+            
+            except self.huggingface_hub.utils.EntryNotFoundError:
+                # If file-specific info fails, try to get just repo info
+                repo_info = self.api.repo_info(
+                    repo_id=repo_id,
+                    revision=revision
+                )
+                
+                metadata = {
+                    "repo_id": repo_id,
+                    "path": path,
+                    "revision": revision,
+                    "file_exists": False,
+                    "repo_exists": True,
+                    "last_modified": repo_info.lastModified,
+                    "backend": self.backend_type.value
+                }
+                
+                return {
+                    "success": True,
+                    "metadata": metadata,
+                    "backend": self.backend_type.value,
+                    "identifier": content_id,
+                    "details": {
+                        "repo_info": {
+                            "author": repo_info.author,
+                            "tags": repo_info.tags,
+                            "private": repo_info.private
+                        }
+                    }
+                }
+        
+        except self.huggingface_hub.utils.RepositoryNotFoundError:
+            return {
+                "success": False,
+                "error": f"Repository not found: {repo_id}",
+                "error_type": "RepositoryNotFound",
+                "backend": self.backend_type.value
+            }
+        
+        except self.huggingface_hub.utils.RevisionNotFoundError:
+            return {
+                "success": False,
+                "error": f"Revision not found: {revision} in {repo_id}",
+                "error_type": "RevisionNotFound",
+                "backend": self.backend_type.value
+            }
+        
+        except Exception as e:
+            logger.error(f"Error retrieving metadata from HuggingFace Hub: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": "HuggingFaceMetadataError",
+                "backend": self.backend_type.value
+            }
+
+    def update_metadata(self, identifier: str, metadata: Dict[str, Any], **kwargs) -> Dict[str, Any]:
+        """Update metadata for content on HuggingFace Hub.
+        
+        Args:
+            identifier: Content identifier (repo_id/path[@revision])
+            metadata: Metadata to update
+            **kwargs: Additional options
+            
+        Returns:
+            Dict with operation result
+        """
+        try:
+            # Parse content_id to extract repo_id, path, and revision
+            repo_id, path, revision = self._parse_content_id(identifier)
+            
+            # Check permissions
+            if not self.api_token:
+                return {
+                    "success": False,
+                    "error": "API token required for metadata update operations",
+                    "error_type": "AuthenticationError",
+                    "backend": self.backend_type.value
+                }
+            
+            # HuggingFace Hub doesn't support direct metadata updates for files
+            # We can only update repository-level metadata
+            if "repo_metadata" in metadata:
+                repo_metadata = metadata["repo_metadata"]
+                
+                # Extract relevant fields
+                tags = repo_metadata.get("tags")
+                description = repo_metadata.get("description")
+                
+                # Update repository metadata
+                if tags or description:
+                    self.api.update_repo_visibility(
+                        repo_id=repo_id,
+                        private=repo_metadata.get("private", None)
+                    )
+                    
+                    # Update other metadata if provided
+                    if tags:
+                        model_info = self.api.model_info(repo_id=repo_id)
+                        current_tags = model_info.tags
+                        
+                        # Add new tags
+                        for tag in tags:
+                            if tag not in current_tags:
+                                self.api.add_tag(repo_id=repo_id, tag=tag)
+                    
+                    return {
+                        "success": True,
+                        "backend": self.backend_type.value,
+                        "identifier": identifier,
+                        "details": {
+                            "repo_id": repo_id,
+                            "updated_fields": list(repo_metadata.keys())
+                        }
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": "No valid repository metadata fields to update",
+                        "error_type": "InvalidMetadata",
+                        "backend": self.backend_type.value
+                    }
+            else:
+                return {
+                    "success": False,
+                    "error": "HuggingFace Hub doesn't support file-level metadata updates",
+                    "error_type": "UnsupportedOperation",
+                    "backend": self.backend_type.value,
+                    "details": {
+                        "message": "Use 'repo_metadata' field to update repository-level metadata"
+                    }
+                }
+        
+        except self.huggingface_hub.utils.RepositoryNotFoundError:
+            return {
+                "success": False,
+                "error": f"Repository not found: {repo_id}",
+                "error_type": "RepositoryNotFound",
+                "backend": self.backend_type.value
+            }
+        
+        except Exception as e:
+            logger.error(f"Error updating metadata on HuggingFace Hub: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": "HuggingFaceUpdateError",
+                "backend": self.backend_type.value
+            }
+
+    def list(self, prefix: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """List content from HuggingFace Hub.
+        
+        Args:
+            prefix: Optional repository prefix to filter
+            **kwargs: Additional options
+            
+        Returns:
+            Dict with operation result including list of items
+        """
+        try:
+            # Extract options
+            limit = kwargs.get("limit", 100)
+            offset = kwargs.get("offset", 0)
+            
+            # If a specific repository is provided
+            if prefix and '/' in prefix:
+                # Assume format is repo_id/path_prefix
+                parts = prefix.split('/', 1)
+                repo_id = parts[0]
+                path_prefix = parts[1] if len(parts) > 1 else ""
+                
+                # Get files in repository
+                revision = kwargs.get("revision", "main")
+                
                 try:
-                    os.unlink(temp_file)
-                except Exception as e:
-                    logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
-        
-    def delete(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Delete data from HuggingFace.
-        
-        Args:
-            identifier: Path or URL to delete
-            container: Repository name (optional if included in identifier)
-            options: Additional options for deletion
+                    files = self.api.list_repo_files(
+                        repo_id=repo_id,
+                        revision=revision
+                    )
+                    
+                    # Filter by path prefix if provided
+                    if path_prefix:
+                        files = [f for f in files if f.startswith(path_prefix)]
+                    
+                    # Apply pagination
+                    files = files[offset:offset+limit]
+                    
+                    # Format items
+                    items = [
+                        {
+                            "identifier": f"{repo_id}/{f}{'@'+revision if revision != 'main' else ''}",
+                            "path": f,
+                            "repo_id": repo_id,
+                            "revision": revision,
+                            "backend": self.backend_type.value
+                        }
+                        for f in files
+                    ]
+                    
+                    return {
+                        "success": True,
+                        "items": items,
+                        "count": len(items),
+                        "backend": self.backend_type.value,
+                        "details": {
+                            "repo_id": repo_id,
+                            "revision": revision,
+                            "total_files": len(files)
+                        }
+                    }
+                
+                except (self.huggingface_hub.utils.RepositoryNotFoundError, self.huggingface_hub.utils.RevisionNotFoundError):
+                    return {
+                        "success": False,
+                        "error": f"Repository or revision not found: {repo_id}@{revision}",
+                        "error_type": "RepositoryNotFound",
+                        "backend": self.backend_type.value
+                    }
             
-        Returns:
-            Dictionary with operation result
-        """
-        options = options or {}
-        
-        # Parse identifier and container
-        repo_name, path, branch = self._parse_identifier(identifier, container, options)
-        
-        if not repo_name:
-            return {
-                "success": False,
-                "error": "No HuggingFace repository specified",
-                "backend": self.get_name()
-            }
-        
-        # Get commit message
-        commit_message = options.get("commit_message", f"Delete {path}")
-        
-        try:
-            # Delete from HuggingFace
-            if self.space_mode:
-                # For Spaces mode
-                result = self.huggingface.delete_from_space(
-                    space_name=repo_name,
-                    path_in_space=path,
-                    commit_message=commit_message
-                )
             else:
-                # For regular repos
-                result = self.huggingface.delete_file(
-                    repo_name=repo_name,
-                    path_in_repo=path,
-                    branch=branch,
-                    commit_message=commit_message
-                )
-            
-            return {
-                "success": result.get("success", False),
-                "backend": self.get_name(),
-                "identifier": identifier,
-                "repo_name": repo_name,
-                "path": path,
-                "branch": branch,
-                "details": result
-            }
-            
-        except Exception as e:
-            logger.exception(f"Error deleting data from HuggingFace: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "backend": self.get_name(),
-                "identifier": identifier
-            }
-        
-    def list(
-        self,
-        container: Optional[str] = None,
-        prefix: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        List items in HuggingFace repository.
-        
-        Args:
-            container: Repository name
-            prefix: Path prefix to filter by
-            options: Additional listing options
-            
-        Returns:
-            Dictionary with operation result and items
-        """
-        options = options or {}
-        
-        # Get repository name
-        repo_name = container or self.default_repo
-        if not repo_name:
-            return {
-                "success": False,
-                "error": "No HuggingFace repository specified",
-                "backend": self.get_name()
-            }
-        
-        # Get branch name
-        branch = options.get("branch", self.default_branch)
-        
-        try:
-            # List files from HuggingFace
-            if self.space_mode:
-                # For Spaces mode
-                result = self.huggingface.list_space_files(
-                    space_name=repo_name,
-                    path=prefix or ""
-                )
-            else:
-                # For regular repos
-                result = self.huggingface.list_repo_files(
-                    repo_name=repo_name,
-                    path=prefix or "",
-                    branch=branch
-                )
-            
-            if result.get("success", False):
+                # List repositories
+                repo_type = kwargs.get("repo_type", "model")
+                author = kwargs.get("author", None)
+                
+                # Determine if we have a prefix
+                search_query = None
+                if prefix:
+                    search_query = prefix
+                
+                # Get repositories
+                models = self.api.list_models(
+                    filter=author,
+                    search=search_query,
+                    limit=limit,
+                    offset=offset
+                ) if repo_type in ["model", "all"] else []
+                
+                datasets = self.api.list_datasets(
+                    filter=author,
+                    search=search_query,
+                    limit=limit,
+                    offset=offset
+                ) if repo_type in ["dataset", "all"] else []
+                
+                # Format items
                 items = []
                 
-                # Extract file information
-                for file_info in result.get("files", []):
-                    # Skip directories if specified
-                    if options.get("skip_directories", False) and file_info.get("type") == "directory":
-                        continue
-                        
-                    # Create file item
+                for model in models:
                     items.append({
-                        "identifier": f"{repo_name}/{file_info.get('path')}",
-                        "repo_name": repo_name,
-                        "path": file_info.get("path"),
-                        "type": file_info.get("type"),
-                        "size": file_info.get("size", 0),
-                        "last_modified": file_info.get("last_modified"),
-                        "url": file_info.get("url"),
-                        "backend": self.get_name()
+                        "identifier": model.id,
+                        "name": model.id.split('/')[-1],
+                        "repo_id": model.id,
+                        "author": model.id.split('/')[0] if '/' in model.id else None,
+                        "type": "model",
+                        "last_modified": model.lastModified,
+                        "backend": self.backend_type.value
+                    })
+                
+                for dataset in datasets:
+                    items.append({
+                        "identifier": dataset.id,
+                        "name": dataset.id.split('/')[-1],
+                        "repo_id": dataset.id,
+                        "author": dataset.id.split('/')[0] if '/' in dataset.id else None,
+                        "type": "dataset",
+                        "last_modified": dataset.lastModified,
+                        "backend": self.backend_type.value
                     })
                 
                 return {
                     "success": True,
                     "items": items,
-                    "backend": self.get_name(),
-                    "repo_name": repo_name,
-                    "details": result
+                    "count": len(items),
+                    "backend": self.backend_type.value,
+                    "details": {
+                        "repo_type": repo_type,
+                        "author": author,
+                        "search_query": search_query
+                    }
                 }
-            
-            return {
-                "success": False,
-                "error": result.get("error", "Failed to list files in HuggingFace"),
-                "backend": self.get_name(),
-                "details": result
-            }
-            
+        
         except Exception as e:
-            logger.exception(f"Error listing files in HuggingFace: {e}")
+            logger.error(f"Error listing content from HuggingFace Hub: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "backend": self.get_name()
+                "error_type": "HuggingFaceListError",
+                "backend": self.backend_type.value
             }
-        
-    def exists(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> bool:
-        """
-        Check if content exists in HuggingFace.
+
+    def exists(self, identifier: str, **kwargs) -> bool:
+        """Check if content exists on HuggingFace Hub.
         
         Args:
-            identifier: Path or URL to check
-            container: Repository name (optional if included in identifier)
-            options: Additional options
+            identifier: Content identifier (repo_id/path[@revision])
+            **kwargs: Additional options
             
         Returns:
-            True if content exists
+            True if content exists, False otherwise
         """
-        options = options or {}
-        
-        # Parse identifier and container
-        repo_name, path, branch = self._parse_identifier(identifier, container, options)
-        
-        if not repo_name:
-            return False
-        
         try:
+            # Parse content_id to extract repo_id, path, and revision
+            repo_id, path, revision = self._parse_content_id(identifier)
+            
             # Check if file exists
-            if self.space_mode:
-                # For Spaces mode
-                result = self.huggingface.check_file_in_space(
-                    space_name=repo_name,
-                    path_in_space=path
+            try:
+                # Try to get hf_hub_url which will throw if the file doesn't exist
+                self.huggingface_hub.hf_hub_url(
+                    repo_id=repo_id,
+                    filename=path,
+                    revision=revision
                 )
-            else:
-                # For regular repos
-                result = self.huggingface.check_file_exists(
-                    repo_name=repo_name,
-                    path_in_repo=path,
-                    branch=branch
-                )
-            
-            return result.get("success", False) and result.get("exists", False)
-            
-        except Exception as e:
-            logger.exception(f"Error checking if file exists in HuggingFace: {e}")
+                return True
+            except self.huggingface_hub.utils.EntryNotFoundError:
+                return False
+        
+        except (self.huggingface_hub.utils.RepositoryNotFoundError, self.huggingface_hub.utils.RevisionNotFoundError):
             return False
         
-    def get_metadata(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Get metadata for HuggingFace content.
-        
-        Args:
-            identifier: Path or URL to get metadata for
-            container: Repository name (optional if included in identifier)
-            options: Additional options
-            
-        Returns:
-            Dictionary with metadata information
-        """
-        options = options or {}
-        
-        # Parse identifier and container
-        repo_name, path, branch = self._parse_identifier(identifier, container, options)
-        
-        if not repo_name:
-            return {
-                "success": False,
-                "error": "No HuggingFace repository specified",
-                "backend": self.get_name()
-            }
-        
-        try:
-            # Get file metadata
-            if self.space_mode:
-                # For Spaces mode
-                result = self.huggingface.get_space_file_info(
-                    space_name=repo_name,
-                    path_in_space=path
-                )
-            else:
-                # For regular repos
-                result = self.huggingface.get_file_info(
-                    repo_name=repo_name,
-                    path_in_repo=path,
-                    branch=branch
-                )
-            
-            if result.get("success", False):
-                # Extract metadata
-                file_info = result.get("file_info", {})
-                
-                metadata = {
-                    "size": file_info.get("size", 0),
-                    "last_modified": file_info.get("last_modified"),
-                    "path": file_info.get("path"),
-                    "type": file_info.get("type"),
-                    "url": file_info.get("url"),
-                    "backend": self.get_name()
-                }
-                
-                # Try to get additional metadata if available
-                try:
-                    # Look for a metadata file with the same name but .json extension
-                    metadata_path = f"{path}.metadata.json"
-                    metadata_result = None
-                    
-                    if self.space_mode:
-                        metadata_result = self.huggingface.download_from_space(
-                            space_name=repo_name,
-                            path_in_space=metadata_path,
-                            output_path=None  # Get raw content
-                        )
-                    else:
-                        metadata_result = self.huggingface.download_file(
-                            repo_name=repo_name,
-                            path_in_repo=metadata_path,
-                            output_path=None,  # Get raw content
-                            branch=branch
-                        )
-                    
-                    if metadata_result.get("success", False) and metadata_result.get("content"):
-                        # Parse the JSON metadata
-                        custom_metadata = json.loads(metadata_result.get("content"))
-                        metadata.update(custom_metadata)
-                except Exception as e:
-                    # Metadata file might not exist, which is fine
-                    pass
-                
-                return {
-                    "success": True,
-                    "metadata": metadata,
-                    "backend": self.get_name(),
-                    "identifier": identifier,
-                    "repo_name": repo_name,
-                    "path": path,
-                    "details": result
-                }
-            
-            return {
-                "success": False,
-                "error": result.get("error", "Failed to get metadata from HuggingFace"),
-                "backend": self.get_name(),
-                "identifier": identifier,
-                "details": result
-            }
-            
         except Exception as e:
-            logger.exception(f"Error getting metadata from HuggingFace: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "backend": self.get_name(),
-                "identifier": identifier
-            }
+            logger.error(f"Error checking if content exists on HuggingFace Hub: {e}")
+            return False
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get the status of the HuggingFace backend.
         
-    def update_metadata(
-        self,
-        identifier: str,
-        metadata: Dict[str, Any],
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Update metadata for HuggingFace content.
-        
-        Note: HuggingFace doesn't natively support metadata, so this implementation
-        creates a separate metadata file alongside the content.
-        
-        Args:
-            identifier: Path or URL to update metadata for
-            metadata: New metadata to set
-            container: Repository name (optional if included in identifier)
-            options: Additional options
-            
         Returns:
-            Dictionary with operation result
+            Dict with status information
         """
-        options = options or {}
-        
-        # Parse identifier and container
-        repo_name, path, branch = self._parse_identifier(identifier, container, options)
-        
-        if not repo_name:
-            return {
-                "success": False,
-                "error": "No HuggingFace repository specified",
-                "backend": self.get_name()
-            }
-        
-        # Get commit message
-        commit_message = options.get("commit_message", f"Update metadata for {path}")
-        
         try:
-            # Create metadata file path
-            metadata_path = f"{path}.metadata.json"
-            
-            # Create temporary file with metadata
-            with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
-                temp_file = tmp.name
-                json.dump(metadata, tmp, indent=2)
-            
+            # Check connection to HuggingFace Hub
             try:
-                # Upload metadata file
-                if self.space_mode:
-                    # For Spaces mode
-                    result = self.huggingface.upload_to_space(
-                        space_name=repo_name,
-                        file_path=temp_file,
-                        path_in_space=metadata_path,
-                        commit_message=commit_message
-                    )
+                whoami = self.api.whoami()
+                username = whoami.get("name", "anonymous")
+                connection_status = "connected"
+            except Exception as e:
+                if not self.api_token:
+                    connection_status = "connected_readonly"
+                    username = "anonymous"
                 else:
-                    # For regular repos
-                    result = self.huggingface.upload_file(
-                        repo_name=repo_name,
-                        file_path=temp_file,
-                        path_in_repo=metadata_path,
-                        branch=branch,
-                        commit_message=commit_message
-                    )
-                
-                return {
-                    "success": result.get("success", False),
-                    "backend": self.get_name(),
-                    "identifier": identifier,
-                    "repo_name": repo_name,
-                    "path": path,
-                    "metadata_path": metadata_path,
-                    "details": result
-                }
-            finally:
-                # Clean up temporary file
-                if os.path.exists(temp_file):
-                    os.unlink(temp_file)
+                    connection_status = f"error: {str(e)}"
+                    username = "unknown"
             
+            # Get cache information
+            cache_size = 0
+            cache_files = 0
+            
+            if os.path.exists(self.cache_dir):
+                for dirpath, dirnames, filenames in os.walk(self.cache_dir):
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        cache_size += os.path.getsize(fp)
+                        cache_files += 1
+            
+            return {
+                "success": True,
+                "backend": self.backend_type.value,
+                "available": connection_status in ["connected", "connected_readonly"],
+                "status": {
+                    "connection": connection_status,
+                    "username": username,
+                    "authenticated": bool(self.api_token),
+                    "readonly": not bool(self.api_token),
+                    "default_repo": self.default_repo,
+                    "cache": {
+                        "directory": self.cache_dir,
+                        "files": cache_files,
+                        "size_bytes": cache_size,
+                        "size_human": f"{cache_size / (1024*1024):.2f} MB"
+                    }
+                }
+            }
+        
         except Exception as e:
-            logger.exception(f"Error updating metadata in HuggingFace: {e}")
+            logger.error(f"Error getting HuggingFace backend status: {e}")
             return {
                 "success": False,
-                "error": str(e),
-                "backend": self.get_name(),
-                "identifier": identifier
+                "backend": self.backend_type.value,
+                "available": False,
+                "error": str(e)
             }
-    
-    def _parse_identifier(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, str, str]:
-        """
-        Parse identifier into repository name, path, and branch.
+
+    def _parse_content_id(self, content_id: str) -> Tuple[str, str, str]:
+        """Parse a content ID into repository ID, path, and revision.
         
         Args:
-            identifier: Path or URL identifier
-            container: Repository name (optional)
-            options: Additional options
+            content_id: Content identifier (repo_id/path[@revision])
             
         Returns:
-            Tuple of (repo_name, path, branch)
+            Tuple of (repo_id, path, revision)
         """
-        options = options or {}
+        # Check if revision is specified
+        revision = "main"
+        if "@" in content_id:
+            content_parts, revision = content_id.rsplit("@", 1)
+        else:
+            content_parts = content_id
         
-        # Initialize with defaults
-        repo_name = container or self.default_repo
-        path = identifier
-        branch = options.get("branch", self.default_branch)
+        # Split into repo_id and path
+        if "/" in content_parts:
+            repo_id, path = content_parts.split("/", 1)
+        else:
+            # If no path specified, assume it's just a repo_id
+            repo_id = content_parts
+            path = ""
         
-        # Check if identifier includes repository name
-        if identifier.startswith("huggingface:"):
-            # Format: huggingface:repo_name/path
-            parts = identifier[12:].split("/", 1)
-            if len(parts) > 0:
-                repo_name = parts[0]
-            if len(parts) > 1:
-                path = parts[1]
-        elif identifier.startswith("hf:"):
-            # Format: hf:repo_name/path
-            parts = identifier[3:].split("/", 1)
-            if len(parts) > 0:
-                repo_name = parts[0]
-            if len(parts) > 1:
-                path = parts[1]
-        elif "/" in identifier and not container:
-            # Format: repo_name/path
-            parts = identifier.split("/", 1)
-            repo_name = parts[0]
-            if len(parts) > 1:
-                path = parts[1]
-                
-        # Extract branch if included in path (path@branch)
-        if "@" in path and not options.get("branch"):
-            path_parts = path.split("@", 1)
-            path = path_parts[0]
-            branch = path_parts[1]
+        return repo_id, path, revision
+
+    def _get_from_cache(self, cache_key: str) -> Optional[str]:
+        """Get a file path from the cache if it exists.
         
-        return repo_name, path, branch
+        Args:
+            cache_key: Cache key to look up
+            
+        Returns:
+            Path to cached file or None if not found
+        """
+        with self.lock:
+            return self._cache_registry.get(cache_key)
+
+    def _add_to_cache(self, cache_key: str, file_path: str) -> None:
+        """Add a file to the cache.
+        
+        Args:
+            cache_key: Cache key
+            file_path: Path to the file
+        """
+        with self.lock:
+            self._cache_registry[cache_key] = file_path
+
+    def _remove_from_cache(self, cache_key: str) -> None:
+        """Remove a file from the cache.
+        
+        Args:
+            cache_key: Cache key to remove
+        """
+        with self.lock:
+            if cache_key in self._cache_registry:
+                del self._cache_registry[cache_key]
+
+    def cleanup(self) -> None:
+        """Clean up resources used by this backend."""
+        # Clean up cache directory if we created it
+        if hasattr(self, 'cache_dir') and self.cache_dir and 'mcp_huggingface_cache_' in self.cache_dir:
+            try:
+                if os.path.exists(self.cache_dir):
+                    shutil.rmtree(self.cache_dir)
+                    logger.info(f"Removed HuggingFace cache directory: {self.cache_dir}")
+            except Exception as e:
+                logger.warning(f"Failed to remove cache directory: {e}")

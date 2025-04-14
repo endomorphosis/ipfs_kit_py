@@ -2,12 +2,15 @@
 Tests for the LibP2PModel class in the MCP framework.
 """
 
-import pytest
 import time
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock
+
+import pytest
+
+from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
 
 # Import the class to test
-from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
+
 
 # Mock the dependencies that LibP2PModel might try to import or use
 # Mock IPFSLibp2pPeer and related components if HAS_LIBP2P is True during test setup
@@ -28,7 +31,9 @@ mock_libp2p_peer.find_providers = MagicMock(return_value=["ProviderPeer1"])
 mock_libp2p_peer.retrieve_content = MagicMock(return_value=b"mock_content_data")
 mock_libp2p_peer.store_content_locally = MagicMock()
 mock_libp2p_peer.announce_content = MagicMock()
-mock_libp2p_peer.get_peer_info = MagicMock(return_value={"protocols": ["/test/1.0"], "latency": 0.1})
+mock_libp2p_peer.get_peer_info = MagicMock(
+    return_value={"protocols": ["/test/1.0"], "latency": 0.1}
+)
 mock_libp2p_peer.find_peer_addresses = MagicMock(return_value=["/ip4/1.2.3.4/tcp/4001"])
 mock_libp2p_peer.provide_content = MagicMock(return_value=True)
 # Mock pubsub methods directly on the peer mock
@@ -38,7 +43,9 @@ mock_libp2p_peer.unsubscribe = MagicMock(return_value=True)
 mock_libp2p_peer.get_topics = MagicMock(return_value=["/test/topic"])
 mock_libp2p_peer.get_topic_peers = MagicMock(return_value=["PubSubPeer1"])
 # Add bootstrap_peers attribute to mock
-mock_libp2p_peer.bootstrap_peers = ["/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"]
+mock_libp2p_peer.bootstrap_peers = [
+    "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
+]
 
 
 # Mock CacheManager
@@ -55,6 +62,7 @@ mock_credential_manager = MagicMock()
 mock_enhanced_dht_discovery = MagicMock()
 mock_enhanced_dht_discovery.discover_peers = MagicMock(return_value=["EnhancedDHTPeer"])
 
+
 @pytest.fixture
 def mock_dependencies(monkeypatch):
     """Fixture to mock external dependencies."""
@@ -62,21 +70,53 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.HAS_LIBP2P", True, raising=False)
     # Mock the IPFSLibp2pPeer class at its source location
     # We also need to mock the import within the model file itself in case it was already imported
-    monkeypatch.setattr("ipfs_kit_py.libp2p_peer.IPFSLibp2pPeer", MagicMock(return_value=mock_libp2p_peer), raising=False)
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.IPFSLibp2pPeer", MagicMock(return_value=mock_libp2p_peer), raising=False)
+    monkeypatch.setattr(
+        "ipfs_kit_py.libp2p_peer.IPFSLibp2pPeer",
+        MagicMock(return_value=mock_libp2p_peer),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.IPFSLibp2pPeer",
+        MagicMock(return_value=mock_libp2p_peer),
+        raising=False,
+    )
     # Mock check_dependencies and install_dependencies
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.check_dependencies", MagicMock(), raising=False)
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.install_dependencies", MagicMock(return_value=True), raising=False)
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.check_dependencies",
+        MagicMock(),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.install_dependencies",
+        MagicMock(return_value=True),
+        raising=False,
+    )
     # Mock the EnhancedDHTDiscovery variable directly within the model's namespace
     # This assumes the variable exists at the module level after import.
     # We mock it to be a callable that returns our mock instance.
     # Also need to mock the get_enhanced_dht_discovery function it relies on
-    monkeypatch.setattr("ipfs_kit_py.libp2p.get_enhanced_dht_discovery", MagicMock(return_value=MagicMock(return_value=mock_enhanced_dht_discovery)), raising=False)
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.EnhancedDHTDiscovery", MagicMock(return_value=mock_enhanced_dht_discovery), raising=False)
+    monkeypatch.setattr(
+        "ipfs_kit_py.libp2p.get_enhanced_dht_discovery",
+        MagicMock(return_value=MagicMock(return_value=mock_enhanced_dht_discovery)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.EnhancedDHTDiscovery",
+        MagicMock(return_value=mock_enhanced_dht_discovery),
+        raising=False,
+    )
     # Mock apply_protocol_extensions_to_instance
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.apply_protocol_extensions_to_instance", MagicMock(), raising=False)
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.apply_protocol_extensions_to_instance",
+        MagicMock(),
+        raising=False,
+    )
     # Patch EnhancedDHTDiscovery directly to the mock object
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.EnhancedDHTDiscovery", mock_enhanced_dht_discovery, raising=False)
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.EnhancedDHTDiscovery",
+        mock_enhanced_dht_discovery,
+        raising=False,
+    )
     # Patch is_available directly on the CLASS within the dependency fixture
     # monkeypatch.setattr(LibP2PModel, "is_available", MagicMock(return_value=True)) # Removed - will patch instance
 
@@ -100,7 +140,7 @@ def libp2p_model(mock_dependencies):
     model = LibP2PModel(
         cache_manager=mock_cache_manager,
         credential_manager=mock_credential_manager,
-        metadata={"auto_start": False} # Prevent auto-start during init
+        metadata={"auto_start": False},  # Prevent auto-start during init
     )
     # Force assign mocks AFTER instance creation to bypass __init__ issues
     model.libp2p_peer = mock_libp2p_peer
@@ -111,12 +151,17 @@ def libp2p_model(mock_dependencies):
     assert model.libp2p_peer is mock_libp2p_peer
     return model
 
+
 @pytest.fixture
 def libp2p_model_no_deps(mock_dependencies, monkeypatch):
     """Fixture for model when dependencies are missing."""
     monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.HAS_LIBP2P", False)
     # Ensure IPFSLibp2pPeer is not used
-    monkeypatch.setattr("ipfs_kit_py.mcp.models.libp2p_model.IPFSLibp2pPeer", MagicMock(side_effect=ImportError), raising=False)
+    monkeypatch.setattr(
+        "ipfs_kit_py.mcp.models.libp2p_model.IPFSLibp2pPeer",
+        MagicMock(side_effect=ImportError),
+        raising=False,
+    )
     # Ensure cache mock starts clean for this fixture too
     mock_cache_manager.get.return_value = None
 
@@ -126,17 +171,18 @@ def libp2p_model_no_deps(mock_dependencies, monkeypatch):
     model = LibP2PModel(
         cache_manager=mock_cache_manager,
         credential_manager=mock_credential_manager,
-        metadata={"auto_install_dependencies": False} # Prevent auto-install attempt
+        metadata={"auto_install_dependencies": False},  # Prevent auto-install attempt
     )
     # Ensure the instance reflects the desired state for this fixture
-    model.is_available = MagicMock(return_value=False) # Patch instance directly
-    model.libp2p_peer = None # Ensure peer is None
+    model.is_available = MagicMock(return_value=False)  # Patch instance directly
+    model.libp2p_peer = None  # Ensure peer is None
     return model
+
 
 # --- Test Class ---
 
-class TestLibP2PModel:
 
+class TestLibP2PModel:
     def test_initialization_with_deps(self, libp2p_model):
         """Test model initialization when dependencies are available."""
         assert libp2p_model.is_available()
@@ -178,7 +224,7 @@ class TestLibP2PModel:
 
     def test_get_stats(self, libp2p_model):
         """Test get_stats method."""
-        libp2p_model.operation_stats["peers_discovered"] = 5 # Set some stat
+        libp2p_model.operation_stats["peers_discovered"] = 5  # Set some stat
         result = libp2p_model.get_stats()
         assert result["success"]
         assert "stats" in result
@@ -195,7 +241,7 @@ class TestLibP2PModel:
         assert libp2p_model.operation_stats["peers_discovered"] == 0
         # Check if cache clear was attempted
         mock_cache_manager.list_keys.assert_called_once()
-        assert mock_cache_manager.delete.call_count == 2 # Based on list_keys return value
+        assert mock_cache_manager.delete.call_count == 2  # Based on list_keys return value
 
     # --- Lifecycle ---
 
@@ -209,7 +255,7 @@ class TestLibP2PModel:
 
     def test_start_already_running(self, libp2p_model):
         """Test starting when already running."""
-        libp2p_model.libp2p_peer._running = True # Mock as running
+        libp2p_model.libp2p_peer._running = True  # Mock as running
         result = libp2p_model.start()
         assert result["success"]
         assert result.get("already_running")
@@ -239,7 +285,7 @@ class TestLibP2PModel:
         """Test discovering peers using 'all' methods."""
         # Reset connect_peer mock specifically for this test if needed
         libp2p_model.libp2p_peer.connect_peer.reset_mock()
-        mock_enhanced_dht_discovery.discover_peers.reset_mock() # Reset this too
+        mock_enhanced_dht_discovery.discover_peers.reset_mock()  # Reset this too
         libp2p_model.libp2p_peer.discover_peers_mdns.reset_mock()
 
         result = libp2p_model.discover_peers(discovery_method="all", limit=5)
@@ -264,7 +310,7 @@ class TestLibP2PModel:
         assert result["peers"] == ["EnhancedDHTPeer"]
         # Check that the enhanced discovery mock was called
         mock_enhanced_dht_discovery.discover_peers.assert_called_once_with(limit=5)
-        libp2p_model.libp2p_peer.discover_peers_dht.assert_not_called() # Ensure old method not called
+        libp2p_model.libp2p_peer.discover_peers_dht.assert_not_called()  # Ensure old method not called
         libp2p_model.libp2p_peer.discover_peers_mdns.assert_not_called()
 
     def test_discover_peers_no_deps(self, libp2p_model_no_deps):
@@ -279,11 +325,13 @@ class TestLibP2PModel:
         result = libp2p_model.connect_peer(peer_addr)
         assert result["success"]
         libp2p_model.libp2p_peer.connect_peer.assert_called_once_with(peer_addr)
-        libp2p_model.libp2p_peer.get_peer_info.assert_called_once_with(peer_addr) # Checks if info is fetched after connect
+        libp2p_model.libp2p_peer.get_peer_info.assert_called_once_with(
+            peer_addr
+        )  # Checks if info is fetched after connect
 
     def test_connect_peer_failure(self, libp2p_model):
         """Test connecting to a peer when the connection fails."""
-        libp2p_model.libp2p_peer.connect_peer.return_value = False # Simulate failure
+        libp2p_model.libp2p_peer.connect_peer.return_value = False  # Simulate failure
         peer_addr = "/ip4/1.2.3.4/tcp/4002/p2p/PeerToConnect"
         result = libp2p_model.connect_peer(peer_addr)
         assert not result["success"]
@@ -314,7 +362,7 @@ class TestLibP2PModel:
 
     def test_get_peer_info_not_found(self, libp2p_model):
         """Test getting info for a peer that is not found."""
-        libp2p_model.libp2p_peer.get_peer_info.return_value = None # Simulate not found
+        libp2p_model.libp2p_peer.get_peer_info.return_value = None  # Simulate not found
         peer_id = "UnknownPeer"
         result = libp2p_model.get_peer_info(peer_id)
         assert not result["success"]
@@ -329,7 +377,7 @@ class TestLibP2PModel:
         assert result["success"]
         assert result["providers"] == ["ProviderPeer1"]
         libp2p_model.libp2p_peer.find_providers.assert_called_once_with(cid, timeout=10)
-        mock_cache_manager.put.assert_called_once() # Check caching
+        mock_cache_manager.put.assert_called_once()  # Check caching
 
     def test_find_content_cached(self, libp2p_model):
         """Test finding content when result is cached."""
@@ -340,7 +388,7 @@ class TestLibP2PModel:
             "cid": cid,
             "timestamp": time.time() - 10,
             "providers": ["CachedProvider"],
-            "provider_count": 1
+            "provider_count": 1,
         }
         mock_cache_manager.get.return_value = cached_data
         result = libp2p_model.find_content(cid)
@@ -368,7 +416,7 @@ class TestLibP2PModel:
     def test_retrieve_content_info_not_found(self, libp2p_model):
         """Test retrieving content info when content is not found."""
         cid = "QmNotFound"
-        libp2p_model.libp2p_peer.retrieve_content.return_value = None # Simulate not found
+        libp2p_model.libp2p_peer.retrieve_content.return_value = None  # Simulate not found
         result = libp2p_model.retrieve_content(cid)
         assert not result["success"]
         assert not result["content_available"]
@@ -385,7 +433,7 @@ class TestLibP2PModel:
         assert result.get("data") == b"mock_content_data"
         assert result.get("size") == len(b"mock_content_data")
         libp2p_model.libp2p_peer.retrieve_content.assert_called_once_with(cid, timeout=20)
-        mock_cache_manager.put.assert_called_once() # Check caching
+        mock_cache_manager.put.assert_called_once()  # Check caching
 
     def test_get_content_cached(self, libp2p_model):
         """Test getting content when it's already cached."""
@@ -406,7 +454,7 @@ class TestLibP2PModel:
         assert result["success"]
         libp2p_model.libp2p_peer.store_content_locally.assert_called_once_with(cid, data)
         libp2p_model.libp2p_peer.announce_content.assert_called_once_with(cid)
-        mock_cache_manager.put.assert_called_once() # Check caching
+        mock_cache_manager.put.assert_called_once()  # Check caching
 
     # --- DHT Operations ---
 
@@ -420,7 +468,7 @@ class TestLibP2PModel:
 
     def test_dht_find_peer_not_found(self, libp2p_model):
         """Test finding a peer via DHT when not found."""
-        libp2p_model.libp2p_peer.find_peer_addresses.return_value = [] # Simulate not found
+        libp2p_model.libp2p_peer.find_peer_addresses.return_value = []  # Simulate not found
         peer_id = "DHTNotFoundPeerID"
         result = libp2p_model.dht_find_peer(peer_id)
         assert not result["success"]
@@ -449,7 +497,9 @@ class TestLibP2PModel:
         message = "hello world"
         result = libp2p_model.pubsub_publish(topic, message)
         assert result["success"]
-        libp2p_model.libp2p_peer.publish_message.assert_called_once_with(topic, message.encode('utf-8'))
+        libp2p_model.libp2p_peer.publish_message.assert_called_once_with(
+            topic, message.encode("utf-8")
+        )
 
     def test_pubsub_publish_json_success(self, libp2p_model):
         """Test publishing a JSON message via PubSub."""
@@ -466,7 +516,7 @@ class TestLibP2PModel:
         result = libp2p_model.pubsub_subscribe(topic, handler_id="test_handler_1")
         assert result["success"]
         assert result["handler_id"] == "test_handler_1"
-        libp2p_model.libp2p_peer.subscribe.assert_called_once() # Check direct subscribe call
+        libp2p_model.libp2p_peer.subscribe.assert_called_once()  # Check direct subscribe call
         assert topic in libp2p_model.active_subscriptions
         assert "test_handler_1" in libp2p_model.active_subscriptions[topic]
 
@@ -475,12 +525,14 @@ class TestLibP2PModel:
         topic = "/test/unsubscribe"
         # First subscribe to have something to unsubscribe from
         libp2p_model.pubsub_subscribe(topic, handler_id="handler_to_remove")
-        libp2p_model.libp2p_peer.subscribe.reset_mock() # Reset mock after setup
+        libp2p_model.libp2p_peer.subscribe.reset_mock()  # Reset mock after setup
 
         result = libp2p_model.pubsub_unsubscribe(topic, handler_id="handler_to_remove")
         assert result["success"]
-        libp2p_model.libp2p_peer.unsubscribe.assert_called_once_with(topic) # Check direct unsubscribe call
-        assert topic not in libp2p_model.active_subscriptions # Check internal tracking
+        libp2p_model.libp2p_peer.unsubscribe.assert_called_once_with(
+            topic
+        )  # Check direct unsubscribe call
+        assert topic not in libp2p_model.active_subscriptions  # Check internal tracking
 
     def test_pubsub_get_topics(self, libp2p_model):
         """Test getting the list of subscribed topics."""
@@ -488,11 +540,11 @@ class TestLibP2PModel:
         libp2p_model.pubsub_subscribe("/test/topic1", handler_id="h1")
         # Reset mock before the actual call in the method under test
         libp2p_model.libp2p_peer.get_topics.reset_mock()
-        libp2p_model.libp2p_peer.get_topics.return_value = ["/test/topic1"] # Mock underlying call
+        libp2p_model.libp2p_peer.get_topics.return_value = ["/test/topic1"]  # Mock underlying call
 
         result = libp2p_model.pubsub_get_topics()
         assert result["success"]
-        libp2p_model.libp2p_peer.get_topics.assert_called_once() # Verify the correct mock was called
+        libp2p_model.libp2p_peer.get_topics.assert_called_once()  # Verify the correct mock was called
         assert result["topics"] == ["/test/topic1"]
         assert len(result["topic_details"]) == 1
         assert result["topic_details"][0]["topic"] == "/test/topic1"
@@ -504,12 +556,16 @@ class TestLibP2PModel:
         topic = "/test/getpeers"
         # Reset mock before the actual call
         libp2p_model.libp2p_peer.get_topic_peers.reset_mock()
-        libp2p_model.libp2p_peer.get_topic_peers.return_value = ["PubSubPeer1"] # Ensure return value is set
+        libp2p_model.libp2p_peer.get_topic_peers.return_value = [
+            "PubSubPeer1"
+        ]  # Ensure return value is set
 
         result = libp2p_model.pubsub_get_peers(topic=topic)
         assert result["success"]
         assert result["peers"] == ["PubSubPeer1"]
-        libp2p_model.libp2p_peer.get_topic_peers.assert_called_once_with(topic) # Verify correct mock
+        libp2p_model.libp2p_peer.get_topic_peers.assert_called_once_with(
+            topic
+        )  # Verify correct mock
 
     # --- Message Handlers (Internal, not directly exposed via API but used by PubSub) ---
 
@@ -523,7 +579,7 @@ class TestLibP2PModel:
         assert topic in libp2p_model.topic_handlers
         assert handler_id in libp2p_model.topic_handlers[topic]
         # Check if subscribe was called because it was the first handler for the topic
-        libp2p_model.libp2p_peer.subscribe.assert_called_once() # Check direct subscribe call
+        libp2p_model.libp2p_peer.subscribe.assert_called_once()  # Check direct subscribe call
 
     def test_unregister_message_handler(self, libp2p_model):
         """Test unregistering an internal message handler."""
@@ -532,11 +588,11 @@ class TestLibP2PModel:
         handler_id = "internal_h1"
         # Register first
         libp2p_model.register_message_handler(topic, handler_func, handler_id)
-        libp2p_model.libp2p_peer.subscribe.reset_mock() # Reset mock after setup
+        libp2p_model.libp2p_peer.subscribe.reset_mock()  # Reset mock after setup
 
         result = libp2p_model.unregister_message_handler(topic, handler_id)
         assert result["success"]
-        assert topic not in libp2p_model.topic_handlers # Should be empty now
+        assert topic not in libp2p_model.topic_handlers  # Should be empty now
 
     def test_list_message_handlers(self, libp2p_model):
         """Test listing registered internal message handlers."""

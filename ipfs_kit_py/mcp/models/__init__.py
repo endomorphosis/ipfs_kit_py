@@ -1,40 +1,34 @@
 """
-Bridge module for models package.
-This file was created by the import_fixer.py script.
+Import bridge for MCP models module.
+Redirects imports to the new mcp_server structure.
 """
 
 import logging
-import importlib
+
+# import importlib # Removed F401
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Import from real module
+# Re-export all modules and symbols from the current package
 try:
-    _real_module = importlib.import_module("ipfs_kit_py.mcp_server.models")
-    
-    # Import all public members
-    if hasattr(_real_module, "__all__"):
-        __all__ = _real_module.__all__
-        
-        # Import all listed names
-        for name in __all__:
-            try:
-                globals()[name] = getattr(_real_module, name)
-            except AttributeError:
-                logger.warning(f"Could not import {name} from ipfs_kit_py.mcp_server.models")
-    else:
-        # Import all non-private names
-        __all__ = []
-        for name in dir(_real_module):
-            if not name.startswith("_"):
-                try:
-                    globals()[name] = getattr(_real_module, name)
-                    __all__.append(name)
-                except AttributeError:
-                    pass
-                    
-    logger.debug(f"Successfully imported from ipfs_kit_py.mcp_server.models")
+    from . import * # Import from current package
+
+    logger.debug("Successfully imported from ipfs_kit_py.mcp.models")
 except ImportError as e:
-    logger.warning(f"Failed to import from ipfs_kit_py.mcp_server.models: {e}")
-    __all__ = []
+    logger.warning(f"Failed to import from ipfs_kit_py.mcp.models: {e}")
+
+# Specific imports for backward compatibility (using relative imports)
+try:
+    from .ipfs_model import * # Use relative import
+    from .ipfs_model_anyio import * # Use relative import
+
+    logger.debug("Successfully imported ipfs models")
+except ImportError as e:
+    logger.warning(f"Failed to import ipfs models: {e}")
+
+# Import storage models if available (using relative import)
+try:
+    from .storage import * # Use relative import
+except ImportError as e:
+    logger.warning(f"Failed to import from ipfs_kit_py.mcp.models.storage: {e}")

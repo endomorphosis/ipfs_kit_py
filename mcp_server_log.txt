@@ -1,0 +1,14 @@
+2025-04-14 11:56:46,379 - direct-mcp - INFO - File logging initialized to direct_mcp_server.log
+2025-04-14 11:56:46,379 - direct-mcp - INFO - Added SDK path: /home/barberb/ipfs_kit_py/docs/mcp-python-sdk/src
+2025-04-14 11:56:46,814 - direct-mcp - INFO - Successfully imported MCP and Starlette modules.
+2025-04-14 11:56:46,814 - direct-mcp - INFO - Starting as BLUE instance based on active version file
+2025-04-14 11:56:46,814 - direct-mcp - INFO - Wrote PID 1306397 to direct_mcp_server_blue.pid
+2025-04-14 11:56:46,828 - direct-mcp - INFO - Starting Direct MCP Server (blue) on port 8000...
+2025-04-14 11:56:46,828 - direct-mcp - INFO - Creating FastMCP SSE app with built-in protocol handling
+2025-04-14 11:56:46,828 - direct-mcp - INFO - MCP Server Tools: ['list_files', 'deployment_status', 'edit_file', 'patch_file', 'start_blue_green_deployment', 'read_file', 'read_file_slice', 'write_file']
+2025-04-14 11:56:46,828 - direct-mcp - INFO - Endpoint paths: ['/sse', '/messages', '/']
+INFO:     Started server process [1306397]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:52384 - "GET /sse HTTP/1.1" 200 OK

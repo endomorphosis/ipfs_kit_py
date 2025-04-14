@@ -1,3 +1,10 @@
+
+import sys
+import os
+# Add the parent directory to sys.path to allow importing mcp_error_handling
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import mcp_error_handling
+
 """
 Lassie Controller for the MCP server with AnyIO support.
 
@@ -9,18 +16,27 @@ retrieving content from the Filecoin/IPFS networks.
 import logging
 import time
 import anyio
-from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, Body, File, UploadFile, Form, Response, Query
+from fastapi import (
+from ipfs_kit_py.mcp.controllers.storage.lassie_controller import (
+
+APIRouter,
+    HTTPException)
 
 # Import Pydantic models for request/response validation
-from pydantic import BaseModel, Field
 
 # Import models from synchronous controller for consistency
-from ipfs_kit_py.mcp.controllers.storage.lassie_controller import (
-    FetchCIDRequest, RetrieveContentRequest, ExtractCARRequest,
-    IPFSLassieRequest, LassieIPFSRequest, OperationResponse,
-    FetchCIDResponse, RetrieveContentResponse, ExtractCARResponse,
-    IPFSLassieResponse, LassieIPFSResponse
+
+    FetchCIDRequest,
+    RetrieveContentRequest,
+    ExtractCARRequest,
+    IPFSLassieRequest,
+    LassieIPFSRequest,
+    OperationResponse,
+    FetchCIDResponse,
+    RetrieveContentResponse,
+    ExtractCARResponse,
+    IPFSLassieResponse,
+    LassieIPFSResponse,
 )
 
 # Configure logger
@@ -30,26 +46,25 @@ logger = logging.getLogger(__name__)
 class LassieControllerAnyIO:
     """
     Controller for Lassie operations with AnyIO support.
-    
+
     Handles HTTP requests related to Lassie operations and delegates
     the business logic to the Lassie model. Lassie is a tool for
     retrieving content from the Filecoin/IPFS networks.
     """
-    
     def __init__(self, lassie_model):
         """
         Initialize the Lassie controller with AnyIO support.
-        
+
         Args:
             lassie_model: Lassie model to use for operations
         """
         self.lassie_model = lassie_model
         logger.info("Lassie Controller (AnyIO) initialized")
-    
+
     def register_routes(self, router: APIRouter):
         """
         Register routes with a FastAPI router.
-        
+
         Args:
             router: FastAPI router to register routes with
         """
@@ -60,9 +75,9 @@ class LassieControllerAnyIO:
             methods=["POST"],
             response_model=FetchCIDResponse,
             summary="Fetch CID with Lassie",
-            description="Fetch content by CID from Filecoin/IPFS networks using Lassie"
+            description="Fetch content by CID from Filecoin/IPFS networks using Lassie",
         )
-        
+
         # Retrieve content endpoint
         router.add_api_route(
             "/lassie/retrieve",
@@ -70,9 +85,9 @@ class LassieControllerAnyIO:
             methods=["POST"],
             response_model=RetrieveContentResponse,
             summary="Retrieve content with Lassie",
-            description="Retrieve content from Filecoin/IPFS networks and extract if needed"
+            description="Retrieve content from Filecoin/IPFS networks and extract if needed",
         )
-        
+
         # Extract CAR endpoint
         router.add_api_route(
             "/lassie/extract",
@@ -80,9 +95,9 @@ class LassieControllerAnyIO:
             methods=["POST"],
             response_model=ExtractCARResponse,
             summary="Extract CAR file",
-            description="Extract content from a CAR file"
+            description="Extract content from a CAR file",
         )
-        
+
         # IPFS to Lassie endpoint
         router.add_api_route(
             "/lassie/from_ipfs",
@@ -90,9 +105,9 @@ class LassieControllerAnyIO:
             methods=["POST"],
             response_model=IPFSLassieResponse,
             summary="IPFS to Lassie",
-            description="Transfer content from IPFS to a local file using Lassie"
+            description="Transfer content from IPFS to a local file using Lassie",
         )
-        
+
         # Lassie to IPFS endpoint
         router.add_api_route(
             "/lassie/to_ipfs",
@@ -100,9 +115,9 @@ class LassieControllerAnyIO:
             methods=["POST"],
             response_model=LassieIPFSResponse,
             summary="Lassie to IPFS",
-            description="Retrieve content using Lassie and add to IPFS"
+            description="Retrieve content using Lassie and add to IPFS",
         )
-        
+
         # Status endpoint for testing
         router.add_api_route(
             "/storage/lassie/status",
@@ -110,18 +125,18 @@ class LassieControllerAnyIO:
             methods=["GET"],
             response_model=OperationResponse,
             summary="Lassie Status",
-            description="Get current status of the Lassie backend"
+            description="Get current status of the Lassie backend",
         )
-        
+
         logger.info("Lassie routes registered (AnyIO)")
-    
+
     async def handle_fetch_cid_request(self, request: FetchCIDRequest):
         """
         Handle fetch CID request with Lassie (async).
-        
+
         Args:
             request: Fetch CID request parameters
-            
+
         Returns:
             Fetch CID response
         """
@@ -136,7 +151,7 @@ class LassieControllerAnyIO:
                 providers=request.providers,
                 dag_scope=request.dag_scope,
                 output_file=request.output_file,
-                filename=request.filename
+                filename=request.filename,
             )
         else:
             # Fallback to synchronous method in a thread
@@ -149,29 +164,32 @@ class LassieControllerAnyIO:
                 providers=request.providers,
                 dag_scope=request.dag_scope,
                 output_file=request.output_file,
-                filename=request.filename
+                filename=request.filename,
             )
-        
+
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "error": result.get("error", "Unknown error"),
-                    "error_type": result.get("error_type", "UnknownError")
-                }
+            mcp_error_handling.raise_http_exception(
+        code="INTERNAL_ERROR",
+        message_override={
+                    "error": result.get("error",
+        endpoint="/api/v0/lassie_anyio",
+        doc_category="storage"
+    ),
+                    "error_type": result.get("error_type", "UnknownError"),
+                },
             )
-        
+
         # Return successful response
         return result
-    
+
     async def handle_retrieve_content_request(self, request: RetrieveContentRequest):
         """
         Handle retrieve content request with Lassie (async).
-        
+
         Args:
             request: Retrieve content request parameters
-            
+
         Returns:
             Retrieve content response
         """
@@ -182,7 +200,7 @@ class LassieControllerAnyIO:
                 cid=request.cid,
                 destination=request.destination,
                 extract=request.extract,
-                verbose=request.verbose
+                verbose=request.verbose,
             )
         else:
             # Fallback to synchronous method in a thread
@@ -191,29 +209,32 @@ class LassieControllerAnyIO:
                 cid=request.cid,
                 destination=request.destination,
                 extract=request.extract,
-                verbose=request.verbose
+                verbose=request.verbose,
             )
-        
+
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "error": result.get("error", "Unknown error"),
-                    "error_type": result.get("error_type", "UnknownError")
-                }
+            mcp_error_handling.raise_http_exception(
+        code="INTERNAL_ERROR",
+        message_override={
+                    "error": result.get("error",
+        endpoint="/api/v0/lassie_anyio",
+        doc_category="storage"
+    ),
+                    "error_type": result.get("error_type", "UnknownError"),
+                },
             )
-        
+
         # Return successful response
         return result
-    
+
     async def handle_extract_car_request(self, request: ExtractCARRequest):
         """
         Handle extract CAR request (async).
-        
+
         Args:
             request: Extract CAR request parameters
-            
+
         Returns:
             Extract CAR response
         """
@@ -223,7 +244,7 @@ class LassieControllerAnyIO:
             result = await self.lassie_model.extract_car_async(
                 car_path=request.car_path,
                 output_dir=request.output_dir,
-                cid=request.cid
+                cid=request.cid,
             )
         else:
             # Fallback to synchronous method in a thread
@@ -231,29 +252,32 @@ class LassieControllerAnyIO:
                 self.lassie_model.extract_car,
                 car_path=request.car_path,
                 output_dir=request.output_dir,
-                cid=request.cid
+                cid=request.cid,
             )
-        
+
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "error": result.get("error", "Unknown error"),
-                    "error_type": result.get("error_type", "UnknownError")
-                }
+            mcp_error_handling.raise_http_exception(
+        code="INTERNAL_ERROR",
+        message_override={
+                    "error": result.get("error",
+        endpoint="/api/v0/lassie_anyio",
+        doc_category="storage"
+    ),
+                    "error_type": result.get("error_type", "UnknownError"),
+                },
             )
-        
+
         # Return successful response
         return result
-    
+
     async def handle_ipfs_to_lassie_request(self, request: IPFSLassieRequest):
         """
         Handle transfer from IPFS to Lassie (async).
-        
+
         Args:
             request: IPFS to Lassie request parameters
-            
+
         Returns:
             IPFS to Lassie response
         """
@@ -263,7 +287,7 @@ class LassieControllerAnyIO:
             result = await self.lassie_model.ipfs_to_lassie_async(
                 cid=request.cid,
                 destination=request.destination,
-                extract=request.extract
+                extract=request.extract,
             )
         else:
             # Fallback to synchronous method in a thread
@@ -271,29 +295,32 @@ class LassieControllerAnyIO:
                 self.lassie_model.ipfs_to_lassie,
                 cid=request.cid,
                 destination=request.destination,
-                extract=request.extract
+                extract=request.extract,
             )
-        
+
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "error": result.get("error", "Unknown error"),
-                    "error_type": result.get("error_type", "UnknownError")
-                }
+            mcp_error_handling.raise_http_exception(
+        code="INTERNAL_ERROR",
+        message_override={
+                    "error": result.get("error",
+        endpoint="/api/v0/lassie_anyio",
+        doc_category="storage"
+    ),
+                    "error_type": result.get("error_type", "UnknownError"),
+                },
             )
-        
+
         # Return successful response
         return result
-    
+
     async def handle_lassie_to_ipfs_request(self, request: LassieIPFSRequest):
         """
         Handle transfer from Lassie to IPFS (async).
-        
+
         Args:
             request: Lassie to IPFS request parameters
-            
+
         Returns:
             Lassie to IPFS response
         """
@@ -301,9 +328,7 @@ class LassieControllerAnyIO:
         if hasattr(self.lassie_model, "lassie_to_ipfs_async"):
             # Use AnyIO version
             result = await self.lassie_model.lassie_to_ipfs_async(
-                cid=request.cid,
-                pin=request.pin,
-                verbose=request.verbose
+                cid=request.cid, pin=request.pin, verbose=request.verbose
             )
         else:
             # Fallback to synchronous method in a thread
@@ -311,26 +336,29 @@ class LassieControllerAnyIO:
                 self.lassie_model.lassie_to_ipfs,
                 cid=request.cid,
                 pin=request.pin,
-                verbose=request.verbose
+                verbose=request.verbose,
             )
-        
+
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "error": result.get("error", "Unknown error"),
-                    "error_type": result.get("error_type", "UnknownError")
-                }
+            mcp_error_handling.raise_http_exception(
+        code="INTERNAL_ERROR",
+        message_override={
+                    "error": result.get("error",
+        endpoint="/api/v0/lassie_anyio",
+        doc_category="storage"
+    ),
+                    "error_type": result.get("error_type", "UnknownError"),
+                },
             )
-        
+
         # Return successful response
         return result
-        
+
     async def handle_status_request(self):
         """
         Handle status request for Lassie backend (async).
-        
+
         Returns:
             Status response
         """
@@ -338,18 +366,14 @@ class LassieControllerAnyIO:
         if hasattr(self.lassie_model, "check_connection_async"):
             connection_result = await self.lassie_model.check_connection_async()
         else:
-            connection_result = await anyio.to_thread.run_sync(
-                self.lassie_model.check_connection
-            )
-        
+            connection_result = await anyio.to_thread.run_sync(self.lassie_model.check_connection)
+
         # Check for async stats method
         if hasattr(self.lassie_model, "get_stats_async"):
             stats = await self.lassie_model.get_stats_async()
         else:
-            stats = await anyio.to_thread.run_sync(
-                self.lassie_model.get_stats
-            )
-        
+            stats = await anyio.to_thread.run_sync(self.lassie_model.get_stats)
+
         # Create response with status information
         return {
             "success": connection_result.get("success", False),
@@ -359,5 +383,5 @@ class LassieControllerAnyIO:
             "backend": "lassie",
             "lassie_version": connection_result.get("version", "unknown"),
             "stats": stats,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }

@@ -2,16 +2,20 @@
 Tests for the LibP2PController class in the MCP framework.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
-# Import the controller and model classes
 from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
-from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel # Needed for mock spec
+from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel  # Needed for mock spec
+
+# Import the controller and model classes
+
 
 # --- Fixtures ---
+
 
 @pytest.fixture
 def mock_libp2p_model():
@@ -19,33 +23,102 @@ def mock_libp2p_model():
     model = MagicMock(spec=LibP2PModel)
     # Configure default return values for mocked methods
     model.is_available.return_value = True
-    model.get_health.return_value = {"success": True, "libp2p_available": True, "peer_initialized": True, "peer_id": "MockPeerID"}
-    model.discover_peers.return_value = {"success": True, "peers": ["Peer1", "Peer2"], "peer_count": 2}
-    model.connect_peer.return_value = {"success": True, "peer_info": {"protocols": ["/test/1.0"]}}
-    model.find_content.return_value = {"success": True, "providers": ["Provider1"], "provider_count": 1}
-    model.retrieve_content.return_value = {"success": True, "size": 100, "content_available": True}
-    model.get_content.return_value = {"success": True, "data": b"mock_content", "size": 12}
+    model.get_health.return_value = {
+        "success": True,
+        "libp2p_available": True,
+        "peer_initialized": True,
+        "peer_id": "MockPeerID",
+    }
+    model.discover_peers.return_value = {
+        "success": True,
+        "peers": ["Peer1", "Peer2"],
+        "peer_count": 2,
+    }
+    model.connect_peer.return_value = {
+        "success": True,
+        "peer_info": {"protocols": ["/test/1.0"]},
+    }
+    model.find_content.return_value = {
+        "success": True,
+        "providers": ["Provider1"],
+        "provider_count": 1,
+    }
+    model.retrieve_content.return_value = {
+        "success": True,
+        "size": 100,
+        "content_available": True,
+    }
+    model.get_content.return_value = {
+        "success": True,
+        "data": b"mock_content",
+        "size": 12,
+    }
     model.announce_content.return_value = {"success": True, "content_stored": True}
-    model.get_connected_peers.return_value = {"success": True, "peers": ["ConnectedPeer1"], "peer_count": 1}
-    model.get_peer_info.return_value = {"success": True, "protocols": ["/test/1.0"], "latency": 0.1}
-    model.get_stats.return_value = {"success": True, "stats": {"operation_count": 5}, "uptime": 120.5}
+    model.get_connected_peers.return_value = {
+        "success": True,
+        "peers": ["ConnectedPeer1"],
+        "peer_count": 1,
+    }
+    model.get_peer_info.return_value = {
+        "success": True,
+        "protocols": ["/test/1.0"],
+        "latency": 0.1,
+    }
+    model.get_stats.return_value = {
+        "success": True,
+        "stats": {"operation_count": 5},
+        "uptime": 120.5,
+    }
     model.reset.return_value = {"success": True, "cache_entries_cleared": 5}
     # Add 'action' and 'status' to match StartStopResponse model
-    model.start.return_value = {"success": True, "newly_started": True, "action": "start", "status": "running"}
+    model.start.return_value = {
+        "success": True,
+        "newly_started": True,
+        "action": "start",
+        "status": "running",
+    }
     model.stop.return_value = {"success": True, "action": "stop", "status": "stopped"}
-    model.dht_find_peer.return_value = {"success": True, "addresses": ["/ip4/1.2.3.4/tcp/4001"]}
+    model.dht_find_peer.return_value = {
+        "success": True,
+        "addresses": ["/ip4/1.2.3.4/tcp/4001"],
+    }
     model.dht_provide.return_value = {"success": True}
-    model.dht_find_providers.return_value = {"success": True, "providers": ["DHTProvider1"], "provider_count": 1}
+    model.dht_find_providers.return_value = {
+        "success": True,
+        "providers": ["DHTProvider1"],
+        "provider_count": 1,
+    }
     model.pubsub_publish.return_value = {"success": True}
-    model.pubsub_subscribe.return_value = {"success": True, "handler_id": "mock_handler_1"}
+    model.pubsub_subscribe.return_value = {
+        "success": True,
+        "handler_id": "mock_handler_1",
+    }
     model.pubsub_unsubscribe.return_value = {"success": True}
-    model.pubsub_get_topics.return_value = {"success": True, "topics": ["/test/topic"], "topic_count": 1, "topic_details": []}
-    model.pubsub_get_peers.return_value = {"success": True, "peers": ["PubSubPeer1"], "peer_count": 1}
+    model.pubsub_get_topics.return_value = {
+        "success": True,
+        "topics": ["/test/topic"],
+        "topic_count": 1,
+        "topic_details": [],
+    }
+    model.pubsub_get_peers.return_value = {
+        "success": True,
+        "peers": ["PubSubPeer1"],
+        "peer_count": 1,
+    }
     # Mock handler methods - these might need adjustment based on actual controller usage
-    model.register_message_handler.return_value = {"success": True, "handler_id": "reg_handler_1"}
+    model.register_message_handler.return_value = {
+        "success": True,
+        "handler_id": "reg_handler_1",
+    }
     model.unregister_message_handler.return_value = {"success": True}
-    model.list_message_handlers.return_value = {"success": True, "handlers": {}, "handler_count": 0, "topic_count": 0}
+    model.list_message_handlers.return_value = {
+        "success": True,
+        "handlers": {},
+        "handler_count": 0,
+        "topic_count": 0,
+    }
     return model
+
 
 @pytest.fixture
 def app(mock_libp2p_model):
@@ -55,15 +128,17 @@ def app(mock_libp2p_model):
     controller.register_routes(fast_app.router)
     return fast_app
 
+
 @pytest.fixture
 def client(app):
     """Fixture to create a TestClient for the FastAPI app."""
     return TestClient(app)
 
+
 # --- Test Class ---
 
-class TestLibP2PController:
 
+class TestLibP2PController:
     # --- Health & Stats ---
 
     def test_health_check_success(self, client, mock_libp2p_model):
@@ -76,7 +151,12 @@ class TestLibP2PController:
 
     def test_health_check_unavailable(self, client, mock_libp2p_model):
         """Test GET /libp2p/health when libp2p is unavailable."""
-        mock_libp2p_model.get_health.return_value = {"success": False, "libp2p_available": False, "peer_initialized": False, "error": "libp2p service unavailable"}
+        mock_libp2p_model.get_health.return_value = {
+            "success": False,
+            "libp2p_available": False,
+            "peer_initialized": False,
+            "error": "libp2p service unavailable",
+        }
         response = client.get("/libp2p/health")
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert "libp2p service unavailable" in response.json()["detail"]
@@ -158,7 +238,11 @@ class TestLibP2PController:
     def test_get_peer_info_not_found(self, client, mock_libp2p_model):
         """Test GET /libp2p/peer/{peer_id} when peer not found."""
         peer_id = "QmNotFoundPeer"
-        mock_libp2p_model.get_peer_info.return_value = {"success": False, "error_type": "peer_not_found", "error": "Peer not found"}
+        mock_libp2p_model.get_peer_info.return_value = {
+            "success": False,
+            "error_type": "peer_not_found",
+            "error": "Peer not found",
+        }
         response = client.get(f"/libp2p/peer/{peer_id}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "Peer not found" in response.json()["detail"]
@@ -186,7 +270,11 @@ class TestLibP2PController:
     def test_retrieve_content_info_not_found(self, client, mock_libp2p_model):
         """Test GET /libp2p/content/info/{cid} when content not found."""
         cid = "QmContentNotFound"
-        mock_libp2p_model.retrieve_content.return_value = {"success": False, "error_type": "content_not_found", "error": "Content not found"}
+        mock_libp2p_model.retrieve_content.return_value = {
+            "success": False,
+            "error_type": "content_not_found",
+            "error": "Content not found",
+        }
         response = client.get(f"/libp2p/content/info/{cid}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "Content not found" in response.json()["detail"]
@@ -205,7 +293,11 @@ class TestLibP2PController:
     def test_retrieve_content_not_found(self, client, mock_libp2p_model):
         """Test GET /libp2p/content/{cid} when content not found."""
         cid = "QmGetDataNotFound"
-        mock_libp2p_model.get_content.return_value = {"success": False, "error_type": "content_not_found", "error": "Content not found"}
+        mock_libp2p_model.get_content.return_value = {
+            "success": False,
+            "error_type": "content_not_found",
+            "error": "Content not found",
+        }
         response = client.get(f"/libp2p/content/{cid}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "Content not found" in response.json()["detail"]
@@ -225,7 +317,10 @@ class TestLibP2PController:
         # if the endpoint expected form data.
         # If the model expects raw bytes in the body, it's non-standard for FastAPI JSON requests.
         # Let's assume the Pydantic model `ContentDataRequest` handles this.
-        request_data = {"cid": cid, "data": data.hex()} # Send hex to be JSON compatible
+        {
+            "cid": cid,
+            "data": data.hex(),
+        }  # Send hex to be JSON compatible
         # Adjust the controller/model if hex is not the expected format.
         # Let's refine the mock to expect bytes
         mock_libp2p_model.announce_content.return_value = {"success": True}
@@ -235,7 +330,7 @@ class TestLibP2PController:
         # assert response.status_code == status.HTTP_200_OK
         # assert response.json()["success"]
         # mock_libp2p_model.announce_content.assert_called_once_with(cid, data=data)
-        pass # Placeholder until request format is clarified
+        pass  # Placeholder until request format is clarified
 
     # --- DHT Operations ---
 
@@ -321,7 +416,6 @@ class TestLibP2PController:
         """Test POST /libp2p/handlers/register endpoint."""
         # This endpoint seems to register internal handlers, unclear how it's used via API
         # Placeholder test
-        request_data = {"handler_id": "h1", "protocol_id": "/proto/1", "description": "Test"}
         # response = client.post("/libp2p/handlers/register", json=request_data)
         # assert response.status_code == status.HTTP_200_OK
         # mock_libp2p_model.register_message_handler.assert_called_once()
@@ -330,7 +424,6 @@ class TestLibP2PController:
     def test_unregister_message_handler(self, client, mock_libp2p_model):
         """Test POST /libp2p/handlers/unregister endpoint."""
         # Placeholder test
-        request_data = {"handler_id": "h1", "protocol_id": "/proto/1"}
         # response = client.post("/libp2p/handlers/unregister", json=request_data)
         # assert response.status_code == status.HTTP_200_OK
         # mock_libp2p_model.unregister_message_handler.assert_called_once()
@@ -355,7 +448,11 @@ class TestLibP2PController:
 
     def test_endpoint_model_error(self, client, mock_libp2p_model):
         """Test an endpoint when the underlying model method fails."""
-        mock_libp2p_model.discover_peers.return_value = {"success": False, "error": "Model discovery failed", "error_type": "discovery_error"}
+        mock_libp2p_model.discover_peers.return_value = {
+            "success": False,
+            "error": "Model discovery failed",
+            "error_type": "discovery_error",
+        }
         response = client.post("/libp2p/discover", json={"discovery_method": "dht", "limit": 1})
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Model discovery failed" in response.json()["detail"]

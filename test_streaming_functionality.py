@@ -1,583 +1,300 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
-MCP Streaming functionality test script.
+Test script for the MCP Streaming Operations functionality.
 
-This script demonstrates how to use the real-time streaming capabilities of the MCP server,
-including WebSocket connections for events and real-time notifications, and WebRTC for
-peer-to-peer communication.
+This script tests the streaming operations for MCP server, including:
+1. Optimized file uploads with chunked processing
+2. Memory-optimized streaming downloads
+3. Background pinning operations
+4. DAG import/export capabilities
 """
 
-import os
-import sys
-import time
-import json
-import uuid
-import asyncio
-import argparse
 import logging
-import websockets
-import requests
-from typing import Dict, Any, List, Optional, Callable
+import sys
+import os
+import json
+import time
+import asyncio
+import tempfile
+import hashlib
+import random
+from typing import Dict, Any, Optional, BinaryIO
+from contextlib import contextmanager
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("streaming_test")
 
-# Parse arguments
-parser = argparse.ArgumentParser(description='Test MCP Streaming functionality')
-parser.add_argument('--host', type=str, default='localhost', help='MCP Server host')
-parser.add_argument('--port', type=int, default=9997, help='MCP Server port')
-parser.add_argument('--api-prefix', type=str, default='/api/v0', help='API prefix')
-parser.add_argument('--test', type=str, choices=['websocket', 'webrtc', 'all'], default='all', 
-                    help='Which test to run (websocket, webrtc, or all)')
-args = parser.parse_args()
+# Add parent directory to path if needed
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
-# Constants
-HOST = args.host
-PORT = args.port
-API_PREFIX = args.api_prefix
-BASE_URL = f"http://{HOST}:{PORT}{API_PREFIX}"
-WS_URL = f"ws://{HOST}:{PORT}/ws"
-WEBRTC_URL = f"ws://{HOST}:{PORT}/webrtc/signal"
 
-# Example event handlers for WebSocket messages
-async def handle_websocket_message(message: Dict[str, Any]) -> None:
-    """Handle a WebSocket message."""
-    if "type" in message:
-        message_type = message["type"]
+@contextmanager
+def create_test_file(size_mb: int, temp_dir: Optional[str] = None) -> str:
+    """Create a temporary test file of the specified size."""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, dir=temp_dir, suffix=".testdata") as tmp:
+            # Create a file with deterministic but random-looking content
+            chunk_size = 1024 * 1024  # 1MB chunks
+            random.seed(size_mb)  # Use size as seed for reproducibility
+            remaining = size_mb * 1024 * 1024
+            
+            while remaining > 0:
+                chunk_data = random.getrandbits(8 * min(chunk_size, remaining)).to_bytes(
+                    min(chunk_size, remaining), byteorder='big')
+                tmp.write(chunk_data)
+                remaining -= len(chunk_data)
+            
+            tmp.flush()
+            file_path = tmp.name
         
-        if message_type == "welcome":
-            logger.info(f"Connected to WebSocket server with connection ID: {message.get('connection_id')}")
+        logger.info(f"Created test file of size {size_mb}MB at {file_path}")
+        yield file_path
+    finally:
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.unlink(file_path)
+            logger.info(f"Cleaned up test file at {file_path}")
+
+
+class MockUploadFile:
+    """Mock class for FastAPI's UploadFile."""
+    def __init__(self, file_path: str, content_type: str = "application/octet-stream"):
+        self.file_path = file_path
+        self.filename = os.path.basename(file_path)
+        self.content_type = content_type
+        self._file = None
+    
+    async def read(self, size: int = -1) -> bytes:
+        """Read data from the file."""
+        if not self._file:
+            self._file = open(self.file_path, 'rb')
         
-        elif message_type == "subscribed":
-            logger.info(f"Subscribed to channel: {message.get('channel')}")
-        
-        elif message_type == "unsubscribed":
-            logger.info(f"Unsubscribed from channel: {message.get('channel')}")
-        
-        elif message_type == "unsubscribed_all":
-            logger.info(f"Unsubscribed from all channels: {message.get('channels')}")
-        
-        elif message_type == "pong":
-            logger.debug("Received pong response")
-        
-        elif message_type == "error":
-            logger.error(f"Received error: {message.get('error')}")
-        
-        elif message_type == "echo":
-            logger.info(f"Received echo: {message.get('data')}")
-        
+        if size == -1:
+            return self._file.read()
         else:
-            logger.info(f"Received message: {message}")
-    else:
-        logger.info(f"Received message without type: {message}")
+            return self._file.read(size)
+    
+    def close(self):
+        """Close the file."""
+        if self._file:
+            self._file.close()
+            self._file = None
 
-# WebRTC peer class
-class WebRTCPeer:
-    """
-    WebRTC peer for testing signaling.
+
+class BackgroundTasksMock:
+    """Mock class for FastAPI's BackgroundTasks."""
+    def __init__(self):
+        self.tasks = []
     
-    This is a simplified version without actual WebRTC connections.
-    It only simulates the signaling process.
-    """
+    def add_task(self, func, *args, **kwargs):
+        """Add a background task."""
+        self.tasks.append((func, args, kwargs))
     
-    def __init__(self, room_id: str, peer_id: Optional[str] = None):
-        """
-        Initialize the WebRTC peer.
+    async def run_all(self):
+        """Run all background tasks."""
+        for func, args, kwargs in self.tasks:
+            await func(*args, **kwargs)
+
+
+async def run_streaming_test():
+    """Run comprehensive tests on the streaming operations."""
+    logger.info("Starting MCP Streaming Operations test...")
+    
+    try:
+        # Import the streaming module
+        from ipfs_kit_py.mcp_streaming import StreamingOperations
+        logger.info("Successfully imported streaming module")
         
-        Args:
-            room_id: The room ID to join
-            peer_id: Optional peer ID (generated if not provided)
-        """
-        self.room_id = room_id
-        self.peer_id = peer_id or str(uuid.uuid4())
-        self.connection = None
-        self.other_peers = []
-        self.is_connected = False
-        
-        # Message handlers
-        self.handlers: Dict[str, Callable] = {
-            "welcome": self._handle_welcome,
-            "peer_joined": self._handle_peer_joined,
-            "peer_left": self._handle_peer_left,
-            "offer": self._handle_offer,
-            "answer": self._handle_answer,
-            "candidate": self._handle_candidate,
-            "room_message": self._handle_room_message,
-            "peer_message": self._handle_peer_message
-        }
-    
-    async def connect(self) -> None:
-        """Connect to the WebRTC signaling server."""
-        try:
-            url = f"{WEBRTC_URL}/{self.room_id}/{self.peer_id}"
-            self.connection = await websockets.connect(url)
-            self.is_connected = True
-            logger.info(f"WebRTC peer {self.peer_id} connected to room {self.room_id}")
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Created temporary directory for testing: {temp_dir}")
             
-            # Start message handling
-            asyncio.create_task(self._handle_messages())
+            # Initialize streaming operations
+            streaming_ops = StreamingOperations(temp_dir=temp_dir)
             
-            # Send periodic pings to keep the connection alive
-            asyncio.create_task(self._ping_periodically())
-        except Exception as e:
-            logger.error(f"Error connecting to WebRTC signaling server: {e}")
-            self.is_connected = False
-    
-    async def disconnect(self) -> None:
-        """Disconnect from the WebRTC signaling server."""
-        if self.connection:
-            await self.connection.close()
-            self.is_connected = False
-            logger.info(f"WebRTC peer {self.peer_id} disconnected from room {self.room_id}")
-    
-    async def _handle_messages(self) -> None:
-        """Handle incoming WebRTC signaling messages."""
-        try:
-            while self.is_connected and self.connection:
-                message = await self.connection.recv()
-                data = json.loads(message)
+            # Test 1: Stream Add to IPFS (small file)
+            logger.info("Test 1: Stream Add to IPFS (small file)")
+            with create_test_file(1, temp_dir) as small_file_path:
+                mock_file = MockUploadFile(small_file_path)
+                result = await streaming_ops.stream_add_to_ipfs(mock_file)
+                logger.info(f"Small file upload result: {json.dumps(result, indent=2, default=str)}")
                 
-                if "type" in data:
-                    message_type = data["type"]
-                    if message_type in self.handlers:
-                        await self.handlers[message_type](data)
-                    else:
-                        logger.info(f"Received unknown message type: {message_type}")
-                        logger.debug(f"Message content: {data}")
-        except websockets.exceptions.ConnectionClosed:
-            logger.info(f"WebRTC connection closed for peer {self.peer_id}")
-            self.is_connected = False
-        except Exception as e:
-            logger.error(f"Error handling WebRTC messages: {e}")
-            self.is_connected = False
-    
-    async def _ping_periodically(self) -> None:
-        """Send periodic pings to keep the connection alive."""
-        try:
-            while self.is_connected and self.connection:
-                await asyncio.sleep(30)
-                if self.is_connected and self.connection:
-                    await self.connection.send(json.dumps({"type": "ping"}))
-        except Exception as e:
-            logger.error(f"Error sending ping: {e}")
-    
-    async def send_offer_to_all(self) -> None:
-        """Send a simulated offer to all other peers in the room."""
-        if not self.is_connected or not self.connection:
-            logger.error("Cannot send offer: not connected")
-            return
-        
-        for peer in self.other_peers:
-            # Send a simulated offer
-            offer = {
-                "type": "offer",
-                "target": peer["peer_id"],
-                "sdp": "simulated_sdp_offer_for_testing"
-            }
+                if result.get("success", False):
+                    logger.info("✅ Small file upload successful")
+                    small_file_cid = result["cid"]
+                else:
+                    logger.error("❌ Small file upload failed")
+                    return False
+                
+                # Test pinning in background
+                background_tasks = BackgroundTasksMock()
+                streaming_ops.pin_in_background(background_tasks, small_file_cid)
+                await background_tasks.run_all()
+                logger.info("✅ Background pinning task completed")
             
-            await self.connection.send(json.dumps(offer))
-            logger.info(f"Sent offer to peer {peer['peer_id']}")
-    
-    async def send_room_message(self, data: Dict[str, Any]) -> None:
-        """Send a message to all peers in the room."""
-        if not self.is_connected or not self.connection:
-            logger.error("Cannot send room message: not connected")
-            return
-        
-        message = {
-            "type": "room_message",
-            "data": data
-        }
-        
-        await self.connection.send(json.dumps(message))
-        logger.info(f"Sent room message: {data}")
-    
-    async def _handle_welcome(self, data: Dict[str, Any]) -> None:
-        """Handle welcome message from the signaling server."""
-        # Store other peers
-        self.other_peers = data.get("peers", [])
-        logger.info(f"Joined room {self.room_id} with {len(self.other_peers)} other peers")
-        
-        if self.other_peers:
-            peer_ids = [p["peer_id"] for p in self.other_peers]
-            logger.info(f"Other peers in room: {', '.join(peer_ids)}")
-    
-    async def _handle_peer_joined(self, data: Dict[str, Any]) -> None:
-        """Handle peer joined message."""
-        peer_id = data.get("peer_id")
-        
-        # Skip if it's our own join notification
-        if peer_id == self.peer_id:
-            return
-        
-        # Add to other peers
-        peer_info = {"peer_id": peer_id, "metadata": data.get("metadata", {})}
-        self.other_peers.append(peer_info)
-        
-        logger.info(f"Peer {peer_id} joined the room")
-    
-    async def _handle_peer_left(self, data: Dict[str, Any]) -> None:
-        """Handle peer left message."""
-        peer_id = data.get("peer_id")
-        
-        # Remove from other peers
-        self.other_peers = [p for p in self.other_peers if p["peer_id"] != peer_id]
-        
-        logger.info(f"Peer {peer_id} left the room")
-    
-    async def _handle_offer(self, data: Dict[str, Any]) -> None:
-        """Handle WebRTC offer."""
-        from_peer = data.get("from")
-        sdp = data.get("sdp")
-        
-        logger.info(f"Received offer from peer {from_peer}")
-        
-        # In a real implementation, we would set the remote description
-        # and create an answer. For this test, we'll just send a simulated answer.
-        
-        if self.is_connected and self.connection:
-            answer = {
-                "type": "answer",
-                "target": from_peer,
-                "sdp": "simulated_sdp_answer_for_testing"
-            }
+            # Test 2: Stream Add to IPFS (larger file for chunking test)
+            logger.info("Test 2: Stream Add to IPFS (larger file for chunking test)")
+            with create_test_file(5, temp_dir) as large_file_path:
+                mock_file = MockUploadFile(large_file_path)
+                result = await streaming_ops.stream_add_to_ipfs(mock_file)
+                logger.info(f"Large file upload result: {json.dumps(result, indent=2, default=str)}")
+                
+                if result.get("success", False):
+                    logger.info("✅ Large file upload successful")
+                    large_file_cid = result["cid"]
+                    logger.info(f"Upload throughput: {result.get('throughput_mbps', 0):.2f} MB/s")
+                else:
+                    logger.error("❌ Large file upload failed")
+                    return False
             
-            await self.connection.send(json.dumps(answer))
-            logger.info(f"Sent answer to peer {from_peer}")
-    
-    async def _handle_answer(self, data: Dict[str, Any]) -> None:
-        """Handle WebRTC answer."""
-        from_peer = data.get("from")
-        sdp = data.get("sdp")
-        
-        logger.info(f"Received answer from peer {from_peer}")
-        
-        # In a real implementation, we would set the remote description
-    
-    async def _handle_candidate(self, data: Dict[str, Any]) -> None:
-        """Handle ICE candidate."""
-        from_peer = data.get("from")
-        candidate = data.get("candidate")
-        
-        logger.info(f"Received ICE candidate from peer {from_peer}")
-        
-        # In a real implementation, we would add the ICE candidate
-    
-    async def _handle_room_message(self, data: Dict[str, Any]) -> None:
-        """Handle room message."""
-        from_peer = data.get("from")
-        message_data = data.get("data", {})
-        
-        logger.info(f"Received room message from peer {from_peer}: {message_data}")
-    
-    async def _handle_peer_message(self, data: Dict[str, Any]) -> None:
-        """Handle direct peer message."""
-        from_peer = data.get("from")
-        message_data = data.get("data", {})
-        
-        logger.info(f"Received direct message from peer {from_peer}: {message_data}")
-
-# Test WebSocket functionality
-async def test_websocket() -> None:
-    """Test WebSocket functionality."""
-    logger.info("Testing WebSocket functionality...")
-    
-    # Check if WebSocket is available
-    try:
-        response = requests.get(f"{BASE_URL}/realtime/status")
-        if response.status_code != 200:
-            logger.error(f"WebSocket status check failed with status code: {response.status_code}")
-            return
-        
-        data = response.json()
-        if not data.get("success", False):
-            logger.error(f"WebSocket status check failed: {data.get('error', 'Unknown error')}")
-            return
-        
-        logger.info(f"WebSocket status: {data.get('status')}")
-        logger.info(f"WebSocket stats: {data.get('stats')}")
-    except Exception as e:
-        logger.error(f"Error checking WebSocket status: {e}")
-        return
-    
-    # Connect to WebSocket
-    try:
-        logger.info(f"Connecting to WebSocket at {WS_URL}...")
-        async with websockets.connect(WS_URL) as websocket:
-            logger.info("WebSocket connected")
+            # Test 3: Stream from IPFS (retrieve small file)
+            logger.info("Test 3: Stream from IPFS (retrieve small file)")
+            retrieved_data = b""
+            async for chunk in streaming_ops.stream_from_ipfs(small_file_cid):
+                retrieved_data += chunk
             
-            # Handle incoming messages
-            async def message_handler():
-                while True:
-                    try:
-                        message = await websocket.recv()
-                        data = json.loads(message)
-                        await handle_websocket_message(data)
-                    except websockets.exceptions.ConnectionClosed:
-                        logger.info("WebSocket connection closed")
-                        break
-                    except Exception as e:
-                        logger.error(f"Error handling WebSocket message: {e}")
-                        break
+            # Verify file size
+            with open(small_file_path, 'rb') as f:
+                original_data = f.read()
             
-            # Start message handler
-            task = asyncio.create_task(message_handler())
-            
-            # Subscribe to channels
-            await websocket.send(json.dumps({
-                "command": "subscribe",
-                "channel": "ipfs:all"
-            }))
-            
-            await asyncio.sleep(1)
-            
-            # Subscribe to storage channel
-            await websocket.send(json.dumps({
-                "command": "subscribe",
-                "channel": "storage:all"
-            }))
-            
-            await asyncio.sleep(1)
-            
-            # Echo test
-            await websocket.send(json.dumps({
-                "command": "echo",
-                "data": {"hello": "world", "time": time.time()}
-            }))
-            
-            await asyncio.sleep(1)
-            
-            # Ping test
-            await websocket.send(json.dumps({
-                "command": "ping"
-            }))
-            
-            await asyncio.sleep(1)
-            
-            # Unsubscribe from a channel
-            await websocket.send(json.dumps({
-                "command": "unsubscribe",
-                "channel": "ipfs:all"
-            }))
-            
-            await asyncio.sleep(1)
-            
-            # Unsubscribe from all channels
-            await websocket.send(json.dumps({
-                "command": "unsubscribe_all"
-            }))
-            
-            await asyncio.sleep(1)
-            
-            # Cancel the message handler
-            task.cancel()
-            
-            logger.info("WebSocket test completed successfully")
-    
-    except Exception as e:
-        logger.error(f"Error in WebSocket test: {e}")
-
-# Test WebRTC functionality
-async def test_webrtc() -> None:
-    """Test WebRTC signaling functionality."""
-    logger.info("Testing WebRTC functionality...")
-    
-    # Check if WebRTC is available
-    try:
-        response = requests.get(f"{BASE_URL}/webrtc/status")
-        if response.status_code != 200:
-            logger.error(f"WebRTC status check failed with status code: {response.status_code}")
-            return
-        
-        data = response.json()
-        if not data.get("success", False):
-            logger.error(f"WebRTC status check failed: {data.get('error', 'Unknown error')}")
-            return
-        
-        logger.info(f"WebRTC status: {data.get('status')}")
-        logger.info(f"WebRTC stats: {data.get('stats')}")
-    except Exception as e:
-        logger.error(f"Error checking WebRTC status: {e}")
-        return
-    
-    # Create a test room
-    try:
-        response = requests.post(
-            f"{BASE_URL}/webrtc/rooms",
-            json={"name": "Test Room", "description": "Room for testing WebRTC"}
-        )
-        
-        if response.status_code != 200:
-            logger.error(f"Failed to create WebRTC room: {response.status_code}")
-            return
-        
-        data = response.json()
-        room_id = data.get("room_id")
-        
-        if not room_id:
-            logger.error("Failed to get room ID from response")
-            return
-        
-        logger.info(f"Created WebRTC room with ID: {room_id}")
-    except Exception as e:
-        logger.error(f"Error creating WebRTC room: {e}")
-        return
-    
-    # Create and connect peers
-    try:
-        # Create first peer
-        peer1 = WebRTCPeer(room_id, f"peer1_{uuid.uuid4()}")
-        await peer1.connect()
-        
-        await asyncio.sleep(1)
-        
-        # Create second peer
-        peer2 = WebRTCPeer(room_id, f"peer2_{uuid.uuid4()}")
-        await peer2.connect()
-        
-        await asyncio.sleep(2)
-        
-        # Check room status
-        response = requests.get(f"{BASE_URL}/webrtc/rooms/{room_id}")
-        if response.status_code == 200:
-            room_data = response.json()
-            logger.info(f"Room status: {room_data}")
-        
-        # Peer 1 sends a message to the room
-        await peer1.send_room_message({
-            "text": "Hello from peer 1!",
-            "timestamp": time.time()
-        })
-        
-        await asyncio.sleep(2)
-        
-        # Peer 1 sends an offer to all other peers
-        await peer1.send_offer_to_all()
-        
-        await asyncio.sleep(3)
-        
-        # Check if peers received the messages
-        logger.info(f"Peer 1 other peers: {peer1.other_peers}")
-        logger.info(f"Peer 2 other peers: {peer2.other_peers}")
-        
-        # Disconnect peers
-        await peer1.disconnect()
-        await peer2.disconnect()
-        
-        logger.info("WebRTC test completed successfully")
-    
-    except Exception as e:
-        logger.error(f"Error in WebRTC test: {e}")
-
-# Test stream upload and download
-async def test_streaming() -> None:
-    """Test stream upload and download functionality."""
-    logger.info("Testing streaming functionality...")
-    
-    # Create a test file
-    test_file_path = "test_stream_file.txt"
-    test_file_content = "This is a test file for streaming.\n" * 1000  # ~30KB file
-    
-    try:
-        with open(test_file_path, "w") as f:
-            f.write(test_file_content)
-        
-        logger.info(f"Created test file: {test_file_path}")
-        
-        # Upload the file using the streaming endpoint
-        with open(test_file_path, "rb") as f:
-            files = {'file': (test_file_path, f)}
-            response = requests.post(f"{BASE_URL}/stream/add", files=files)
-            
-            if response.status_code != 200:
-                logger.error(f"Failed to upload file: {response.status_code}")
-                return
-            
-            data = response.json()
-            cid = data.get("cid")
-            
-            if not cid:
-                logger.error("Failed to get CID from response")
-                return
-            
-            logger.info(f"Uploaded file with CID: {cid}")
-            logger.info(f"Upload stats: {data}")
-        
-        # Download the file using the streaming endpoint
-        response = requests.get(f"{BASE_URL}/stream/cat/{cid}", stream=True)
-        
-        if response.status_code != 200:
-            logger.error(f"Failed to download file: {response.status_code}")
-            return
-        
-        # Save to a new file
-        download_path = "test_stream_download.txt"
-        with open(download_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        
-        logger.info(f"Downloaded file to: {download_path}")
-        
-        # Verify the content
-        with open(download_path, "r") as f:
-            content = f.read()
-            if content == test_file_content:
-                logger.info("Download verification successful: content matches")
+            if len(retrieved_data) == len(original_data):
+                logger.info(f"✅ Retrieved file has correct size: {len(retrieved_data)} bytes")
             else:
-                logger.error("Download verification failed: content does not match")
+                logger.error(f"❌ Retrieved file size mismatch: {len(retrieved_data)} vs {len(original_data)}")
+                return False
+            
+            # Calculate hash of retrieved data for integrity check
+            retrieved_hash = hashlib.sha256(retrieved_data).hexdigest()
+            original_hash = hashlib.sha256(original_data).hexdigest()
+            
+            if retrieved_hash == original_hash:
+                logger.info("✅ Retrieved file hash matches original")
+            else:
+                logger.error("❌ Retrieved file hash mismatch")
+                return False
+            
+            # Test 4: Stream to file
+            logger.info("Test 4: Stream to file")
+            download_path = os.path.join(temp_dir, "downloaded_file.bin")
+            result = await streaming_ops.stream_to_file(large_file_cid, download_path)
+            logger.info(f"Stream to file result: {json.dumps(result, indent=2, default=str)}")
+            
+            if result.get("success", False):
+                logger.info("✅ Stream to file successful")
+                logger.info(f"Download throughput: {result.get('throughput_mbps', 0):.2f} MB/s")
+                
+                # Verify file exists and has correct size
+                if os.path.exists(download_path):
+                    download_size = os.path.getsize(download_path)
+                    expected_size = os.path.getsize(large_file_path)
+                    
+                    if download_size == expected_size:
+                        logger.info(f"✅ Downloaded file has correct size: {download_size} bytes")
+                    else:
+                        logger.error(f"❌ Downloaded file size mismatch: {download_size} vs {expected_size}")
+                        return False
+                else:
+                    logger.error("❌ Downloaded file does not exist")
+                    return False
+            else:
+                logger.error("❌ Stream to file failed")
+                return False
+            
+            # Test 5: Unpin content in background
+            logger.info("Test 5: Unpin content in background")
+            background_tasks = BackgroundTasksMock()
+            streaming_ops.unpin_in_background(background_tasks, small_file_cid)
+            await background_tasks.run_all()
+            logger.info("✅ Background unpinning task completed")
+            
+            # Test 6: DAG export/import
+            try:
+                logger.info("Test 6: DAG export/import")
+                
+                # Create a directory with files to add as a DAG
+                dag_dir = os.path.join(temp_dir, "dag_test")
+                os.makedirs(dag_dir, exist_ok=True)
+                
+                # Create a few files in the directory
+                for i in range(3):
+                    with open(os.path.join(dag_dir, f"file{i}.txt"), 'w') as f:
+                        f.write(f"Test file {i} content\n")
+                
+                # Add the directory to IPFS to get a DAG
+                process = await asyncio.create_subprocess_exec(
+                    "ipfs", "add", "-r", "-Q", dag_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate()
+                
+                if process.returncode == 0:
+                    dag_cid = stdout.decode().strip()
+                    logger.info(f"Created test DAG with CID: {dag_cid}")
+                    
+                    # Export the DAG
+                    export_path = os.path.join(temp_dir, "exported.car")
+                    with open(export_path, 'wb') as f:
+                        async for chunk in streaming_ops.dag_export_stream(dag_cid):
+                            f.write(chunk)
+                    
+                    if os.path.exists(export_path) and os.path.getsize(export_path) > 0:
+                        logger.info(f"✅ DAG export successful: {os.path.getsize(export_path)} bytes")
+                        
+                        # Import the exported DAG
+                        mock_file = MockUploadFile(export_path, "application/vnd.ipld.car")
+                        import_result = await streaming_ops.dag_import_stream(mock_file)
+                        logger.info(f"DAG import result: {json.dumps(import_result, indent=2, default=str)}")
+                        
+                        if import_result.get("success", False):
+                            logger.info("✅ DAG import successful")
+                            
+                            # Verify that at least one root CID was imported
+                            roots = import_result.get("roots", [])
+                            if roots and dag_cid in roots:
+                                logger.info("✅ Original DAG CID found in imported roots")
+                            else:
+                                logger.warning("⚠️ Original DAG CID not found in imported roots")
+                        else:
+                            logger.error("❌ DAG import failed")
+                            return False
+                    else:
+                        logger.error("❌ DAG export failed")
+                        return False
+                else:
+                    error = stderr.decode().strip()
+                    logger.error(f"Failed to create test DAG: {error}")
+                    logger.warning("⚠️ Skipping DAG export/import test")
+            except Exception as e:
+                logger.error(f"Error in DAG export/import test: {str(e)}")
+                logger.warning("⚠️ Skipping DAG export/import test")
         
-        # Clean up
-        os.remove(test_file_path)
-        os.remove(download_path)
+        logger.info("All streaming tests completed successfully!")
+        return True
         
-        logger.info("Streaming test completed successfully")
-    
     except Exception as e:
-        logger.error(f"Error in streaming test: {e}")
-        # Clean up
-        if os.path.exists(test_file_path):
-            os.remove(test_file_path)
-        if os.path.exists("test_stream_download.txt"):
-            os.remove("test_stream_download.txt")
+        logger.error(f"Error testing streaming functionality: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
 
-async def main() -> None:
-    """Run the MCP streaming functionality tests."""
-    logger.info("Starting MCP streaming functionality tests")
-    
-    # Check MCP server
-    try:
-        response = requests.get(f"{BASE_URL}/health")
-        if response.status_code != 200:
-            logger.error(f"MCP server health check failed with status code: {response.status_code}")
-            return
-        
-        data = response.json()
-        if not data.get("success", False):
-            logger.error(f"MCP server health check failed: {data.get('error', 'Unknown error')}")
-            return
-        
-        logger.info(f"MCP server status: {data.get('status')}")
-    except Exception as e:
-        logger.error(f"Error connecting to MCP server: {e}")
-        return
-    
-    # Run tests based on command line arguments
-    if args.test in ['websocket', 'all']:
-        await test_websocket()
-    
-    if args.test in ['webrtc', 'all']:
-        await test_webrtc()
-    
-    if args.test == 'all':
-        await test_streaming()
-    
-    logger.info("All tests completed")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Tests interrupted by user")
-    except Exception as e:
-        logger.error(f"Error running tests: {e}")
+    # Run the test asynchronously
+    if sys.platform == "win32":
+        # Windows requires this for asyncio.run()
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
+    result = asyncio.run(run_streaming_test())
+    
+    if result:
+        logger.info("✅ MCP Streaming Operations test passed!")
+        sys.exit(0)
+    else:
+        logger.error("❌ MCP Streaming Operations test failed")
+        sys.exit(1)

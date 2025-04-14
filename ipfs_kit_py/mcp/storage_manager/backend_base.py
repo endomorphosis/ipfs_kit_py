@@ -1,8 +1,7 @@
 """
-Base class for all storage backend implementations.
+Base class definition for storage backends.
 
-This module defines the abstract BackendStorage class that all
-specific backend implementations must inherit from.
+This module defines the abstract interface that all storage backends must implement.
 """
 
 import logging
@@ -16,165 +15,65 @@ logger = logging.getLogger(__name__)
 
 
 class BackendStorage(ABC):
-    """Base class for all backend storage implementations."""
+    """Abstract base class for storage backends."""
     
     def __init__(self, backend_type: StorageBackendType, resources: Dict[str, Any], metadata: Dict[str, Any]):
-        """
-        Initialize backend storage.
+        """Initialize storage backend.
         
         Args:
-            backend_type: Type of this backend
-            resources: Dictionary of available resources
-            metadata: Additional configuration metadata
+            backend_type: Type of the backend
+            resources: Resources needed by the backend
+            metadata: Metadata for the backend
         """
         self.backend_type = backend_type
-        self.resources = resources or {}
-        self.metadata = metadata or {}
+        self.resources = resources
+        self.metadata = metadata
         
-    def get_name(self) -> str:
-        """Get the name of this backend."""
-        return self.backend_type.value
-    
     @abstractmethod
-    def store(
-        self, 
-        data: Union[bytes, BinaryIO, str],
-        container: Optional[str] = None,
-        path: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Store data in this backend.
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Add content to the storage backend.
         
         Args:
-            data: Data to store (bytes, file-like object, or string)
-            container: Container to store in (e.g., bucket for S3)
-            path: Path within container
-            options: Backend-specific options
+            content: Content to store (can be a path, bytes, or file-like object)
+            metadata: Optional metadata for the content
             
         Returns:
-            Dictionary with operation result
+            Dict with operation result including content ID
         """
         pass
-    
+        
     @abstractmethod
-    def retrieve(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Retrieve data from this backend.
+    def get_content(self, content_id: str) -> Dict[str, Any]:
+        """Retrieve content from the storage backend.
         
         Args:
-            identifier: Backend-specific identifier
-            container: Container to retrieve from
-            options: Backend-specific options
+            content_id: ID of the content to retrieve
             
         Returns:
-            Dictionary with operation result and data
+            Dict with operation result including content data
         """
         pass
-    
+        
     @abstractmethod
-    def delete(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Delete data from this backend.
+    def remove_content(self, content_id: str) -> Dict[str, Any]:
+        """Remove content from the storage backend.
         
         Args:
-            identifier: Backend-specific identifier
-            container: Container to delete from
-            options: Backend-specific options
+            content_id: ID of the content to remove
             
         Returns:
-            Dictionary with operation result
+            Dict with operation result
         """
         pass
-    
+        
     @abstractmethod
-    def list(
-        self,
-        container: Optional[str] = None,
-        prefix: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        List items in this backend.
+    def get_metadata(self, content_id: str) -> Dict[str, Any]:
+        """Get metadata for content in the storage backend.
         
         Args:
-            container: Container to list
-            prefix: Filter by prefix
-            options: Backend-specific options
+            content_id: ID of the content
             
         Returns:
-            Dictionary with operation result and items
-        """
-        pass
-    
-    @abstractmethod
-    def exists(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> bool:
-        """
-        Check if item exists in this backend.
-        
-        Args:
-            identifier: Backend-specific identifier
-            container: Container to check
-            options: Backend-specific options
-            
-        Returns:
-            True if item exists
-        """
-        pass
-    
-    @abstractmethod
-    def get_metadata(
-        self,
-        identifier: str,
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Get metadata for an item.
-        
-        Args:
-            identifier: Backend-specific identifier
-            container: Container to check
-            options: Backend-specific options
-            
-        Returns:
-            Dictionary with metadata
-        """
-        pass
-    
-    @abstractmethod
-    def update_metadata(
-        self,
-        identifier: str,
-        metadata: Dict[str, Any],
-        container: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Update metadata for an item.
-        
-        Args:
-            identifier: Backend-specific identifier
-            metadata: New metadata to set
-            container: Container to update
-            options: Backend-specific options
-            
-        Returns:
-            Dictionary with operation result
+            Dict with operation result including metadata
         """
         pass

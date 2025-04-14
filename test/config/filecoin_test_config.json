@@ -1,0 +1,15 @@
+{
+    "mock_mode": true,
+    "resources": {
+        "api_key": "",
+        "endpoint": "",
+        "max_retries": 3
+    },
+    "metadata": {
+        "default_miner": "t01000",
+        "replication_count": 2,
+        "verify_deals": true,
+        "max_price": "100000000000",
+        "deal_duration": 518400
+    }
+}

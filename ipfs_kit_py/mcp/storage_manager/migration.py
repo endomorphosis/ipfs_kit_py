@@ -1,8 +1,8 @@
 """
-Migration Controller for cross-backend data migration.
+Data Migration Module for MCP Storage Manager.
 
-This module implements the MigrationController class that handles
-policy-based migration of content between different storage backends.
+This module provides functionality for migrating data between different storage backends
+with advanced features like validation, scheduling, and policy-based migration.
 """
 
 import logging
@@ -10,18 +10,47 @@ import time
 import json
 import os
 import uuid
+import hashlib
+from typing import Dict, Any, List, Optional, Union, BinaryIO # Added BinaryIO
+from enum import Enum
+from datetime import datetime, timedelta
 import threading
 import queue
-from typing import Dict, List, Any, Optional, Union, Set
-from enum import Enum
-
-from .storage_types import StorageBackendType, ContentReference
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 
-class MigrationPriorityLevel(Enum):
+class MigrationType(Enum):
+    """Types of migration operations."""
+    COPY = "copy"  # Copy data, keeping the original
+    MOVE = "move"  # Copy data and delete the original after successful copy
+    SYNC = "sync"  # Establish ongoing synchronization between backends
+
+
+class ValidationLevel(Enum):
+    """Levels of validation for migrated data."""
+    NONE = "none"           # No validation
+    EXISTS = "exists"       # Verify the data exists in target
+    HASH = "hash"           # Verify hash of migrated data
+    CONTENT = "content"     # Compare full content
+    METADATA = "metadata"   # Verify metadata was preserved
+    FULL = "full"           # Verify content and metadata
+
+
+class MigrationStatus(Enum):
+    """Possible statuses for migration operations."""
+    PENDING = "pending"           # Waiting to be processed
+    IN_PROGRESS = "in_progress"   # Currently being processed
+    COMPLETED = "completed"       # Successfully completed
+    FAILED = "failed"             # Failed to complete
+    PARTIAL = "partial"           # Partially completed with issues
+    SCHEDULED = "scheduled"       # Scheduled for future execution
+    VALIDATING = "validating"     # Validation in progress
+    VALIDATED = "validated"       # Successfully validated
+
+
+class MigrationPriority(Enum):
     """Priority levels for migration tasks."""
     LOW = 0
     NORMAL = 1
@@ -29,1110 +58,1094 @@ class MigrationPriorityLevel(Enum):
     CRITICAL = 3
 
 
-class MigrationPolicy:
-    """
-    Migration policy for automated content migration between backends.
+class MigrationResult:
+    """Result of a migration operation."""
     
-    Policies define when and how content should be migrated between
-    different storage backends based on various criteria.
-    """
-    
-    def __init__(
-        self,
-        name: str,
-        source_backend: Union[StorageBackendType, str],
-        target_backend: Union[StorageBackendType, str],
-        description: Optional[str] = None,
-        criteria: Optional[Dict[str, Any]] = None,
-        options: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, 
+                 success: bool,
+                 source_backend: str,
+                 target_backend: str,
+                 source_id: str,
+                 target_id: Optional[str] = None,
+                 status: MigrationStatus = MigrationStatus.COMPLETED,
+                 error: Optional[str] = None,
+                 details: Optional[Dict[str, Any]] = None,
+                 validation_result: Optional[Dict[str, Any]] = None):
         """
-        Initialize a migration policy.
+        Initialize a migration result.
         
         Args:
-            name: Unique name for this policy
-            source_backend: Source backend type
-            target_backend: Target backend type
-            description: Policy description
-            criteria: Criteria for selecting content to migrate
-            options: Additional migration options
+            success: Whether the migration was successful
+            source_backend: Name of the source backend
+            target_backend: Name of the target backend
+            source_id: Identifier in the source backend
+            target_id: Identifier in the target backend
+            status: Status of the migration
+            error: Error message if failed
+            details: Additional details about the migration
+            validation_result: Results from validation
         """
-        self.name = name
-        
-        # Convert backend types to enum if needed
-        if isinstance(source_backend, str):
-            self.source_backend = StorageBackendType.from_string(source_backend)
-        else:
-            self.source_backend = source_backend
-            
-        if isinstance(target_backend, str):
-            self.target_backend = StorageBackendType.from_string(target_backend)
-        else:
-            self.target_backend = target_backend
-            
-        self.description = description or f"Migrate content from {self.source_backend.value} to {self.target_backend.value}"
-        self.criteria = criteria or {}
-        self.options = options or {}
-        
-        # Migration tracking
-        self.last_run = None
-        self.run_count = 0
-        self.total_migrations = 0
-        self.total_bytes_migrated = 0
-        self.enabled = True
-        
-    def matches_content(self, content_ref: ContentReference) -> bool:
-        """
-        Check if content matches the criteria for migration.
-        
-        Args:
-            content_ref: Content reference to check
-            
-        Returns:
-            True if content should be migrated according to this policy
-        """
-        # Check if content is in source backend
-        if not content_ref.has_location(self.source_backend):
-            return False
-            
-        # Check if content is already in target backend
-        if content_ref.has_location(self.target_backend):
-            return False
-            
-        # Check size criteria
-        if 'min_size' in self.criteria:
-            if content_ref.metadata.get('size', 0) < self.criteria['min_size']:
-                return False
-                
-        if 'max_size' in self.criteria:
-            if content_ref.metadata.get('size', 0) > self.criteria['max_size']:
-                return False
-                
-        # Check age criteria
-        if 'min_age_days' in self.criteria:
-            created_at = content_ref.created_at
-            age_days = (time.time() - created_at) / (60 * 60 * 24)
-            if age_days < self.criteria['min_age_days']:
-                return False
-                
-        # Check access criteria
-        if 'min_access_count' in self.criteria:
-            if content_ref.access_count < self.criteria['min_access_count']:
-                return False
-                
-        if 'days_since_last_access' in self.criteria:
-            if content_ref.last_accessed:
-                days_idle = (time.time() - content_ref.last_accessed) / (60 * 60 * 24)
-                if days_idle < self.criteria['days_since_last_access']:
-                    return False
-                    
-        # Check content type criteria
-        if 'content_types' in self.criteria:
-            content_type = content_ref.metadata.get('content_type', '')
-            if content_type and not any(ct in content_type for ct in self.criteria['content_types']):
-                return False
-                
-        # Check tag criteria
-        if 'tags' in self.criteria:
-            content_tags = content_ref.metadata.get('tags', [])
-            if not any(tag in content_tags for tag in self.criteria['tags']):
-                return False
-                
-        # All criteria satisfied
-        return True
-        
+        self.success = success
+        self.source_backend = source_backend
+        self.target_backend = target_backend
+        self.source_id = source_id
+        self.target_id = target_id
+        self.status = status
+        self.error = error
+        self.details = details or {}
+        self.validation_result = validation_result
+        self.timestamp = datetime.now()
+    
     def to_dict(self) -> Dict[str, Any]:
-        """Convert policy to dictionary representation."""
+        """Convert the result to a dictionary."""
         return {
-            "name": self.name,
-            "source_backend": self.source_backend.value,
-            "target_backend": self.target_backend.value,
-            "description": self.description,
-            "criteria": self.criteria,
-            "options": self.options,
-            "last_run": self.last_run,
-            "run_count": self.run_count,
-            "total_migrations": self.total_migrations,
-            "total_bytes_migrated": self.total_bytes_migrated,
-            "enabled": self.enabled
+            "success": self.success,
+            "source_backend": self.source_backend,
+            "target_backend": self.target_backend,
+            "source_id": self.source_id,
+            "target_id": self.target_id,
+            "status": self.status.value,
+            "error": self.error,
+            "details": self.details,
+            "validation_result": self.validation_result,
+            "timestamp": self.timestamp.isoformat()
         }
-        
+    
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'MigrationPolicy':
-        """Create policy from dictionary representation."""
-        policy = cls(
-            name=data["name"],
+    def from_dict(cls, data: Dict[str, Any]) -> 'MigrationResult':
+        """Create a result from a dictionary."""
+        return cls(
+            success=data["success"],
             source_backend=data["source_backend"],
             target_backend=data["target_backend"],
-            description=data.get("description"),
-            criteria=data.get("criteria", {}),
-            options=data.get("options", {})
+            source_id=data["source_id"],
+            target_id=data.get("target_id"),
+            status=MigrationStatus(data["status"]),
+            error=data.get("error"),
+            details=data.get("details", {}),
+            validation_result=data.get("validation_result")
         )
-        
-        # Set tracking properties
-        policy.last_run = data.get("last_run")
-        policy.run_count = data.get("run_count", 0)
-        policy.total_migrations = data.get("total_migrations", 0)
-        policy.total_bytes_migrated = data.get("total_bytes_migrated", 0)
-        policy.enabled = data.get("enabled", True)
-        
-        return policy
 
 
 class MigrationTask:
-    """
-    A task for migrating content between backends.
+    """Task for migrating data between backends."""
     
-    Represents a single content migration operation with
-    tracking and status information.
-    """
-    
-    class Status(Enum):
-        """Status of a migration task."""
-        PENDING = "pending"
-        IN_PROGRESS = "in_progress"
-        COMPLETED = "completed"
-        FAILED = "failed"
-        CANCELLED = "cancelled"
-        
-    def __init__(
-        self,
-        content_id: str,
-        source_backend: StorageBackendType,
-        target_backend: StorageBackendType,
-        policy_name: Optional[str] = None,
-        priority: MigrationPriorityLevel = MigrationPriorityLevel.NORMAL,
-        options: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self,
+                 source_backend: str,
+                 target_backend: str,
+                 source_id: str,
+                 migration_type: MigrationType = MigrationType.COPY,
+                 validation_level: ValidationLevel = ValidationLevel.HASH,
+                 priority: MigrationPriority = MigrationPriority.NORMAL,
+                 options: Optional[Dict[str, Any]] = None,
+                 scheduled_time: Optional[datetime] = None,
+                 source_container: Optional[str] = None,
+                 target_container: Optional[str] = None,
+                 target_path: Optional[str] = None):
         """
         Initialize a migration task.
         
         Args:
-            content_id: Content ID to migrate
-            source_backend: Source backend type
-            target_backend: Target backend type
-            policy_name: Name of policy that created this task (if any)
-            priority: Priority level for this task
-            options: Additional migration options
+            source_backend: Name of the source backend
+            target_backend: Name of the target backend
+            source_id: Identifier in the source backend
+            migration_type: Type of migration operation
+            validation_level: Level of validation to perform
+            priority: Priority level of the task
+            options: Additional options for the migration
+            scheduled_time: When to execute the task (None for immediate)
+            source_container: Container/bucket in source backend
+            target_container: Container/bucket in target backend
+            target_path: Optional path in target backend
         """
         self.id = str(uuid.uuid4())
-        self.content_id = content_id
         self.source_backend = source_backend
         self.target_backend = target_backend
-        self.policy_name = policy_name
+        self.source_id = source_id
+        self.migration_type = migration_type
+        self.validation_level = validation_level
         self.priority = priority
         self.options = options or {}
+        self.scheduled_time = scheduled_time
+        self.source_container = source_container
+        self.target_container = target_container
+        self.target_path = target_path
         
-        self.status = MigrationTask.Status.PENDING
-        self.created_at = time.time()
-        self.started_at = None
-        self.completed_at = None
-        self.error = None
+        self.status = MigrationStatus.SCHEDULED if scheduled_time else MigrationStatus.PENDING
+        self.created_at = datetime.now()
+        self.updated_at = datetime.now()
         self.result = None
-        self.log = []
-        
-    def update_status(self, status: Status, message: Optional[str] = None):
-        """
-        Update the status of this task.
-        
-        Args:
-            status: New status
-            message: Optional status message
-        """
-        self.status = status
-        
-        if message:
-            self.log.append({
-                "timestamp": time.time(),
-                "status": status.value,
-                "message": message
-            })
-            
-        if status == MigrationTask.Status.IN_PROGRESS and not self.started_at:
-            self.started_at = time.time()
-        elif status in (MigrationTask.Status.COMPLETED, MigrationTask.Status.FAILED, MigrationTask.Status.CANCELLED):
-            self.completed_at = time.time()
-            
+        self.attempts = 0
+        self.max_attempts = self.options.get("max_attempts", 3)
+    
     def to_dict(self) -> Dict[str, Any]:
-        """Convert task to dictionary representation."""
+        """Convert the task to a dictionary."""
         return {
             "id": self.id,
-            "content_id": self.content_id,
-            "source_backend": self.source_backend.value,
-            "target_backend": self.target_backend.value,
-            "policy_name": self.policy_name,
+            "source_backend": self.source_backend,
+            "target_backend": self.target_backend,
+            "source_id": self.source_id,
+            "migration_type": self.migration_type.value,
+            "validation_level": self.validation_level.value,
             "priority": self.priority.value,
             "options": self.options,
+            "scheduled_time": self.scheduled_time.isoformat() if self.scheduled_time else None,
+            "source_container": self.source_container,
+            "target_container": self.target_container,
+            "target_path": self.target_path,
             "status": self.status.value,
-            "created_at": self.created_at,
-            "started_at": self.started_at,
-            "completed_at": self.completed_at,
-            "error": self.error,
-            "result": self.result,
-            "log": self.log
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "result": self.result.to_dict() if self.result else None,
+            "attempts": self.attempts,
+            "max_attempts": self.max_attempts
         }
-        
+    
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MigrationTask':
-        """Create task from dictionary representation."""
+        """Create a task from a dictionary."""
         task = cls(
-            content_id=data["content_id"],
-            source_backend=StorageBackendType.from_string(data["source_backend"]),
-            target_backend=StorageBackendType.from_string(data["target_backend"]),
-            policy_name=data.get("policy_name"),
-            priority=MigrationPriorityLevel(data.get("priority", MigrationPriorityLevel.NORMAL.value)),
-            options=data.get("options", {})
+            source_backend=data["source_backend"],
+            target_backend=data["target_backend"],
+            source_id=data["source_id"],
+            migration_type=MigrationType(data["migration_type"]),
+            validation_level=ValidationLevel(data["validation_level"]),
+            priority=MigrationPriority(data["priority"]),
+            options=data.get("options", {}),
+            scheduled_time=datetime.fromisoformat(data["scheduled_time"]) if data.get("scheduled_time") else None,
+            source_container=data.get("source_container"),
+            target_container=data.get("target_container"),
+            target_path=data.get("target_path")
         )
         
-        # Set additional properties
         task.id = data["id"]
-        task.status = MigrationTask.Status(data["status"])
-        task.created_at = data["created_at"]
-        task.started_at = data.get("started_at")
-        task.completed_at = data.get("completed_at")
-        task.error = data.get("error")
-        task.result = data.get("result")
-        task.log = data.get("log", [])
+        task.status = MigrationStatus(data["status"])
+        task.created_at = datetime.fromisoformat(data["created_at"])
+        task.updated_at = datetime.fromisoformat(data["updated_at"])
+        task.result = MigrationResult.from_dict(data["result"]) if data.get("result") else None
+        task.attempts = data.get("attempts", 0)
+        task.max_attempts = data.get("max_attempts", 3)
         
         return task
+    
+    def update_status(self, status: MigrationStatus) -> None:
+        """Update the status of the task."""
+        self.status = status
+        self.updated_at = datetime.now()
 
 
-class MigrationController:
-    """
-    Controller for managing content migration between backends.
+class MigrationManager:
+    """Manager for data migration between backends."""
     
-    Implements policy-based migration with priority queue, scheduling,
-    and background execution.
-    """
-    
-    def __init__(
-        self,
-        storage_manager,
-        policies: Optional[List[MigrationPolicy]] = None,
-        options: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, backend_registry: Dict[str, Any], max_workers: int = 3):
         """
-        Initialize the migration controller.
+        Initialize the migration manager.
         
         Args:
-            storage_manager: UnifiedStorageManager instance
-            policies: Initial migration policies
-            options: Configuration options
+            backend_registry: Dictionary mapping backend names to instances
+            max_workers: Maximum number of concurrent migration tasks
         """
-        self.storage_manager = storage_manager
-        self.policies = {p.name: p for p in (policies or [])}
-        self.options = options or {}
+        self.backend_registry = backend_registry
+        self.max_workers = max_workers
         
-        # Task queue organized by priority
-        self.task_queues = {
-            MigrationPriorityLevel.LOW: queue.PriorityQueue(),
-            MigrationPriorityLevel.NORMAL: queue.PriorityQueue(),
-            MigrationPriorityLevel.HIGH: queue.PriorityQueue(),
-            MigrationPriorityLevel.CRITICAL: queue.PriorityQueue()
-        }
+        # Queue for pending tasks
+        self.task_queue = queue.PriorityQueue()
         
-        # Track all tasks by ID
+        # Dictionary to store tasks by ID
         self.tasks = {}
         
-        # Worker thread for background processing
-        self.worker_thread = None
-        self.running = False
-        self.worker_lock = threading.Lock()
+        # List to store completed tasks (limited size)
+        self.completed_tasks = []
+        self.max_completed_tasks = 1000
         
-        # Statistics
-        self.stats = {
-            "total_tasks": 0,
-            "completed_tasks": 0,
-            "failed_tasks": 0,
-            "cancelled_tasks": 0,
-            "total_bytes_migrated": 0,
-            "policy_runs": {}
-        }
+        # Create worker threads
+        self.workers = []
+        self.worker_lock = threading.RLock()
+        self.active_workers = 0
+        self.shutdown_flag = threading.Event()
         
-        # Load tasks and policies from persistent storage
-        self._load_state()
+        # Start worker threads
+        self._start_workers()
         
-    def _load_state(self):
-        """Load migration state from persistent storage."""
-        state_path = self.options.get("state_path")
+        # Scheduled task thread
+        self.schedule_thread = threading.Thread(target=self._schedule_runner, daemon=True)
+        self.schedule_thread.start()
+    
+    def _start_workers(self) -> None:
+        """Start worker threads."""
+        for i in range(self.max_workers):
+            worker = threading.Thread(target=self._worker_thread, 
+                                     name=f"MigrationWorker-{i+1}",
+                                     daemon=True)
+            worker.start()
+            self.workers.append(worker)
         
-        if state_path and os.path.exists(state_path):
+        logger.info(f"Started {self.max_workers} migration worker threads")
+    
+    def _worker_thread(self) -> None:
+        """Worker thread function to process migration tasks."""
+        while not self.shutdown_flag.is_set():
             try:
-                with open(state_path, 'r') as f:
-                    state = json.load(f)
-                    
-                # Load policies
-                for policy_data in state.get("policies", []):
-                    policy = MigrationPolicy.from_dict(policy_data)
-                    self.policies[policy.name] = policy
-                    
-                # Load pending tasks
-                for task_data in state.get("pending_tasks", []):
-                    task = MigrationTask.from_dict(task_data)
-                    if task.status == MigrationTask.Status.PENDING:
-                        self.tasks[task.id] = task
-                        
-                        # Add to appropriate queue
-                        queue_time = task.created_at
-                        self.task_queues[task.priority].put((queue_time, task.id))
-                        
-                # Load stats
-                if "stats" in state:
-                    self.stats.update(state["stats"])
-                    
-                logger.info(f"Loaded {len(self.policies)} policies and {len(self.tasks)} pending tasks")
-            except Exception as e:
-                logger.error(f"Failed to load migration state: {e}")
-                
-    def _save_state(self):
-        """Save migration state to persistent storage."""
-        state_path = self.options.get("state_path")
-        
-        if state_path:
-            try:
-                # Convert policies to dict
-                policy_data = [policy.to_dict() for policy in self.policies.values()]
-                
-                # Get pending tasks
-                pending_tasks = [
-                    task.to_dict() for task in self.tasks.values()
-                    if task.status == MigrationTask.Status.PENDING
-                ]
-                
-                state = {
-                    "policies": policy_data,
-                    "pending_tasks": pending_tasks,
-                    "stats": self.stats,
-                    "updated_at": time.time()
-                }
-                
-                with open(state_path, 'w') as f:
-                    json.dump(state, f, indent=2)
-                    
-                logger.info(f"Saved migration state with {len(policy_data)} policies and {len(pending_tasks)} pending tasks")
-            except Exception as e:
-                logger.error(f"Failed to save migration state: {e}")
-                
-    def add_policy(self, policy: MigrationPolicy) -> bool:
-        """
-        Add a new migration policy.
-        
-        Args:
-            policy: Migration policy to add
-            
-        Returns:
-            True if policy was added successfully
-        """
-        if policy.name in self.policies:
-            logger.warning(f"Policy with name '{policy.name}' already exists")
-            return False
-            
-        self.policies[policy.name] = policy
-        self.stats["policy_runs"][policy.name] = {
-            "last_run": None,
-            "run_count": 0,
-            "total_migrations": 0
-        }
-        
-        # Save updated state
-        self._save_state()
-        
-        return True
-        
-    def remove_policy(self, policy_name: str) -> bool:
-        """
-        Remove a migration policy.
-        
-        Args:
-            policy_name: Name of policy to remove
-            
-        Returns:
-            True if policy was removed successfully
-        """
-        if policy_name not in self.policies:
-            logger.warning(f"Policy '{policy_name}' not found")
-            return False
-            
-        del self.policies[policy_name]
-        
-        if policy_name in self.stats["policy_runs"]:
-            del self.stats["policy_runs"][policy_name]
-            
-        # Save updated state
-        self._save_state()
-        
-        return True
-        
-    def update_policy(self, policy_name: str, updates: Dict[str, Any]) -> bool:
-        """
-        Update an existing migration policy.
-        
-        Args:
-            policy_name: Name of policy to update
-            updates: Dictionary of properties to update
-            
-        Returns:
-            True if policy was updated successfully
-        """
-        if policy_name not in self.policies:
-            logger.warning(f"Policy '{policy_name}' not found")
-            return False
-            
-        policy = self.policies[policy_name]
-        
-        # Update policy properties
-        if "description" in updates:
-            policy.description = updates["description"]
-            
-        if "criteria" in updates:
-            policy.criteria.update(updates["criteria"])
-            
-        if "options" in updates:
-            policy.options.update(updates["options"])
-            
-        if "enabled" in updates:
-            policy.enabled = updates["enabled"]
-            
-        # Save updated state
-        self._save_state()
-        
-        return True
-        
-    def list_policies(self) -> List[Dict[str, Any]]:
-        """
-        List all migration policies.
-        
-        Returns:
-            List of policy information dictionaries
-        """
-        return [policy.to_dict() for policy in self.policies.values()]
-        
-    def run_policy(self, policy_name: str) -> Dict[str, Any]:
-        """
-        Run a specific migration policy.
-        
-        Args:
-            policy_name: Name of policy to run
-            
-        Returns:
-            Dictionary with operation result
-        """
-        if policy_name not in self.policies:
-            return {
-                "success": False,
-                "error": f"Policy '{policy_name}' not found"
-            }
-            
-        policy = self.policies[policy_name]
-        
-        if not policy.enabled:
-            return {
-                "success": False,
-                "error": f"Policy '{policy_name}' is disabled"
-            }
-            
-        # Find content that matches policy criteria
-        matching_content = []
-        
-        for content_id, content_ref in self.storage_manager.content_registry.items():
-            if policy.matches_content(content_ref):
-                matching_content.append(content_id)
-                
-        # Create migration tasks for matching content
-        task_ids = []
-        
-        for content_id in matching_content:
-            task = MigrationTask(
-                content_id=content_id,
-                source_backend=policy.source_backend,
-                target_backend=policy.target_backend,
-                policy_name=policy_name,
-                priority=MigrationPriorityLevel.NORMAL,
-                options=policy.options
-            )
-            
-            self.tasks[task.id] = task
-            task_ids.append(task.id)
-            
-            # Add to queue
-            self.task_queues[task.priority].put((task.created_at, task.id))
-            
-        # Update policy statistics
-        policy.last_run = time.time()
-        policy.run_count += 1
-        
-        if policy_name in self.stats["policy_runs"]:
-            self.stats["policy_runs"][policy_name]["last_run"] = time.time()
-            self.stats["policy_runs"][policy_name]["run_count"] += 1
-        else:
-            self.stats["policy_runs"][policy_name] = {
-                "last_run": time.time(),
-                "run_count": 1,
-                "total_migrations": 0
-            }
-            
-        # Update total task count
-        self.stats["total_tasks"] += len(task_ids)
-        
-        # Save updated state
-        self._save_state()
-        
-        # Start worker if not already running
-        self._ensure_worker_running()
-        
-        return {
-            "success": True,
-            "policy": policy_name,
-            "matching_content": len(matching_content),
-            "created_tasks": len(task_ids),
-            "task_ids": task_ids
-        }
-        
-    def run_all_policies(self) -> Dict[str, Any]:
-        """
-        Run all enabled migration policies.
-        
-        Returns:
-            Dictionary with operation result
-        """
-        results = {}
-        total_tasks = 0
-        
-        for policy_name, policy in self.policies.items():
-            if policy.enabled:
-                result = self.run_policy(policy_name)
-                results[policy_name] = result
-                
-                if result.get("success", False):
-                    total_tasks += result.get("created_tasks", 0)
-                    
-        return {
-            "success": True,
-            "results": results,
-            "total_tasks": total_tasks
-        }
-        
-    def add_task(
-        self,
-        content_id: str,
-        source_backend: Union[StorageBackendType, str],
-        target_backend: Union[StorageBackendType, str],
-        priority: Union[MigrationPriorityLevel, int] = MigrationPriorityLevel.NORMAL,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Add a migration task to the queue.
-        
-        Args:
-            content_id: Content ID to migrate
-            source_backend: Source backend type
-            target_backend: Target backend type
-            priority: Priority level for this task
-            options: Additional migration options
-            
-        Returns:
-            Dictionary with operation result
-        """
-        try:
-            # Check if content exists
-            if content_id not in self.storage_manager.content_registry:
-                return {
-                    "success": False,
-                    "error": f"Content ID '{content_id}' not found"
-                }
-                
-            # Get content reference
-            content_ref = self.storage_manager.content_registry[content_id]
-            
-            # Convert backend types to enum if needed
-            if isinstance(source_backend, str):
-                source_backend = StorageBackendType.from_string(source_backend)
-                
-            if isinstance(target_backend, str):
-                target_backend = StorageBackendType.from_string(target_backend)
-                
-            # Check if content is in source backend
-            if not content_ref.has_location(source_backend):
-                return {
-                    "success": False,
-                    "error": f"Content not available in source backend: {source_backend.value}"
-                }
-                
-            # Check if content is already in target backend
-            if content_ref.has_location(target_backend):
-                return {
-                    "success": False,
-                    "error": f"Content already exists in target backend: {target_backend.value}"
-                }
-                
-            # Convert priority to enum if needed
-            if isinstance(priority, int):
-                priority = MigrationPriorityLevel(priority)
-                
-            # Create task
-            task = MigrationTask(
-                content_id=content_id,
-                source_backend=source_backend,
-                target_backend=target_backend,
-                priority=priority,
-                options=options
-            )
-            
-            # Add to tracking and queue
-            self.tasks[task.id] = task
-            self.task_queues[task.priority].put((task.created_at, task.id))
-            
-            # Update statistics
-            self.stats["total_tasks"] += 1
-            
-            # Save updated state
-            self._save_state()
-            
-            # Start worker if not already running
-            self._ensure_worker_running()
-            
-            return {
-                "success": True,
-                "task_id": task.id,
-                "content_id": content_id,
-                "source_backend": source_backend.value,
-                "target_backend": target_backend.value,
-                "priority": priority.value
-            }
-            
-        except Exception as e:
-            logger.exception(f"Error adding migration task: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-            
-    def cancel_task(self, task_id: str) -> Dict[str, Any]:
-        """
-        Cancel a pending migration task.
-        
-        Args:
-            task_id: ID of task to cancel
-            
-        Returns:
-            Dictionary with operation result
-        """
-        if task_id not in self.tasks:
-            return {
-                "success": False,
-                "error": f"Task '{task_id}' not found"
-            }
-            
-        task = self.tasks[task_id]
-        
-        # Can only cancel pending tasks
-        if task.status != MigrationTask.Status.PENDING:
-            return {
-                "success": False,
-                "error": f"Task '{task_id}' is already {task.status.value}"
-            }
-            
-        # Update task status
-        task.update_status(MigrationTask.Status.CANCELLED, "Task cancelled by user")
-        
-        # Update statistics
-        self.stats["cancelled_tasks"] += 1
-        
-        # Save updated state
-        self._save_state()
-        
-        return {
-            "success": True,
-            "task_id": task_id,
-            "status": task.status.value
-        }
-        
-    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about a migration task.
-        
-        Args:
-            task_id: ID of task to get
-            
-        Returns:
-            Task information dictionary or None if not found
-        """
-        if task_id not in self.tasks:
-            return None
-            
-        return self.tasks[task_id].to_dict()
-        
-    def list_tasks(
-        self,
-        status: Optional[str] = None,
-        limit: int = 100,
-        offset: int = 0
-    ) -> Dict[str, Any]:
-        """
-        List migration tasks.
-        
-        Args:
-            status: Filter by task status
-            limit: Maximum number of tasks to return
-            offset: Number of tasks to skip
-            
-        Returns:
-            Dictionary with task list and pagination info
-        """
-        # Filter tasks by status if specified
-        if status:
-            try:
-                status_enum = MigrationTask.Status(status)
-                filtered_tasks = [
-                    task for task in self.tasks.values()
-                    if task.status == status_enum
-                ]
-            except ValueError:
-                filtered_tasks = []
-        else:
-            filtered_tasks = list(self.tasks.values())
-            
-        # Sort by creation time (newest first)
-        sorted_tasks = sorted(
-            filtered_tasks,
-            key=lambda t: t.created_at,
-            reverse=True
-        )
-        
-        # Apply pagination
-        paginated_tasks = sorted_tasks[offset:offset+limit]
-        
-        return {
-            "success": True,
-            "tasks": [task.to_dict() for task in paginated_tasks],
-            "total": len(filtered_tasks),
-            "limit": limit,
-            "offset": offset
-        }
-        
-    def get_statistics(self) -> Dict[str, Any]:
-        """
-        Get migration statistics.
-        
-        Returns:
-            Dictionary with migration statistics
-        """
-        # Update task counts
-        pending_count = 0
-        in_progress_count = 0
-        
-        for task in self.tasks.values():
-            if task.status == MigrationTask.Status.PENDING:
-                pending_count += 1
-            elif task.status == MigrationTask.Status.IN_PROGRESS:
-                in_progress_count += 1
-                
-        return {
-            "total_tasks": self.stats["total_tasks"],
-            "completed_tasks": self.stats["completed_tasks"],
-            "failed_tasks": self.stats["failed_tasks"],
-            "cancelled_tasks": self.stats["cancelled_tasks"],
-            "pending_tasks": pending_count,
-            "in_progress_tasks": in_progress_count,
-            "total_bytes_migrated": self.stats["total_bytes_migrated"],
-            "policies": {
-                name: {
-                    "name": name,
-                    "enabled": self.policies[name].enabled if name in self.policies else False,
-                    "last_run": stats.get("last_run"),
-                    "run_count": stats.get("run_count", 0),
-                    "total_migrations": stats.get("total_migrations", 0)
-                }
-                for name, stats in self.stats["policy_runs"].items()
-            },
-            "worker_running": self.running
-        }
-        
-    def start_worker(self) -> bool:
-        """
-        Start the background worker thread.
-        
-        Returns:
-            True if worker was started
-        """
-        with self.worker_lock:
-            if self.running:
-                return False
-                
-            self.running = True
-            self.worker_thread = threading.Thread(
-                target=self._worker_loop,
-                name="MigrationWorker",
-                daemon=True
-            )
-            self.worker_thread.start()
-            logger.info("Started migration worker thread")
-            
-            return True
-            
-    def stop_worker(self, wait: bool = True) -> bool:
-        """
-        Stop the background worker thread.
-        
-        Args:
-            wait: Whether to wait for worker to stop
-            
-        Returns:
-            True if worker was stopped
-        """
-        with self.worker_lock:
-            if not self.running:
-                return False
-                
-            self.running = False
-            
-            if wait and self.worker_thread:
-                self.worker_thread.join(timeout=5)
-                
-            logger.info("Stopped migration worker thread")
-            return True
-            
-    def _ensure_worker_running(self):
-        """Ensure worker thread is running if needed."""
-        if not self.running and any(not q.empty() for q in self.task_queues.values()):
-            self.start_worker()
-            
-    def _worker_loop(self):
-        """Main worker loop for processing migration tasks."""
-        logger.info("Migration worker started")
-        
-        try:
-            while self.running:
-                # Check if there are any tasks to process
-                task = self._get_next_task()
-                
-                if not task:
-                    # No tasks, sleep and check again
-                    time.sleep(1)
+                # Get a task from the queue with timeout
+                try:
+                    priority, _, task = self.task_queue.get(timeout=1.0)
+                except queue.Empty:
                     continue
-                    
+                
+                # Mark as active
+                with self.worker_lock:
+                    self.active_workers += 1
+                
                 # Process the task
                 self._process_task(task)
                 
-                # Save state periodically
-                self._save_state()
+                # Mark task as done
+                self.task_queue.task_done()
                 
-        except Exception as e:
-            logger.exception(f"Error in migration worker: {e}")
-        finally:
-            logger.info("Migration worker stopped")
-            
-    def _get_next_task(self) -> Optional[MigrationTask]:
-        """
-        Get the next task to process from the queues.
-        
-        Returns:
-            Next task to process or None if no tasks
-        """
-        # Check queues in priority order
-        for priority in reversed(list(MigrationPriorityLevel)):
-            q = self.task_queues[priority]
-            
-            if not q.empty():
-                try:
-                    # Get task from queue
-                    _, task_id = q.get_nowait()
+                # Decrement active worker count
+                with self.worker_lock:
+                    self.active_workers -= 1
                     
-                    # Find task object
-                    if task_id in self.tasks:
-                        task = self.tasks[task_id]
-                        
-                        # Only process pending tasks
-                        if task.status == MigrationTask.Status.PENDING:
-                            return task
-                            
-                except queue.Empty:
-                    # Queue became empty, continue to next queue
-                    pass
+            except Exception as e:
+                logger.error(f"Error in migration worker: {e}")
+                # Decrement active worker count on error
+                with self.worker_lock:
+                    self.active_workers -= 1
+    
+    def _schedule_runner(self) -> None:
+        """Thread function to handle scheduled tasks."""
+        while not self.shutdown_flag.is_set():
+            try:
+                # Check for due scheduled tasks
+                now = datetime.now()
+                tasks_to_queue = []
+                
+                with self.worker_lock:
+                    for task_id, task in self.tasks.items():
+                        if (task.status == MigrationStatus.SCHEDULED and 
+                            task.scheduled_time and 
+                            task.scheduled_time <= now):
+                            # Update task status
+                            task.status = MigrationStatus.PENDING
+                            task.updated_at = now
+                            tasks_to_queue.append(task)
+                
+                # Queue the due tasks
+                for task in tasks_to_queue:
+                    logger.info(f"Scheduling due task {task.id}: {task.source_backend}->{task.target_backend}")
+                    self._queue_task(task)
                     
-        # No tasks found
-        return None
-        
-    def _process_task(self, task: MigrationTask):
+                # Sleep before checking again    
+                time.sleep(10)
+                
+            except Exception as e:
+                logger.error(f"Error in schedule runner: {e}")
+                time.sleep(30)  # Wait longer on error
+    
+    def _process_task(self, task: MigrationTask) -> None:
         """
         Process a migration task.
         
         Args:
-            task: Task to process
+            task: The migration task to process
         """
-        logger.info(f"Processing migration task {task.id} for content {task.content_id}")
+        logger.info(f"Processing migration task {task.id}: {task.source_backend}->{task.target_backend}")
         
         # Update task status
-        task.update_status(
-            MigrationTask.Status.IN_PROGRESS,
-            f"Starting migration from {task.source_backend.value} to {task.target_backend.value}"
-        )
+        task.status = MigrationStatus.IN_PROGRESS
+        task.updated_at = datetime.now()
+        task.attempts += 1
         
         try:
-            # Check if content still exists
-            if task.content_id not in self.storage_manager.content_registry:
-                task.update_status(
-                    MigrationTask.Status.FAILED,
-                    f"Content {task.content_id} not found"
-                )
-                task.error = "Content not found"
-                self.stats["failed_tasks"] += 1
-                return
-                
-            # Get content reference
-            content_ref = self.storage_manager.content_registry[task.content_id]
+            # Get source and target backends
+            source_backend = self.backend_registry.get(task.source_backend)
+            target_backend = self.backend_registry.get(task.target_backend)
             
-            # Check if still needed
-            if not content_ref.has_location(task.source_backend):
-                task.update_status(
-                    MigrationTask.Status.FAILED,
-                    f"Content not available in source backend {task.source_backend.value}"
-                )
-                task.error = "Content not in source backend"
-                self.stats["failed_tasks"] += 1
-                return
-                
-            if content_ref.has_location(task.target_backend):
-                task.update_status(
-                    MigrationTask.Status.COMPLETED,
-                    f"Content already exists in target backend {task.target_backend.value}"
-                )
-                task.result = {
-                    "message": "Content already in target backend, no migration needed"
-                }
-                self.stats["completed_tasks"] += 1
-                return
-                
-            # Perform the migration
-            task.update_status(
-                MigrationTask.Status.IN_PROGRESS,
-                f"Retrieving content from {task.source_backend.value}"
-            )
-            
-            # Retrieve from source backend
-            retrieve_options = task.options.get("retrieve_options", {})
-            retrieve_result = self.storage_manager.retrieve(
-                content_id=task.content_id,
-                backend_preference=task.source_backend,
-                options=retrieve_options
-            )
-            
-            if not retrieve_result.get("success", False):
-                task.update_status(
-                    MigrationTask.Status.FAILED,
-                    f"Failed to retrieve content: {retrieve_result.get('error')}"
-                )
-                task.error = f"Retrieval failed: {retrieve_result.get('error')}"
-                self.stats["failed_tasks"] += 1
-                return
-                
-            # Get data
-            data = retrieve_result.get("data")
-            content_size = len(data) if data else 0
-            
-            task.update_status(
-                MigrationTask.Status.IN_PROGRESS,
-                f"Storing content ({content_size} bytes) to {task.target_backend.value}"
-            )
-            
-            # Store in target backend
-            store_options = task.options.get("store_options", {})
-            container = task.options.get("container")
-            path = task.options.get("path")
-            
-            # Add content metadata
-            store_metadata = content_ref.metadata.copy()
-            store_metadata["migrated_from"] = task.source_backend.value
-            store_metadata["migration_task"] = task.id
-            store_metadata["migration_time"] = time.time()
-            
-            # Get target backend instance
-            target_backend = self.storage_manager.backends.get(task.target_backend)
+            if not source_backend:
+                raise ValueError(f"Source backend '{task.source_backend}' not found")
             
             if not target_backend:
-                task.update_status(
-                    MigrationTask.Status.FAILED,
-                    f"Target backend {task.target_backend.value} not available"
-                )
-                task.error = "Target backend not available"
-                self.stats["failed_tasks"] += 1
-                return
+                raise ValueError(f"Target backend '{task.target_backend}' not found")
+            
+            # Perform the migration based on the type
+            if task.migration_type == MigrationType.COPY:
+                result = self._migrate_copy(task, source_backend, target_backend)
+            elif task.migration_type == MigrationType.MOVE:
+                result = self._migrate_move(task, source_backend, target_backend)
+            elif task.migration_type == MigrationType.SYNC:
+                result = self._migrate_sync(task, source_backend, target_backend)
+            else:
+                raise ValueError(f"Unsupported migration type: {task.migration_type}")
+            
+            # Store the result
+            task.result = result
+            
+            # Update task status based on result
+            if result.success:
+                task.status = MigrationStatus.VALIDATED if task.validation_level != ValidationLevel.NONE else MigrationStatus.COMPLETED
+            else:
+                # Check if we should retry
+                if task.attempts < task.max_attempts:
+                    # Schedule retry
+                    retry_delay = task.options.get("retry_delay", 60)  # Default 60 seconds
+                    task.scheduled_time = datetime.now() + timedelta(seconds=retry_delay)
+                    task.status = MigrationStatus.SCHEDULED
+                    logger.info(f"Scheduling retry for task {task.id} in {retry_delay} seconds")
+                else:
+                    task.status = MigrationStatus.FAILED
+                    logger.warning(f"Migration task {task.id} failed after {task.attempts} attempts")
+            
+            # Update task timestamp
+            task.updated_at = datetime.now()
+            
+            # Store completed task
+            if task.status in [MigrationStatus.COMPLETED, MigrationStatus.VALIDATED, MigrationStatus.FAILED]:
+                self._add_to_completed(task)
+            
+        except Exception as e:
+            logger.error(f"Error processing migration task {task.id}: {e}")
+            
+            # Create failure result
+            task.result = MigrationResult(
+                success=False,
+                source_backend=task.source_backend,
+                target_backend=task.target_backend,
+                source_id=task.source_id,
+                status=MigrationStatus.FAILED,
+                error=str(e),
+                details={"exception": str(e), "exception_type": type(e).__name__}
+            )
+            
+            # Check if we should retry
+            if task.attempts < task.max_attempts:
+                # Schedule retry
+                retry_delay = task.options.get("retry_delay", 60)  # Default 60 seconds
+                task.scheduled_time = datetime.now() + timedelta(seconds=retry_delay)
+                task.status = MigrationStatus.SCHEDULED
+                logger.info(f"Scheduling retry for task {task.id} in {retry_delay} seconds")
+            else:
+                task.status = MigrationStatus.FAILED
+                # Add to completed tasks
+                self._add_to_completed(task)
                 
-            # Store in target backend
-            store_result = target_backend.store(
-                data=data,
-                container=container,
-                path=path,
-                options={**store_options, "metadata": store_metadata}
+            # Update task timestamp
+            task.updated_at = datetime.now()
+    
+    def _migrate_copy(self, task: MigrationTask, source_backend: Any, target_backend: Any) -> MigrationResult:
+        """
+        Copy data from source to target backend.
+        
+        Args:
+            task: Migration task
+            source_backend: Source backend instance
+            target_backend: Target backend instance
+            
+        Returns:
+            Result of the migration
+        """
+        # Start with metadata for tracking
+        migration_metadata = {
+            "migration_id": task.id,
+            "migration_type": task.migration_type.value,
+            "source_backend": task.source_backend,
+            "source_id": task.source_id,
+            "migration_time": datetime.now().isoformat(),
+            **task.options.get("metadata", {})
+        }
+        
+        start_time = time.time()
+        
+        # Check if source backend has a migrate_to method (optimized path)
+        if hasattr(source_backend, 'migrate_to'):
+            logger.info(f"Using optimized migrate_to path for {task.id}")
+            
+            # Prepare options
+            options = {
+                "verify": task.validation_level != ValidationLevel.NONE,
+                "validation_strategy": task.validation_level.value,
+                "migration_metadata": migration_metadata,
+                **task.options
+            }
+            
+            # Call the optimized migration method
+            migrate_result = source_backend.migrate_to(
+                source_identifier=task.source_id,
+                target_backend=target_backend,
+                target_container=task.target_container,
+                target_path=task.target_path,
+                source_container=task.source_container,
+                options=options
+            )
+            
+            # Create result from the backend's response
+            result = MigrationResult(
+                success=migrate_result.get("success", False),
+                source_backend=task.source_backend,
+                target_backend=task.target_backend,
+                source_id=task.source_id,
+                target_id=migrate_result.get("target_identifier"),
+                status=MigrationStatus.COMPLETED if migrate_result.get("success", False) else MigrationStatus.FAILED,
+                error=migrate_result.get("error"),
+                details=migrate_result,
+                validation_result=migrate_result.get("verification")
+            )
+            
+        else:
+            # Manual migration path
+            logger.info(f"Using manual migration path for {task.id}")
+            
+            # Retrieve content from source
+            retrieve_result = source_backend.get_content(task.source_id, container=task.source_container)
+            
+            if not retrieve_result.get("success", False):
+                # Failed to retrieve content
+                return MigrationResult(
+                    success=False,
+                    source_backend=task.source_backend,
+                    target_backend=task.target_backend,
+                    source_id=task.source_id,
+                    status=MigrationStatus.FAILED,
+                    error=f"Failed to retrieve content: {retrieve_result.get('error', 'Unknown error')}",
+                    details=retrieve_result
+                )
+            
+            # Get content and metadata
+            content = retrieve_result.get("data")
+            
+            # Try to get metadata if available
+            try:
+                metadata_result = source_backend.get_metadata(task.source_id, container=task.source_container)
+                source_metadata = metadata_result.get("metadata", {}) if metadata_result.get("success", False) else {}
+            except Exception as e:
+                logger.warning(f"Error retrieving metadata for {task.id}: {e}")
+                source_metadata = {}
+            
+            # Prepare metadata for target
+            target_metadata = {**source_metadata, **migration_metadata}
+            
+            # Store in target
+            store_options = {"metadata": target_metadata}
+            
+            store_result = target_backend.add_content(
+                content=content,
+                metadata={
+                    **target_metadata,
+                    "container": task.target_container,
+                    "path": task.target_path
+                }
             )
             
             if not store_result.get("success", False):
-                task.update_status(
-                    MigrationTask.Status.FAILED,
-                    f"Failed to store content: {store_result.get('error')}"
+                # Failed to store content
+                return MigrationResult(
+                    success=False,
+                    source_backend=task.source_backend,
+                    target_backend=task.target_backend,
+                    source_id=task.source_id,
+                    status=MigrationStatus.FAILED,
+                    error=f"Failed to store content: {store_result.get('error', 'Unknown error')}",
+                    details={"retrieve_result": retrieve_result, "store_result": store_result}
                 )
-                task.error = f"Storage failed: {store_result.get('error')}"
-                self.stats["failed_tasks"] += 1
-                return
+            
+            # Success - get target ID
+            target_id = store_result.get("identifier")
+            
+            # Validate if required
+            validation_result = None
+            if task.validation_level != ValidationLevel.NONE:
+                validation_result = self._validate_migration(
+                    task, source_backend, target_backend, content, target_id
+                )
                 
-            # Update content reference
-            content_ref.add_location(task.target_backend, store_result.get("identifier"))
+                if not validation_result.get("success", False):
+                    # Validation failed
+                    return MigrationResult(
+                        success=False,
+                        source_backend=task.source_backend,
+                        target_backend=task.target_backend,
+                        source_id=task.source_id,
+                        target_id=target_id,
+                        status=MigrationStatus.FAILED,
+                        error=f"Validation failed: {validation_result.get('error', 'Unknown error')}",
+                        details={"retrieve_result": retrieve_result, "store_result": store_result},
+                        validation_result=validation_result
+                    )
+            
+            # Build successful result
+            result = MigrationResult(
+                success=True,
+                source_backend=task.source_backend,
+                target_backend=task.target_backend,
+                source_id=task.source_id,
+                target_id=target_id,
+                status=MigrationStatus.VALIDATED if validation_result else MigrationStatus.COMPLETED,
+                details={
+                    "retrieve_result": retrieve_result,
+                    "store_result": store_result,
+                    "duration": time.time() - start_time
+                },
+                validation_result=validation_result
+            )
+        
+        return result
+    
+    def _migrate_move(self, task: MigrationTask, source_backend: Any, target_backend: Any) -> MigrationResult:
+        """
+        Move data from source to target backend (copy then delete).
+        
+        Args:
+            task: Migration task
+            source_backend: Source backend instance
+            target_backend: Target backend instance
+            
+        Returns:
+            Result of the migration
+        """
+        # First copy the content
+        copy_result = self._migrate_copy(task, source_backend, target_backend)
+        
+        # If copy failed, return the failure
+        if not copy_result.success:
+            return copy_result
+        
+        # If copy succeeded, delete from source
+        delete_result = source_backend.remove_content(task.source_id, container=task.source_container)
+        
+        # Add deletion info to result
+        copy_result.details["delete_result"] = delete_result
+        copy_result.details["delete_success"] = delete_result.get("success", False)
+        
+        # If deletion failed, mark as partial
+        if not delete_result.get("success", False):
+            copy_result.status = MigrationStatus.PARTIAL
+            copy_result.error = f"Data copied successfully but failed to delete from source: {delete_result.get('error', 'Unknown error')}"
+        
+        return copy_result
+    
+    def _migrate_sync(self, task: MigrationTask, source_backend: Any, target_backend: Any) -> MigrationResult:
+        """
+        Synchronize data between backends.
+        
+        Args:
+            task: Migration task
+            source_backend: Source backend instance
+            target_backend: Target backend instance
+            
+        Returns:
+            Result of the migration
+        """
+        # Sync is not fully implemented yet, fall back to copy
+        logger.warning(f"Sync migration not fully implemented, falling back to copy for {task.id}")
+        return self._migrate_copy(task, source_backend, target_backend)
+    
+    def _validate_migration(self, task: MigrationTask, source_backend: Any, target_backend: Any, 
+                           content: Optional[bytes] = None, target_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Validate migrated content.
+        
+        Args:
+            task: Migration task
+            source_backend: Source backend instance
+            target_backend: Target backend instance
+            content: Original content if available
+            target_id: Target content ID
+            
+        Returns:
+            Validation result dictionary
+        """
+        validation_level = task.validation_level
+        
+        # Basic existence check
+        if validation_level == ValidationLevel.EXISTS:
+            exists = target_backend.exists(target_id, container=task.target_container)
+            return {
+                "success": exists,
+                "validation_level": validation_level.value,
+                "error": None if exists else "Content doesn't exist in target"
+            }
+        
+        # Hash validation
+        if validation_level == ValidationLevel.HASH:
+            # Try to get source metadata with hash
+            source_metadata = source_backend.get_metadata(task.source_id, container=task.source_container)
+            target_metadata = target_backend.get_metadata(target_id, container=task.target_container)
+            
+            if not source_metadata.get("success", False) or not target_metadata.get("success", False):
+                return {
+                    "success": False,
+                    "validation_level": validation_level.value,
+                    "error": "Failed to retrieve metadata for hash validation"
+                }
+            
+            # Extract hash values (different backends might use different field names)
+            source_hash = self._extract_hash(source_metadata.get("metadata", {}))
+            target_hash = self._extract_hash(target_metadata.get("metadata", {}))
+            
+            if not source_hash or not target_hash:
+                logger.warning(f"Hash validation not possible for {task.id}, falling back to content validation")
+                # Fall back to content validation
+                validation_level = ValidationLevel.CONTENT
+            else:
+                return {
+                    "success": source_hash == target_hash,
+                    "validation_level": validation_level.value,
+                    "error": None if source_hash == target_hash else "Hash mismatch",
+                    "source_hash": source_hash,
+                    "target_hash": target_hash
+                }
+        
+        # Content validation
+        if validation_level == ValidationLevel.CONTENT:
+            # If we don't already have the content, retrieve it
+            if content is None:
+                source_result = source_backend.get_content(task.source_id, container=task.source_container)
+                if not source_result.get("success", False):
+                    return {
+                        "success": False,
+                        "validation_level": validation_level.value,
+                        "error": f"Failed to retrieve source content for validation: {source_result.get('error', 'Unknown error')}"
+                    }
+                content = source_result.get("data")
+            
+            # Get target content
+            target_result = target_backend.get_content(target_id, container=task.target_container)
+            if not target_result.get("success", False):
+                return {
+                    "success": False,
+                    "validation_level": validation_level.value,
+                    "error": f"Failed to retrieve target content for validation: {target_result.get('error', 'Unknown error')}"
+                }
+            
+            target_content = target_result.get("data")
+            
+            # Compare content
+            content_match = content == target_content
+            
+            return {
+                "success": content_match,
+                "validation_level": validation_level.value,
+                "error": None if content_match else "Content mismatch",
+                "source_size": len(content),
+                "target_size": len(target_content)
+            }
+        
+        # Metadata validation
+        if validation_level == ValidationLevel.METADATA:
+            # Get source and target metadata
+            source_metadata = source_backend.get_metadata(task.source_id, container=task.source_container)
+            target_metadata = target_backend.get_metadata(target_id, container=task.target_container)
+            
+            if not source_metadata.get("success", False) or not target_metadata.get("success", False):
+                return {
+                    "success": False,
+                    "validation_level": validation_level.value,
+                    "error": "Failed to retrieve metadata for validation"
+                }
+            
+            # Extract metadata fields (excluding backend-specific fields)
+            s_meta = source_metadata.get("metadata", {})
+            t_meta = target_metadata.get("metadata", {})
+            
+            # Check essential fields
+            missing_fields = []
+            for key, value in s_meta.items():
+                # Skip backend-specific fields
+                if key in ["backend", "identifier"]:
+                    continue
+                
+                # Check if key exists in target metadata
+                if key not in t_meta:
+                    missing_fields.append(key)
+            
+            return {
+                "success": len(missing_fields) == 0,
+                "validation_level": validation_level.value,
+                "error": None if len(missing_fields) == 0 else f"Missing metadata fields: {', '.join(missing_fields)}",
+                "missing_fields": missing_fields
+            }
+        
+        # Full validation (content + metadata)
+        if validation_level == ValidationLevel.FULL:
+            # Perform content validation
+            content_validation = self._validate_migration(
+                task, source_backend, target_backend, content, target_id
+            )
+            
+            # Save original validation level
+            original_level = task.validation_level
+            
+            # Perform metadata validation
+            task.validation_level = ValidationLevel.METADATA
+            metadata_validation = self._validate_migration(
+                task, source_backend, target_backend, content, target_id
+            )
+            
+            # Restore original validation level
+            task.validation_level = original_level
+            
+            # Combine results
+            success = content_validation.get("success", False) and metadata_validation.get("success", False)
+            
+            return {
+                "success": success,
+                "validation_level": validation_level.value,
+                "error": None if success else "Full validation failed",
+                "content_validation": content_validation,
+                "metadata_validation": metadata_validation
+            }
+        
+        # NONE validation level or unknown
+        return {
+            "success": True,
+            "validation_level": ValidationLevel.NONE.value,
+            "message": "No validation performed"
+        }
+    
+    def _extract_hash(self, metadata: Dict[str, Any]) -> Optional[str]:
+        """
+        Extract hash value from metadata.
+        
+        Args:
+            metadata: Metadata dictionary
+            
+        Returns:
+            Hash value if found, None otherwise
+        """
+        # Different backends might use different field names for hash
+        hash_fields = ["hash", "cid", "etag", "md5", "sha256", "content_hash"]
+        
+        for field in hash_fields:
+            if field in metadata and metadata[field]:
+                return metadata[field]
+        
+        return None
+    
+    def create_task(self, source_backend: str, target_backend: str, source_id: str, **kwargs) -> str:
+        """
+        Create a migration task.
+        
+        Args:
+            source_backend: Name of the source backend
+            target_backend: Name of the target backend
+            source_id: Identifier in the source backend
+            **kwargs: Additional options
+            
+        Returns:
+            Task ID
+        """
+        # Extract options
+        migration_type = kwargs.get("migration_type", MigrationType.COPY)
+        if isinstance(migration_type, str):
+            migration_type = MigrationType(migration_type)
+        
+        validation_level = kwargs.get("validation_level", ValidationLevel.HASH)
+        if isinstance(validation_level, str):
+            validation_level = ValidationLevel(validation_level)
+        
+        priority = kwargs.get("priority", MigrationPriority.NORMAL)
+        if isinstance(priority, int):
+            priority = MigrationPriority(priority)
+        
+        # Create task
+        task = MigrationTask(
+            source_backend=source_backend,
+            target_backend=target_backend,
+            source_id=source_id,
+            migration_type=migration_type,
+            validation_level=validation_level,
+            priority=priority,
+            options=kwargs.get("options", {}),
+            scheduled_time=kwargs.get("scheduled_time"),
+            source_container=kwargs.get("source_container"),
+            target_container=kwargs.get("target_container"),
+            target_path=kwargs.get("target_path")
+        )
+        
+        # Add to tasks dictionary
+        with self.worker_lock:
+            self.tasks[task.id] = task
+        
+        # If not scheduled for future, add to queue
+        if task.status == MigrationStatus.PENDING:
+            self._queue_task(task)
+        
+        logger.info(f"Created migration task {task.id}: {source_backend}->{target_backend}")
+        return task.id
+    
+    def _queue_task(self, task: MigrationTask) -> None:
+        """
+        Add a task to the queue based on priority.
+        
+        Args:
+            task: Task to queue
+        """
+        # Priority queue uses lowest value first, so negate priority value
+        self.task_queue.put((-task.priority.value, time.time(), task))
+    
+    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a task by ID.
+        
+        Args:
+            task_id: Task ID
+            
+        Returns:
+            Task dictionary or None if not found
+        """
+        with self.worker_lock:
+            task = self.tasks.get(task_id)
+            if not task:
+                # Check completed tasks
+                for completed_task in self.completed_tasks:
+                    if completed_task.id == task_id:
+                        return completed_task.to_dict()
+                return None
+            
+            return task.to_dict()
+    
+    def cancel_task(self, task_id: str) -> Dict[str, Any]:
+        """
+        Cancel a pending or scheduled task.
+        
+        Args:
+            task_id: Task ID
+            
+        Returns:
+            Result dictionary
+        """
+        with self.worker_lock:
+            task = self.tasks.get(task_id)
+            if not task:
+                return {"success": False, "error": f"Task {task_id} not found"}
+            
+            # Can only cancel pending or scheduled tasks
+            if task.status not in [MigrationStatus.PENDING, MigrationStatus.SCHEDULED]:
+                return {
+                    "success": False,
+                    "error": f"Cannot cancel task with status {task.status.value}"
+                }
             
             # Update task status
-            task.update_status(
-                MigrationTask.Status.COMPLETED,
-                f"Migration completed successfully"
-            )
-            task.result = {
-                "source_location": content_ref.get_location(task.source_backend),
-                "target_location": store_result.get("identifier"),
-                "size": content_size
-            }
+            task.status = MigrationStatus.FAILED
+            task.error = "Canceled by user"
+            task.updated_at = datetime.now()
             
-            # Update statistics
-            self.stats["completed_tasks"] += 1
-            self.stats["total_bytes_migrated"] += content_size
+            # Add to completed tasks
+            self._add_to_completed(task)
             
-            # Update policy statistics if from a policy
-            if task.policy_name and task.policy_name in self.policies:
-                policy = self.policies[task.policy_name]
-                policy.total_migrations += 1
-                policy.total_bytes_migrated += content_size
+            # Remove from tasks dictionary
+            del self.tasks[task_id]
+            
+            return {"success": True, "message": f"Task {task_id} canceled"}
+    
+    def _add_to_completed(self, task: MigrationTask) -> None:
+        """
+        Add a task to the completed tasks list.
+        
+        Args:
+            task: Completed task
+        """
+        with self.worker_lock:
+            # Add to completed tasks
+            self.completed_tasks.append(task)
+            
+            # Remove oldest if exceeding limit
+            while len(self.completed_tasks) > self.max_completed_tasks:
+                self.completed_tasks.pop(0)
+            
+            # Remove from active tasks if present
+            if task.id in self.tasks:
+                del self.tasks[task.id]
+    
+    def list_tasks(self, status: Optional[Union[MigrationStatus, str]] = None, 
+                  source_backend: Optional[str] = None,
+                  target_backend: Optional[str] = None,
+                  include_completed: bool = False) -> List[Dict[str, Any]]:
+        """
+        List migration tasks.
+        
+        Args:
+            status: Optional status filter
+            source_backend: Optional source backend filter
+            target_backend: Optional target backend filter
+            include_completed: Whether to include completed tasks
+            
+        Returns:
+            List of task dictionaries
+        """
+        # Convert string status to enum
+        if isinstance(status, str):
+            try:
+                status = MigrationStatus(status)
+            except ValueError:
+                pass
+        
+        tasks_list = []
+        
+        with self.worker_lock:
+            # Add active tasks
+            for task in self.tasks.values():
+                # Apply filters
+                if status and task.status != status:
+                    continue
+                if source_backend and task.source_backend != source_backend:
+                    continue
+                if target_backend and task.target_backend != target_backend:
+                    continue
                 
-                if task.policy_name in self.stats["policy_runs"]:
-                    self.stats["policy_runs"][task.policy_name]["total_migrations"] += 1
+                tasks_list.append(task.to_dict())
+            
+            # Add completed tasks if requested
+            if include_completed:
+                for task in self.completed_tasks:
+                    # Apply filters
+                    if status and task.status != status:
+                        continue
+                    if source_backend and task.source_backend != source_backend:
+                        continue
+                    if target_backend and task.target_backend != target_backend:
+                        continue
                     
-            # Delete from source if requested
-            if task.options.get("delete_source", False):
-                task.update_status(
-                    MigrationTask.Status.IN_PROGRESS,
-                    f"Deleting content from source backend {task.source_backend.value}"
-                )
-                
-                delete_result = self.storage_manager.delete(
-                    content_id=task.content_id,
-                    backend=task.source_backend
-                )
-                
-                if delete_result.get("success", False):
-                    task.update_status(
-                        MigrationTask.Status.COMPLETED,
-                        f"Content deleted from source backend"
-                    )
-                else:
-                    task.update_status(
-                        MigrationTask.Status.COMPLETED,
-                        f"Migration completed but failed to delete from source: {delete_result.get('error')}"
-                    )
-                    
-            # Save content registry
-            self.storage_manager._save_content_registry()
+                    tasks_list.append(task.to_dict())
+        
+        return tasks_list
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get migration statistics.
+        
+        Returns:
+            Dictionary with statistics
+        """
+        stats = {
+            "pending": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "failed": 0,
+            "scheduled": 0,
+            "partial": 0,
+            "validating": 0,
+            "validated": 0,
+            "active_workers": 0,
+            "queue_size": 0,
+            "total_completed": 0
+        }
+        
+        with self.worker_lock:
+            # Count by status
+            for task in self.tasks.values():
+                status = task.status.value
+                if status in stats:
+                    stats[status] += 1
             
-        except Exception as e:
-            logger.exception(f"Error processing migration task {task.id}: {e}")
-            task.update_status(
-                MigrationTask.Status.FAILED,
-                f"Migration failed with error: {str(e)}"
-            )
-            task.error = str(e)
-            self.stats["failed_tasks"] += 1
+            # Add completed task counts
+            for task in self.completed_tasks:
+                status = task.status.value
+                if status in stats:
+                    stats[status] += 1
+            
+            stats["active_workers"] = self.active_workers
+            stats["queue_size"] = self.task_queue.qsize()
+            stats["total_completed"] = len(self.completed_tasks)
+        
+        return stats
+    
+    def shutdown(self) -> None:
+        """Shutdown the migration manager."""
+        logger.info("Shutting down migration manager")
+        self.shutdown_flag.set()
+        
+        # Wait for workers to finish
+        for worker in self.workers:
+            if worker.is_alive():
+                worker.join(timeout=1.0)
+        
+        # Wait for schedule thread to finish
+        if self.schedule_thread.is_alive():
+            self.schedule_thread.join(timeout=1.0)
+        
+        logger.info("Migration manager shutdown complete")
+
+
+def calculate_content_hash(content: Union[bytes, BinaryIO]) -> str:
+    """
+    Calculate SHA-256 hash of content.
+    
+    Args:
+        content: Content as bytes or file-like object
+        
+    Returns:
+        Hex digest of the hash
+    """
+    hasher = hashlib.sha256()
+    
+    if isinstance(content, bytes):
+        hasher.update(content)
+    else:
+        # File-like object
+        for chunk in iter(lambda: content.read(4096), b''):
+            hasher.update(chunk)
+        
+        # Reset file pointer if possible
+        if hasattr(content, 'seek'):
+            content.seek(0)
+    
+    return hasher.hexdigest()
+
+
+def create_migration_manager(backend_registry: Dict[str, Any], max_workers: int = 3) -> MigrationManager:
+    """
+    Create a migration manager.
+    
+    Args:
+        backend_registry: Dictionary mapping backend names to instances
+        max_workers: Maximum number of concurrent migration tasks
+        
+    Returns:
+        MigrationManager instance
+    """
+    return MigrationManager(backend_registry, max_workers)
+</file_content>
+
+Now that you have the latest state of the file, try the operation again with fewer, more precise SEARCH blocks. For large files especially, it may be prudent to try to limit yourself to <5 SEARCH/REPLACE blocks at a time, then wait for the user to respond with the result of the operation before following up with another replace_in_file call to make additional edits.
+(If you run into this error 3 times in a row, you may use the write_to_file tool as a fallback.)
+</error><environment_details>
+# VSCode Visible Files
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-0
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-1
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-2
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-3
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-4
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-5
+../../../response_06802cf7-2d7d-4a85-b51f-1440312ae70e/tools-6
+../../../response_2657e546-0540-4168-b58b-2f79494dbe36/tools-0
+../../../response_2657e546-0540-4168-b58b-2f79494dbe36/tools-1
+../../../response_57f37e9b-2930-459d-bb48-3cf333377fc2/tools-0
+../../../response_57f37e9b-2930-459d-bb48-3cf333377fc2/tools-1
+../../../response_15d179f1-4cbd-4c1e-a8df-448a0e25cc70/tools-0
+../../../response_15d179f1-4cbd-4c1e-a8df-448a0e25cc70/tools-0
+ipfs_kit_py/mcp/storage_manager/migration.py
+
+# VSCode Open Tabs
+ipfs_kit_py/mcp/storage_manager/backends/s3_backend.py
+ipfs_kit_py/mcp/storage_manager/backend_base.py
+ipfs_kit_py/mcp/storage_manager/backends/__init__.py
+ipfs_kit_py/ipfs_client.py
+ipfs_kit_py/mcp/streaming/ipfs_streaming.py
+ipfs_kit_py/mcp/storage_manager/metadata/ipfs_metadata.py
+ipfs_kit_py/mcp/storage_manager/monitoring/__init__.py
+ipfs_kit_py/mcp/storage_manager/monitoring/performance_monitor.py
+ipfs_kit_py/mcp/storage_manager/backends/ipfs_backend.py
+ipfs_kit_py/mcp/streaming/__init__.py
+ipfs_kit_py/mcp/storage_manager/migration.py
+ipfs_kit_py/mcp/storage_manager/storage_types.py
+
+# Current Time
+4/14/2025, 11:57:17 AM (America/Los_Angeles, UTC-7:00)
+
+# Context Window Usage
+836,277 / 1,000K tokens used (84%)
+
+# Current Mode
+ACT MODE
+</environment_details>

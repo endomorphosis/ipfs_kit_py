@@ -4,143 +4,134 @@
 
 The Model-Controller-Persistence (MCP) server is a crucial component of the IPFS Kit ecosystem, providing a unified interface for interacting with various distributed storage systems. This roadmap outlines our current achievements, ongoing work, and future plans for enhancing the MCP server's capabilities.
 
-## Recently Implemented Features
-
-### Multi-Backend Integration Enhancement (April 2025)
-
-We have successfully implemented the foundation of our Multi-Backend Integration system, providing a unified framework for interacting with various storage backends:
-
-- **Migration Controller Framework**
-  - Policy-based migration between storage backends
-  - Cost optimization with predictive analysis
-  - Verification and integrity checking
-  - Priority-based migration queue
-  - Comprehensive CLI tool for migration management
-
-- **Unified Storage Manager**
-  - Abstract storage backend interface
-  - Uniform content addressing across backends
-  - Cross-backend content reference system
-  - Metadata synchronization and consistency
-  - Seamless content replication between backends
-  - Content-aware backend selection
-
-- **IPFS Backend Implementation**
-  - Full implementation of storage operations
-  - Content pinning management
-  - Custom metadata integration
-  - Performance monitoring
-
-These enhancements allow for more efficient data management across different storage systems, enabling optimized content placement based on cost, performance, and reliability requirements.
-
-### Advanced Filecoin Integration (April 2025)
-
-We have successfully implemented comprehensive Filecoin integration with advanced features:
-
-- **Network Analytics & Metrics**
-  - Real-time Filecoin network statistics
-  - Gas price monitoring and forecasting
-  - Chain height and network status indicators
-  - Storage capacity and pricing trends
-
-- **Intelligent Miner Selection & Management**
-  - Reputation-based miner recommendations
-  - Detailed miner analysis and comparison
-  - Regional and performance filtering
-  - Price optimization algorithms
-
-- **Enhanced Storage Operations**
-  - Redundant storage across multiple miners
-  - Verified deal support with datacap utilization
-  - Comprehensive cost estimation with market rates
-  - Deal lifecycle management and monitoring
-
-- **Content Health & Reliability**
-  - Storage health metrics and monitoring
-  - Deal status tracking and notifications
-  - Replication management and healing
-  - Automatic repair recommendations
-
-- **Blockchain Integration**
-  - Filecoin chain exploration and block analysis
-  - Transaction monitoring and status tracking
-  - Deal verification and confirmation
-  - Historical performance analysis
-
-The implementation includes both direct Lotus node support and public gateway access, ensuring functionality in various deployment scenarios. All features are accessible through a well-documented API at `/api/v0/filecoin/advanced/*`.
-
-### Streaming Operations (April 2025)
-
-We have successfully implemented comprehensive streaming capabilities for real-time communication:
-
-- **Optimized File Streaming**
-  - Efficient large file uploads with chunked processing
-  - Memory-optimized streaming downloads
-  - Background pinning operations
-  - Progress tracking and throughput metrics
-
-- **WebSocket Integration**
-  - Real-time event notifications
-  - Channel-based subscription system
-  - Connection management with automatic recovery
-  - Secure message broadcasting
-
-- **WebRTC Signaling**
-  - Peer-to-peer connection establishment
-  - Room-based peer discovery
-  - Direct data channel communication
-  - Efficient binary data transfer
-
-These streaming capabilities are accessible through dedicated API endpoints at `/api/v0/stream/*`, `/api/v0/realtime/*`, and `/api/v0/webrtc/*`, with WebSocket connections available at `/ws` and WebRTC signaling at `/webrtc/signal/{room_id}`.
-
-### Search Integration (April 2025)
-
-We have successfully implemented comprehensive search capabilities for IPFS content:
-
-- **Content Indexing**
-  - Automated metadata extraction
-  - Full-text indexing with SQLite FTS5
-  - Content type-aware text extraction
-  - JSON structure parsing
-
-- **Vector Search**
-  - Integration with sentence-transformers for embeddings
-  - FAISS vector database for similarity search
-  - Efficient vector storage and retrieval
-  - Customizable embedding models
-
-- **Hybrid Search**
-  - Combined text and vector search capabilities
-  - Score normalization and ranking
-  - Metadata filtering options
-  - Tag-based content organization
-
-These search capabilities are accessible through dedicated API endpoints at `/api/v0/search/*` providing status information, content indexing, text and metadata queries, and vector similarity search functionality.
-
 ## Current Development Focus (Q2 2025)
 
-### Server Architecture Consolidation (Active - Q2 2025)
+### Server Architecture Consolidation (Completed - Q2 2025)
 
-The project previously contained two primary MCP server implementations:
+The project previously contained fragmented MCP server implementations across `ipfs_kit_py/mcp/`, `ipfs_kit_py/mcp_server/`, and `mcp_extensions/`.
 
-1.  **FastAPI-based Server (`ipfs_kit_py/mcp/`)**: A feature-rich implementation containing extensive integrations for IPFS, various storage backends (S3, Filecoin, Storacha, etc.), streaming, search, and advanced features like multi-backend migration.
-2.  **Direct Starlette Server (`direct_mcp_server.py`)**: An implementation focused on robust deployment mechanisms (blue/green deployment, live patching with syntax/test validation) and explicit SSE handling.
+**Consolidation Actions (Completed):**
 
-To resolve complexities from maintaining separate implementations and a previous unsuccessful migration attempt, we are actively consolidating these codebases. The `direct_mcp_server.py` is now the running foundation.
+1.  **Established `ipfs_kit_py/mcp/` as Source of Truth:** This directory now holds the unified MCP server library code.
+2.  **Removed Redundant Backups:** Deleted numerous `.bak` files from `ipfs_kit_py/mcp/`.
+3.  **Removed Redundant Directories:** Deleted the `ipfs_kit_py/mcp_server/` and `mcp_extensions/` directories as they were found to contain only backups or were empty.
 
-**Current Approach:**
+**Outcome & Next Steps**: The MCP server logic is now consolidated within the `ipfs_kit_py/mcp/` directory. The `direct_mcp_server.py` script acts as the primary entry point. **The immediate next step is to reassess and verify the functionality of all integrated features within this new structure.**
 
-- **Foundation**: `direct_mcp_server.py` is now the active foundational codebase, providing robust deployment and patching infrastructure.
-- **Reintegration (In Progress)**: The primary task is the ongoing, careful reintegration of controllers, models, services, and features from the legacy FastAPI-based server (`ipfs_kit_py/mcp/`) into the `direct_mcp_server.py` structure. This includes:
-    - IPFS core operations
-    - Storage backend controllers and models (S3, Filecoin, Storacha, HuggingFace, Lassie)
-    - Unified Storage Manager and Migration Controller logic
-    - Streaming (WebSocket, WebRTC) components
-    - Search functionality (indexing, vector search)
-    - Authentication and monitoring components
-- **Component Reuse**: We will aim to reuse as much of the existing FastAPI application logic (controllers, models, services) as possible, adapting them to fit within the Starlette application structure used by `direct_mcp_server.py`. This might involve adapting routing, request/response handling, and dependency injection patterns.
+### Feature Reassessment & Integration Testing (Post-Consolidation - Q2 2025)
 
-**Goal**: The outcome will be a single, unified MCP server based on `direct_mcp_server.py` that incorporates the full feature set previously developed in the FastAPI implementation, while benefiting from the enhanced deployment and maintenance capabilities. This consolidation is the primary focus for Q2 2025.
+Following the structural consolidation, the previously developed features require thorough reassessment and integration testing to ensure they function correctly within the unified codebase.
+
+#### Multi-Backend Integration (Reassessment Needed)
+
+The foundation of the Multi-Backend Integration system needs verification:
+
+- **Migration Controller Framework**
+  - 🔄 Policy-based migration between storage backends
+  - 🔄 Cost optimization with predictive analysis
+  - 🔄 Verification and integrity checking
+  - 🔄 Priority-based migration queue
+  - 🔄 Comprehensive CLI tool for migration management
+
+- **Unified Storage Manager**
+  - 🔄 Abstract storage backend interface
+  - 🔄 Uniform content addressing across backends
+  - 🔄 Cross-backend content reference system
+  - 🔄 Metadata synchronization and consistency
+  - 🔄 Seamless content replication between backends
+  - 🔄 Content-aware backend selection
+
+- **IPFS Backend Implementation (Broken - Needs Fix)**
+  - ❗ **Missing Dependency**: The backend currently fails to initialize due to a missing `ipfs_py` client dependency (`ipfs_kit_py.ipfs.ipfs_py`), likely lost during consolidation.
+  - 🔄 **Priority**: Locate/recreate `ipfs_py` functionality and fix the import in `ipfs_backend.py`.
+  - 🔄 Test storage operations after fix.
+  - 🔄 Test content pinning management after fix.
+  - 🔄 Test metadata integration after fix.
+  - 🔄 Test performance monitoring after fix.
+
+#### Advanced Filecoin Integration (Reassessment Needed)
+
+The comprehensive Filecoin integration requires verification:
+
+- **Network Analytics & Metrics**
+  - 🔄 Real-time Filecoin network statistics
+  - 🔄 Gas price monitoring and forecasting
+  - 🔄 Chain height and network status indicators
+  - 🔄 Storage capacity and pricing trends
+
+- **Intelligent Miner Selection & Management**
+  - 🔄 Reputation-based miner recommendations
+  - 🔄 Detailed miner analysis and comparison
+  - 🔄 Regional and performance filtering
+  - 🔄 Price optimization algorithms
+
+- **Enhanced Storage Operations**
+  - 🔄 Redundant storage across multiple miners
+  - 🔄 Verified deal support with datacap utilization
+  - 🔄 Comprehensive cost estimation with market rates
+  - 🔄 Deal lifecycle management and monitoring
+
+- **Content Health & Reliability**
+  - 🔄 Storage health metrics and monitoring
+  - 🔄 Deal status tracking and notifications
+  - 🔄 Replication management and healing
+  - 🔄 Automatic repair recommendations
+
+- **Blockchain Integration**
+  - 🔄 Filecoin chain exploration and block analysis
+  - 🔄 Transaction monitoring and status tracking
+  - 🔄 Deal verification and confirmation
+  - 🔄 Historical performance analysiso
+
+The accessibility and functionality of the API at `/api/v0/filecoin/advanced/*` needs to be confirmed.
+
+#### Streaming Operations (Reassessment Needed)
+
+The streaming capabilities require verification:
+
+- **Optimized File Streaming**
+  - 🔄 Efficient large file uploads with chunked processing
+  - 🔄 Memory-optimized streaming downloads
+  - 🔄 Background pinning operations
+  - 🔄 Progress tracking and throughput metrics
+
+- **WebSocket Integration**
+  - 🔄 Real-time event notifications
+  - 🔄 Channel-based subscription system
+  - 🔄 Connection management with automatic recovery
+  - 🔄 Secure message broadcasting
+
+- **WebRTC Signaling**
+  - 🔄 Peer-to-peer connection establishment
+  - 🔄 Room-based peer discovery
+  - 🔄 Direct data channel communication
+  - 🔄 Efficient binary data transfer
+
+The accessibility and functionality of endpoints (`/api/v0/stream/*`, `/api/v0/realtime/*`, `/api/v0/webrtc/*`, `/ws`, `/webrtc/signal/{room_id}`) need to be confirmed.
+
+#### Search Integration (Reassessment Needed)
+
+The search capabilities require verification:
+
+- **Content Indexing**
+  - 🔄 Automated metadata extraction
+  - 🔄 Full-text indexing with SQLite FTS5
+  - 🔄 Content type-aware text extraction
+  - 🔄 JSON structure parsing
+
+- **Vector Search**
+  - 🔄 Integration with sentence-transformers for embeddings
+  - 🔄 FAISS vector database for similarity search
+  - 🔄 Efficient vector storage and retrieval
+  - 🔄 Customizable embedding models
+
+- **Hybrid Search**
+  - 🔄 Combined text and vector search capabilities
+  - 🔄 Score normalization and ranking
+  - 🔄 Metadata filtering options
+  - 🔄 Tag-based content organization
+
+The accessibility and functionality of the API at `/api/v0/search/*` needs to be confirmed.
 
 ### Documentation and API Standardization
 
