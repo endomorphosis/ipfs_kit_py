@@ -11,6 +11,10 @@ Available migration tools:
 - storacha_to_ipfs: Migrate content from Storacha/Web3.Storage to IPFS
 - s3_to_ipfs: Migrate content from S3 to IPFS
 - ipfs_to_s3: Migrate content from IPFS to S3
+
+Advanced migration management:
+- migration_controller: Unified controller for cross-backend migrations
+- migration_cli: Command-line interface for migration management
 """
 
 # Import migration tools for easy access
@@ -21,6 +25,14 @@ try:
     from .s3_to_storacha import s3_to_storacha
     from .storacha_to_ipfs import storacha_to_ipfs
     from .storacha_to_s3 import storacha_to_s3
+    # Import new migration controller
+    from .migration_controller import (
+        MigrationController,
+        MigrationPolicy,
+        MigrationTask,
+        MigrationPriority,
+        MigrationStatus
+    )
 except ImportError:
     # Some modules might not be implemented yet, so suppress import errors
     pass

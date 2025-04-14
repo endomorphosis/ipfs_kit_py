@@ -1,5 +1,0 @@
-                            }
-                        }
-                else:
-                    # Standard IPFS daemon check
-                    result = self.ipfs_model.check_daemon_status(daemon_type)

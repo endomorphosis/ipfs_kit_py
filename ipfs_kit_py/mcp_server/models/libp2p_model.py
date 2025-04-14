@@ -707,9 +707,14 @@ class LibP2PModel:
     
     async def retrieve_content(self, cid: str, timeout: int = 60) -> Dict[str, Any]:
         """
-
         Async version of retrieve_content for use with async controllers.
         
+        Args:
+            cid: Content ID to retrieve
+            timeout: Timeout in seconds for the operation
+            
+        Returns:
+            Dict with retrieved content information
         """
         # Define a helper function to avoid parameter issues
         def _retrieve_content_sync():
@@ -722,9 +727,14 @@ class LibP2PModel:
     
     async def get_content(self, cid: str, timeout: int = 60) -> Dict[str, Any]:
         """
-
         Async version of get_content for use with async controllers.
         
+        Args:
+            cid: Content ID to retrieve
+            timeout: Timeout in seconds for the operation
+            
+        Returns:
+            Dict with content data and metadata
         """
         # Define a helper function to avoid parameter issues
         def _get_content_sync():
@@ -737,9 +747,14 @@ class LibP2PModel:
     
     async def announce_content(self, cid: str, data: Optional[bytes] = None) -> Dict[str, Any]:
         """
-
         Async version of announce_content for use with async controllers.
         
+        Args:
+            cid: Content ID to announce
+            data: Optional content data to store locally
+            
+        Returns:
+            Dict with announcement status
         """
         # Define a helper function to avoid parameter issues
         def _announce_content_sync():
@@ -752,9 +767,10 @@ class LibP2PModel:
     
     async def get_connected_peers(self) -> Dict[str, Any]:
         """
-
         Async version of get_connected_peers for use with async controllers.
         
+        Returns:
+            Dict with connected peers information
         """
         # Define a helper function to avoid parameter issues
         def _get_connected_peers_sync():
@@ -767,9 +783,13 @@ class LibP2PModel:
     
     async def get_peer_info(self, peer_id: str) -> Dict[str, Any]:
         """
-
         Async version of get_peer_info for use with async controllers.
         
+        Args:
+            peer_id: Peer ID to get information about
+            
+        Returns:
+            Dict with peer information
         """
         # Define a helper function to avoid parameter issues
         def _get_peer_info_sync():
@@ -782,9 +802,10 @@ class LibP2PModel:
     
     async def reset(self) -> Dict[str, Any]:
         """
-
         Async version of reset for use with async controllers.
         
+        Returns:
+            Dict with reset status
         """
         # Define a helper function to avoid parameter issues
         def _reset_sync():
@@ -797,9 +818,10 @@ class LibP2PModel:
     
     async def start(self) -> Dict[str, Any]:
         """
-
         Async version of start for use with async controllers.
         
+        Returns:
+            Dict with start status
         """
         # Define a helper function to avoid parameter issues
         def _start_sync():
@@ -812,9 +834,10 @@ class LibP2PModel:
     
     async def stop(self) -> Dict[str, Any]:
         """
-
         Async version of stop for use with async controllers.
         
+        Returns:
+            Dict with stop status
         """
         # Define a helper function to avoid parameter issues
         def _stop_sync():
@@ -827,9 +850,14 @@ class LibP2PModel:
     
     async def dht_find_peer(self, peer_id: str, timeout: int = 30) -> Dict[str, Any]:
         """
-
         Async version of dht_find_peer for use with async controllers.
         
+        Args:
+            peer_id: Peer ID to find
+            timeout: Timeout in seconds
+            
+        Returns:
+            Dict with peer information
         """
         # Define a helper function to avoid parameter issues
         def _dht_find_peer_sync():
@@ -842,9 +870,13 @@ class LibP2PModel:
     
     async def dht_provide(self, cid: str) -> Dict[str, Any]:
         """
-
         Async version of dht_provide for use with async controllers.
         
+        Args:
+            cid: Content ID to announce
+            
+        Returns:
+            Dict with announcement status
         """
         # Define a helper function to avoid parameter issues
         def _dht_provide_sync():
@@ -857,9 +889,15 @@ class LibP2PModel:
     
     async def dht_find_providers(self, cid: str, timeout: int = 30, limit: int = 20) -> Dict[str, Any]:
         """
-
         Async version of dht_find_providers for use with async controllers.
         
+        Args:
+            cid: Content ID to find providers for
+            timeout: Timeout in seconds
+            limit: Maximum number of providers to return
+            
+        Returns:
+            Dict with provider information
         """
         # Define a helper function to avoid parameter issues
         def _dht_find_providers_sync():
@@ -872,9 +910,14 @@ class LibP2PModel:
     
     async def pubsub_publish(self, topic: str, message: Union[str, bytes, Dict[str, Any]]) -> Dict[str, Any]:
         """
-
         Async version of pubsub_publish for use with async controllers.
         
+        Args:
+            topic: Topic to publish to
+            message: Message to publish (string, bytes, or JSON-serializable dict)
+            
+        Returns:
+            Dict with publish status
         """
         # Define a helper function to avoid parameter issues
         def _pubsub_publish_sync():
@@ -887,9 +930,14 @@ class LibP2PModel:
     
     async def pubsub_subscribe(self, topic: str, handler_id: Optional[str] = None) -> Dict[str, Any]:
         """
-
         Async version of pubsub_subscribe for use with async controllers.
         
+        Args:
+            topic: Topic to subscribe to
+            handler_id: Optional ID to associate with this subscription
+            
+        Returns:
+            Dict with subscription status
         """
         # Define a helper function to avoid parameter issues
         def _pubsub_subscribe_sync():
@@ -902,9 +950,14 @@ class LibP2PModel:
     
     async def pubsub_unsubscribe(self, topic: str, handler_id: Optional[str] = None) -> Dict[str, Any]:
         """
-
         Async version of pubsub_unsubscribe for use with async controllers.
         
+        Args:
+            topic: Topic to unsubscribe from
+            handler_id: Optional specific handler ID to unsubscribe
+            
+        Returns:
+            Dict with unsubscription status
         """
         # Define a helper function to avoid parameter issues
         def _pubsub_unsubscribe_sync():
@@ -917,9 +970,10 @@ class LibP2PModel:
     
     async def pubsub_get_topics(self) -> Dict[str, Any]:
         """
-
         Async version of pubsub_get_topics for use with async controllers.
         
+        Returns:
+            Dict with topics information
         """
         # Define a helper function to avoid parameter issues
         def _pubsub_get_topics_sync():
@@ -929,10 +983,8 @@ class LibP2PModel:
         import anyio
         return await anyio.to_thread.run_sync(_pubsub_get_topics_sync)
         
-    
     async def pubsub_get_peers(self, topic: Optional[str] = None) -> Dict[str, Any]:
         """
-
         Async version of pubsub_get_peers for use with async controllers.
         
         """
@@ -952,7 +1004,7 @@ class LibP2PModel:
             handler_id: Unique identifier for the handler
             protocol_id: Protocol ID to handle
             description: Optional description of the handler
-                   
+            
         Returns:
             Dict with registration status
         """

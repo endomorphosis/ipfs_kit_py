@@ -8,7 +8,7 @@ delegates the business logic to the IPFS model.
 import logging
 import time
 from typing import Dict, List, Any, Optional, Union
-from fastapi import APIRouter, HTTPException, Depends, Body, File, UploadFile, Form, Response, Request
+from fastapi import APIRouter, HTTPException, Depends, Body, File, UploadFile, Form, Response, Request, Query, Path # Added Query, Path
 
 # Import Pydantic models for request/response validation
 from pydantic import BaseModel, Field
@@ -16,7 +16,51 @@ from pydantic import BaseModel, Field
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Define Pydantic models for requests and responses
+
+# --- Swarm Operation Models ---
+class PeerAddressRequest(BaseModel):
+    """Request model for a peer address."""
+    peer_addr: str
+
+class SwarmPeersResponse(BaseModel):
+    """Response model for swarm peers request."""
+    success: bool
+    peers: Optional[List[Dict[str, Any]]] = None
+    peer_count: Optional[int] = None
+    operation: str
+    timestamp: float
+    duration_ms: float
+    error: Optional[str] = None
+    error_type: Optional[str] = None
+    simulated: Optional[bool] = None # Added based on model implementation
+
+class SwarmConnectResponse(BaseModel):
+    """Response model for swarm connect request."""
+    success: bool
+    connected: Optional[bool] = None
+    peer: Optional[str] = None
+    operation: str
+    timestamp: float
+    duration_ms: float
+    error: Optional[str] = None
+    error_type: Optional[str] = None
+    simulated: Optional[bool] = None # Added based on model implementation
+
+class SwarmDisconnectResponse(BaseModel):
+    """Response model for swarm disconnect request."""
+    success: bool
+    disconnected: Optional[bool] = None
+    peer: Optional[str] = None
+    operation: str
+    timestamp: float
+    duration_ms: float
+    error: Optional[str] = None
+    error_type: Optional[str] = None
+    simulated: Optional[bool] = None # Added based on model implementation
+# --- End Swarm Operation Models ---
+
+
+# Define Pydantic models for requests and responses (Existing models follow)
 class ContentRequest(BaseModel):
     """Request model for adding content."""
     content: str = Field(..., description="Content to add to IPFS")
@@ -235,7 +279,71 @@ class IPFSController:
         """
         self.ipfs_model = ipfs_model
         logger.info("IPFS Controller initialized")
-    
+
+
+    # --- Swarm Controller Methods ---
+    async def swarm_peers(self) -> Dict[str, Any]:
+        """Get a list of peers connected to this node."""
+        try:
+            # Use the new model method
+            return self.ipfs_model.swarm_peers()
+        except Exception as e:
+            logger.error(f"Error in swarm_peers controller: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error getting peers: {str(e)}"
+            )
+
+    async def swarm_connect(self, request: PeerAddressRequest) -> Dict[str, Any]:
+        """Connect to a peer by multiaddress."""
+        try:
+            # Use the new model method
+            return self.ipfs_model.swarm_connect(request.peer_addr)
+        except Exception as e:
+            logger.error(f"Error in swarm_connect controller: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error connecting to peer: {str(e)}"
+            )
+
+    async def swarm_disconnect(self, request: PeerAddressRequest) -> Dict[str, Any]:
+        """Disconnect from a peer by multiaddress."""
+        try:
+            # Use the new model method
+            return self.ipfs_model.swarm_disconnect(request.peer_addr)
+        except Exception as e:
+            logger.error(f"Error in swarm_disconnect controller: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error disconnecting from peer: {str(e)}"
+            )
+
+    async def swarm_connect_get(self, peer_addr: str = Path(..., description="Peer multiaddress")) -> Dict[str, Any]:
+        """Connect to a peer by multiaddress (GET version for compatibility)."""
+        try:
+            # Use the new model method
+            return self.ipfs_model.swarm_connect(peer_addr)
+        except Exception as e:
+            logger.error(f"Error in swarm_connect_get controller: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error connecting to peer: {str(e)}"
+            )
+
+    async def swarm_disconnect_get(self, peer_addr: str = Path(..., description="Peer multiaddress")) -> Dict[str, Any]:
+        """Disconnect from a peer by multiaddress (GET version for compatibility)."""
+        try:
+            # Use the new model method
+            return self.ipfs_model.swarm_disconnect(peer_addr)
+        except Exception as e:
+            logger.error(f"Error in swarm_disconnect_get controller: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error disconnecting from peer: {str(e)}"
+            )
+    # --- End Swarm Controller Methods ---
+
+
     def register_routes(self, router: APIRouter):
         """
         Register routes with a FastAPI router.
@@ -464,26 +572,48 @@ class IPFSController:
         # Swarm management endpoints
         router.add_api_route(
             "/ipfs/swarm/peers",
-            self.list_peers,
-            methods=["POST", "GET"],
+            self.swarm_peers, # Use the new method
+            methods=["POST", "GET"], # Keep existing methods
+            response_model=SwarmPeersResponse, # Use new response model
             summary="List connected peers",
             description="List peers connected to the IPFS node"
         )
-        
+
         router.add_api_route(
             "/ipfs/swarm/connect",
-            self.connect_peer,
-            methods=["POST"],
+            self.swarm_connect, # Use the new method
+            methods=["POST"], # Keep existing method
+            response_model=SwarmConnectResponse, # Use new response model
             summary="Connect to peer",
             description="Connect to a peer with the given multiaddress"
         )
-        
+
         router.add_api_route(
             "/ipfs/swarm/disconnect",
-            self.disconnect_peer,
-            methods=["POST"],
+            self.swarm_disconnect, # Use the new method
+            methods=["POST"], # Keep existing method
+            response_model=SwarmDisconnectResponse, # Use new response model
             summary="Disconnect from peer",
             description="Disconnect from a peer with the given multiaddress"
+        )
+
+        # Add new GET routes for compatibility
+        router.add_api_route(
+            "/ipfs/swarm/connect/{peer_addr:path}", # Use :path to capture full multiaddr
+            self.swarm_connect_get,
+            methods=["GET"],
+            response_model=SwarmConnectResponse,
+            summary="Connect to peer (GET)",
+            description="Connect to a peer by multiaddress (GET version for compatibility)"
+        )
+
+        router.add_api_route(
+            "/ipfs/swarm/disconnect/{peer_addr:path}", # Use :path to capture full multiaddr
+            self.swarm_disconnect_get,
+            methods=["GET"],
+            response_model=SwarmDisconnectResponse,
+            summary="Disconnect from peer (GET)",
+            description="Disconnect from a peer by multiaddress (GET version for compatibility)"
         )
         
         # Files API (MFS) endpoints

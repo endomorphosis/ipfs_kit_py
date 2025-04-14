@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "default_policy": "balanced",
+  "auto_detect_region": true,
+  "preferred_regions": [
+    "us-east",
+    "eu-west"
+  ],
+  "cost_weight": 0.3,
+  "performance_weight": 0.4,
+  "reliability_weight": 0.3,
+  "max_backend_selection": 3,
+  "minimum_backend_score": 0.5,
+  "content_type_analysis": true,
+  "bandwidth_tracking": true,
+  "latency_tracking": true,
+  "cold_start_estimation": true,
+  "update_interval_seconds": 300,
+  "adaptive_routing": true,
+  "metrics_enabled": true
+}

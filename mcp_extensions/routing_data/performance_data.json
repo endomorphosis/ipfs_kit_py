@@ -1,0 +1,247 @@
+{
+  "backend_metrics": {
+    "ipfs": {
+      "avg_read_latency_ms": 85,
+      "avg_write_latency_ms": 120,
+      "read_throughput_mbps": 25,
+      "write_throughput_mbps": 15,
+      "availability_percent": 99.5,
+      "error_rate_percent": 0.5,
+      "cost_per_gb_usd": 0.005,
+      "cold_start_latency_ms": 50
+    },
+    "local": {
+      "avg_read_latency_ms": 15,
+      "avg_write_latency_ms": 30,
+      "read_throughput_mbps": 100,
+      "write_throughput_mbps": 80,
+      "availability_percent": 99.9,
+      "error_rate_percent": 0.1,
+      "cost_per_gb_usd": 0.001,
+      "cold_start_latency_ms": 0
+    },
+    "s3": {
+      "avg_read_latency_ms": 65,
+      "avg_write_latency_ms": 90,
+      "read_throughput_mbps": 40,
+      "write_throughput_mbps": 35,
+      "availability_percent": 99.95,
+      "error_rate_percent": 0.2,
+      "cost_per_gb_usd": 0.023,
+      "cold_start_latency_ms": 0
+    },
+    "filecoin": {
+      "avg_read_latency_ms": 3500,
+      "avg_write_latency_ms": 5000,
+      "read_throughput_mbps": 10,
+      "write_throughput_mbps": 8,
+      "availability_percent": 98.0,
+      "error_rate_percent": 1.5,
+      "cost_per_gb_usd": 0.002,
+      "cold_start_latency_ms": 1000
+    },
+    "storacha": {
+      "avg_read_latency_ms": 150,
+      "avg_write_latency_ms": 180,
+      "read_throughput_mbps": 20,
+      "write_throughput_mbps": 18,
+      "availability_percent": 99.0,
+      "error_rate_percent": 0.8,
+      "cost_per_gb_usd": 0.015,
+      "cold_start_latency_ms": 100
+    },
+    "huggingface": {
+      "avg_read_latency_ms": 120,
+      "avg_write_latency_ms": 150,
+      "read_throughput_mbps": 30,
+      "write_throughput_mbps": 20,
+      "availability_percent": 99.3,
+      "error_rate_percent": 0.7,
+      "cost_per_gb_usd": 0.01,
+      "cold_start_latency_ms": 200
+    },
+    "lassie": {
+      "avg_read_latency_ms": 100,
+      "avg_write_latency_ms": 130,
+      "read_throughput_mbps": 15,
+      "write_throughput_mbps": 10,
+      "availability_percent": 97.0,
+      "error_rate_percent": 2.0,
+      "cost_per_gb_usd": 0.003,
+      "cold_start_latency_ms": 300
+    }
+  },
+  "regional_adjustments": {
+    "us-east": {
+      "ipfs": {
+        "latency_factor": 0.9,
+        "availability_factor": 1.0,
+        "cost_factor": 1.0
+      },
+      "s3": {
+        "latency_factor": 0.8,
+        "availability_factor": 1.0,
+        "cost_factor": 1.0
+      },
+      "filecoin": {
+        "latency_factor": 0.9,
+        "availability_factor": 1.0,
+        "cost_factor": 1.0
+      }
+    },
+    "eu-west": {
+      "ipfs": {
+        "latency_factor": 0.95,
+        "availability_factor": 1.0,
+        "cost_factor": 1.1
+      },
+      "s3": {
+        "latency_factor": 0.85,
+        "availability_factor": 1.0,
+        "cost_factor": 1.2
+      },
+      "filecoin": {
+        "latency_factor": 1.0,
+        "availability_factor": 0.99,
+        "cost_factor": 1.1
+      }
+    },
+    "ap-east": {
+      "ipfs": {
+        "latency_factor": 1.1,
+        "availability_factor": 0.98,
+        "cost_factor": 1.2
+      },
+      "s3": {
+        "latency_factor": 1.0,
+        "availability_factor": 0.99,
+        "cost_factor": 1.3
+      },
+      "filecoin": {
+        "latency_factor": 1.2,
+        "availability_factor": 0.97,
+        "cost_factor": 1.1
+      }
+    }
+  },
+  "content_type_metrics": {
+    "image": {
+      "ipfs": {
+        "score": 0.9
+      },
+      "s3": {
+        "score": 0.8
+      },
+      "filecoin": {
+        "score": 0.7
+      },
+      "local": {
+        "score": 0.9
+      }
+    },
+    "video": {
+      "ipfs": {
+        "score": 0.7
+      },
+      "s3": {
+        "score": 0.9
+      },
+      "filecoin": {
+        "score": 0.6
+      },
+      "local": {
+        "score": 0.8
+      }
+    },
+    "document": {
+      "ipfs": {
+        "score": 0.8
+      },
+      "s3": {
+        "score": 0.8
+      },
+      "filecoin": {
+        "score": 0.9
+      },
+      "local": {
+        "score": 0.8
+      }
+    },
+    "audio": {
+      "ipfs": {
+        "score": 0.8
+      },
+      "s3": {
+        "score": 0.9
+      },
+      "filecoin": {
+        "score": 0.7
+      },
+      "local": {
+        "score": 0.8
+      }
+    },
+    "application": {
+      "ipfs": {
+        "score": 0.8
+      },
+      "s3": {
+        "score": 0.8
+      },
+      "filecoin": {
+        "score": 0.7
+      },
+      "local": {
+        "score": 0.9
+      }
+    },
+    "text": {
+      "ipfs": {
+        "score": 0.9
+      },
+      "s3": {
+        "score": 0.8
+      },
+      "filecoin": {
+        "score": 0.8
+      },
+      "local": {
+        "score": 0.9
+      }
+    },
+    "model": {
+      "ipfs": {
+        "score": 0.7
+      },
+      "s3": {
+        "score": 0.8
+      },
+      "filecoin": {
+        "score": 0.6
+      },
+      "huggingface": {
+        "score": 1.0
+      },
+      "local": {
+        "score": 0.7
+      }
+    },
+    "dataset": {
+      "ipfs": {
+        "score": 0.8
+      },
+      "s3": {
+        "score": 0.9
+      },
+      "filecoin": {
+        "score": 0.7
+      },
+      "huggingface": {
+        "score": 0.9
+      },
+      "local": {
+        "score": 0.7
+      }
+    }
+  }
+}

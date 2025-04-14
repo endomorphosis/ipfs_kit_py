@@ -1,0 +1,1 @@
+This is a larger test file for IPFS Kit through MCP server. Testing multiple lines and more content to ensure proper handling of larger files through the API endpoints.

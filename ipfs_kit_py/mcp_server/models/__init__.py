@@ -1,10 +1,25 @@
 """
-Model components for the MCP server.
-
-The models encapsulate the domain logic and state, providing
-a clear separation from the controller and persistence layers.
+Import bridge for MCP models module.
+Redirects imports to the new mcp_server structure.
 """
 
-from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+import logging
+import importlib
 
-__all__ = ["IPFSModel"]
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Re-export all modules and symbols from mcp_server.models
+try:
+    from ipfs_kit_py.mcp_server.models import *
+    logger.debug("Successfully imported from mcp_server.models")
+except ImportError as e:
+    logger.warning(f"Failed to import from mcp_server.models: {e}")
+
+# Specific imports for backward compatibility
+try:
+    from ipfs_kit_py.mcp_server.models.ipfs_model import *
+    from ipfs_kit_py.mcp_server.models.ipfs_model_anyio import *
+    logger.debug("Successfully imported ipfs models")
+except ImportError as e:
+    logger.warning(f"Failed to import ipfs models: {e}")

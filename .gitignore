@@ -23,7 +23,7 @@ random_file.bin
 **/ipfs_kit_py/bin/ipget*
 node_modules/
 *.venv/
-
+mcp_credential.sh
 # Cluster management specific
 *metrics/
 .ipfs*

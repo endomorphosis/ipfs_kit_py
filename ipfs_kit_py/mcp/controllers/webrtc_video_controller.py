@@ -1,132 +1,36 @@
 """
-WebRTC Video Player Controller for the MCP Server.
-
-This module provides endpoints for the WebRTC video player page
-which includes random seek functionality.
+Auto-generated bridge module from mcp_server.controllers.webrtc_video_controller to mcp.controllers.webrtc_video_controller.
+This file was created by the import_fixer.py script.
 """
 
-import os
-import time
-import uuid
-from typing import Dict, Any
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+import sys
+import logging
+import importlib
 
-class WebRTCVideoPlayerController:
-    """Controller for the WebRTC video player."""
-    
-    def __init__(self, static_dir=None, webrtc_model=None):
-        """Initialize the WebRTC video player controller.
-        
-        Args:
-            static_dir: Optional path to static directory. If None, will attempt to find it.
-            webrtc_model: Optional WebRTC model for accessing connection data
-        """
-        self.static_dir = static_dir or self._get_static_dir()
-        self.webrtc_model = webrtc_model
-        
-    def _get_static_dir(self) -> str:
-        """Get the path to the static directory."""
-        # Try to find the static directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        root_dir = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
-        static_dir = os.path.join(root_dir, "static")
-        
-        # Create the directory if it doesn't exist
-        if not os.path.exists(static_dir):
-            os.makedirs(static_dir)
-            
-        return static_dir
-    
-    def register_routes(self, router: APIRouter):
-        """Register the video player routes with the API router.
-        
-        Args:
-            router: The FastAPI router to register routes with
-        """
-        # Video player page
-        @router.get("/player", response_class=HTMLResponse)
-        async def get_video_player(request: Request):
-            # Get connection ID and content CID from query parameters if provided
-            connection_id = request.query_params.get("connection_id", "")
-            content_cid = request.query_params.get("content_cid", "")
-            
-            player_path = os.path.join(self.static_dir, "webrtc_video_player.html")
-            
-            if os.path.exists(player_path):
-                with open(player_path, "r") as f:
-                    html_content = f.read()
-                    
-                # If connection parameters were provided, inject them into the HTML
-                if connection_id and content_cid:
-                    # Insert a script to auto-populate the form fields
-                    html_content = html_content.replace(
-                        "</body>",
-                        f'''
-                        <script>
-                            // Auto-populate connection details from URL parameters
-                            document.addEventListener('DOMContentLoaded', function() {{
-                                // Set connection details from URL parameters
-                                document.getElementById('content-cid').value = "{content_cid}";
-                                
-                                // Add a message about the connection
-                                addLogEntry("Connection parameters received from dashboard: Connection ID {connection_id}", "info");
-                                
-                                // Optionally auto-connect when from dashboard
-                                if (confirm("Auto-connect to stream with content CID {content_cid}?")) {{
-                                    connectStream();
-                                }}
-                            }});
-                        </script>
-                        </body>'''
-                    )
-                    
-                return html_content
-            else:
-                return "<html><body><h1>WebRTC Video Player</h1><p>Player HTML file not found.</p></body></html>"
-                
-        # Connection status endpoint (to retrieve information about a specific connection)
-        @router.get("/connection/{connection_id}", response_class=JSONResponse)
-        async def get_connection_details(connection_id: str):
-            # Return information if webrtc model is available
-            if not self.webrtc_model or not hasattr(self.webrtc_model, 'get_connection_info'):
-                return {"success": False, "error": "Connection information not available"}
-                
-            try:
-                # Call model method to get connection info
-                connection_info = await self.webrtc_model.get_connection_info(connection_id)
-                return connection_info
-            except Exception as e:
-                return {
-                    "success": False,
-                    "error": f"Error retrieving connection info: {str(e)}"
-                }
-        
-        # Sample video endpoint for testing
-        @router.get("/demo_video.mp4", response_class=FileResponse)
-        async def get_demo_video():
-            # Path to a sample video file - if not exists, return a 404
-            video_path = os.path.join(self.static_dir, "demo_video.mp4")
-            if not os.path.exists(video_path):
-                return {"error": "Demo video not found"}
-            
-            return FileResponse(video_path)
+# Configure logging
+logger = logging.getLogger(__name__)
 
-
-def create_webrtc_video_player_router(static_dir=None, webrtc_model=None) -> APIRouter:
-    """Create a FastAPI router with WebRTC video player endpoints.
+# Import from the real module location
+try:
+    # Import the real module
+    _real_module = importlib.import_module("ipfs_kit_py.mcp_server.controllers.webrtc_video_controller")
     
-    Args:
-        static_dir: Optional path to static directory
-        webrtc_model: Optional WebRTC model for accessing connection data
-        
-    Returns:
-        FastAPI router with WebRTC video player endpoints
-    """
-    router = APIRouter(prefix="/api/v0/webrtc", tags=["webrtc"])
+    # Get the exported symbols
+    if hasattr(_real_module, "__all__"):
+        __all__ = _real_module.__all__
+    else:
+        __all__ = [name for name in dir(_real_module) if not name.startswith("_")]
     
-    # Create and register controller
-    controller = WebRTCVideoPlayerController(static_dir=static_dir, webrtc_model=webrtc_model)
-    controller.register_routes(router)
+    # Import everything into this namespace
+    for name in __all__:
+        try:
+            globals()[name] = getattr(_real_module, name)
+            logger.debug(f"Imported {name} from ipfs_kit_py.mcp_server.controllers.webrtc_video_controller")
+        except AttributeError:
+            logger.warning(f"Failed to import {name} from ipfs_kit_py.mcp_server.controllers.webrtc_video_controller")
     
-    return router
+    logger.debug(f"Successfully imported from ipfs_kit_py.mcp_server.controllers.webrtc_video_controller")
+except ImportError as e:
+    logger.error(f"Failed to import from ipfs_kit_py.mcp_server.controllers.webrtc_video_controller: {e}")
+    # No fallbacks provided here, will just raise the ImportError
+    raise

@@ -1,41 +1,40 @@
 """
-Controller components for the MCP server.
-
-The controllers handle HTTP requests and delegate to the appropriate
-model components for business logic.
+Bridge module for controllers package.
+This file was created by the import_fixer.py script.
 """
 
-from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
-from ipfs_kit_py.mcp.controllers.cli_controller import CliController
-from ipfs_kit_py.mcp.controllers.credential_controller import CredentialController
-from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManagerController
+import logging
+import importlib
 
-# Import optional controllers if they exist
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Import from real module
 try:
-    from ipfs_kit_py.mcp.controllers.fs_journal_controller import FsJournalController
-    HAS_FS_JOURNAL = True
-except ImportError:
-    HAS_FS_JOURNAL = False
-
-try:
-    from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
-    HAS_LIBP2P = True
-except ImportError:
-    HAS_LIBP2P = False
-
-# Add other optional controllers similarly...
-
-# Define __all__ dynamically based on successful imports
-__all__ = [
-    "IPFSController",
-    "CliController",
-    "CredentialController",
-    "StorageManagerController",
-]
-
-if HAS_FS_JOURNAL:
-    __all__.append("FsJournalController")
-if HAS_LIBP2P:
-    __all__.append("LibP2PController")
-
-# Add other optional controllers to __all__ if imported...
+    _real_module = importlib.import_module("ipfs_kit_py.mcp_server.controllers")
+    
+    # Import all public members
+    if hasattr(_real_module, "__all__"):
+        __all__ = _real_module.__all__
+        
+        # Import all listed names
+        for name in __all__:
+            try:
+                globals()[name] = getattr(_real_module, name)
+            except AttributeError:
+                logger.warning(f"Could not import {name} from ipfs_kit_py.mcp_server.controllers")
+    else:
+        # Import all non-private names
+        __all__ = []
+        for name in dir(_real_module):
+            if not name.startswith("_"):
+                try:
+                    globals()[name] = getattr(_real_module, name)
+                    __all__.append(name)
+                except AttributeError:
+                    pass
+                    
+    logger.debug(f"Successfully imported from ipfs_kit_py.mcp_server.controllers")
+except ImportError as e:
+    logger.warning(f"Failed to import from ipfs_kit_py.mcp_server.controllers: {e}")
+    __all__ = []

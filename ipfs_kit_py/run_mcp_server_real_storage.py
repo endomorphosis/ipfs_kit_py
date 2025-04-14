@@ -49,7 +49,7 @@ def create_app():
     
     # Import MCP server
     try:
-        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
+        from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Corrected import path
         
         # Create MCP server
         mcp_server = MCPServer(
@@ -60,9 +60,9 @@ def create_app():
         
         # Force loading all storage backends
         # Ensure we have real implementations initialized
-        if hasattr(mcp_server, 'storage_manager') and hasattr(mcp_server.storage_manager, '_initialize_backends'):
+        if hasattr(mcp_server, 'storage_manager') and hasattr(mcp_server.storage_manager, '_init_storage_models'):
             try:
-                mcp_server.storage_manager._initialize_backends()
+                mcp_server.storage_manager._init_storage_models()
                 logger.info("Initialized all storage backends")
             except Exception as e:
                 logger.error(f"Error initializing storage backends: {e}")
@@ -94,7 +94,7 @@ def create_app():
             storage_backends = {}
             if hasattr(mcp_server, 'storage_manager'):
                 try:
-                    for backend_name, backend in mcp_server.storage_manager.backends.items():
+                    for backend_name, backend in mcp_server.storage_manager.storage_models.items():
                         storage_backends[backend_name] = {
                             "available": True,
                             "simulation": False,
@@ -179,7 +179,7 @@ def create_app():
             
             # Check each storage backend
             if hasattr(mcp_server, 'storage_manager'):
-                for backend_name, backend in mcp_server.storage_manager.backends.items():
+                for backend_name, backend in mcp_server.storage_manager.storage_models.items():
                     try:
                         # Call the backend's health check
                         if hasattr(backend, 'async_health_check'):

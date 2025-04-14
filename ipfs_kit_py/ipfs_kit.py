@@ -865,16 +865,45 @@ class ipfs_kit:
         try:
             # Check IPFS daemon
             if hasattr(self, 'ipfs'):
-                # Use ps command to check if daemon is running
-                ps_result = self.ipfs.run_ipfs_command(["ps", "-ef"], check=False)
                 ipfs_running = False
-
-                if ps_result.get("success", False) and "stdout" in ps_result:
-                    # Look for ipfs daemon process
-                    for line in ps_result["stdout"].splitlines():
-                        if "ipfs daemon" in line and "grep" not in line:
+                
+                # First attempt: try ipfs id as a direct check
+                try:
+                    id_result = self.ipfs.run_ipfs_command(["id"], check=False)
+                    if id_result.get("success", True) and "ID" in id_result.get("stdout", ""):
+                        ipfs_running = True
+                        self.logger.debug("IPFS daemon detected as running using 'ipfs id' command")
+                except Exception as e:
+                    self.logger.debug(f"Error checking IPFS daemon with 'ipfs id': {str(e)}")
+                
+                # Second attempt: use ps command if the first attempt fails
+                if not ipfs_running:
+                    try:
+                        ps_result = self.ipfs.run_ipfs_command(["ps", "-ef"], check=False)
+                        if ps_result.get("success", False) and "stdout" in ps_result:
+                            # Look for ipfs daemon process
+                            for line in ps_result["stdout"].splitlines():
+                                if "ipfs daemon" in line and "grep" not in line:
+                                    ipfs_running = True
+                                    self.logger.debug("IPFS daemon detected as running using 'ps' command")
+                                    break
+                    except Exception as e:
+                        self.logger.debug(f"Error checking IPFS daemon with 'ps': {str(e)}")
+                
+                # Third attempt: direct process check
+                if not ipfs_running:
+                    try:
+                        import subprocess
+                        # Try using 'pgrep' to find daemon
+                        pgrep_result = subprocess.run(["pgrep", "-f", "ipfs daemon"], 
+                                                    stdout=subprocess.PIPE, 
+                                                    stderr=subprocess.PIPE,
+                                                    check=False)
+                        if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
                             ipfs_running = True
-                            break
+                            self.logger.debug("IPFS daemon detected as running using 'pgrep' command")
+                    except Exception as e:
+                        self.logger.debug(f"Error checking IPFS daemon with direct process check: {str(e)}")
 
                 result["daemons"]["ipfs"] = {
                     "running": ipfs_running,

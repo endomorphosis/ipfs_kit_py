@@ -1,0 +1,132 @@
+{
+  "regions": {
+    "us-east": {
+      "name": "US East",
+      "continent": "North America",
+      "latency_ms": {
+        "us-east": 10,
+        "us-west": 65,
+        "eu-west": 90,
+        "eu-central": 110,
+        "ap-east": 220,
+        "ap-south": 180
+      },
+      "ip_ranges": [
+        "52.0.0.0/11",
+        "54.160.0.0/12"
+      ],
+      "available_backends": [
+        "ipfs",
+        "local",
+        "s3",
+        "filecoin"
+      ]
+    },
+    "us-west": {
+      "name": "US West",
+      "continent": "North America",
+      "latency_ms": {
+        "us-east": 65,
+        "us-west": 10,
+        "eu-west": 130,
+        "eu-central": 150,
+        "ap-east": 180,
+        "ap-south": 190
+      },
+      "ip_ranges": [
+        "54.176.0.0/12",
+        "52.8.0.0/13"
+      ],
+      "available_backends": [
+        "ipfs",
+        "s3",
+        "filecoin"
+      ]
+    },
+    "eu-west": {
+      "name": "EU West",
+      "continent": "Europe",
+      "latency_ms": {
+        "us-east": 90,
+        "us-west": 130,
+        "eu-west": 10,
+        "eu-central": 25,
+        "ap-east": 240,
+        "ap-south": 140
+      },
+      "ip_ranges": [
+        "34.240.0.0/13",
+        "54.72.0.0/13"
+      ],
+      "available_backends": [
+        "ipfs",
+        "s3",
+        "filecoin",
+        "storacha"
+      ]
+    },
+    "eu-central": {
+      "name": "EU Central",
+      "continent": "Europe",
+      "latency_ms": {
+        "us-east": 110,
+        "us-west": 150,
+        "eu-west": 25,
+        "eu-central": 10,
+        "ap-east": 220,
+        "ap-south": 120
+      },
+      "ip_ranges": [
+        "52.56.0.0/13",
+        "35.156.0.0/14"
+      ],
+      "available_backends": [
+        "ipfs",
+        "s3",
+        "filecoin"
+      ]
+    },
+    "ap-east": {
+      "name": "Asia Pacific East",
+      "continent": "Asia",
+      "latency_ms": {
+        "us-east": 220,
+        "us-west": 180,
+        "eu-west": 240,
+        "eu-central": 220,
+        "ap-east": 10,
+        "ap-south": 90
+      },
+      "ip_ranges": [
+        "54.248.0.0/13",
+        "52.192.0.0/13"
+      ],
+      "available_backends": [
+        "ipfs",
+        "s3",
+        "lassie"
+      ]
+    },
+    "ap-south": {
+      "name": "Asia Pacific South",
+      "continent": "Asia",
+      "latency_ms": {
+        "us-east": 180,
+        "us-west": 190,
+        "eu-west": 140,
+        "eu-central": 120,
+        "ap-east": 90,
+        "ap-south": 10
+      },
+      "ip_ranges": [
+        "52.66.0.0/13",
+        "13.126.0.0/14"
+      ],
+      "available_backends": [
+        "ipfs",
+        "s3",
+        "filecoin"
+      ]
+    }
+  }
+}
