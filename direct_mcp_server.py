@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Direct MCP server implementation with explicit SSE (Server-Sent Events) handling.
-This version includes blue/green deployment capabilities for seamless updates
-and live patching with thorough validation using pycompile and pytest.
+Direct MCP server implementation using FastMCP and Starlette.
+This version includes blue/green deployment capabilities.
+It relies on the standard FastMCP SSE handling.
 """
 
 import os
@@ -63,39 +63,12 @@ try:
     from starlette.middleware.cors import CORSMiddleware
     from starlette.requests import Request
     from mcp import types as mcp_types 
-    from mcp.server.session import ServerSession, InitializationState 
     imports_succeeded = True
     logger.info("Successfully imported MCP and Starlette modules.")
 except ImportError as e:
     logger.error(f"Failed to import required MCP/Starlette modules even after adding SDK path: {e}")
-    # Define dummy classes/variables if imports fail, so the rest of the script doesn't crash immediately
-    class FastMCP: 
-        def __init__(self, *args, **kwargs): pass
-        def tool(self, *args, **kwargs): return lambda f: f # Dummy decorator
-        def sse_app(self): return None # Dummy method
-    class Context: pass
-    class ServerSession: pass
-    class InitializationState: NotInitialized=0; Initializing=1; Initialized=2
-    class mcp_types: InitializeRequest=None; ServerResult=None; EmptyResult=None; InitializedNotification=None; LATEST_PROTOCOL_VERSION=None
-    class Starlette: 
-         def __init__(self, *args, **kwargs): self.routes = []
-         def add_middleware(self, *args, **kwargs): pass
-         def on_event(self, *args, **kwargs): return lambda f: f # Dummy decorator
-    class Route: pass
-    class JSONResponse: pass
-    class StreamingResponse: pass
-    class Response: pass
-    class CORSMiddleware: pass
-    class Request: pass
-    try:
-        import uvicorn
-    except ImportError:
-        logger.error("Failed to import uvicorn as well.")
-        uvicorn = None # Define uvicorn as None if it also fails
-
-# --- Removed Custom Patching Logic ---
-# The custom patching logic for ServerSession was removed as it seemed to cause instability.
-# Relying on the default SDK behavior now.
+    # Exit if core imports fail
+    sys.exit(1) 
 
 # --- Blue/Green Deployment Configuration ---
 DEPLOYMENT_CONFIG = {
@@ -143,17 +116,11 @@ try:
 except Exception as e:
     logger.error(f"Failed to write PID file {current_pid_file}: {e}")
 
-# Create FastMCP server only if imports succeeded
-if imports_succeeded:
-    server = FastMCP(
-        name=f"direct-mcp-server-{server_color}", 
-        instructions="Server with blue/green deployment and live patching capabilities"
-    )
-else:
-    logger.error("MCP Imports failed, cannot create FastMCP server instance.")
-    # Create a dummy server object to prevent later errors if 'server' is used
-    server = type('obj', (object,), {'_tool_manager': type('obj', (object,), {'_tools': {}}), 'sse_app': lambda: None})() 
-
+# Create FastMCP server 
+server = FastMCP(
+    name=f"direct-mcp-server-{server_color}", 
+    instructions="Server with blue/green deployment and live patching capabilities"
+)
 
 # Server initialization state 
 server_initialized = False
@@ -1166,158 +1133,25 @@ if imports_succeeded:
             return f"Error: {error_msg}"
 
 # --- Custom Raw SSE Implementation ---
-async def generate_sse_events(request):
-    """Generate SSE events for MCP communications including tool definitions."""
-    try:
-        logger.info(f"SSE stream connected for request: {request.url.path}")
-        
-        # Wait for server initialization to complete
-        if not server_initialized:
-            logger.info("Waiting for server initialization to complete before handling SSE connection")
-            await initialization_event.wait()
-            logger.info("Server initialization complete, proceeding with SSE connection")
-            
-        # Send an initial connection event
-        yield f"data: {json.dumps({'type': 'connection', 'status': 'connected', 'server': server.name, 'color': server_color})}\n\n"
-        
-        # Send server metadata (crucial for MCP tool discovery)
-        server_info = {
-            "type": "server_info",
-            "name": server.name,
-            "version": server._mcp_server.version or "1.0.0",
-            "instructions": server._mcp_server.instructions or "Direct MCP Server with file editing capabilities"
-        }
-        yield f"data: {json.dumps(server_info)}\n\n"
-        
-        # Get tool definitions directly from FastMCP's list_tools method
-        try:
-            tools = await server._mcp_server.list_tools_handler()
-            for tool in tools:
-                # Convert tool to proper format for SSE
-                tool_info = {
-                    "type": "tool",
-                    "name": tool["name"],
-                    "description": tool.get("description", ""),
-                    "inputSchema": tool.get("inputSchema", {})
-                }
-                yield f"data: {json.dumps(tool_info)}\n\n"
-                logger.info(f"Sent tool definition for: {tool_info['name']}")
-        except Exception as e:
-            logger.error(f"Error getting tool definitions: {e}", exc_info=True)
-            # Fallback to direct reflection-based approach
-            try:
-                # Get tools from the FastMCP server's tool manager
-                tool_names = list(server._tool_manager._tools.keys())
-                logger.info(f"Found {len(tool_names)} tools via reflection: {tool_names}")
-                
-                for tool_name in tool_names:
-                    tool_fn = server._tool_manager._tools[tool_name]
-                    # Extract tool metadata using reflection
-                    import inspect
-                    sig = inspect.signature(tool_fn.fn)
-                    parameters = {}
-                    for param_name, param in sig.parameters.items():
-                        if param_name == 'ctx' or param_name == 'context':
-                            continue  # Skip context parameter
-                        
-                        parameters[param_name] = {
-                            "type": "string",  # Default type
-                            "description": "",
-                            "required": param.default == inspect.Parameter.empty
-                        }
-                    
-                    # Send tool definition
-                    tool_info = {
-                        "type": "tool",
-                        "name": tool_name,
-                        "description": getattr(tool_fn, 'description', ''),
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": parameters
-                        }
-                    }
-                    yield f"data: {json.dumps(tool_info)}\n\n"
-                    logger.info(f"Sent fallback tool definition for: {tool_name}")
-            except Exception as e2:
-                logger.error(f"Fallback tool discovery also failed: {e2}", exc_info=True)
-        
-        # Send ready event to indicate all tools have been sent
-        yield f"data: {json.dumps({'type': 'ready'})}\n\n"
-        logger.info("Sent 'ready' event to client")
-        
-        # Set up an event loop to handle MCP events and keep connection alive
-        count = 0
-        while not await request.is_disconnected():
-            # Send periodic ping events
-            yield f"data: {json.dumps({'type': 'ping', 'count': count, 'color': server_color})}\n\n"
-            count += 1
-            
-            await asyncio.sleep(10)  # Increased interval to reduce noise
-                
-    except Exception as e:
-        logger.error(f"Error in SSE stream: {e}", exc_info=True)
-        yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-
-# --- Explicit SSE Handling ---
-async def sse_endpoint(request):
-    """
-    Custom SSE endpoint with explicit content type headers.
-    This implementation doesn't rely on FastMCP's internal event_stream API.
-    """
-    logger.info(f"SSE connection received: {request.url.path}")
-
-    # Create a streaming response with the SSE generator
-    return StreamingResponse(
-        generate_sse_events(request),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # For Nginx proxies
-            "Access-Control-Allow-Origin": "*"  # CORS
-        }
-    )
+# Removed custom SSE implementation to rely on FastMCP default
 
 # --- Homepage ---
 async def homepage(request):
     """Simple homepage handler."""
     return JSONResponse({
         "message": f"Direct MCP Server ({server_color}) is running",
-        "version": server._mcp_server.version or "dev",
+        "version": "unknown" if not imports_succeeded else (server._mcp_server.version or "dev"),
         "color": server_color,
         "pid": os.getpid(),
         "endpoints": {
             "/": "This homepage",
-            "/mcp": "MCP SSE connection endpoint"
+            "/mcp": "MCP SSE connection endpoint (handled by FastMCP)"
         },
         "deployment_status": deployment_status["status"] if deployment_status else "unknown"
     })
     
 # --- Initialize server ---
-async def initialize_server():
-    """Initialize the MCP server before accepting connections."""
-    global server_initialized
-    
-    async with initialization_lock:
-        if server_initialized:
-            return
-            
-        logger.info("Initializing MCP server...")
-        try:
-            # Perform any necessary initialization steps
-            # This might include registering handlers, setting up resources, etc.
-            await asyncio.sleep(1)  # Small delay to ensure SDK is fully loaded
-            
-            # Mark initialization as complete
-            server_initialized = True
-            initialization_event.set()
-            logger.info("MCP server initialization complete")
-        except Exception as e:
-            logger.error(f"Error during server initialization: {e}", exc_info=True)
-            # Even in case of error, we mark as initialized to avoid deadlock
-            server_initialized = True
-            initialization_event.set()
-            raise
+# Removed custom initialize_server function
 
 # --- Main Entry ---
 if __name__ == "__main__":
@@ -1325,6 +1159,14 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", DEPLOYMENT_CONFIG["blue_port"] if is_blue else DEPLOYMENT_CONFIG["green_port"]))
     logger.info(f"Starting Direct MCP Server ({server_color}) on port {port}...")
     
+    if not imports_succeeded:
+        logger.critical("Core MCP/Starlette imports failed. Cannot start server.")
+        sys.exit(1)
+        
+    if not uvicorn:
+         logger.critical("Uvicorn import failed. Cannot start server.")
+         sys.exit(1)
+         
     try:
         # Use FastMCP's built-in SSE implementation
         # This will create an app with the proper protocol handling
@@ -1332,16 +1174,12 @@ if __name__ == "__main__":
         app = server.sse_app()
         
         # Add our custom homepage route
-        from starlette.routing import Route
         app.routes.append(Route("/", endpoint=homepage))
         
         logger.info(f"MCP Server Tools: {[t.name for t in server._tool_manager._tools.values()]}")
         logger.info(f"Endpoint paths: {[route.path for route in app.routes]}")
         
-        # Add startup event to initialize the server
-        @app.on_event("startup")
-        async def startup_event():
-            await initialize_server()
+        # Removed custom startup event
         
         # Run with uvicorn
         uvicorn.run(
