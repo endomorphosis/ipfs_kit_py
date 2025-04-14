@@ -29,15 +29,17 @@ from ipfs_kit_py.mcp.models.storage.storacha_model import StorachaModel
 from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
 from ipfs_kit_py.mcp.models.storage.lassie_model import LassieModel
 
-# Try to import IPFSModel - we'll handle it gracefully if not available
-try:
-    from ipfs_kit_py.mcp.models.storage.ipfs_model import IPFSModel
-    IPFS_MODEL_AVAILABLE = True
-except ImportError:
-    IPFS_MODEL_AVAILABLE = False
-
-# Configure logger
+# Configure logger (Moved before IPFSModel import)
 logger = logging.getLogger(__name__)
+
+# Try to import IPFSModel - Corrected import path
+try:
+    from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel # Corrected import path
+    IPFS_MODEL_AVAILABLE = True
+except ImportError as e: # Added exception variable
+    logger.warning(f"Could not import IPFSModel: {e}") # Log the specific error
+    IPFS_MODEL_AVAILABLE = False
+    # logger.warning(f"Could not import IPFSModel: {e}") # Removed duplicate log
 
 
 class StorageManager:
@@ -90,9 +92,9 @@ class StorageManager:
                 # Initialize backend adapter
                 ipfs_backend = IPFSBackend(ipfs_resources, ipfs_metadata)
                 
-                # Create IPFS model
+                # Create IPFS model - Pass the underlying ipfs_py instance
                 self.ipfs_model = IPFSModel(
-                    ipfs_backend=ipfs_backend,
+                    ipfs_kit_instance=ipfs_backend.ipfs, # Pass the ipfs_py instance from the backend
                     cache_manager=self.cache_manager,
                     credential_manager=self.credential_manager
                 )
@@ -137,9 +139,9 @@ class StorageManager:
                 hf_metadata = self.metadata.get("huggingface", {})
                 hf_kit_instance = huggingface_kit(resources=hf_resources, metadata=hf_metadata)
 
-                # Create Hugging Face model
+                # Create Hugging Face model (Corrected parameter name)
                 self.storage_models["huggingface"] = HuggingFaceModel(
-                    huggingface_kit_instance=hf_kit_instance,
+                    huggingface_kit_instance=hf_kit_instance, # Corrected parameter name
                     ipfs_model=self.ipfs_model,
                     cache_manager=self.cache_manager,
                     credential_manager=self.credential_manager
@@ -161,9 +163,9 @@ class StorageManager:
                 resources=storacha_resources, metadata=storacha_metadata
             )
 
-            # Create Storacha model
+            # Create Storacha model (Corrected parameter name)
             self.storage_models["storacha"] = StorachaModel(
-                storacha_kit_instance=storacha_kit_instance,
+                storacha_kit_instance=storacha_kit_instance, # Corrected parameter name
                 ipfs_model=self.ipfs_model,
                 cache_manager=self.cache_manager,
                 credential_manager=self.credential_manager
@@ -182,9 +184,9 @@ class StorageManager:
                     resources=filecoin_resources, metadata=filecoin_metadata
                 )
 
-                # Create Filecoin model
+                # Create Filecoin model (Corrected parameter name)
                 self.storage_models["filecoin"] = FilecoinModel(
-                    lotus_kit_instance=lotus_kit_instance,
+                    lotus_kit_instance=lotus_kit_instance, # Corrected parameter name
                     ipfs_model=self.ipfs_model,
                     cache_manager=self.cache_manager,
                     credential_manager=self.credential_manager
@@ -205,9 +207,9 @@ class StorageManager:
                     resources=lassie_resources, metadata=lassie_metadata
                 )
 
-                # Create Lassie model
+                # Create Lassie model (Corrected parameter name)
                 self.storage_models["lassie"] = LassieModel(
-                    lassie_kit_instance=lassie_kit_instance,
+                    lassie_kit_instance=lassie_kit_instance, # Corrected parameter name
                     ipfs_model=self.ipfs_model,
                     cache_manager=self.cache_manager,
                     credential_manager=self.credential_manager

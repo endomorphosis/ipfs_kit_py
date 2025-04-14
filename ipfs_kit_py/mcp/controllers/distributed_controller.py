@@ -10,7 +10,7 @@ import json
 import time
 import uuid
 from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, 
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 # Configure logger
@@ -19,14 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Define Pydantic models for requests and responses
 class DistributedResponse(BaseModel):
-    """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
-
-Base response model for distributed operations."""
+    """Base response model for distributed operations."""
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     timestamp: float = Field(..., description="Operation timestamp")
@@ -354,12 +347,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error during peer discovery")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -372,12 +360,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error discovering peers: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def list_known_peers(
         self, include_metrics: bool = False, filter_role: Optional[str] = None
@@ -403,12 +386,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error listing peers")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -421,12 +399,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error listing known peers: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def register_node(self, request: NodeRegistrationRequest) -> Dict[str, Any]:
         """
@@ -456,12 +429,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error during node registration")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -477,12 +445,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error registering node: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def update_node_status(
         self, node_id: str, status: str, resources: Optional[Dict[str, Any]] = None
@@ -509,12 +472,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error updating node status")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -525,12 +483,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error updating node status: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def list_nodes(
         self
@@ -564,12 +517,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error listing nodes")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -580,12 +528,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error listing nodes: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def cache_operation(self, request: ClusterCacheRequest) -> Dict[str, Any]:
         """
@@ -614,12 +557,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error performing cache operation")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -634,12 +572,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error performing cache operation: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def get_cache_status(self) -> Dict[str, Any]:
         """
@@ -657,12 +590,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error getting cache status")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -673,12 +601,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error getting cache status: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def state_operation(self, request: ClusterStateRequest) -> Dict[str, Any]:
         """
@@ -706,12 +629,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error performing state operation")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -726,12 +644,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error performing state operation: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def synchronize_state(self, sync_data: StateSyncRequest) -> Dict[str, Any]:
         """
@@ -759,12 +672,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error synchronizing state")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -775,12 +683,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error synchronizing state: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def submit_task(self, request: DistributedTaskRequest) -> Dict[str, Any]:
         """
@@ -809,12 +712,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error submitting task")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -830,12 +728,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error submitting task: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def get_task_status(self, task_id: str) -> Dict[str, Any]:
         """
@@ -857,7 +750,8 @@ class DistributedController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error getting task status")
                 status_code = 404 if "not found" in error_msg.lower() else 500
-                raise HTTPException(status_code=status_code, detail=error_msg)
+                # Add operation context to the detail message
+                raise HTTPException(status_code=status_code, detail=f"Failed to get task status: {error_msg}")
 
             return {
                 "success": True,
@@ -875,12 +769,7 @@ class DistributedController:
             raise
         except Exception as e:
             logger.error(f"Error getting task status: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def cancel_task(self, task_id: str) -> Dict[str, Any]:
         """
@@ -902,7 +791,8 @@ class DistributedController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error cancelling task")
                 status_code = 404 if "not found" in error_msg.lower() else 500
-                raise HTTPException(status_code=status_code, detail=error_msg)
+                 # Add operation context to the detail message
+                raise HTTPException(status_code=status_code, detail=f"Failed to cancel task: {error_msg}")
 
             return {
                 "success": True,
@@ -920,12 +810,7 @@ class DistributedController:
             raise
         except Exception as e:
             logger.error(f"Error cancelling task: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def list_tasks(
         self
@@ -959,12 +844,7 @@ class DistributedController:
 
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error listing tasks")
-                mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    )
+                raise HTTPException(status_code=500, detail=error_msg)
 
             return {
                 "success": True,
@@ -975,12 +855,7 @@ class DistributedController:
 
         except Exception as e:
             logger.error(f"Error listing tasks: {e}")
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed",
-        doc_category="api"
-    ))
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def simple_sync(self):
         """
@@ -1051,12 +926,12 @@ class DistributedController:
                 try:
                     data = await websocket.receive_text()
                     # Process any client messages (e.g., changing filters)
-                    if data == "ping": ,
+                    if data == "ping":
                         await websocket.send_text("pong")
                     else:
                         try:
                             msg = json.loads(data)
-                            if msg.get("type") == "update_subscription": ,
+                            if msg.get("type") == "update_subscription":
                                 # Update subscription parameters
                                 self.ipfs_model.execute_command(
                                     command="update_event_subscription",

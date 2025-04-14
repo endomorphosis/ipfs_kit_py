@@ -1521,3 +1521,54 @@ class StorachaBackend(BackendStorage):
                         logger.warning(f"Failed to remove cache directory: {str(e)}")
         except Exception as e:
             logger.error(f"Error during Storacha backend cleanup: {str(e)}")
+            
+    def get_name(self) -> str:
+        """Get the name of this backend implementation.
+        
+        Returns:
+            String representation of the backend name
+        """
+        return "storacha"
+            
+    # BackendStorage interface implementations
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Add content to the storage backend.
+        
+        Args:
+            content: Content to store (can be a path, bytes, or file-like object)
+            metadata: Optional metadata for the content
+            
+        Returns:
+            Dict with operation result including content ID
+        """
+        # Convert metadata format if needed
+        options = {}
+        if metadata:
+            options["metadata"] = metadata
+            
+        # Delegate to the underlying store method
+        return self.store(content, options=options)
+        
+    def get_content(self, content_id: str) -> Dict[str, Any]:
+        """Retrieve content from the storage backend.
+        
+        Args:
+            content_id: ID of the content to retrieve
+            
+        Returns:
+            Dict with operation result including content data
+        """
+        # Delegate to the underlying retrieve method
+        return self.retrieve(content_id)
+        
+    def remove_content(self, content_id: str) -> Dict[str, Any]:
+        """Remove content from the storage backend.
+        
+        Args:
+            content_id: ID of the content to remove
+            
+        Returns:
+            Dict with operation result
+        """
+        # Delegate to the underlying delete method
+        return self.delete(content_id)

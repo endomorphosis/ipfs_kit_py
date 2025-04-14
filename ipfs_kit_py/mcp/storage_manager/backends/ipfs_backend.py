@@ -66,7 +66,7 @@ class IPFSBackend(BackendStorage):
         Returns:
             The ipfs_py class or a mock implementation if not found
         """
-        # First try: import from ipfs module (updated __init__.py)
+        # First try: import directly from the root ipfs.py module
         try:
             from ipfs_kit_py.ipfs import ipfs_py
             logger.info("Successfully imported ipfs_py from ipfs_kit_py.ipfs")
@@ -82,13 +82,50 @@ class IPFSBackend(BackendStorage):
         except ImportError as e:
             logger.warning(f"Could not import ipfs_py from ipfs_kit_py.ipfs_client: {e}")
         
-        # Third try: import from ipfs.py directly
+        # Third try: direct import attempt after fixing potential absolute/relative import issues
         try:
-            from ipfs_kit_py.ipfs import ipfs_py
-            logger.info("Successfully imported ipfs_py from ipfs_kit_py.ipfs")
-            return ipfs_py
+            import sys
+            import os
+            # Add the parent directory to path to ensure module can be found
+            parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            # Try importing after path adjustment
+            from ipfs_kit_py import ipfs
+            logger.info("Successfully imported ipfs_py after path adjustment")
+            return ipfs.ipfs_py
         except ImportError as e:
-            logger.warning(f"Could not import ipfs_py from root ipfs module: {e}")
+            logger.warning(f"Could not import ipfs_py after path adjustment: {e}")
+            
+        # Fourth try: direct file import using importlib
+        try:
+            import importlib.util
+            import os
+            
+            # Get the absolute path to the ipfs.py file
+            ipfs_py_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))),
+                'ipfs_kit_py', 'ipfs.py'
+            )
+            
+            # Check if the file exists
+            if os.path.exists(ipfs_py_path):
+                # Load the module from the file path
+                spec = importlib.util.spec_from_file_location("ipfs_module", ipfs_py_path)
+                ipfs_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(ipfs_module)
+                
+                # Get the ipfs_py class from the loaded module
+                if hasattr(ipfs_module, 'ipfs_py'):
+                    logger.info(f"Successfully imported ipfs_py from file: {ipfs_py_path}")
+                    return ipfs_module.ipfs_py
+                else:
+                    logger.warning(f"File {ipfs_py_path} exists but does not contain ipfs_py class")
+            else:
+                logger.warning(f"Could not find ipfs.py at path: {ipfs_py_path}")
+        except Exception as e:
+            logger.warning(f"Error importing ipfs_py from file: {e}")
 
         # Fallback: create a mock implementation if all imports fail
         logger.error("Creating mock implementation for ipfs_py since all import attempts failed.")

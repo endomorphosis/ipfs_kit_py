@@ -51,6 +51,14 @@ class FilecoinBackend(BackendStorage):
         self.verify_deals = metadata.get("verify_deals", True)
         self.max_price = metadata.get("max_price")
         self.deal_duration = metadata.get("deal_duration", 518400)  # Default: 180 days
+        
+    def get_name(self) -> str:
+        """Get the name of this backend implementation.
+        
+        Returns:
+            String representation of the backend name
+        """
+        return "filecoin"
 
     def store(
         self,
@@ -625,3 +633,46 @@ class FilecoinBackend(BackendStorage):
                 "backend": self.get_name(),
                 "identifier": identifier,
             }
+            
+    # BackendStorage interface implementations
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Add content to the storage backend.
+        
+        Args:
+            content: Content to store (can be a path, bytes, or file-like object)
+            metadata: Optional metadata for the content
+            
+        Returns:
+            Dict with operation result including content ID
+        """
+        # Convert metadata format if needed
+        options = {}
+        if metadata:
+            options.update(metadata)
+            
+        # Delegate to the underlying store method
+        return self.store(content, options=options)
+        
+    def get_content(self, content_id: str) -> Dict[str, Any]:
+        """Retrieve content from the storage backend.
+        
+        Args:
+            content_id: ID of the content to retrieve
+            
+        Returns:
+            Dict with operation result including content data
+        """
+        # Delegate to the underlying retrieve method
+        return self.retrieve(content_id)
+        
+    def remove_content(self, content_id: str) -> Dict[str, Any]:
+        """Remove content from the storage backend.
+        
+        Args:
+            content_id: ID of the content to remove
+            
+        Returns:
+            Dict with operation result
+        """
+        # Delegate to the underlying delete method
+        return self.delete(content_id)

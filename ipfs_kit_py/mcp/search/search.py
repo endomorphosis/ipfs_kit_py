@@ -405,24 +405,64 @@ class ContentSearchService:
                     return decoded_text
                 text = await anyio.to_thread.run_sync(decode_data)
             else:
-                # Fetching from IPFS should ideally use ipfs_model, but keeping subprocess for now
-                import subprocess
-                process = await anyio.run_process(["ipfs", "cat", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                stdout = process.stdout
-                stderr = process.stderr
-                if process.returncode != 0:
-                    logger.warning(f"Error fetching content for CID {cid}: {stderr.decode()}")
-                    return None, False
+                # Using ipfs_py client to fetch content instead of subprocess
+                try:
+                    # Import the ipfs_py client
+                    from ipfs_kit_py.ipfs import ipfs_py
+                    ipfs_client = ipfs_py()
+                    
+                    # Use the ipfs_cat method to retrieve content - run in thread to avoid blocking
+                    def fetch_ipfs_content():
+                        result = ipfs_client.ipfs_cat(cid)
+                        if not result.get("success", False):
+                            logger.warning(f"Error fetching content for CID {cid}: {result.get('error', 'Unknown error')}")
+                            return None
+                        return result.get("data", None)
+                    
+                    content_data = await anyio.to_thread.run_sync(fetch_ipfs_content)
+                    
+                    if not content_data:
+                        logger.warning(f"No content retrieved for CID {cid}")
+                        return None, False
+                        
+                    # Process the retrieved data
+                    def decode_data_fetched():
+                        # Handle bytes or string content
+                        if isinstance(content_data, bytes):
+                            decoded_text = content_data.decode('utf-8', errors='replace')
+                        else:
+                            decoded_text = str(content_data)
+                            
+                        if content_type in JSON_CONTENT_TYPES:
+                            try:
+                                json_data = json.loads(decoded_text)
+                                return self._extract_text_from_json(json_data)
+                            except:
+                                return decoded_text  # Fallback
+                        return decoded_text
+                    
+                    text = await anyio.to_thread.run_sync(decode_data_fetched)
+                    
+                except ImportError as e:
+                    logger.warning(f"Could not import ipfs_py, falling back to subprocess: {e}")
+                    # Fallback to subprocess if ipfs_py import fails
+                    import subprocess
+                    process = await anyio.run_process(["ipfs", "cat", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout = process.stdout
+                    stderr = process.stderr
+                    if process.returncode != 0:
+                        logger.warning(f"Error fetching content for CID {cid}: {stderr.decode()}")
+                        return None, False
 
-                def decode_data_fetched():
-                    decoded_text = stdout.decode('utf-8', errors='replace')
-                    if content_type in JSON_CONTENT_TYPES:
-                        try:
-                            json_data = json.loads(decoded_text)
-                            return self._extract_text_from_json(json_data)
-                        except: return decoded_text # Fallback
-                    return decoded_text
-                text = await anyio.to_thread.run_sync(decode_data_fetched)
+                    def decode_data_fallback():
+                        decoded_text = stdout.decode('utf-8', errors='replace')
+                        if content_type in JSON_CONTENT_TYPES:
+                            try:
+                                json_data = json.loads(decoded_text)
+                                return self._extract_text_from_json(json_data)
+                            except: return decoded_text # Fallback
+                        return decoded_text
+                    text = await anyio.to_thread.run_sync(decode_data_fallback)
 
 
             if not text:

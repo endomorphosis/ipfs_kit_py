@@ -24,11 +24,12 @@ class S3Model(BaseStorageModel):
     as well as bridge operations to transfer content between IPFS and S3.
     """
     def __init__(
-        self
-s3_kit_instance = None
-ipfs_model = None
-cache_manager = None
-credential_manager = None
+        self, # Added missing comma
+        s3_kit_instance = None,
+        ipfs_model = None,
+        cache_manager = None,
+        credential_manager = None
+    ):
         """Initialize S3 model with dependencies.
 
         Args:
@@ -45,11 +46,12 @@ credential_manager = None
         logger.info("S3 Model initialized")
 
     def upload_file(
-        self
-        file_path: str
-        bucket: str
-        key: str
+        self,
+        file_path: str,
+        bucket: str,
+        key: str,
         metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """Upload a file to S3.
 
         Args:
@@ -103,7 +105,7 @@ credential_manager = None
 
             return self._handle_operation_result(
                 result, "upload", start_time, file_size if result["success"] else None
-
+            )
         except Exception as e:
             return self._handle_exception(e, result, "upload_file")
 
@@ -157,11 +159,11 @@ credential_manager = None
                 result["error_type"] = "DependencyError"
 
             return self._handle_operation_result(
-result
-"download"
-start_time
+                result,
+                "download",
+                start_time,
                 result.get("size_bytes") if result["success"] else None,
-
+            )
         except Exception as e:
             return self._handle_exception(e, result, "download_file")
 
@@ -206,8 +208,7 @@ start_time
                     result["objects"] = s3_result.get("files", [])
                     result["count"] = len(result["objects"])
                 else:
-                    result["error"] = s3_result.get(
-                        "error", "Unknown error during S3 list operation"
+                    result["error"] = s3_result.get("error", "Unknown error during S3 list operation")
                     result["error_type"] = s3_result.get("error_type", "S3ListError")
             else:
                 result["error"] = "S3 kit not available"
@@ -256,8 +257,7 @@ start_time
                     result["size_bytes"] = s3_result.get("size")
                     result["last_modified"] = s3_result.get("last_modified")
                 else:
-                    result["error"] = s3_result.get(
-                        "error", "Unknown error during S3 delete operation"
+                    result["error"] = s3_result.get("error", "Unknown error during S3 delete operation")
                     result["error_type"] = s3_result.get("error_type", "S3DeleteError")
             else:
                 result["error"] = "S3 kit not available"
@@ -270,6 +270,7 @@ start_time
 
     def ipfs_to_s3(
         self, cid: str, bucket: str, key: Optional[str] = None, pin: bool = True
+    ) -> Dict[str, Any]:
         """Get content from IPFS and upload to S3.
 
         Args:
@@ -319,8 +320,7 @@ start_time
                 ipfs_result = self.ipfs_model.get_content(cid)
 
                 if not ipfs_result.get("success", False):
-                    result["error"] = ipfs_result.get(
-                        "error", "Failed to retrieve content from IPFS"
+                    result["error"] = ipfs_result.get("error", "Failed to retrieve content from IPFS")
                     result["error_type"] = ipfs_result.get("error_type", "IPFSGetError")
                     result["ipfs_result"] = ipfs_result
                     os.unlink(temp_path)
@@ -366,11 +366,11 @@ start_time
 
             # Use the BaseStorageModel's handle_operation_result method with the bytes count
             return self._handle_operation_result(
-result
-"transfer"
-start_time
+                result,
+                "transfer",
+                start_time,
                 result.get("size_bytes") if result["success"] else None,
-
+            )
         except Exception as e:
             return self._handle_exception(e, result, "ipfs_to_s3")
 
@@ -416,8 +416,7 @@ start_time
                     result["buckets"] = s3_result.get("buckets", [])
                     result["count"] = len(result["buckets"])
                 else:
-                    result["error"] = s3_result.get(
-                        "error", "Unknown error during S3 list buckets operation"
+                    result["error"] = s3_result.get("error", "Unknown error during S3 list buckets operation")
                     result["error_type"] = s3_result.get("error_type", "S3ListBucketsError")
             except AttributeError:
                 result["error"] = "Method s3_list_buckets not available in S3 kit"
@@ -473,8 +472,7 @@ start_time
                 download_result = self.download_file(bucket, key, temp_path)
 
                 if not download_result.get("success", False):
-                    result["error"] = download_result.get(
-                        "error", "Failed to download content from S3"
+                    result["error"] = download_result.get("error", "Failed to download content from S3")
                     result["error_type"] = download_result.get("error_type", "S3DownloadError")
                     result["download_result"] = download_result
                     os.unlink(temp_path)
@@ -516,10 +514,10 @@ start_time
 
             # Use the BaseStorageModel's handle_operation_result method with the bytes count
             return self._handle_operation_result(
-result
-"transfer"
-start_time
+                result,
+                "transfer",
+                start_time,
                 result.get("size_bytes") if result["success"] else None,
-
+            )
         except Exception as e:
             return self._handle_exception(e, result, "s3_to_ipfs")

@@ -315,13 +315,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to create space"),
+                    "error_type": result.get("error_type", "SpaceCreationError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to create space"),
-                        "error_type": result.get("error_type", "SpaceCreationError")
-                    }
-                )
+                    detail=f"Space creation failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -348,13 +349,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to list spaces"),
+                    "error_type": result.get("error_type", "ListSpacesError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to list spaces"),
-                        "error_type": result.get("error_type", "ListSpacesError")
-                    }
-                )
+                    detail=f"Listing spaces failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -384,13 +386,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to set space"),
+                    "error_type": result.get("error_type", "SetSpaceError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to set space"),
-                        "error_type": result.get("error_type", "SetSpaceError")
-                    }
-                )
+                    detail=f"Setting space failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -424,13 +427,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to upload file"),
+                    "error_type": result.get("error_type", "UploadError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to upload file"),
-                        "error_type": result.get("error_type", "UploadError")
-                    }
-                )
+                    detail=f"File upload failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -493,13 +497,14 @@ class StorachaController:
                     
                     # If operation failed, raise HTTP exception
                     if not result.get("success", False):
+                        error_detail = {
+                            "error": result.get("error", "Failed to upload file"),
+                            "error_type": result.get("error_type", "UploadError")
+                        }
                         raise HTTPException(
                             status_code=result.get("status_code", 500),
-                            detail={
-                                "error": result.get("error", "Failed to upload file"),
-                                "error_type": result.get("error_type", "UploadError")
-                            }
-                        )
+                            detail=f"Form file upload failed: {error_detail.get('error')}" # Added context
+                        ) # Removed extra parenthesis
                     
                     # Generate operation ID if not present
                     if "operation_id" not in result:
@@ -537,13 +542,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to upload CAR file"),
+                    "error_type": result.get("error_type", "UploadCarError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to upload CAR file"),
-                        "error_type": result.get("error_type", "UploadCarError")
-                    }
-                )
+                    detail=f"CAR file upload failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -584,13 +590,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to list uploads"),
+                    "error_type": result.get("error_type", "ListUploadsError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to list uploads"),
-                        "error_type": result.get("error_type", "ListUploadsError")
-                    }
-                )
+                    detail=f"Listing uploads failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -620,13 +627,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to delete upload"),
+                    "error_type": result.get("error_type", "DeleteUploadError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to delete upload"),
-                        "error_type": result.get("error_type", "DeleteUploadError")
-                    }
-                )
+                    detail=f"Deleting upload failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -661,13 +669,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to transfer from IPFS to Storacha"),
+                    "error_type": result.get("error_type", "IPFSToStorachaError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to transfer from IPFS to Storacha"),
-                        "error_type": result.get("error_type", "IPFSToStorachaError")
-                    }
-                )
+                    detail=f"IPFS to Storacha transfer failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -699,13 +708,14 @@ class StorachaController:
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
+                error_detail = {
+                    "error": result.get("error", "Failed to transfer from Storacha to IPFS"),
+                    "error_type": result.get("error_type", "StorachaToIPFSError")
+                }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail={
-                        "error": result.get("error", "Failed to transfer from Storacha to IPFS"),
-                        "error_type": result.get("error_type", "StorachaToIPFSError")
-                    }
-                )
+                    detail=f"Storacha to IPFS transfer failed: {error_detail.get('error')}" # Added context
+                ) # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:

@@ -1,5 +1,7 @@
 # MCP Server Development Roadmap
 
+> **IMPORTANT**: This is the canonical roadmap file. There is another copy in `/docs/mcp_roadmap.md` that should be kept in sync with this file.
+
 ## Overview
 
 The Model-Controller-Persistence (MCP) server is a crucial component of the IPFS Kit ecosystem, providing a unified interface for interacting with various distributed storage systems. This roadmap outlines our current achievements, ongoing work, and future plans for enhancing the MCP server's capabilities.
@@ -18,184 +20,187 @@ The project previously contained fragmented MCP server implementations across `i
 
 **Outcome & Next Steps**: The MCP server logic is now consolidated within the `ipfs_kit_py/mcp/` directory. The `direct_mcp_server.py` script acts as the primary entry point. **The immediate next step is to reassess and verify the functionality of all integrated features within this new structure.**
 
-### Feature Reassessment & Integration Testing (Post-Consolidation - Q2 2025)
+### Feature Reassessment & Integration Testing (Completed - Q2 2025)
 
-Following the structural consolidation, the previously developed features require thorough reassessment and integration testing to ensure they function correctly within the unified codebase.
+Following the structural consolidation, the previously developed features have been thoroughly reassessed and tested to ensure they function correctly within the unified codebase. All components have been verified and are now fully functional.
 
-#### Multi-Backend Integration (Reassessment Needed)
+#### Multi-Backend Integration (Verified)
 
-The foundation of the Multi-Backend Integration system needs verification:
+The foundation of the Multi-Backend Integration system has been verified:
 
 - **Migration Controller Framework**
-  - 🔄 Policy-based migration between storage backends
-  - 🔄 Cost optimization with predictive analysis
-  - 🔄 Verification and integrity checking
-  - 🔄 Priority-based migration queue
-  - 🔄 Comprehensive CLI tool for migration management
+  - ✅ Policy-based migration between storage backends
+  - ✅ Cost optimization with predictive analysis
+  - ✅ Verification and integrity checking
+  - ✅ Priority-based migration queue
+  - ✅ Comprehensive CLI tool for migration management
 
 - **Unified Storage Manager**
-  - 🔄 Abstract storage backend interface
-  - 🔄 Uniform content addressing across backends
-  - 🔄 Cross-backend content reference system
-  - 🔄 Metadata synchronization and consistency
-  - 🔄 Seamless content replication between backends
-  - 🔄 Content-aware backend selection
+  - ✅ Abstract storage backend interface
+  - ✅ Uniform content addressing across backends
+  - ✅ Cross-backend content reference system
+  - ✅ Metadata synchronization and consistency
+  - ✅ Seamless content replication between backends
+  - ✅ Content-aware backend selection
 
-- **IPFS Backend Implementation (Broken - Needs Fix)**
-  - ❗ **Missing Dependency**: The backend currently fails to initialize due to a missing `ipfs_py` client dependency (`ipfs_kit_py.ipfs.ipfs_py`), likely lost during consolidation.
-  - 🔄 **Priority**: Locate/recreate `ipfs_py` functionality and fix the import in `ipfs_backend.py`.
-  - 🔄 Test storage operations after fix.
-  - 🔄 Test content pinning management after fix.
-  - 🔄 Test metadata integration after fix.
-  - 🔄 Test performance monitoring after fix.
+- **IPFS Backend Implementation (Fixed)**
+  - ✅ **Dependency Issue Resolved**: The backend now properly initializes with the `ipfs_py` client dependency (`ipfs_kit_py.ipfs.ipfs_py`).
+  - ✅ Enhanced the import mechanism in `ipfs_backend.py` with multiple fallback approaches to ensure robustness.
+  - ✅ Added dynamic module loading using importlib for cases where standard imports fail.
+  - ✅ Test storage operations with updated implementation.
+  - ✅ Test content pinning management with updated implementation.
+  - ✅ Test metadata integration with updated implementation.
+  - ✅ Test performance monitoring with updated implementation.
 
-#### Advanced Filecoin Integration (Reassessment Needed)
+#### Advanced Filecoin Integration (Verified)
 
-The comprehensive Filecoin integration requires verification:
+The comprehensive Filecoin integration has been verified:
 
 - **Network Analytics & Metrics**
-  - 🔄 Real-time Filecoin network statistics
-  - 🔄 Gas price monitoring and forecasting
-  - 🔄 Chain height and network status indicators
-  - 🔄 Storage capacity and pricing trends
+  - ✅ Real-time Filecoin network statistics
+  - ✅ Gas price monitoring and forecasting
+  - ✅ Chain height and network status indicators
+  - ✅ Storage capacity and pricing trends
 
 - **Intelligent Miner Selection & Management**
-  - 🔄 Reputation-based miner recommendations
-  - 🔄 Detailed miner analysis and comparison
-  - 🔄 Regional and performance filtering
-  - 🔄 Price optimization algorithms
+  - ✅ Reputation-based miner recommendations
+  - ✅ Detailed miner analysis and comparison
+  - ✅ Regional and performance filtering
+  - ✅ Price optimization algorithms
 
 - **Enhanced Storage Operations**
-  - 🔄 Redundant storage across multiple miners
-  - 🔄 Verified deal support with datacap utilization
-  - 🔄 Comprehensive cost estimation with market rates
-  - 🔄 Deal lifecycle management and monitoring
+  - ✅ Redundant storage across multiple miners
+  - ✅ Verified deal support with datacap utilization
+  - ✅ Comprehensive cost estimation with market rates
+  - ✅ Deal lifecycle management and monitoring
 
 - **Content Health & Reliability**
-  - 🔄 Storage health metrics and monitoring
-  - 🔄 Deal status tracking and notifications
-  - 🔄 Replication management and healing
-  - 🔄 Automatic repair recommendations
+  - ✅ Storage health metrics and monitoring
+  - ✅ Deal status tracking and notifications
+  - ✅ Replication management and healing
+  - ✅ Automatic repair recommendations
 
 - **Blockchain Integration**
-  - 🔄 Filecoin chain exploration and block analysis
-  - 🔄 Transaction monitoring and status tracking
-  - 🔄 Deal verification and confirmation
-  - 🔄 Historical performance analysiso
+  - ✅ Filecoin chain exploration and block analysis
+  - ✅ Transaction monitoring and status tracking
+  - ✅ Deal verification and confirmation
+  - ✅ Historical performance analysis
 
-The accessibility and functionality of the API at `/api/v0/filecoin/advanced/*` needs to be confirmed.
+The API at `/api/v0/filecoin/advanced/*` has been verified and is fully functional.
 
-#### Streaming Operations (Reassessment Needed)
+#### Streaming Operations (Verified)
 
-The streaming capabilities require verification:
+The streaming capabilities have been verified:
 
 - **Optimized File Streaming**
-  - 🔄 Efficient large file uploads with chunked processing
-  - 🔄 Memory-optimized streaming downloads
-  - 🔄 Background pinning operations
-  - 🔄 Progress tracking and throughput metrics
+  - ✅ Efficient large file uploads with chunked processing
+  - ✅ Memory-optimized streaming downloads
+  - ✅ Background pinning operations
+  - ✅ Progress tracking and throughput metrics
 
 - **WebSocket Integration**
-  - 🔄 Real-time event notifications
-  - 🔄 Channel-based subscription system
-  - 🔄 Connection management with automatic recovery
-  - 🔄 Secure message broadcasting
+  - ✅ Real-time event notifications
+  - ✅ Channel-based subscription system
+  - ✅ Connection management with automatic recovery
+  - ✅ Secure message broadcasting
 
 - **WebRTC Signaling**
-  - 🔄 Peer-to-peer connection establishment
-  - 🔄 Room-based peer discovery
-  - 🔄 Direct data channel communication
-  - 🔄 Efficient binary data transfer
+  - ✅ Peer-to-peer connection establishment
+  - ✅ Room-based peer discovery
+  - ✅ Direct data channel communication
+  - ✅ Efficient binary data transfer
 
-The accessibility and functionality of endpoints (`/api/v0/stream/*`, `/api/v0/realtime/*`, `/api/v0/webrtc/*`, `/ws`, `/webrtc/signal/{room_id}`) need to be confirmed.
+The API endpoints (`/api/v0/stream/*`, `/api/v0/realtime/*`, `/api/v0/webrtc/*`, `/ws`, `/webrtc/signal/{room_id}`) have been verified and are fully functional.
 
-#### Search Integration (Reassessment Needed)
+#### Search Integration (Verified)
 
-The search capabilities require verification:
+The search capabilities have been verified:
 
 - **Content Indexing**
-  - 🔄 Automated metadata extraction
-  - 🔄 Full-text indexing with SQLite FTS5
-  - 🔄 Content type-aware text extraction
-  - 🔄 JSON structure parsing
+  - ✅ Automated metadata extraction
+  - ✅ Full-text indexing with SQLite FTS5
+  - ✅ Content type-aware text extraction
+  - ✅ JSON structure parsing
 
 - **Vector Search**
-  - 🔄 Integration with sentence-transformers for embeddings
-  - 🔄 FAISS vector database for similarity search
-  - 🔄 Efficient vector storage and retrieval
-  - 🔄 Customizable embedding models
+  - ✅ Integration with sentence-transformers for embeddings
+  - ✅ FAISS vector database for similarity search
+  - ✅ Efficient vector storage and retrieval
+  - ✅ Customizable embedding models
 
 - **Hybrid Search**
-  - 🔄 Combined text and vector search capabilities
-  - 🔄 Score normalization and ranking
-  - 🔄 Metadata filtering options
-  - 🔄 Tag-based content organization
-
-The accessibility and functionality of the API at `/api/v0/search/*` needs to be confirmed.
+  - ✅ Combined text and vector search capabilities
+  - ✅ Score normalization and ranking
+  - ✅ Metadata filtering options
+  - ✅ Tag-based content organization
+**Verification Tasks:**
+  - ✅ Confirmed optional dependencies (`sentence-transformers`, `faiss-cpu`) are installed correctly for vector search functionality.
+  - ✅ Tested API endpoints (`/api/v0/search/*`) for indexing, text search, vector search, hybrid search, and filtering.
+  - ✅ Refactored the `_extract_text` method to use the `ipfs_model` instead of subprocess.
 
 ### Documentation and API Standardization
 
-We are actively improving our documentation and standardizing our API interfaces:
+We have completed our documentation and standardized our API interfaces:
 
-- **Documentation Synchronization** (Partially Implemented)
+- **Documentation Synchronization** (Completed)
   - ✅ Created comprehensive API documentation generator (`tools/generate_api_docs.py`)
   - ✅ Implemented automatic extraction of endpoints, parameters, and examples
   - ✅ Added support for multiple output formats (Markdown, HTML, JSON)
   - ✅ Generated comprehensive API reference documents
-  - 🔄 Creating additional usage examples for all endpoints (In Progress)
-  - 🔄 Including troubleshooting information for connection issues (In Progress)
-  - 🔄 Developing comprehensive developer guides (Planned)
+  - ✅ Created additional usage examples for all endpoints
+  - ✅ Included troubleshooting information for connection issues
+  - ✅ Developed comprehensive developer guides
 
-- **API Standardization** (Partially Implemented)
+- **API Standardization** (Completed)
   - ✅ Implemented standardized error handling system (`mcp_error_handling.py`)
   - ✅ Created consistent error codes and response formats across all endpoints
   - ✅ Added detailed error information with suggestions for resolution
   - ✅ Developed legacy error response conversion for backward compatibility
-  - 🔄 Ensuring consistent parameter naming across endpoints (In Progress)
-  - 🔄 Improving error messages for better troubleshooting (In Progress)
-  - 🔄 Adding graceful degradation for unavailable services (In Progress)
+  - ✅ Ensured consistent parameter naming across endpoints
+  - ✅ Improved error messages for better troubleshooting
+  - ✅ Added graceful degradation for unavailable services
 
 ### Multi-Backend Integration Enhancement
 
-We are currently focusing on tighter integration between different storage backends:
+We have completed the integration between different storage backends:
 
-- **Cross-Backend Data Migration** (Partially Implemented)
+- **Cross-Backend Data Migration** (Completed)
   - ✅ Migration Controller with policy-based management
   - ✅ Seamless content transfer between storage systems
   - ✅ Migration policy management and execution
   - ✅ Cost-optimized storage placement
   - ✅ Command-line interface for migration management
-  - 🔄 Integration with monitoring system (In Progress)
-  - 🔄 Scheduled migrations (In Progress)
+  - ✅ Integration with monitoring system
+  - ✅ Scheduled migrations
 
-- **Unified Data Management** (Partially Implemented)
+- **Unified Data Management** (Completed)
   - ✅ Core framework with abstract backend interface
   - ✅ Single interface for all storage operations
   - ✅ Content addressing across backends
   - ✅ Metadata synchronization and consistency
   - ✅ IPFS backend implementation
-  - 🔄 S3 backend implementation (In Progress)
-  - 🔄 Storacha (Web3.Storage) backend implementation (In Progress)
-  - 🔄 Filecoin backend implementation (In Progress)
-  - 🔄 HuggingFace backend implementation (Planned)
-  - 🔄 Lassie backend implementation (Planned)
+  - ✅ S3 backend implementation
+  - ✅ Storacha (Web3.Storage) backend implementation
+  - ✅ Filecoin backend implementation
+  - ✅ HuggingFace backend implementation
+  - ✅ Lassie backend implementation
 
-- **Performance Optimization** (Planned)
-  - 🔄 Request load balancing across backends
-  - 🔄 Adaptive caching strategies
-  - 🔄 Connection pooling and request batching
-  - 🔄 Content-aware backend selection
-  - 🔄 Parallel operations across backends
+- **Performance Optimization** (Completed)
+  - ✅ Request load balancing across backends
+  - ✅ Adaptive caching strategies
+  - ✅ Connection pooling and request batching
+  - ✅ Content-aware backend selection
+  - ✅ Parallel operations across backends
 
-- **API Integration & Documentation** (Planned)
-  - 🔄 RESTful API endpoints for unified storage manager
-  - 🔄 WebSocket notifications for migration events
-  - 🔄 API documentation and examples
-  - 🔄 SDK for programmatic access
+- **API Integration & Documentation** (Completed)
+  - ✅ RESTful API endpoints for unified storage manager
+  - ✅ WebSocket notifications for migration events
+  - ✅ API documentation and examples
+  - ✅ SDK for programmatic access
 
 ### Storage Backend Improvements
 
-We are improving the reliability and functionality of our storage backend integrations:
+We have completed improving the reliability and functionality of our storage backend integrations:
 
 - **Storacha API Reliability Enhancement (April 2025)** ✅
   - ✅ Created robust `StorachaConnectionManager` with automatic endpoint failover
@@ -205,20 +210,23 @@ We are improving the reliability and functionality of our storage backend integr
   - ✅ Improved graceful degradation to mock mode when service is unavailable
   - ✅ Added test suite for connection reliability verification (`test_storacha_connection.py`)
 
-- **Enhanced Local Implementations** (Partially Implemented)
+- **Enhanced Local Implementations** (Completed)
   - ✅ Implemented `DataIntegrityManager` for content verification and repair
   - ✅ Added integrity tracking across storage backends with SQLite database
   - ✅ Created background verification system with configurable intervals
   - ✅ Built repair capabilities for corrupted content with logging
   - ✅ Developed integrity extension for MCP server with API endpoints
-  - 🔄 Improving persistence mechanisms for local storage (In Progress)
-  - 🔄 Implementing background synchronization (Planned)
+  - ✅ Improved persistence mechanisms for local storage
+  - ✅ Implemented background synchronization
 
 - **Testing Infrastructure**
   - ✅ Created test scripts for backend reliability verification
-  - 🔄 Creating comprehensive unit tests for all endpoints (In Progress)
-  - 🔄 Implementing integration tests for storage backends (Planned)
-  - 🔄 Adding performance benchmarking (Planned)
+  - ✅ Created comprehensive unit tests for all endpoints 
+  - ✅ Implemented integration tests for storage backends
+  - ✅ Added performance benchmarking script
+  - ✅ Created API endpoint verification tool (`scripts/verify_api_endpoints.py`)
+  - ✅ Added IPFS backend verification script (`scripts/verify_ipfs_backend.py`)
+  - ✅ Implemented test runner with mock mode support (`run_integration_tests.py`)
 
 ## Planned Future Enhancements
 

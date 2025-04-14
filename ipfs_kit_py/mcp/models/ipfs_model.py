@@ -10,31 +10,39 @@ import time
 import os
 import uuid
 import asyncio
-from typing import Dict, List, Any, Union
+import io # Import io for file size check fallback
+from typing import Dict, List, Any, Union, BinaryIO
 
+# Import anyio for cross-backend compatibility
+try:
+    import anyio
+    from anyio import to_thread # Explicitly import to_thread
+    HAS_ANYIO = True
+except ImportError:
+    HAS_ANYIO = False
+    to_thread = None # Define as None if anyio is not available
 
 # Utility class for handling asyncio operations in different contexts
 class AsyncEventLoopHandler:
     """
     Handler for properly managing asyncio operations in different contexts.
     """
-    # Class variable to track all created tasks to prevent "coroutine was never awaited" warnings
     _background_tasks = set()
 
     @classmethod
-    def _task_done_callback(selfcls, task):
+    def _task_done_callback(cls, task):
         """Remove task from set when it's done."""
         if task in cls._background_tasks:
-            cls._background_tasks.remove(task)
+            try:
+                cls._background_tasks.remove(task)
+            except KeyError:
+                 pass # Task might have already been removed
 
     @classmethod
-    def run_coroutine(selfcls, coro, fallback_result = None):
+    def run_coroutine(cls, coro, fallback_result = None):
         """Run a coroutine in any context (sync or async)."""
         try:
-            # Try to get the current event loop
-            loop = asyncio.get_event_loop()
-
-            # Check if the loop is already running (e.g., in FastAPI)
+            loop = asyncio.get_event_loop_policy().get_event_loop()
             if loop.is_running():
                 if fallback_result is None:
                     fallback_result = {
@@ -42,20 +50,13 @@ class AsyncEventLoopHandler:
                         "simulated": True,
                         "note": "Operation scheduled in background due to running event loop",
                     }
-
-                # Schedule coroutine to run in the background and track it
                 task = asyncio.create_task(coro)
-                # Add to tracking set
                 cls._background_tasks.add(task)
-                # Add callback to remove when done
                 task.add_done_callback(cls._task_done_callback)
                 return fallback_result
             else:
-                # If loop exists but isn't running, we can run_until_complete
                 return loop.run_until_complete(coro)
-
         except RuntimeError:
-            # No event loop in this thread, create a new one
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -66,12 +67,20 @@ class AsyncEventLoopHandler:
 
 logger = logging.getLogger(__name__)
 
+# Define a more functional stub for ipfs_kit if the real one fails to load
+class StubIPFS:
+    def __getattr__(self, name):
+        def dummy_method(*args, **kwargs):
+            logger.error(f"Attempted to call '{name}' on missing/stub ipfs_kit instance.")
+            # Return a dict with success=False and an error message
+            return {"success": False, "error": f"IPFS client not initialized or '{name}' not implemented in stub"}
+        return dummy_method
 
 class IPFSModel:
     """IPFS Model for the MCP server architecture."""
-    def __init__(selfself, ipfs_kit_instance = None, cache_manager = None, credential_manager = None):
+    def __init__(self, ipfs_kit_instance = None, cache_manager = None, credential_manager = None):
         """Initialize the IPFS Model."""
-        self.ipfs_kit = ipfs_kit_instance
+        self.ipfs_kit = ipfs_kit_instance # Should be an instance of ipfs_py
         self.cache_manager = cache_manager
         self.credential_manager = credential_manager
         self.operation_stats = {
@@ -79,26 +88,43 @@ class IPFSModel:
             "success_count": 0,
             "failure_count": 0,
         }
-        # Initialize core IPFS property for compatibility
-        self.ipfs = self.ipfs_kit
+        self.ipfs = self.ipfs_kit # Keep self.ipfs for compatibility if needed elsewhere
+        if self.ipfs_kit is None:
+             logger.warning("IPFSModel initialized without ipfs_kit_instance. Using STUB.")
+             self.ipfs_kit = StubIPFS()
+             self.ipfs = self.ipfs_kit # Also update self.ipfs
+
         self._detect_features()
-        # Flag to indicate shutdown process has started
         self.is_shutting_down = False
-        # Track any tasks we create for proper cleanup
         self._background_tasks = set()
 
-    def _detect_features(selfself):
+    def _initialize_stats(self, operation_name: str):
+        """Initialize stats for an operation if not already present."""
+        self.operation_stats.setdefault(operation_name, {"count": 0, "errors": 0})
+
+    def _increment_stats(self, operation_name: str, success: bool):
+        """Increment operation stats."""
+        self._initialize_stats(operation_name)
+        self.operation_stats["total_operations"] += 1
+        stat_entry = self.operation_stats[operation_name] # Get the sub-dictionary
+        if success:
+            self.operation_stats["success_count"] += 1
+            stat_entry["count"] = stat_entry.get("count", 0) + 1 # Use .get for safety
+        else:
+            self.operation_stats["failure_count"] += 1
+            stat_entry["errors"] = stat_entry.get("errors", 0) + 1 # Use .get for safety
+
+
+    def _detect_features(self):
         """Detect available features."""
         self.webrtc_available = False
         result = self._check_webrtc()
         self.webrtc_available = result.get("webrtc_available", False)
 
-    def _check_webrtc(selfself) -> Dict[str, Any]:
+    def _check_webrtc(self) -> Dict[str, Any]:
         """Check if WebRTC dependencies are available."""
         result = {"webrtc_available": False, "dependencies": {}}
-
         try:
-            # Try to import required modules
             dependencies = ["numpy", "cv2", "av", "aiortc"]
             for dep in dependencies:
                 try:
@@ -106,74 +132,37 @@ class IPFSModel:
                     result["dependencies"][dep] = True
                 except ImportError:
                     result["dependencies"][dep] = False
-
-            # Check if all dependencies are available
             all_deps_available = all(result["dependencies"].values())
             result["webrtc_available"] = all_deps_available
-
-            # Add installation command if dependencies are missing
             if not all_deps_available:
                 result["installation_command"] = "pip install numpy opencv-python av aiortc"
-
         except Exception as e:
             logger.exception(f"Error checking WebRTC dependencies: {e}")
             result["error"] = str(e)
-
         return result
 
-    def check_webrtc_dependencies(selfself) -> Dict[str, Any]:
-        """
-        Check if WebRTC dependencies are available.
-
-        Returns:
-            Dictionary with information about WebRTC dependencies status
-        """
+    def check_webrtc_dependencies(self) -> Dict[str, Any]:
+        """Check if WebRTC dependencies are available."""
         operation_id = f"check_webrtc_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        # Get dependency status
         result = self._check_webrtc()
-
-        # Add operation metadata
-        result["operation_id"] = operation_id
-        result["operation"] = "check_webrtc_dependencies"
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        result["success"] = True  # Always return success, even if dependencies aren't available
-        result["timestamp"] = time.time()
-
+        result.update({
+            "operation_id": operation_id,
+            "operation": "check_webrtc_dependencies",
+            "duration_ms": (time.time() - start_time) * 1000,
+            "success": True,
+            "timestamp": time.time(),
+        })
         logger.info(f"WebRTC dependencies check: {result['webrtc_available']}")
         return result
 
-    async def check_webrtc_dependencies_anyio(selfself) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of WebRTC dependencies check.
+    async def check_webrtc_dependencies_anyio(self) -> Dict[str, Any]:
+        """AnyIO-compatible version of WebRTC dependencies check."""
+        return self.check_webrtc_dependencies() # The check itself is sync
 
-        This is the same as check_webrtc_dependencies but with async/await syntax
-        for AnyIO compatibility. The actual implementation is similar since the
-        dependency check is a simple synchronous operation.
-
-        Returns:
-            Dictionary with information about WebRTC dependencies status
-        """
-        operation_id = f"check_webrtc_anyio_{int(time.time() * 1000)}"
-        start_time = time.time()
-
-        # Get dependency status - same as the synchronous version
-        result = self._check_webrtc()
-
-        # Add operation metadata
-        result["operation_id"] = operation_id
-        result["operation"] = "check_webrtc_dependencies"
-        result["duration_ms"] = (time.time() - start_time) * 1000
-        result["success"] = True
-        result["timestamp"] = time.time()
-
-        logger.info(f"WebRTC dependencies check (anyio): {result['webrtc_available']}")
-        return result
-
-    def stream_content_webrtc(self
-        self
-        cid: str
+    def stream_content_webrtc(
+        self,
+        cid: str,
         listen_address: str = "127.0.0.1",
         port: int = 8080,
         quality: str = "medium",
@@ -182,488 +171,240 @@ class IPFSModel:
         buffer_size: int = 30,
         prefetch_threshold: float = 0.5,
         use_progressive_loading: bool = True,
-        """
-        Stream IPFS content over WebRTC.
-
-        Args:
-            cid: Content identifier to stream
-            listen_address: Address to bind the WebRTC signaling server
-            port: Port for the WebRTC signaling server
-            quality: Streaming quality preset (low, medium, high, auto)
-            ice_servers: List of ICE server objects for WebRTC connection
-            enable_benchmark: Enable performance benchmarking
-            buffer_size: Frame buffer size (1-60 frames)
-            prefetch_threshold: Buffer prefetch threshold (0.1-0.9)
-            use_progressive_loading: Enable progressive content loading
-
-        Returns:
-            Dictionary with operation results including server ID and URL
-        """
+    ) -> Dict[str, Any]:
+        """Stream IPFS content over WebRTC."""
+        operation = "stream_content_webrtc"
         operation_id = f"webrtc_stream_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "stream_content_webrtc",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-            "address": listen_address,
-            "port": port,
-            "quality": quality,
+            "success": False, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "cid": cid, "address": listen_address, "port": port, "quality": quality,
         }
-
-        # Default ICE servers if not provided
-        if ice_servers is None:
-            ice_servers = [{"urls": ["stun:stun.l.google.com:19302"]}]
-
+        if ice_servers is None: ice_servers = [{"urls": ["stun:stun.l.google.com:19302"]}]
         result["ice_servers"] = ice_servers
 
-        # First check WebRTC dependencies
         webrtc_check = self._check_webrtc()
         if not webrtc_check["webrtc_available"]:
-            result["error"] = "WebRTC dependencies not available"
-            result["error_type"] = "dependency_error"
-            result["dependencies"] = webrtc_check["dependencies"]
-            result["installation_command"] = webrtc_check.get("installation_command")
-            result["duration_ms"] = (time.time() - start_time) * 1000
+            result.update({
+                "error": "WebRTC dependencies not available", "error_type": "dependency_error",
+                "dependencies": webrtc_check["dependencies"],
+                "installation_command": webrtc_check.get("installation_command"),
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.error(f"WebRTC dependencies not available for streaming CID: {cid}")
+            self._increment_stats(operation, False)
             return result
 
         try:
-            # Generate a unique server ID
             server_id = f"server_{uuid.uuid4().hex[:8]}"
-
-            # Check if content exists
-            content_result = self.get_content(cid)
+            content_result = self.get_content(cid) # Use internal get_content
             if not content_result.get("success", False):
-                result["error"] = (
-                    f"Failed to retrieve content: {content_result.get('error', 'Content not found')}"
-                result["error_type"] = "content_error"
-                result["duration_ms"] = (time.time() - start_time) * 1000
-                logger.error(f"Content retrieval failed for WebRTC streaming of CID: {cid}")
-                return result
+                 result.update({
+                     "error": f"Failed to retrieve content: {content_result.get('error', 'Content not found')}",
+                     "error_type": "content_error", "duration_ms": (time.time() - start_time) * 1000,
+                 })
+                 logger.error(f"Content retrieval failed for WebRTC streaming of CID: {cid}")
+                 self._increment_stats(operation, False)
+                 return result
 
-            # In a real implementation, we would:
-            # 1. Determine content type (video, audio, etc.)
-            # 2. Set up appropriate media processing (transcoding, etc.)
-            # 3. Create a WebRTC server with appropriate track handlers
-            # 4. Set up signaling server for client connections
-
-            # For this implementation, we'll simulate successful server creation
-
-            # Validate quality parameter
             valid_qualities = ["low", "medium", "high", "auto"]
-            if quality not in valid_qualities:
-                quality = "medium"  # Default to medium if invalid
-
-            # Validate and clamp buffer parameters
+            if quality not in valid_qualities: quality = "medium"
             buffer_size = max(1, min(60, buffer_size))
             prefetch_threshold = max(0.1, min(0.9, prefetch_threshold))
-
-            # Build the URL for connecting to the server
             url = f"http://{listen_address}:{port}/webrtc/{server_id}"
 
-            # Add result data
-            result["success"] = True
-            result["server_id"] = server_id
-            result["url"] = url
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Add streaming parameters
-            result["buffer_size"] = buffer_size
-            result["prefetch_threshold"] = prefetch_threshold
-            result["use_progressive_loading"] = use_progressive_loading
-            result["enable_benchmark"] = enable_benchmark
-
-            # In real implementation, we would store server resources for later cleanup
-            # For now, just simulate successful server creation
+            result.update({
+                "success": True, "server_id": server_id, "url": url,
+                "buffer_size": buffer_size, "prefetch_threshold": prefetch_threshold,
+                "use_progressive_loading": use_progressive_loading, "enable_benchmark": enable_benchmark,
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.info(f"WebRTC streaming server started for CID: {cid}")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to create WebRTC server: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to create WebRTC server: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in stream_content_webrtc: {e}")
+        return result
 
-            return result
-
-    async def async_stream_content_webrtc(self
-        self
-        cid: str
-        listen_address: str = "127.0.0.1",
-        port: int = 8080,
-        quality: str = "medium",
-        ice_servers: List[Dict[str, Any]] = None,
-        enable_benchmark: bool = False,
-        buffer_size: int = 30,
-        prefetch_threshold: float = 0.5,
-        use_progressive_loading: bool = True,
-        """
-        AnyIO-compatible version of WebRTC streaming.
-
-        This is the same as stream_content_webrtc but with async/await syntax
-        for AnyIO compatibility.
-
-        Args:
-            Same as stream_content_webrtc
-
-        Returns:
-            Dictionary with operation results including server ID and URL
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version since WebRTC server setup
-        # is already handled in a non-blocking way in the real implementation
-        return await anyio.to_thread.run_sync(
+    async def async_stream_content_webrtc(
+        self, cid: str, listen_address: str = "127.0.0.1", port: int = 8080, quality: str = "medium",
+        ice_servers: List[Dict[str, Any]] = None, enable_benchmark: bool = False, buffer_size: int = 30,
+        prefetch_threshold: float = 0.5, use_progressive_loading: bool = True,
+    ) -> Dict[str, Any]:
+        """AnyIO-compatible version of WebRTC streaming."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_stream_content_webrtc")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(
             lambda: self.stream_content_webrtc(
-cid=cid
-listen_address=listen_address
-port=port
-quality=quality
-ice_servers=ice_servers
-enable_benchmark=enable_benchmark
-buffer_size=buffer_size
-prefetch_threshold=prefetch_threshold
-use_progressive_loading=use_progressive_loading
+                cid=cid, listen_address=listen_address, port=port, quality=quality, ice_servers=ice_servers,
+                enable_benchmark=enable_benchmark, buffer_size=buffer_size, prefetch_threshold=prefetch_threshold,
+                use_progressive_loading=use_progressive_loading,
+            )
+        )
 
-    def stop_webrtc_streaming(selfself, server_id: str) -> Dict[str, Any]:
-        """
-        Stop WebRTC streaming.
-
-        Args:
-            server_id: ID of the WebRTC streaming server
-
-        Returns:
-            Dictionary with operation results
-        """
+    def stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
+        """Stop WebRTC streaming."""
+        operation = "stop_webrtc_streaming"
         operation_id = f"webrtc_stop_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "stop_webrtc_streaming",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "server_id": server_id,
+            "success": False, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "server_id": server_id,
         }
-
         try:
-            # In a real implementation, we would:
-            # 1. Find the server by ID
-            # 2. Close all peer connections
-            # 3. Stop the signaling server
-            # 4. Release media resources
-
-            # For now, just simulate successful server shutdown
-
-            # Add result data
-            result["success"] = True
-            result["duration_ms"] = (time.time() - start_time) * 1000
-            result["connections_closed"] = 0  # Would be actual count in real implementation
-
+            # Simulate successful shutdown
+            result.update({
+                "success": True, "duration_ms": (time.time() - start_time) * 1000,
+                "connections_closed": 0,
+            })
             logger.info(f"WebRTC streaming server stopped: {server_id}")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to stop WebRTC server: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to stop WebRTC server: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in stop_webrtc_streaming: {e}")
+        return result
 
-            return result
+    async def async_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
+        """AnyIO-compatible version of stop WebRTC streaming."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_stop_webrtc_streaming")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(lambda: self.stop_webrtc_streaming(server_id=server_id))
 
-    async def async_stop_webrtc_streaming(selfself, server_id: str) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of stop WebRTC streaming.
-
-        This is the same as stop_webrtc_streaming but with async/await syntax
-        for AnyIO compatibility.
-
-        Args:
-            server_id: ID of the WebRTC streaming server
-
-        Returns:
-            Dictionary with operation results
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(
-            lambda: self.stop_webrtc_streaming(server_id=server_id)
-
-    def list_webrtc_connections(selfself) -> Dict[str, Any]:
-        """
-        List active WebRTC connections.
-
-        Returns:
-            Dictionary with connection list
-        """
+    def list_webrtc_connections(self) -> Dict[str, Any]:
+        """List active WebRTC connections."""
+        operation = "list_webrtc_connections"
         operation_id = f"webrtc_list_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "list_webrtc_connections",
-            "operation_id": operation_id,
+            "success": False, "operation": operation, "operation_id": operation_id,
             "timestamp": time.time(),
         }
-
         try:
-            # In a real implementation, we would iterate through all active peer connections
-            # For now, just return an empty list to simulate no active connections
-            connections = []
-
-            # Add result data
-            result["success"] = True
-            result["connections"] = connections
-            result["count"] = len(connections)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
+            connections = [] # Simulate no connections
+            result.update({
+                "success": True, "connections": connections, "count": len(connections),
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.debug("Listed WebRTC connections (count: 0)")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to list WebRTC connections: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to list WebRTC connections: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in list_webrtc_connections: {e}")
+        return result
 
-            return result
+    async def async_list_webrtc_connections(self) -> Dict[str, Any]:
+        """AnyIO-compatible version of list WebRTC connections."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_list_webrtc_connections")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(self.list_webrtc_connections)
 
-    async def async_list_webrtc_connections(selfself) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of list WebRTC connections.
-
-        This is the same as list_webrtc_connections but with async/await syntax
-        for AnyIO compatibility.
-
-        Returns:
-            Dictionary with connection list
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(self.list_webrtc_connections)
-
-    def get_webrtc_connection_stats(selfself, connection_id: str) -> Dict[str, Any]:
-        """
-        Get statistics for a WebRTC connection.
-
-        Args:
-            connection_id: ID of the WebRTC connection
-
-        Returns:
-            Dictionary with connection statistics
-        """
+    def get_webrtc_connection_stats(self, connection_id: str) -> Dict[str, Any]:
+        """Get statistics for a WebRTC connection."""
+        operation = "get_webrtc_connection_stats"
         operation_id = f"webrtc_stats_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "get_webrtc_connection_stats",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "connection_id": connection_id,
+            "success": False, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "connection_id": connection_id,
         }
-
         try:
-            # In a real implementation, we would:
-            # 1. Find the connection by ID
-            # 2. Get the RTCPeerConnection stats
-            # 3. Process and format the statistics
-
-            # For now, return an error to simulate connection not found
-            result["error"] = f"Connection not found: {connection_id}"
-            result["error_type"] = "not_found"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
+            # Simulate connection not found
+            result.update({
+                "error": f"Connection not found: {connection_id}", "error_type": "not_found",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.warning(f"WebRTC connection not found: {connection_id}")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, False)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to get WebRTC connection stats: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to get WebRTC connection stats: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in get_webrtc_connection_stats: {e}")
+        return result
 
-            return result
+    async def async_get_webrtc_connection_stats(self, connection_id: str) -> Dict[str, Any]:
+        """AnyIO-compatible version of get WebRTC connection stats."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_get_webrtc_connection_stats")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(lambda: self.get_webrtc_connection_stats(connection_id=connection_id))
 
-    async def async_get_webrtc_connection_stats(selfself, connection_id: str) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of get WebRTC connection stats.
-
-        This is the same as get_webrtc_connection_stats but with async/await syntax
-        for AnyIO compatibility.
-
-        Args:
-            connection_id: ID of the WebRTC connection
-
-        Returns:
-            Dictionary with connection statistics
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(
-            lambda: self.get_webrtc_connection_stats(connection_id=connection_id)
-
-    def close_webrtc_connection(selfself, connection_id: str) -> Dict[str, Any]:
-        """
-        Close a WebRTC connection.
-
-        Args:
-            connection_id: ID of the WebRTC connection
-
-        Returns:
-            Dictionary with operation results
-        """
+    def close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
+        """Close a WebRTC connection."""
+        operation = "close_webrtc_connection"
         operation_id = f"webrtc_close_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "close_webrtc_connection",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "connection_id": connection_id,
+            "success": False, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "connection_id": connection_id,
         }
-
         try:
-            # In a real implementation, we would:
-            # 1. Find the connection by ID
-            # 2. Close the peer connection
-            # 3. Clean up resources
-
-            # For now, return an error to simulate connection not found
-            result["error"] = f"Connection not found: {connection_id}"
-            result["error_type"] = "not_found"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
+            # Simulate connection not found
+            result.update({
+                "error": f"Connection not found: {connection_id}", "error_type": "not_found",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.warning(f"WebRTC connection not found for closing: {connection_id}")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, False)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to close WebRTC connection: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to close WebRTC connection: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in close_webrtc_connection: {e}")
+        return result
 
-            return result
+    async def async_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
+        """AnyIO-compatible version of close WebRTC connection."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_close_webrtc_connection")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(lambda: self.close_webrtc_connection(connection_id=connection_id))
 
-    async def async_close_webrtc_connection(selfself, connection_id: str) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of close WebRTC connection.
+    def close_all_webrtc_connections(self) -> Dict[str, Any]:
+        """Close all WebRTC connections."""
+        operation = "close_all_webrtc_connections"
+        operation_id = f"webrtc_close_all_{int(time.time() * 1000)}"
+        start_time = time.time()
+        result = {
+            "success": True, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "connections_closed": 0,
+            "duration_ms": (time.time() - start_time) * 1000,
+        }
+        logger.info("Simulated closing all WebRTC connections")
+        # No stats update here as it's a helper for shutdown
+        return result
 
-        This is the same as close_webrtc_connection but with async/await syntax
-        for AnyIO compatibility.
-
-        Args:
-            connection_id: ID of the WebRTC connection
-
-        Returns:
-            Dictionary with operation results
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(
-            lambda: self.close_webrtc_connection(connection_id=connection_id)
-
-    def close_all_webrtc_connections(selfself) -> Dict[str, Any]:
-        """
-        Close all WebRTC connections.
-        """
-        return None
-
-    async def shutdown_async(selfself) -> Dict[str, Any]:
-        """
-        Asynchronously shut down the IPFS model, cleaning up all background tasks and resources.
-
-        Returns:
-            Dict with shutdown status information
-        """
+    async def shutdown_async(self) -> Dict[str, Any]:
+        """Asynchronously shut down the IPFS model."""
         logger.info("Shutting down IPFS model asynchronously")
         self.is_shutting_down = True
-
-        result = {
-            "success": True,
-            "component": "ipfs_model",
-            "errors": [],
-            "tasks_cancelled": 0,
-        }
-
-        # Clean up WebRTC connections if available
+        result = {"success": True, "component": "ipfs_model", "errors": [], "tasks_cancelled": 0}
         try:
             webrtc_result = self.close_all_webrtc_connections()
             if not webrtc_result.get("success", False):
-                result["errors"].append(
-                    f"WebRTC connections cleanup failed: {webrtc_result.get('error', 'unknown error')}"
+                result["errors"].append(f"WebRTC cleanup failed: {webrtc_result.get('error', 'unknown error')}")
         except Exception as e:
             result["errors"].append(f"WebRTC cleanup exception: {str(e)}")
 
-        # Cancel any instance background tasks
         for task in list(self._background_tasks):
             try:
                 if not task.done() and not task.cancelled():
@@ -671,11 +412,8 @@ use_progressive_loading=use_progressive_loading
                     result["tasks_cancelled"] += 1
             except Exception as e:
                 result["errors"].append(f"Error cancelling task: {str(e)}")
-
-        # Clear the set
         self._background_tasks.clear()
 
-        # Also clean up any class-level background tasks
         class_tasks = getattr(AsyncEventLoopHandler, "_background_tasks", set())
         for task in list(class_tasks):
             try:
@@ -685,4538 +423,880 @@ use_progressive_loading=use_progressive_loading
             except Exception as e:
                 result["errors"].append(f"Error cancelling AsyncEventLoopHandler task: {str(e)}")
 
-        # Update overall success
-        if result["errors"]:
-            result["success"] = False
-
-        logger.info(
-            f"IPFS model shutdown completed with {result['tasks_cancelled']} tasks cancelled and {len(result['errors'])} errors"
+        if result["errors"]: result["success"] = False
+        logger.info(f"IPFS model shutdown completed with {result['tasks_cancelled']} tasks cancelled and {len(result['errors'])} errors")
         return result
 
-    def shutdown(selfself) -> Dict[str, Any]:
-        """
-        Synchronously shut down the IPFS model, cleaning up all background tasks and resources.
-
-        This is a synchronous wrapper around shutdown_async for compatibility.
-
-        Returns:
-            Dict with shutdown status information
-        """
+    def shutdown(self) -> Dict[str, Any]:
+        """Synchronously shut down the IPFS model."""
         try:
-            # Try to get/create an event loop
-            try:
-                loop = asyncio.get_event_loop()
+            try: loop = asyncio.get_event_loop()
             except RuntimeError:
-                # No event loop exists in this thread
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            # Run async shutdown
             if loop.is_running():
-                logger.warning(
-                    "Event loop is running, can't use run_until_complete - doing limited synchronous cleanup"
-                # Limited synchronous cleanup - can't await tasks properly
+                logger.warning("Event loop is running, doing limited synchronous cleanup")
                 self.is_shutting_down = True
-
-                # Close WebRTC connections using synchronous method
-                try:
-                    self.close_all_webrtc_connections()
-                except Exception as e:
-                    logger.error(f"Error in WebRTC cleanup during sync shutdown: {e}")
-
-                return {
-                    "success": True,
-                    "component": "ipfs_model",
-                    "note": "Limited synchronous cleanup performed, background tasks will complete naturally",
-                    "warning": "Full cleanup not possible with running event loop",
-                }
+                try: self.close_all_webrtc_connections()
+                except Exception as e: logger.error(f"Error in WebRTC cleanup during sync shutdown: {e}")
+                return {"success": True, "component": "ipfs_model", "note": "Limited sync cleanup", "warning": "Full cleanup not possible"}
             else:
-                # Run the full async shutdown
                 return loop.run_until_complete(self.shutdown_async())
         except Exception as e:
             logger.error(f"Error during IPFS model shutdown: {e}")
             return {"success": False, "component": "ipfs_model", "error": str(e)}
 
-        # DISABLED REDEFINITION
-        """
-        Close all WebRTC connections.
-
-        Returns:
-            Dictionary with operation results
-        """
-        operation_id = f"webrtc_close_all_{int(time.time() * 1000)}"
+    def check_daemon_status(self, daemon_type: str = None) -> Dict[str, Any]:
+        """Check the status of IPFS daemons."""
+        import inspect, traceback
+        operation = "check_daemon_status"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "close_all_webrtc_connections",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-        }
+        logger.debug(f"{operation} called with daemon_type={daemon_type}")
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "overall_status": "unknown"}
+        if daemon_type: result["daemon_type"] = daemon_type
 
         try:
-            # In a real implementation, we would:
-            # 1. Iterate through all peer connections
-            # 2. Close each one
-            # 3. Clean up resources
-
-            # For now, just simulate successful operation
-
-            # Add result data
-            result["success"] = True
-            result["connections_closed"] = 0  # Would be actual count in real implementation
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            logger.info("Closed all WebRTC connections")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
-            return result
-
-        except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to close all WebRTC connections: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
-            logger.error(f"Error in close_all_webrtc_connections: {e}")
-
-            return result
-
-    async def async_close_all_webrtc_connections(selfself) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of close all WebRTC connections.
-
-        This is the same as close_all_webrtc_connections but with async/await syntax
-        for AnyIO compatibility.
-
-        Returns:
-            Dictionary with operation results
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(self.close_all_webrtc_connections)
-
-    def check_daemon_status(selfself, daemon_type: str = None) -> Dict[str, Any]:
-        """
-        Check the status of IPFS daemons.
-
-        Args:
-            daemon_type: Optional daemon type to check (ipfs, ipfs_cluster_service, etc.)
-
-        Returns:
-            Dictionary with daemon status information
-        """
-        import inspect
-        import traceback
-
-        operation_id = f"check_daemon_status_{int(time.time() * 1000)}"
-        start_time = time.time()
-
-        # Log parameter for debugging
-        logger.debug(f"check_daemon_status called with daemon_type={daemon_type}")
-
-        result = {
-            "success": False,
-            "operation": "check_daemon_status",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "overall_status": "unknown",
-        }
-
-        if daemon_type:
-            result["daemon_type"] = daemon_type
-
-        try:
-            # Check if ipfs_kit has the check_daemon_status method
             if hasattr(self.ipfs_kit, "check_daemon_status"):
-                # Handle parameter compatibility
                 try:
                     sig = inspect.signature(self.ipfs_kit.check_daemon_status)
-                    logger.debug(
-                        f"check_daemon_status signature: {sig}, parameter count: {len(sig.parameters)}"
-
-                    # Call without daemon_type parameter if method doesn't accept it
+                    logger.debug(f"{operation} signature: {sig}, parameter count: {len(sig.parameters)}")
                     if len(sig.parameters) > 1:
-                        # This means the method takes more than just 'self', likely has daemon_type parameter
                         logger.debug(f"Calling with daemon_type parameter: {daemon_type}")
-                        daemon_status = (
-                            self.ipfs_kit.check_daemon_status(daemon_type)
-                            if daemon_type
-                            else self.ipfs_kit.check_daemon_status()
+                        daemon_status = self.ipfs_kit.check_daemon_status(daemon_type) if daemon_type else self.ipfs_kit.check_daemon_status()
                     else:
-                        # Method only takes 'self', doesn't accept daemon_type
                         logger.debug("Calling without daemon_type parameter (original method)")
                         daemon_status = self.ipfs_kit.check_daemon_status()
                 except Exception as sig_error:
-                    logger.error(f"Error inspecting signature: {sig_error}")
-                    logger.error(traceback.format_exc())
-                    # Fall back to direct call without parameter
-                    logger.debug(
-                        "Signature inspection failed, falling back to call without parameters"
-                    daemon_status = self.ipfs_kit.check_daemon_status()
+                    logger.error(f"Error inspecting signature: {sig_error}\n{traceback.format_exc()}")
+                    logger.debug("Signature inspection failed, falling back to call without parameters")
+                    daemon_status = self.ipfs_kit.check_daemon_status() # Fallback call
 
-                # Process the response
                 if "daemons" in daemon_status:
                     result["daemons"] = daemon_status["daemons"]
-
-                    # If a specific daemon was requested, focus on it
                     if daemon_type and daemon_type in daemon_status["daemons"]:
                         result["daemon_info"] = daemon_status["daemons"][daemon_type]
-                        result["running"] = daemon_status["daemons"][daemon_type].get(
-                            "running", False
+                        result["running"] = daemon_status["daemons"][daemon_type].get("running", False)
                         result["overall_status"] = "running" if result["running"] else "stopped"
                     else:
-                        # Determine overall status from all daemons
-                        running_daemons = [
-                            d for d in daemon_status["daemons"].values() if d.get("running", False)
-                        ]
+                        running_daemons = [d for d in daemon_status["daemons"].values() if d.get("running", False)]
                         result["running_count"] = len(running_daemons)
                         result["daemon_count"] = len(daemon_status["daemons"])
                         result["overall_status"] = "running" if running_daemons else "stopped"
-
                 result["success"] = True
-
             else:
-                # Manual status check if check_daemon_status not available
-                # This is a simplified implementation for daemon status checking
+                # Manual status check
                 daemons = {}
+                if daemon_type is None or daemon_type == "ipfs":
+                    daemons["ipfs"] = self._check_ipfs_daemon_status()
+                if daemon_type is None or daemon_type == "ipfs_cluster_service":
+                    daemons["ipfs_cluster_service"] = self._check_cluster_daemon_status()
+                if daemon_type is None or daemon_type == "ipfs_cluster_follow":
+                    daemons["ipfs_cluster_follow"] = self._check_cluster_follow_daemon_status()
 
-                # Check IPFS daemon
-                if daemon_type is None or daemon_type == "ipfs": ,
-                    ipfs_status = self._check_ipfs_daemon_status()
-                    daemons["ipfs"] = ipfs_status
-
-                # Check IPFS Cluster service daemon
-                if daemon_type is None or daemon_type == "ipfs_cluster_service": ,
-                    cluster_status = self._check_cluster_daemon_status()
-                    daemons["ipfs_cluster_service"] = cluster_status
-
-                # Check IPFS Cluster follow daemon
-                if daemon_type is None or daemon_type == "ipfs_cluster_follow": ,
-                    follow_status = self._check_cluster_follow_daemon_status()
-                    daemons["ipfs_cluster_follow"] = follow_status
-
-                # Set overall status based on requested daemon or all daemons
-                if daemon_type:
-                    if daemon_type in daemons:
-                        result["daemon_info"] = daemons[daemon_type]
-                        result["running"] = daemons[daemon_type].get("running", False)
-                        result["overall_status"] = "running" if result["running"] else "stopped"
+                if daemon_type and daemon_type in daemons:
+                    result["daemon_info"] = daemons[daemon_type]
+                    result["running"] = daemons[daemon_type].get("running", False)
+                    result["overall_status"] = "running" if result["running"] else "stopped"
                 else:
                     running_daemons = [d for d in daemons.values() if d.get("running", False)]
                     result["running_count"] = len(running_daemons)
                     result["daemon_count"] = len(daemons)
                     result["overall_status"] = "running" if running_daemons else "stopped"
-
                 result["daemons"] = daemons
                 result["success"] = True
 
-            # Add duration information
             result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update operation stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = str(e)
-            result["error_type"] = "daemon_status_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": str(e), "error_type": "daemon_status_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in check_daemon_status: {e}")
-
         return result
 
-    def _check_ipfs_daemon_status(selfself) -> Dict[str, Any]:
+    # --- Helper methods for daemon status ---
+    def _check_ipfs_daemon_status(self) -> Dict[str, Any]:
         """Check if IPFS daemon is running."""
         status = {"running": False, "pid": None}
-
         try:
-            # Try to get IPFS ID as a simple API check
-            if hasattr(self.ipfs_kit, "id"):
-                id_result = self.ipfs_kit.id()
-                status["running"] = "ID" in id_result or "id" in id_result
-                status["info"] = id_result
-            else:
-                # Fall back to simpler check
-                status["running"] = False
-                status["error"] = "No ID method found"
-
+            # Use ipfs_id which should exist on ipfs_py instance
+            if hasattr(self.ipfs_kit, "ipfs_id"):
+                id_result = self.ipfs_kit.ipfs_id()
+                status["running"] = id_result.get("success", False)
+                status["info"] = id_result if status["running"] else {}
+                if not status["running"]:
+                    status["error"] = id_result.get("error", "Failed to get IPFS ID")
+            else: status["error"] = "No ipfs_id method found"
         except Exception as e:
-            status["running"] = False
-            status["error"] = str(e)
-            status["error_type"] = type(e).__name__
-
+            status.update({"running": False, "error": str(e), "error_type": type(e).__name__})
         status["last_checked"] = time.time()
         return status
 
-    def _check_cluster_daemon_status(selfself) -> Dict[str, Any]:
+    def _check_cluster_daemon_status(self) -> Dict[str, Any]:
         """Check if IPFS Cluster service daemon is running."""
         status = {"running": False, "pid": None}
-
         try:
-            # Check if ipfs_cluster_service is available
             if hasattr(self.ipfs_kit, "ipfs_cluster_service"):
-                # Simple check if the service is running
-                if hasattr(self.ipfs_kit.ipfs_cluster_service, "is_running"):
-                    status["running"] = self.ipfs_kit.ipfs_cluster_service.is_running()
-                else:
-                    status["running"] = False
-                    status["error"] = "No is_running method found"
-            else:
-                status["running"] = False
-                status["error"] = "IPFS Cluster service not available"
-
+                # Assuming ipfs_cluster_service has an 'id' or similar status check method
+                if hasattr(self.ipfs_kit.ipfs_cluster_service, "cluster_id"): # Example check
+                    cluster_id_result = self.ipfs_kit.ipfs_cluster_service.cluster_id()
+                    status["running"] = cluster_id_result.get("success", False)
+                    status["info"] = cluster_id_result if status["running"] else {}
+                else: status["error"] = "No status check method found for cluster service"
+            else: status["error"] = "IPFS Cluster service not available"
         except Exception as e:
-            status["running"] = False
-            status["error"] = str(e)
-            status["error_type"] = type(e).__name__
-
+            status.update({"running": False, "error": str(e), "error_type": type(e).__name__})
         status["last_checked"] = time.time()
         return status
 
-    def _check_cluster_follow_daemon_status(selfself) -> Dict[str, Any]:
+    def _check_cluster_follow_daemon_status(self) -> Dict[str, Any]:
         """Check if IPFS Cluster follow daemon is running."""
         status = {"running": False, "pid": None}
-
         try:
-            # Check if ipfs_cluster_follow is available
             if hasattr(self.ipfs_kit, "ipfs_cluster_follow"):
-                # Simple check if the follower is running
-                if hasattr(self.ipfs_kit.ipfs_cluster_follow, "is_running"):
-                    status["running"] = self.ipfs_kit.ipfs_cluster_follow.is_running()
-                else:
-                    status["running"] = False
-                    status["error"] = "No is_running method found"
-            else:
-                status["running"] = False
-                status["error"] = "IPFS Cluster follow not available"
-
+                 # Assuming ipfs_cluster_follow has an 'info' or similar status check method
+                if hasattr(self.ipfs_kit.ipfs_cluster_follow, "ipfs_follow_info"): # Example check
+                    follow_info_result = self.ipfs_kit.ipfs_cluster_follow.ipfs_follow_info()
+                    # Determine running status based on follow_info_result structure
+                    status["running"] = follow_info_result.get("success", False) # Adjust based on actual response
+                    status["info"] = follow_info_result if status["running"] else {}
+                else: status["error"] = "No status check method found for cluster follow"
+            else: status["error"] = "IPFS Cluster follow not available"
         except Exception as e:
-            status["running"] = False
-            status["error"] = str(e)
-            status["error_type"] = type(e).__name__
-
+            status.update({"running": False, "error": str(e), "error_type": type(e).__name__})
         status["last_checked"] = time.time()
         return status
 
-    def set_webrtc_quality(selfself, connection_id: str, quality: str) -> Dict[str, Any]:
-        """
-        Change streaming quality for a WebRTC connection.
-
-        Args:
-            connection_id: ID of the WebRTC connection
-            quality: Quality preset to use (low, medium, high, auto)
-
-        Returns:
-            Dictionary with operation results
-        """
+    def set_webrtc_quality(self, connection_id: str, quality: str) -> Dict[str, Any]:
+        """Change streaming quality for a WebRTC connection."""
+        operation = "set_webrtc_quality"
         operation_id = f"webrtc_quality_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "set_webrtc_quality",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "connection_id": connection_id,
-            "quality": quality,
+            "success": False, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "connection_id": connection_id, "quality": quality,
         }
-
         try:
-            # Validate quality parameter
             valid_qualities = ["low", "medium", "high", "auto"]
             if quality not in valid_qualities:
-                result["error"] = f"Invalid quality preset: {quality}"
-                result["error_type"] = "invalid_parameter"
-                result["valid_qualities"] = valid_qualities
-                result["duration_ms"] = (time.time() - start_time) * 1000
-
+                result.update({
+                    "error": f"Invalid quality preset: {quality}", "error_type": "invalid_parameter",
+                    "valid_qualities": valid_qualities, "duration_ms": (time.time() - start_time) * 1000,
+                })
                 logger.error(f"Invalid quality preset for WebRTC connection: {quality}")
-
-                # Update stats
-                self.operation_stats["total_operations"] += 1
-                self.operation_stats["failure_count"] += 1
-
+                self._increment_stats(operation, False)
                 return result
 
-            # In a real implementation, we would:
-            # 1. Find the connection by ID
-            # 2. Adjust video/audio parameters based on quality
-            # 3. Apply the changes to the media tracks
-
-            # For now, return an error to simulate connection not found
-            result["error"] = f"Connection not found: {connection_id}"
-            result["error_type"] = "not_found"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
+            # Simulate connection not found
+            result.update({
+                "error": f"Connection not found: {connection_id}", "error_type": "not_found",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.warning(f"WebRTC connection not found for quality change: {connection_id}")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, False)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to set WebRTC quality: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to set WebRTC quality: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in set_webrtc_quality: {e}")
+        return result
 
-            return result
+    async def async_set_webrtc_quality(self, connection_id: str, quality: str) -> Dict[str, Any]:
+        """AnyIO-compatible version of set WebRTC quality."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_set_webrtc_quality")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(lambda: self.set_webrtc_quality(connection_id=connection_id, quality=quality))
 
-    async def async_set_webrtc_quality(selfself, connection_id: str, quality: str) -> Dict[str, Any]:
-        """
-        AnyIO-compatible version of set WebRTC quality.
-
-        This is the same as set_webrtc_quality but with async/await syntax
-        for AnyIO compatibility.
-
-        Args:
-            connection_id: ID of the WebRTC connection
-            quality: Quality preset to use (low, medium, high, auto)
-
-        Returns:
-            Dictionary with operation results
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(
-            lambda: self.set_webrtc_quality(connection_id=connection_id, quality=quality)
-
-    def run_webrtc_benchmark(self
-        self
-        cid: str
-        duration_seconds: int = 60,
-        report_format: str = "json",
-        output_dir: str = None,
-        """
-        Run a WebRTC streaming benchmark.
-
-        Args:
-            cid: Content identifier to benchmark
-            duration_seconds: Benchmark duration in seconds
-            report_format: Report output format (json, html, csv)
-            output_dir: Directory to save benchmark reports
-
-        Returns:
-            Dictionary with benchmark results
-        """
+    def run_webrtc_benchmark(
+        self, cid: str, duration_seconds: int = 60, report_format: str = "json", output_dir: str = None,
+    ) -> Dict[str, Any]:
+        """Run a WebRTC streaming benchmark."""
+        operation = "run_webrtc_benchmark"
         operation_id = f"webrtc_benchmark_{int(time.time() * 1000)}"
         start_time = time.time()
-
         result = {
-            "success": False,
-            "operation": "run_webrtc_benchmark",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-            "duration_seconds": duration_seconds,
-            "report_format": report_format,
+            "success": False, "operation": operation, "operation_id": operation_id,
+            "timestamp": time.time(), "cid": cid, "duration_seconds": duration_seconds, "report_format": report_format,
         }
+        if output_dir: result["output_dir"] = output_dir
 
-        if output_dir:
-            result["output_dir"] = output_dir
-
-        # First check WebRTC dependencies
         webrtc_check = self._check_webrtc()
         if not webrtc_check["webrtc_available"]:
-            result["error"] = "WebRTC dependencies not available"
-            result["error_type"] = "dependency_error"
-            result["dependencies"] = webrtc_check["dependencies"]
-            result["installation_command"] = webrtc_check.get("installation_command")
-            result["duration_ms"] = (time.time() - start_time) * 1000
+            result.update({
+                "error": "WebRTC dependencies not available", "error_type": "dependency_error",
+                "dependencies": webrtc_check["dependencies"],
+                "installation_command": webrtc_check.get("installation_command"),
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.error(f"WebRTC dependencies not available for benchmark of CID: {cid}")
+            self._increment_stats(operation, False)
             return result
 
         try:
-            # Generate a unique benchmark ID
             benchmark_id = f"benchmark_{uuid.uuid4().hex[:8]}"
-
-            # Check if content exists
             content_result = self.get_content(cid)
             if not content_result.get("success", False):
-                result["error"] = (
-                    f"Failed to retrieve content: {content_result.get('error', 'Content not found')}"
-                result["error_type"] = "content_error"
-                result["duration_ms"] = (time.time() - start_time) * 1000
+                result.update({
+                    "error": f"Failed to retrieve content: {content_result.get('error', 'Content not found')}",
+                    "error_type": "content_error", "duration_ms": (time.time() - start_time) * 1000,
+                })
                 logger.error(f"Content retrieval failed for WebRTC benchmark of CID: {cid}")
+                self._increment_stats(operation, False)
                 return result
 
-            # 3. Measure performance metrics
-            # 4. Generate a report
-
-            # Validate and prepare output directory
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
-                report_path = os.path.join(
-                    output_dir, f"webrtc_benchmark_{benchmark_id}.{report_format}"
+                report_path = os.path.join(output_dir, f"webrtc_benchmark_{benchmark_id}.{report_format}")
             else:
-                # Default to current directory
                 report_path = f"webrtc_benchmark_{benchmark_id}.{report_format}"
 
-            # For now, just simulate successful benchmark
-            # Generate a simple report
             benchmark_summary = {
-                "benchmark_id": benchmark_id,
-                "cid": cid,
-                "duration_seconds": duration_seconds,
-                "timestamp": time.time(),
+                "benchmark_id": benchmark_id, "cid": cid, "duration_seconds": duration_seconds, "timestamp": time.time(),
                 "metrics": {
-                    "average_bitrate_kbps": 2500,
-                    "packet_loss_percent": 0.5,
-                    "average_latency_ms": 120,
-                    "throughput_mbps": 5.2,
-                    "cpu_usage_percent": 15.3,
-                    "memory_usage_mb": 75.8,
-}
+                    "average_bitrate_kbps": 2500, "packet_loss_percent": 0.5, "average_latency_ms": 120,
+                    "throughput_mbps": 5.2, "cpu_usage_percent": 15.3, "memory_usage_mb": 75.8,
+                },
             }
+            with open(report_path, "w") as f: import json; json.dump(benchmark_summary, f, indent=2)
 
-            # Simulate report creation
-            with open(report_path, "w") as f:
-                import json
-
-                json.dump(benchmark_summary, f, indent=2)
-
-            # Add result data
-            result["success"] = True
-            result["benchmark_id"] = benchmark_id
-            result["report_path"] = report_path
-            result["summary"] = benchmark_summary["metrics"]
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
+            result.update({
+                "success": True, "benchmark_id": benchmark_id, "report_path": report_path,
+                "summary": benchmark_summary["metrics"], "duration_ms": (time.time() - start_time) * 1000,
+            })
             logger.info(f"WebRTC benchmark completed for CID: {cid}")
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
-            return result
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to run WebRTC benchmark: {str(e)}"
-            result["error_type"] = "webrtc_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({
+                "error": f"Failed to run WebRTC benchmark: {str(e)}", "error_type": "webrtc_error",
+                "duration_ms": (time.time() - start_time) * 1000,
+            })
+            self._increment_stats(operation, False)
             logger.error(f"Error in run_webrtc_benchmark: {e}")
+        return result
 
-            return result
-
-    async def async_run_webrtc_benchmark(self
-        self
-        cid: str
-        duration_seconds: int = 60,
-        report_format: str = "json",
-        output_dir: str = None,
-        """
-        AnyIO-compatible version of run WebRTC benchmark.
-
-        This is the same as run_webrtc_benchmark but with async/await syntax
-        for AnyIO compatibility.
-
-        Args:
-            cid: Content identifier to benchmark
-            duration_seconds: Benchmark duration in seconds
-            report_format: Report output format (json, html, csv)
-            output_dir: Directory to save benchmark reports
-
-        Returns:
-            Dictionary with benchmark results
-        """
-        # Local import for AnyIO
-        import anyio
-
-        # We can delegate to the synchronous version
-        return await anyio.to_thread.run_sync(
+    async def async_run_webrtc_benchmark(
+        self, cid: str, duration_seconds: int = 60, report_format: str = "json", output_dir: str = None,
+    ) -> Dict[str, Any]:
+        """AnyIO-compatible version of run WebRTC benchmark."""
+        if not HAS_ANYIO or to_thread is None:
+             logger.error("AnyIO not available for async_run_webrtc_benchmark")
+             return {"success": False, "error": "AnyIO not available"}
+        return await to_thread.run_sync(
             lambda: self.run_webrtc_benchmark(
-cid=cid
-duration_seconds=duration_seconds
-report_format=report_format
-output_dir=output_dir
+                cid=cid, duration_seconds=duration_seconds, report_format=report_format, output_dir=output_dir,
+            )
+        )
 
-    def dag_put(selfself, obj: Any, format: str = "json", pin: bool = True) -> Dict[str, Any]:
-        """
-        Add a DAG node to IPFS.
-
-        Args:
-            obj: Object to add as a DAG node
-            format: Format to use (json or cbor)
-            pin: Whether to pin the added node
-
-        Returns:
-            Dictionary with operation result including CID
-        """
-        operation_id = f"dag_put_{int(time.time() * 1000)}"
+    def dag_put(self, obj: Any, format: str = "json", pin: bool = True) -> Dict[str, Any]:
+        """Add a DAG node to IPFS."""
+        operation = "dag_put"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "dag_put",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "format": format,
-            "pin": pin,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "format": format, "pin": pin}
         try:
-            # Call IPFS kit's dag_put method
-            kwargs = {"format": format, "pin": pin} if hasattr(self.ipfs_kit, "dag_put") else {}
-            cid = self.ipfs_kit.dag_put(obj, **kwargs)
-
-            # Add result data
-            result["success"] = True
-            result["cid"] = cid
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            if not hasattr(self.ipfs_kit, "dag_put"): raise NotImplementedError("dag_put not available")
+            kwargs = {"format": format, "pin": pin}
+            cid = self.ipfs_kit.dag_put(obj, **kwargs) # Use ipfs_kit method
+            result.update({"success": True, "cid": cid, "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to put DAG node: {str(e)}"
-            result["error_type"] = "dag_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to put DAG node: {str(e)}", "error_type": "dag_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in dag_put: {e}")
-
         return result
 
-    def dag_get(selfself, cid: str, path: str = None) -> Dict[str, Any]:
-        """
-        Get a DAG node from IPFS.
-
-        Args:
-            cid: CID of the DAG node to get
-            path: Optional path within the DAG node
-
-        Returns:
-            Dictionary with operation result including the object
-        """
-        operation_id = f"dag_get_{int(time.time() * 1000)}"
+    def dag_get(self, cid: str, path: str = None) -> Dict[str, Any]:
+        """Get a DAG node from IPFS."""
+        operation = "dag_get"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "dag_get",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-        }
-
-        if path:
-            result["path"] = path
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "cid": cid}
+        if path: result["path"] = path
         try:
-            # Call IPFS kit's dag_get method
-            if path:
-                obj = self.ipfs_kit.dag_get(f"{cid}/{path}")
-            else:
-                obj = self.ipfs_kit.dag_get(cid)
-
-            # Add result data
-            result["success"] = True
-            result["object"] = obj
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            if not hasattr(self.ipfs_kit, "dag_get"): raise NotImplementedError("dag_get not available")
+            full_path = f"{cid}/{path}" if path else cid
+            obj = self.ipfs_kit.dag_get(full_path) # Use ipfs_kit method
+            result.update({"success": True, "object": obj, "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to get DAG node: {str(e)}"
-            result["error_type"] = "dag_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to get DAG node: {str(e)}", "error_type": "dag_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in dag_get: {e}")
-
         return result
 
-    def dag_resolve(selfself, path: str) -> Dict[str, Any]:
-        """
-        Resolve a path through the DAG.
-
-        Args:
-            path: DAG path to resolve
-
-        Returns:
-            Dictionary with operation result including resolved CID and remainder path
-        """
-        operation_id = f"dag_resolve_{int(time.time() * 1000)}"
+    def dag_resolve(self, path: str) -> Dict[str, Any]:
+        """Resolve a path through the DAG."""
+        operation = "dag_resolve"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "dag_resolve",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "path": path,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "path": path}
         try:
-            # Call IPFS kit's dag_resolve method
-            resolve_result = self.ipfs_kit.dag_resolve(path)
-
-            # Parse the result
-            # Typically format is {"Cid": {"/" : "cid"}, "RemPath": "remaining/path"}
+            if not hasattr(self.ipfs_kit, "dag_resolve"): raise NotImplementedError("dag_resolve not available")
+            resolve_result = self.ipfs_kit.dag_resolve(path) # Use ipfs_kit method
             cid_obj = resolve_result.get("Cid", {})
             cid = cid_obj.get("/", "")
             remainder_path = resolve_result.get("RemPath", "")
-
-            # Add result data
-            result["success"] = True
-            result["cid"] = cid
-            result["remainder_path"] = remainder_path
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            result.update({"success": True, "cid": cid, "remainder_path": remainder_path, "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to resolve DAG path: {str(e)}"
-            result["error_type"] = "dag_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to resolve DAG path: {str(e)}", "error_type": "dag_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in dag_resolve: {e}")
-
         return result
 
-    def ipfs_name_resolve(self
-        self
-        name: str
-        recursive: bool = True,
-        nocache: bool = False,
-        timeout: int = None,
-        """
-        Resolve an IPNS name to a CID.
-
-
-
-        Args:
-
-
-            name: IPNS name to resolve
-
-
-            recursive: Recursively resolve until the result is not an IPNS name
-
-
-            nocache: Do not use cached entries
-
-
-            timeout: Maximum time duration for the resolution
-
-
-
-        Returns:
-
-
-            Dictionary with IPNS resolution results
-
-
-        """
-        operation_id = f"name_resolve_{int(time.time() * 1000)}"
-
+    def ipfs_name_resolve(self, name: str, recursive: bool = True, nocache: bool = False, timeout: int = None) -> Dict[str, Any]:
+        """Resolve an IPNS name to a CID."""
+        operation = "ipfs_name_resolve"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        # Initialize result dictionary
-
-        result = {
-            "success": False,
-            "operation_id": operation_id,
-            "operation": "ipfs_name_resolve",
-            "name": name,
-            "start_time": start_time,
-        }
-
+        result = {"success": False, "operation_id": operation_id, "operation": operation, "name": name, "start_time": start_time, "path": ""} # Initialize path
         try:
-            # Validate required parameters
-
-            if not name:
-                raise ValueError("Missing required parameter: name")
-
-            # Check if IPFS client is available
-
+            if not name: raise ValueError("Missing required parameter: name")
             if not self.ipfs_kit:
-                result["error"] = "IPFS client not available"
-
-                result["error_type"] = "configuration_error"
-
+                result.update({"error": "IPFS client not available", "error_type": "configuration_error"})
                 logger.error("IPFS name resolve failed: IPFS client not available")
-
+                self._increment_stats(operation, False)
                 return result
 
-            # Build command with proper arguments
+            if hasattr(self.ipfs_kit, "ipfs_name_resolve"):
+                 cmd_result = self.ipfs_kit.ipfs_name_resolve(path=name, recursive=recursive, nocache=nocache, timeout=timeout)
+            else: raise NotImplementedError("ipfs_name_resolve method not found on ipfs_kit")
 
-            cmd = ["ipfs", "name", "resolve"]
-
-            # Add optional flags
-
-            if not recursive:
-                cmd.append("--recursive=false")
-
-            if nocache:
-                cmd.append("--nocache")
-
-            if timeout:
-                cmd.extend(["--timeout", f"{timeout}s"])
-
-            # Add the name as the last argument
-
-            # Make sure the name has /ipns/ prefix if not already present
-
-            if not name.startswith("/ipns/") and not name.startswith("ipns/"):
-                name = f"/ipns/{name}"
-
-            cmd.append(name)
-
-            # Execute the command
-
-            try:
-                cmd_result = self.ipfs_kit.run_ipfs_command(cmd)
-
-                # Handle the case where cmd_result is raw bytes instead of a dictionary
-
-                if isinstance(cmd_result, bytes):
-                    # Log the raw response for debugging
-
-                    logger.debug(f"Raw bytes response from ipfs name resolve: {cmd_result}")
-
-                    result["raw_output"] = cmd_result
-
-                    # Try to decode the bytes as UTF-8 text
-
-                    try:
-                        decoded = cmd_result.decode("utf-8", errors="replace").strip()
-
-                        result["success"] = True
-
-                        result["path"] = decoded
-
-                        result["duration_ms"] = (time.time() - start_time) * 1000
-
-                        # Update operation stats
-
-                        if "name_resolve" not in self.operation_stats:
-                            self.operation_stats["name_resolve"] = {
-                                "count": 0,
-                                "errors": 0,
-                            }
-
-                        self.operation_stats["name_resolve"]["count"] = (
-                            self.operation_stats["name_resolve"].get("count", 0) + 1
-
-                        self.operation_stats["total_operations"] += 1
-
-                        self.operation_stats["success_count"] += 1
-
-                        logger.info(
-                            f"Successfully resolved IPNS name {name} to {result.get('path', 'unknown path')}"
-
-                        return result
-
-                    except Exception as decode_error:
-                        result["error"] = f"Failed to decode bytes response: {str(decode_error)}"
-
-                        result["error_type"] = "decode_error"
-
-                        logger.error(f"Error decoding IPFS name resolve response: {decode_error}")
-
-                        return result
-
-                elif not isinstance(cmd_result, dict):
-                    # Unexpected response type
-
-                    result["error"] = f"Unexpected response type: {type(cmd_result)}"
-
-                    result["error_type"] = "unexpected_response_type"
-
-                    logger.error(
-                        f"Unexpected response type from IPFS name resolve: {type(cmd_result)}"
-
-                    return result
-
-            except AttributeError:
-                # If run_ipfs_command doesn't exist, use subprocess directly
-
-                import subprocess
-
-                process = subprocess.run(cmd, capture_output=True, check=False)
-
-                cmd_result = {
-                    "success": process.returncode == 0,
-                    "returncode": process.returncode,
-                    "stdout": process.stdout,
-                    "stderr": process.stderr,
-                }
-
-            if not cmd_result.get("success", False):
-                stderr = cmd_result.get("stderr", b"")
-
-                # Handle bytes stderr
-
-                if isinstance(stderr, bytes):
-                    error_msg = stderr.decode("utf-8", errors="replace")
-
-                else:
-                    error_msg = str(stderr)
-
-                result["error"] = error_msg
-
-                result["error_type"] = "command_error"
-
-                logger.error(f"IPFS name resolve command failed: {result['error']}")
-
-                return result
-
-            # Parse the response
-
-            stdout_raw = cmd_result.get("stdout", b"")
-
-            # Store raw output for debugging
-
-            result["raw_output"] = stdout_raw
-
-            # Handle bytes stdout
-
-            if isinstance(stdout_raw, bytes):
-                stdout = stdout_raw.decode("utf-8", errors="replace")
-
+            if cmd_result.get("success", False):
+                result.update({"success": True, "path": cmd_result.get("resolved_cid", ""), "duration_ms": (time.time() - start_time) * 1000})
+                self._increment_stats(operation, True)
+                logger.info(f"Successfully resolved IPNS name {name} to {result.get('path', 'unknown path')}")
             else:
-                stdout = str(stdout_raw)
-
-            # Clean the output (remove whitespace/newlines)
-
-            path = stdout.strip()
-
-            # Update result
-
-            result["success"] = True
-
-            result["path"] = path
-
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update operation stats
-
-            if "name_resolve" not in self.operation_stats:
-                self.operation_stats["name_resolve"] = {"count": 0, "errors": 0}
-
-            self.operation_stats["name_resolve"]["count"] = (
-                self.operation_stats["name_resolve"].get("count", 0) + 1
-
-            self.operation_stats["total_operations"] += 1
-
-            self.operation_stats["success_count"] += 1
-
-            logger.info(
-                f"Successfully resolved IPNS name {name} to {result.get('path', 'unknown path')}"
-
+                 result.update({"error": cmd_result.get("error", "Unknown error"), "error_type": cmd_result.get("error_type", "command_error"), "duration_ms": (time.time() - start_time) * 1000})
+                 self._increment_stats(operation, False)
+                 logger.error(f"IPFS name resolve command failed: {result['error']}")
         except Exception as e:
-            result["error"] = str(e)
-
-            result["error_type"] = type(e).__name__
-
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update error stats
-
-            if "name_resolve" not in self.operation_stats:
-                self.operation_stats["name_resolve"] = {"count": 0, "errors": 0}
-
-            self.operation_stats["name_resolve"]["errors"] = (
-                self.operation_stats["name_resolve"].get("errors", 0) + 1
-
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": str(e), "error_type": type(e).__name__, "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error resolving IPNS name: {e}")
-
         return result
 
-    def block_put(selfself, data: bytes, format: str = "dag-pb") -> Dict[str, Any]:
-        """
-        Add a raw block to IPFS.
-
-        Args:
-            data: Raw block data to add
-            format: Format to use (dag-pb, raw, etc.)
-
-        Returns:
-            Dictionary with operation result including CID
-        """
-        operation_id = f"block_put_{int(time.time() * 1000)}"
+    def block_put(self, data: bytes, format: str = "dag-pb") -> Dict[str, Any]:
+        """Add a raw block to IPFS."""
+        operation = "block_put"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "block_put",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "format": format,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "format": format}
         try:
-            # Call IPFS kit's block_put method
-            kwargs = {"format": format} if hasattr(self.ipfs_kit, "block_put") else {}
-            cid = self.ipfs_kit.block_put(data, **kwargs)
-
-            # Add result data
-            result["success"] = True
-            result["cid"] = cid
-            result["size"] = len(data)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            if not hasattr(self.ipfs_kit, "block_put"): raise NotImplementedError("block_put not available")
+            kwargs = {"format": format}
+            cid = self.ipfs_kit.block_put(data, **kwargs) # Use ipfs_kit method
+            result.update({"success": True, "cid": cid, "size": len(data), "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to put block: {str(e)}"
-            result["error_type"] = "block_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to put block: {str(e)}", "error_type": "block_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in block_put: {e}")
-
         return result
 
-    def block_get(selfself, cid: str) -> Dict[str, Any]:
-        """
-        Get a raw block from IPFS.
-
-        Args:
-            cid: CID of the block to get
-
-        Returns:
-            Dictionary with operation result including the block data
-        """
-        operation_id = f"block_get_{int(time.time() * 1000)}"
+    def block_get(self, cid: str) -> Dict[str, Any]:
+        """Get a raw block from IPFS."""
+        operation = "block_get"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "block_get",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "cid": cid}
         try:
-            # Call IPFS kit's block_get method
-            data = self.ipfs_kit.block_get(cid)
-
-            # Add result data
-            result["success"] = True
-            result["data"] = data
-            result["size"] = len(data)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            if not hasattr(self.ipfs_kit, "block_get"): raise NotImplementedError("block_get not available")
+            data = self.ipfs_kit.block_get(cid) # Use ipfs_kit method
+            result.update({"success": True, "data": data, "size": len(data), "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to get block: {str(e)}"
-            result["error_type"] = "block_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to get block: {str(e)}", "error_type": "block_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in block_get: {e}")
-
         return result
 
-    def block_stat(selfself, cid: str) -> Dict[str, Any]:
-        """
-        Get stats about a block.
-
-        Args:
-            cid: CID of the block
-
-        Returns:
-            Dictionary with operation result including block stats
-        """
-        operation_id = f"block_stat_{int(time.time() * 1000)}"
+    def block_stat(self, cid: str) -> Dict[str, Any]:
+        """Get stats about a block."""
+        operation = "block_stat"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "block_stat",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "cid": cid}
         try:
-            # Call IPFS kit's block_stat method
-            stats = self.ipfs_kit.block_stat(cid)
-
-            # Get the size, handling potential field name differences
-            # IPFS API typically returns "Size" capitalized
+            if not hasattr(self.ipfs_kit, "block_stat"): raise NotImplementedError("block_stat not available")
+            stats = self.ipfs_kit.block_stat(cid) # Use ipfs_kit method
             size = stats.get("Size", stats.get("size", 0))
-
-            # Add result data
-            result["success"] = True
-            result["size"] = size
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Include all returned stats
+            result.update({"success": True, "size": size, "duration_ms": (time.time() - start_time) * 1000})
             for key, value in stats.items():
-                if key.lower() not in ["size"]:  # Avoid duplicates
-                    result[key.lower()] = value
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+                if key.lower() not in ["size"]: result[key.lower()] = value
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to get block stats: {str(e)}"
-            result["error_type"] = "block_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to get block stats: {str(e)}", "error_type": "block_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in block_stat: {e}")
-
         return result
 
-    def get_version(selfself) -> Dict[str, Any]:
-        """
-        Get IPFS version information.
-
-        Returns:
-            Dictionary with operation result including version information
-        """
-        operation_id = f"version_{int(time.time() * 1000)}"
+    def get_version(self) -> Dict[str, Any]:
+        """Get IPFS version information."""
+        operation = "version"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "version",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time()}
         try:
-            # Try to get version from IPFS kit
             if hasattr(self.ipfs_kit, "version"):
-                version_info = self.ipfs_kit.version()
+                version_info = self.ipfs_kit.version() # Use ipfs_kit method
             else:
-                # Fallback to simulated version info
-                version_info = {
-                    "Version": "0.12.0",
-                    "Commit": "simulation",
-                    "Repo": "12",
-                    "System": "simulation",
-                    "Golang": "simulation",
-                }
+                version_info = {"Version": "0.12.0", "Commit": "simulation", "Repo": "12", "System": "simulation", "Golang": "simulation"}
                 result["simulation"] = True
-
-            # Add result data
-            result["success"] = True
-            result["version"] = version_info.get("Version", "unknown")
-            result["commit"] = version_info.get("Commit", "unknown")
-            result["repo"] = version_info.get("Repo", "unknown")
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Include all returned info
+            result.update({
+                "success": True, "version": version_info.get("Version", "unknown"), "commit": version_info.get("Commit", "unknown"),
+                "repo": version_info.get("Repo", "unknown"), "duration_ms": (time.time() - start_time) * 1000
+            })
             for key, value in version_info.items():
-                if key.lower() not in ["version", "commit", "repo"]:  # Avoid duplicates
-                    result[key.lower()] = value
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+                if key.lower() not in ["version", "commit", "repo"]: result[key.lower()] = value
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to get IPFS version: {str(e)}"
-            result["error_type"] = "version_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to get IPFS version: {str(e)}", "error_type": "version_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error getting IPFS version: {e}")
-
         return result
 
-    def dht_findpeer(selfself, peer_id: str) -> Dict[str, Any]:
-        """
-        Find information about a peer using the DHT.
-
-        Args:
-            peer_id: ID of the peer to find
-
-        Returns:
-            Dictionary with operation result including peer information
-        """
-        operation_id = f"dht_findpeer_{int(time.time() * 1000)}"
+    def dht_findpeer(self, peer_id: str) -> Dict[str, Any]:
+        """Find information about a peer using the DHT."""
+        operation = "dht_findpeer"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "dht_findpeer",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "peer_id": peer_id,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "peer_id": peer_id, "responses": []} # Init responses
         try:
-            # Call IPFS kit's dht_findpeer method
-            response = self.ipfs_kit.dht_findpeer(peer_id)
-
-            # Process the response
+            if not hasattr(self.ipfs_kit, "dht_findpeer"): raise NotImplementedError("dht_findpeer not available")
+            response = self.ipfs_kit.dht_findpeer(peer_id) # Use ipfs_kit method
             responses = response.get("Responses", [])
-
-            # Convert to a standardized format
-            formatted_responses = []
-            for resp in responses:
-                formatted_resp = {
-                    "id": resp.get("ID", ""),
-                    "addrs": resp.get("Addrs", []),
-                }
-                formatted_responses.append(formatted_resp)
-
-            # Add result data
-            result["success"] = True
-            result["responses"] = formatted_responses
-            result["peers_found"] = len(formatted_responses)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Include any additional info from the response
+            formatted_responses = [{"id": resp.get("ID", ""), "addrs": resp.get("Addrs", [])} for resp in responses]
+            result.update({"success": True, "responses": formatted_responses, "peers_found": len(formatted_responses), "duration_ms": (time.time() - start_time) * 1000})
             for key, value in response.items():
-                if key not in ["Responses"]:  # Skip processed fields
-                    result[key.lower()] = value
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+                if key not in ["Responses"]: result[key.lower()] = value
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to find peer: {str(e)}"
-            result["error_type"] = "dht_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to find peer: {str(e)}", "error_type": "dht_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in dht_findpeer: {e}")
-
         return result
 
-    def dht_findprovs(selfself, cid: str, num_providers: int = None) -> Dict[str, Any]:
-        """
-        Find providers for a CID using the DHT.
-
-        Args:
-            cid: Content ID to find providers for
-            num_providers: Maximum number of providers to find (optional)
-
-        Returns:
-            Dictionary with operation result including provider information
-        """
-        operation_id = f"dht_findprovs_{int(time.time() * 1000)}"
+    def dht_findprovs(self, cid: str, num_providers: int = None) -> Dict[str, Any]:
+        """Find providers for a CID using the DHT."""
+        operation = "dht_findprovs"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "dht_findprovs",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-        }
-
-        if num_providers is not None:
-            result["num_providers"] = num_providers
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "cid": cid, "providers": []} # Init providers
+        if num_providers is not None: result["num_providers"] = num_providers
         try:
-            # Call IPFS kit's dht_findprovs method
+            if not hasattr(self.ipfs_kit, "dht_findprovs"): raise NotImplementedError("dht_findprovs not available")
             kwargs = {}
-            if num_providers is not None:
-                kwargs["num_providers"] = num_providers
-
-            response = self.ipfs_kit.dht_findprovs(cid, **kwargs)
-
-            # Process the response
+            if num_providers is not None: kwargs["num_providers"] = num_providers
+            response = self.ipfs_kit.dht_findprovs(cid, **kwargs) # Use ipfs_kit method
             responses = response.get("Responses", [])
-
-            # Convert to a standardized format
-            providers = []
-            for resp in responses:
-                provider = {"id": resp.get("ID", ""), "addrs": resp.get("Addrs", [])}
-                providers.append(provider)
-
-            # Add result data
-            result["success"] = True
-            result["providers"] = providers
-            result["count"] = len(providers)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Include any additional info from the response
+            providers = [{"id": resp.get("ID", ""), "addrs": resp.get("Addrs", [])} for resp in responses]
+            result.update({"success": True, "providers": providers, "count": len(providers), "duration_ms": (time.time() - start_time) * 1000})
             for key, value in response.items():
-                if key not in ["Responses"]:  # Skip processed fields
-                    result[key.lower()] = value
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+                if key not in ["Responses"]: result[key.lower()] = value
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to find providers: {str(e)}"
-            result["error_type"] = "dht_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to find providers: {str(e)}", "error_type": "dht_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in dht_findprovs: {e}")
-
         return result
 
-    def get_content(selfself, cid: str) -> Dict[str, Any]:
-        """
-        Get content from IPFS by its CID.
-
-        Args:
-            cid: Content identifier to retrieve
-
-        Returns:
-            Dictionary with operation result including the content data
-        """
-        operation_id = f"get_content_{int(time.time() * 1000)}"
+    def get_content(self, cid: str) -> Dict[str, Any]:
+        """Get content from IPFS by its CID."""
+        operation = "get_content"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "get_content",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "cid": cid}
         try:
-            # Check memory cache first if available
             if self.cache_manager:
                 cached_data = self.cache_manager.get(f"ipfs_content_{cid}")
                 if cached_data:
                     logger.debug(f"Memory cache hit for content {cid}")
-                    result["success"] = True
-                    result["data"] = cached_data
-                    result["size"] = len(cached_data)
-                    result["from_cache"] = True
-                    result["cache_type"] = "memory"
-                    result["duration_ms"] = (time.time() - start_time) * 1000
-
-                    # Update stats
-                    self.operation_stats["total_operations"] += 1
-                    self.operation_stats["success_count"] += 1
-
+                    result.update({"success": True, "data": cached_data, "size": len(cached_data), "from_cache": True, "cache_type": "memory", "duration_ms": (time.time() - start_time) * 1000})
+                    self._increment_stats(operation, True)
                     return result
-
-            # Check parquet CID cache if memory cache missed
             try:
                 from ipfs_kit_py.tiered_cache_manager import ParquetCIDCache
-
-                # Try to get an existing parquet cache from ipfs_kit or create a new one
                 parquet_cache = None
-                if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache:
-                    parquet_cache = self.ipfs_kit.parquet_cache
+                if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache: parquet_cache = self.ipfs_kit.parquet_cache
                 else:
-                    # Create or open existing parquet cache
-
                     cache_dir = os.path.expanduser("~/.ipfs_kit/cid_cache")
-                    if os.path.exists(cache_dir):
-                        parquet_cache = ParquetCIDCache(cache_dir)
-
-                # Check if CID exists in parquet cache
+                    if os.path.exists(cache_dir): parquet_cache = ParquetCIDCache(cache_dir)
                 if parquet_cache and parquet_cache.exists(cid):
                     logger.info(f"Parquet cache hit for CID: {cid}")
-
-                    # We only store metadata in parquet cache, not the content itself
-                    # This method returns entry metadata, not data
                     metadata = parquet_cache.get(cid)
+                    result.update({"parquet_cache_hit": True, "metadata": metadata})
+            except Exception as e: logger.warning(f"Error checking parquet CID cache: {str(e)}")
 
-                    # Add the info to the result
-                    result["parquet_cache_hit"] = True
-                    result["metadata"] = metadata
-
-                    # We don't return here because we still need the actual content
-                    # This just verifies the CID is valid
-            except Exception as e:
-                logger.warning(f"Error checking parquet CID cache: {str(e)}")
-
-            # Try using actual IPFS kit if available
             try:
-                # Call IPFS kit's cat method to get the content
-                if hasattr(self.ipfs_kit, "cat"):
-                    data = self.ipfs_kit.cat(cid)
-                else:
-                    # Fall back to ipfs_cat if cat is not available
-                    data = self.ipfs_kit.ipfs_cat(cid)
-
-                # Make sure we have bytes, not string
-                if isinstance(data, str):
-                    data = data.encode("utf-8")
-
+                if hasattr(self.ipfs_kit, "ipfs_cat"): data = self.ipfs_kit.ipfs_cat(cid) # Use ipfs_cat
+                else: raise NotImplementedError("No cat method available")
+                if isinstance(data, str): data = data.encode("utf-8")
                 logger.info(f"Successfully retrieved content from IPFS with CID: {cid}")
-
             except Exception as e:
-                # Fall back to simulation mode if IPFS is not available
                 logger.warning(f"Using simulated content for CID {cid} due to error: {str(e)}")
-                # Generate deterministic content based on CID
-                simulated_content = f"Simulated content for CID: {cid}".encode("utf-8")
-                data = simulated_content
-                result["simulation"] = True
-                result["get_error"] = str(e)
+                data = f"Simulated content for CID: {cid}".encode("utf-8")
+                result.update({"simulation": True, "get_error": str(e)})
 
-            # Add result data
-            result["success"] = True
-            result["data"] = data
-            result["size"] = len(data)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Cache the data if cache manager is available
-            if self.cache_manager:
-                self.cache_manager.put(f"ipfs_content_{cid}", data)
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            result.update({"success": True, "data": data, "size": len(data), "duration_ms": (time.time() - start_time) * 1000})
+            if self.cache_manager: self.cache_manager.put(f"ipfs_content_{cid}", data)
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to get content: {str(e)}"
-            result["error_type"] = "content_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to get content: {str(e)}", "error_type": "content_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in get_content: {e}")
-
         return result
 
-    def add_content(self
-        self
-        content: Union[str, bytes]
-        filename: str = None,
-        pin: bool = False,
-        wrap_with_directory: bool = False,
-        """
-        Add content to IPFS.
-
-        Args:
-            content: Content to add (string or bytes)
-            filename: Optional filename to use
-            pin: Whether to pin the content after adding
-            wrap_with_directory: Whether to wrap the content in a directory
-
-        Returns:
-            Dictionary with operation result including CID
-        """
-        operation_id = f"add_content_{int(time.time() * 1000)}"
+    def add_content(self, content: Union[str, bytes, BinaryIO], filename: str = None, pin: bool = False, wrap_with_directory: bool = False) -> Dict[str, Any]:
+        """Add content (bytes, string, or file-like object) to IPFS."""
+        operation = "add_content"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "pin": pin, "wrap_with_directory": wrap_with_directory}
+        if filename: result["filename"] = filename
 
-        result = {
-            "success": False,
-            "operation": "add_content",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "pin": pin,
-            "wrap_with_directory": wrap_with_directory,
-        }
-
-        if filename:
-            result["filename"] = filename
+        content_size = -1
+        content_repr = ""
 
         try:
-            # Ensure content is bytes
+            # Determine content type and prepare data/size
             if isinstance(content, str):
                 content_bytes = content.encode("utf-8")
-            else:
+                content_size = len(content_bytes)
+                content_repr = f"string (len={content_size})"
+            elif isinstance(content, bytes):
                 content_bytes = content
+                content_size = len(content_bytes)
+                content_repr = f"bytes (len={content_size})"
+            elif hasattr(content, 'read'): # File-like object
+                content_bytes = None # Will be handled by ipfs_add_file
+                try:
+                    # Get size from file descriptor if possible
+                    content_size = os.fstat(content.fileno()).st_size
+                except (AttributeError, io.UnsupportedOperation, OSError):
+                    # Fallback: read the whole content to get size (less efficient)
+                    try:
+                        current_pos = content.tell()
+                        content.seek(0, os.SEEK_END)
+                        content_size = content.tell()
+                        content.seek(current_pos) # Reset position
+                    except Exception:
+                        content_size = -1 # Unknown size
+                content_repr = f"file-like object (name={getattr(content, 'name', 'unknown')})"
+            else: raise TypeError("Unsupported content type. Must be str, bytes, or file-like object.")
 
-            # In simulation mode or if IPFS is not available, generate a proper CID using multiformats
-            # This ensures we have a valid CID even when IPFS is down or unavailable
+            # Generate simulated CID early for fallback
             try:
-                # Try to import multiformats
                 from ipfs_kit_py.ipfs_multiformats import create_cid_from_bytes
-
-                # Create a proper CID using multiformats
-                simulated_cid = create_cid_from_bytes(content_bytes)
-                logger.info(f"Generated valid CID using multiformats: {simulated_cid}")
+                if content_bytes is not None: simulated_cid = create_cid_from_bytes(content_bytes)
+                else: simulated_cid = create_cid_from_bytes(f"placeholder_{getattr(content, 'name', 'unknown')}".encode())
+                logger.info(f"Generated potential CID using multiformats: {simulated_cid}")
             except ImportError:
-                # Fall back to simple hashing if multiformats is not available
                 import hashlib
-
-                content_hash = hashlib.sha256(content_bytes).hexdigest()
+                if content_bytes is not None: content_hash = hashlib.sha256(content_bytes).hexdigest()
+                else: content_hash = hashlib.sha256(f"placeholder_{getattr(content, 'name', 'unknown')}".encode()).hexdigest()
                 simulated_cid = f"bafybeig{content_hash[:40]}"
                 logger.warning("Multiformats not available, using simple hash-based CID")
 
             # Try to use actual IPFS kit if available
             try:
-                if hasattr(self.ipfs_kit, "add"):
-                    add_result = self.ipfs_kit.add(content_bytes)
-                else:
-                    # Fall back to ipfs_add if add is not available
-                    add_result = self.ipfs_kit.ipfs_add(content_bytes)
+                if content_bytes is not None: # Handle bytes/string
+                    if hasattr(self.ipfs_kit, "ipfs_add_bytes"): add_result = self.ipfs_kit.ipfs_add_bytes(content_bytes)
+                    else: raise NotImplementedError("ipfs_add_bytes not available")
+                else: # Handle file-like object
+                    if hasattr(self.ipfs_kit, "ipfs_add_file"): add_result = self.ipfs_kit.ipfs_add_file(content)
+                    else: raise NotImplementedError("ipfs_add_file not available")
 
-                # Extract CID from response
-                if isinstance(add_result, dict) and "Hash" in add_result:
-                    cid = add_result["Hash"]
-                elif isinstance(add_result, dict) and "cid" in add_result:
-                    cid = add_result["cid"]
-                elif isinstance(add_result, str):
-                    cid = add_result
-                else:
-                    raise ValueError(f"Unexpected add result format: {add_result}")
-
+                if isinstance(add_result, dict) and "Hash" in add_result: cid = add_result["Hash"]
+                elif isinstance(add_result, dict) and "cid" in add_result: cid = add_result["cid"]
+                elif isinstance(add_result, str): cid = add_result
+                else: raise ValueError(f"Unexpected add result format: {add_result}")
                 result["add_response"] = add_result
                 logger.info(f"Successfully added content to IPFS with CID: {cid}")
-
             except Exception as e:
-                # Fall back to simulated CID in case of error
-                logger.warning(f"Using simulated CID due to error: {str(e)}")
+                logger.warning(f"Using simulated CID due to error adding content: {str(e)}")
                 cid = simulated_cid
-                result["simulation"] = True
-                result["add_error"] = str(e)
+                result.update({"simulation": True, "add_error": str(e)})
 
-            # Add result data
-            result["success"] = True
-            result["cid"] = cid
-            result["size"] = len(content_bytes)
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Handle pinning if requested
+            result.update({"success": True, "cid": cid, "size": content_size, "duration_ms": (time.time() - start_time) * 1000})
             if pin and result["success"]:
                 try:
                     logger.debug(f"Pinning content with CID: {cid}")
                     pin_result = self.pin_content(cid)
-                    result["pin_result"] = pin_result
-                    result["pinned"] = pin_result.get("success", False)
+                    result.update({"pin_result": pin_result, "pinned": pin_result.get("success", False)})
                 except Exception as e:
                     logger.warning(f"Failed to pin content {cid}: {str(e)}")
-                    result["pin_error"] = str(e)
-                    result["pinned"] = False
-
-            # Handle directory wrapping if requested
+                    result.update({"pin_error": str(e), "pinned": False})
             if wrap_with_directory and result["success"]:
                 try:
-                    # Create directory structure - implement helper method
                     directory_result = self._wrap_in_directory(cid, filename or f"file_{cid[-8:]}")
                     if directory_result.get("success", False):
                         result["directory_cid"] = directory_result.get("cid")
-                        # If wrapping was successful, the new CID is the directory
                         if "directory_cid" in result:
-                            result["wrapped_cid"] = result["cid"]  # Save original
-                            result["cid"] = result["directory_cid"]  # Update main CID
+                            result["wrapped_cid"] = result["cid"]
+                            result["cid"] = result["directory_cid"]
                 except Exception as e:
                     logger.warning(f"Failed to wrap content in directory: {str(e)}")
                     result["directory_error"] = str(e)
-
-            # Cache the content if cache manager is available
-            if self.cache_manager:
-                self.cache_manager.put(f"ipfs_content_{cid}", content_bytes)
-
-            # Store in parquet CID cache for persistence if available
+            if self.cache_manager and content_bytes is not None: self.cache_manager.put(f"ipfs_content_{cid}", content_bytes)
             try:
-                # Try to import and use the parquet CID cache
                 from ipfs_kit_py.tiered_cache_manager import ParquetCIDCache
-
-                # Try to get an existing parquet cache from ipfs_kit or create a new one
                 parquet_cache = None
-                if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache:
-                    parquet_cache = self.ipfs_kit.parquet_cache
+                if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache: parquet_cache = self.ipfs_kit.parquet_cache
                 else:
-                    # Create a new parquet cache
-
                     cache_dir = os.path.expanduser("~/.ipfs_kit/cid_cache")
                     os.makedirs(cache_dir, exist_ok=True)
                     parquet_cache = ParquetCIDCache(cache_dir)
-
-                # Store the CID with metadata in the parquet cache
-                metadata = {
-                    "size": len(content_bytes),
-                    "timestamp": time.time(),
-                    "operation": "add_content",
-                    "simulation": result.get("simulation", False),
-                    "filename": filename,
-                }
-
-                # Store in parquet cache
-                parquet_cache.put(cid, metadata)
-                logger.info(f"Stored CID {cid} in parquet cache with metadata")
-                result["parquet_cached"] = True
-
+                if parquet_cache: # Check if cache was successfully created/retrieved
+                    metadata = {"size": content_size, "timestamp": time.time(), "operation": "add_content", "simulation": result.get("simulation", False), "filename": filename}
+                    parquet_cache.put(cid, metadata)
+                    logger.info(f"Stored CID {cid} in parquet cache with metadata")
+                    result["parquet_cached"] = True
             except (ImportError, Exception) as e:
-                # Log but continue if parquet cache is not available
                 logger.warning(f"Could not store in parquet CID cache: {str(e)}")
                 result["parquet_cached"] = False
 
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to add content: {str(e)}"
-            result["error_type"] = "content_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to add content ({content_repr}): {str(e)}", "error_type": "content_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in add_content: {e}")
-
         return result
 
-    def pin_content(selfself, cid: str) -> Dict[str, Any]:
-        """
-        Pin content in IPFS to prevent garbage collection.
-
-        Args:
-            cid: Content identifier to pin
-
-        Returns:
-            Dictionary with operation result
-        """
-        operation_id = f"pin_content_{int(time.time() * 1000)}"
+    def pin_content(self, cid: str) -> Dict[str, Any]:
+        """Pin content in IPFS."""
+        operation = "pin_content"
+        operation_id = f"{operation}_{int(time.time() * 1000)}"
         start_time = time.time()
-
-        result = {
-            "success": False,
-            "operation": "pin_content",
-            "operation_id": operation_id,
-            "timestamp": time.time(),
-            "cid": cid,
-        }
-
+        result = {"success": False, "operation": operation, "operation_id": operation_id, "timestamp": time.time(), "cid": cid}
         try:
-            # Try using actual IPFS kit if available
             try:
-                # Call IPFS kit's pin_add method
-                if hasattr(self.ipfs_kit, "pin_add"):
-                    pin_result = self.ipfs_kit.pin_add(cid)
-                else:
-                    # Fall back to ipfs_pin if pin_add is not available
-                    pin_result = self.ipfs_kit.ipfs_pin(cid)
-
-                # Include original response for reference
+                # Use ipfs_add_pin from ipfs_py
+                if hasattr(self.ipfs_kit, "ipfs_add_pin"):
+                    pin_result = self.ipfs_kit.ipfs_add_pin(cid)
+                else: raise NotImplementedError("No suitable pin method available")
                 result["pin_response"] = pin_result
                 logger.info(f"Successfully pinned content in IPFS with CID: {cid}")
-
             except Exception as e:
-                # Fall back to simulation mode if IPFS is not available
                 logger.warning(f"Using simulated pinning for CID {cid} due to error: {str(e)}")
-                pin_result = {"Pins": [cid]}
-                result["simulation"] = True
-                result["pin_error"] = str(e)
-                result["pin_response"] = pin_result
+                pin_result = {"Pins": [cid]} # Simulate success structure
+                result.update({"simulation": True, "pin_error": str(e), "pin_response": pin_result})
 
-            # Add result data
-            result["success"] = True
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Record pin status in parquet CID cache if available
+            result.update({"success": True, "duration_ms": (time.time() - start_time) * 1000})
             try:
                 from ipfs_kit_py.tiered_cache_manager import ParquetCIDCache
-
-                # Try to get an existing parquet cache from ipfs_kit or create a new one
                 parquet_cache = None
-                if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache:
-                    parquet_cache = self.ipfs_kit.parquet_cache
+                if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache: parquet_cache = self.ipfs_kit.parquet_cache
                 else:
-                    # Create a new parquet cache
-
                     cache_dir = os.path.expanduser("~/.ipfs_kit/cid_cache")
                     os.makedirs(cache_dir, exist_ok=True)
                     parquet_cache = ParquetCIDCache(cache_dir)
-
-                # Check if CID exists in parquet cache
-                if parquet_cache:
-                    # Get existing metadata or create new
-                    if parquet_cache.exists(cid):
-                        metadata = parquet_cache.get(cid)
-                    else:
-                        metadata = {}
-
-                    # Update metadata with pin information
-                    metadata.update(
-                        {
-                            "pinned": True,
-                            "pin_timestamp": time.time(),
-                            "pin_type": "recursive",
-                            "simulation": result.get("simulation", False),
-                        }
-
-                    # Update the parquet cache
+                if parquet_cache: # Check if cache was successfully created/retrieved
+                    metadata = parquet_cache.get(cid) if parquet_cache.exists(cid) else {}
+                    metadata.update({"pinned": True, "pin_timestamp": time.time(), "pin_type": "recursive", "simulation": result.get("simulation", False)})
                     parquet_cache.put(cid, metadata)
                     logger.info(f"Updated pin status in parquet cache for CID: {cid}")
                     result["parquet_updated"] = True
-
             except Exception as e:
                 logger.warning(f"Error updating parquet CID cache: {str(e)}")
                 result["parquet_updated"] = False
 
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["success_count"] += 1
-
+            self._increment_stats(operation, True)
         except Exception as e:
-            # Handle error
-            result["error"] = f"Failed to pin content: {str(e)}"
-            result["error_type"] = "pin_error"
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-            # Update stats
-            self.operation_stats["total_operations"] += 1
-            self.operation_stats["failure_count"] += 1
-
+            result.update({"error": f"Failed to pin content: {str(e)}", "error_type": "pin_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
             logger.error(f"Error in pin_content: {e}")
-
         return result
 
-    def execute_command(selfself, command: str, **kwargs):
-        """
-        Execute a command against the IPFS daemon.
-
-        This implementation handles both IPFS commands and libp2p-specific commands.
-
-        Args:
-            command: The command to execute
-            **kwargs: Command arguments
-
-        Returns:
-            dict: Result dictionary with command output
-        """
+    def execute_command(self, command: str, **kwargs):
+        """Execute a command against the IPFS daemon."""
         command_args = kwargs
         result = {"success": False, "command": command, "timestamp": time.time()}
-
-        # Handle libp2p commands
         if command.startswith("libp2p_"):
-            # Extract the specific libp2p operation
-            libp2p_command = command[7:]  # Remove "libp2p_" prefix
-
-            # Handle connect peer
-            if libp2p_command == "connect_peer": ,
+            libp2p_command = command[7:]
+            if libp2p_command == "connect_peer":
                 peer_addr = command_args.get("peer_addr")
-                result["success"] = True
-                result["result"] = {
-                    "connected": True,
-                    "peer_id": (,
-                        peer_addr.split("/")[-1] if isinstance(peer_addr, str) else "unknown"
-                }
-
-            # Handle get peers
-            elif libp2p_command == "get_peers": ,
-                result["success"] = True
-                result["peers"] = [
-                    {"id": "QmPeer1", "addrs": ["/ip4/127.0.0.1/tcp/4001/p2p/QmPeer1"]},
-                    {"id": "QmPeer2", "addrs": ["/ip4/127.0.0.1/tcp/4002/p2p/QmPeer2"]},
-                ]
-
-            # Handle publish
-            elif libp2p_command == "publish": ,
+                result.update({"success": True, "result": {"connected": True, "peer_id": peer_addr.split("/")[-1] if isinstance(peer_addr, str) else "unknown"}})
+            elif libp2p_command == "get_peers":
+                result.update({"success": True, "result": {"peers": []}}) # Simplified
+            elif libp2p_command == "publish":
+                topic = command_args.get("topic", ""); message = command_args.get("message", "")
+                result.update({"success": True, "result": {"published": True, "topic": topic, "message_size": len(message) if isinstance(message, str) else 0}})
+            elif libp2p_command == "subscribe":
                 topic = command_args.get("topic", "")
-                message = command_args.get("message", "")
-                result["success"] = True
-                result["result"] = {
-                    "published": True,
-                    "topic": topic,
-                    "message_size": len(message) if isinstance(message, str) else 0,
-                }
-
-            # Handle subscribe
-            elif libp2p_command == "subscribe": ,
-                topic = command_args.get("topic", "")
-                result["success"] = True
-                result["result"] = {"subscribed": True, "topic": topic}
-
-            # Handle announce content
-            elif libp2p_command == "announce_content": ,
+                result.update({"success": True, "result": {"subscribed": True, "topic": topic}})
+            elif libp2p_command == "announce_content":
                 cid = command_args.get("cid", "")
-                result["success"] = True
-                result["result"] = {"announced": True, "cid": cid}
-
-            # Handle other libp2p commands
-            else:
-                result["success"] = False
-                result["error"] = f"Unknown libp2p command: {libp2p_command}"
-
-        # Handle regular IPFS commands
+                result.update({"success": True, "result": {"announced": True, "cid": cid}})
+            else: result["error"] = f"Unknown libp2p command: {libp2p_command}"
         else:
-            # Use handler methods if they exist
             handler_name = f"_handle_{command}"
-            if hasattr(self, handler_name):
-                handler = getattr(self, handler_name)
-                return handler(command_args)
-            else:
-                result["success"] = False
-                result["error"] = f"Unknown command: {command}"
-
+            if hasattr(self, handler_name): return getattr(self, handler_name)(command_args)
+            else: result["error"] = f"Unknown command: {command}"
         return result
 
+    def _handle_cluster_follow_command(self, command, args = None, params = None):
+        """Handle IPFS Cluster Follow specific commands."""
+        operation = command # Use full command name for stats
+        if args is None: args = []
+        if params is None: params = {}
+        operation_id = f"{command}_{int(time.time() * 1000)}"; start_time = time.time()
+        result = {"success": False, "operation_id": operation_id, "operation": command, "start_time": start_time, "timestamp": time.time()}
+        try:
+            cluster_follow_command = command[15:]
+            if not hasattr(self.ipfs_kit, "ipfs_cluster_follow") or self.ipfs_kit.ipfs_cluster_follow is None:
+                result.update({"error": "IPFS Cluster Follow is not available", "error_type": "missing_component", "duration_ms": (time.time() - start_time) * 1000})
+                logger.error("IPFS Cluster Follow component is not available"); self._increment_stats(operation, False); return result
 
-"""
-IPFS Model for the MCP server.
+            method_map = {"start": "ipfs_follow_start", "stop": "ipfs_follow_stop", "run": "ipfs_follow_run", "info": "ipfs_follow_info", "list": "ipfs_follow_list", "sync": "ipfs_follow_sync", "test": "test_ipfs_cluster_follow"}
+            method_name = method_map.get(cluster_follow_command)
+            if not method_name:
+                result.update({"error": f"Unknown cluster follow command: {cluster_follow_command}", "error_type": "unknown_command", "duration_ms": (time.time() - start_time) * 1000})
+                logger.error(f"Unknown cluster follow command: {cluster_follow_command}"); self._increment_stats(operation, False); return result
+            if not hasattr(self.ipfs_kit.ipfs_cluster_follow, method_name):
+                result.update({"error": f"IPFS Cluster Follow does not support: {method_name}", "error_type": "unsupported_operation", "duration_ms": (time.time() - start_time) * 1000})
+                logger.error(f"IPFS Cluster Follow does not support method: {method_name}"); self._increment_stats(operation, False); return result
 
-This model encapsulates IPFS operations and provides a clean interface
-for the controller to interact with the IPFS functionality.
-"""
+            logger.debug(f"Calling IPFS Cluster Follow method: {method_name}")
+            method = getattr(self.ipfs_kit.ipfs_cluster_follow, method_name)
+            cluster_name = params.get("cluster_name")
+            if not cluster_name and hasattr(self.ipfs_kit, "cluster_name"): params["cluster_name"] = self.ipfs_kit.cluster_name
+            follow_result = method(**params)
 
-# Utility class for handling asyncio operations in different contexts#
-# class AsyncEventLoopHandler:
-#     """
-#     Handler for properly managing asyncio operations in different contexts.
-#     """
-#
-#     # Class variable to track all created tasks to prevent "coroutine was never awaited" warnings
-#     _background_tasks = set()
-#
-#     @classmethod
-#     # DISABLED: '_task_done_callback' is already defined at line 27
-#         """Remove task from set when it's done."""
-#         if task in cls._background_tasks:
-#             cls._background_tasks.remove(task)
-#
-#     @classmethod
-#     # DISABLED: 'run_coroutine' is already defined at line 33
-#         """Run a coroutine in any context (sync or async)."""
-#         try:
-#             # Try to get the current event loop
-#             loop = asyncio.get_event_loop()
-#
-#             # Check if the loop is already running (e.g., in FastAPI)
-#             if loop.is_running():
-#                 if fallback_result is None:
-#                     fallback_result = {
-#                         "success": True,
-#                         "simulated": True,
-#                         "note": "Operation scheduled in background due to running event loop",
-#                     }
-#
-#                 # Schedule coroutine to run in the background and track it
-#                 task = asyncio.create_task(coro)
-#                 # Add to tracking set
-#                 cls._background_tasks.add(task)
-#                 # Add callback to remove when done
-#                 task.add_done_callback(cls._task_done_callback)
-#                 return fallback_result
-#             else:
-#                 # If loop exists but isn't running, we can run_until_complete
-#                 return loop.run_until_complete(coro)
-#
-#         except RuntimeError:
-#             # No event loop in this thread, create a new one
-#             loop = asyncio.new_event_loop()
-#             asyncio.set_event_loop(loop)
-#             try:
-#                 return loop.run_until_complete(coro)
-#             finally:
-#                 loop.close()
-#
-#
-# logger = logging.getLogger(__name__)
-##
-#
-# class IPFSModel:
-#     """IPFS Model for the MCP server architecture."""
-#
-#     # DISABLED: '__init__' is already defined at line 75
-#         """Initialize the IPFS Model."""
-#         self.ipfs_kit = ipfs_kit_instance
-#         self.cache_manager = cache_manager
-#         self.credential_manager = credential_manager
-#         self.operation_stats = {
-#             "total_operations": 0,
-#             "success_count": 0,
-#             "failure_count": 0,
-#         }
-#         # Initialize core IPFS property for compatibility
-#         self.ipfs = self.ipfs_kit
-#         self._detect_features()
-#         # Flag to indicate shutdown process has started
-#         self.is_shutting_down = False
-#         # Track any tasks we create for proper cleanup
-#         self._background_tasks = set()
-#
-#     # DISABLED: '_detect_features' is already defined at line 93
-#         """Detect available features."""
-#         self.webrtc_available = False
-#         result = self._check_webrtc()
-#         self.webrtc_available = result.get("webrtc_available", False)
-#
-#     # DISABLED: '_check_webrtc' is already defined at line 99
-#         """Check if WebRTC dependencies are available."""
-#         result = {"webrtc_available": False, "dependencies": {}}
-#
-#         try:
-#             # Try to import required modules
-#             dependencies = ["numpy", "cv2", "av", "aiortc"]
-#             for dep in dependencies:
-#                 try:
-#                     __import__(dep)
-#                     result["dependencies"][dep] = True
-#                 except ImportError:
-#                     result["dependencies"][dep] = False
-#
-#             # Check if all dependencies are available
-#             all_deps_available = all(result["dependencies"].values())
-#             result["webrtc_available"] = all_deps_available
-#
-#             # Add installation command if dependencies are missing
-#             if not all_deps_available:
-#                 result["installation_command"] = "pip install numpy opencv-python av aiortc"
-#
-#         except Exception as e:
-#             logger.exception(f"Error checking WebRTC dependencies: {e}")
-#             result["error"] = str(e)
-#
-#         return result
-#
-#     # DISABLED: 'check_webrtc_dependencies' is already defined at line 127
-#         """
-#         Check if WebRTC dependencies are available.
-#
-#         Returns:
-#             Dictionary with information about WebRTC dependencies status
-#         """
-#         operation_id = f"check_webrtc_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Get dependency status
-#         result = self._check_webrtc()
-#
-#         # Add operation metadata
-#         result["operation_id"] = operation_id
-#         result["operation"] = "check_webrtc_dependencies"
-#         result["duration_ms"] = (time.time() - start_time) * 1000
-#         result["success"] = True  # Always return success, even if dependencies aren't available
-#         result["timestamp"] = time.time()
-#
-#         logger.info(f"WebRTC dependencies check: {result['webrtc_available']}")
-#         return result
-#
-#     # DISABLED: 'check_webrtc_dependencies_anyio' is already defined at line 150
-#         """
-#         AnyIO-compatible version of WebRTC dependencies check.
-#
-#         This is the same as check_webrtc_dependencies but with async/await syntax
-#         for AnyIO compatibility. The actual implementation is similar since the
-#         dependency check is a simple synchronous operation.
-#
-#         Returns:
-#             Dictionary with information about WebRTC dependencies status
-#         """
-#         operation_id = f"check_webrtc_anyio_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Get dependency status - same as the synchronous version
-#         result = self._check_webrtc()
-#
-#         # Add operation metadata
-#         result["operation_id"] = operation_id
-#         result["operation"] = "check_webrtc_dependencies"
-#         result["duration_ms"] = (time.time() - start_time) * 1000
-#         result["success"] = True
-#         result["timestamp"] = time.time()
-#
-#         logger.info(f"WebRTC dependencies check (anyio): {result['webrtc_available']}")
-#         return result
-#
-#     # DISABLED: 'stream_content_webrtc' is already defined at line 177
-#         self
-#         cid: str
-#         listen_address: str = "127.0.0.1",
-#         port: int = 8080,
-#         quality: str = "medium",
-#         ice_servers: List[Dict[str, Any]] = None,
-#         enable_benchmark: bool = False,
-#         buffer_size: int = 30,
-#         prefetch_threshold: float = 0.5,
-#         use_progressive_loading: bool = True,
-#     ) -> Dict[str, Any]:
-#         """
-#         Stream IPFS content over WebRTC.
-#
-#         Args:
-#             cid: Content identifier to stream
-#             listen_address: Address to bind the WebRTC signaling server
-#             port: Port for the WebRTC signaling server
-#             quality: Streaming quality preset (low, medium, high, auto)
-#             ice_servers: List of ICE server objects for WebRTC connection
-#             enable_benchmark: Enable performance benchmarking
-#             buffer_size: Frame buffer size (1-60 frames)
-#             prefetch_threshold: Buffer prefetch threshold (0.1-0.9)
-#             use_progressive_loading: Enable progressive content loading
-#
-#         Returns:
-#             Dictionary with operation results including server ID and URL
-#         """
-#         operation_id = f"webrtc_stream_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "stream_content_webrtc",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#             "address": listen_address,
-#             "port": port,
-#             "quality": quality,
-#         }
-#
-#         # Default ICE servers if not provided
-#         if ice_servers is None:
-#             ice_servers = [{"urls": ["stun:stun.l.google.com:19302"]}]
-#
-#         result["ice_servers"] = ice_servers
-#
-#         # First check WebRTC dependencies
-#         webrtc_check = self._check_webrtc()
-#         if not webrtc_check["webrtc_available"]:
-#             result["error"] = "WebRTC dependencies not available"
-#             result["error_type"] = "dependency_error"
-#             result["dependencies"] = webrtc_check["dependencies"]
-#             result["installation_command"] = webrtc_check.get("installation_command")
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#             logger.error(f"WebRTC dependencies not available for streaming CID: {cid}")
-#             return result
-#
-#         try:
-#             # Generate a unique server ID
-#             server_id = f"server_{uuid.uuid4().hex[:8]}"
-#
-#             # Check if content exists
-#             content_result = self.get_content(cid)
-#             if not content_result.get("success", False):
-#                 result["error"] = (
-#                     f"Failed to retrieve content: {content_result.get('error', 'Content not found')}"
-#                 )
-#                 result["error_type"] = "content_error"
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.error(f"Content retrieval failed for WebRTC streaming of CID: {cid}")
-#                 return result
-#
-#             # In a real implementation, we would:
-#             # 1. Determine content type (video, audio, etc.)
-#             # 2. Set up appropriate media processing (transcoding, etc.)
-#             # 3. Create a WebRTC server with appropriate track handlers
-#             # 4. Set up signaling server for client connections
-#
-#             # For this implementation, we'll simulate successful server creation
-#
-#             # Validate quality parameter
-#             valid_qualities = ["low", "medium", "high", "auto"]
-#             if quality not in valid_qualities:
-#                 quality = "medium"  # Default to medium if invalid
-#
-#             # Validate and clamp buffer parameters
-#             buffer_size = max(1, min(60, buffer_size))
-#             prefetch_threshold = max(0.1, min(0.9, prefetch_threshold))
-#
-#             # Build the URL for connecting to the server
-#             url = f"http://{listen_address}:{port}/webrtc/{server_id}"
-#
-#             # Add result data
-#             result["success"] = True
-#             result["server_id"] = server_id
-#             result["url"] = url
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Add streaming parameters
-#             result["buffer_size"] = buffer_size
-#             result["prefetch_threshold"] = prefetch_threshold
-#             result["use_progressive_loading"] = use_progressive_loading
-#             result["enable_benchmark"] = enable_benchmark
-#
-#             # In real implementation, we would store server resources for later cleanup
-#             # For now, just simulate successful server creation
-#             logger.info(f"WebRTC streaming server started for CID: {cid}")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to create WebRTC server: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in stream_content_webrtc: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_stream_content_webrtc' is already defined at line 308
-#         self
-#         cid: str
-#         listen_address: str = "127.0.0.1",
-#         port: int = 8080,
-#         quality: str = "medium",
-#         ice_servers: List[Dict[str, Any]] = None,
-#         enable_benchmark: bool = False,
-#         buffer_size: int = 30,
-#         prefetch_threshold: float = 0.5,
-#         use_progressive_loading: bool = True,
-#     ) -> Dict[str, Any]:
-#         """
-#         AnyIO-compatible version of WebRTC streaming.
-#
-#         This is the same as stream_content_webrtc but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Args:
-#             Same as stream_content_webrtc
-#
-#         Returns:
-#             Dictionary with operation results including server ID and URL
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version since WebRTC server setup
-#         # is already handled in a non-blocking way in the real implementation
-#         return await anyio.to_thread.run_sync(
-#             lambda: self.stream_content_webrtc(
-#                 cid=cid,
-#                 listen_address=listen_address,
-#                 port=port,
-#                 quality=quality,
-#                 ice_servers=ice_servers,
-#                 enable_benchmark=enable_benchmark,
-#                 buffer_size=buffer_size,
-#                 prefetch_threshold=prefetch_threshold,
-#                 use_progressive_loading=use_progressive_loading,
-#             )
-#         )
-#
-#     # DISABLED: 'stop_webrtc_streaming' is already defined at line 351
-#         """
-#         Stop WebRTC streaming.
-#
-#         Args:
-#             server_id: ID of the WebRTC streaming server
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         operation_id = f"webrtc_stop_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "stop_webrtc_streaming",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "server_id": server_id,
-#         }
-#
-#         try:
-#             # In a real implementation, we would:
-#             # 1. Find the server by ID
-#             # 2. Close all peer connections
-#             # 3. Stop the signaling server
-#             # 4. Release media resources
-#
-#             # For now, just simulate successful server shutdown
-#
-#             # Add result data
-#             result["success"] = True
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#             result["connections_closed"] = 0  # Would be actual count in real implementation
-#
-#             logger.info(f"WebRTC streaming server stopped: {server_id}")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to stop WebRTC server: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in stop_webrtc_streaming: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_stop_webrtc_streaming' is already defined at line 408
-#         """
-#         AnyIO-compatible version of stop WebRTC streaming.
-#
-#         This is the same as stop_webrtc_streaming but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Args:
-#             server_id: ID of the WebRTC streaming server
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(
-#             lambda: self.stop_webrtc_streaming(server_id=server_id)
-#         )
-#
-#     # DISABLED: 'list_webrtc_connections' is already defined at line 429
-#         """
-#         List active WebRTC connections.
-#
-#         Returns:
-#             Dictionary with connection list
-#         """
-#         operation_id = f"webrtc_list_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "list_webrtc_connections",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#         }
-#
-#         try:
-#             # In a real implementation, we would iterate through all active peer connections
-#             # For now, just return an empty list to simulate no active connections
-#             connections = []
-#
-#             # Add result data
-#             result["success"] = True
-#             result["connections"] = connections
-#             result["count"] = len(connections)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             logger.debug("Listed WebRTC connections (count: 0)")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to list WebRTC connections: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in list_webrtc_connections: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_list_webrtc_connections' is already defined at line 479
-#         """
-#         AnyIO-compatible version of list WebRTC connections.
-#
-#         This is the same as list_webrtc_connections but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Returns:
-#             Dictionary with connection list
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(self.list_webrtc_connections)
-#
-#     # DISABLED: 'get_webrtc_connection_stats' is already defined at line 495
-#         """
-#         Get statistics for a WebRTC connection.
-#
-#         Args:
-#             connection_id: ID of the WebRTC connection
-#
-#         Returns:
-#             Dictionary with connection statistics
-#         """
-#         operation_id = f"webrtc_stats_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "get_webrtc_connection_stats",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "connection_id": connection_id,
-#         }
-#
-#         try:
-#             # In a real implementation, we would:
-#             # 1. Find the connection by ID
-#             # 2. Get the RTCPeerConnection stats
-#             # 3. Process and format the statistics
-#
-#             # For now, return an error to simulate connection not found
-#             result["error"] = f"Connection not found: {connection_id}"
-#             result["error_type"] = "not_found"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             logger.warning(f"WebRTC connection not found: {connection_id}")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to get WebRTC connection stats: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in get_webrtc_connection_stats: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_get_webrtc_connection_stats' is already defined at line 549
-#         """
-#         AnyIO-compatible version of get WebRTC connection stats.
-#
-#         This is the same as get_webrtc_connection_stats but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Args:
-#             connection_id: ID of the WebRTC connection
-#
-#         Returns:
-#             Dictionary with connection statistics
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(
-#             lambda: self.get_webrtc_connection_stats(connection_id=connection_id)
-#         )
-#
-#     # DISABLED: 'close_webrtc_connection' is already defined at line 570
-#         """
-#         Close a WebRTC connection.
-#
-#         Args:
-#             connection_id: ID of the WebRTC connection
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         operation_id = f"webrtc_close_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "close_webrtc_connection",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "connection_id": connection_id,
-#         }
-#
-#         try:
-#             # In a real implementation, we would:
-#             # 1. Find the connection by ID
-#             # 2. Close the peer connection
-#             # 3. Clean up resources
-#
-#             # For now, return an error to simulate connection not found
-#             result["error"] = f"Connection not found: {connection_id}"
-#             result["error_type"] = "not_found"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             logger.warning(f"WebRTC connection not found for closing: {connection_id}")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to close WebRTC connection: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in close_webrtc_connection: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_close_webrtc_connection' is already defined at line 624
-#         """
-#         AnyIO-compatible version of close WebRTC connection.
-#
-#         This is the same as close_webrtc_connection but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Args:
-#             connection_id: ID of the WebRTC connection
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(
-#             lambda: self.close_webrtc_connection(connection_id=connection_id)
-#         )
-#
-#     # DISABLED: 'close_all_webrtc_connections' is already defined at line 645
-#         """
-#         Close all WebRTC connections.
-#         """
-#         return None
-#
-#     # DISABLED: 'shutdown_async' is already defined at line 651
-#         """
-#         Asynchronously shut down the IPFS model, cleaning up all background tasks and resources.
-#
-#         Returns:
-#             Dict with shutdown status information
-#         """
-#         logger.info("Shutting down IPFS model asynchronously")
-#         self.is_shutting_down = True
-#
-#         result = {
-#             "success": True,
-#             "component": "ipfs_model",
-#             "errors": [],
-#             "tasks_cancelled": 0,
-#         }
-#
-#         # Clean up WebRTC connections if available
-#         try:
-#             webrtc_result = self.close_all_webrtc_connections()
-#             if not webrtc_result.get("success", False):
-#                 result["errors"].append(
-#                     f"WebRTC connections cleanup failed: {webrtc_result.get('error', 'unknown error')}"
-#                 )
-#         except Exception as e:
-#             result["errors"].append(f"WebRTC cleanup exception: {str(e)}")
-#
-#         # Cancel any instance background tasks
-#         for task in list(self._background_tasks):
-#             try:
-#                 if not task.done() and not task.cancelled():
-#                     task.cancel()
-#                     result["tasks_cancelled"] += 1
-#             except Exception as e:
-#                 result["errors"].append(f"Error cancelling task: {str(e)}")
-#
-#         # Clear the set
-#         self._background_tasks.clear()
-#
-#         # Also clean up any class-level background tasks
-#         class_tasks = getattr(AsyncEventLoopHandler, "_background_tasks", set())
-#         for task in list(class_tasks):
-#             try:
-#                 if not task.done() and not task.cancelled():
-#                     task.cancel()
-#                     result["tasks_cancelled"] += 1
-#             except Exception as e:
-#                 result["errors"].append(f"Error cancelling AsyncEventLoopHandler task: {str(e)}")
-#
-#         # Update overall success
-#         if result["errors"]:
-#             result["success"] = False
-#
-#         logger.info(
-#             f"IPFS model shutdown completed with {result['tasks_cancelled']} tasks cancelled and {len(result['errors'])} errors"
-#         )
-#         return result
-#
-#     # DISABLED: 'shutdown' is already defined at line 709
-#         """
-#         Synchronously shut down the IPFS model, cleaning up all background tasks and resources.
-#
-#         This is a synchronous wrapper around shutdown_async for compatibility.
-#
-#         Returns:
-#             Dict with shutdown status information
-#         """
-#         try:
-#             # Try to get/create an event loop
-#             try:
-#                 loop = asyncio.get_event_loop()
-#             except RuntimeError:
-#                 # No event loop exists in this thread
-#                 loop = asyncio.new_event_loop()
-#                 asyncio.set_event_loop(loop)
-#
-#             # Run async shutdown
-#             if loop.is_running():
-#                 logger.warning(
-#                     "Event loop is running, can't use run_until_complete - doing limited synchronous cleanup"
-#                 )
-#                 # Limited synchronous cleanup - can't await tasks properly
-#                 self.is_shutting_down = True
-#
-#                 # Close WebRTC connections using synchronous method
-#                 try:
-#                     self.close_all_webrtc_connections()
-#                 except Exception as e:
-#                     logger.error(f"Error in WebRTC cleanup during sync shutdown: {e}")
-#
-#                 return {
-#                     "success": True,
-#                     "component": "ipfs_model",
-#                     "note": "Limited synchronous cleanup performed, background tasks will complete naturally",
-#                     "warning": "Full cleanup not possible with running event loop",
-#                 }
-#             else:
-#                 # Run the full async shutdown
-#                 return loop.run_until_complete(self.shutdown_async())
-#         except Exception as e:
-#             logger.error(f"Error during IPFS model shutdown: {e}")
-#             return {"success": False, "component": "ipfs_model", "error": str(e)}
-#
-#     # DISABLED: 'close_all_webrtc_connections' is already defined at line 645
-#         """
-#         Close all WebRTC connections.
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         operation_id = f"webrtc_close_all_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "close_all_webrtc_connections",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#         }
-#
-#         try:
-#             # In a real implementation, we would:
-#             # 1. Iterate through all peer connections
-#             # 2. Close each one
-#             # 3. Clean up resources
-#
-#             # For now, just simulate successful operation
-#
-#             # Add result data
-#             result["success"] = True
-#             result["connections_closed"] = 0  # Would be actual count in real implementation
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             logger.info("Closed all WebRTC connections")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to close all WebRTC connections: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in close_all_webrtc_connections: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_close_all_webrtc_connections' is already defined at line 806
-#         """
-#         AnyIO-compatible version of close all WebRTC connections.
-#
-#         This is the same as close_all_webrtc_connections but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(self.close_all_webrtc_connections)
-#
-#     # DISABLED: 'check_daemon_status' is already defined at line 822
-#         """
-#         Check the status of IPFS daemons.
-#
-#         Args:
-#             daemon_type: Optional daemon type to check (ipfs, ipfs_cluster_service, etc.)
-#
-#         Returns:
-#             Dictionary with daemon status information
-#         """
-#         import inspect
-#         import traceback
-#
-#         operation_id = f"check_daemon_status_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Log parameter for debugging
-#         logger.debug(f"check_daemon_status called with daemon_type={daemon_type}")
-#
-#         result = {
-#             "success": False,
-#             "operation": "check_daemon_status",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "overall_status": "unknown",
-#         }
-#
-#         if daemon_type:
-#             result["daemon_type"] = daemon_type
-#
-#         try:
-#             # Check if ipfs_kit has the check_daemon_status method
-#             if hasattr(self.ipfs_kit, "check_daemon_status"):
-#                 # Handle parameter compatibility
-#                 try:
-#                     sig = inspect.signature(self.ipfs_kit.check_daemon_status)
-#                     logger.debug(
-#                         f"check_daemon_status signature: {sig}, parameter count: {len(sig.parameters)}"
-#                     )
-#
-#                     # Call without daemon_type parameter if method doesn't accept it
-#                     if len(sig.parameters) > 1:
-#                         # This means the method takes more than just 'self', likely has daemon_type parameter
-#                         logger.debug(f"Calling with daemon_type parameter: {daemon_type}")
-#                         daemon_status = (
-#                             self.ipfs_kit.check_daemon_status(daemon_type)
-#                             if daemon_type
-#                             else self.ipfs_kit.check_daemon_status()
-#                         )
-#                     else:
-#                         # Method only takes 'self', doesn't accept daemon_type
-#                         logger.debug("Calling without daemon_type parameter (original method)")
-#                         daemon_status = self.ipfs_kit.check_daemon_status()
-#                 except Exception as sig_error:
-#                     logger.error(f"Error inspecting signature: {sig_error}")
-#                     logger.error(traceback.format_exc())
-#                     # Fall back to direct call without parameter
-#                     logger.debug(
-#                         "Signature inspection failed, falling back to call without parameters"
-#                     )
-#                     daemon_status = self.ipfs_kit.check_daemon_status()
-#
-#                 # Process the response
-#                 if "daemons" in daemon_status:
-#                     result["daemons"] = daemon_status["daemons"]
-#
-#                     # If a specific daemon was requested, focus on it
-#                     if daemon_type and daemon_type in daemon_status["daemons"]:
-#                         result["daemon_info"] = daemon_status["daemons"][daemon_type]
-#                         result["running"] = daemon_status["daemons"][daemon_type].get(
-#                             "running", False
-#                         )
-#                         result["overall_status"] = "running" if result["running"] else "stopped"
-#                     else:
-#                         # Determine overall status from all daemons
-#                         running_daemons = [
-#                             d for d in daemon_status["daemons"].values() if d.get("running", False)
-#                         ]
-#                         result["running_count"] = len(running_daemons)
-#                         result["daemon_count"] = len(daemon_status["daemons"])
-#                         result["overall_status"] = "running" if running_daemons else "stopped"
-#
-#                 result["success"] = True
-#
-#             else:
-#                 # Manual status check if check_daemon_status not available
-#                 # This is a simplified implementation for daemon status checking
-#                 daemons = {}
-#
-#                 # Check IPFS daemon
-#                 if daemon_type is None or daemon_type == "ipfs": ,
-#                     ipfs_status = self._check_ipfs_daemon_status()
-#                     daemons["ipfs"] = ipfs_status
-#
-#                 # Check IPFS Cluster service daemon
-#                 if daemon_type is None or daemon_type == "ipfs_cluster_service": ,
-#                     cluster_status = self._check_cluster_daemon_status()
-#                     daemons["ipfs_cluster_service"] = cluster_status
-#
-#                 # Check IPFS Cluster follow daemon
-#                 if daemon_type is None or daemon_type == "ipfs_cluster_follow": ,
-#                     follow_status = self._check_cluster_follow_daemon_status()
-#                     daemons["ipfs_cluster_follow"] = follow_status
-#
-#                 # Set overall status based on requested daemon or all daemons
-#                 if daemon_type:
-#                     if daemon_type in daemons:
-#                         result["daemon_info"] = daemons[daemon_type]
-#                         result["running"] = daemons[daemon_type].get("running", False)
-#                         result["overall_status"] = "running" if result["running"] else "stopped"
-#                 else:
-#                     running_daemons = [d for d in daemons.values() if d.get("running", False)]
-#                     result["running_count"] = len(running_daemons)
-#                     result["daemon_count"] = len(daemons)
-#                     result["overall_status"] = "running" if running_daemons else "stopped"
-#
-#                 result["daemons"] = daemons
-#                 result["success"] = True
-#
-#             # Add duration information
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update operation stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = str(e)
-#             result["error_type"] = "daemon_status_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in check_daemon_status: {e}")
-#
-#         return result
-#
-#     # DISABLED: '_check_ipfs_daemon_status' is already defined at line 962
-#         """Check if IPFS daemon is running."""
-#         status = {"running": False, "pid": None}
-#
-#         try:
-#             # Try to get IPFS ID as a simple API check
-#             if hasattr(self.ipfs_kit, "id"):
-#                 id_result = self.ipfs_kit.id()
-#                 status["running"] = "ID" in id_result or "id" in id_result
-#                 status["info"] = id_result
-#             else:
-#                 # Fall back to simpler check
-#                 status["running"] = False
-#                 status["error"] = "No ID method found"
-#
-#         except Exception as e:
-#             status["running"] = False
-#             status["error"] = str(e)
-#             status["error_type"] = type(e).__name__
-#
-#         status["last_checked"] = time.time()
-#         return status
-#
-#     # DISABLED: '_check_cluster_daemon_status' is already defined at line 985
-#         """Check if IPFS Cluster service daemon is running."""
-#         status = {"running": False, "pid": None}
-#
-#         try:
-#             # Check if ipfs_cluster_service is available
-#             if hasattr(self.ipfs_kit, "ipfs_cluster_service"):
-#                 # Simple check if the service is running
-#                 if hasattr(self.ipfs_kit.ipfs_cluster_service, "is_running"):
-#                     status["running"] = self.ipfs_kit.ipfs_cluster_service.is_running()
-#                 else:
-#                     status["running"] = False
-#                     status["error"] = "No is_running method found"
-#             else:
-#                 status["running"] = False
-#                 status["error"] = "IPFS Cluster service not available"
-#
-#         except Exception as e:
-#             status["running"] = False
-#             status["error"] = str(e)
-#             status["error_type"] = type(e).__name__
-#
-#         status["last_checked"] = time.time()
-#         return status
-#
-#     # DISABLED: '_check_cluster_follow_daemon_status' is already defined at line 1010
-#         """Check if IPFS Cluster follow daemon is running."""
-#         status = {"running": False, "pid": None}
-#
-#         try:
-#             # Check if ipfs_cluster_follow is available
-#             if hasattr(self.ipfs_kit, "ipfs_cluster_follow"):
-#                 # Simple check if the follower is running
-#                 if hasattr(self.ipfs_kit.ipfs_cluster_follow, "is_running"):
-#                     status["running"] = self.ipfs_kit.ipfs_cluster_follow.is_running()
-#                 else:
-#                     status["running"] = False
-#                     status["error"] = "No is_running method found"
-#             else:
-#                 status["running"] = False
-#                 status["error"] = "IPFS Cluster follow not available"
-#
-#         except Exception as e:
-#             status["running"] = False
-#             status["error"] = str(e)
-#             status["error_type"] = type(e).__name__
-#
-#         status["last_checked"] = time.time()
-#         return status
-#
-#     # DISABLED: 'set_webrtc_quality' is already defined at line 1035
-#         """
-#         Change streaming quality for a WebRTC connection.
-#
-#         Args:
-#             connection_id: ID of the WebRTC connection
-#             quality: Quality preset to use (low, medium, high, auto)
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         operation_id = f"webrtc_quality_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "set_webrtc_quality",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "connection_id": connection_id,
-#             "quality": quality,
-#         }
-#
-#         try:
-#             # Validate quality parameter
-#             valid_qualities = ["low", "medium", "high", "auto"]
-#             if quality not in valid_qualities:
-#                 result["error"] = f"Invalid quality preset: {quality}"
-#                 result["error_type"] = "invalid_parameter"
-#                 result["valid_qualities"] = valid_qualities
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#                 logger.error(f"Invalid quality preset for WebRTC connection: {quality}")
-#
-#                 # Update stats
-#                 self.operation_stats["total_operations"] += 1
-#                 self.operation_stats["failure_count"] += 1
-#
-#                 return result
-#
-#             # In a real implementation, we would:
-#             # 1. Find the connection by ID
-#             # 2. Adjust video/audio parameters based on quality
-#             # 3. Apply the changes to the media tracks
-#
-#             # For now, return an error to simulate connection not found
-#             result["error"] = f"Connection not found: {connection_id}"
-#             result["error_type"] = "not_found"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             logger.warning(f"WebRTC connection not found for quality change: {connection_id}")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to set WebRTC quality: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in set_webrtc_quality: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_set_webrtc_quality' is already defined at line 1107
-#         """
-#         AnyIO-compatible version of set WebRTC quality.
-#
-#         This is the same as set_webrtc_quality but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Args:
-#             connection_id: ID of the WebRTC connection
-#             quality: Quality preset to use (low, medium, high, auto)
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(
-#             lambda: self.set_webrtc_quality(connection_id=connection_id, quality=quality)
-#         )
-#
-#     # DISABLED: 'run_webrtc_benchmark' is already defined at line 1129
-#         self
-#         cid: str
-#         duration_seconds: int = 60,
-#         report_format: str = "json",
-#         output_dir: str = None,
-#     ) -> Dict[str, Any]:
-#         """
-#         Run a WebRTC streaming benchmark.
-#
-#         Args:
-#             cid: Content identifier to benchmark
-#             duration_seconds: Benchmark duration in seconds
-#             report_format: Report output format (json, html, csv)
-#             output_dir: Directory to save benchmark reports
-#
-#         Returns:
-#             Dictionary with benchmark results
-#         """
-#         operation_id = f"webrtc_benchmark_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "run_webrtc_benchmark",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#             "duration_seconds": duration_seconds,
-#             "report_format": report_format,
-#         }
-#
-#         if output_dir:
-#             result["output_dir"] = output_dir
-#
-#         # First check WebRTC dependencies
-#         webrtc_check = self._check_webrtc()
-#         if not webrtc_check["webrtc_available"]:
-#             result["error"] = "WebRTC dependencies not available"
-#             result["error_type"] = "dependency_error"
-#             result["dependencies"] = webrtc_check["dependencies"]
-#             result["installation_command"] = webrtc_check.get("installation_command")
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#             logger.error(f"WebRTC dependencies not available for benchmark of CID: {cid}")
-#             return result
-#
-#         try:
-#             # Generate a unique benchmark ID
-#             benchmark_id = f"benchmark_{uuid.uuid4().hex[:8]}"
-#
-#             # Check if content exists
-#             content_result = self.get_content(cid)
-#             if not content_result.get("success", False):
-#                 result["error"] = (
-#                     f"Failed to retrieve content: {content_result.get('error', 'Content not found')}"
-#                 )
-#                 result["error_type"] = "content_error"
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.error(f"Content retrieval failed for WebRTC benchmark of CID: {cid}")
-#                 return result
-#
-#             # 3. Measure performance metrics
-#             # 4. Generate a report
-#
-#             # Validate and prepare output directory
-#             if output_dir:
-#                 os.makedirs(output_dir, exist_ok=True)
-#                 report_path = os.path.join(
-#                     output_dir, f"webrtc_benchmark_{benchmark_id}.{report_format}"
-#                 )
-#             else:
-#                 # Default to current directory
-#                 report_path = f"webrtc_benchmark_{benchmark_id}.{report_format}"
-#
-#             # For now, just simulate successful benchmark
-#             # Generate a simple report
-#             benchmark_summary = {
-#                 "benchmark_id": benchmark_id,
-#                 "cid": cid,
-#                 "duration_seconds": duration_seconds,
-#                 "timestamp": time.time(),
-#                 "metrics": {
-#                     "average_bitrate_kbps": 2500,
-#                     "packet_loss_percent": 0.5,
-#                     "average_latency_ms": 120,
-#                     "throughput_mbps": 5.2,
-#                     "cpu_usage_percent": 15.3,
-#                     "memory_usage_mb": 75.8,
-#                 },
-#             }
-#
-#             # Simulate report creation
-#             with open(report_path, "w") as f:
-#                 import json
-#
-#                 json.dump(benchmark_summary, f, indent=2)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["benchmark_id"] = benchmark_id
-#             result["report_path"] = report_path
-#             result["summary"] = benchmark_summary["metrics"]
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             logger.info(f"WebRTC benchmark completed for CID: {cid}")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to run WebRTC benchmark: {str(e)}"
-#             result["error_type"] = "webrtc_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in run_webrtc_benchmark: {e}")
-#
-#             return result
-#
-#     # DISABLED: 'async_run_webrtc_benchmark' is already defined at line 1255
-#         self
-#         cid: str
-#         duration_seconds: int = 60,
-#         report_format: str = "json",
-#         output_dir: str = None,
-#     ) -> Dict[str, Any]:
-#         """
-#         AnyIO-compatible version of run WebRTC benchmark.
-#
-#         This is the same as run_webrtc_benchmark but with async/await syntax
-#         for AnyIO compatibility.
-#
-#         Args:
-#             cid: Content identifier to benchmark
-#             duration_seconds: Benchmark duration in seconds
-#             report_format: Report output format (json, html, csv)
-#             output_dir: Directory to save benchmark reports
-#
-#         Returns:
-#             Dictionary with benchmark results
-#         """
-#         # Local import for AnyIO
-#         import anyio
-#
-#         # We can delegate to the synchronous version
-#         return await anyio.to_thread.run_sync(
-#             lambda: self.run_webrtc_benchmark(
-#                 cid=cid,
-#                 duration_seconds=duration_seconds,
-#                 report_format=report_format,
-#                 output_dir=output_dir,
-#             )
-#         )
-#
-#     # DISABLED: 'dag_put' is already defined at line 1290
-#         """
-#         Add a DAG node to IPFS.
-#
-#         Args:
-#             obj: Object to add as a DAG node
-#             format: Format to use (json or cbor)
-#             pin: Whether to pin the added node
-#
-#         Returns:
-#             Dictionary with operation result including CID
-#         """
-#         operation_id = f"dag_put_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "dag_put",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "format": format,
-#             "pin": pin,
-#         }
-#
-#         try:
-#             # Call IPFS kit's dag_put method
-#             kwargs = {"format": format, "pin": pin} if hasattr(self.ipfs_kit, "dag_put") else {}
-#             cid = self.ipfs_kit.dag_put(obj, **kwargs)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["cid"] = cid
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to put DAG node: {str(e)}"
-#             result["error_type"] = "dag_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in dag_put: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'dag_get' is already defined at line 1342
-#         """
-#         Get a DAG node from IPFS.
-#
-#         Args:
-#             cid: CID of the DAG node to get
-#             path: Optional path within the DAG node
-#
-#         Returns:
-#             Dictionary with operation result including the object
-#         """
-#         operation_id = f"dag_get_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "dag_get",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#         }
-#
-#         if path:
-#             result["path"] = path
-#
-#         try:
-#             # Call IPFS kit's dag_get method
-#             if path:
-#                 obj = self.ipfs_kit.dag_get(f"{cid}/{path}")
-#             else:
-#                 obj = self.ipfs_kit.dag_get(cid)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["object"] = obj
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to get DAG node: {str(e)}"
-#             result["error_type"] = "dag_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in dag_get: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'dag_resolve' is already defined at line 1397
-#         """
-#         Resolve a path through the DAG.
-#
-#         Args:
-#             path: DAG path to resolve
-#
-#         Returns:
-#             Dictionary with operation result including resolved CID and remainder path
-#         """
-#         operation_id = f"dag_resolve_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "dag_resolve",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "path": path,
-#         }
-#
-#         try:
-#             # Call IPFS kit's dag_resolve method
-#             resolve_result = self.ipfs_kit.dag_resolve(path)
-#
-#             # Parse the result
-#             # Typically format is {"Cid": {"/" : "cid"}, "RemPath": "remaining/path"}
-#             cid_obj = resolve_result.get("Cid", {})
-#             cid = cid_obj.get("/", "")
-#             remainder_path = resolve_result.get("RemPath", "")
-#
-#             # Add result data
-#             result["success"] = True
-#             result["cid"] = cid
-#             result["remainder_path"] = remainder_path
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to resolve DAG path: {str(e)}"
-#             result["error_type"] = "dag_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in dag_resolve: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'block_put' is already defined at line 1714
-#         """
-#         Add a raw block to IPFS.
-#
-#         Args:
-#             data: Raw block data to add
-#             format: Format to use (dag-pb, raw, etc.)
-#
-#         Returns:
-#             Dictionary with operation result including CID
-#         """
-#         operation_id = f"block_put_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "block_put",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "format": format,
-#         }
-#
-#         try:
-#             # Call IPFS kit's block_put method
-#             kwargs = {"format": format} if hasattr(self.ipfs_kit, "block_put") else {}
-#             cid = self.ipfs_kit.block_put(data, **kwargs)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["cid"] = cid
-#             result["size"] = len(data)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to put block: {str(e)}"
-#             result["error_type"] = "block_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in block_put: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'block_get' is already defined at line 1765
-#         """
-#         Get a raw block from IPFS.
-#
-#         Args:
-#             cid: CID of the block to get
-#
-#         Returns:
-#             Dictionary with operation result including the block data
-#         """
-#         operation_id = f"block_get_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "block_get",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#         }
-#
-#         try:
-#             # Call IPFS kit's block_get method
-#             data = self.ipfs_kit.block_get(cid)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["data"] = data
-#             result["size"] = len(data)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to get block: {str(e)}"
-#             result["error_type"] = "block_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in block_get: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'block_stat' is already defined at line 1814
-#         """
-#         Get stats about a block.
-#
-#         Args:
-#             cid: CID of the block
-#
-#         Returns:
-#             Dictionary with operation result including block stats
-#         """
-#         operation_id = f"block_stat_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "block_stat",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#         }
-#
-#         try:
-#             # Call IPFS kit's block_stat method
-#             stats = self.ipfs_kit.block_stat(cid)
-#
-#             # Get the size, handling potential field name differences
-#             # IPFS API typically returns "Size" capitalized
-#             size = stats.get("Size", stats.get("size", 0))
-#
-#             # Add result data
-#             result["success"] = True
-#             result["size"] = size
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Include all returned stats
-#             for key, value in stats.items():
-#                 if key.lower() not in ["size"]:  # Avoid duplicates
-#                     result[key.lower()] = value
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to get block stats: {str(e)}"
-#             result["error_type"] = "block_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in block_stat: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'get_version' is already defined at line 1871
-#         """
-#         Get IPFS version information.
-#
-#         Returns:
-#             Dictionary with operation result including version information
-#         """
-#         operation_id = f"version_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "version",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#         }
-#
-#         try:
-#             # Try to get version from IPFS kit
-#             if hasattr(self.ipfs_kit, "version"):
-#                 version_info = self.ipfs_kit.version()
-#             else:
-#                 # Fallback to simulated version info
-#                 version_info = {
-#                     "Version": "0.12.0",
-#                     "Commit": "simulation",
-#                     "Repo": "12",
-#                     "System": "simulation",
-#                     "Golang": "simulation",
-#                 }
-#                 result["simulation"] = True
-#
-#             # Add result data
-#             result["success"] = True
-#             result["version"] = version_info.get("Version", "unknown")
-#             result["commit"] = version_info.get("Commit", "unknown")
-#             result["repo"] = version_info.get("Repo", "unknown")
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Include all returned info
-#             for key, value in version_info.items():
-#                 if key.lower() not in ["version", "commit", "repo"]:  # Avoid duplicates
-#                     result[key.lower()] = value
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to get IPFS version: {str(e)}"
-#             result["error_type"] = "version_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error getting IPFS version: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'dht_findpeer' is already defined at line 1933
-#         """
-#         Find information about a peer using the DHT.
-#
-#         Args:
-#             peer_id: ID of the peer to find
-#
-#         Returns:
-#             Dictionary with operation result including peer information
-#         """
-#         operation_id = f"dht_findpeer_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "dht_findpeer",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "peer_id": peer_id,
-#         }
-#
-#         try:
-#             # Call IPFS kit's dht_findpeer method
-#             response = self.ipfs_kit.dht_findpeer(peer_id)
-#
-#             # Process the response
-#             responses = response.get("Responses", [])
-#
-#             # Convert to a standardized format
-#             formatted_responses = []
-#             for resp in responses:
-#                 formatted_resp = {
-#                     "id": resp.get("ID", ""),
-#                     "addrs": resp.get("Addrs", []),
-#                 }
-#                 formatted_responses.append(formatted_resp)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["responses"] = formatted_responses
-#             result["peers_found"] = len(formatted_responses)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Include any additional info from the response
-#             for key, value in response.items():
-#                 if key not in ["Responses"]:  # Skip processed fields
-#                     result[key.lower()] = value
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to find peer: {str(e)}"
-#             result["error_type"] = "dht_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in dht_findpeer: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'dht_findprovs' is already defined at line 1999
-#         """
-#         Find providers for a CID using the DHT.
-#
-#         Args:
-#             cid: Content ID to find providers for
-#             num_providers: Maximum number of providers to find (optional)
-#
-#         Returns:
-#             Dictionary with operation result including provider information
-#         """
-#         operation_id = f"dht_findprovs_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "dht_findprovs",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#         }
-#
-#         if num_providers is not None:
-#             result["num_providers"] = num_providers
-#
-#         try:
-#             # Call IPFS kit's dht_findprovs method
-#             kwargs = {}
-#             if num_providers is not None:
-#                 kwargs["num_providers"] = num_providers
-#
-#             response = self.ipfs_kit.dht_findprovs(cid, **kwargs)
-#
-#             # Process the response
-#             responses = response.get("Responses", [])
-#
-#             # Convert to a standardized format
-#             providers = []
-#             for resp in responses:
-#                 provider = {"id": resp.get("ID", ""), "addrs": resp.get("Addrs", [])}
-#                 providers.append(provider)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["providers"] = providers
-#             result["count"] = len(providers)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Include any additional info from the response
-#             for key, value in response.items():
-#                 if key not in ["Responses"]:  # Skip processed fields
-#                     result[key.lower()] = value
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to find providers: {str(e)}"
-#             result["error_type"] = "dht_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in dht_findprovs: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'get_content' is already defined at line 2070
-#         """
-#         Get content from IPFS by its CID.
-#
-#         Args:
-#             cid: Content identifier to retrieve
-#
-#         Returns:
-#             Dictionary with operation result including the content data
-#         """
-#         operation_id = f"get_content_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "get_content",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#         }
-#
-#         try:
-#             # Check memory cache first if available
-#             if self.cache_manager:
-#                 cached_data = self.cache_manager.get(f"ipfs_content_{cid}")
-#                 if cached_data:
-#                     logger.debug(f"Memory cache hit for content {cid}")
-#                     result["success"] = True
-#                     result["data"] = cached_data
-#                     result["size"] = len(cached_data)
-#                     result["from_cache"] = True
-#                     result["cache_type"] = "memory"
-#                     result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#                     # Update stats
-#                     self.operation_stats["total_operations"] += 1
-#                     self.operation_stats["success_count"] += 1
-#
-#                     return result
-#
-#             # Check parquet CID cache if memory cache missed
-#             try:
-#                 from ipfs_kit_py.tiered_cache_manager import ParquetCIDCache
-#
-#                 # Try to get an existing parquet cache from ipfs_kit or create a new one
-#                 parquet_cache = None
-#                 if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache:
-#                     parquet_cache = self.ipfs_kit.parquet_cache
-#                 else:
-#                     # Create or open existing parquet cache
-#
-#
-#                     cache_dir = os.path.expanduser("~/.ipfs_kit/cid_cache")
-#                     if os.path.exists(cache_dir):
-#                         parquet_cache = ParquetCIDCache(cache_dir)
-#
-#                 # Check if CID exists in parquet cache
-#                 if parquet_cache and parquet_cache.exists(cid):
-#                     logger.info(f"Parquet cache hit for CID: {cid}")
-#
-#                     # We only store metadata in parquet cache, not the content itself
-#                     # This method returns entry metadata, not data
-#                     metadata = parquet_cache.get(cid)
-#
-#                     # Add the info to the result
-#                     result["parquet_cache_hit"] = True
-#                     result["metadata"] = metadata
-#
-#                     # We don't return here because we still need the actual content
-#                     # This just verifies the CID is valid
-#             except Exception as e:
-#                 logger.warning(f"Error checking parquet CID cache: {str(e)}")
-#
-#             # Try using actual IPFS kit if available
-#             try:
-#                 # Call IPFS kit's cat method to get the content
-#                 if hasattr(self.ipfs_kit, "cat"):
-#                     data = self.ipfs_kit.cat(cid)
-#                 else:
-#                     # Fall back to ipfs_cat if cat is not available
-#                     data = self.ipfs_kit.ipfs_cat(cid)
-#
-#                 # Make sure we have bytes, not string
-#                 if isinstance(data, str):
-#                     data = data.encode("utf-8")
-#
-#                 logger.info(f"Successfully retrieved content from IPFS with CID: {cid}")
-#
-#             except Exception as e:
-#                 # Fall back to simulation mode if IPFS is not available
-#                 logger.warning(f"Using simulated content for CID {cid} due to error: {str(e)}")
-#                 # Generate deterministic content based on CID
-#                 simulated_content = f"Simulated content for CID: {cid}".encode("utf-8")
-#                 data = simulated_content
-#                 result["simulation"] = True
-#                 result["get_error"] = str(e)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["data"] = data
-#             result["size"] = len(data)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Cache the data if cache manager is available
-#             if self.cache_manager:
-#                 self.cache_manager.put(f"ipfs_content_{cid}", data)
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to get content: {str(e)}"
-#             result["error_type"] = "content_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in get_content: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'add_content' is already defined at line 2195
-#         self
-#         content: Union[str, bytes],
-#         filename: str = None,
-#         pin: bool = False,
-#         wrap_with_directory: bool = False,
-#     ) -> Dict[str, Any]:
-#         """
-#         Add content to IPFS.
-#
-#         Args:
-#             content: Content to add (string or bytes)
-#             filename: Optional filename to use
-#             pin: Whether to pin the content after adding
-#             wrap_with_directory: Whether to wrap the content in a directory
-#
-#         Returns:
-#             Dictionary with operation result including CID
-#         """
-#         operation_id = f"add_content_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "add_content",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "pin": pin,
-#             "wrap_with_directory": wrap_with_directory,
-#         }
-#
-#         if filename:
-#             result["filename"] = filename
-#
-#         try:
-#             # Ensure content is bytes
-#             if isinstance(content, str):
-#                 content_bytes = content.encode("utf-8")
-#             else:
-#                 content_bytes = content
-#
-#             # In simulation mode or if IPFS is not available, generate a proper CID using multiformats
-#             # This ensures we have a valid CID even when IPFS is down or unavailable
-#             try:
-#                 # Try to import multiformats
-#                 from ipfs_kit_py.ipfs_multiformats import create_cid_from_bytes
-#
-#                 # Create a proper CID using multiformats
-#                 simulated_cid = create_cid_from_bytes(content_bytes)
-#                 logger.info(f"Generated valid CID using multiformats: {simulated_cid}")
-#             except ImportError:
-#                 # Fall back to simple hashing if multiformats is not available
-#                 import hashlib
-#
-#                 content_hash = hashlib.sha256(content_bytes).hexdigest()
-#                 simulated_cid = f"bafybeig{content_hash[:40]}"
-#                 logger.warning("Multiformats not available, using simple hash-based CID")
-#
-#             # Try to use actual IPFS kit if available
-#             try:
-#                 if hasattr(self.ipfs_kit, "add"):
-#                     add_result = self.ipfs_kit.add(content_bytes)
-#                 else:
-#                     # Fall back to ipfs_add if add is not available
-#                     add_result = self.ipfs_kit.ipfs_add(content_bytes)
-#
-#                 # Extract CID from response
-#                 if isinstance(add_result, dict) and "Hash" in add_result:
-#                     cid = add_result["Hash"]
-#                 elif isinstance(add_result, dict) and "cid" in add_result:
-#                     cid = add_result["cid"]
-#                 elif isinstance(add_result, str):
-#                     cid = add_result
-#                 else:
-#                     raise ValueError(f"Unexpected add result format: {add_result}")
-#
-#                 result["add_response"] = add_result
-#                 logger.info(f"Successfully added content to IPFS with CID: {cid}")
-#
-#             except Exception as e:
-#                 # Fall back to simulated CID in case of error
-#                 logger.warning(f"Using simulated CID due to error: {str(e)}")
-#                 cid = simulated_cid
-#                 result["simulation"] = True
-#                 result["add_error"] = str(e)
-#
-#             # Add result data
-#             result["success"] = True
-#             result["cid"] = cid
-#             result["size"] = len(content_bytes)
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Handle pinning if requested
-#             if pin and result["success"]:
-#                 try:
-#                     logger.debug(f"Pinning content with CID: {cid}")
-#                     pin_result = self.pin_content(cid)
-#                     result["pin_result"] = pin_result
-#                     result["pinned"] = pin_result.get("success", False)
-#                 except Exception as e:
-#                     logger.warning(f"Failed to pin content {cid}: {str(e)}")
-#                     result["pin_error"] = str(e)
-#                     result["pinned"] = False
-#
-#             # Handle directory wrapping if requested
-#             if wrap_with_directory and result["success"]:
-#                 try:
-#                     # Create directory structure - implement helper method
-#                     directory_result = self._wrap_in_directory(cid, filename or f"file_{cid[-8:]}")
-#                     if directory_result.get("success", False):
-#                         result["directory_cid"] = directory_result.get("cid")
-#                         # If wrapping was successful, the new CID is the directory
-#                         if "directory_cid" in result:
-#                             result["wrapped_cid"] = result["cid"]  # Save original
-#                             result["cid"] = result["directory_cid"]  # Update main CID
-#                 except Exception as e:
-#                     logger.warning(f"Failed to wrap content in directory: {str(e)}")
-#                     result["directory_error"] = str(e)
-#
-#             # Cache the content if cache manager is available
-#             if self.cache_manager:
-#                 self.cache_manager.put(f"ipfs_content_{cid}", content_bytes)
-#
-#             # Store in parquet CID cache for persistence if available
-#             try:
-#                 # Try to import and use the parquet CID cache
-#                 from ipfs_kit_py.tiered_cache_manager import ParquetCIDCache
-#
-#                 # Try to get an existing parquet cache from ipfs_kit or create a new one
-#                 parquet_cache = None
-#                 if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache:
-#                     parquet_cache = self.ipfs_kit.parquet_cache
-#                 else:
-#                     # Create a new parquet cache
-#
-#
-#                     cache_dir = os.path.expanduser("~/.ipfs_kit/cid_cache")
-#                     os.makedirs(cache_dir, exist_ok=True)
-#                     parquet_cache = ParquetCIDCache(cache_dir)
-#
-#                 # Store the CID with metadata in the parquet cache
-#                 metadata = {
-#                     "size": len(content_bytes),
-#                     "timestamp": time.time(),
-#                     "operation": "add_content",
-#                     "simulation": result.get("simulation", False),
-#                     "filename": filename,
-#                 }
-#
-#                 # Store in parquet cache
-#                 parquet_cache.put(cid, metadata)
-#                 logger.info(f"Stored CID {cid} in parquet cache with metadata")
-#                 result["parquet_cached"] = True
-#
-#             except (ImportError, Exception) as e:
-#                 # Log but continue if parquet cache is not available
-#                 logger.warning(f"Could not store in parquet CID cache: {str(e)}")
-#                 result["parquet_cached"] = False
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to add content: {str(e)}"
-#             result["error_type"] = "content_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in add_content: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'pin_content' is already defined at line 2372
-#         """
-#         Pin content in IPFS to prevent garbage collection.
-#
-#         Args:
-#             cid: Content identifier to pin
-#
-#         Returns:
-#             Dictionary with operation result
-#         """
-#         operation_id = f"pin_content_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         result = {
-#             "success": False,
-#             "operation": "pin_content",
-#             "operation_id": operation_id,
-#             "timestamp": time.time(),
-#             "cid": cid,
-#         }
-#
-#         try:
-#             # Try using actual IPFS kit if available
-#             try:
-#                 # Call IPFS kit's pin_add method
-#                 if hasattr(self.ipfs_kit, "pin_add"):
-#                     pin_result = self.ipfs_kit.pin_add(cid)
-#                 else:
-#                     # Fall back to ipfs_pin if pin_add is not available
-#                     pin_result = self.ipfs_kit.ipfs_pin(cid)
-#
-#                 # Include original response for reference
-#                 result["pin_response"] = pin_result
-#                 logger.info(f"Successfully pinned content in IPFS with CID: {cid}")
-#
-#             except Exception as e:
-#                 # Fall back to simulation mode if IPFS is not available
-#                 logger.warning(f"Using simulated pinning for CID {cid} due to error: {str(e)}")
-#                 pin_result = {"Pins": [cid]}
-#                 result["simulation"] = True
-#                 result["pin_error"] = str(e)
-#                 result["pin_response"] = pin_result
-#
-#             # Add result data
-#             result["success"] = True
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Record pin status in parquet CID cache if available
-#             try:
-#                 from ipfs_kit_py.tiered_cache_manager import ParquetCIDCache
-#
-#                 # Try to get an existing parquet cache from ipfs_kit or create a new one
-#                 parquet_cache = None
-#                 if hasattr(self.ipfs_kit, "parquet_cache") and self.ipfs_kit.parquet_cache:
-#                     parquet_cache = self.ipfs_kit.parquet_cache
-#                 else:
-#                     # Create a new parquet cache
-#
-#
-#                     cache_dir = os.path.expanduser("~/.ipfs_kit/cid_cache")
-#                     os.makedirs(cache_dir, exist_ok=True)
-#                     parquet_cache = ParquetCIDCache(cache_dir)
-#
-#                 # Check if CID exists in parquet cache
-#                 if parquet_cache:
-#                     # Get existing metadata or create new
-#                     if parquet_cache.exists(cid):
-#                         metadata = parquet_cache.get(cid)
-#                     else:
-#                         metadata = {}
-#
-#                     # Update metadata with pin information
-#                     metadata.update(
-#                         {
-#                             "pinned": True,
-#                             "pin_timestamp": time.time(),
-#                             "pin_type": "recursive",
-#                             "simulation": result.get("simulation", False),
-#                         }
-#                     )
-#
-#                     # Update the parquet cache
-#                     parquet_cache.put(cid, metadata)
-#                     logger.info(f"Updated pin status in parquet cache for CID: {cid}")
-#                     result["parquet_updated"] = True
-#
-#             except Exception as e:
-#                 logger.warning(f"Error updating parquet CID cache: {str(e)}")
-#                 result["parquet_updated"] = False
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["success_count"] += 1
-#
-#         except Exception as e:
-#             # Handle error
-#             result["error"] = f"Failed to pin content: {str(e)}"
-#             result["error_type"] = "pin_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in pin_content: {e}")
-#
-#         return result
-#
-#     # DISABLED: 'execute_command' is already defined at line 2480
-#         """
-#         Execute a command with the given arguments and parameters.
-#
-#         This method dispatches commands to appropriate handlers based on the command name.
-#         It provides a unified interface for executing different types of operations.
-#
-#         Args:
-#             command: Command name to execute
-#             args: Positional arguments for the command
-#             params: Named parameters for the command
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         if args is None:
-#             args = []
-#         if params is None:
-#             params = {}
-#
-#         operation_id = f"{command}_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Initialize result dictionary
-#         result = {
-#             "success": False,
-#             "operation_id": operation_id,
-#             "operation": command,
-#             "start_time": start_time,
-#         }
-#
-#         # Logging the command execution
-#         args_str = ", ".join([str(a) for a in args]) if args else ""
-#         params_str = ", ".join([f"{k}={v}" for k, v in params.items()]) if params else ""
-#         logger.debug(
-#             f"Executing command: {command}({args_str}{',' if args_str and params_str else ''} {params_str})"
-#         )
-#
-#         try:
-#             # First, check for specialized handlers
-#             handler_name = f"_handle_{command}"
-#             if hasattr(self, handler_name) and callable(getattr(self, handler_name)):
-#                 # Call the specialized handler
-#                 handler = getattr(self, handler_name)
-#                 return handler(params)
-#
-#             # Handle cluster follow commands
-#             if command.startswith("cluster_follow_"):
-#                 return self._handle_cluster_follow_command(command, args, params)
-#
-#             # Handle libp2p commands
-#             if command.startswith("libp2p_"):
-#                 return self._handle_libp2p_command(command, args, params)
-#
-#             # Handle lotus/filecoin commands
-#             if command.startswith("lotus_") or command.startswith("filecoin_"):
-#                 return self._handle_filecoin_command(command, args, params)
-#
-#             # Handle specific IPFS commands
-#             if command == "add_content": ,
-#                 content = params.get("content", args[0] if args else "")
-#                 filename = params.get("filename")
-#                 pin = params.get("pin", False)
-#                 wrap_with_directory = params.get("wrap_with_directory", False)
-#                 return self.add_content(content, filename, pin, wrap_with_directory)
-#
-#             elif command == "get_content": ,
-#                 cid = params.get("cid", args[0] if args else "")
-#                 return self.get_content(cid)
-#
-#             elif command == "pin_content": ,
-#                 cid = params.get("cid", args[0] if args else "")
-#                 return self.pin_content(cid)
-#
-#             elif command == "get_version": ,
-#                 return self.get_version()
-#
-#             elif command == "get_stats": ,
-#                 return self.get_stats()
-#
-#             elif command == "check_webrtc_dependencies": ,
-#                 return self.check_webrtc_dependencies()
-#
-#             # Handle discovery and peer commands
-#             elif command == "discover_peers": ,
-#                 discovery_method = params.get("discovery_method", "all")
-#                 max_peers = params.get("max_peers", 10)
-#                 # Delegate to appropriate method when implemented
-#                 if hasattr(self, "find_libp2p_peers"):
-#                     return self.find_libp2p_peers(
-#                         discovery_method=discovery_method, max_peers=max_peers
-#                     )
-#                 else:
-#                     result["error"] = "Peer discovery method not implemented"
-#                     return result
-#
-#             # Handle list_known_peers command
-#             elif command == "list_known_peers": ,
-#                 if hasattr(self, "_handle_list_known_peers"):
-#                     return self._handle_list_known_peers(params)
-#                 else:
-#                     result["error"] = "list_known_peers handler not implemented"
-#                     return result
-#
-#             # Handle register_node command
-#             elif command == "register_node": ,
-#                 if hasattr(self, "_handle_register_node"):
-#                     return self._handle_register_node(params)
-#                 else:
-#                     result["error"] = "register_node handler not implemented"
-#                     return result
-#
-#             # Try to delegate to IPFS kit if command not handled here
-#             elif hasattr(self.ipfs_kit, command):
-#                 method = getattr(self.ipfs_kit, command)
-#                 if callable(method):
-#                     response = method(*args, **params)
-#                     result["success"] = True
-#                     result["result"] = response
-#                     result["duration_ms"] = (time.time() - start_time) * 1000
-#                     return result
-#
-#             # Try prefixed ipfs_ method on ipfs_kit
-#             elif hasattr(self.ipfs_kit, f"ipfs_{command}"):
-#                 method = getattr(self.ipfs_kit, f"ipfs_{command}")
-#                 if callable(method):
-#                     response = method(*args, **params)
-#                     result["success"] = True
-#                     result["result"] = response
-#                     result["duration_ms"] = (time.time() - start_time) * 1000
-#                     return result
-#
-#             # Command not recognized
-#             else:
-#                 result["error"] = f"Unknown command: {command}"
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.warning(f"Unknown command: {command}")
-#                 return result
-#
-#         except Exception as e:
-#             # Handle errors
-#             result["error"] = str(e)
-#             result["error_type"] = "command_execution_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error executing command {command}: {e}")
-#             import traceback
-#
-#             logger.debug(traceback.format_exc())
-#
-#         return result
-#
-#     def _handle_cluster_follow_command(selfself, command, args = None, params = None):
-#         """
-#         Handle IPFS Cluster Follow specific commands.
-#
-#         Args:
-#             command: The cluster follow command to execute (with 'cluster_follow_' prefix)
-#             args: Positional arguments for the command
-#             params: Named parameters for the command
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         if args is None:
-#             args = []
-#         if params is None:
-#             params = {}
-#
-#         operation_id = f"{command}_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Initialize result dictionary
-#         result = {
-#             "success": False,
-#             "operation_id": operation_id,
-#             "operation": command,
-#             "start_time": start_time,
-#             "timestamp": time.time(),
-#         }
-#
-#         try:
-#             # Extract the specific cluster follow operation
-#             cluster_follow_command = command[15:]  # Remove "cluster_follow_" prefix
-#
-#             # Check if we have an ipfs_cluster_follow attribute
-#             if (
-#                 not hasattr(self.ipfs_kit, "ipfs_cluster_follow")
-#                 or self.ipfs_kit.ipfs_cluster_follow is None
-#             ):
-#                 result["error"] = "IPFS Cluster Follow is not available"
-#                 result["error_type"] = "missing_component"
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.error("IPFS Cluster Follow component is not available")
-#                 return result
-#
-#             # Map command to the appropriate method name in ipfs_cluster_follow
-#             method_name = None
-#             if cluster_follow_command == "start": ,
-#                 method_name = "ipfs_follow_start"
-#             elif cluster_follow_command == "stop": ,
-#                 method_name = "ipfs_follow_stop"
-#             elif cluster_follow_command == "run": ,
-#                 method_name = "ipfs_follow_run"
-#             elif cluster_follow_command == "info": ,
-#                 method_name = "ipfs_follow_info"
-#             elif cluster_follow_command == "list": ,
-#                 method_name = "ipfs_follow_list"
-#             elif cluster_follow_command == "sync": ,
-#                 method_name = "ipfs_follow_sync"
-#             elif cluster_follow_command == "test": ,
-#                 method_name = "test_ipfs_cluster_follow"
-#             else:
-#                 result["error"] = f"Unknown cluster follow command: {cluster_follow_command}"
-#                 result["error_type"] = "unknown_command"
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.error(f"Unknown cluster follow command: {cluster_follow_command}")
-#                 return result
-#
-#             # Check if the method exists
-#             if not hasattr(self.ipfs_kit.ipfs_cluster_follow, method_name):
-#                 result["error"] = f"IPFS Cluster Follow does not support: {method_name}"
-#                 result["error_type"] = "unsupported_operation"
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.error(f"IPFS Cluster Follow does not support method: {method_name}")
-#                 return result
-#
-#             # Call the method with appropriate arguments
-#             logger.debug(f"Calling IPFS Cluster Follow method: {method_name}")
-#             method = getattr(self.ipfs_kit.ipfs_cluster_follow, method_name)
-#
-#             # Extract cluster_name from params or use the default from ipfs_kit if available
-#             cluster_name = params.get("cluster_name")
-#             if not cluster_name and hasattr(self.ipfs_kit, "cluster_name"):
-#                 params["cluster_name"] = self.ipfs_kit.cluster_name
-#
-#             # Call the method and get the result
-#             follow_result = method(**params)
-#
-#             # Handle the result
-#             if isinstance(follow_result, dict) and "success" in follow_result:
-#                 result.update(follow_result)
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#                 # Add specific error handling for common issues
-#                 if not follow_result.get("success", False):
-#                     error_msg = follow_result.get("error", "Unknown error")
-#                     if "command binary not found" in error_msg:
-#                         result["error_type"] = "binary_not_found"
-#                         result["troubleshooting"] = (
-#                             "IPFS Cluster Follow binary is missing. Please install it."
-#                         )
-#                     elif (
-#                         "socket already in use" in error_msg.lower()
-#                         or "address already in use" in error_msg.lower()
-#                     ):
-#                         result["error_type"] = "address_in_use"
-#                         result["troubleshooting"] = (
-#                             "A socket is already in use. Try stopping existing processes first."
-#                         )
-#                     elif "missing required parameter" in error_msg:
-#                         result["error_type"] = "missing_parameter"
-#                     logger.error(f"Failed to execute {method_name}: {error_msg}")
-#                 else:
-#                     logger.info(f"Successfully executed {method_name}")
-#             else:
-#                 # Unexpected result format
-#                 result["error"] = "Invalid result format from IPFS Cluster Follow"
-#                 result["error_type"] = "invalid_result"
-#                 result["raw_result"] = follow_result
-#                 result["duration_ms"] = (time.time() - start_time) * 1000
-#                 logger.error("Invalid result format from IPFS Cluster Follow")
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             if result.get("success", False):
-#                 self.operation_stats["success_count"] += 1
-#             else:
-#                 self.operation_stats["failure_count"] += 1
-#
-#             return result
-#
-#         except Exception as e:
-#             # Handle errors
-#             result["error"] = str(e)
-#             result["error_type"] = "cluster_follow_command_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#             result["exception_type"] = type(e).__name__
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in _handle_cluster_follow_command ({command}): {e}")
-#             import traceback
-#
-#             logger.debug(traceback.format_exc())
-#
-#             return result
-#
-#     def _handle_libp2p_command(selfself, command, args = None, params = None):
-#         """
-#         Handle libp2p-specific commands.
-#
-#         Args:
-#             command: The libp2p command to execute (with 'libp2p_' prefix)
-#             args: Positional arguments for the command
-#             params: Named parameters for the command
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         if args is None:
-#             args = []
-#         if params is None:
-#             params = {}
-#
-#         operation_id = f"{command}_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Initialize result dictionary
-#         result = {
-#             "success": False,
-#             "operation_id": operation_id,
-#             "operation": command,
-#             "start_time": start_time,
-#             "timestamp": time.time(),
-#         }
-#
-#         try:
-#             # Extract the specific libp2p operation
-#             libp2p_command = command[7:]  # Remove "libp2p_" prefix
-#
-#             # Handle connect peer
-#             if libp2p_command == "connect_peer": ,
-#                 peer_addr = params.get("peer_addr", args[0] if args else "")
-#                 result["success"] = True
-#                 result["result"] = {
-#                     "connected": True,
-#                     "peer_id": (,
-#                         peer_addr.split("/")[-1] if isinstance(peer_addr, str) else "unknown"
-#                     ),
-#                 }
-#
-#             # Handle get peers
-#             elif libp2p_command == "get_peers": ,
-#                 params.get("max_peers", 10)
-#                 result["success"] = True
-#                 result["result"] = {
-#                     "peers": []  # Would be populated with actual peers in real implementation,
-#                 }
-#
-#             # Handle publish message
-#             elif libp2p_command == "publish": ,
-#                 topic = params.get("topic", args[0] if len(args) > 0 else "")
-#                 message = params.get("message", args[1] if len(args) > 1 else "")
-#                 result["success"] = True
-#                 result["result"] = {
-#                     "published": True,
-#                     "topic": topic,
-#                     "message_size": len(message) if isinstance(message, str) else 0,
-#                 }
-#
-#             # Handle subscribe
-#             elif libp2p_command == "subscribe": ,
-#                 topic = params.get("topic", args[0] if args else "")
-#                 result["success"] = True
-#                 result["result"] = {"subscribed": True, "topic": topic}
-#
-#             # Handle announce content
-#             elif libp2p_command == "announce_content": ,
-#                 cid = params.get("cid", args[0] if args else "")
-#                 result["success"] = True
-#                 result["result"] = {"announced": True, "cid": cid}
-#
-#             # Handle other libp2p commands
-#             else:
-#                 result["success"] = False
-#                 result["error"] = f"Unknown libp2p command: {libp2p_command}"
-#
-#             # Add duration information
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             if result["success"]:
-#                 self.operation_stats["success_count"] += 1
-#             else:
-#                 self.operation_stats["failure_count"] += 1
-#
-#         except Exception as e:
-#             # Handle errors
-#             result["error"] = str(e)
-#             result["error_type"] = "libp2p_command_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in _handle_libp2p_command ({command}): {e}")
-#
-#         return result
-#
-#     def _handle_filecoin_command(selfself, command, args = None, params = None):
-#         """
-#         Handle Filecoin/Lotus-specific commands.
-#
-#         Args:
-#             command: The command to execute (with 'lotus_' or 'filecoin_' prefix)
-#             args: Positional arguments for the command
-#             params: Named parameters for the command
-#
-#         Returns:
-#             Dictionary with operation results
-#         """
-#         if args is None:
-#             args = []
-#         if params is None:
-#             params = {}
-#
-#         operation_id = f"{command}_{int(time.time() * 1000)}"
-#         start_time = time.time()
-#
-#         # Initialize result dictionary
-#         result = {
-#             "success": False,
-#             "operation_id": operation_id,
-#             "operation": command,
-#             "start_time": start_time,
-#             "timestamp": time.time(),
-#         }
-#
-#         try:
-#             # Check if we have a Lotus daemon module
-#             if not hasattr(self, "lotus_daemon") or self.lotus_daemon is None:
-#                 # Try to import the lotus daemon module
-#                 try:
-#                     from ipfs_kit_py.lotus_daemon import LotusDaemon
-#
-#                     self.lotus_daemon = LotusDaemon()
-#                 except (ImportError, Exception) as e:
-#                     result["error"] = f"Lotus daemon not available: {str(e)}"
-#                     result["error_type"] = "lotus_not_available"
-#                     result["duration_ms"] = (time.time() - start_time) * 1000
-#                     logger.error(f"Failed to initialize Lotus daemon: {e}")
-#                     return result
-#
-#             # Extract the specific Filecoin operation
-#             if command.startswith("lotus_"):
-#                 filecoin_command = command[6:]  # Remove "lotus_" prefix
-#             else:
-#                 filecoin_command = command[9:]  # Remove "filecoin_" prefix
-#
-#             # Check if the command exists in the lotus daemon
-#             if hasattr(self.lotus_daemon, filecoin_command):
-#                 method = getattr(self.lotus_daemon, filecoin_command)
-#                 if callable(method):
-#                     response = method(*args, **params)
-#                     result["success"] = True
-#                     result["result"] = response
-#                 else:
-#                     result["error"] = f"Command {filecoin_command} is not callable"
-#             else:
-#                 result["error"] = f"Unknown Filecoin command: {filecoin_command}"
-#
-#             # Add duration information
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             if result["success"]:
-#                 self.operation_stats["success_count"] += 1
-#             else:
-#                 self.operation_stats["failure_count"] += 1
-#
-#         except Exception as e:
-#             # Handle errors
-#             result["error"] = str(e)
-#             result["error_type"] = "filecoin_command_error"
-#             result["duration_ms"] = (time.time() - start_time) * 1000
-#
-#             # Update stats
-#             self.operation_stats["total_operations"] += 1
-#             self.operation_stats["failure_count"] += 1
-#
-#             logger.error(f"Error in _handle_filecoin_command ({command}): {e}")
-#
-#         return result
-#
+            if isinstance(follow_result, dict) and "success" in follow_result:
+                result.update(follow_result); result["duration_ms"] = (time.time() - start_time) * 1000
+                if not follow_result.get("success", False):
+                    error_msg = follow_result.get("error", "Unknown error")
+                    if "command binary not found" in error_msg: result.update({"error_type": "binary_not_found", "troubleshooting": "IPFS Cluster Follow binary is missing. Please install it."})
+                    elif "socket already in use" in error_msg.lower() or "address already in use" in error_msg.lower(): result.update({"error_type": "address_in_use", "troubleshooting": "A socket is already in use. Try stopping existing processes first."})
+                    elif "missing required parameter" in error_msg: result["error_type"] = "missing_parameter"
+                    logger.error(f"Failed to execute {method_name}: {error_msg}")
+                else: logger.info(f"Successfully executed {method_name}")
+            else:
+                result.update({"error": "Invalid result format from IPFS Cluster Follow", "error_type": "invalid_result", "raw_result": follow_result, "duration_ms": (time.time() - start_time) * 1000})
+                logger.error("Invalid result format from IPFS Cluster Follow")
+
+            self._increment_stats(operation, result.get("success", False))
+        except Exception as e:
+            result.update({"error": str(e), "error_type": "cluster_follow_command_error", "duration_ms": (time.time() - start_time) * 1000, "exception_type": type(e).__name__})
+            self._increment_stats(operation, False)
+            logger.error(f"Error in _handle_cluster_follow_command ({command}): {e}"); import traceback; logger.debug(traceback.format_exc())
+        return result
+
+    def _handle_libp2p_command(self, command, args = None, params = None):
+        """Handle libp2p-specific commands."""
+        operation = command # Use full command name for stats
+        if args is None: args = []
+        if params is None: params = {}
+        operation_id = f"{command}_{int(time.time() * 1000)}"; start_time = time.time()
+        result = {"success": False, "operation_id": operation_id, "operation": command, "start_time": start_time, "timestamp": time.time()}
+        try:
+            libp2p_command = command[7:]
+            if libp2p_command == "connect_peer":
+                peer_addr = params.get("peer_addr", args[0] if args else "")
+                result.update({"success": True, "result": {"connected": True, "peer_id": peer_addr.split("/")[-1] if isinstance(peer_addr, str) else "unknown"}})
+            elif libp2p_command == "get_peers":
+                params.get("max_peers", 10); result.update({"success": True, "result": {"peers": []}})
+            elif libp2p_command == "publish":
+                topic = params.get("topic", args[0] if len(args) > 0 else ""); message = params.get("message", args[1] if len(args) > 1 else "")
+                result.update({"success": True, "result": {"published": True, "topic": topic, "message_size": len(message) if isinstance(message, str) else 0}})
+            elif libp2p_command == "subscribe":
+                topic = params.get("topic", args[0] if args else ""); result.update({"success": True, "result": {"subscribed": True, "topic": topic}})
+            elif libp2p_command == "announce_content":
+                cid = params.get("cid", args[0] if args else ""); result.update({"success": True, "result": {"announced": True, "cid": cid}})
+            else: result["error"] = f"Unknown libp2p command: {libp2p_command}"
+
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            self._increment_stats(operation, result.get("success", False))
+        except Exception as e:
+            result.update({"error": str(e), "error_type": "libp2p_command_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
+            logger.error(f"Error in _handle_libp2p_command ({command}): {e}")
+        return result
+
+    def _handle_filecoin_command(self, command, args = None, params = None):
+        """Handle Filecoin/Lotus-specific commands."""
+        operation = command # Use full command name for stats
+        if args is None: args = []
+        if params is None: params = {}
+        operation_id = f"{command}_{int(time.time() * 1000)}"; start_time = time.time()
+        result = {"success": False, "operation_id": operation_id, "operation": command, "start_time": start_time, "timestamp": time.time()}
+        try:
+            if not hasattr(self, "lotus_daemon") or self.lotus_daemon is None:
+                try:
+                    from ipfs_kit_py.lotus_daemon import LotusDaemon # Import moved inside try
+                    self.lotus_daemon = LotusDaemon()
+                except (ImportError, Exception) as e:
+                    result.update({"error": f"Lotus daemon not available: {str(e)}", "error_type": "lotus_not_available", "duration_ms": (time.time() - start_time) * 1000})
+                    logger.error(f"Failed to initialize Lotus daemon: {e}"); self._increment_stats(operation, False); return result
+
+            filecoin_command = command[6:] if command.startswith("lotus_") else command[9:]
+            if hasattr(self.lotus_daemon, filecoin_command):
+                method = getattr(self.lotus_daemon, filecoin_command)
+                if callable(method):
+                    response = method(*args, **params)
+                    result.update({"success": True, "result": response})
+                else: result["error"] = f"Command {filecoin_command} is not callable"
+            else: result["error"] = f"Unknown Filecoin command: {filecoin_command}"
+
+            result["duration_ms"] = (time.time() - start_time) * 1000
+            self._increment_stats(operation, result.get("success", False))
+        except Exception as e:
+            result.update({"error": str(e), "error_type": "filecoin_command_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
+            logger.error(f"Error in _handle_filecoin_command ({command}): {e}")
+        return result
+
+    # Helper method to wrap content in a directory (placeholder)
+    def _wrap_in_directory(self, content_cid: str, filename: str) -> Dict[str, Any]:
+        """Wraps a CID in a directory using MFS commands."""
+        operation = "_wrap_in_directory"
+        start_time = time.time()
+        result = {"success": False, "operation": operation, "timestamp": time.time()}
+        try:
+            # Check for required methods on the ipfs_kit instance
+            required_methods = ["ipfs_mkdir", "ipfs_files_cp", "ipfs_files_stat", "ipfs_files_rm"]
+            for method_name in required_methods:
+                if not hasattr(self.ipfs_kit, method_name):
+                    raise NotImplementedError(f"Required MFS command '{method_name}' not available on ipfs_kit")
+
+            # Create a temporary unique directory path in MFS
+            temp_dir_path = f"/mcp_wrap_{uuid.uuid4().hex[:8]}"
+            mkdir_result = self.ipfs_kit.ipfs_mkdir(temp_dir_path, parents=True)
+            if not mkdir_result.get("success"):
+                 raise Exception(f"Failed to create temporary MFS directory: {mkdir_result.get('error')}")
+
+            # Copy the content CID into the directory with the desired filename
+            target_path = f"{temp_dir_path}/{filename}"
+            cp_result = self.ipfs_kit.ipfs_files_cp(f"/ipfs/{content_cid}", target_path)
+            if not cp_result.get("success"):
+                 # Cleanup attempt
+                 try: self.ipfs_kit.ipfs_files_rm(temp_dir_path, recursive=True)
+                 except: pass
+                 raise Exception(f"Failed to copy CID into MFS directory: {cp_result.get('error')}")
+
+            # Get the CID of the new directory
+            stat_result = self.ipfs_kit.ipfs_files_stat(temp_dir_path)
+            if not stat_result.get("success"):
+                 # Cleanup attempt
+                 try: self.ipfs_kit.ipfs_files_rm(temp_dir_path, recursive=True)
+                 except: pass
+                 raise Exception(f"Failed to stat new MFS directory: {stat_result.get('error')}")
+
+            directory_cid = stat_result.get("Hash")
+            if not directory_cid:
+                 raise Exception("Could not retrieve CID for the new directory")
+
+            result.update({"success": True, "cid": directory_cid, "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, True)
+
+        except Exception as e:
+            result.update({"error": str(e), "error_type": "mfs_wrap_error", "duration_ms": (time.time() - start_time) * 1000})
+            self._increment_stats(operation, False)
+            logger.error(f"Error wrapping content in directory: {e}")
+
+        return result
