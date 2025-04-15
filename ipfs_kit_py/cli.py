@@ -251,15 +251,6 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     except Exception as e:
         logger.warning(f"Could not register WAL Telemetry commands: {e}")
         
-
-    # Try to register model manager commands
-    try:
-        # Add model manager commands
-        add_model_manager_commands(subparsers)
-        logger.debug("Model manager commands registered.")
-    except Exception as e:
-        logger.warning(f"Could not register model manager commands: {e}")
-
     # Register additional advanced commands
     try:
         # Add parallel query execution commands
@@ -2739,93 +2730,6 @@ def parse_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
     return kwargs
-
-
-# Add this function with the other "add_*_commands" functions
-def add_model_manager_commands(subparsers):
-    """Add commands for model manager operations."""
-    model_parser = subparsers.add_parser(
-        "model",
-        help="Model management operations"
-    )
-    model_subparsers = model_parser.add_subparsers(dest="model_command", help="Model command", required=True)
-
-    # List models command
-    list_parser = model_subparsers.add_parser(
-        "list",
-        help="List available models"
-    )
-    list_parser.set_defaults(func=lambda api, args, kwargs: api.list_models(**kwargs))
-
-    # Get model info command
-    info_parser = model_subparsers.add_parser(
-        "info",
-        help="Get model information"
-    )
-    info_parser.add_argument(
-        "model_id",
-        help="Model ID to get information about"
-    )
-    info_parser.set_defaults(func=lambda api, args, kwargs: api.get_model(args.model_id, **kwargs))
-
-    # Get model state command
-    state_parser = model_subparsers.add_parser(
-        "state",
-        help="Get model manager state"
-    )
-    state_parser.set_defaults(func=lambda api, args, kwargs: api.get_model_state(**kwargs))
-
-    # Import model config command
-    config_parser = model_subparsers.add_parser(
-        "config",
-        help="Import model manager configuration"
-    )
-    config_parser.add_argument(
-        "--path",
-        required=True,
-        help="Path to configuration file"
-    )
-    config_parser.set_defaults(func=lambda api, args, kwargs: api.import_model_config(config_path=args.path, **kwargs))
-
-    # Import model collection command
-    collection_parser = model_subparsers.add_parser(
-        "import-collection",
-        help="Import model collection"
-    )
-    collection_parser.add_argument(
-        "--path",
-        required=True,
-        help="Path to collection file"
-    )
-    collection_parser.set_defaults(func=lambda api, args, kwargs: api.import_model_collection(collection_path=args.path, **kwargs))
-
-    # Load model command
-    load_parser = model_subparsers.add_parser(
-        "load",
-        help="Load a model"
-    )
-    load_parser.add_argument(
-        "model_id",
-        help="Model ID to load"
-    )
-    load_parser.set_defaults(func=lambda api, args, kwargs: api.load_model(args.model_id, **kwargs))
-
-    # Cache model command
-    cache_parser = model_subparsers.add_parser(
-        "cache",
-        help="Cache a model to a specific backend"
-    )
-    cache_parser.add_argument(
-        "model_id",
-        help="Model ID to cache"
-    )
-    cache_parser.add_argument(
-        "--backend",
-        choices=["local", "ipfs", "s3", "storacha"],
-        default="local",
-        help="Backend where to cache the model"
-    )
-    cache_parser.set_defaults(func=lambda api, args, kwargs: api.cache_model(args.model_id, backend=args.backend, **kwargs))
 
 
 def run_command(args: argparse.Namespace) -> Any:
