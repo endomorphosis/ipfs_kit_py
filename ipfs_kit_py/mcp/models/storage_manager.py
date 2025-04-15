@@ -207,7 +207,7 @@ class StorageManager:
                     resources=lassie_resources, metadata=lassie_metadata
                 )
 
-                # Create Lassie model (Corrected parameter name)
+                # Create Lassie model (Corrected parameter name again)
                 self.storage_models["lassie"] = LassieModel(
                     lassie_kit_instance=lassie_kit_instance, # Corrected parameter name
                     ipfs_model=self.ipfs_model,

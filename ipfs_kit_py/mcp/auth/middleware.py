@@ -31,9 +31,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
     verifies permissions for protected routes.
     """
     def __init__(
-        self
-        app: FastAPI
-        auth_service: AuthenticationService
+        self,
+        app: FastAPI,
+        auth_service: AuthenticationService,
         exclude_paths: List[str] = None,
         require_auth: bool = False,
     ):
@@ -146,7 +146,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization")
         if auth_header:
             parts = auth_header.split()
-            if len(parts) == 2 and parts[0].lower() == "bearer": ,
+            if len(parts) == 2 and parts[0].lower() == "bearer":
                 token = parts[1]
                 token_type = "bearer"
 
@@ -174,7 +174,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Verify token if present
         if token:
-            if token_type == "api_key": ,
+            if token_type == "api_key":
                 # Verify API key
                 valid, api_key_obj, error = await self.auth_service.verify_api_key(
                     token, ip_address=request.client.host if request.client else None

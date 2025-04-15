@@ -36,11 +36,15 @@ def run_tests(args):
         if args.component == 'ipfs':
             test_path = 'tests.integration.backends.test_ipfs_backend'
         elif args.component == 'filecoin':
-            test_path = 'tests.integration.backends.test_filecoin'
+            test_path = 'tests.integration.backends.test_filecoin_backend'
         elif args.component == 'streaming':
-            test_path = 'tests.integration.streaming'
+            test_path = 'tests.integration.streaming.test_streaming'
         elif args.component == 'search':
-            test_path = 'tests.integration.search'
+            test_path = 'tests.integration.search.test_search'
+        elif args.component == 'migration':
+            test_path = 'tests.integration.migration.test_migration'
+        elif args.component == 'backends':
+            test_path = 'tests.integration.backends'
         else:
             test_path = f'tests.integration.{args.component}'
     else:

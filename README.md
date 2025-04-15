@@ -8,6 +8,9 @@ Key components include:
 - **Core IPFS operations**: Content addition, retrieval, and pinning through different storage backends
 - **Tiered Storage System**: Intelligent caching with adaptive replacement policies
 - **MCP Server Architecture**: Structured Model-Controller-Persistence design with clean separation of concerns
+  - Server architecture has been fully consolidated in Q2 2025 (see [MCP Roadmap](/mcp_roadmap.md))
+  - Complete implementation with verified backend integrations
+  - Extensive test coverage for all components
 - **FSSpec Integration**: Seamless integration with data science tools via fsspec interface
 - **AnyIO Backend Support**: Backend-agnostic async code that works with both asyncio and trio
 - **AI/ML Integration**: Specialized connectors for machine learning frameworks and model distribution

@@ -1,20 +1,25 @@
 """
-Search module for the MCP server.
+Search module for MCP server.
 
-This package provides content indexing, text search,
-and vector search capabilities for the MCP server.
+This module implements the search capabilities mentioned in the roadmap:
+- Content indexing with automated metadata extraction
+- Full-text search with SQLite FTS5
+- Vector search with FAISS 
+- Hybrid search combining text and vector search
 """
 
-from .search import (
-    ContentSearchService,
-    ContentMetadata,
-    SearchQuery,
-    VectorQuery
+from .mcp_search import (
+    SearchEngine,
+    search_text,
+    search_vector,
+    search_hybrid,
+    index_document
 )
 
 __all__ = [
-    "ContentSearchService",
-    "ContentMetadata",
-    "SearchQuery",
-    "VectorQuery"
+    'SearchEngine',
+    'search_text',
+    'search_vector',
+    'search_hybrid',
+    'index_document'
 ]

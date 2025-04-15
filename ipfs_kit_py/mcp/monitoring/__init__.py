@@ -1,438 +1,314 @@
 """
-Monitoring system initialization for MCP server.
+Monitoring Integration Module
 
-This module initializes and configures all monitoring components,
-including metrics collection, health checks, and alerting.
+This module provides a unified interface for integrating all monitoring components:
+- Metrics collection and management
+- Prometheus integration
+- Alerting system
+- Dashboard configurations
+- Health checks and status endpoints
+
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
-import logging
 import os
+import logging
 import json
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, List, Optional, Union
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+import time
 
-# Configure logger
+from ipfs_kit_py.mcp.monitoring import (
+    MetricsRegistry, MetricType, MetricUnit, MetricTag, 
+    MonitoringManager, SystemMonitor, BackendMonitor, 
+    APIMonitor, MigrationMonitor, StreamingMonitor, SearchMonitor
+)
+from ipfs_kit_py.mcp.monitoring.prometheus import setup_prometheus, PrometheusExporter
+from ipfs_kit_py.mcp.monitoring.alerts import setup_alert_manager, AlertManager
+
+# Configure logging
 logger = logging.getLogger(__name__)
 
-# Import monitoring components
-try:
-    from .prometheus_exporter import PrometheusExporter, PROMETHEUS_AVAILABLE
-except ImportError:
-    logger.warning("Prometheus exporter not available")
-    PROMETHEUS_AVAILABLE = False
-    PrometheusExporter = None
 
-try:
-    from .health_check import HealthCheckAPI
-except ImportError:
-    logger.warning("Health check API not available")
-    HealthCheckAPI = None
-
-try:
-    from ..storage_manager.monitoring import MonitoringSystem
-except ImportError:
-    logger.warning("Storage monitoring system not available")
-    MonitoringSystem = None
-
-
-class MonitoringManager:
+class MonitoringService:
     """
-    Unified monitoring manager for MCP server.
+    Central monitoring service that integrates all monitoring components.
     
-    This class initializes and manages all monitoring components:
-    - Backend monitoring system
-    - Prometheus metrics exporter
-    - Health check API
-    - (Future) Alerting system
+    This service initializes and coordinates:
+    - Metrics collection and storage
+    - Prometheus integration
+    - Alerting system
+    - Dashboard configurations
     """
     
-    def __init__(
-        self,
-        app=None,
-        storage_manager=None,
-        config: Optional[Dict[str, Any]] = None,
-    ):
+    def __init__(self, app: FastAPI, backend_registry: Optional[Dict[str, Any]] = None):
         """
-        Initialize the monitoring manager.
+        Initialize the monitoring service.
         
         Args:
-            app: FastAPI or similar app instance
-            storage_manager: UnifiedStorageManager instance
-            config: Monitoring configuration options
+            app: FastAPI application
+            backend_registry: Optional dictionary mapping backend names to instances
         """
         self.app = app
-        self.storage_manager = storage_manager
-        self.config = config or {}
+        self.backend_registry = backend_registry or {}
         
-        # Components
-        self.monitoring_system = None
+        # Create monitoring components
+        self.metrics_registry = MetricsRegistry()
+        self.monitoring_manager = MonitoringManager(self.backend_registry)
+        
+        # Prometheus and alerts are initialized later
         self.prometheus_exporter = None
-        self.health_check = None
+        self.alert_manager = None
         
-        # Flags for enabled components
-        self.monitoring_enabled = self.config.get("enable_monitoring", True)
-        self.metrics_enabled = self.config.get("enable_metrics", PROMETHEUS_AVAILABLE)
-        self.health_check_enabled = self.config.get("enable_health_check", True)
+        # Set up middleware for request timing
+        self._setup_timing_middleware()
         
-        # Initialize components
-        if self.monitoring_enabled:
-            self._initialize_components()
-            
-    def _initialize_components(self):
-        """Initialize monitoring components."""
-        # Get component configurations
-        monitoring_config = self.config.get("monitoring", {})
-        metrics_config = self.config.get("metrics", {})
-        health_config = self.config.get("health_check", {})
-        
-        # Initialize backend monitoring system
-        if MonitoringSystem and self.storage_manager and self.monitoring_enabled:
-            try:
-                self.monitoring_system = MonitoringSystem(
-                    storage_manager=self.storage_manager,
-                    options=monitoring_config
-                )
-                logger.info("Initialized backend monitoring system")
-                
-                # Start background monitoring if enabled
-                if self.config.get("start_monitoring", False):
-                    self.monitoring_system.start_monitoring()
-                    logger.info("Started background monitoring")
-                    
-            except Exception as e:
-                logger.error(f"Failed to initialize backend monitoring system: {e}")
-                
-        # Initialize Prometheus exporter
-        if PrometheusExporter and self.metrics_enabled:
-            try:
-                self.prometheus_exporter = PrometheusExporter(options=metrics_config)
-                logger.info("Initialized Prometheus metrics exporter")
-                
-                # Start metrics server if enabled
-                if self.config.get("start_metrics_server", False):
-                    self.prometheus_exporter.start(
-                        storage_manager=self.storage_manager,
-                        monitoring_system=self.monitoring_system
-                    )
-                    logger.info("Started Prometheus metrics server")
-                    
-            except Exception as e:
-                logger.error(f"Failed to initialize Prometheus metrics exporter: {e}")
-                
-        # Initialize health check API
-        if HealthCheckAPI and self.health_check_enabled:
-            try:
-                self.health_check = HealthCheckAPI(
-                    app=self.app,
-                    storage_manager=self.storage_manager,
-                    monitoring_system=self.monitoring_system
-                )
-                logger.info("Initialized health check API")
-                
-                # Start background health checks if enabled
-                if self.config.get("start_health_checks", False):
-                    interval = health_config.get("check_interval", 60)
-                    self.health_check.start_background_checks(interval=interval)
-                    logger.info(f"Started background health checks with {interval}s interval")
-                    
-            except Exception as e:
-                logger.error(f"Failed to initialize health check API: {e}")
-                
-    def start(self):
+        logger.info("Monitoring service initialized")
+    
+    def start(self) -> None:
         """Start all monitoring components."""
-        # Start backend monitoring system
-        if self.monitoring_system:
-            try:
-                self.monitoring_system.start_monitoring()
-                logger.info("Started backend monitoring system")
-            except Exception as e:
-                logger.error(f"Failed to start backend monitoring system: {e}")
-                
-        # Start Prometheus metrics server
-        if self.prometheus_exporter:
-            try:
-                self.prometheus_exporter.start(
-                    storage_manager=self.storage_manager,
-                    monitoring_system=self.monitoring_system
-                )
-                logger.info("Started Prometheus metrics server")
-            except Exception as e:
-                logger.error(f"Failed to start Prometheus metrics server: {e}")
-                
-        # Start health check background checks
-        if self.health_check:
-            try:
-                interval = self.config.get("health_check", {}).get("check_interval", 60)
-                self.health_check.start_background_checks(interval=interval)
-                logger.info(f"Started background health checks with {interval}s interval")
-            except Exception as e:
-                logger.error(f"Failed to start background health checks: {e}")
-                
-    def stop(self):
+        # Start monitoring manager
+        self.monitoring_manager.start()
+        
+        # Set up Prometheus integration
+        self.prometheus_exporter = setup_prometheus(self.app, self.metrics_registry)
+        
+        # Set up alerting system
+        self.alert_manager = setup_alert_manager(self.app, self.metrics_registry, self.backend_registry)
+        
+        # Set up health check endpoints
+        self._setup_health_endpoints()
+        
+        logger.info("Monitoring service started")
+    
+    def stop(self) -> None:
         """Stop all monitoring components."""
-        # Stop backend monitoring system
-        if self.monitoring_system:
-            try:
-                self.monitoring_system.stop_monitoring()
-                logger.info("Stopped backend monitoring system")
-            except Exception as e:
-                logger.error(f"Failed to stop backend monitoring system: {e}")
-                
-        # Stop Prometheus metrics server
+        # Stop monitoring manager
+        self.monitoring_manager.stop()
+        
+        # Stop Prometheus push gateway if started
         if self.prometheus_exporter:
-            try:
-                self.prometheus_exporter.stop()
-                logger.info("Stopped Prometheus metrics server")
-            except Exception as e:
-                logger.error(f"Failed to stop Prometheus metrics server: {e}")
-                
-    def record_api_request(self, endpoint: str, method: str, status_code: int, duration: float):
-        """
-        Record an API request for metrics.
+            self.prometheus_exporter.stop_push_loop()
         
-        Args:
-            endpoint: API endpoint path
-            method: HTTP method (GET, POST, etc.)
-            status_code: HTTP status code
-            duration: Request duration in seconds
-        """
-        if self.prometheus_exporter:
-            try:
-                self.prometheus_exporter.record_api_request(
-                    endpoint=endpoint,
-                    method=method,
-                    status_code=status_code,
-                    duration=duration
-                )
-            except Exception as e:
-                logger.error(f"Failed to record API request metric: {e}")
-                
-    def record_backend_operation(
-        self,
-        backend_type: str,
-        operation: str,
-        success: bool,
-        duration: float,
-        data_size: Optional[int] = None,
-    ):
-        """
-        Record a backend operation for metrics.
+        # Stop alert manager
+        if self.alert_manager:
+            self.alert_manager.stop()
         
-        Args:
-            backend_type: Backend type
-            operation: Operation type
-            success: Whether operation was successful
-            duration: Operation duration in seconds
-            data_size: Size of data in bytes (optional)
-        """
-        # Record in monitoring system if available
-        if self.monitoring_system:
-            try:
-                self.monitoring_system.record_operation(
-                    backend_type=backend_type,
-                    operation=operation,
-                    duration=duration,
-                    success=success,
-                    data_size=data_size
-                )
-            except Exception as e:
-                logger.error(f"Failed to record operation in monitoring system: {e}")
-                
-        # Record in Prometheus metrics if available
-        if self.prometheus_exporter:
-            try:
-                self.prometheus_exporter.record_backend_operation(
-                    backend_type=backend_type,
-                    operation=operation,
-                    success=success,
-                    duration=duration
-                )
-            except Exception as e:
-                logger.error(f"Failed to record operation in Prometheus metrics: {e}")
-                
-    def get_health_status(self):
-        """
-        Get the current health status of the server.
-        
-        Returns:
-            Dictionary with health status
-        """
-        if self.health_check:
-            try:
-                # Use health check API to get status
-                return {
-                    "status": self.health_check.overall_status,
-                    "components": {
-                        component: info["status"] 
-                        for component, info in self.health_check.components.items()
-                    },
-                    "uptime": self.health_check.startup_time,
-                    "timestamp": self.health_check.components["server"]["last_check"]
-                }
-            except Exception as e:
-                logger.error(f"Failed to get health status: {e}")
-                
-        elif self.monitoring_system:
-            try:
-                # Fall back to monitoring system
-                backend_status = self.monitoring_system.get_backend_status()
-                
-                return {
-                    "status": backend_status.get("overall_status", "unknown"),
-                    "backends": backend_status.get("backends", {}),
-                    "timestamp": backend_status.get("timestamp", 0)
-                }
-            except Exception as e:
-                logger.error(f"Failed to get backend status: {e}")
-                
-        # No health monitoring available
-        return {
-            "status": "unknown",
-            "error": "No health monitoring available",
-            "timestamp": 0
-        }
-        
-    def create_middleware(self):
-        """
-        Create a middleware function for request monitoring.
-        
-        Returns:
-            A middleware function compatible with FastAPI or Starlette
-        """
-        async def monitoring_middleware(request, call_next):
-            """Middleware for monitoring request metrics."""
-            # Record start time
+        logger.info("Monitoring service stopped")
+    
+    def _setup_timing_middleware(self) -> None:
+        """Set up middleware for timing requests."""
+        @self.app.middleware("http")
+        async def add_timing_middleware(request: Request, call_next):
+            # Start timer
             start_time = time.time()
             
             # Process request
             response = await call_next(request)
             
-            # Record duration
-            duration = time.time() - start_time
+            # Calculate duration
+            duration_ms = (time.time() - start_time) * 1000
             
-            # Record metrics
-            self.record_api_request(
-                endpoint=request.url.path,
-                method=request.method,
-                status_code=response.status_code,
-                duration=duration
-            )
+            # Record metrics (skip for metrics endpoint itself)
+            if not request.url.path.startswith("/metrics"):
+                # Normalize endpoint for metrics
+                endpoint = self._normalize_endpoint(request.url.path)
+                
+                # Record API request
+                self.monitoring_manager.record_api_request(
+                    endpoint=endpoint,
+                    method=request.method,
+                    duration_ms=duration_ms,
+                    status=response.status_code
+                )
             
             return response
-            
-        return monitoring_middleware
-        
-    def configure_fastapi(self, app):
+    
+    def _normalize_endpoint(self, path: str) -> str:
         """
-        Configure FastAPI app with monitoring components.
+        Normalize API endpoint for metrics to avoid cardinality explosion.
         
         Args:
-            app: FastAPI app instance
+            path: Request path
+            
+        Returns:
+            Normalized endpoint string
         """
-        # Store app reference
-        self.app = app
+        parts = path.split('/')
+        normalized_parts = []
         
-        # Add middleware for request monitoring
-        if hasattr(app, "middleware"):
-            try:
-                @app.middleware("http")
-                async def monitoring_middleware(request, call_next):
-                    # Record start time
-                    import time
-                    start_time = time.time()
-                    
-                    # Process request
-                    response = await call_next(request)
-                    
-                    # Record duration
-                    duration = time.time() - start_time
-                    
-                    # Record metrics
-                    self.record_api_request(
-                        endpoint=request.url.path,
-                        method=request.method,
-                        status_code=response.status_code,
-                        duration=duration
-                    )
-                    
-                    return response
-                    
-                logger.info("Added monitoring middleware to FastAPI app")
-                
-            except Exception as e:
-                logger.error(f"Failed to add monitoring middleware: {e}")
-                
-        # Register health check routes
-        if self.health_check:
-            try:
-                self.health_check.register_routes(app)
-                logger.info("Registered health check routes with FastAPI app")
-            except Exception as e:
-                logger.error(f"Failed to register health check routes: {e}")
-                
-        # Add status endpoint
-        if hasattr(app, "add_api_route"):
-            try:
-                @app.get("/api/v0/status")
-                async def get_status():
-                    # Get comprehensive status
-                    status = {
-                        "monitoring": {
-                            "monitoring_enabled": self.monitoring_enabled,
-                            "metrics_enabled": self.metrics_enabled,
-                            "health_check_enabled": self.health_check_enabled,
-                        }
-                    }
-                    
-                    # Add backend status if available
-                    if self.monitoring_system:
+        for part in parts:
+            # Check if part looks like an ID (uuid, hash, etc)
+            if len(part) > 8 and any(c.isdigit() for c in part) and any(c.isalpha() for c in part):
+                normalized_parts.append("{id}")
+            else:
+                normalized_parts.append(part)
+        
+        return '/'.join(normalized_parts)
+    
+    def _setup_health_endpoints(self) -> None:
+        """Set up health check and monitoring endpoints."""
+        @self.app.get("/api/v0/monitoring/status")
+        async def get_monitoring_status():
+            """Get monitoring system status."""
+            return {
+                "status": "operational",
+                "components": {
+                    "metrics": True,
+                    "prometheus": self.prometheus_exporter is not None,
+                    "alerts": self.alert_manager is not None
+                },
+                "metrics_count": len(self.metrics_registry.metrics),
+                "timestamp": time.time()
+            }
+        
+        @self.app.get("/api/v0/monitoring/metrics")
+        async def get_metrics():
+            """Get all metrics in JSON format."""
+            return self.metrics_registry.get_metrics()
+        
+        @self.app.get("/api/v0/monitoring/system")
+        async def get_system_metrics():
+            """Get system metrics."""
+            return self.monitoring_manager.get_system_metrics()
+        
+        @self.app.get("/api/v0/monitoring/backends")
+        async def get_backend_metrics():
+            """Get storage backend metrics."""
+            return self.monitoring_manager.get_backend_metrics()
+        
+        @self.app.get("/api/v0/monitoring/dashboards")
+        async def get_dashboards():
+            """Get available Grafana dashboard configurations."""
+            dashboards_dir = os.path.join(os.path.dirname(__file__), "dashboards")
+            dashboards = []
+            
+            if os.path.exists(dashboards_dir):
+                for filename in os.listdir(dashboards_dir):
+                    if filename.endswith(".json"):
+                        dashboard_path = os.path.join(dashboards_dir, filename)
                         try:
-                            status["backends"] = self.monitoring_system.get_backend_status()
-                        except Exception as e:
-                            status["backends_error"] = str(e)
+                            with open(dashboard_path, 'r') as f:
+                                dashboard = json.load(f)
                             
-                    # Add health status if available
-                    if self.health_check:
+                            dashboards.append({
+                                "id": dashboard.get("uid", filename),
+                                "title": dashboard.get("title", filename),
+                                "filename": filename,
+                                "tags": dashboard.get("tags", [])
+                            })
+                        except Exception as e:
+                            logger.error(f"Error loading dashboard {filename}: {e}")
+            
+            return {"dashboards": dashboards}
+        
+        @self.app.get("/api/v0/monitoring/dashboards/{dashboard_id}")
+        async def get_dashboard(dashboard_id: str):
+            """Get a specific Grafana dashboard configuration."""
+            dashboards_dir = os.path.join(os.path.dirname(__file__), "dashboards")
+            
+            # Try to find dashboard by ID or filename
+            if os.path.exists(dashboards_dir):
+                for filename in os.listdir(dashboards_dir):
+                    if filename.endswith(".json"):
+                        dashboard_path = os.path.join(dashboards_dir, filename)
                         try:
-                            status["health"] = self.get_health_status()
-                        except Exception as e:
-                            status["health_error"] = str(e)
+                            with open(dashboard_path, 'r') as f:
+                                dashboard = json.load(f)
                             
-                    return status
-                    
-                logger.info("Added status endpoint to FastAPI app")
-                
-            except Exception as e:
-                logger.error(f"Failed to add status endpoint: {e}")
-                
-def create_monitoring_manager(
-    app=None,
-    storage_manager=None,
-    config: Optional[Dict[str, Any]] = None,
-):
+                            # Check if this is the requested dashboard
+                            if dashboard.get("uid") == dashboard_id or filename == f"{dashboard_id}.json":
+                                return dashboard
+                        except Exception as e:
+                            logger.error(f"Error loading dashboard {filename}: {e}")
+            
+            # Dashboard not found
+            return JSONResponse(
+                status_code=404,
+                content={"detail": f"Dashboard {dashboard_id} not found"}
+            )
+    
+    def record_backend_operation(self, backend_name: str, operation: str,
+                             duration_ms: float, success: bool = True,
+                             bytes_processed: Optional[float] = None) -> None:
+        """
+        Record a backend operation.
+        
+        Args:
+            backend_name: Name of the backend
+            operation: Operation name
+            duration_ms: Duration in milliseconds
+            success: Whether the operation was successful
+            bytes_processed: Optional bytes processed
+        """
+        self.monitoring_manager.record_backend_operation(
+            backend_name, operation, duration_ms, success, bytes_processed
+        )
+    
+    def record_migration(self, source_backend: str, target_backend: str,
+                     status: str, bytes_transferred: Optional[float] = None) -> None:
+        """
+        Record a migration operation.
+        
+        Args:
+            source_backend: Source backend name
+            target_backend: Target backend name
+            status: Migration status
+            bytes_transferred: Optional bytes transferred
+        """
+        self.monitoring_manager.record_migration(
+            source_backend, target_backend, status, bytes_transferred
+        )
+    
+    def record_streaming(self, direction: str, status: str,
+                     bytes_transferred: Optional[float] = None) -> None:
+        """
+        Record a streaming operation.
+        
+        Args:
+            direction: Streaming direction (upload/download)
+            status: Operation status
+            bytes_transferred: Optional bytes transferred
+        """
+        self.monitoring_manager.record_streaming(
+            direction, status, bytes_transferred
+        )
+    
+    def record_search(self, index_type: str, duration_ms: float,
+                  status: str = "success") -> None:
+        """
+        Record a search operation.
+        
+        Args:
+            index_type: Type of search index
+            duration_ms: Operation duration in milliseconds
+            status: Operation status
+        """
+        self.monitoring_manager.record_search(
+            index_type, duration_ms, status
+        )
+
+
+def setup_monitoring(app: FastAPI, backend_registry: Optional[Dict[str, Any]] = None) -> MonitoringService:
     """
-    Create and initialize a monitoring manager instance.
+    Set up the monitoring system for MCP.
     
     Args:
-        app: FastAPI or similar app instance
-        storage_manager: UnifiedStorageManager instance
-        config: Monitoring configuration options
+        app: FastAPI application
+        backend_registry: Optional dictionary mapping backend names to instances
         
     Returns:
-        Configured MonitoringManager instance
+        Monitoring service instance
     """
-    # Create manager
-    manager = MonitoringManager(
-        app=app,
-        storage_manager=storage_manager,
-        config=config
-    )
+    # Create and start monitoring service
+    monitoring_service = MonitoringService(app, backend_registry)
+    monitoring_service.start()
     
-    # Configure FastAPI app if provided
-    if app and hasattr(app, "middleware"):
-        manager.configure_fastapi(app)
+    # Set up shutdown handler
+    @app.on_event("shutdown")
+    async def shutdown_monitoring():
+        monitoring_service.stop()
     
-    # Start components if enabled
-    if config and config.get("autostart", False):
-        manager.start()
-    
-    return manager
+    logger.info("Monitoring system set up for MCP")
+    return monitoring_service

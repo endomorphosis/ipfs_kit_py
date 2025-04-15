@@ -4,6 +4,12 @@ IPFS Storage Backend
 
 This module provides IPFS storage capabilities through a standardized backend interface.
 It dynamically loads the ipfs_py library if available or creates a mock implementation.
+
+Features:
+- Standard storage operations (store, retrieve, delete, list)
+- Content pinning management
+- DHT (Distributed Hash Table) operations
+- Performance statistics tracking
 """
 
 import os
@@ -41,6 +47,10 @@ class IPFSStorageBackend:
             "retrieve": {"count": 0, "total_time": 0, "avg_time": 0},
             "delete": {"count": 0, "total_time": 0, "avg_time": 0},
             "list": {"count": 0, "total_time": 0, "avg_time": 0},
+            "dht_provide": {"count": 0, "total_time": 0, "avg_time": 0},
+            "dht_find_provider": {"count": 0, "total_time": 0, "avg_time": 0},
+            "dht_find_peer": {"count": 0, "total_time": 0, "avg_time": 0},
+            "dht_query": {"count": 0, "total_time": 0, "avg_time": 0},
         }
         
         # Initialize the IPFS client
@@ -161,6 +171,19 @@ class IPFSStorageBackend:
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
             
             def ipfs_add_metadata(self, *args, **kwargs):
+                return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
+            
+            # DHT operations
+            def ipfs_dht_provide(self, *args, **kwargs):
+                return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
+            
+            def ipfs_dht_find_providers(self, *args, **kwargs):
+                return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
+            
+            def ipfs_dht_find_peer(self, *args, **kwargs):
+                return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
+            
+            def ipfs_dht_query(self, *args, **kwargs):
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
             
             def __getattr__(self, name):
@@ -445,6 +468,209 @@ class IPFSStorageBackend:
     def add_content(self, *args, **kwargs):
         """Legacy method for backwards compatibility. Use store() instead."""
         return self.store(*args, **kwargs)
+    
+    # ---- DHT Operations ----
+    
+    def dht_provide(
+        self, 
+        identifier: str,
+        recursive: bool = False,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Announce to the network that we are providing content with the given CID.
+        
+        This improves content discoverability in the IPFS network as it makes the
+        local node a provider of the specific content, enabling other peers to find it.
+        
+        Args:
+            identifier: The CID of the content to provide
+            recursive: Whether to recursively provide entire DAG (for directory CIDs)
+            options: Additional options for the DHT provide operation
+            
+        Returns:
+            Dictionary with operation results
+        """
+        options = options or {}
+        start_time = time.time()
+        
+        # Call the DHT provide method
+        result = self.ipfs.ipfs_dht_provide(identifier, recursive=recursive)
+        
+        # Update performance stats
+        duration = time.time() - start_time
+        self.performance_stats["dht_provide"]["count"] += 1
+        self.performance_stats["dht_provide"]["total_time"] += duration
+        self.performance_stats["dht_provide"]["avg_time"] = (
+            self.performance_stats["dht_provide"]["total_time"] / self.performance_stats["dht_provide"]["count"]
+        )
+        
+        return {
+            "success": result.get("success", False),
+            "backend": self.get_name(),
+            "identifier": identifier,
+            "details": result,
+        }
+    
+    def dht_find_providers(
+        self,
+        identifier: str,
+        num_providers: int = 20,
+        timeout: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Find providers for the specified content in the IPFS network.
+        
+        This operation queries the DHT to find peers who have announced
+        that they are providing the content with the given CID.
+        
+        Args:
+            identifier: The CID to find providers for
+            num_providers: Maximum number of providers to find
+            timeout: Timeout in seconds for the operation
+            options: Additional options for the find providers operation
+            
+        Returns:
+            Dictionary with operation results
+        """
+        options = options or {}
+        start_time = time.time()
+        
+        # Call the DHT find providers method
+        result = self.ipfs.ipfs_dht_find_providers(
+            identifier, 
+            num_providers=num_providers, 
+            timeout=timeout
+        )
+        
+        # Update performance stats
+        duration = time.time() - start_time
+        self.performance_stats["dht_find_provider"]["count"] += 1
+        self.performance_stats["dht_find_provider"]["total_time"] += duration
+        self.performance_stats["dht_find_provider"]["avg_time"] = (
+            self.performance_stats["dht_find_provider"]["total_time"] / self.performance_stats["dht_find_provider"]["count"]
+        )
+        
+        if result.get("success", False):
+            return {
+                "success": True,
+                "providers": result.get("providers", []),
+                "backend": self.get_name(),
+                "identifier": identifier,
+                "details": result,
+            }
+        
+        return {
+            "success": False,
+            "error": result.get("error", "Failed to find providers"),
+            "backend": self.get_name(),
+            "identifier": identifier,
+            "details": result,
+        }
+    
+    def dht_find_peer(
+        self,
+        peer_id: str,
+        timeout: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Find information about a specific peer using the DHT.
+        
+        This operation queries the DHT to find the multiaddresses and
+        connection information for a specific peer by its ID.
+        
+        Args:
+            peer_id: The ID of the peer to find
+            timeout: Timeout in seconds for the operation
+            options: Additional options for the find peer operation
+            
+        Returns:
+            Dictionary with operation results
+        """
+        options = options or {}
+        start_time = time.time()
+        
+        # Call the DHT find peer method
+        result = self.ipfs.ipfs_dht_find_peer(peer_id, timeout=timeout)
+        
+        # Update performance stats
+        duration = time.time() - start_time
+        self.performance_stats["dht_find_peer"]["count"] += 1
+        self.performance_stats["dht_find_peer"]["total_time"] += duration
+        self.performance_stats["dht_find_peer"]["avg_time"] = (
+            self.performance_stats["dht_find_peer"]["total_time"] / self.performance_stats["dht_find_peer"]["count"]
+        )
+        
+        if result.get("success", False):
+            return {
+                "success": True,
+                "peer_info": result.get("peer_info", {}),
+                "addresses": result.get("addresses", []),
+                "backend": self.get_name(),
+                "peer_id": peer_id,
+                "details": result,
+            }
+        
+        return {
+            "success": False,
+            "error": result.get("error", "Failed to find peer"),
+            "backend": self.get_name(),
+            "peer_id": peer_id,
+            "details": result,
+        }
+    
+    def dht_query(
+        self,
+        key: str,
+        timeout: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Query the DHT for a specific key.
+        
+        This operation performs a direct query to the DHT for a key,
+        which can be used for custom DHT-based applications.
+        
+        Args:
+            key: The key to query in the DHT
+            timeout: Timeout in seconds for the operation
+            options: Additional options for the DHT query operation
+            
+        Returns:
+            Dictionary with operation results
+        """
+        options = options or {}
+        start_time = time.time()
+        
+        # Call the DHT query method
+        result = self.ipfs.ipfs_dht_query(key, timeout=timeout)
+        
+        # Update performance stats
+        duration = time.time() - start_time
+        self.performance_stats["dht_query"]["count"] += 1
+        self.performance_stats["dht_query"]["total_time"] += duration
+        self.performance_stats["dht_query"]["avg_time"] = (
+            self.performance_stats["dht_query"]["total_time"] / self.performance_stats["dht_query"]["count"]
+        )
+        
+        if result.get("success", False):
+            return {
+                "success": True,
+                "responses": result.get("responses", []),
+                "backend": self.get_name(),
+                "key": key,
+                "details": result,
+            }
+        
+        return {
+            "success": False,
+            "error": result.get("error", "Failed to query DHT"),
+            "backend": self.get_name(),
+            "key": key,
+            "details": result,
+        }
 
 # Singleton instance
 _instance = None

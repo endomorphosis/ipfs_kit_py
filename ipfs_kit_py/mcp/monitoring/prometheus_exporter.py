@@ -1,508 +1,349 @@
 """
-Prometheus metrics exporter for MCP server monitoring.
+Prometheus Exporter for MCP Server.
 
-This module provides Prometheus metrics integration for the MCP server,
-allowing collection and exposure of performance, health, and usage metrics.
+This module provides a Prometheus exporter for exposing MCP metrics to Prometheus.
 """
 
-import os
-import time
 import logging
+import time
+from typing import Dict, List, Any, Optional, Callable, Set, Union
 import threading
-import json
-from typing import Dict, Any, Optional, List, Callable, Set
+from contextlib import contextmanager
+
+try:
+    import prometheus_client
+    from prometheus_client import (
+        Counter, Gauge, Histogram, Summary, 
+        REGISTRY, CONTENT_TYPE_LATEST,
+        generate_latest, start_http_server
+    )
+    prometheus_available = True
+except ImportError:
+    prometheus_available = False
+    # Create dummy classes for type checking when prometheus_client is not available
+    class DummyMetric:
+        def inc(self, amount=1): pass
+        def dec(self, amount=1): pass
+        def set(self, value): pass
+        def observe(self, value): pass
+    Counter = Gauge = Histogram = Summary = DummyMetric
+
+from fastapi import FastAPI, Response, APIRouter
+
+# Import metrics optimizer if available
+try:
+    from ipfs_kit_py.mcp.monitoring.metrics_optimizer import OptimizedMetricsRegistry, MetricsMemoryOptimizer
+    metrics_optimizer_available = True
+except ImportError:
+    metrics_optimizer_available = False
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
-try:
-    import prometheus_client
-    from prometheus_client import Counter, Gauge, Histogram, Summary, Info, Enum
-    from prometheus_client.exposition import start_http_server
-    PROMETHEUS_AVAILABLE = True
-    logger.info("Prometheus client library available")
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-    logger.warning("Prometheus client library not available. Install with: pip install prometheus-client")
-
-
 class PrometheusExporter:
     """
-    Prometheus metrics exporter for MCP server.
+    Prometheus exporter for MCP metrics.
     
-    This class provides methods to expose various metrics from the MCP server
-    to a Prometheus monitoring system.
+    This class provides functionality to export MCP metrics to Prometheus,
+    including metrics for storage operations, backend performance, and API usage.
+    
+    Memory optimization has been implemented to address high memory usage
+    when tracking many metrics.
     """
     
-    def __init__(self, options: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        prefix: str = "mcp",
+        enable_default_metrics: bool = True,
+        auto_start_server: bool = False,
+        port: int = 8000,
+        path: str = "/metrics",
+        max_metrics_per_type: int = 1000,
+        retention_window_seconds: int = 3600,
+        enable_memory_optimization: bool = True,
+    ):
         """
         Initialize the Prometheus exporter.
         
         Args:
-            options: Configuration options
+            prefix: Prefix for all metrics
+            enable_default_metrics: Whether to enable default process metrics
+            auto_start_server: Whether to start a standalone HTTP server
+            port: Port for the standalone HTTP server
+            path: Path for the metrics endpoint
+            max_metrics_per_type: Maximum number of metrics per type (for memory optimization)
+            retention_window_seconds: Time window to retain detailed metrics (for memory optimization)
+            enable_memory_optimization: Whether to enable memory optimization
         """
-        if not PROMETHEUS_AVAILABLE:
-            raise ImportError("Prometheus client library not available")
-            
-        self.options = options or {}
+        self.prefix = prefix
+        self.path = path
+        self.port = port
+        self.auto_start_server = auto_start_server
+        self.server = None
         
-        # Configure metrics port and path
-        self.metrics_port = self.options.get("metrics_port", 9090)
-        self.metrics_path = self.options.get("metrics_path", "/metrics")
+        # Memory optimization settings
+        self.enable_memory_optimization = enable_memory_optimization
+        self.max_metrics_per_type = max_metrics_per_type
+        self.retention_window_seconds = retention_window_seconds
         
-        # Metric Registry
-        self.registry = prometheus_client.CollectorRegistry()
-        
-        # Internal state
-        self._server_thread = None
-        self._running = False
-        self._server_lock = threading.Lock()
-        self._storage_manager = None 
-        self._monitoring_system = None
-        
-        # Initialize metrics
-        self._initialize_metrics()
-        
-    def _initialize_metrics(self):
-        """Initialize Prometheus metrics."""
-        # System metrics
-        self.system_info = Info(
-            'mcp_system_info', 
-            'MCP server system information',
-            registry=self.registry
-        )
-        
-        self.system_uptime = Gauge(
-            'mcp_system_uptime_seconds',
-            'MCP server uptime in seconds',
-            registry=self.registry
-        )
-        
-        # API metrics
-        self.api_requests_total = Counter(
-            'mcp_api_requests_total',
-            'Total API requests processed',
-            ['endpoint', 'method', 'status'],
-            registry=self.registry
-        )
-        
-        self.api_request_duration = Histogram(
-            'mcp_api_request_duration_seconds',
-            'API request duration in seconds',
-            ['endpoint', 'method'],
-            buckets=(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0, float('inf')),
-            registry=self.registry
-        )
-        
-        # Storage backend metrics
-        self.backend_status = Enum(
-            'mcp_backend_status',
-            'Storage backend health status',
-            ['backend'],
-            states=['healthy', 'degraded', 'unhealthy', 'unknown'],
-            registry=self.registry
-        )
-        
-        self.backend_operations_total = Counter(
-            'mcp_backend_operations_total',
-            'Total operations performed on storage backends',
-            ['backend', 'operation', 'status'],
-            registry=self.registry
-        )
-        
-        self.backend_operation_duration = Histogram(
-            'mcp_backend_operation_duration_seconds',
-            'Storage operation duration in seconds',
-            ['backend', 'operation'],
-            buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, float('inf')),
-            registry=self.registry
-        )
-        
-        self.backend_capacity_bytes = Gauge(
-            'mcp_backend_capacity_bytes',
-            'Storage backend capacity in bytes',
-            ['backend', 'type'],  # type can be 'total', 'used', 'available'
-            registry=self.registry
-        )
-        
-        # Content metrics
-        self.content_count = Gauge(
-            'mcp_content_count',
-            'Number of content items tracked by MCP',
-            ['backend'],
-            registry=self.registry
-        )
-        
-        self.content_size_bytes = Gauge(
-            'mcp_content_size_bytes',
-            'Total size of content tracked by MCP in bytes',
-            ['backend'],
-            registry=self.registry
-        )
-        
-    def start(self, storage_manager=None, monitoring_system=None):
-        """
-        Start the Prometheus metrics server.
-        
-        Args:
-            storage_manager: Optional UnifiedStorageManager instance
-            monitoring_system: Optional MonitoringSystem instance
-            
-        Returns:
-            True if server was started successfully
-        """
-        with self._server_lock:
-            if self._running:
-                logger.info("Prometheus metrics server already running")
-                return False
-            
-            # Store references to storage manager and monitoring system
-            self._storage_manager = storage_manager
-            self._monitoring_system = monitoring_system
-            
-            # Update system info
-            self._update_system_info()
-            
-            try:
-                # Start the metrics server
-                start_http_server(
-                    port=self.metrics_port,
-                    addr='0.0.0.0',
-                    registry=self.registry
-                )
-                
-                self._running = True
-                self._start_time = time.time()
-                
-                # Start background metrics update thread
-                self._server_thread = threading.Thread(
-                    target=self._metrics_update_loop,
-                    name="PrometheusMetricsUpdater",
-                    daemon=True
-                )
-                self._server_thread.start()
-                
-                logger.info(f"Started Prometheus metrics server on port {self.metrics_port}")
-                return True
-                
-            except Exception as e:
-                logger.error(f"Failed to start Prometheus metrics server: {e}")
-                return False
-            
-    def stop(self):
-        """
-        Stop the Prometheus metrics server.
-        
-        Returns:
-            True if server was stopped successfully
-        """
-        with self._server_lock:
-            if not self._running:
-                return False
-            
-            self._running = False
-            
-            # The HTTP server runs in the background and cannot be stopped directly
-            # We can only stop our update thread
-            if self._server_thread:
-                self._server_thread.join(timeout=5)
-                
-            logger.info("Stopped Prometheus metrics updater")
-            return True
-            
-    def _metrics_update_loop(self):
-        """Background thread for updating metrics regularly."""
-        logger.info("Metrics update thread started")
-        
-        try:
-            while self._running:
-                try:
-                    # Update uptime
-                    self.system_uptime.set(time.time() - self._start_time)
-                    
-                    # Update backend metrics if monitoring system available
-                    if self._monitoring_system:
-                        self._update_backend_metrics()
-                        
-                    # Update content metrics if storage manager available
-                    if self._storage_manager:
-                        self._update_content_metrics()
-                    
-                    # Sleep for a bit (update frequency)
-                    time.sleep(15)  # 15 seconds between updates
-                    
-                except Exception as e:
-                    logger.error(f"Error in metrics update loop: {e}")
-                    time.sleep(60)  # Longer sleep on error
-                    
-        except Exception as e:
-            logger.exception(f"Fatal error in metrics update thread: {e}")
-        finally:
-            logger.info("Metrics update thread stopped")
-            
-    def _update_system_info(self):
-        """Update system information metrics."""
-        try:
-            # Get system info
-            info = {
-                'version': os.environ.get('MCP_VERSION', 'unknown'),
-                'hostname': os.environ.get('HOSTNAME', 'unknown'),
-                'python_version': os.environ.get('PYTHON_VERSION', 'unknown'),
-                'start_time': str(int(time.time())),
-            }
-            
-            # Update info metric
-            self.system_info.info(info)
-            
-        except Exception as e:
-            logger.error(f"Error updating system info metrics: {e}")
-            
-    def _update_backend_metrics(self):
-        """Update backend metrics from monitoring system."""
-        try:
-            # Get all metrics from monitoring system
-            all_metrics = self._monitoring_system.get_all_metrics()
-            
-            # Update backend status
-            for backend, status_info in all_metrics["backend_status"]["backends"].items():
-                self.backend_status.labels(backend=backend).state(status_info["status"])
-                
-            # Update backend capacity metrics
-            for backend, capacity in all_metrics["capacity_metrics"]["backends"].items():
-                if "total" in capacity:
-                    self.backend_capacity_bytes.labels(backend=backend, type="total").set(capacity["total"])
-                
-                if "used" in capacity:
-                    self.backend_capacity_bytes.labels(backend=backend, type="used").set(capacity["used"])
-                
-                if "available" in capacity:
-                    self.backend_capacity_bytes.labels(backend=backend, type="available").set(capacity["available"])
-                elif "total" in capacity and "used" in capacity:
-                    # Calculate available if not provided directly
-                    available = capacity["total"] - capacity["used"]
-                    self.backend_capacity_bytes.labels(backend=backend, type="available").set(available)
-                
-            # Update performance metrics
-            for backend, ops in all_metrics["performance_metrics"]["performance_metrics"].items():
-                for op_type, metrics in ops.items():
-                    # Record average operation duration
-                    if metrics["count"] > 0:
-                        self.backend_operation_duration.labels(
-                            backend=backend, 
-                            operation=op_type
-                        ).observe(metrics["avg_time"])
-                        
-                        # Calculate success/error counts based on rates
-                        success_count = int(metrics["count"] * metrics["success_rate"])
-                        error_count = metrics["count"] - success_count
-                        
-                        # Only increment if we detected new operations
-                        # This avoids duplicating counts on restart
-                        if hasattr(self, '_last_counts'):
-                            last_key = f"{backend}:{op_type}"
-                            
-                            if last_key in self._last_counts:
-                                last_count = self._last_counts[last_key]
-                                if metrics["count"] > last_count:
-                                    # Only count the difference since last check
-                                    new_ops = metrics["count"] - last_count
-                                    new_success = int(new_ops * metrics["success_rate"])
-                                    new_error = new_ops - new_success
-                                    
-                                    # Update counters
-                                    self.backend_operations_total.labels(
-                                        backend=backend, 
-                                        operation=op_type,
-                                        status="success"
-                                    ).inc(new_success)
-                                    
-                                    self.backend_operations_total.labels(
-                                        backend=backend, 
-                                        operation=op_type,
-                                        status="error"
-                                    ).inc(new_error)
-                            
-                            # Update last count
-                            self._last_counts[last_key] = metrics["count"]
-                        else:
-                            # Initialize last counts dictionary
-                            self._last_counts = {f"{backend}:{op_type}": metrics["count"]}
-                        
-        except Exception as e:
-            logger.error(f"Error updating backend metrics: {e}")
-            
-    def _update_content_metrics(self):
-        """Update content metrics from storage manager."""
-        try:
-            # Get content statistics by backend
-            backend_counts = {}
-            backend_sizes = {}
-            
-            # Initialize with zeros to ensure all backends are represented
-            for backend_type in self._storage_manager.backends:
-                backend_counts[backend_type.value] = 0
-                backend_sizes[backend_type.value] = 0
-            
-            # Aggregate counts and sizes
-            for content_id, content_ref in self._storage_manager.content_registry.items():
-                size = content_ref.metadata.get("size", 0) or 0
-                
-                for backend_type in content_ref.backend_locations:
-                    backend_name = backend_type.value
-                    backend_counts[backend_name] = backend_counts.get(backend_name, 0) + 1
-                    backend_sizes[backend_name] = backend_sizes.get(backend_name, 0) + size
-            
-            # Update metrics
-            for backend, count in backend_counts.items():
-                self.content_count.labels(backend=backend).set(count)
-                
-            for backend, size in backend_sizes.items():
-                self.content_size_bytes.labels(backend=backend).set(size)
-                
-        except Exception as e:
-            logger.error(f"Error updating content metrics: {e}")
-    
-    def record_api_request(self, endpoint: str, method: str, status_code: int, duration: float):
-        """
-        Record an API request for metrics.
-        
-        Args:
-            endpoint: API endpoint path
-            method: HTTP method (GET, POST, etc.)
-            status_code: HTTP status code
-            duration: Request duration in seconds
-        """
-        try:
-            # Normalize the endpoint to avoid high cardinality
-            # E.g., "/api/v0/content/123" becomes "/api/v0/content/{id}"
-            normalized_endpoint = self._normalize_endpoint(endpoint)
-            
-            # Normalize the status code to a category
-            status = self._normalize_status_code(status_code)
-            
-            # Increment request counter
-            self.api_requests_total.labels(
-                endpoint=normalized_endpoint,
-                method=method,
-                status=status
-            ).inc()
-            
-            # Record request duration
-            self.api_request_duration.labels(
-                endpoint=normalized_endpoint,
-                method=method
-            ).observe(duration)
-            
-        except Exception as e:
-            logger.error(f"Error recording API request metric: {e}")
-            
-    def _normalize_endpoint(self, endpoint: str) -> str:
-        """
-        Normalize an endpoint path to reduce cardinality.
-        
-        Args:
-            endpoint: Raw endpoint path
-            
-        Returns:
-            Normalized endpoint path
-        """
-        # Simple replacement of numeric IDs
-        parts = endpoint.split('/')
-        normalized_parts = []
-        
-        for part in parts:
-            # Replace numeric IDs and UUIDs with placeholders
-            if part.isdigit():
-                normalized_parts.append("{id}")
-            elif len(part) >= 32 and all(c in "0123456789abcdef-" for c in part.lower()):
-                normalized_parts.append("{id}")
-            else:
-                normalized_parts.append(part)
-                
-        return '/'.join(normalized_parts)
-        
-    def _normalize_status_code(self, status_code: int) -> str:
-        """
-        Normalize HTTP status code to a category.
-        
-        Args:
-            status_code: HTTP status code
-            
-        Returns:
-            Status category
-        """
-        if 200 <= status_code < 300:
-            return "success"
-        elif 300 <= status_code < 400:
-            return "redirect"
-        elif 400 <= status_code < 500:
-            return "client_error"
-        elif 500 <= status_code < 600:
-            return "server_error"
+        # Initialize optimized metrics registry if memory optimization is enabled
+        if self.enable_memory_optimization:
+            self.optimized_registry = OptimizedMetricsRegistry(
+                max_metrics_per_type=max_metrics_per_type,
+                retention_window_seconds=retention_window_seconds,
+            )
         else:
-            return "unknown"
+            self.optimized_registry = None
+        
+        # Initialize metrics collections
+        self.counters = {}  # Dict[str, Counter]
+        self.gauges = {}  # Dict[str, Gauge]
+        self.histograms = {}  # Dict[str, Histogram]
+        self.summaries = {}  # Dict[str, Summary]
+        
+        # Initialize default metrics if Prometheus is available
+        if prometheus_available and enable_default_metrics:
+            prometheus_client.start_http_server(port)
+        
+        # If auto_start_server is True, start the standalone HTTP server
+        if prometheus_available and auto_start_server:
+            self.server = start_http_server(port)
+            logger.info(f"Started Prometheus HTTP server on port {port}")
             
-    def record_backend_operation(
-        self,
-        backend_type: str,
-        operation: str,
-        success: bool,
-        duration: float
-    ):
+        logger.info(f"Prometheus exporter initialized with prefix '{prefix}'")
+        
+        if self.enable_memory_optimization:
+            logger.info(f"Memory optimization enabled with max {max_metrics_per_type} metrics per type")
+    
+    def create_counter(self, name: str, description: str, labels: Optional[List[str]] = None, category: str = "default") -> Counter:
         """
-        Record a backend operation for metrics.
+        Create a counter metric.
         
         Args:
-            backend_type: Backend type
-            operation: Operation type
-            success: Whether operation was successful
-            duration: Operation duration in seconds
+            name: Metric name
+            description: Metric description
+            labels: List of label names
+            category: Metric category for optimization
+            
+        Returns:
+            Counter metric
         """
-        try:
-            # Increment operation counter
-            self.backend_operations_total.labels(
-                backend=backend_type,
-                operation=operation,
-                status="success" if success else "error"
-            ).inc()
+        if not prometheus_available:
+            return Counter()
             
-            # Record operation duration
-            self.backend_operation_duration.labels(
-                backend=backend_type,
-                operation=operation
-            ).observe(duration)
+        full_name = f"{self.prefix}_{name}" if self.prefix else name
+        
+        if full_name in self.counters:
+            return self.counters[full_name]
+        
+        counter = Counter(full_name, description, labels or [])
+        self.counters[full_name] = counter
+        
+        # Register with optimizer if available
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.register_metric(counter, full_name, category)
             
-        except Exception as e:
-            logger.error(f"Error recording backend operation metric: {e}")
-            
-    def update_backend_capacity(self, backend_type: str, total: int, used: int, available: int):
+        return counter
+        
+    def create_gauge(self, name: str, description: str, labels: Optional[List[str]] = None, category: str = "default") -> Gauge:
         """
-        Update backend capacity metrics.
+        Create a gauge metric.
         
         Args:
-            backend_type: Backend type
-            total: Total capacity in bytes
-            used: Used capacity in bytes
-            available: Available capacity in bytes
-        """
-        try:
-            self.backend_capacity_bytes.labels(backend=backend_type, type="total").set(total)
-            self.backend_capacity_bytes.labels(backend=backend_type, type="used").set(used)
-            self.backend_capacity_bytes.labels(backend=backend_type, type="available").set(available)
+            name: Metric name
+            description: Metric description
+            labels: List of label names
+            category: Metric category for optimization
             
-        except Exception as e:
-            logger.error(f"Error updating backend capacity metric: {e}")
-            
-    def update_backend_status(self, backend_type: str, status: str):
+        Returns:
+            Gauge metric
         """
-        Update backend status metric.
+        if not prometheus_available:
+            return Gauge()
+            
+        full_name = f"{self.prefix}_{name}" if self.prefix else name
+        
+        if full_name in self.gauges:
+            return self.gauges[full_name]
+        
+        gauge = Gauge(full_name, description, labels or [])
+        self.gauges[full_name] = gauge
+        
+        # Register with optimizer if available
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.register_metric(gauge, full_name, category)
+            
+        return gauge
+        
+    def create_histogram(self, name: str, description: str, labels: Optional[List[str]] = None, 
+                        buckets: Optional[List[float]] = None, category: str = "default") -> Histogram:
+        """
+        Create a histogram metric.
         
         Args:
-            backend_type: Backend type
-            status: Status value
-        """
-        try:
-            self.backend_status.labels(backend=backend_type).state(status)
+            name: Metric name
+            description: Metric description
+            labels: List of label names
+            buckets: List of bucket boundaries
+            category: Metric category for optimization
             
-        except Exception as e:
-            logger.error(f"Error updating backend status metric: {e}")
+        Returns:
+            Histogram metric
+        """
+        if not prometheus_available:
+            return Histogram()
+            
+        full_name = f"{self.prefix}_{name}" if self.prefix else name
+        
+        if full_name in self.histograms:
+            return self.histograms[full_name]
+        
+        histogram = Histogram(full_name, description, labels or [], buckets=buckets)
+        self.histograms[full_name] = histogram
+        
+        # Register with optimizer if available
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.register_metric(histogram, full_name, category)
+            
+        return histogram
+        
+    def update_counter(self, name: str, value: float = 1, labels: Optional[Dict[str, str]] = None) -> None:
+        """
+        Increment a counter metric.
+        
+        Args:
+            name: Metric name
+            value: Increment value
+            labels: Label values
+        """
+        full_name = f"{self.prefix}_{name}" if self.prefix else name
+        
+        if full_name not in self.counters:
+            logger.warning(f"Counter {full_name} not found")
+            return
+            
+        counter = self.counters[full_name]
+        
+        # Check with optimizer if we should update
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            if not self.optimized_registry.should_update_metric(full_name, value):
+                return
+        
+        if labels:
+            counter.labels(**labels).inc(value)
+        else:
+            counter.inc(value)
+            
+        # Track with optimizer
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.update_metric(full_name, value, "counter")
+            
+    def update_gauge(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+        """
+        Update a gauge metric.
+        
+        Args:
+            name: Metric name
+            value: Current value
+            labels: Label values
+        """
+        full_name = f"{self.prefix}_{name}" if self.prefix else name
+        
+        if full_name not in self.gauges:
+            logger.warning(f"Gauge {full_name} not found")
+            return
+            
+        gauge = self.gauges[full_name]
+        
+        # Check with optimizer if we should update
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            if not self.optimized_registry.should_update_metric(full_name, value):
+                return
+        
+        if labels:
+            gauge.labels(**labels).set(value)
+        else:
+            gauge.set(value)
+            
+        # Track with optimizer
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.update_metric(full_name, value, "gauge")
+            
+    def observe_histogram(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+        """
+        Observe a value for a histogram metric.
+        
+        Args:
+            name: Metric name
+            value: Observed value
+            labels: Label values
+        """
+        full_name = f"{self.prefix}_{name}" if self.prefix else name
+        
+        if full_name not in self.histograms:
+            logger.warning(f"Histogram {full_name} not found")
+            return
+            
+        histogram = self.histograms[full_name]
+        
+        # Check with optimizer if we should update
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            if not self.optimized_registry.should_update_metric(full_name, value):
+                return
+        
+        if labels:
+            histogram.labels(**labels).observe(value)
+        else:
+            histogram.observe(value)
+            
+        # Track with optimizer
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.update_metric(full_name, value, "histogram")
+            
+    def cleanup_metrics(self) -> None:
+        """
+        Clean up metrics that should no longer be tracked.
+        Only has an effect if memory optimization is enabled.
+        """
+        if not self.enable_memory_optimization or not metrics_optimizer_available:
+            return
+            
+        # Get metrics to retain
+        retained_metrics = self.optimized_registry.get_retained_metrics()
+        
+        # Count metrics before cleanup
+        total_before = len(self.counters) + len(self.gauges) + len(self.histograms) + len(self.summaries)
+        
+        # Remove metrics that are not in the retained set
+        for metric_dict in [self.counters, self.gauges, self.histograms, self.summaries]:
+            to_remove = []
+            
+            for full_name in metric_dict:
+                if not full_name.startswith(f"{self.prefix}_"):
+                    continue  # Skip metrics not created by this exporter
+                    
+                name = full_name[len(f"{self.prefix}_"):] if self.prefix else full_name
+                
+                if name not in retained_metrics:
+                    to_remove.append(full_name)
+            
+            for full_name in to_remove:
+                del metric_dict[full_name]
+        
+        # Count metrics after cleanup
+        total_after = len(self.counters) + len(self.gauges) + len(self.histograms) + len(self.summaries)
+        
+        if total_before > total_after:
+            logger.info(f"Cleaned up {total_before - total_after} metrics")
+            
+    def shutdown(self) -> None:
+        """
+        Shut down the exporter.
+        """
+        if self.enable_memory_optimization and metrics_optimizer_available:
+            self.optimized_registry.shutdown()
+            
+        if self.server:
+            self.server.shutdown()
+            
+        logger.info("Prometheus exporter shut down")

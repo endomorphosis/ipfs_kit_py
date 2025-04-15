@@ -1,0 +1,31 @@
+{
+  "default_level": "authenticated",
+  "route_levels": {
+    "/api/v0/ipfs/cat": "public",
+    "/api/v0/ipfs/get": "public",
+    "/api/v0/ipfs/ls": "public",
+    "/docs": "public",
+    "/redoc": "public",
+    "/openapi.json": "public",
+    "/health": "public",
+    "/": "public",
+    "/api/v0/auth": "public",
+    "/api/v0/ipfs": "rbac",
+    "/api/v0/filecoin": "rbac",
+    "/api/v0/s3": "rbac",
+    "/api/v0/storacha": "rbac",
+    "/api/v0/huggingface": "rbac",
+    "/api/v0/lassie": "rbac",
+    "/api/v0/admin": "rbac",
+    "/api/v0/storage/backends": "backend"
+  },
+  "rbac": {
+    "config_path": "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/auth/config/rbac.json"
+  },
+  "audit": {
+    "log_file": "auth_audit.log",
+    "console_logging": true,
+    "file_logging": true,
+    "json_logging": true
+  }
+}

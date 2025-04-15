@@ -1,263 +1,294 @@
 """
-Authentication and Authorization models for MCP server.
+Authentication and Authorization Models for MCP Server
 
-This module defines the data models for the authentication and authorization system
-as specified in the MCP roadmap for Phase 1: Core Functionality Enhancements (Q3 2025).
+Defines core authentication and authorization models:
+- Permission/scope definitions
+- User and role models
+- Token models
+
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements.
 """
 
-import uuid
-import re
-from pydantic import BaseModel, Field, EmailStr, SecretStr, validator
-from typing import Dict, List, Any, Optional, Set
-from datetime import datetime
+import os
+import enum
+from typing import Dict, List, Optional, Set, Union, Any
+from datetime import datetime, timedelta
+from pydantic import BaseModel, Field, validator, root_validator
 
-class Role(BaseModel):
-    """Role definition for RBAC system."""
-    id: str = Field(default_factory=lambda: f"role_{uuid.uuid4().hex[:8]}")
-    name: str = Field(..., description="Name of the role")
-    description: Optional[str] = Field(None, description="Description of the role")
-    permissions: Set[str] = Field(
-        default_factory=set, description="Permissions assigned to the role"
-    )
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    updated_at: float = Field(default_factory=lambda: datetime.now().timestamp())
 
-    @validator("name")
-    def name_must_be_valid(cls, v):
-        if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", v):
-            raise ValueError(
-                "Role name must be 3-50 characters and contain only alphanumeric characters, underscores, and hyphens"
-            )
+class Permission(str, enum.Enum):
+    """
+    Available permission scopes in the MCP system.
+    
+    Permissions follow a resource:action pattern.
+    """
+    # READ permissions
+    READ_BASIC = "read:basic"
+    READ_IPFS = "read:ipfs"
+    READ_FILECOIN = "read:filecoin"
+    READ_STORACHA = "read:storacha"
+    READ_S3 = "read:s3"
+    READ_LASSIE = "read:lassie"
+    READ_HUGGINGFACE = "read:huggingface"
+    READ_ADMIN = "read:admin"
+    
+    # WRITE permissions
+    WRITE_BASIC = "write:basic"
+    WRITE_IPFS = "write:ipfs"
+    WRITE_FILECOIN = "write:filecoin"
+    WRITE_STORACHA = "write:storacha"
+    WRITE_S3 = "write:s3"
+    WRITE_LASSIE = "write:lassie" 
+    WRITE_HUGGINGFACE = "write:huggingface"
+    WRITE_ADMIN = "write:admin"
+    
+    # ADMIN permissions
+    ADMIN_USERS = "admin:users"
+    ADMIN_ROLES = "admin:roles"
+    ADMIN_SYSTEM = "admin:system"
+    ADMIN_AUDIT = "admin:audit"
+
+
+class Role(str, enum.Enum):
+    """
+    User roles in the MCP system.
+    
+    Each role includes a set of permissions.
+    """
+    ANONYMOUS = "anonymous"  # Unauthenticated users
+    USER = "user"            # Basic authenticated users
+    DEVELOPER = "developer"  # Developers with advanced permissions
+    ADMIN = "admin"          # System administrators
+    SYSTEM = "system"        # For system services/automation
+
+
+# Define permissions for each role
+ROLE_PERMISSIONS = {
+    Role.ANONYMOUS: [
+        Permission.READ_BASIC,
+    ],
+    
+    Role.USER: [
+        Permission.READ_BASIC,
+        Permission.READ_IPFS,
+        Permission.READ_FILECOIN,
+        Permission.READ_STORACHA,
+        Permission.READ_S3,
+        Permission.READ_LASSIE,
+        Permission.READ_HUGGINGFACE,
+        Permission.WRITE_BASIC,
+        Permission.WRITE_IPFS,
+    ],
+    
+    Role.DEVELOPER: [
+        Permission.READ_BASIC,
+        Permission.READ_IPFS,
+        Permission.READ_FILECOIN,
+        Permission.READ_STORACHA,
+        Permission.READ_S3,
+        Permission.READ_LASSIE,
+        Permission.READ_HUGGINGFACE,
+        Permission.READ_ADMIN,
+        Permission.WRITE_BASIC,
+        Permission.WRITE_IPFS,
+        Permission.WRITE_FILECOIN,
+        Permission.WRITE_STORACHA,
+        Permission.WRITE_S3,
+        Permission.WRITE_LASSIE,
+        Permission.WRITE_HUGGINGFACE,
+    ],
+    
+    Role.ADMIN: [
+        Permission.READ_BASIC,
+        Permission.READ_IPFS,
+        Permission.READ_FILECOIN,
+        Permission.READ_STORACHA,
+        Permission.READ_S3,
+        Permission.READ_LASSIE,
+        Permission.READ_HUGGINGFACE,
+        Permission.READ_ADMIN,
+        Permission.WRITE_BASIC,
+        Permission.WRITE_IPFS,
+        Permission.WRITE_FILECOIN,
+        Permission.WRITE_STORACHA,
+        Permission.WRITE_S3,
+        Permission.WRITE_LASSIE,
+        Permission.WRITE_HUGGINGFACE,
+        Permission.WRITE_ADMIN,
+        Permission.ADMIN_USERS,
+        Permission.ADMIN_ROLES,
+        Permission.ADMIN_AUDIT,
+    ],
+    
+    Role.SYSTEM: [
+        # System role has all permissions
+        *list(Permission),
+    ]
+}
+
+
+def has_permission(role: Role, permission: Permission) -> bool:
+    """Check if a role has a specific permission."""
+    return permission in ROLE_PERMISSIONS.get(role, [])
+
+
+def get_role_permissions(role: Role) -> List[Permission]:
+    """Get all permissions for a role."""
+    return ROLE_PERMISSIONS.get(role, [])
+
+
+# Backend-specific permission mapping
+BACKEND_PERMISSIONS = {
+    "ipfs": [Permission.READ_IPFS, Permission.WRITE_IPFS],
+    "filecoin": [Permission.READ_FILECOIN, Permission.WRITE_FILECOIN],
+    "storacha": [Permission.READ_STORACHA, Permission.WRITE_STORACHA],
+    "s3": [Permission.READ_S3, Permission.WRITE_S3],
+    "lassie": [Permission.READ_LASSIE, Permission.WRITE_LASSIE],
+    "huggingface": [Permission.READ_HUGGINGFACE, Permission.WRITE_HUGGINGFACE],
+}
+
+
+def has_backend_permission(role: Role, backend: str, write_access: bool = False) -> bool:
+    """
+    Check if a role has permission to access a specific backend.
+    
+    Args:
+        role: User role
+        backend: Storage backend name
+        write_access: Whether write access is required
+    
+    Returns:
+        True if the role has permission to access the backend
+    """
+    # Admin and system roles have access to all backends
+    if role in (Role.ADMIN, Role.SYSTEM):
+        return True
+    
+    # Get permissions for this backend
+    backend_perms = BACKEND_PERMISSIONS.get(backend.lower(), [])
+    if not backend_perms:
+        return False
+    
+    # Check for required permission (read or write)
+    required_perm = backend_perms[1] if write_access and len(backend_perms) > 1 else backend_perms[0]
+    return has_permission(role, required_perm)
+
+
+# Pydantic models for auth
+
+class UserBase(BaseModel):
+    """Base model for user data."""
+    username: str
+    email: Optional[str] = None
+    role: Role = Role.USER
+    is_active: bool = True
+
+
+class UserCreate(UserBase):
+    """Model for creating a new user."""
+    password: str
+    
+    @validator('password')
+    def password_strength(cls, v):
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        # Add more password strength rules as needed
         return v
 
 
-class Permission(BaseModel):
-    """Permission definition."""
-    id: str = Field(default_factory=lambda: f"perm_{uuid.uuid4().hex[:8]}")
-    name: str = Field(..., description="Name of the permission")
-    description: Optional[str] = Field(None, description="Description of the permission")
-    resource_type: str = Field(..., description="Type of resource this permission applies to")
-    actions: Set[str] = Field(..., description="Actions allowed by this permission")
-    conditions: Optional[Dict[str, Any]] = Field(
-        None, description="Conditional expressions for permission"
-    )
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-
-    @validator("name")
-    def name_must_be_valid_v2(cls, v):
-        if not re.match(r"^[a-zA-Z0-9_:.-]{3,100}$", v):
-            raise ValueError(
-                "Permission name must be 3-100 characters and contain only alphanumeric characters, underscores, colons, periods, and hyphens"
-            )
-        return v
-
-    @validator("actions")
-    def actions_must_be_valid(cls, v):
-        valid_actions = {"create", "read", "update", "delete", "list", "execute", "*"}
-        for action in v:
-            if action not in valid_actions and not action.endswith(":*"):
-                raise ValueError(
-                    f'Invalid action: {action}. Valid actions are {valid_actions} or custom actions with wildcard (e.g., "custom:*")'
-                )
-        return v
+class UserUpdate(BaseModel):
+    """Model for updating a user."""
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[Role] = None
+    is_active: Optional[bool] = None
+    custom_permissions: Optional[List[Permission]] = None
 
 
-class User(BaseModel):
-    """User account definition."""
-    id: str = Field(default_factory=lambda: f"user_{uuid.uuid4().hex[:8]}")
-    username: str = Field(..., description="Username for login")
-    email: Optional[EmailStr] = Field(None, description="User email address")
-    full_name: Optional[str] = Field(None, description="User's full name")
-    hashed_password: Optional[str] = Field(None, description="Hashed password")
-    active: bool = Field(True, description="Whether the user account is active")
-    roles: Set[str] = Field(default_factory=set, description="Roles assigned to the user")
-    direct_permissions: Set[str] = Field(
-        default_factory=set, description="Permissions directly assigned to the user"
-    )
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    updated_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    last_login: Optional[float] = Field(None, description="Timestamp of last login")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional user metadata")
+class User(UserBase):
+    """Complete user model."""
+    id: str
+    created_at: datetime
+    updated_at: datetime
+    last_login: Optional[datetime] = None
+    custom_permissions: List[Permission] = []
 
-    @validator("username")
-    def username_must_be_valid(cls, v):
-        if not re.match(r"^[a-zA-Z0-9_.-]{3,50}$", v):
-            raise ValueError(
-                "Username must be 3-50 characters and contain only alphanumeric characters, underscores, periods, and hyphens"
-            )
-        return v
-
-
-class ApiKey(BaseModel):
-    """API key definition."""
-    id: str = Field(default_factory=lambda: f"key_{uuid.uuid4().hex}")
-    name: str = Field(..., description="Name of the API key")
-    key: str = Field(default_factory=lambda: f"ipfk_{uuid.uuid4().hex}")
-    user_id: str = Field(..., description="User ID this API key belongs to")
-    hashed_key: Optional[str] = Field(None, description="Hashed API key for verification")
-    active: bool = Field(True, description="Whether the API key is active")
-    roles: Set[str] = Field(default_factory=set, description="Roles assigned to this API key")
-    direct_permissions: Set[str] = Field(
-        default_factory=set, description="Permissions directly assigned to this API key"
-    )
-    expires_at: Optional[float] = Field(None, description="Expiration timestamp")
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    last_used: Optional[float] = Field(None, description="Timestamp of last usage")
-    allowed_ips: Optional[List[str]] = Field(
-        None, description="IP addresses allowed to use this key"
-    )
-    backend_restrictions: Optional[List[str]] = Field(
-        None, description="Backends this key is restricted to"
-    )
-
-    @validator("name")
-    # DISABLED REDEFINITION
-        if not re.match(r"^[a-zA-Z0-9_\s.-]{3,100}$", v):
-            raise ValueError(
-                "API key name must be 3-100 characters and contain only alphanumeric characters, underscores, spaces, periods, and hyphens"
-            )
-        return v
-
-
-class OAuthProvider(BaseModel):
-    """OAuth provider configuration."""
-    id: str = Field(default_factory=lambda: f"oauth_{uuid.uuid4().hex[:8]}")
-    name: str = Field(..., description="Name of the OAuth provider")
-    provider_type: str = Field(..., description="Type of OAuth provider (github, google, etc.)")
-    client_id: str = Field(..., description="OAuth client ID")
-    client_secret: SecretStr = Field(..., description="OAuth client secret")
-    authorize_url: str = Field(..., description="Authorization URL")
-    token_url: str = Field(..., description="Token URL")
-    userinfo_url: str = Field(..., description="User info URL")
-    scope: str = Field(..., description="OAuth scope")
-    active: bool = Field(True, description="Whether the provider is active")
-    default_roles: Set[str] = Field(
-        default_factory=set,
-        description="Default roles for users authenticated with this provider",
-    )
-    domain_restrictions: Optional[List[str]] = Field(
-        None, description="Domain restrictions for email addresses"
-    )
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    updated_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-
-
-class BackendPermission(BaseModel):
-    """Permission settings for a specific backend."""
-    backend_id: str = Field(..., description="Backend identifier")
-    allowed_roles: Set[str] = Field(
-        default_factory=set, description="Roles allowed to access this backend"
-    )
-    allowed_permissions: Set[str] = Field(
-        default_factory=set, description="Permissions required to access this backend"
-    )
-    public: bool = Field(False, description="Whether the backend is publicly accessible")
-    read_only: bool = Field(False, description="Whether the backend is read-only for normal users")
-    admin_only: bool = Field(False, description="Whether the backend is admin-only")
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    updated_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-
-
-class AccessPolicy(BaseModel):
-    """Access policy for fine-grained control."""
-    id: str = Field(default_factory=lambda: f"policy_{uuid.uuid4().hex[:8]}")
-    name: str = Field(..., description="Name of the policy")
-    description: Optional[str] = Field(None, description="Description of the policy")
-    resources: List[str] = Field(..., description="Resources this policy applies to")
-    actions: List[str] = Field(..., description="Actions this policy applies to")
-    effect: str = Field(..., description="Effect of the policy (allow or deny)")
-    conditions: Optional[Dict[str, Any]] = Field(None, description="Conditions for the policy")
-    principals: List[str] = Field(
-        ..., description="Principals (users/roles) this policy applies to"
-    )
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    updated_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-
-    @validator("effect")
-    def effect_must_be_valid(cls, v):
-        if v not in ["allow", "deny"]:
-            raise ValueError('Effect must be either "allow" or "deny"')
-        return v
-
-
-class Session(BaseModel):
-    """User session information."""
-    id: str = Field(default_factory=lambda: f"sess_{uuid.uuid4().hex}")
-    user_id: str = Field(..., description="User ID for this session")
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    expires_at: float = Field(..., description="Expiration timestamp")
-    ip_address: Optional[str] = Field(None, description="IP address for this session")
-    user_agent: Optional[str] = Field(None, description="User agent for this session")
-    active: bool = Field(True, description="Whether the session is active")
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Additional session metadata"
-    )
-    last_activity: float = Field(default_factory=lambda: datetime.now().timestamp())
+    class Config:
+        orm_mode = True
 
 
 class TokenData(BaseModel):
-    """Data stored in authentication tokens."""
-    sub: str = Field(..., description="Subject (user ID)")
-    exp: float = Field(..., description="Expiration timestamp")
-    iat: float = Field(..., description="Issued at timestamp")
-    scope: str = Field("access", description="Token scope")
-    type: str = Field("bearer", description="Token type")
-    roles: List[str] = Field(default_factory=list, description="User roles")
-    permissions: List[str] = Field(default_factory=list, description="User permissions")
-    is_api_key: bool = Field(False, description="Whether this token is for an API key")
-    session_id: Optional[str] = Field(None, description="Session ID")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional token metadata")
+    """Data contained in authentication tokens."""
+    user_id: str
+    username: str
+    role: Role
+    permissions: List[Permission]
+    exp: Optional[int] = None  # Expiration timestamp
+
+
+class TokenResponse(BaseModel):
+    """Response model for token generation."""
+    access_token: str
+    token_type: str
+    expires_in: int
+    refresh_token: Optional[str] = None
+
+
+class APIKeyBase(BaseModel):
+    """Base model for API keys."""
+    name: str
+    permissions: List[Permission] = []
+    expires_at: Optional[datetime] = None
+
+
+class APIKeyCreate(APIKeyBase):
+    """Model for creating a new API key."""
+    user_id: str
+
+
+class APIKey(APIKeyBase):
+    """Complete API key model."""
+    id: str
+    key: str  # Only returned once when created
+    user_id: str
+    created_at: datetime
+    last_used: Optional[datetime] = None
+    is_active: bool = True
+
+    class Config:
+        orm_mode = True
 
 
 class LoginRequest(BaseModel):
-    """Login request data."""
-    username: str = Field(..., description="Username or email")
-    password: str = Field(..., description="Password")
-    remember_me: bool = Field(False, description="Whether to create a long-lived session")
+    """Request model for user login."""
+    username: str
+    password: str
 
 
-class RegisterRequest(BaseModel):
-    """User registration request data."""
-    username: str = Field(..., description="Username")
-    email: EmailStr = Field(..., description="Email address")
-    password: str = Field(..., description="Password")
-    full_name: Optional[str] = Field(None, description="Full name")
-
-    @validator("password")
-    def password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("Password must contain at least one number")
-        return v
+class RefreshTokenRequest(BaseModel):
+    """Request model for refreshing an access token."""
+    refresh_token: str
 
 
-class ApiKeyCreateRequest(BaseModel):
-    """API key creation request data."""
-    name: str = Field(..., description="Name for the API key")
-    expires_in_days: Optional[int] = Field(None, description="Days until expiration")
-    roles: Optional[List[str]] = Field(None, description="Roles to assign")
-    permissions: Optional[List[str]] = Field(None, description="Direct permissions to assign")
-    backend_restrictions: Optional[List[str]] = Field(
-        None, description="Backends to restrict this key to"
-    )
-    allowed_ips: Optional[List[str]] = Field(
-        None, description="IP addresses allowed to use this key"
-    )
+class OAuthProvider(str, enum.Enum):
+    """Supported OAuth providers."""
+    GITHUB = "github"
+    GOOGLE = "google"
+    FACEBOOK = "facebook"
+    TWITTER = "twitter"
+    MICROSOFT = "microsoft"
 
 
-class ApiKeyResponse(BaseModel):
-    """API key response after creation."""
-    id: str = Field(..., description="API key ID")
-    name: str = Field(..., description="API key name")
-    key: str = Field(..., description="The actual API key value (only shown once)")
-    expires_at: Optional[float] = Field(None, description="Expiration timestamp")
-    user_id: str = Field(..., description="User ID this key belongs to")
-    created_at: float = Field(..., description="Creation timestamp")
-    roles: List[str] = Field(default_factory=list, description="Assigned roles")
-    permissions: List[str] = Field(default_factory=list, description="Assigned permissions")
-    backend_restrictions: Optional[List[str]] = Field(None, description="Backend restrictions")
+class OAuthConnection(BaseModel):
+    """OAuth connection model."""
+    id: str
+    user_id: str
+    provider: OAuthProvider
+    provider_user_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True

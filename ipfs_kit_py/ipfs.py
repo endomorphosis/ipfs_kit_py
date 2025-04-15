@@ -1830,7 +1830,7 @@ class ipfs_py:
             try:
                 validate_command_args(kwargs)
             except IPFSValidationError as e:
-            return handle_error(result, e)
+                return handle_error(result, e)
 
     # Fully remove the second daemon_stop method definition
     # (The entire block from def daemon_stop(self): down to the final return result is removed)
