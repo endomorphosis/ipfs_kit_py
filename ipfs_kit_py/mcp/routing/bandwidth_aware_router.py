@@ -1,1273 +1,1328 @@
 """
 Bandwidth and Latency Analysis Module for Optimized Data Routing
 
-This module enhances the data routing system with comprehensive bandwidth and latency analysis:
-- Real-time bandwidth measurement between client and backends
-- Latency profiling for dynamic route selection
-- Network congestion detection and avoidance
+This module analyzes and tracks bandwidth and latency metrics for storage backends:
+- Real-time bandwidth measurement for backend selection
+- Latency tracking and prediction
+- Connection quality monitoring
 - Adaptive routing based on network conditions
-- Historical performance tracking for predictive routing
+- Performance history and trends analysis
 
 Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
-import time
-import asyncio
 import logging
+import asyncio
+import time
 import statistics
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union, Tuple, Set
-from dataclasses import dataclass, field
-import random
+import heapq
+import json
 import math
+from enum import Enum
+from typing import Dict, List, Any, Optional, Union, Tuple, Deque, Set
+from datetime import datetime, timedelta
+from collections import deque, defaultdict
+import threading
+import random
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class NetworkMetrics:
-    """Network performance metrics between client and backend."""
-    backend_id: str
+class NetworkMetricType(Enum):
+    """Types of network metrics tracked."""
+    LATENCY = "latency"                # Round-trip time in milliseconds
+    DOWNLOAD_BANDWIDTH = "download"    # Download bandwidth in bytes/second
+    UPLOAD_BANDWIDTH = "upload"        # Upload bandwidth in bytes/second
+    ERROR_RATE = "error_rate"          # Error rate as percentage (0-100)
+    JITTER = "jitter"                  # Variability in latency
+    PACKET_LOSS = "packet_loss"        # Packet loss percentage (0-100)
+    CONNECTION_STABILITY = "stability" # Stability score (0-1)
+
+
+class NetworkQualityLevel(Enum):
+    """Network quality classification."""
+    EXCELLENT = "excellent"  # Exceptional performance
+    GOOD = "good"            # Good performance
+    FAIR = "fair"            # Acceptable performance
+    POOR = "poor"            # Problematic performance
+    CRITICAL = "critical"    # Highly problematic performance
+    UNKNOWN = "unknown"      # Unknown quality level
+
+
+class MetricSample:
+    """A single sample of a network metric."""
     
-    # Latency measurements (milliseconds)
-    latency_min_ms: float = 0.0
-    latency_max_ms: float = 0.0
-    latency_avg_ms: float = 0.0
-    latency_median_ms: float = 0.0
-    latency_jitter_ms: float = 0.0  # Standard deviation of latency
-    
-    # Bandwidth measurements (Mbps)
-    download_bandwidth_mbps: float = 0.0
-    upload_bandwidth_mbps: float = 0.0
-    
-    # Packet loss and reliability
-    packet_loss_percent: float = 0.0
-    connection_stability: float = 1.0  # 0.0-1.0 score
-    
-    # Routing information
-    hop_count: Optional[int] = None
-    route_congestion_level: float = 0.0  # 0.0-1.0 score
-    
-    # Last measurement timestamp
-    last_measured: datetime = field(default_factory=datetime.now)
-    measurement_count: int = 0
-    
-    # Historical data for trends
-    historical_latency: List[Tuple[datetime, float]] = field(default_factory=list)
-    historical_bandwidth: List[Tuple[datetime, float]] = field(default_factory=list)
+    def __init__(
+        self,
+        metric_type: NetworkMetricType,
+        value: float,
+        timestamp: Optional[datetime] = None,
+        backend_id: str = "",
+        region: str = "",
+        client_id: str = "",
+        request_size_bytes: int = 0,
+        request_type: str = "",
+        sample_duration_ms: float = 0.0
+    ):
+        """
+        Initialize a metric sample.
+        
+        Args:
+            metric_type: Type of network metric
+            value: Measured value
+            timestamp: Timestamp of measurement
+            backend_id: Backend identifier
+            region: Backend region
+            client_id: Client identifier
+            request_size_bytes: Size of request in bytes
+            request_type: Type of request
+            sample_duration_ms: Duration of sampling period in milliseconds
+        """
+        self.metric_type = metric_type
+        self.value = value
+        self.timestamp = timestamp or datetime.now()
+        self.backend_id = backend_id
+        self.region = region
+        self.client_id = client_id
+        self.request_size_bytes = request_size_bytes
+        self.request_type = request_type
+        self.sample_duration_ms = sample_duration_ms
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        result = {
+        """Convert to dictionary."""
+        return {
+            "metric_type": self.metric_type.value,
+            "value": self.value,
+            "timestamp": self.timestamp.isoformat(),
             "backend_id": self.backend_id,
-            "latency": {
-                "min_ms": self.latency_min_ms,
-                "max_ms": self.latency_max_ms,
-                "avg_ms": self.latency_avg_ms,
-                "median_ms": self.latency_median_ms,
-                "jitter_ms": self.latency_jitter_ms
-            },
-            "bandwidth": {
-                "download_mbps": self.download_bandwidth_mbps,
-                "upload_mbps": self.upload_bandwidth_mbps
-            },
-            "reliability": {
-                "packet_loss_percent": self.packet_loss_percent,
-                "connection_stability": self.connection_stability
-            },
-            "routing": {
-                "hop_count": self.hop_count,
-                "congestion_level": self.route_congestion_level
-            },
-            "last_measured": self.last_measured.isoformat(),
-            "measurement_count": self.measurement_count
+            "region": self.region,
+            "client_id": self.client_id,
+            "request_size_bytes": self.request_size_bytes,
+            "request_type": self.request_type,
+            "sample_duration_ms": self.sample_duration_ms
         }
-        
-        # Include historical data if available
-        if self.historical_latency:
-            result["historical_latency"] = [
-                {"timestamp": ts.isoformat(), "value_ms": val}
-                for ts, val in self.historical_latency[-20:]  # Last 20 measurements
-            ]
-        
-        if self.historical_bandwidth:
-            result["historical_bandwidth"] = [
-                {"timestamp": ts.isoformat(), "value_mbps": val}
-                for ts, val in self.historical_bandwidth[-20:]  # Last 20 measurements
-            ]
-        
-        return result
+
+
+class MetricTimeSeries:
+    """Time series of network metric samples."""
     
-    def update_latency(self, latency_ms: float) -> None:
+    def __init__(
+        self,
+        metric_type: NetworkMetricType,
+        max_samples: int = 100,
+        backend_id: str = "",
+        region: str = ""
+    ):
         """
-        Update latency measurements with a new sample.
+        Initialize a metric time series.
         
         Args:
-            latency_ms: New latency measurement in milliseconds
+            metric_type: Type of network metric
+            max_samples: Maximum number of samples to keep
+            backend_id: Backend identifier
+            region: Backend region
         """
-        # Update min/max
-        if self.measurement_count == 0 or latency_ms < self.latency_min_ms:
-            self.latency_min_ms = latency_ms
+        self.metric_type = metric_type
+        self.max_samples = max_samples
+        self.backend_id = backend_id
+        self.region = region
+        self.samples: Deque[MetricSample] = deque(maxlen=max_samples)
         
-        if self.measurement_count == 0 or latency_ms > self.latency_max_ms:
-            self.latency_max_ms = latency_ms
-        
-        # Update historical data
-        now = datetime.now()
-        self.historical_latency.append((now, latency_ms))
-        
-        # Keep only last 100 measurements
-        if len(self.historical_latency) > 100:
-            self.historical_latency.pop(0)
-        
-        # Calculate statistics from historical data
-        if self.historical_latency:
-            latency_values = [val for _, val in self.historical_latency]
-            self.latency_avg_ms = statistics.mean(latency_values)
-            self.latency_median_ms = statistics.median(latency_values)
-            
-            if len(latency_values) > 1:
-                self.latency_jitter_ms = statistics.stdev(latency_values)
-        
-        # Update last measured time and count
-        self.last_measured = now
-        self.measurement_count += 1
+        # Statistics cache
+        self._stats_cache: Dict[str, Any] = {}
+        self._stats_cache_timestamp: Optional[datetime] = None
+        self._stats_cache_samples_count: int = 0
     
-    def update_bandwidth(self, download_mbps: float, upload_mbps: Optional[float] = None) -> None:
+    def add_sample(self, sample: MetricSample) -> None:
         """
-        Update bandwidth measurements with new samples.
+        Add a sample to the time series.
         
         Args:
-            download_mbps: Download bandwidth in Mbps
-            upload_mbps: Upload bandwidth in Mbps (optional)
+            sample: Metric sample
         """
-        # Update download bandwidth
-        self.download_bandwidth_mbps = download_mbps
+        self.samples.append(sample)
         
-        # Update upload bandwidth if provided
-        if upload_mbps is not None:
-            self.upload_bandwidth_mbps = upload_mbps
-        
-        # Update historical data
-        now = datetime.now()
-        self.historical_bandwidth.append((now, download_mbps))
-        
-        # Keep only last 100 measurements
-        if len(self.historical_bandwidth) > 100:
-            self.historical_bandwidth.pop(0)
-        
-        # Update last measured time
-        self.last_measured = now
+        # Invalidate statistics cache
+        self._stats_cache = {}
+        self._stats_cache_timestamp = None
+        self._stats_cache_samples_count = 0
     
-    def update_reliability(self, packet_loss_percent: float, connection_stability: Optional[float] = None) -> None:
+    def get_samples(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[MetricSample]:
         """
-        Update reliability measurements.
+        Get samples within a time range.
         
         Args:
-            packet_loss_percent: Packet loss percentage (0-100)
-            connection_stability: Connection stability score (0.0-1.0)
-        """
-        self.packet_loss_percent = packet_loss_percent
-        
-        if connection_stability is not None:
-            self.connection_stability = max(0.0, min(1.0, connection_stability))
-        
-        # Update last measured time
-        self.last_measured = datetime.now()
-    
-    def update_routing(self, hop_count: Optional[int] = None, congestion_level: Optional[float] = None) -> None:
-        """
-        Update routing measurements.
-        
-        Args:
-            hop_count: Number of network hops to backend
-            congestion_level: Route congestion level (0.0-1.0)
-        """
-        if hop_count is not None:
-            self.hop_count = hop_count
-        
-        if congestion_level is not None:
-            self.route_congestion_level = max(0.0, min(1.0, congestion_level))
-        
-        # Update last measured time
-        self.last_measured = datetime.now()
-    
-    def is_recent(self, max_age_seconds: int = 300) -> bool:
-        """
-        Check if measurements are recent.
-        
-        Args:
-            max_age_seconds: Maximum age in seconds to be considered recent
+            start_time: Start time (inclusive)
+            end_time: End time (inclusive)
             
         Returns:
-            True if measurements are recent
+            List of samples
         """
-        age = datetime.now() - self.last_measured
-        return age.total_seconds() < max_age_seconds
+        if start_time is None and end_time is None:
+            return list(self.samples)
+            
+        filtered_samples = []
+        
+        for sample in self.samples:
+            if start_time and sample.timestamp < start_time:
+                continue
+                
+            if end_time and sample.timestamp > end_time:
+                continue
+                
+            filtered_samples.append(sample)
+            
+        return filtered_samples
+    
+    def get_statistics(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        use_cache: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Calculate statistics for the time series.
+        
+        Args:
+            start_time: Start time (inclusive)
+            end_time: End time (inclusive)
+            use_cache: Whether to use cached statistics
+            
+        Returns:
+            Dictionary of statistics
+        """
+        # Check if we can use cached statistics
+        if (use_cache and 
+            start_time is None and 
+            end_time is None and 
+            self._stats_cache and 
+            self._stats_cache_timestamp and 
+            self._stats_cache_samples_count == len(self.samples)):
+            # Cache is valid
+            return self._stats_cache
+        
+        # Get samples
+        samples = self.get_samples(start_time, end_time)
+        
+        if not samples:
+            return {
+                "count": 0,
+                "min": None,
+                "max": None,
+                "mean": None,
+                "median": None,
+                "std_dev": None,
+                "percentile_90": None,
+                "percentile_95": None,
+                "percentile_99": None,
+                "latest": None,
+                "trend": None
+            }
+        
+        # Extract values
+        values = [sample.value for sample in samples]
+        
+        # Calculate statistics
+        stats = {
+            "count": len(values),
+            "min": min(values),
+            "max": max(values),
+            "mean": statistics.mean(values) if values else None,
+            "median": statistics.median(values) if values else None,
+            "std_dev": statistics.stdev(values) if len(values) > 1 else 0.0,
+            "latest": samples[-1].value if samples else None,
+        }
+        
+        # Add percentiles
+        if len(values) >= 10:
+            stats["percentile_90"] = percentile(values, 90)
+            stats["percentile_95"] = percentile(values, 95)
+            stats["percentile_99"] = percentile(values, 99)
+        else:
+            stats["percentile_90"] = stats["max"]
+            stats["percentile_95"] = stats["max"]
+            stats["percentile_99"] = stats["max"]
+        
+        # Calculate trend
+        if len(samples) >= 2:
+            oldest_timestamp = samples[0].timestamp
+            newest_timestamp = samples[-1].timestamp
+            time_diff = (newest_timestamp - oldest_timestamp).total_seconds()
+            
+            if time_diff > 0:
+                oldest_values = [s.value for s in samples[:max(1, len(samples)//5)]]
+                newest_values = [s.value for s in samples[-(len(samples)//5):]]
+                
+                old_avg = statistics.mean(oldest_values)
+                new_avg = statistics.mean(newest_values)
+                
+                if old_avg != 0:
+                    stats["trend"] = (new_avg - old_avg) / old_avg
+                else:
+                    stats["trend"] = 0.0
+            else:
+                stats["trend"] = 0.0
+        else:
+            stats["trend"] = 0.0
+        
+        # Cache statistics if using full time range
+        if start_time is None and end_time is None:
+            self._stats_cache = stats
+            self._stats_cache_timestamp = datetime.now()
+            self._stats_cache_samples_count = len(self.samples)
+        
+        return stats
+    
+    def get_quality_level(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> NetworkQualityLevel:
+        """
+        Determine the quality level based on the metric.
+        
+        Args:
+            start_time: Start time (inclusive)
+            end_time: End time (inclusive)
+            
+        Returns:
+            NetworkQualityLevel
+        """
+        stats = self.get_statistics(start_time, end_time)
+        
+        if stats["count"] == 0:
+            return NetworkQualityLevel.UNKNOWN
+        
+        # Quality thresholds based on metric type
+        if self.metric_type == NetworkMetricType.LATENCY:
+            # Latency in milliseconds (lower is better)
+            if stats["mean"] < 50:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] < 100:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] < 200:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] < 500:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+                
+        elif self.metric_type == NetworkMetricType.DOWNLOAD_BANDWIDTH:
+            # Bandwidth in bytes/second (higher is better)
+            # 10 MB/s = excellent, 1 MB/s = good, 100 KB/s = fair, 10 KB/s = poor
+            if stats["mean"] > 10 * 1024 * 1024:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] > 1 * 1024 * 1024:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] > 100 * 1024:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] > 10 * 1024:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+                
+        elif self.metric_type == NetworkMetricType.UPLOAD_BANDWIDTH:
+            # Bandwidth in bytes/second (higher is better)
+            # Typically upload is slower, so lower thresholds
+            if stats["mean"] > 5 * 1024 * 1024:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] > 500 * 1024:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] > 50 * 1024:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] > 5 * 1024:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+                
+        elif self.metric_type == NetworkMetricType.ERROR_RATE:
+            # Error rate as percentage (lower is better)
+            if stats["mean"] < 0.1:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] < 1.0:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] < 5.0:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] < 10.0:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+                
+        elif self.metric_type == NetworkMetricType.JITTER:
+            # Jitter in milliseconds (lower is better)
+            if stats["mean"] < 5:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] < 20:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] < 50:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] < 100:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+                
+        elif self.metric_type == NetworkMetricType.PACKET_LOSS:
+            # Packet loss percentage (lower is better)
+            if stats["mean"] < 0.1:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] < 1.0:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] < 3.0:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] < 10.0:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+                
+        elif self.metric_type == NetworkMetricType.CONNECTION_STABILITY:
+            # Stability score (higher is better)
+            if stats["mean"] > 0.95:
+                return NetworkQualityLevel.EXCELLENT
+            elif stats["mean"] > 0.9:
+                return NetworkQualityLevel.GOOD
+            elif stats["mean"] > 0.8:
+                return NetworkQualityLevel.FAIR
+            elif stats["mean"] > 0.6:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.CRITICAL
+        
+        return NetworkQualityLevel.UNKNOWN
+    
+    def predict_future_value(self, prediction_time: datetime) -> Optional[float]:
+        """
+        Predict the future value at a specific time.
+        
+        Args:
+            prediction_time: Time to predict for
+            
+        Returns:
+            Predicted value or None if prediction is not possible
+        """
+        samples = list(self.samples)
+        
+        if len(samples) < 5:
+            # Not enough samples for prediction
+            return None
+        
+        # Extract timestamps and values
+        times = [(s.timestamp - samples[0].timestamp).total_seconds() for s in samples]
+        values = [s.value for s in samples]
+        
+        # Simple linear regression
+        n = len(times)
+        sum_x = sum(times)
+        sum_y = sum(values)
+        sum_xy = sum(x * y for x, y in zip(times, values))
+        sum_xx = sum(x * x for x in times)
+        
+        # Calculate slope and intercept
+        if n * sum_xx - sum_x * sum_x == 0:
+            # No trend
+            return statistics.mean(values)
+        
+        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x)
+        intercept = (sum_y - slope * sum_x) / n
+        
+        # Predict value at prediction_time
+        prediction_seconds = (prediction_time - samples[0].timestamp).total_seconds()
+        predicted_value = intercept + slope * prediction_seconds
+        
+        return predicted_value
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "metric_type": self.metric_type.value,
+            "backend_id": self.backend_id,
+            "region": self.region,
+            "samples_count": len(self.samples),
+            "statistics": self.get_statistics(),
+            "quality_level": self.get_quality_level().value
+        }
+
+
+class BackendNetworkMetrics:
+    """Network metrics for a specific backend."""
+    
+    def __init__(self, backend_id: str, region: str = ""):
+        """
+        Initialize backend network metrics.
+        
+        Args:
+            backend_id: Backend identifier
+            region: Backend region
+        """
+        self.backend_id = backend_id
+        self.region = region
+        self.metrics: Dict[NetworkMetricType, MetricTimeSeries] = {}
+        
+        # Initialize metrics
+        for metric_type in NetworkMetricType:
+            self.metrics[metric_type] = MetricTimeSeries(
+                metric_type=metric_type,
+                backend_id=backend_id,
+                region=region
+            )
+    
+    def add_sample(self, sample: MetricSample) -> None:
+        """
+        Add a sample to the appropriate metric.
+        
+        Args:
+            sample: Metric sample
+        """
+        metric_type = sample.metric_type
+        
+        if metric_type not in self.metrics:
+            self.metrics[metric_type] = MetricTimeSeries(
+                metric_type=metric_type,
+                backend_id=self.backend_id,
+                region=self.region
+            )
+        
+        self.metrics[metric_type].add_sample(sample)
+    
+    def get_metric(self, metric_type: NetworkMetricType) -> MetricTimeSeries:
+        """
+        Get the time series for a specific metric.
+        
+        Args:
+            metric_type: Type of network metric
+            
+        Returns:
+            MetricTimeSeries
+        """
+        if metric_type not in self.metrics:
+            self.metrics[metric_type] = MetricTimeSeries(
+                metric_type=metric_type,
+                backend_id=self.backend_id,
+                region=self.region
+            )
+        
+        return self.metrics[metric_type]
+    
+    def get_overall_quality(self) -> NetworkQualityLevel:
+        """
+        Calculate the overall quality level for the backend.
+        
+        Returns:
+            NetworkQualityLevel
+        """
+        # Get quality levels for important metrics
+        quality_levels = []
+        
+        for metric_type in [
+            NetworkMetricType.LATENCY,
+            NetworkMetricType.DOWNLOAD_BANDWIDTH,
+            NetworkMetricType.ERROR_RATE,
+            NetworkMetricType.CONNECTION_STABILITY
+        ]:
+            if metric_type in self.metrics:
+                metric = self.metrics[metric_type]
+                if len(metric.samples) > 0:
+                    quality_levels.append(metric.get_quality_level())
+        
+        if not quality_levels:
+            return NetworkQualityLevel.UNKNOWN
+        
+        # Count occurrences of each quality level
+        level_counts = {}
+        for level in quality_levels:
+            level_counts[level] = level_counts.get(level, 0) + 1
+        
+        # If any metric is CRITICAL, the overall quality is POOR at best
+        if NetworkQualityLevel.CRITICAL in level_counts:
+            critical_count = level_counts[NetworkQualityLevel.CRITICAL]
+            if critical_count >= len(quality_levels) / 2:
+                return NetworkQualityLevel.CRITICAL
+            else:
+                return NetworkQualityLevel.POOR
+        
+        # If any metric is POOR, the overall quality is FAIR at best
+        if NetworkQualityLevel.POOR in level_counts:
+            poor_count = level_counts[NetworkQualityLevel.POOR]
+            if poor_count >= len(quality_levels) / 2:
+                return NetworkQualityLevel.POOR
+            else:
+                return NetworkQualityLevel.FAIR
+        
+        # If all metrics are EXCELLENT, the overall quality is EXCELLENT
+        if len(level_counts) == 1 and NetworkQualityLevel.EXCELLENT in level_counts:
+            return NetworkQualityLevel.EXCELLENT
+        
+        # If all metrics are GOOD or EXCELLENT, the overall quality is GOOD
+        good_and_excellent = level_counts.get(NetworkQualityLevel.GOOD, 0) + level_counts.get(NetworkQualityLevel.EXCELLENT, 0)
+        if good_and_excellent == len(quality_levels):
+            if level_counts.get(NetworkQualityLevel.EXCELLENT, 0) > level_counts.get(NetworkQualityLevel.GOOD, 0):
+                return NetworkQualityLevel.EXCELLENT
+            else:
+                return NetworkQualityLevel.GOOD
+        
+        # Default to FAIR
+        return NetworkQualityLevel.FAIR
     
     def get_performance_score(self) -> float:
         """
-        Calculate overall performance score based on all metrics.
+        Calculate a performance score (0.0-1.0).
         
         Returns:
-            Performance score (0.0-1.0, higher is better)
+            Performance score
         """
-        # Normalize latency (0-1000ms range, lower is better)
-        latency_score = max(0.0, 1.0 - (self.latency_avg_ms / 1000.0))
+        # Get quality level
+        quality = self.get_overall_quality()
         
-        # Normalize bandwidth (0-100Mbps range, higher is better)
-        bandwidth_score = min(1.0, self.download_bandwidth_mbps / 100.0)
+        # Map quality level to score
+        if quality == NetworkQualityLevel.EXCELLENT:
+            base_score = 0.9
+        elif quality == NetworkQualityLevel.GOOD:
+            base_score = 0.75
+        elif quality == NetworkQualityLevel.FAIR:
+            base_score = 0.5
+        elif quality == NetworkQualityLevel.POOR:
+            base_score = 0.25
+        elif quality == NetworkQualityLevel.CRITICAL:
+            base_score = 0.1
+        else:  # UNKNOWN
+            return 0.5  # Default to average
         
-        # Normalize jitter (0-100ms range, lower is better)
-        jitter_score = max(0.0, 1.0 - (self.latency_jitter_ms / 100.0))
+        # Adjust score based on specific metrics
+        adjustments = 0.0
         
-        # Normalize packet loss (0-10% range, lower is better)
-        packet_loss_score = max(0.0, 1.0 - (self.packet_loss_percent / 10.0))
+        # Latency adjustment
+        if NetworkMetricType.LATENCY in self.metrics:
+            latency_metric = self.metrics[NetworkMetricType.LATENCY]
+            if latency_metric.samples:
+                latency_stats = latency_metric.get_statistics()
+                # Lower latency is better
+                if latency_stats["mean"] < 20:
+                    adjustments += 0.05
+                elif latency_stats["mean"] > 300:
+                    adjustments -= 0.05
         
-        # Calculate weighted average
-        weights = {
-            "latency": 0.3,
-            "bandwidth": 0.3,
-            "jitter": 0.1,
-            "packet_loss": 0.2,
-            "stability": 0.1
+        # Bandwidth adjustment
+        if NetworkMetricType.DOWNLOAD_BANDWIDTH in self.metrics:
+            bandwidth_metric = self.metrics[NetworkMetricType.DOWNLOAD_BANDWIDTH]
+            if bandwidth_metric.samples:
+                bandwidth_stats = bandwidth_metric.get_statistics()
+                # Higher bandwidth is better
+                if bandwidth_stats["mean"] > 20 * 1024 * 1024:  # > 20 MB/s
+                    adjustments += 0.05
+                elif bandwidth_stats["mean"] < 50 * 1024:  # < 50 KB/s
+                    adjustments -= 0.05
+        
+        # Error rate adjustment
+        if NetworkMetricType.ERROR_RATE in self.metrics:
+            error_metric = self.metrics[NetworkMetricType.ERROR_RATE]
+            if error_metric.samples:
+                error_stats = error_metric.get_statistics()
+                # Lower error rate is better
+                if error_stats["mean"] < 0.1:
+                    adjustments += 0.05
+                elif error_stats["mean"] > 5.0:
+                    adjustments -= 0.1
+        
+        # Apply adjustments and clamp to range [0.0, 1.0]
+        score = max(0.0, min(1.0, base_score + adjustments))
+        
+        return score
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "backend_id": self.backend_id,
+            "region": self.region,
+            "metrics": {
+                metric_type.value: metric.to_dict()
+                for metric_type, metric in self.metrics.items()
+                if len(metric.samples) > 0
+            },
+            "overall_quality": self.get_overall_quality().value,
+            "performance_score": self.get_performance_score()
         }
-        
-        score = (
-            latency_score * weights["latency"] +
-            bandwidth_score * weights["bandwidth"] +
-            jitter_score * weights["jitter"] +
-            packet_loss_score * weights["packet_loss"] +
-            self.connection_stability * weights["stability"]
-        )
-        
-        return max(0.0, min(1.0, score))
 
 
-class BandwidthAnalyzer:
+class NetworkAnalyzer:
     """
-    Analyzes and measures bandwidth between client and storage backends.
+    Analyzes network metrics for storage backends.
     
-    This class provides methods to measure, analyze, and predict bandwidth
-    performance for different storage backends.
+    This class tracks and analyzes bandwidth, latency, and other network metrics
+    for different storage backends, allowing for network-aware routing decisions.
     """
     
-    def __init__(self, backend_manager=None):
-        """
-        Initialize the bandwidth analyzer.
+    def __init__(self):
+        """Initialize the network analyzer."""
+        self.backend_metrics: Dict[str, Dict[str, BackendNetworkMetrics]] = defaultdict(dict)
+        self.lock = threading.RLock()
         
-        Args:
-            backend_manager: Storage backend manager (optional)
-        """
-        self.backend_manager = backend_manager
-        self.network_metrics: Dict[str, NetworkMetrics] = {}
-        self.measurement_interval_seconds = 300  # 5 minutes between measurements
-        self.last_global_measurement = datetime.now() - timedelta(minutes=10)  # Force initial measurement
+        # Measurement calibration
+        self.measurement_overhead_ms = 5.0  # Default overhead
+        
+        # Synthetic data generation for testing
+        self.synthetic_data_enabled = False
+        self.synthetic_data_thread = None
+        self.synthetic_data_stop_event = threading.Event()
     
-    async def measure_latency(self, backend_id: str, sample_count: int = 5) -> float:
+    def get_metrics(self, backend_id: str, region: str = "") -> BackendNetworkMetrics:
         """
-        Measure latency to a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            sample_count: Number of samples to take
-            
-        Returns:
-            Average latency in milliseconds
-        """
-        if not self.backend_manager:
-            # Simulate latency for testing
-            return self._simulate_latency(backend_id)
-        
-        try:
-            backend = self.backend_manager.get_backend(backend_id)
-            if not backend:
-                logger.warning(f"Backend {backend_id} not found")
-                return 0.0
-            
-            # Measure latency with sample_count pings
-            latency_samples = []
-            for _ in range(sample_count):
-                start_time = time.time()
-                
-                # Attempt a simple operation like a health check
-                if hasattr(backend, "health_check"):
-                    await backend.health_check()
-                elif hasattr(backend, "ipfs") and hasattr(backend.ipfs, "ipfs_ping"):
-                    await backend.ipfs.ipfs_ping()
-                else:
-                    # Fallback to a generic stateless operation
-                    if backend_id == "ipfs":
-                        # For IPFS, use id command which is lightweight
-                        await backend.ipfs.ipfs_id()
-                    elif backend_id == "s3":
-                        # For S3, use list_buckets which is lightweight
-                        await backend.client.list_buckets()
-                    elif backend_id == "storacha":
-                        # For Storacha, use a status check
-                        await backend.get_status()
-                    else:
-                        # Generic fallback
-                        pass
-                
-                end_time = time.time()
-                latency_ms = (end_time - start_time) * 1000
-                latency_samples.append(latency_ms)
-                
-                # Small delay between measurements
-                await asyncio.sleep(0.1)
-            
-            # Calculate average latency
-            if latency_samples:
-                avg_latency = statistics.mean(latency_samples)
-                
-                # Update metrics
-                self._get_or_create_metrics(backend_id).update_latency(avg_latency)
-                
-                return avg_latency
-            
-            return 0.0
-            
-        except Exception as e:
-            logger.error(f"Error measuring latency for backend {backend_id}: {e}")
-            return 0.0
-    
-    async def measure_bandwidth(self, backend_id: str, test_size_kb: int = 1024) -> Tuple[float, float]:
-        """
-        Measure bandwidth to a backend using a test upload/download.
+        Get network metrics for a specific backend and region.
         
         Args:
             backend_id: Backend identifier
-            test_size_kb: Size of test data in KB
+            region: Backend region
             
         Returns:
-            Tuple of (download_mbps, upload_mbps)
+            BackendNetworkMetrics
         """
-        if not self.backend_manager:
-            # Simulate bandwidth for testing
-            download, upload = self._simulate_bandwidth(backend_id)
+        with self.lock:
+            if backend_id not in self.backend_metrics or region not in self.backend_metrics[backend_id]:
+                self.backend_metrics[backend_id][region] = BackendNetworkMetrics(
+                    backend_id=backend_id,
+                    region=region
+                )
             
-            # Update metrics
-            metrics = self._get_or_create_metrics(backend_id)
-            metrics.update_bandwidth(download, upload)
-            
-            return download, upload
-        
-        try:
-            backend = self.backend_manager.get_backend(backend_id)
-            if not backend:
-                logger.warning(f"Backend {backend_id} not found")
-                return 0.0, 0.0
-            
-            # Create test data (random bytes)
-            test_data = b'x' * (test_size_kb * 1024)  # Simple repeating pattern
-            test_metadata = {"name": "bandwidth_test", "test_id": f"bw_test_{int(time.time())}"}
-            
-            # Measure upload bandwidth
-            start_time = time.time()
-            upload_result = await backend.add_content(test_data, test_metadata)
-            upload_end_time = time.time()
-            
-            if not upload_result.get("success", False):
-                logger.warning(f"Failed to upload test data to {backend_id}")
-                return 0.0, 0.0
-            
-            # Get content ID or reference from the result
-            content_id = upload_result.get("content_id") or upload_result.get("cid") or upload_result.get("hash")
-            if not content_id:
-                logger.warning(f"Failed to get content ID from upload result")
-                return 0.0, 0.0
-            
-            # Measure download bandwidth
-            start_time_dl = time.time()
-            content = await backend.get_content(content_id)
-            download_end_time = time.time()
-            
-            # Calculate bandwidth in Mbps
-            upload_time = upload_end_time - start_time
-            upload_mbps = (test_size_kb * 8 / 1000) / upload_time if upload_time > 0 else 0
-            
-            download_time = download_end_time - start_time_dl
-            download_mbps = (test_size_kb * 8 / 1000) / download_time if download_time > 0 else 0
-            
-            # Update metrics
-            metrics = self._get_or_create_metrics(backend_id)
-            metrics.update_bandwidth(download_mbps, upload_mbps)
-            
-            # Clean up test data if possible
-            try:
-                if hasattr(backend, "delete_content"):
-                    await backend.delete_content(content_id)
-            except:
-                pass
-            
-            return download_mbps, upload_mbps
-            
-        except Exception as e:
-            logger.error(f"Error measuring bandwidth for backend {backend_id}: {e}")
-            return 0.0, 0.0
+            return self.backend_metrics[backend_id][region]
     
-    async def measure_reliability(self, backend_id: str, sample_count: int = 10) -> Tuple[float, float]:
+    def add_sample(self, sample: MetricSample) -> None:
         """
-        Measure reliability metrics for a backend.
+        Add a metric sample.
         
         Args:
-            backend_id: Backend identifier
-            sample_count: Number of samples to take
-            
-        Returns:
-            Tuple of (packet_loss_percent, connection_stability)
+            sample: Metric sample
         """
-        if not self.backend_manager:
-            # Simulate reliability for testing
-            loss, stability = self._simulate_reliability(backend_id)
-            
-            # Update metrics
-            metrics = self._get_or_create_metrics(backend_id)
-            metrics.update_reliability(loss, stability)
-            
-            return loss, stability
-        
-        try:
-            backend = self.backend_manager.get_backend(backend_id)
-            if not backend:
-                logger.warning(f"Backend {backend_id} not found")
-                return 0.0, 1.0
-            
-            # Simulate pings to measure packet loss and stability
-            success_count = 0
-            response_times = []
-            
-            for i in range(sample_count):
-                try:
-                    start_time = time.time()
-                    
-                    # Perform a simple operation
-                    if hasattr(backend, "health_check"):
-                        result = await backend.health_check()
-                        success = result.get("success", False) if isinstance(result, dict) else bool(result)
-                    elif hasattr(backend, "ipfs") and hasattr(backend.ipfs, "ipfs_id"):
-                        result = await backend.ipfs.ipfs_id()
-                        success = result.get("success", False) if isinstance(result, dict) else bool(result)
-                    else:
-                        # Fallback
-                        success = True
-                    
-                    end_time = time.time()
-                    
-                    if success:
-                        success_count += 1
-                        response_times.append(end_time - start_time)
-                    
-                    # Small delay between tests
-                    await asyncio.sleep(0.2)
-                    
-                except Exception:
-                    # Count as failure
-                    pass
-            
-            # Calculate packet loss
-            packet_loss = 100.0 * (1 - (success_count / sample_count)) if sample_count > 0 else 0.0
-            
-            # Calculate connection stability based on variance in response times
-            stability = 1.0
-            if len(response_times) >= 2:
-                mean_time = statistics.mean(response_times)
-                if mean_time > 0:
-                    # Calculate coefficient of variation
-                    stdev = statistics.stdev(response_times)
-                    cv = stdev / mean_time
-                    # Map CV to stability score (lower CV = higher stability)
-                    stability = max(0.0, min(1.0, 1.0 - min(1.0, cv * 2)))
-            
-            # Update metrics
-            metrics = self._get_or_create_metrics(backend_id)
-            metrics.update_reliability(packet_loss, stability)
-            
-            return packet_loss, stability
-            
-        except Exception as e:
-            logger.error(f"Error measuring reliability for backend {backend_id}: {e}")
-            return 0.0, 1.0
+        with self.lock:
+            metrics = self.get_metrics(sample.backend_id, sample.region)
+            metrics.add_sample(sample)
     
-    async def analyze_route(self, backend_id: str) -> Tuple[Optional[int], float]:
-        """
-        Analyze the network route to a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            Tuple of (hop_count, congestion_level)
-        """
-        if not self.backend_manager:
-            # Simulate routing metrics for testing
-            hops, congestion = self._simulate_routing(backend_id)
-            
-            # Update metrics
-            metrics = self._get_or_create_metrics(backend_id)
-            metrics.update_routing(hops, congestion)
-            
-            return hops, congestion
-        
-        try:
-            # This would normally use traceroute or similar to get hop count
-            # For now, use simulated data since we can't run traceroute from within the script
-            hops, congestion = self._simulate_routing(backend_id)
-            
-            # Update metrics
-            metrics = self._get_or_create_metrics(backend_id)
-            metrics.update_routing(hops, congestion)
-            
-            return hops, congestion
-            
-        except Exception as e:
-            logger.error(f"Error analyzing route for backend {backend_id}: {e}")
-            return None, 0.0
-    
-    async def measure_all_metrics(self, backend_id: str) -> NetworkMetrics:
-        """
-        Measure all network metrics for a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            NetworkMetrics object with measurements
-        """
-        # Get existing metrics or create new
-        metrics = self._get_or_create_metrics(backend_id)
-        
-        # Skip if recent measurements exist
-        if metrics.is_recent(self.measurement_interval_seconds):
-            return metrics
-        
-        # Run all measurements
-        await self.measure_latency(backend_id)
-        await self.measure_bandwidth(backend_id)
-        await self.measure_reliability(backend_id)
-        await self.analyze_route(backend_id)
-        
-        return metrics
-    
-    async def measure_all_backends(self) -> Dict[str, NetworkMetrics]:
-        """
-        Measure network metrics for all available backends.
-        
-        Returns:
-            Dict mapping backend IDs to NetworkMetrics
-        """
-        # Skip if global measurement interval hasn't elapsed
-        now = datetime.now()
-        if (now - self.last_global_measurement).total_seconds() < self.measurement_interval_seconds:
-            return self.network_metrics
-        
-        # Get list of backends
-        backend_ids = []
-        if self.backend_manager:
-            backend_ids = self.backend_manager.list_backends()
-        else:
-            # Default to common backends
-            backend_ids = ["ipfs", "filecoin", "s3", "storacha"]
-        
-        # Measure each backend
-        for backend_id in backend_ids:
-            try:
-                await self.measure_all_metrics(backend_id)
-            except Exception as e:
-                logger.error(f"Error measuring metrics for {backend_id}: {e}")
-        
-        # Update last measurement time
-        self.last_global_measurement = now
-        
-        return self.network_metrics
-    
-    def get_network_metrics(self, backend_id: str) -> Optional[NetworkMetrics]:
-        """
-        Get network metrics for a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            NetworkMetrics object or None if not found
-        """
-        return self.network_metrics.get(backend_id)
-    
-    def get_all_network_metrics(self) -> Dict[str, NetworkMetrics]:
-        """
-        Get network metrics for all backends.
-        
-        Returns:
-            Dict mapping backend IDs to NetworkMetrics
-        """
-        return self.network_metrics.copy()
-    
-    def rank_backends_by_performance(self, backend_ids: Optional[List[str]] = None) -> List[str]:
-        """
-        Rank backends by overall network performance.
-        
-        Args:
-            backend_ids: Optional list of backend IDs to rank
-            
-        Returns:
-            List of backend IDs sorted by performance (best first)
-        """
-        if not backend_ids:
-            backend_ids = list(self.network_metrics.keys())
-        
-        # Filter to backends with metrics
-        backends_with_metrics = [
-            backend_id for backend_id in backend_ids
-            if backend_id in self.network_metrics
-        ]
-        
-        # Sort by performance score
-        return sorted(
-            backends_with_metrics,
-            key=lambda bid: self.network_metrics[bid].get_performance_score(),
-            reverse=True
-        )
-    
-    def predict_transfer_time(
-        self, 
-        backend_id: str, 
-        size_bytes: int, 
-        upload: bool = False
+    def measure_latency(
+        self,
+        backend_id: str,
+        endpoint_url: str,
+        region: str = "",
+        num_pings: int = 3,
+        timeout_seconds: float = 5.0
     ) -> Optional[float]:
         """
-        Predict transfer time for a specific backend and file size.
+        Measure round-trip latency to a backend endpoint.
         
         Args:
             backend_id: Backend identifier
-            size_bytes: Size in bytes
-            upload: Whether this is an upload (True) or download (False)
+            endpoint_url: Backend endpoint URL
+            region: Backend region
+            num_pings: Number of pings to perform
+            timeout_seconds: Timeout in seconds
             
         Returns:
-            Predicted transfer time in seconds or None if insufficient data
+            Average latency in milliseconds or None if measurement failed
         """
-        metrics = self.network_metrics.get(backend_id)
-        if not metrics:
-            return None
-        
-        # Convert size to megabits
-        size_megabits = size_bytes * 8 / 1000000
-        
-        # Get bandwidth
-        bandwidth = metrics.upload_bandwidth_mbps if upload else metrics.download_bandwidth_mbps
-        
-        # Check if we have valid bandwidth data
-        if bandwidth <= 0:
-            return None
-        
-        # Calculate base transfer time
-        transfer_time = size_megabits / bandwidth
-        
-        # Add latency and jitter factors
-        latency_factor = metrics.latency_avg_ms / 1000  # Convert to seconds
-        jitter_factor = metrics.latency_jitter_ms / 2000  # Half the jitter in seconds
-        
-        # Add reliability factor (packet loss increases time)
-        reliability_factor = 1.0 + (metrics.packet_loss_percent / 100)
-        
-        # Combine factors
-        predicted_time = (transfer_time + latency_factor) * reliability_factor * (1.0 + jitter_factor)
-        
-        # Return prediction
-        return max(0.1, predicted_time)  # Minimum 0.1 seconds
-    
-    def _get_or_create_metrics(self, backend_id: str) -> NetworkMetrics:
-        """
-        Get existing metrics for a backend or create new ones.
-        
-        Args:
-            backend_id: Backend identifier
+        # In a real implementation, this would make HTTP requests to measure latency
+        # Here we'll simulate it for demo purposes
+        try:
+            latencies = []
             
-        Returns:
-            NetworkMetrics object
-        """
-        if backend_id not in self.network_metrics:
-            self.network_metrics[backend_id] = NetworkMetrics(backend_id)
-        
-        return self.network_metrics[backend_id]
-    
-    def _simulate_latency(self, backend_id: str) -> float:
-        """
-        Simulate latency for testing purposes.
-        
-        Args:
-            backend_id: Backend identifier
+            for _ in range(num_pings):
+                start_time = time.time()
+                
+                # Simulate HTTP request by sleeping
+                # In a real implementation, this would be an actual HTTP request
+                time.sleep(random.uniform(0.05, 0.3))  # 50-300ms simulated latency
+                
+                end_time = time.time()
+                latency_ms = (end_time - start_time) * 1000.0  # Convert to milliseconds
+                
+                # Subtract measurement overhead
+                latency_ms = max(0.0, latency_ms - self.measurement_overhead_ms)
+                
+                latencies.append(latency_ms)
             
-        Returns:
-            Simulated latency in milliseconds
-        """
-        # Baseline latency depends on backend type
-        baseline = {
-            "ipfs": 50.0,  # IPFS tends to be faster for reads
-            "filecoin": 300.0,  # Filecoin has higher latency
-            "s3": 80.0,  # S3 has moderate latency
-            "storacha": 100.0,  # Storacha has moderate-high latency
-            "huggingface": 120.0,  # HuggingFace has moderate-high latency
-            "lassie": 200.0,  # Lassie has higher latency
-        }.get(backend_id, 100.0)
-        
-        # Add some randomness
-        jitter = random.uniform(-20.0, 50.0)
-        latency = max(5.0, baseline + jitter)
-        
-        # Update metrics
-        self._get_or_create_metrics(backend_id).update_latency(latency)
-        
-        return latency
-    
-    def _simulate_bandwidth(self, backend_id: str) -> Tuple[float, float]:
-        """
-        Simulate bandwidth for testing purposes.
-        
-        Args:
-            backend_id: Backend identifier
+            # Calculate average latency
+            average_latency = statistics.mean(latencies)
             
-        Returns:
-            Tuple of (download_mbps, upload_mbps)
-        """
-        # Baseline bandwidth depends on backend type
-        baseline_download = {
-            "ipfs": 25.0,  # IPFS tends to have good read bandwidth
-            "filecoin": 15.0,  # Filecoin has lower bandwidth
-            "s3": 50.0,  # S3 has high bandwidth
-            "storacha": 30.0,  # Storacha has moderate bandwidth
-            "huggingface": 40.0,  # HuggingFace has good bandwidth
-            "lassie": 20.0,  # Lassie has moderate bandwidth
-        }.get(backend_id, 20.0)
-        
-        # Upload is usually slower than download
-        baseline_upload = baseline_download * 0.7
-        
-        # Add some randomness
-        download = max(1.0, baseline_download * random.uniform(0.8, 1.2))
-        upload = max(0.5, baseline_upload * random.uniform(0.8, 1.2))
-        
-        return download, upload
-    
-    def _simulate_reliability(self, backend_id: str) -> Tuple[float, float]:
-        """
-        Simulate reliability for testing purposes.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            Tuple of (packet_loss_percent, connection_stability)
-        """
-        # Baseline packet loss depends on backend type
-        baseline_loss = {
-            "ipfs": 1.0,  # IPFS has low packet loss
-            "filecoin": 3.0,  # Filecoin has higher packet loss
-            "s3": 0.5,  # S3 has very low packet loss
-            "storacha": 2.0,  # Storacha has moderate packet loss
-            "huggingface": 1.0,  # HuggingFace has low packet loss
-            "lassie": 2.5,  # Lassie has moderate-high packet loss
-        }.get(backend_id, 2.0)
-        
-        # Baseline stability depends on backend type
-        baseline_stability = {
-            "ipfs": 0.95,  # IPFS has good stability
-            "filecoin": 0.85,  # Filecoin has lower stability
-            "s3": 0.99,  # S3 has excellent stability
-            "storacha": 0.90,  # Storacha has good stability
-            "huggingface": 0.95,  # HuggingFace has good stability
-            "lassie": 0.88,  # Lassie has moderate stability
-        }.get(backend_id, 0.90)
-        
-        # Add some randomness
-        loss = max(0.0, min(10.0, baseline_loss * random.uniform(0.7, 1.5)))
-        stability = max(0.7, min(1.0, baseline_stability * random.uniform(0.95, 1.05)))
-        
-        return loss, stability
-    
-    def _simulate_routing(self, backend_id: str) -> Tuple[int, float]:
-        """
-        Simulate routing metrics for testing purposes.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            Tuple of (hop_count, congestion_level)
-        """
-        # Baseline hop count depends on backend type
-        baseline_hops = {
-            "ipfs": 4,  # IPFS typically has fewer hops
-            "filecoin": 7,  # Filecoin has more hops
-            "s3": 5,  # S3 has moderate hop count
-            "storacha": 6,  # Storacha has moderate-high hop count
-            "huggingface": 5,  # HuggingFace has moderate hop count
-            "lassie": 6,  # Lassie has moderate-high hop count
-        }.get(backend_id, 5)
-        
-        # Baseline congestion depends on backend type
-        baseline_congestion = {
-            "ipfs": 0.3,  # IPFS has moderate congestion
-            "filecoin": 0.5,  # Filecoin has higher congestion
-            "s3": 0.1,  # S3 has low congestion
-            "storacha": 0.4,  # Storacha has moderate congestion
-            "huggingface": 0.3,  # HuggingFace has moderate congestion
-            "lassie": 0.4,  # Lassie has moderate congestion
-        }.get(backend_id, 0.3)
-        
-        # Add some randomness
-        hops = max(2, baseline_hops + random.randint(-1, 2))
-        congestion = max(0.0, min(1.0, baseline_congestion * random.uniform(0.8, 1.3)))
-        
-        return hops, congestion
-
-
-class BandwidthAwareRouter:
-    """
-    Router that uses bandwidth and latency analysis for optimal backend selection.
-    
-    This router extends the DataRouter with network-aware decision making
-    to optimize content routing based on current network conditions.
-    """
-    
-    def __init__(self, data_router=None, backend_manager=None):
-        """
-        Initialize the bandwidth-aware router.
-        
-        Args:
-            data_router: DataRouter instance
-            backend_manager: Storage backend manager
-        """
-        self.data_router = data_router
-        self.backend_manager = backend_manager
-        self.bandwidth_analyzer = BandwidthAnalyzer(backend_manager)
-        
-        # Network awareness parameters
-        self.network_weight = 0.4  # Weight of network metrics in routing decisions
-        self.content_weight = 0.6  # Weight of content analysis in routing decisions
-        
-        # Network score components
-        self.latency_importance = 0.3
-        self.bandwidth_importance = 0.4
-        self.reliability_importance = 0.3
-        
-        # Last measurement timestamp
-        self.last_measurement = datetime.now() - timedelta(minutes=10)  # Force initial measurement
-        self.measurement_interval = 300  # 5 minutes
-    
-    async def initialize(self):
-        """Initialize the router with initial measurements."""
-        # Initial measurement
-        await self.update_network_metrics()
-    
-    async def update_network_metrics(self) -> None:
-        """Update network metrics for all backends."""
-        now = datetime.now()
-        if (now - self.last_measurement).total_seconds() < self.measurement_interval:
-            # Skip if interval hasn't elapsed
-            return
-        
-        # Update metrics
-        await self.bandwidth_analyzer.measure_all_backends()
-        self.last_measurement = now
-    
-    async def select_backend(
-        self,
-        content: Union[bytes, str],
-        metadata: Optional[Dict[str, Any]] = None,
-        content_size: Optional[int] = None,
-        available_backends: Optional[List[str]] = None,
-        client_location: Optional[Dict[str, float]] = None
-    ) -> str:
-        """
-        Select the optimal backend based on content and network conditions.
-        
-        Args:
-            content: Content to store (or sample for large content)
-            metadata: Optional metadata about the content
-            content_size: Actual content size (if content is a sample)
-            available_backends: Optional list of available backends
-            client_location: Optional client location (lat/lon)
-            
-        Returns:
-            Name of the selected backend
-        """
-        if not self.data_router:
-            logger.warning("DataRouter not available for content analysis")
-            # Fall back to network-only analysis
-            return await self._select_by_network(
-                content_size or (len(content) if isinstance(content, bytes) else len(content.encode())),
-                available_backends
-            )
-        
-        # Update network metrics if needed
-        await self.update_network_metrics()
-        
-        # Get available backends
-        if available_backends is None:
-            if self.backend_manager:
-                available_backends = self.backend_manager.list_backends()
-            else:
-                # Default to common backends
-                available_backends = ["ipfs", "filecoin", "s3", "storacha"]
-        
-        # If no backends available, return default
-        if not available_backends:
-            return "ipfs"  # Default to IPFS
-        elif len(available_backends) == 1:
-            return available_backends[0]  # Only one backend available
-        
-        # Get content analysis from data router
-        content_analysis = self.data_router.content_analyzer.analyze(content, metadata)
-        
-        # Get actual size (either from parameter or content)
-        if content_size is not None:
-            size_bytes = content_size
-        else:
-            size_bytes = content_analysis["size_bytes"]
-        
-        # Calculate scores for each backend
-        scores = {}
-        
-        for backend_id in available_backends:
-            # Calculate content-based score (using DataRouter's logic)
-            content_score = self._calculate_content_score(backend_id, content_analysis, size_bytes)
-            
-            # Calculate network score
-            network_score = self._calculate_network_score(backend_id, size_bytes)
-            
-            # Combine scores
-            combined_score = (
-                content_score * self.content_weight +
-                network_score * self.network_weight
+            # Create and add sample
+            sample = MetricSample(
+                metric_type=NetworkMetricType.LATENCY,
+                value=average_latency,
+                backend_id=backend_id,
+                region=region,
+                sample_duration_ms=sum(latencies)
             )
             
-            scores[backend_id] = combined_score
-        
-        # Select backend with highest score
-        if not scores:
-            # Fallback if no scores calculated
-            return available_backends[0]
-        
-        # Return highest scoring backend
-        return max(scores.items(), key=lambda x: x[1])[0]
+            self.add_sample(sample)
+            
+            return average_latency
+            
+        except Exception as e:
+            logger.warning(f"Failed to measure latency for {backend_id}: {str(e)}")
+            return None
     
-    async def predict_transfer_times(
+    def measure_bandwidth(
         self,
-        content_size: int,
-        backend_ids: Optional[List[str]] = None,
-        upload: bool = True
-    ) -> Dict[str, float]:
+        backend_id: str,
+        endpoint_url: str,
+        direction: str = "download",
+        region: str = "",
+        test_size_bytes: int = 1024 * 1024,  # 1 MB
+        timeout_seconds: float = 30.0
+    ) -> Optional[float]:
         """
-        Predict transfer times for content across different backends.
+        Measure bandwidth to a backend endpoint.
         
         Args:
-            content_size: Size in bytes
-            backend_ids: Optional list of backend IDs to predict for
-            upload: Whether this is an upload (True) or download (False)
+            backend_id: Backend identifier
+            endpoint_url: Backend endpoint URL
+            direction: "download" or "upload"
+            region: Backend region
+            test_size_bytes: Size of test data in bytes
+            timeout_seconds: Timeout in seconds
             
         Returns:
-            Dict mapping backend IDs to predicted transfer times in seconds
+            Bandwidth in bytes/second or None if measurement failed
         """
-        # Update network metrics if needed
-        await self.update_network_metrics()
-        
-        # Get backends to predict for
-        if backend_ids is None:
-            if self.backend_manager:
-                backend_ids = self.backend_manager.list_backends()
+        # In a real implementation, this would transfer data to measure bandwidth
+        # Here we'll simulate it for demo purposes
+        try:
+            start_time = time.time()
+            
+            # Simulate data transfer by sleeping
+            # In a real implementation, this would be an actual data transfer
+            # Simulate different speeds for different backends and random variations
+            transfer_duration = 0.0
+            
+            if backend_id == "ipfs":
+                # IPFS tends to be slower
+                bytes_per_second = random.uniform(500 * 1024, 2 * 1024 * 1024)  # 500 KB/s - 2 MB/s
+            elif backend_id == "s3":
+                # S3 tends to be faster
+                bytes_per_second = random.uniform(2 * 1024 * 1024, 10 * 1024 * 1024)  # 2 MB/s - 10 MB/s
             else:
-                # Default to common backends
-                backend_ids = ["ipfs", "filecoin", "s3", "storacha"]
+                # Default midrange speed
+                bytes_per_second = random.uniform(1 * 1024 * 1024, 5 * 1024 * 1024)  # 1 MB/s - 5 MB/s
+                
+            # Calculate how long the transfer would take
+            transfer_duration = test_size_bytes / bytes_per_second
+            
+            # Sleep to simulate the transfer
+            time.sleep(min(transfer_duration, timeout_seconds))
+            
+            end_time = time.time()
+            
+            # Calculate actual bandwidth
+            elapsed_seconds = end_time - start_time
+            
+            if elapsed_seconds <= 0:
+                return None
+                
+            bandwidth = test_size_bytes / elapsed_seconds  # bytes/second
+            
+            # Create and add sample
+            metric_type = (
+                NetworkMetricType.DOWNLOAD_BANDWIDTH
+                if direction == "download"
+                else NetworkMetricType.UPLOAD_BANDWIDTH
+            )
+            
+            sample = MetricSample(
+                metric_type=metric_type,
+                value=bandwidth,
+                backend_id=backend_id,
+                region=region,
+                request_size_bytes=test_size_bytes,
+                sample_duration_ms=elapsed_seconds * 1000.0
+            )
+            
+            self.add_sample(sample)
+            
+            return bandwidth
+            
+        except Exception as e:
+            logger.warning(f"Failed to measure {direction} bandwidth for {backend_id}: {str(e)}")
+            return None
+    
+    def measure_error_rate(
+        self,
+        backend_id: str,
+        endpoint_url: str,
+        region: str = "",
+        num_requests: int = 10,
+        timeout_seconds: float = 10.0
+    ) -> Optional[float]:
+        """
+        Measure error rate for requests to a backend endpoint.
         
-        # Calculate predictions
-        predictions = {}
+        Args:
+            backend_id: Backend identifier
+            endpoint_url: Backend endpoint URL
+            region: Backend region
+            num_requests: Number of requests to perform
+            timeout_seconds: Timeout in seconds
+            
+        Returns:
+            Error rate as percentage (0-100) or None if measurement failed
+        """
+        # In a real implementation, this would make HTTP requests to measure error rate
+        # Here we'll simulate it for demo purposes
+        try:
+            errors = 0
+            
+            for _ in range(num_requests):
+                # Simulate request failure probability based on backend
+                if backend_id == "ipfs":
+                    # IPFS might have higher error rates
+                    failure_probability = 0.1  # 10% failure rate
+                elif backend_id == "s3":
+                    # S3 would have lower error rates
+                    failure_probability = 0.01  # 1% failure rate
+                else:
+                    # Default moderate error rate
+                    failure_probability = 0.05  # 5% failure rate
+                
+                # Simulate request
+                if random.random() < failure_probability:
+                    errors += 1
+            
+            # Calculate error rate
+            error_rate = (errors / num_requests) * 100.0  # Convert to percentage
+            
+            # Create and add sample
+            sample = MetricSample(
+                metric_type=NetworkMetricType.ERROR_RATE,
+                value=error_rate,
+                backend_id=backend_id,
+                region=region,
+                request_type="test",
+                sample_duration_ms=0.0
+            )
+            
+            self.add_sample(sample)
+            
+            return error_rate
+            
+        except Exception as e:
+            logger.warning(f"Failed to measure error rate for {backend_id}: {str(e)}")
+            return None
+    
+    def rank_backends_by_network_quality(
+        self,
+        backend_ids: List[str],
+        region: str = "",
+        metric_weights: Optional[Dict[NetworkMetricType, float]] = None
+    ) -> List[Tuple[str, float, NetworkQualityLevel]]:
+        """
+        Rank backends by network quality.
+        
+        Args:
+            backend_ids: List of backend identifiers
+            region: Backend region
+            metric_weights: Optional weights for different metrics
+            
+        Returns:
+            List of (backend_id, score, quality_level) tuples sorted by score
+        """
+        # Default weights if not provided
+        if metric_weights is None:
+            metric_weights = {
+                NetworkMetricType.LATENCY: 0.3,
+                NetworkMetricType.DOWNLOAD_BANDWIDTH: 0.3,
+                NetworkMetricType.UPLOAD_BANDWIDTH: 0.1,
+                NetworkMetricType.ERROR_RATE: 0.2,
+                NetworkMetricType.CONNECTION_STABILITY: 0.1
+            }
+        
+        rankings = []
         
         for backend_id in backend_ids:
-            predicted_time = self.bandwidth_analyzer.predict_transfer_time(
-                backend_id, content_size, upload
-            )
+            try:
+                # Get metrics for backend
+                metrics = self.get_metrics(backend_id, region)
+                
+                # Get overall quality level
+                quality_level = metrics.get_overall_quality()
+                
+                # Get performance score
+                score = metrics.get_performance_score()
+                
+                # Add to rankings
+                rankings.append((backend_id, score, quality_level))
+                
+            except Exception as e:
+                logger.warning(f"Failed to rank backend {backend_id}: {str(e)}")
+                # Add with unknown quality and low score
+                rankings.append((backend_id, 0.1, NetworkQualityLevel.UNKNOWN))
+        
+        # Sort by score (higher is better)
+        return sorted(rankings, key=lambda x: x[1], reverse=True)
+    
+    def select_backend_by_network_quality(
+        self,
+        backend_ids: List[str],
+        min_quality_level: NetworkQualityLevel = NetworkQualityLevel.FAIR,
+        region: str = ""
+    ) -> Optional[str]:
+        """
+        Select a backend based on network quality.
+        
+        Args:
+            backend_ids: List of backend identifiers
+            min_quality_level: Minimum acceptable quality level
+            region: Backend region
             
-            if predicted_time is not None:
-                predictions[backend_id] = predicted_time
+        Returns:
+            Selected backend identifier or None if no suitable backend found
+        """
+        # Rank backends by network quality
+        rankings = self.rank_backends_by_network_quality(backend_ids, region)
+        
+        # Filter by minimum quality level
+        quality_rankings = []
+        
+        for backend_id, score, quality_level in rankings:
+            # Map quality levels to numeric values for comparison
+            quality_values = {
+                NetworkQualityLevel.EXCELLENT: 5,
+                NetworkQualityLevel.GOOD: 4,
+                NetworkQualityLevel.FAIR: 3,
+                NetworkQualityLevel.POOR: 2,
+                NetworkQualityLevel.CRITICAL: 1,
+                NetworkQualityLevel.UNKNOWN: 0
+            }
+            
+            min_value = quality_values.get(min_quality_level, 0)
+            backend_value = quality_values.get(quality_level, 0)
+            
+            if backend_value >= min_value:
+                quality_rankings.append((backend_id, score, quality_level))
+        
+        # Return highest ranking backend that meets quality requirement
+        if quality_rankings:
+            return quality_rankings[0][0]
+        
+        # If no backends meet the quality requirement, return the highest ranking backend
+        if rankings:
+            return rankings[0][0]
+        
+        return None
+    
+    def predict_network_conditions(
+        self,
+        backend_id: str,
+        future_time: datetime,
+        region: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Predict future network conditions for a backend.
+        
+        Args:
+            backend_id: Backend identifier
+            future_time: Future time to predict for
+            region: Backend region
+            
+        Returns:
+            Dictionary with predictions
+        """
+        metrics = self.get_metrics(backend_id, region)
+        
+        predictions = {}
+        
+        # Predict values for important metrics
+        for metric_type in [
+            NetworkMetricType.LATENCY,
+            NetworkMetricType.DOWNLOAD_BANDWIDTH,
+            NetworkMetricType.UPLOAD_BANDWIDTH,
+            NetworkMetricType.ERROR_RATE
+        ]:
+            metric = metrics.get_metric(metric_type)
+            predicted_value = metric.predict_future_value(future_time)
+            
+            if predicted_value is not None:
+                predictions[metric_type.value] = predicted_value
+        
+        # Add metadata
+        predictions["prediction_time"] = future_time.isoformat()
+        predictions["backend_id"] = backend_id
+        predictions["region"] = region
         
         return predictions
     
-    async def select_backend_for_client(
-        self,
-        client_id: str,
-        content_size: int,
-        content_type: str,
-        available_backends: Optional[List[str]] = None
-    ) -> str:
-        """
-        Select optimal backend for a specific client based on historical performance.
-        
-        Args:
-            client_id: Client identifier
-            content_size: Size in bytes
-            content_type: Content MIME type
-            available_backends: Optional list of available backends
-            
-        Returns:
-            Name of the selected backend
-        """
-        # This would normally use client-specific historical data
-        # For now, just use general network analysis
-        return await self._select_by_network(content_size, available_backends)
-    
-    async def get_network_analysis(
-        self,
-        backends: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """
-        Get detailed network analysis for all backends.
-        
-        Args:
-            backends: Optional list of backends to analyze
-            
-        Returns:
-            Dict with network analysis
-        """
-        # Update network metrics if needed
-        await self.update_network_metrics()
-        
-        # Get backends to analyze
-        if backends is None:
-            if self.backend_manager:
-                backends = self.backend_manager.list_backends()
-            else:
-                backends = ["ipfs", "filecoin", "s3", "storacha"]
-        
-        # Get all metrics
-        all_metrics = self.bandwidth_analyzer.get_all_network_metrics()
-        
-        # Filter to requested backends
-        filtered_metrics = {
-            backend: all_metrics.get(backend)
-            for backend in backends
-            if backend in all_metrics
-        }
-        
-        # Convert to dict
-        return {
-            "success": True,
-            "timestamp": datetime.now().isoformat(),
-            "backends": {
-                backend: metrics.to_dict()
-                for backend, metrics in filtered_metrics.items()
-            },
-            "ranking": self.bandwidth_analyzer.rank_backends_by_performance(backends)
-        }
-    
-    def get_bandwidth_analyzer(self) -> BandwidthAnalyzer:
-        """
-        Get the bandwidth analyzer instance.
-        
-        Returns:
-            BandwidthAnalyzer instance
-        """
-        return self.bandwidth_analyzer
-    
-    async def _select_by_network(
-        self,
-        content_size: int,
-        available_backends: Optional[List[str]] = None
-    ) -> str:
-        """
-        Select backend based only on network metrics.
-        
-        Args:
-            content_size: Size in bytes
-            available_backends: Optional list of available backends
-            
-        Returns:
-            Name of the selected backend
-        """
-        # Get available backends
-        if available_backends is None:
-            if self.backend_manager:
-                available_backends = self.backend_manager.list_backends()
-            else:
-                available_backends = ["ipfs", "filecoin", "s3", "storacha"]
-        
-        # If no backends available, return default
-        if not available_backends:
-            return "ipfs"  # Default to IPFS
-        elif len(available_backends) == 1:
-            return available_backends[0]  # Only one backend available
-        
-        # Calculate scores
-        scores = {}
-        
-        for backend_id in available_backends:
-            scores[backend_id] = self._calculate_network_score(backend_id, content_size)
-        
-        # Select backend with highest score
-        if not scores:
-            return available_backends[0]
-        
-        return max(scores.items(), key=lambda x: x[1])[0]
-    
-    def _calculate_content_score(
+    def get_network_quality_history(
         self,
         backend_id: str,
-        content_analysis: Dict[str, Any],
-        size_bytes: int
-    ) -> float:
+        start_time: datetime,
+        end_time: datetime,
+        region: str = "",
+        resolution_minutes: int = 60
+    ) -> Dict[str, Any]:
         """
-        Calculate content-based score for a backend.
+        Get historical network quality data.
         
         Args:
             backend_id: Backend identifier
-            content_analysis: Content analysis from DataRouter
-            size_bytes: Size in bytes
+            start_time: Start time
+            end_time: End time
+            region: Backend region
+            resolution_minutes: Time resolution in minutes
             
         Returns:
-            Score from 0.0 to 1.0
+            Dictionary with historical data
         """
-        if not self.data_router:
-            # No content router, use default score
-            return 0.5
+        metrics = self.get_metrics(backend_id, region)
         
-        # This would normally use the DataRouter's scoring logic
-        # For now, use simple heuristics
+        # Calculate time windows
+        time_windows = []
+        current_time = start_time
+        window_duration = timedelta(minutes=resolution_minutes)
         
-        category = content_analysis.get("category", "other")
-        size_category = content_analysis.get("size_category", "medium_file")
+        while current_time < end_time:
+            window_end = min(current_time + window_duration, end_time)
+            time_windows.append((current_time, window_end))
+            current_time = window_end
         
-        # Score based on backend specialty
-        if backend_id == "ipfs":
-            # IPFS is good for small files and documents
-            if size_category == "small_file":
-                return 0.9
-            elif category == "document":
-                return 0.8
-            elif size_category == "large_file":
-                return 0.3
-            else:
-                return 0.6
-                
-        elif backend_id == "filecoin":
-            # Filecoin is good for large files
-            if size_category == "large_file":
-                return 0.9
-            elif size_category == "medium_file":
-                return 0.7
-            elif category == "encrypted":
-                return 0.8
-            else:
-                return 0.4
-                
-        elif backend_id == "s3":
-            # S3 is good for medium files and media
-            if size_category == "medium_file":
-                return 0.8
-            elif category == "media":
-                return 0.9
-            else:
-                return 0.7
-                
-        elif backend_id == "storacha":
-            # Storacha is good for media and documents
-            if category == "media":
-                return 0.85
-            elif category == "document":
-                return 0.75
-            else:
-                return 0.6
-                
-        elif backend_id == "huggingface":
-            # HuggingFace is optimized for ML models
-            if category == "binary" and "model" in str(content_analysis.get("patterns_matched", [])):
-                return 0.95
-            else:
-                return 0.5
-                
-        elif backend_id == "lassie":
-            # Lassie is good for content retrieval
-            return 0.7
+        # Get data for each window
+        history = []
+        
+        for window_start, window_end in time_windows:
+            window_data = {
+                "start_time": window_start.isoformat(),
+                "end_time": window_end.isoformat(),
+                "metrics": {}
+            }
             
-        else:
-            # Default score for unknown backends
-            return 0.5
+            # Get statistics for each metric type
+            for metric_type in NetworkMetricType:
+                metric = metrics.get_metric(metric_type)
+                stats = metric.get_statistics(window_start, window_end)
+                
+                if stats["count"] > 0:
+                    window_data["metrics"][metric_type.value] = stats
+            
+            # Get overall quality for window
+            quality_level = metrics.get_overall_quality()
+            window_data["quality_level"] = quality_level.value
+            
+            history.append(window_data)
+        
+        return {
+            "backend_id": backend_id,
+            "region": region,
+            "history": history
+        }
     
-    def _calculate_network_score(self, backend_id: str, size_bytes: int) -> float:
+    def clear_metrics(
+        self,
+        backend_id: Optional[str] = None,
+        region: Optional[str] = None,
+        older_than: Optional[datetime] = None
+    ) -> None:
         """
-        Calculate network-based score for a backend.
+        Clear metrics.
         
         Args:
-            backend_id: Backend identifier
-            size_bytes: Size in bytes
-            
-        Returns:
-            Score from 0.0 to 1.0
+            backend_id: Backend identifier (clear all if None)
+            region: Backend region (clear all regions if None)
+            older_than: Clear metrics older than this time (clear all if None)
         """
-        # Get network metrics
-        metrics = self.bandwidth_analyzer.get_network_metrics(backend_id)
+        with self.lock:
+            if backend_id is None:
+                # Clear all backends
+                if older_than is None:
+                    self.backend_metrics.clear()
+                else:
+                    # Only clear old metrics
+                    pass  # Not implemented for this demo
+            else:
+                # Clear specific backend
+                if backend_id in self.backend_metrics:
+                    if region is None:
+                        # Clear all regions for backend
+                        if older_than is None:
+                            self.backend_metrics[backend_id].clear()
+                        else:
+                            # Only clear old metrics
+                            pass  # Not implemented for this demo
+                    else:
+                        # Clear specific region for backend
+                        if region in self.backend_metrics[backend_id]:
+                            if older_than is None:
+                                del self.backend_metrics[backend_id][region]
+                            else:
+                                # Only clear old metrics
+                                pass  # Not implemented for this demo
+    
+    def get_all_backends_metrics(self) -> Dict[str, Any]:
+        """
+        Get metrics for all backends.
         
-        # If no metrics, use default score
-        if not metrics:
-            return 0.5
+        Returns:
+            Dictionary with metrics for all backends
+        """
+        result = {}
         
-        # Calculate score components
+        with self.lock:
+            for backend_id, regions in self.backend_metrics.items():
+                backend_data = {}
+                
+                for region, metrics in regions.items():
+                    backend_data[region] = metrics.to_dict()
+                
+                result[backend_id] = backend_data
         
-        # Latency score (lower is better)
-        latency_score = max(0.0, 1.0 - (metrics.latency_avg_ms / 1000.0))
+        return result
+    
+    def enable_synthetic_data(
+        self,
+        backend_ids: List[str] = None,
+        update_interval_seconds: float = 30.0
+    ) -> None:
+        """
+        Enable synthetic data generation for testing.
         
-        # Bandwidth score based on content size
-        size_mb = size_bytes / (1024 * 1024)
-        if size_mb < 1:  # Small file
-            # For small files, latency is more important than bandwidth
-            bandwidth_score = 0.7  # Default good score for small files
-        else:
-            # For larger files, bandwidth becomes more important
-            # Higher bandwidth = better score
-            bandwidth_score = min(1.0, metrics.download_bandwidth_mbps / 50.0)
+        Args:
+            backend_ids: List of backend identifiers
+            update_interval_seconds: Update interval in seconds
+        """
+        if backend_ids is None:
+            backend_ids = ["ipfs", "filecoin", "s3", "storacha", "huggingface", "lassie"]
         
-        # Reliability score
-        reliability_score = 1.0 - (metrics.packet_loss_percent / 20.0)  # 0% loss = 1.0, 20% loss = 0.0
-        reliability_score = max(0.0, min(1.0, reliability_score))
+        self.synthetic_data_enabled = True
+        self.synthetic_data_stop_event.clear()
         
-        # Calculate transfer time estimate
-        transfer_time = self.bandwidth_analyzer.predict_transfer_time(backend_id, size_bytes, True)
-        if transfer_time is not None:
-            # Convert to score (lower time = higher score)
-            # Use logarithmic scale to handle wide range of file sizes
-            max_acceptable_time = 60.0 * (1.0 + math.log10(1.0 + size_mb / 10.0))  # Scale with file size
-            time_score = max(0.0, 1.0 - (transfer_time / max_acceptable_time))
-        else:
-            time_score = 0.5  # Default if can't predict
+        if self.synthetic_data_thread is None or not self.synthetic_data_thread.is_alive():
+            self.synthetic_data_thread = threading.Thread(
+                target=self._generate_synthetic_data,
+                args=(backend_ids, update_interval_seconds),
+                daemon=True
+            )
+            self.synthetic_data_thread.start()
+    
+    def disable_synthetic_data(self) -> None:
+        """Disable synthetic data generation."""
+        self.synthetic_data_enabled = False
+        self.synthetic_data_stop_event.set()
         
-        # Calculate weighted score
-        score = (
-            latency_score * self.latency_importance +
-            bandwidth_score * self.bandwidth_importance +
-            reliability_score * self.reliability_importance
-        )
+        if self.synthetic_data_thread and self.synthetic_data_thread.is_alive():
+            self.synthetic_data_thread.join(timeout=1.0)
+            self.synthetic_data_thread = None
+    
+    def _generate_synthetic_data(
+        self,
+        backend_ids: List[str],
+        update_interval_seconds: float
+    ) -> None:
+        """
+        Generate synthetic data for testing.
         
-        # Adjust by time score
-        score = score * 0.7 + time_score * 0.3
+        Args:
+            backend_ids: List of backend identifiers
+            update_interval_seconds: Update interval in seconds
+        """
+        regions = ["us-east", "us-west", "eu-central", "ap-southeast"]
         
-        return max(0.0, min(1.0, score))
+        while not self.synthetic_data_stop_event.is_set():
+            for backend_id in backend_ids:
+                for region in regions:
+                    # Generate latency sample
+                    if backend_id == "ipfs":
+                        latency = random.uniform(80, 200)  # Higher latency
+                    elif backend_id == "s3":
+                        latency = random.uniform(20, 80)   # Lower latency
+                    else:
+                        latency = random.uniform(50, 150)  # Moderate latency
+                    
+                    latency_sample = MetricSample(
+                        metric_type=NetworkMetricType.LATENCY,
+                        value=latency,
+                        backend_id=backend_id,
+                        region=region
+                    )
+                    
+                    # Generate download bandwidth sample
+                    if backend_id == "ipfs":
+                        bandwidth = random.uniform(500 * 1024, 2 * 1024 * 1024)  # 500 KB/s - 2 MB/s
+                    elif backend_id == "s3":
+                        bandwidth = random.uniform(2 * 1024 * 1024, 10 * 1024 * 1024)  # 2 MB/s - 10 MB/s
+                    else:
+                        bandwidth = random.uniform(1 * 1024 * 1024, 5 * 1024 * 1024)  # 1 MB/s - 5 MB/s
+                    
+                    bandwidth_sample = MetricSample(
+                        metric_type=NetworkMetricType.DOWNLOAD_BANDWIDTH,
+                        value=bandwidth,
+                        backend_id=backend_id,
+                        region=region
+                    )
+                    
+                    # Generate error rate sample
+                    if backend_id == "ipfs":
+                        error_rate = random.uniform(1.0, 5.0)  # Higher error rate
+                    elif backend_id == "s3":
+                        error_rate = random.uniform(0.1, 1.0)  # Lower error rate
+                    else:
+                        error_rate = random.uniform(0.5, 3.0)  # Moderate error rate
+                    
+                    error_sample = MetricSample(
+                        metric_type=NetworkMetricType.ERROR_RATE,
+                        value=error_rate,
+                        backend_id=backend_id,
+                        region=region
+                    )
+                    
+                    # Add samples
+                    self.add_sample(latency_sample)
+                    self.add_sample(bandwidth_sample)
+                    self.add_sample(error_sample)
+            
+            # Wait for next update
+            if self.synthetic_data_stop_event.wait(update_interval_seconds):
+                # Stop event was set
+                break
 
 
-# Factory function to create a bandwidth-aware router
-def create_bandwidth_aware_router(data_router=None, backend_manager=None) -> BandwidthAwareRouter:
+# Helper function for calculating percentiles
+def percentile(data: List[float], percentile: float) -> float:
     """
-    Create a bandwidth-aware router.
+    Calculate percentile of a list of values.
     
     Args:
-        data_router: DataRouter instance
-        backend_manager: Backend manager
+        data: List of values
+        percentile: Percentile (0-100)
         
     Returns:
-        BandwidthAwareRouter instance
+        Percentile value
     """
-    router = BandwidthAwareRouter(data_router, backend_manager)
+    size = len(data)
+    if size == 0:
+        return 0.0
+        
+    sorted_data = sorted(data)
     
-    # Initialize router in background
-    asyncio.create_task(router.initialize())
+    if percentile <= 0:
+        return sorted_data[0]
+    if percentile >= 100:
+        return sorted_data[-1]
     
-    return router
+    # Calculate rank (0-based)
+    rank = (percentile / 100.0) * (size - 1)
+    
+    # Get integer part and fractional part
+    rank_int = int(rank)
+    rank_frac = rank - rank_int
+    
+    # Interpolate between values
+    if rank_int + 1 < size:
+        return sorted_data[rank_int] * (1 - rank_frac) + sorted_data[rank_int + 1] * rank_frac
+    else:
+        return sorted_data[rank_int]
+
+
+# Factory function to create a network analyzer
+def create_network_analyzer() -> NetworkAnalyzer:
+    """
+    Create a network analyzer.
+    
+    Returns:
+        NetworkAnalyzer instance
+    """
+    return NetworkAnalyzer()
