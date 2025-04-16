@@ -37,3 +37,8 @@
 [submodule "py-ipld-unixfs"]
 	path = py-ipld-unixfs
 	url = https://github.com/storacha/py-ipld-unixfs.git
+[submodule "external/ipfs_model_manager_py"]
+	path = external/ipfs_model_manager_py
+	url = https://github.com/endomorphosis/ipfs_model_manager_py.git
+    ignore = dirty
+    recurse = false

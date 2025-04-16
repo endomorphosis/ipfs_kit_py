@@ -63,6 +63,34 @@ except ImportError:
     from ipfs_kit_py.validation import validate_parameters
     from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
 
+
+# Add model manager imports
+try:
+    from external.ipfs_model_manager_py.model_manager import IPFSModelManager, ModelMetadata, TrainingConfig
+    MODEL_MANAGER_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    try:
+        from ipfs_model_manager_py.model_manager import IPFSModelManager, ModelMetadata, TrainingConfig
+        MODEL_MANAGER_AVAILABLE = True
+    except (ImportError, ModuleNotFoundError):
+        # Fallback for path issues
+        try:
+            import sys
+            import os
+            # Try to add external directory to path
+            external_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'external')
+            if os.path.exists(external_path):
+                sys.path.append(external_path)
+                from ipfs_model_manager_py.model_manager import IPFSModelManager, ModelMetadata, TrainingConfig
+                MODEL_MANAGER_AVAILABLE = True
+            else:
+                MODEL_MANAGER_AVAILABLE = False
+                logger.warning("IPFS Model Manager not available. Install with: pip install ipfs-model-manager")
+        except:
+            MODEL_MANAGER_AVAILABLE = False
+            logger.warning("IPFS Model Manager not available. Install with: pip install ipfs-model-manager")
+
+
 # Define initial values for FSSpec integration
 HAVE_FSSPEC = False
 IPFSFileSystem = None

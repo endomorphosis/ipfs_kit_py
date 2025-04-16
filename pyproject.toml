@@ -42,6 +42,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+model-manager = [
+    "ipfs-model-manager>=0.1.0",
+]
 fsspec = [
     "fsspec>=2023.3.0",
     "requests-unixsocket>=0.3.0",
@@ -151,6 +154,11 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["ipfs_kit_py*"]
+
+# Ensure package data includes the external directory
+[tool.setuptools.package-data]
+"ipfs_kit_py" = ["**/*"]
+"external" = ["**/*"]
 
 [tool.black]
 line-length = 100
