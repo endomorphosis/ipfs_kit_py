@@ -53,7 +53,6 @@ try:
     from .fs_journal_monitor import JournalHealthMonitor, JournalVisualization
     from .validation import validate_parameters
     from .api_stability import stable_api, beta_api, experimental_api, deprecated
-    from .ipfs_kit_py import model_manager_connector
 except ImportError:
     # If relative imports fail, try absolute imports (when used directly)
     logger.warning("Relative imports failed. Trying absolute imports.")
@@ -63,7 +62,6 @@ except ImportError:
     from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor, JournalVisualization
     from ipfs_kit_py.validation import validate_parameters
     from ipfs_kit_py.api_stability import stable_api, beta_api, experimental_api, deprecated
-    from ipfs_kit_py import model_manager_connector
 
 # Define initial values for FSSpec integration
 HAVE_FSSPEC = False
@@ -259,7 +257,7 @@ class IPFSSimpleAPI:
     abstracting away the complexity of the underlying components.
     """
 
-    def __init__(self, config_path: Optional[str] = None, enable_model_manager=False, model_manager_config=None, **kwargs):
+    def __init__(self, config_path: Optional[str] = None, **kwargs):
         """
         Initialize the high-level API with optional configuration file.
 
@@ -348,35 +346,8 @@ class IPFSSimpleAPI:
         # Initialize extension registry
         self.extensions = {}
 
-        self.model_manager = None
-        if enable_model_manager:
-            try:
-                self.model_manager = ModelManagerConnector(self.kit, model_manager_config)
-            except ImportError:
-                print("Model Manager dependencies not available: install ipfs_kit_py[huggingface]")
-
         logger.info(f"IPFSSimpleAPI initialized with role: {self.config.get('role', 'leecher')}")
-
-
-    # Model manager methods
-    def get_model(self, model_id):
-        """Get a model by ID."""
-        if not self.model_manager:
-            raise ValueError("Model Manager not enabled. Initialize with enable_model_manager=True")
-        return self.model_manager.get_model(model_id)
-
-    def list_models(self):
-        """List all available models."""
-        if not self.model_manager:
-            raise ValueError("Model Manager not enabled. Initialize with enable_model_manager=True")
-        return self.model_manager.list_models()
-
-    def get_model_state(self):
-        """Get current state of models."""
-        if not self.model_manager:
-            raise ValueError("Model Manager not enabled. Initialize with enable_model_manager=True")
-        return self.model_manager.get_state()
-
+        
 
     def _check_fsspec_available(self):
         """
