@@ -1,0 +1,51 @@
+---
+name: 📝 Issue Report
+description: A template to report an issue with either documentation or code.
+labels: [triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve the project! Please fill out the template below to help us understand your issue effectively.
+
+  - type: checkboxes
+    attributes:
+      label: What type of issue is this?
+      options:
+        - label: 📄 Documentation
+          required: false
+        - label: 🧑‍💻 Code
+          required: false
+
+  - type: textarea
+    attributes:
+      label: Full description
+      description: |
+        Provide a full explanation of the issue. Please include:
+        - What needs to be fixed or added.
+        - Why it's needed or how it's broken.
+      placeholder: |
+        Please provide a full description of the issue...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Related parts or components
+      description: |
+        Specify any relevant parts of the project, such as specific files, modules, or documentation pages that this issue concerns.
+      placeholder: |
+        - Affected files/modules:
+        - Relevant documentation:
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context, documentation, or code examples
+      description: |
+        Add any other relevant context, ideas, or suggestions that could help clarify the required change.
+      placeholder: |
+        Any additional context or suggestions...
+    validations:
+      required: false
