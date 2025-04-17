@@ -1,0 +1,15 @@
+# Only include essential model manager files
+recursive-include external/ipfs_model_manager_py/model_manager *.py
+# Exclude large non-essential directories
+recursive-exclude external/ipfs_model_manager_py/data *
+recursive-exclude external/ipfs_model_manager_py/examples *
+recursive-exclude external/ipfs_model_manager_py/tests *
+recursive-exclude external/ipfs_model_manager_py/docs *
+
+# Exclude the bin directory and all its contents
+exclude ipfs_kit_py/bin/*
+recursive-exclude ipfs_kit_py/bin *
+
+# You can also exclude other large directories as needed
+recursive-exclude external/ipfs_model_manager_py/data *
+recursive-exclude ipfs_kit_py/tests *
