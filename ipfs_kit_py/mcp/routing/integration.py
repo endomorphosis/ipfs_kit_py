@@ -1,280 +1,391 @@
+#!/usr/bin/env python3
+# ipfs_kit_py/mcp/routing/integration.py
+
 """
-Optimized Data Routing Integration Module
+MCP Server Integration for Optimized Data Routing.
 
-This module integrates the Optimized Data Routing feature with the MCP server.
-It provides functions to initialize the router and add its API endpoints to the FastAPI application.
-
-Part of the MCP Roadmap Phase 1: Core Functionality Enhancements.
+This module provides the integration between the MCP server and the
+optimized data routing system, allowing intelligent backend selection
+for storage operations.
 """
 
-import os
 import logging
-from typing import Dict, Any, Optional
+import time
+from typing import Dict, List, Optional, Any, Tuple, Union
 
-from fastapi import FastAPI, Depends
-
-from .optimized_router import OptimizedDataRouter, RoutingStrategy, ContentCategory
-from .bandwidth_aware_router import enhance_router
-from .router_api import create_router_api
-from ..storage_manager.backend_manager import BackendManager
-from ..auth.router import get_admin_user
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+from ..router import (
+    Backend, ContentType, OperationType, RouteMetrics, 
+    RoutingContext, RoutingDecision, DataRouter
 )
-logger = logging.getLogger("mcp_router_integration")
+from . import initialize_router, get_router
 
-# Global router instance
-_router_instance = None
-_enhanced_router_instance = None
+logger = logging.getLogger(__name__)
 
-def get_router_instance() -> OptimizedDataRouter:
-    """Get the singleton router instance."""
-    global _router_instance
-    if _router_instance is None:
-        _router_instance = OptimizedDataRouter()
-    return _router_instance
 
-def get_enhanced_router_instance() -> Any:
-    """Get the singleton enhanced router instance."""
-    global _enhanced_router_instance
-    if _enhanced_router_instance is None:
-        _enhanced_router_instance = enhance_router(get_router_instance())
-    return _enhanced_router_instance
-
-async def setup_optimized_routing(app: FastAPI, backend_manager: BackendManager) -> Dict[str, Any]:
+class MCPRoutingIntegration:
     """
-    Set up optimized data routing for the MCP server.
+    Integrates the optimized routing system with the MCP server.
     
-    Args:
-        app: FastAPI application instance
-        backend_manager: Backend manager instance
-        
-    Returns:
-        Dictionary with setup results
+    This class provides methods for initializing the routing system and
+    using it to make backend selection decisions for storage operations.
     """
-    try:
-        # Initialize router with configuration from environment
-        config = {
-            "default_strategy": os.environ.get("ROUTER_DEFAULT_STRATEGY", RoutingStrategy.HYBRID.value),
-            "update_interval": int(os.environ.get("ROUTER_UPDATE_INTERVAL", "300")),
-            "current_region": os.environ.get("ROUTER_CURRENT_REGION", "default"),
-            "auto_start_updates": os.environ.get("ROUTER_AUTO_UPDATES", "1") == "1"
-        }
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """
+        Initialize the routing integration.
         
-        # Add backend costs if specified
-        backend_costs_path = os.environ.get("ROUTER_BACKEND_COSTS_PATH")
-        if backend_costs_path and os.path.exists(backend_costs_path):
-            import json
-            try:
-                with open(backend_costs_path, 'r') as f:
-                    backend_costs = json.load(f)
-                    config["backend_costs"] = backend_costs
-            except Exception as e:
-                logger.error(f"Error loading backend costs: {e}")
+        Args:
+            config: Optional configuration for the routing system
+        """
+        self.config = config or {}
+        self.router = initialize_router(self.config)
         
-        # Add geo regions if specified
-        geo_regions_path = os.environ.get("ROUTER_GEO_REGIONS_PATH")
-        if geo_regions_path and os.path.exists(geo_regions_path):
-            import json
-            try:
-                with open(geo_regions_path, 'r') as f:
-                    geo_regions = json.load(f)
-                    config["geo_regions"] = geo_regions
-            except Exception as e:
-                logger.error(f"Error loading geo regions: {e}")
+        # Cache for performance data
+        self.performance_data = {}
         
-        # Initialize router
-        router = get_router_instance()
-        if not router:
-            router = OptimizedDataRouter(config)
-            global _router_instance
-            _router_instance = router
+        logger.info("Initialized MCP routing integration")
+    
+    def register_backend(self, backend: Backend, info: Dict[str, Any] = None) -> None:
+        """
+        Register a storage backend with the router.
         
-        # Register active backends
-        backend_names = backend_manager.list_backends()
-        for backend_name in backend_names:
-            router.register_backend(backend_name)
+        Args:
+            backend: Backend identifier
+            info: Additional backend information
+        """
+        self.router.register_backend(backend, info)
+        logger.info(f"Registered backend with router: {backend}")
+    
+    def unregister_backend(self, backend: Backend) -> None:
+        """
+        Unregister a storage backend from the router.
         
-        # Create enhanced router
-        enhanced_router = get_enhanced_router_instance()
-        if not enhanced_router:
-            enhanced_router = enhance_router(router)
-            global _enhanced_router_instance
-            _enhanced_router_instance = enhanced_router
+        Args:
+            backend: Backend identifier
+        """
+        self.router.unregister_backend(backend)
+        logger.info(f"Unregistered backend from router: {backend}")
+    
+    def record_operation_performance(self, backend: Backend, operation_type: str, 
+                                  start_time: float, bytes_sent: int = 0, 
+                                  bytes_received: int = 0, success: bool = True,
+                                  error: Optional[str] = None) -> None:
+        """
+        Record performance metrics for an operation.
         
-        # Create and include router API
-        router_api = create_router_api(
-            base_router=router,
-            get_current_admin_user=get_admin_user
+        Args:
+            backend: The storage backend
+            operation_type: Type of operation
+            start_time: Start time of the operation
+            bytes_sent: Number of bytes sent
+            bytes_received: Number of bytes received
+            success: Whether the operation was successful
+            error: Error message if the operation failed
+        """
+        # Get the performance metrics collector
+        perf_metrics = self.router.metrics_collectors.get('performance')
+        if not perf_metrics:
+            logger.warning("No performance metrics collector registered")
+            return
+        
+        # Record the metrics
+        metrics = perf_metrics.record_operation_performance(
+            backend=backend,
+            start_time=start_time,
+            bytes_sent=bytes_sent,
+            bytes_received=bytes_received,
+            operation_type=operation_type,
+            success=success,
+            error=error
         )
         
-        # Add router API to FastAPI app
-        app.include_router(
-            router_api,
-            prefix="/api/v0/routing",
-            tags=["Optimized Routing"]
+        # Store in local cache
+        self.performance_data[backend] = metrics
+        
+        logger.debug(
+            f"Recorded performance for {backend} ({operation_type}): "
+            f"{metrics.get('throughput_mbps', 0):.2f} Mbps, "
+            f"{metrics.get('latency_ms', 0):.2f} ms, "
+            f"success: {success}"
         )
-        
-        # Set up initial route mappings
-        # Default mappings are set up automatically by the router
-        
-        # Start automatic updates if configured
-        if config.get("auto_start_updates", True):
-            router.start_updates()
-        
-        logger.info("Optimized Data Routing system initialized successfully")
-        
-        return {
-            "success": True,
-            "message": "Optimized Data Routing system initialized successfully",
-            "default_strategy": router.default_strategy.value,
-            "backends": list(router.backends),
-            "auto_updates": router._update_thread is not None
-        }
-        
-    except Exception as e:
-        logger.error(f"Error setting up optimized data routing: {e}")
-        return {
-            "success": False,
-            "message": f"Error setting up optimized data routing: {e}"
-        }
-
-async def verify_optimized_routing(backend_manager: BackendManager) -> Dict[str, Any]:
-    """
-    Verify that optimized data routing is working correctly.
     
-    Args:
-        backend_manager: Backend manager instance
+    def select_backend(self, operation_type: str, content_type: Optional[str] = None,
+                     content_size: Optional[int] = None, user_id: Optional[str] = None,
+                     region: Optional[str] = None, strategy: Optional[str] = None,
+                     metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Select the optimal backend for an operation.
         
-    Returns:
-        Dictionary with verification results
-    """
-    try:
-        # Get router instance
-        router = get_router_instance()
-        if not router:
-            return {
-                "success": False,
-                "message": "Router instance not initialized"
-            }
-        
-        # Check if we have registered backends
-        if not router.backends:
-            # Register backends from backend manager
-            backend_names = backend_manager.list_backends()
-            for backend_name in backend_names:
-                router.register_backend(backend_name)
-        
-        # Verify that we have backends
-        if not router.backends:
-            return {
-                "success": False,
-                "message": "No backends registered with router"
-            }
-        
-        # Test routing with different strategies
-        test_results = {}
-        
-        # Create test content info
-        test_content = [
-            {
-                "name": "small_image",
-                "content_info": {
-                    "content_type": "image/jpeg",
-                    "filename": "test.jpg",
-                    "size_bytes": 100000
-                }
-            },
-            {
-                "name": "large_video",
-                "content_info": {
-                    "content_type": "video/mp4",
-                    "filename": "test.mp4",
-                    "size_bytes": 500000000
-                }
-            },
-            {
-                "name": "document",
-                "content_info": {
-                    "content_type": "application/pdf",
-                    "filename": "test.pdf",
-                    "size_bytes": 2000000
-                }
-            }
-        ]
-        
-        # Test with each routing strategy
-        for strategy in RoutingStrategy:
-            strategy_results = {}
+        Args:
+            operation_type: Type of operation (read, write, etc.)
+            content_type: Type of content (image, video, etc.)
+            content_size: Size of content in bytes
+            user_id: User ID
+            region: Geographic region
+            strategy: Routing strategy to use
+            metadata: Additional metadata for the routing decision
             
-            for test in test_content:
+        Returns:
+            Dict[str, Any]: Dictionary with selected backend and decision details
+        """
+        try:
+            # Convert string types to enums
+            op_type = OperationType(operation_type.lower()) if operation_type else OperationType.READ
+            
+            # Convert content type if provided
+            content_enum = None
+            if content_type:
                 try:
-                    selected_backend = router.get_backend_for_content(
-                        test["content_info"],
-                        strategy
-                    )
-                    
-                    strategy_results[test["name"]] = {
-                        "selected_backend": selected_backend,
-                        "success": True
-                    }
-                except Exception as e:
-                    strategy_results[test["name"]] = {
-                        "success": False,
-                        "error": str(e)
-                    }
+                    content_enum = ContentType(content_type.lower())
+                except ValueError:
+                    logger.warning(f"Unknown content type: {content_type}")
             
-            test_results[strategy.value] = strategy_results
+            # Create routing context
+            context = RoutingContext(
+                operation=op_type,
+                content_type=content_enum,
+                content_size_bytes=content_size,
+                user_id=user_id,
+                region=region,
+                metadata=metadata or {}
+            )
+            
+            # Get routing decision
+            decision = self.router.select_backend(context, strategy)
+            
+            # Format the result for the MCP server
+            result = {
+                'backend': decision.backend,
+                'score': decision.score,
+                'reason': decision.reason,
+                'alternatives': [
+                    {'backend': b, 'score': s} for b, s in decision.alternatives
+                ],
+                'metrics': {
+                    k: v for k, v in decision.metrics.as_dict().items()
+                    if k != 'custom_metrics'
+                }
+            }
+            
+            # Add custom metrics if available
+            if hasattr(decision.metrics, 'custom_metrics'):
+                for k, v in decision.metrics.custom_metrics.items():
+                    if isinstance(v, dict):
+                        result['metrics'][k] = v
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error selecting backend: {e}", exc_info=True)
+            
+            # Return a default result with an error
+            return {
+                'backend': self._get_default_backend(),
+                'score': 0.0,
+                'reason': f"Error selecting backend: {str(e)}",
+                'error': str(e),
+                'alternatives': [],
+                'metrics': {}
+            }
+    
+    def _get_default_backend(self) -> str:
+        """
+        Get a default backend when the router fails.
         
-        # Get enhanced router and test network-aware routing
-        enhanced_router = get_enhanced_router_instance()
-        if enhanced_router:
-            # Test network-aware routing
+        Returns:
+            str: Default backend name
+        """
+        # Use the first available backend or a configured default
+        default_backend = self.config.get('default_backend', 'IPFS')
+        
+        if self.router.available_backends:
+            return list(self.router.available_backends)[0]
+        
+        return default_backend
+    
+    def get_backend_metrics(self, backend: Backend) -> Dict[str, Any]:
+        """
+        Get all metrics for a backend.
+        
+        Args:
+            backend: Backend identifier
+            
+        Returns:
+            Dict[str, Any]: Dictionary of metrics
+        """
+        metrics = {}
+        
+        # Collect metrics from each collector
+        for name, collector in self.router.metrics_collectors.items():
             try:
-                # Update fake network metrics
-                for backend in router.backends:
-                    enhanced_router.update_network_metrics(
-                        backend_name=backend,
-                        latency_ms=50.0,
-                        bandwidth_mbps=100.0
-                    )
-                
-                # Test routing
-                selected_backend = enhanced_router.get_backend_for_content(
-                    test_content[0]["content_info"],
-                    RoutingStrategy.HYBRID
-                )
-                
-                test_results["network_aware"] = {
-                    "selected_backend": selected_backend,
-                    "success": True
-                }
+                collector_metrics = collector.collect_metrics(backend)
+                metrics[name] = collector_metrics
             except Exception as e:
-                test_results["network_aware"] = {
-                    "success": False,
-                    "error": str(e)
-                }
+                logger.warning(f"Error collecting {name} metrics for {backend}: {e}")
         
-        # Verify successful test results
-        all_successful = all(
-            all(test["success"] for test in strategy_results.values())
-            for strategy_results in test_results.values()
-        )
+        return metrics
+    
+    def get_routing_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get the routing decision history.
         
-        return {
-            "success": all_successful,
-            "message": "Optimized routing verification completed",
-            "test_results": test_results,
-            "registered_backends": list(router.backends),
-            "default_strategy": router.default_strategy.value
+        Args:
+            limit: Maximum number of decisions to return
+            
+        Returns:
+            List[Dict[str, Any]]: List of routing decisions
+        """
+        history = self.router.get_routing_history(limit)
+        
+        # Convert to dictionaries
+        return [
+            {
+                'backend': decision.backend,
+                'score': decision.score,
+                'reason': decision.reason,
+                'timestamp': getattr(decision.context, 'timestamp', None),
+                'operation': getattr(decision.context, 'operation', None).value 
+                    if hasattr(decision.context, 'operation') else None,
+                'content_type': getattr(decision.context, 'content_type', None).value 
+                    if hasattr(decision.context, 'content_type') and decision.context.content_type else None,
+                'content_size': getattr(decision.context, 'content_size_bytes', None),
+                'user_id': getattr(decision.context, 'user_id', None),
+                'region': getattr(decision.context, 'region', None)
+            }
+            for decision in history
+        ]
+
+
+# Create a global instance for convenience
+_mcp_routing: Optional[MCPRoutingIntegration] = None
+
+
+def initialize_mcp_routing(config: Optional[Dict[str, Any]] = None) -> MCPRoutingIntegration:
+    """
+    Initialize the MCP routing integration.
+    
+    Args:
+        config: Optional configuration for the routing system
+        
+    Returns:
+        MCPRoutingIntegration: The initialized integration instance
+    """
+    global _mcp_routing
+    _mcp_routing = MCPRoutingIntegration(config)
+    return _mcp_routing
+
+
+def get_mcp_routing() -> MCPRoutingIntegration:
+    """
+    Get the global MCP routing integration instance.
+    
+    Returns:
+        MCPRoutingIntegration: The integration instance
+        
+    Raises:
+        RuntimeError: If the integration has not been initialized
+    """
+    if _mcp_routing is None:
+        raise RuntimeError("MCP routing integration has not been initialized. Call initialize_mcp_routing() first.")
+    return _mcp_routing
+
+
+def select_backend(operation_type: str, content_type: Optional[str] = None,
+                 content_size: Optional[int] = None, user_id: Optional[str] = None,
+                 region: Optional[str] = None, strategy: Optional[str] = None,
+                 metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Select the optimal backend for an operation.
+    
+    This is a convenience function that uses the global MCP routing integration.
+    
+    Args:
+        operation_type: Type of operation (read, write, etc.)
+        content_type: Type of content (image, video, etc.)
+        content_size: Size of content in bytes
+        user_id: User ID
+        region: Geographic region
+        strategy: Routing strategy to use
+        metadata: Additional metadata for the routing decision
+        
+    Returns:
+        Dict[str, Any]: Dictionary with selected backend and decision details
+    """
+    return get_mcp_routing().select_backend(
+        operation_type=operation_type,
+        content_type=content_type,
+        content_size=content_size,
+        user_id=user_id,
+        region=region,
+        strategy=strategy,
+        metadata=metadata
+    )
+
+
+# Example usage
+def example_usage():
+    """Example usage of the MCP routing integration."""
+    # Initialize the routing integration
+    routing = initialize_mcp_routing({
+        'default_backend': 'IPFS',
+        'strategy_weights': {
+            'content': 0.3,
+            'cost': 0.3,
+            'geo': 0.2,
+            'performance': 0.2
         }
-        
-    except Exception as e:
-        logger.error(f"Error verifying optimized data routing: {e}")
-        return {
-            "success": False,
-            "message": f"Error verifying optimized data routing: {e}"
-        }
+    })
+    
+    # Register available backends
+    routing.register_backend('IPFS', {'type': 'ipfs', 'version': '0.14.0'})
+    routing.register_backend('S3', {'type': 's3', 'bucket': 'data-bucket'})
+    routing.register_backend('FILECOIN', {'type': 'filecoin', 'network': 'mainnet'})
+    
+    # Example 1: Select backend for storing a large video file
+    result = routing.select_backend(
+        operation_type='write',
+        content_type='video',
+        content_size=500 * 1024 * 1024,  # 500 MB
+        region='us-east'
+    )
+    print(f"Selected backend for large video: {result['backend']}")
+    print(f"Reason: {result['reason']}")
+    
+    # Example 2: Select backend for reading a document
+    result = routing.select_backend(
+        operation_type='read',
+        content_type='document',
+        content_size=2 * 1024 * 1024,  # 2 MB
+        region='eu-west'
+    )
+    print(f"Selected backend for document: {result['backend']}")
+    print(f"Reason: {result['reason']}")
+    
+    # Example 3: Record performance metrics for a backend
+    start_time = time.time()
+    # Simulate some operation
+    time.sleep(0.1)
+    routing.record_operation_performance(
+        backend='IPFS',
+        operation_type='read',
+        start_time=start_time,
+        bytes_received=10 * 1024 * 1024,  # 10 MB
+        success=True
+    )
+    
+    # Example 4: Select backend with specific strategy
+    result = routing.select_backend(
+        operation_type='read',
+        content_size=100 * 1024 * 1024,  # 100 MB
+        strategy='performance'
+    )
+    print(f"Selected backend using performance strategy: {result['backend']}")
+    print(f"Reason: {result['reason']}")
+
+
+if __name__ == "__main__":
+    # Set up logging
+    logging.basicConfig(level=logging.INFO)
+    
+    # Run the example
+    example_usage()

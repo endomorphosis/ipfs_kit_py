@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "data_dir": "data/ai_ml",
+  "model_registry": {
+    "enabled": true,
+    "storage_dir": "data/ai_ml/models"
+  },
+  "dataset_manager": {
+    "enabled": true,
+    "storage_dir": "data/ai_ml/datasets"
+  },
+  "framework_integration": {
+    "enabled": true,
+    "langchain": true,
+    "llama_index": true,
+    "huggingface": true
+  },
+  "distributed_training": {
+    "enabled": true,
+    "coordinator_role": "master",
+    "worker_capability": "gpu",
+    "sync_strategy": "parameter_server"
+  }
+}

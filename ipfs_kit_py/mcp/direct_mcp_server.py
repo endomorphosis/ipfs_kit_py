@@ -72,7 +72,12 @@ try:
     )
     
     # Advanced Authentication & Authorization
-    from ipfs_kit_py.mcp.auth.integration import initialize_auth_system
+    from ipfs_kit_py.mcp.auth.enhanced_integration import (
+        initialize_auth_system, get_auth_system,
+        audit_login_attempt, audit_permission_check, audit_backend_access,
+        audit_user_change, audit_system_event, audit_data_event,
+        AuditEventType, AuditSeverity
+    )
     from ipfs_kit_py.mcp.auth.models import User, Role, Permission
     from ipfs_kit_py.mcp.auth.router import get_current_user, get_admin_user
     from ipfs_kit_py.mcp.rbac import (
@@ -206,12 +211,42 @@ async def initialize_components():
     logger.info("Initialized WebRTC Signaling Server")
     
     # Initialize Advanced Authentication & Authorization System
-    from ipfs_kit_py.mcp.auth.auth_system_integration import initialize_auth_system, get_auth_system
-    await initialize_auth_system(app, backend_manager)
+    from ipfs_kit_py.mcp.auth.enhanced_integration import initialize_auth_system, get_auth_system
+    auth_system = await initialize_auth_system(app, backend_manager)
     logger.info("Initialized Advanced Authentication & Authorization System")
     
-    # Configure default custom roles
-    auth_system = get_auth_system()
+    # Configure custom roles
+    custom_roles = [
+        {
+            "id": "api_client",
+            "name": "API Client",
+            "parent_role": "user",
+            "permissions": [
+                "read:ipfs", "write:ipfs", "read:filecoin", 
+                "read:storage", "read:search"
+            ]
+        },
+        {
+            "id": "data_scientist",
+            "name": "Data Scientist",
+            "parent_role": "user",
+            "permissions": [
+                "read:ipfs", "write:ipfs", "read:huggingface", 
+                "write:huggingface", "read:search", "write:search"
+            ]
+        },
+        {
+            "id": "content_manager",
+            "name": "Content Manager",
+            "parent_role": "user",
+            "permissions": [
+                "read:ipfs", "write:ipfs", "read:s3", "write:s3",
+                "read:storacha", "write:storacha", "read:migration",
+                "write:migration"
+            ]
+        }
+    ]
+    await auth_system.configure_roles(custom_roles)
     custom_roles = [
         {
             "id": "project_manager",
@@ -1351,18 +1386,21 @@ async def admin_system_status(current_user: User = Depends(get_admin_user)):
         }
 
 
-# Endpoint to verify advanced IPFS operations
-@app.get("/api/v0/admin/ipfs/verify")
-async def verify_ipfs_operations(current_user: User = Depends(get_admin_user)):
+# Endpoint to verify advanced authentication system
+@app.get("/api/v0/admin/auth/verify")
+async def verify_auth_system(current_user: User = Depends(get_admin_user)):
     """
-    Verify that advanced IPFS operations are working. Admin only.
+    Verify that advanced authentication & authorization system is working. Admin only.
     """
-    if not COMPONENTS_INITIALIZED or not backend_manager:
+    if not COMPONENTS_INITIALIZED:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
     
     try:
+        # Get auth system
+        auth_system = get_auth_system()
+        
         # Run verification
-        verification_result = await verify_ipfs_advanced_operations(backend_manager)
+        verification_result = await auth_system.verify_auth_system()
         
         # Return results
         return {

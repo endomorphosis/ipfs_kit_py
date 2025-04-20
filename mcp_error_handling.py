@@ -23,6 +23,8 @@ class ErrorDetails(BaseModel):
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
     suggestion: Optional[str] = Field(None, description="Suggested action to resolve the error")
     documentation_url: Optional[str] = Field(None, description="URL to documentation for this error")
+    category: Optional[str] = Field(None, description="Error category for monitoring")
+    severity: Optional[str] = Field(None, description="Error severity: low, medium, high, critical")
 
 class ErrorResponse(BaseModel):
     """Standardized error response structure."""
@@ -31,6 +33,7 @@ class ErrorResponse(BaseModel):
     timestamp: float = Field(..., description="Unix timestamp when the error occurred")
     request_id: Optional[str] = Field(None, description="Request ID for tracing")
     endpoint: Optional[str] = Field(None, description="Endpoint that generated the error")
+    retryable: Optional[bool] = Field(None, description="Whether the request can be retried")
 
 # Error codes with descriptions and HTTP status codes
 ERROR_CODES = {
@@ -135,6 +138,108 @@ ERROR_CODES = {
     }
 }
 
+# Error categories for monitoring and reporting
+ERROR_CATEGORIES = {
+    # Client errors
+    "INVALID_REQUEST": {"category": "client_error", "severity": "low", "retryable": False},
+    "MISSING_PARAMETER": {"category": "client_error", "severity": "low", "retryable": False},
+    "INVALID_CID": {"category": "client_error", "severity": "low", "retryable": False},
+    "CONTENT_NOT_FOUND": {"category": "client_error", "severity": "low", "retryable": False},
+    "AUTHENTICATION_REQUIRED": {"category": "auth_error", "severity": "medium", "retryable": False},
+    "UNAUTHORIZED": {"category": "auth_error", "severity": "medium", "retryable": False},
+    "RATE_LIMITED": {"category": "throttling", "severity": "medium", "retryable": True},
+    
+    # Server errors
+    "INTERNAL_ERROR": {"category": "server_error", "severity": "high", "retryable": True},
+    "SERVICE_UNAVAILABLE": {"category": "availability", "severity": "high", "retryable": True},
+    "UPSTREAM_ERROR": {"category": "dependency", "severity": "high", "retryable": True},
+    "DAEMON_ERROR": {"category": "dependency", "severity": "high", "retryable": True},
+    "TIMEOUT": {"category": "performance", "severity": "medium", "retryable": True},
+    
+    # Validation errors
+    "VALIDATION_ERROR": {"category": "client_error", "severity": "low", "retryable": False},
+    
+    # Storage backend errors
+    "STORAGE_ERROR": {"category": "storage", "severity": "high", "retryable": True},
+    "SIMULATION_MODE": {"category": "configuration", "severity": "medium", "retryable": False},
+    "MOCK_MODE": {"category": "configuration", "severity": "medium", "retryable": False},
+    
+    # Extension-specific errors
+    "EXTENSION_ERROR": {"category": "extension", "severity": "high", "retryable": True},
+    "EXTENSION_NOT_AVAILABLE": {"category": "extension", "severity": "high", "retryable": False},
+}
+
+# Add storage backend specific error codes
+STORAGE_ERROR_CODES = {
+    "BACKEND_INIT_FAILED": {
+        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "message": "Failed to initialize storage backend",
+        "suggestion": "Check backend configuration and credentials",
+        "category": "storage", 
+        "severity": "high",
+        "retryable": False
+    },
+    "BACKEND_UNAVAILABLE": {
+        "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+        "message": "Storage backend is currently unavailable",
+        "suggestion": "Try again later or contact administrator",
+        "category": "availability",
+        "severity": "high",
+        "retryable": True
+    },
+    "BACKEND_TIMEOUT": {
+        "status_code": status.HTTP_504_GATEWAY_TIMEOUT,
+        "message": "Storage backend request timed out",
+        "suggestion": "Try again with a simpler request or smaller content",
+        "category": "performance",
+        "severity": "medium",
+        "retryable": True
+    },
+    "BACKEND_QUOTA_EXCEEDED": {
+        "status_code": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        "message": "Storage quota exceeded",
+        "suggestion": "Free up storage space or request quota increase",
+        "category": "resource",
+        "severity": "high",
+        "retryable": False
+    },
+    "BACKEND_RATE_LIMITED": {
+        "status_code": status.HTTP_429_TOO_MANY_REQUESTS,
+        "message": "Storage backend rate limited",
+        "suggestion": "Reduce request frequency or contact administrator",
+        "category": "throttling",
+        "severity": "medium",
+        "retryable": True
+    },
+    "BACKEND_PERMISSION_DENIED": {
+        "status_code": status.HTTP_403_FORBIDDEN,
+        "message": "Storage backend permission denied",
+        "suggestion": "Check credentials and permissions",
+        "category": "auth_error",
+        "severity": "high",
+        "retryable": False
+    },
+    "BACKEND_CONTENT_TOO_LARGE": {
+        "status_code": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        "message": "Content too large for storage backend",
+        "suggestion": "Reduce content size or use a different backend",
+        "category": "resource",
+        "severity": "medium",
+        "retryable": False
+    },
+    "BACKEND_INVALID_OPERATION": {
+        "status_code": status.HTTP_400_BAD_REQUEST,
+        "message": "Invalid operation for this backend",
+        "suggestion": "Check backend capabilities documentation",
+        "category": "client_error",
+        "severity": "medium",
+        "retryable": False
+    }
+}
+
+# Update ERROR_CODES with storage backend specific codes
+ERROR_CODES.update(STORAGE_ERROR_CODES)
+
 # Documentation URLs for different error categories
 DOCUMENTATION_URLS = {
     "api": "https://docs.ipfs-kit.com/api/errors",
@@ -186,7 +291,9 @@ def create_error_response(
         message=message_override or error_info["message"],
         details=details,
         suggestion=suggestion_override or error_info.get("suggestion"),
-        documentation_url=doc_url
+        documentation_url=doc_url,
+        category=error_info.get("category"),
+        severity=error_info.get("severity")
     )
     
     # Create error response
@@ -195,7 +302,8 @@ def create_error_response(
         error=error_details,
         timestamp=time.time(),
         request_id=request_id,
-        endpoint=endpoint
+        endpoint=endpoint,
+        retryable=error_info.get("retryable")
     )
     
     # Convert to dict for JSON serialization
@@ -352,6 +460,155 @@ def handle_daemon_error(exception, request_id=None, endpoint=None):
         request_id=request_id,
         endpoint=endpoint,
         doc_category="ipfs"
+    )
+
+def handle_storage_backend_error(
+    exception: Exception, 
+    backend_name: str, 
+    operation: str = None, 
+    identifier: str = None,
+    request_id: str = None, 
+    endpoint: str = None,
+    details: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Advanced handler for storage backend errors with operation context.
+    
+    This function maps common storage backend exceptions to specific error codes
+    and provides detailed context about the operation that failed.
+    
+    Args:
+        exception: The exception that occurred
+        backend_name: Name of the storage backend
+        operation: Storage operation being performed (store, retrieve, delete, etc.)
+        identifier: Content identifier or path involved in the operation
+        request_id: Request ID for tracing
+        endpoint: API endpoint that triggered the operation
+        details: Additional error details
+        
+    Returns:
+        Standardized error response dictionary
+    """
+    # Initialize details dictionary if None
+    if details is None:
+        details = {}
+    
+    # Add operation and identifier to details if provided
+    if operation:
+        details["operation"] = operation
+    if identifier:
+        details["identifier"] = identifier
+    
+    # Add backend name to details
+    details["backend"] = backend_name
+    details["exception_type"] = type(exception).__name__
+    details["exception_message"] = str(exception)
+    
+    # Determine the error code based on exception type and message
+    error_code = "STORAGE_ERROR"  # Default code
+    error_message = f"Error in {backend_name} backend"
+    
+    if operation:
+        error_message += f" during {operation} operation"
+    
+    error_message += f": {str(exception)}"
+    
+    # Map common exceptions to specific error codes
+    exception_name = type(exception).__name__.lower()
+    exception_msg = str(exception).lower()
+    
+    if "timeout" in exception_name or "timeout" in exception_msg:
+        error_code = "BACKEND_TIMEOUT"
+    elif "quota" in exception_msg or "limit exceeded" in exception_msg or "storage full" in exception_msg:
+        error_code = "BACKEND_QUOTA_EXCEEDED"
+    elif "rate limit" in exception_msg or "too many requests" in exception_msg:
+        error_code = "BACKEND_RATE_LIMITED"
+    elif "permission" in exception_msg or "access denied" in exception_msg or "not authorized" in exception_msg:
+        error_code = "BACKEND_PERMISSION_DENIED"
+    elif "too large" in exception_msg or "size limit" in exception_msg:
+        error_code = "BACKEND_CONTENT_TOO_LARGE"
+    elif "not found" in exception_msg or "does not exist" in exception_msg:
+        error_code = "CONTENT_NOT_FOUND"
+    elif "not available" in exception_msg or "unreachable" in exception_msg or "connection" in exception_msg:
+        error_code = "BACKEND_UNAVAILABLE"
+    elif "not supported" in exception_msg or "invalid operation" in exception_msg:
+        error_code = "BACKEND_INVALID_OPERATION"
+    elif "initialization" in exception_msg or "failed to initialize" in exception_msg:
+        error_code = "BACKEND_INIT_FAILED"
+    
+    # Create error response with determined code and message
+    return create_error_response(
+        code=error_code,
+        message_override=error_message,
+        details=details,
+        request_id=request_id,
+        endpoint=endpoint,
+        doc_category="storage"
+    )
+
+def map_backend_error_code(
+    backend_response: Dict[str, Any],
+    backend_name: str,
+    doc_category: str = "storage"
+) -> Dict[str, Any]:
+    """
+    Map backend-specific error codes to standardized MCP error codes.
+    
+    This function takes an error response from a storage backend and maps it
+    to the standardized MCP error format.
+    
+    Args:
+        backend_response: Error response from the storage backend
+        backend_name: Name of the storage backend
+        doc_category: Documentation category for URL
+        
+    Returns:
+        Standardized error response dictionary
+    """
+    # Check if this is already a standardized error
+    if "error" in backend_response and isinstance(backend_response["error"], dict) and "code" in backend_response["error"]:
+        # It's already in our format, just ensure the backend is correctly set
+        backend_response["error"]["details"] = backend_response["error"].get("details", {})
+        backend_response["error"]["details"]["backend"] = backend_name
+        return backend_response
+    
+    # Extract error information from backend response
+    error_message = backend_response.get("error", "Unknown error")
+    error_code = backend_response.get("error_code", "STORAGE_ERROR")
+    
+    # Map backend-specific error codes to our standard codes
+    # This is a generic mapping, specific backends may need custom mappings
+    standardized_code = "STORAGE_ERROR"  # Default
+    
+    # Common patterns in error messages
+    if isinstance(error_message, str):
+        msg_lower = error_message.lower()
+        if "not found" in msg_lower:
+            standardized_code = "CONTENT_NOT_FOUND"
+        elif "timeout" in msg_lower:
+            standardized_code = "BACKEND_TIMEOUT"
+        elif "quota" in msg_lower or "limit exceeded" in msg_lower:
+            standardized_code = "BACKEND_QUOTA_EXCEEDED"
+        elif "permission" in msg_lower or "unauthorized" in msg_lower:
+            standardized_code = "BACKEND_PERMISSION_DENIED"
+        elif "rate limit" in msg_lower or "too many requests" in msg_lower:
+            standardized_code = "BACKEND_RATE_LIMITED"
+        elif "too large" in msg_lower:
+            standardized_code = "BACKEND_CONTENT_TOO_LARGE"
+    
+    # Create details with original backend response
+    details = {
+        "backend": backend_name,
+        "backend_error_code": error_code,
+        "backend_response": backend_response
+    }
+    
+    # Create standardized error response
+    return create_error_response(
+        code=standardized_code,
+        message_override=error_message if isinstance(error_message, str) else str(error_message),
+        details=details,
+        doc_category=doc_category
     )
 
 # Function to convert legacy error responses to standardized format

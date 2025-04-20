@@ -1,812 +1,666 @@
 """
-Geographic Optimization Module for Optimized Data Routing
+Geographic Optimization Module for MCP Server
 
-This module enhances the data routing system with geographic optimization capabilities:
-- Location-based routing to minimize latency and network distance
-- Region-aware backend selection for edge-optimized content delivery
-- Haversine distance calculations for accurate global routing
-- Geo-IP lookup for automatic client location detection
-- Regional performance tracking and analysis
+This module enhances the Optimized Data Routing feature with geographic awareness:
+- Region-based routing decisions
+- Latency optimization based on geographic proximity
+- Multi-region replication recommendations
+- Network topology awareness
+- Geographic data distribution analytics
 
-Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements.
 """
 
-import math
 import logging
-import asyncio
+import json
+import os
+import time
+import math
+from enum import Enum
+from typing import Dict, List, Tuple, Set, Optional, Union, Any
+from dataclasses import dataclass
+from datetime import datetime
+import ipaddress
 import random
-from typing import Dict, List, Any, Optional, Union, Tuple, Set
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+import threading
 
 # Configure logging
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class GeoLocation:
-    """Geographic location representation."""
-    lat: float  # Latitude in decimal degrees
-    lon: float  # Longitude in decimal degrees
-    country_code: Optional[str] = None  # ISO country code
-    region: Optional[str] = None  # Region or state
-    city: Optional[str] = None  # City name
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "lat": self.lat,
-            "lon": self.lon,
-            "country_code": self.country_code,
-            "region": self.region,
-            "city": self.city
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'GeoLocation':
-        """Create from dictionary representation."""
-        return cls(
-            lat=data.get("lat", 0.0),
-            lon=data.get("lon", 0.0),
-            country_code=data.get("country_code"),
-            region=data.get("region"),
-            city=data.get("city")
-        )
-
+logger = logging.getLogger("mcp.routing.geographic")
 
 @dataclass
-class Region:
-    """Geographic region information."""
-    id: str  # Region identifier (e.g., "us-east-1")
-    name: str  # Human-readable name
-    location: GeoLocation  # Representative location
-    providers: List[str] = field(default_factory=list)  # Available providers in this region
+class GeoCoordinates:
+    """Geographic coordinates (latitude/longitude)."""
+    latitude: float
+    longitude: float
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "location": self.location.to_dict(),
-            "providers": self.providers
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Region':
-        """Create from dictionary representation."""
-        return cls(
-            id=data.get("id", ""),
-            name=data.get("name", ""),
-            location=GeoLocation.from_dict(data.get("location", {})),
-            providers=data.get("providers", [])
-        )
-
-
-@dataclass
-class RegionPerformance:
-    """Performance metrics for a region."""
-    region_id: str
-    avg_latency_ms: float = 0.0
-    throughput_mbps: float = 0.0
-    success_rate: float = 1.0
-    last_updated: datetime = field(default_factory=datetime.now)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "region_id": self.region_id,
-            "avg_latency_ms": self.avg_latency_ms,
-            "throughput_mbps": self.throughput_mbps,
-            "success_rate": self.success_rate,
-            "last_updated": self.last_updated.isoformat()
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'RegionPerformance':
-        """Create from dictionary representation."""
-        last_updated = datetime.fromisoformat(data.get("last_updated", datetime.now().isoformat()))
-        return cls(
-            region_id=data.get("region_id", ""),
-            avg_latency_ms=data.get("avg_latency_ms", 0.0),
-            throughput_mbps=data.get("throughput_mbps", 0.0),
-            success_rate=data.get("success_rate", 1.0),
-            last_updated=last_updated
-        )
-
-
-class GeographicRouter:
-    """
-    Router that optimizes backend selection based on geographic location.
-    
-    This class implements geographic optimization for content routing,
-    selecting backends that are closest to the client's location.
-    """
-    
-    def __init__(self):
-        """Initialize the geographic router."""
-        self.regions: Dict[str, Region] = {}
-        self.backend_regions: Dict[str, str] = {}  # Maps backend names to region IDs
-        self.region_performance: Dict[str, RegionPerformance] = {}
-        self.client_location: Optional[GeoLocation] = None
-        
-        # Initialize with common regions
-        self._initialize_common_regions()
-    
-    def _initialize_common_regions(self) -> None:
-        """Initialize with common cloud regions."""
-        common_regions = [
-            # North America
-            Region(
-                id="us-east-1",
-                name="US East (N. Virginia)",
-                location=GeoLocation(lat=38.13, lon=-78.45, country_code="US", region="Virginia"),
-                providers=["s3", "ipfs", "storacha"]
-            ),
-            Region(
-                id="us-east-2",
-                name="US East (Ohio)",
-                location=GeoLocation(lat=40.42, lon=-83.78, country_code="US", region="Ohio"),
-                providers=["s3", "ipfs"]
-            ),
-            Region(
-                id="us-west-1",
-                name="US West (N. California)",
-                location=GeoLocation(lat=37.78, lon=-122.42, country_code="US", region="California"),
-                providers=["s3", "ipfs", "storacha"]
-            ),
-            Region(
-                id="us-west-2",
-                name="US West (Oregon)",
-                location=GeoLocation(lat=45.84, lon=-119.68, country_code="US", region="Oregon"),
-                providers=["s3", "ipfs"]
-            ),
-            
-            # Europe
-            Region(
-                id="eu-west-1",
-                name="EU West (Ireland)",
-                location=GeoLocation(lat=53.34, lon=-6.27, country_code="IE", city="Dublin"),
-                providers=["s3", "ipfs", "storacha"]
-            ),
-            Region(
-                id="eu-central-1",
-                name="EU Central (Frankfurt)",
-                location=GeoLocation(lat=50.11, lon=8.68, country_code="DE", city="Frankfurt"),
-                providers=["s3", "ipfs", "storacha"]
-            ),
-            
-            # Asia Pacific
-            Region(
-                id="ap-northeast-1",
-                name="Asia Pacific (Tokyo)",
-                location=GeoLocation(lat=35.69, lon=139.69, country_code="JP", city="Tokyo"),
-                providers=["s3", "ipfs"]
-            ),
-            Region(
-                id="ap-southeast-1",
-                name="Asia Pacific (Singapore)",
-                location=GeoLocation(lat=1.35, lon=103.82, country_code="SG", city="Singapore"),
-                providers=["s3", "ipfs", "storacha"]
-            ),
-            Region(
-                id="ap-southeast-2",
-                name="Asia Pacific (Sydney)",
-                location=GeoLocation(lat=-33.87, lon=151.21, country_code="AU", city="Sydney"),
-                providers=["s3", "ipfs"]
-            ),
-            
-            # South America
-            Region(
-                id="sa-east-1",
-                name="South America (São Paulo)",
-                location=GeoLocation(lat=-23.55, lon=-46.63, country_code="BR", city="São Paulo"),
-                providers=["s3", "ipfs"]
-            ),
-            
-            # Global Networks (not tied to specific locations)
-            Region(
-                id="global-filecoin",
-                name="Global Filecoin Network",
-                location=GeoLocation(lat=0.0, lon=0.0),  # Global network
-                providers=["filecoin"]
-            ),
-            Region(
-                id="global-ipfs",
-                name="Global IPFS Network",
-                location=GeoLocation(lat=0.0, lon=0.0),  # Global network
-                providers=["ipfs"]
-            )
-        ]
-        
-        # Add regions to the dictionary
-        for region in common_regions:
-            self.regions[region.id] = region
-        
-        # Initialize default backend to region mappings
-        default_backend_regions = {
-            "ipfs": "global-ipfs",
-            "filecoin": "global-filecoin",
-            "s3": "us-east-1",
-            "storacha": "us-east-1",
-            "huggingface": "eu-west-1",
-            "lassie": "global-ipfs"
-        }
-        
-        for backend, region in default_backend_regions.items():
-            self.backend_regions[backend] = region
-    
-    def add_region(self, region: Region) -> None:
+    def distance_to(self, other: 'GeoCoordinates') -> float:
         """
-        Add a new region.
+        Calculate distance to another point in kilometers.
         
         Args:
-            region: Region to add
-        """
-        self.regions[region.id] = region
-    
-    def remove_region(self, region_id: str) -> bool:
-        """
-        Remove a region.
-        
-        Args:
-            region_id: Region ID to remove
-            
-        Returns:
-            True if successful
-        """
-        if region_id in self.regions:
-            del self.regions[region_id]
-            
-            # Also remove from related dictionaries
-            if region_id in self.region_performance:
-                del self.region_performance[region_id]
-            
-            # Update backend_regions that pointed to this region
-            for backend, region in list(self.backend_regions.items()):
-                if region == region_id:
-                    # Remove or set to default
-                    if backend == "ipfs":
-                        self.backend_regions[backend] = "global-ipfs"
-                    elif backend == "filecoin":
-                        self.backend_regions[backend] = "global-filecoin"
-                    else:
-                        del self.backend_regions[backend]
-            
-            return True
-        
-        return False
-    
-    def set_backend_region(self, backend_id: str, region_id: str) -> bool:
-        """
-        Set the region for a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            region_id: Region identifier
-            
-        Returns:
-            True if successful
-        """
-        if region_id not in self.regions:
-            return False
-        
-        self.backend_regions[backend_id] = region_id
-        return True
-    
-    def set_client_location(self, location: Union[GeoLocation, Dict[str, Any]]) -> None:
-        """
-        Set the client's location.
-        
-        Args:
-            location: Client location (GeoLocation or dict)
-        """
-        if isinstance(location, dict):
-            self.client_location = GeoLocation(
-                lat=location.get("lat", 0.0),
-                lon=location.get("lon", 0.0),
-                country_code=location.get("country_code"),
-                region=location.get("region"),
-                city=location.get("city")
-            )
-        else:
-            self.client_location = location
-    
-    def get_distance(self, loc1: GeoLocation, loc2: GeoLocation) -> float:
-        """
-        Calculate distance between two locations using the Haversine formula.
-        
-        Args:
-            loc1: First location
-            loc2: Second location
+            other: Other coordinates
             
         Returns:
             Distance in kilometers
         """
-        # Convert latitude and longitude from degrees to radians
-        lat1_rad = math.radians(loc1.lat)
-        lon1_rad = math.radians(loc1.lon)
-        lat2_rad = math.radians(loc2.lat)
-        lon2_rad = math.radians(loc2.lon)
+        # Haversine formula for calculating distance on a sphere
+        earth_radius = 6371.0  # Earth radius in kilometers
         
-        # Haversine formula
-        dlon = lon2_rad - lon1_rad
+        lat1_rad = math.radians(self.latitude)
+        lon1_rad = math.radians(self.longitude)
+        lat2_rad = math.radians(other.latitude)
+        lon2_rad = math.radians(other.longitude)
+        
         dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        
         a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         
-        # Earth radius in kilometers
-        earth_radius = 6371.0
-        
-        # Distance in kilometers
-        distance = earth_radius * c
-        
-        return distance
+        return earth_radius * c
     
-    def get_nearest_region(self) -> Optional[str]:
+    def to_dict(self) -> Dict[str, float]:
+        """Convert to dictionary."""
+        return {
+            "latitude": self.latitude,
+            "longitude": self.longitude
+        }
+
+
+@dataclass
+class GeoRegion:
+    """Geographic region information."""
+    id: str
+    name: str
+    coordinates: GeoCoordinates
+    country_code: str
+    continent: str
+    provider: Optional[str] = None
+    tier: Optional[int] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "coordinates": self.coordinates.to_dict(),
+            "country_code": self.country_code,
+            "continent": self.continent,
+            "provider": self.provider,
+            "tier": self.tier
+        }
+
+
+class GeographicRouter:
+    """
+    Geographic routing optimization for the MCP server.
+    
+    This class provides geographic-aware routing capabilities for selecting
+    the optimal storage backend based on geographic proximity and network conditions.
+    """
+    
+    def __init__(self, config_path: Optional[str] = None):
         """
-        Get the nearest region to the client.
+        Initialize the geographic router.
         
-        Returns:
-            Region ID or None if client location not set
+        Args:
+            config_path: Path to geographic configuration
         """
-        if not self.client_location:
+        # Storage backends by region
+        self.backends_by_region: Dict[str, List[str]] = {}
+        
+        # Region information
+        self.regions: Dict[str, GeoRegion] = {}
+        
+        # Backend region mapping
+        self.backend_regions: Dict[str, List[str]] = {}
+        
+        # Region latency matrix (region_a -> region_b -> latency_ms)
+        self.region_latency: Dict[str, Dict[str, float]] = {}
+        
+        # IP range to region mapping for automatic detection
+        self.ip_ranges: Dict[str, List[Tuple[str, str]]] = {}  # region -> [(start_ip, end_ip)]
+        
+        # Current client region (if detected)
+        self.current_region: Optional[str] = None
+        
+        # Client location coordinates (for distance calculations)
+        self.client_location: Optional[GeoCoordinates] = None
+        
+        # Load configuration
+        if config_path:
+            self.load_config(config_path)
+        else:
+            # Try default locations
+            default_paths = [
+                os.path.join(os.path.dirname(__file__), "geo_config.json"),
+                os.path.join(os.path.expanduser("~"), ".ipfs_kit", "geo_config.json"),
+                "/etc/ipfs_kit/geo_config.json"
+            ]
+            
+            for path in default_paths:
+                if os.path.exists(path):
+                    self.load_config(path)
+                    break
+        
+        logger.info(f"Geographic Router initialized with {len(self.regions)} regions")
+    
+    def load_config(self, config_path: str) -> bool:
+        """
+        Load geographic configuration from file.
+        
+        Args:
+            config_path: Path to configuration file
+            
+        Returns:
+            True if configuration was loaded successfully
+        """
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            # Load regions
+            if "regions" in config:
+                for region_data in config["regions"]:
+                    region_id = region_data["id"]
+                    
+                    # Create GeoCoordinates
+                    coords = GeoCoordinates(
+                        latitude=float(region_data["coordinates"]["latitude"]),
+                        longitude=float(region_data["coordinates"]["longitude"])
+                    )
+                    
+                    # Create GeoRegion
+                    region = GeoRegion(
+                        id=region_id,
+                        name=region_data["name"],
+                        coordinates=coords,
+                        country_code=region_data["country_code"],
+                        continent=region_data["continent"],
+                        provider=region_data.get("provider"),
+                        tier=region_data.get("tier")
+                    )
+                    
+                    self.regions[region_id] = region
+            
+            # Load backend-region mappings
+            if "backend_regions" in config:
+                for backend, regions in config["backend_regions"].items():
+                    self.backend_regions[backend] = regions
+                    
+                    # Also add to regions-backends mapping
+                    for region_id in regions:
+                        if region_id not in self.backends_by_region:
+                            self.backends_by_region[region_id] = []
+                        
+                        if backend not in self.backends_by_region[region_id]:
+                            self.backends_by_region[region_id].append(backend)
+            
+            # Load region latency matrix
+            if "region_latency" in config:
+                self.region_latency = config["region_latency"]
+            
+            # Load IP ranges
+            if "ip_ranges" in config:
+                for region_id, ranges in config["ip_ranges"].items():
+                    if region_id not in self.ip_ranges:
+                        self.ip_ranges[region_id] = []
+                    
+                    for ip_range in ranges:
+                        start_ip = ip_range["start_ip"]
+                        end_ip = ip_range["end_ip"]
+                        self.ip_ranges[region_id].append((start_ip, end_ip))
+            
+            # Set current region if specified
+            if "current_region" in config:
+                self.current_region = config["current_region"]
+            
+            logger.info(f"Loaded geographic configuration from {config_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading geographic configuration: {e}")
+            return False
+    
+    def determine_client_region(self, client_ip: str) -> Optional[str]:
+        """
+        Determine the geographic region for a client IP address.
+        
+        Args:
+            client_ip: Client IP address
+            
+        Returns:
+            Region ID or None if region cannot be determined
+        """
+        if not client_ip or client_ip == "127.0.0.1" or client_ip == "localhost":
+            # Local client, use current region
+            return self.current_region
+        
+        try:
+            # Convert client IP to integer for comparison
+            client_ip_obj = ipaddress.ip_address(client_ip)
+            client_ip_int = int(client_ip_obj)
+            
+            # Check IP ranges for each region
+            for region_id, ranges in self.ip_ranges.items():
+                for start_ip, end_ip in ranges:
+                    start_ip_int = int(ipaddress.ip_address(start_ip))
+                    end_ip_int = int(ipaddress.ip_address(end_ip))
+                    
+                    if start_ip_int <= client_ip_int <= end_ip_int:
+                        return region_id
+            
+            # No match found
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error determining client region for IP {client_ip}: {e}")
+            return None
+    
+    def get_region_for_backend(self, backend_id: str) -> List[str]:
+        """
+        Get the regions a backend is located in.
+        
+        Args:
+            backend_id: Backend identifier
+            
+        Returns:
+            List of region IDs
+        """
+        return self.backend_regions.get(backend_id, [])
+    
+    def get_backend_region(self, backend_id: str) -> Optional[str]:
+        """
+        Get the primary region for a backend.
+        
+        Args:
+            backend_id: Backend identifier
+            
+        Returns:
+            Primary region ID or None if backend is not registered
+        """
+        regions = self.backend_regions.get(backend_id, [])
+        return regions[0] if regions else None
+    
+    def get_backend_location(self, backend_id: str) -> Optional[GeoCoordinates]:
+        """
+        Get the geographic location of a backend.
+        
+        Args:
+            backend_id: Backend identifier
+            
+        Returns:
+            GeoCoordinates object or None if location is unknown
+        """
+        # Get the primary region for this backend
+        region_id = self.get_backend_region(backend_id)
+        if not region_id or region_id not in self.regions:
+            return None
+            
+        # Return the region's coordinates
+        return self.regions[region_id].coordinates
+    
+    def get_backends_for_region(self, region_id: str) -> List[str]:
+        """
+        Get backends available in a region.
+        
+        Args:
+            region_id: Region identifier
+            
+        Returns:
+            List of backend identifiers
+        """
+        return self.backends_by_region.get(region_id, [])
+    
+    def get_closest_region(self, coordinates: GeoCoordinates) -> Optional[str]:
+        """
+        Find the closest region to given coordinates.
+        
+        Args:
+            coordinates: Geographic coordinates
+            
+        Returns:
+            Region ID of closest region or None if no regions defined
+        """
+        if not self.regions:
             return None
         
-        # Find closest region
-        min_distance = float("inf")
-        nearest_region = None
+        closest_region = None
+        closest_distance = float('inf')
         
         for region_id, region in self.regions.items():
-            distance = self.get_distance(self.client_location, region.location)
+            distance = coordinates.distance_to(region.coordinates)
             
-            if distance < min_distance:
-                min_distance = distance
-                nearest_region = region_id
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_region = region_id
         
-        return nearest_region
+        return closest_region
     
-    def rank_regions_by_distance(self) -> List[Tuple[str, float]]:
+    def get_regions_by_distance(self, 
+                              from_region: str) -> List[Tuple[str, float]]:
         """
-        Rank regions by distance from client.
+        Get regions sorted by distance from a source region.
         
+        Args:
+            from_region: Source region ID
+            
         Returns:
             List of (region_id, distance) tuples sorted by distance
         """
-        if not self.client_location:
-            # Return regions in default order if no client location
-            return [(region_id, 0.0) for region_id in self.regions.keys()]
+        if from_region not in self.regions:
+            return []
         
-        # Calculate distances for each region
+        source_coords = self.regions[from_region].coordinates
+        
+        # Calculate distances to all other regions
         distances = []
-        
         for region_id, region in self.regions.items():
-            distance = self.get_distance(self.client_location, region.location)
+            if region_id == from_region:
+                continue
+                
+            distance = source_coords.distance_to(region.coordinates)
             distances.append((region_id, distance))
         
         # Sort by distance
         return sorted(distances, key=lambda x: x[1])
     
-    def rank_backends_by_location(
-        self, 
-        available_backends: Optional[List[str]] = None
-    ) -> List[str]:
+    def get_region_latency(self, from_region: str, to_region: str) -> Optional[float]:
         """
-        Rank backends by proximity to client.
+        Get the latency between two regions.
         
         Args:
-            available_backends: Optional list of available backends
+            from_region: Source region ID
+            to_region: Destination region ID
             
         Returns:
-            List of backend names sorted by proximity to client
+            Latency in milliseconds or None if unknown
         """
-        if not self.client_location:
-            # No client location, return backends in original order
-            if available_backends:
-                return available_backends
-            return list(self.backend_regions.keys())
-        
-        # Filter to available backends if specified
-        if available_backends:
-            backend_regions = {
-                backend: self.backend_regions.get(backend, "global-ipfs")
-                for backend in available_backends
-                if backend in self.backend_regions
-            }
-        else:
-            backend_regions = self.backend_regions
-        
-        # Calculate distances for each backend's region
-        backend_distances = []
-        
-        for backend, region_id in backend_regions.items():
-            if region_id in self.regions:
-                region = self.regions[region_id]
-                distance = self.get_distance(self.client_location, region.location)
-                
-                # Adjust distance for global networks
-                if region_id.startswith("global-"):
-                    # Global networks are generally decent but not optimal
-                    distance = distance * 0.75
-                
-                # Adjust for region performance if available
-                if region_id in self.region_performance:
-                    perf = self.region_performance[region_id]
-                    
-                    # Reduce effective distance for high-performing regions
-                    if perf.avg_latency_ms > 0:
-                        latency_factor = max(0.5, min(1.5, perf.avg_latency_ms / 100.0))
-                        distance = distance * latency_factor
-                
-                backend_distances.append((backend, distance))
-            else:
-                # Region not found, use a large distance
-                backend_distances.append((backend, float("inf")))
-        
-        # Sort by distance
-        sorted_backends = [backend for backend, _ in sorted(backend_distances, key=lambda x: x[1])]
-        
-        # Add any remaining backends not in backend_regions
-        if available_backends:
-            for backend in available_backends:
-                if backend not in sorted_backends:
-                    sorted_backends.append(backend)
-        
-        return sorted_backends
+        if from_region not in self.region_latency:
+            return None
+            
+        return self.region_latency.get(from_region, {}).get(to_region)
     
-    def update_region_performance(
-        self,
-        region_id: str,
-        latency_ms: Optional[float] = None,
-        throughput_mbps: Optional[float] = None,
-        success_rate: Optional[float] = None
-    ) -> None:
+    def get_distance(self, location1: GeoCoordinates, location2: GeoCoordinates) -> float:
         """
-        Update performance metrics for a region.
+        Calculate distance between two geographic locations.
         
         Args:
-            region_id: Region identifier
-            latency_ms: Average latency in milliseconds
-            throughput_mbps: Throughput in Mbps
-            success_rate: Success rate (0.0-1.0)
-        """
-        if region_id not in self.regions:
-            return
-        
-        # Get or create performance record
-        if region_id not in self.region_performance:
-            self.region_performance[region_id] = RegionPerformance(region_id=region_id)
-        
-        perf = self.region_performance[region_id]
-        
-        # Update metrics
-        if latency_ms is not None:
-            perf.avg_latency_ms = latency_ms
-        
-        if throughput_mbps is not None:
-            perf.throughput_mbps = throughput_mbps
-        
-        if success_rate is not None:
-            perf.success_rate = success_rate
-        
-        # Update timestamp
-        perf.last_updated = datetime.now()
-    
-    def get_region_performance(self, region_id: str) -> Optional[RegionPerformance]:
-        """
-        Get performance metrics for a region.
-        
-        Args:
-            region_id: Region identifier
+            location1: First location
+            location2: Second location
             
         Returns:
-            RegionPerformance object or None if not found
+            Distance in kilometers
         """
-        return self.region_performance.get(region_id)
+        return location1.distance_to(location2)
     
-    def get_all_regions(self) -> Dict[str, Region]:
+    def select_backend_by_region(self, 
+                               client_region: str,
+                               available_backends: List[str],
+                               fallback_strategy: str = "closest") -> Optional[str]:
         """
-        Get all regions.
-        
-        Returns:
-            Dict mapping region IDs to Region objects
-        """
-        return self.regions.copy()
-    
-    def get_region(self, region_id: str) -> Optional[Region]:
-        """
-        Get a region by ID.
+        Select a backend based on client region.
         
         Args:
-            region_id: Region identifier
+            client_region: Client region ID
+            available_backends: List of available backends
+            fallback_strategy: Strategy to use if no backends in client region
+                               ("closest", "random", or "first")
             
         Returns:
-            Region object or None if not found
+            Selected backend ID or None if no suitable backend found
         """
-        return self.regions.get(region_id)
-    
-    def get_backend_region(self, backend_id: str) -> Optional[str]:
-        """
-        Get the region for a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            Region ID or None if not found
-        """
-        return self.backend_regions.get(backend_id)
-    
-    def get_backend_location(self, backend_id: str) -> Optional[GeoLocation]:
-        """
-        Get the location for a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            GeoLocation or None if not found
-        """
-        region_id = self.backend_regions.get(backend_id)
-        if not region_id or region_id not in self.regions:
+        if not available_backends:
             return None
         
-        return self.regions[region_id].location
-    
-    def recommend_backend_by_location(
-        self,
-        available_backends: Optional[List[str]] = None
-    ) -> Optional[str]:
-        """
-        Recommend a backend based on client location.
-        
-        This is a simple wrapper around rank_backends_by_location
-        that returns the top-ranked backend.
-        
-        Args:
-            available_backends: Optional list of available backends
-            
-        Returns:
-            Recommended backend name or None if no backends available
-        """
-        ranked_backends = self.rank_backends_by_location(available_backends)
-        if not ranked_backends:
-            return None
-        
-        return ranked_backends[0]
-    
-    def get_backends_in_region(self, region_id: str) -> List[str]:
-        """
-        Get backends in a specific region.
-        
-        Args:
-            region_id: Region identifier
-            
-        Returns:
-            List of backend names in the region
-        """
-        return [
-            backend for backend, backend_region 
-            in self.backend_regions.items() 
-            if backend_region == region_id
-        ]
-    
-    def get_client_region(self) -> Optional[str]:
-        """
-        Get the region containing the client's location.
-        
-        Returns:
-            Region ID or None if client location not set or no matching region
-        """
-        if not self.client_location:
-            return None
-        
-        # Find nearest region
-        return self.get_nearest_region()
-    
-    def simulate_network_delay(self, from_location: GeoLocation, to_location: GeoLocation) -> float:
-        """
-        Simulate network delay between two locations.
-        
-        This is a simple model that estimates latency based on geographic distance,
-        plus some random variation to account for network conditions.
-        
-        Args:
-            from_location: Source location
-            to_location: Destination location
-            
-        Returns:
-            Estimated latency in milliseconds
-        """
-        # Calculate distance in kilometers
-        distance = self.get_distance(from_location, to_location)
-        
-        # Base latency calculation
-        # Speed of light in fiber is ~200,000 km/s,
-        # which gives ~5ms per 1000km (round trip)
-        base_latency = (distance / 1000) * 5.0
-        
-        # Add routing and processing overhead
-        overhead = 20.0  # Base overhead in ms
-        
-        # Add random network variation (0-20% of base latency + overhead)
-        variation = random.uniform(0, 0.2) * (base_latency + overhead)
-        
-        # Calculate total latency
-        total_latency = base_latency + overhead + variation
-        
-        # Ensure minimum latency
-        return max(5.0, total_latency)
-    
-    def simulate_latency_to_backend(self, backend_id: str) -> float:
-        """
-        Simulate latency from client to a backend.
-        
-        Args:
-            backend_id: Backend identifier
-            
-        Returns:
-            Estimated latency in milliseconds
-        """
-        if not self.client_location:
-            # Default latency if client location unknown
-            return 100.0
-        
-        # Get backend location
-        backend_location = self.get_backend_location(backend_id)
-        if not backend_location:
-            # Default latency if backend location unknown
-            return 150.0
-        
-        # Simulate latency based on locations
-        return self.simulate_network_delay(self.client_location, backend_location)
-    
-    def get_region_statistics(self) -> Dict[str, Any]:
-        """
-        Get statistics about regions and their performance.
-        
-        Returns:
-            Dict with region statistics
-        """
-        result = {
-            "count": len(self.regions),
-            "regions": {},
-            "client_region": None,
-            "nearest_region": None,
-            "backend_distribution": {}
+        # Filter to backends that have specified regions
+        region_backends = {
+            backend: self.get_region_for_backend(backend)
+            for backend in available_backends
+            if backend in self.backend_regions
         }
         
-        # Add client info if available
-        if self.client_location:
-            result["client_location"] = self.client_location.to_dict()
-            result["nearest_region"] = self.get_nearest_region()
-            result["client_region"] = self.get_client_region()
+        # Find backends in the client's region
+        local_backends = [
+            backend for backend, regions in region_backends.items()
+            if client_region in regions
+        ]
         
-        # Add region data
-        for region_id, region in self.regions.items():
-            result["regions"][region_id] = {
-                "name": region.name,
-                "location": region.location.to_dict(),
-                "providers": region.providers,
-                "performance": self.region_performance.get(region_id, RegionPerformance(region_id)).to_dict() if region_id in self.region_performance else None,
-                "backends": self.get_backends_in_region(region_id)
+        if local_backends:
+            # Return a random backend from the client's region
+            return random.choice(local_backends)
+        
+        # No backends in the client's region, use fallback strategy
+        if fallback_strategy == "random":
+            return random.choice(available_backends)
+            
+        elif fallback_strategy == "first":
+            return available_backends[0]
+            
+        elif fallback_strategy == "closest":
+            # Find the closest region that has available backends
+            if client_region in self.regions:
+                # Get regions sorted by distance
+                regions_by_distance = self.get_regions_by_distance(client_region)
+                
+                for region_id, _ in regions_by_distance:
+                    # Find backends in this region
+                    regional_backends = [
+                        backend for backend, regions in region_backends.items()
+                        if region_id in regions
+                    ]
+                    
+                    if regional_backends:
+                        return random.choice(regional_backends)
+            
+            # If no closest region found, return a random backend
+            return random.choice(available_backends)
+        
+        # Unknown fallback strategy
+        return available_backends[0]
+    
+    def get_multi_region_backends(self, 
+                                min_regions: int = 2,
+                                available_backends: Optional[List[str]] = None) -> List[str]:
+        """
+        Find backends available in multiple regions.
+        
+        Args:
+            min_regions: Minimum number of regions required
+            available_backends: Optional list of available backends to filter from
+            
+        Returns:
+            List of backend IDs available in at least min_regions
+        """
+        multi_region_backends = []
+        
+        backends_to_check = available_backends or list(self.backend_regions.keys())
+        
+        for backend in backends_to_check:
+            regions = self.get_region_for_backend(backend)
+            if len(regions) >= min_regions:
+                multi_region_backends.append(backend)
+        
+        return multi_region_backends
+    
+    def register_backend_region(self, backend_id: str, region_id: str) -> bool:
+        """
+        Register a backend as available in a region.
+        
+        Args:
+            backend_id: Backend identifier
+            region_id: Region identifier
+            
+        Returns:
+            True if registration was successful
+        """
+        # Check if region exists
+        if region_id not in self.regions:
+            logger.warning(f"Region {region_id} not found")
+            return False
+        
+        # Add to backend_regions
+        if backend_id not in self.backend_regions:
+            self.backend_regions[backend_id] = []
+        
+        if region_id not in self.backend_regions[backend_id]:
+            self.backend_regions[backend_id].append(region_id)
+        
+        # Add to backends_by_region
+        if region_id not in self.backends_by_region:
+            self.backends_by_region[region_id] = []
+        
+        if backend_id not in self.backends_by_region[region_id]:
+            self.backends_by_region[region_id].append(backend_id)
+        
+        logger.info(f"Registered backend {backend_id} in region {region_id}")
+        return True
+    
+    def set_backend_region(self, backend_id: str, region_id: str) -> bool:
+        """
+        Set a backend's region (alias for register_backend_region for API compatibility).
+        
+        Args:
+            backend_id: Backend identifier
+            region_id: Region identifier
+            
+        Returns:
+            True if registration was successful
+        """
+        return self.register_backend_region(backend_id, region_id)
+    
+    def set_client_location(self, coordinates: GeoCoordinates) -> None:
+        """
+        Set the client's geographic location.
+        
+        Args:
+            coordinates: Geographic coordinates
+        """
+        self.client_location = coordinates
+        
+        # Determine closest region based on coordinates
+        if coordinates:
+            self.current_region = self.get_closest_region(coordinates)
+    
+    def update_region_latency(self, 
+                            from_region: str, 
+                            to_region: str, 
+                            latency_ms: float) -> bool:
+        """
+        Update the latency between two regions.
+        
+        Args:
+            from_region: Source region ID
+            to_region: Destination region ID
+            latency_ms: Latency in milliseconds
+            
+        Returns:
+            True if update was successful
+        """
+        # Check if regions exist
+        if from_region not in self.regions or to_region not in self.regions:
+            logger.warning(f"Region {from_region} or {to_region} not found")
+            return False
+        
+        # Update latency
+        if from_region not in self.region_latency:
+            self.region_latency[from_region] = {}
+        
+        self.region_latency[from_region][to_region] = latency_ms
+        
+        logger.debug(f"Updated latency from {from_region} to {to_region}: {latency_ms}ms")
+        return True
+    
+    def get_regional_distribution_recommendation(self, 
+                                              content_size_bytes: int,
+                                              redundancy_factor: int = 2,
+                                              available_backends: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get a recommendation for regional distribution of content.
+        
+        Args:
+            content_size_bytes: Size of content in bytes
+            redundancy_factor: Number of copies to maintain
+            available_backends: Optional list of available backends
+            
+        Returns:
+            Dictionary with distribution recommendation
+        """
+        backends_to_use = available_backends or list(self.backend_regions.keys())
+        
+        # Get multi-region backends
+        multi_region_backends = self.get_multi_region_backends(
+            min_regions=redundancy_factor,
+            available_backends=backends_to_use
+        )
+        
+        # If we have multi-region backends, prioritize those
+        if multi_region_backends:
+            result = {
+                "recommended_backends": multi_region_backends[:redundancy_factor],
+                "recommendation_type": "multi_region_backends",
+                "redundancy_factor": redundancy_factor,
+                "content_size_bytes": content_size_bytes
             }
-        
-        # Count backends per region
-        for backend, region_id in self.backend_regions.items():
-            if region_id not in result["backend_distribution"]:
-                result["backend_distribution"][region_id] = 0
-            result["backend_distribution"][region_id] += 1
+        else:
+            # Otherwise, select backends from different regions
+            
+            # Get all regions with available backends
+            regions_with_backends = set()
+            for backend in backends_to_use:
+                regions = self.get_region_for_backend(backend)
+                regions_with_backends.update(regions)
+            
+            # Sort regions by number of backends (more options is better)
+            region_backend_counts = []
+            for region in regions_with_backends:
+                backends = self.get_backends_for_region(region)
+                backends = [b for b in backends if b in backends_to_use]
+                region_backend_counts.append((region, len(backends)))
+            
+            region_backend_counts.sort(key=lambda x: x[1], reverse=True)
+            
+            # Select top regions
+            selected_regions = [r for r, _ in region_backend_counts[:redundancy_factor]]
+            
+            # Select a backend from each region
+            selected_backends = []
+            for region in selected_regions:
+                backends = self.get_backends_for_region(region)
+                backends = [b for b in backends if b in backends_to_use]
+                if backends:
+                    selected_backends.append(random.choice(backends))
+            
+            result = {
+                "recommended_backends": selected_backends,
+                "recommendation_type": "region_distribution",
+                "selected_regions": selected_regions,
+                "redundancy_factor": redundancy_factor,
+                "content_size_bytes": content_size_bytes
+            }
         
         return result
     
-    async def simulate_client_location(self) -> GeoLocation:
-        """
-        Simulate a client location for testing.
-        
-        Returns:
-            Simulated client location
-        """
-        # Generate random location in one of several common areas
-        locations = [
-            # North America
-            GeoLocation(lat=40.7128, lon=-74.0060, country_code="US", region="New York", city="New York"),
-            GeoLocation(lat=37.7749, lon=-122.4194, country_code="US", region="California", city="San Francisco"),
-            GeoLocation(lat=41.8781, lon=-87.6298, country_code="US", region="Illinois", city="Chicago"),
-            GeoLocation(lat=45.5017, lon=-73.5673, country_code="CA", region="Quebec", city="Montreal"),
-            
-            # Europe
-            GeoLocation(lat=51.5074, lon=-0.1278, country_code="GB", region="England", city="London"),
-            GeoLocation(lat=48.8566, lon=2.3522, country_code="FR", region="Île-de-France", city="Paris"),
-            GeoLocation(lat=52.5200, lon=13.4050, country_code="DE", region="Berlin", city="Berlin"),
-            
-            # Asia
-            GeoLocation(lat=35.6762, lon=139.6503, country_code="JP", region="Tokyo", city="Tokyo"),
-            GeoLocation(lat=22.3193, lon=114.1694, country_code="HK", city="Hong Kong"),
-            GeoLocation(lat=1.3521, lon=103.8198, country_code="SG", city="Singapore"),
-            
-            # Australia
-            GeoLocation(lat=-33.8688, lon=151.2093, country_code="AU", region="New South Wales", city="Sydney"),
-            
-            # South America
-            GeoLocation(lat=-23.5505, lon=-46.6333, country_code="BR", region="São Paulo", city="São Paulo")
-        ]
-        
-        # Select random location
-        location = random.choice(locations)
-        
-        # Add some randomness to lat/lon (within ~50km)
-        lat_offset = random.uniform(-0.5, 0.5)
-        lon_offset = random.uniform(-0.5, 0.5)
-        
-        return GeoLocation(
-            lat=location.lat + lat_offset,
-            lon=location.lon + lon_offset,
-            country_code=location.country_code,
-            region=location.region,
-            city=location.city
-        )
-    
     def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert router state to a dictionary.
-        
-        Returns:
-            Dict representation of router state
-        """
+        """Convert the geographic router state to a dictionary."""
         return {
             "regions": {
                 region_id: region.to_dict()
                 for region_id, region in self.regions.items()
             },
-            "backend_regions": self.backend_regions.copy(),
-            "region_performance": {
-                region_id: perf.to_dict()
-                for region_id, perf in self.region_performance.items()
-            },
-            "client_location": self.client_location.to_dict() if self.client_location else None
+            "backends_by_region": self.backends_by_region,
+            "backend_regions": self.backend_regions,
+            "region_latency": self.region_latency,
+            "current_region": self.current_region
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'GeographicRouter':
-        """
-        Create router from dictionary.
-        
-        Args:
-            data: Dict representation of router state
-            
-        Returns:
-            GeographicRouter instance
-        """
-        router = cls()
-        
-        # Load regions
-        router.regions = {
-            region_id: Region.from_dict(region_data)
-            for region_id, region_data in data.get("regions", {}).items()
-        }
-        
-        # Load backend regions
-        router.backend_regions = data.get("backend_regions", {}).copy()
-        
-        # Load region performance
-        router.region_performance = {
-            region_id: RegionPerformance.from_dict(perf_data)
-            for region_id, perf_data in data.get("region_performance", {}).items()
-        }
-        
-        # Load client location
-        if data.get("client_location"):
-            router.client_location = GeoLocation.from_dict(data["client_location"])
-        
-        return router
 
 
-# Factory function to create a geographic router
-def create_geographic_router() -> GeographicRouter:
-    """
-    Create a geographic router.
-    
-    Returns:
-        GeographicRouter instance
-    """
-    return GeographicRouter()
+# Default geographic router
+_geographic_router = None
+
+def get_geographic_router() -> GeographicRouter:
+    """Get or create the default geographic router instance."""
+    global _geographic_router
+    if _geographic_router is None:
+        _geographic_router = GeographicRouter()
+    return _geographic_router

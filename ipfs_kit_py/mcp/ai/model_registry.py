@@ -1,1526 +1,846 @@
+#!/usr/bin/env python3
 """
-Model Registry Module for MCP Server
+Model Registry for MCP Server
 
-This module provides a comprehensive model registry for machine learning models.
-It allows storing, versioning, and retrieving ML models along with their metadata,
-performance metrics, and related artifacts.
+This module provides version-controlled model storage and management capabilities
+for machine learning models within the IPFS Kit ecosystem.
 
 Key features:
-1. Version control for models and related artifacts
-2. Rich metadata and tagging system
-3. Performance metrics tracking
-4. Integrations with popular ML frameworks
-5. Storage backend abstraction layer
+- Version-controlled model storage
+- Model metadata management
+- Model performance tracking
+- Deployment configuration management
 
-Part of the MCP Roadmap Phase 2: AI/ML Integration (Q4 2025).
+Part of the MCP Roadmap Phase 2: AI/ML Integration.
 """
 
 import os
 import json
-import time
 import logging
-import uuid
+import time
 import hashlib
-import threading
-import re
-from enum import Enum
-from typing import Dict, List, Optional, Any, Union, Set, Tuple, BinaryIO
+import shutil
+from typing import Dict, List, Optional, Union, Any, Tuple, Iterator
+from pathlib import Path
 from datetime import datetime
-from dataclasses import dataclass, field, asdict
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import uuid
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("mcp_model_registry")
 
-# Try importing optional dependencies
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
-    logger.warning("NumPy not available. Some features will be limited.")
-
-try:
-    from huggingface_hub import HfApi, hf_hub_download, upload_file
-    HAS_HUGGINGFACE = True
-except ImportError:
-    HAS_HUGGINGFACE = False
-    logger.warning("Hugging Face Hub not available. HF integration will be disabled.")
-
-
-class ModelFramework(str, Enum):
-    """Enum for supported ML frameworks."""
-    PYTORCH = "pytorch"
-    TENSORFLOW = "tensorflow"
-    ONNX = "onnx"
-    SCIKIT_LEARN = "scikit-learn"
-    XGBOOST = "xgboost"
-    HUGGINGFACE = "huggingface"
-    CUSTOM = "custom"
-    OTHER = "other"
-
-
-class ModelStatus(str, Enum):
-    """Enum for model lifecycle status."""
-    DRAFT = "draft"
-    TRAINING = "training"
-    EVALUATING = "evaluating"
-    STAGING = "staging"
-    PRODUCTION = "production"
-    DEPRECATED = "deprecated"
-    ARCHIVED = "archived"
-
-
-class ArtifactType(str, Enum):
-    """Enum for types of model artifacts."""
-    MODEL_WEIGHTS = "model_weights"
-    CONFIG = "config"
-    TOKENIZER = "tokenizer"
-    PREPROCESSOR = "preprocessor"
-    METADATA = "metadata"
-    EVALUATION = "evaluation"
-    VISUALIZATION = "visualization"
-    DOCUMENTATION = "documentation"
-    SAMPLE_DATA = "sample_data"
-    TRAINING_CODE = "training_code"
-    OTHER = "other"
-
-
-@dataclass
-class ModelMetrics:
-    """Model performance metrics."""
-    # Common metrics
-    accuracy: Optional[float] = None
-    precision: Optional[float] = None
-    recall: Optional[float] = None
-    f1_score: Optional[float] = None
-    auc_roc: Optional[float] = None
-    
-    # Regression metrics
-    mse: Optional[float] = None
-    rmse: Optional[float] = None
-    mae: Optional[float] = None
-    r2: Optional[float] = None
-    
-    # NLP metrics
-    perplexity: Optional[float] = None
-    bleu_score: Optional[float] = None
-    rouge_score: Optional[float] = None
-    
-    # Custom metrics
-    custom_metrics: Dict[str, float] = field(default_factory=dict)
-    
-    # Inference performance
-    inference_time_ms: Optional[float] = None
-    throughput_qps: Optional[float] = None
-    memory_usage_mb: Optional[float] = None
-    
-    # Evaluation dataset info
-    evaluation_dataset: Optional[str] = None
-    evaluation_dataset_version: Optional[str] = None
-    evaluation_split: Optional[str] = None
-    evaluation_timestamp: Optional[str] = None
-
-
-@dataclass
-class ModelArtifact:
-    """A model artifact (file associated with a model version)."""
-    # Basic info
-    id: str
-    name: str
-    type: ArtifactType
-    description: Optional[str] = None
-    
-    # Storage info
-    path: str  # Path in the storage backend
-    size_bytes: int = 0
-    content_hash: Optional[str] = None
-    content_type: Optional[str] = None
-    
-    # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    created_by: Optional[str] = None
-    
-    def compute_hash(self, file_path: str) -> str:
-        """
-        Compute SHA-256 hash of a file.
-        
-        Args:
-            file_path: Path to the file
-            
-        Returns:
-            SHA-256 hash as hex string
-        """
-        sha256 = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256.update(chunk)
-        return sha256.hexdigest()
-
-
-@dataclass
 class ModelVersion:
-    """A specific version of a model."""
-    # Version info
-    id: str
-    version: str
-    model_id: str
+    """Represents a single version of a model with its metadata and metrics."""
     
-    # Basic info
-    name: str
-    description: Optional[str] = None
-    framework: ModelFramework = ModelFramework.CUSTOM
-    framework_version: Optional[str] = None
+    def __init__(
+        self,
+        version_id: str,
+        model_id: str,
+        created_at: Union[str, datetime],
+        metadata: Optional[Dict[str, Any]] = None,
+        metrics: Optional[Dict[str, float]] = None,
+        tags: Optional[List[str]] = None,
+        path: Optional[str] = None,
+        storage_backend: Optional[str] = None,
+        storage_uri: Optional[str] = None,
+        framework: Optional[str] = None,
+        size_bytes: Optional[int] = None,
+        description: Optional[str] = None,
+        user_id: Optional[str] = None,
+        status: str = "created"
+    ):
+        """
+        Initialize a model version.
+        
+        Args:
+            version_id: Unique identifier for this version
+            model_id: ID of the parent model
+            created_at: Creation timestamp
+            metadata: Additional metadata
+            metrics: Performance metrics
+            tags: Tags for categorization and filtering
+            path: Local filesystem path (if stored locally)
+            storage_backend: Storage backend identifier (ipfs, filecoin, s3, etc.)
+            storage_uri: URI for retrieving the model from storage
+            framework: ML framework (tensorflow, pytorch, etc.)
+            size_bytes: Size of the model in bytes
+            description: Human-readable description
+            user_id: ID of the user who created this version
+            status: Current status (created, training, ready, failed, etc.)
+        """
+        self.version_id = version_id
+        self.model_id = model_id
+        
+        # Convert string timestamps to datetime objects
+        if isinstance(created_at, str):
+            self.created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+        else:
+            self.created_at = created_at
+            
+        self.metadata = metadata or {}
+        self.metrics = metrics or {}
+        self.tags = tags or []
+        self.path = path
+        self.storage_backend = storage_backend
+        self.storage_uri = storage_uri
+        self.framework = framework
+        self.size_bytes = size_bytes
+        self.description = description
+        self.user_id = user_id
+        self.status = status
+        self.updated_at = self.created_at
     
-    # Status
-    status: ModelStatus = ModelStatus.DRAFT
-    is_latest: bool = False
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert model version to a dictionary."""
+        return {
+            "version_id": self.version_id,
+            "model_id": self.model_id,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "metadata": self.metadata,
+            "metrics": self.metrics,
+            "tags": self.tags,
+            "path": self.path,
+            "storage_backend": self.storage_backend,
+            "storage_uri": self.storage_uri,
+            "framework": self.framework,
+            "size_bytes": self.size_bytes,
+            "description": self.description,
+            "user_id": self.user_id,
+            "status": self.status
+        }
     
-    # Performance metrics
-    metrics: Optional[ModelMetrics] = None
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ModelVersion':
+        """Create a ModelVersion from a dictionary."""
+        return cls(
+            version_id=data["version_id"],
+            model_id=data["model_id"],
+            created_at=data["created_at"],
+            metadata=data.get("metadata"),
+            metrics=data.get("metrics"),
+            tags=data.get("tags"),
+            path=data.get("path"),
+            storage_backend=data.get("storage_backend"),
+            storage_uri=data.get("storage_uri"),
+            framework=data.get("framework"),
+            size_bytes=data.get("size_bytes"),
+            description=data.get("description"),
+            user_id=data.get("user_id"),
+            status=data.get("status", "created")
+        )
     
-    # Artifacts
-    artifacts: List[ModelArtifact] = field(default_factory=list)
+    def update_metrics(self, metrics: Dict[str, float]) -> None:
+        """
+        Update performance metrics.
+        
+        Args:
+            metrics: New or updated metrics
+        """
+        self.metrics.update(metrics)
+        self.updated_at = datetime.now()
     
-    # Lineage
-    parent_version: Optional[str] = None
-    dataset_ids: List[str] = field(default_factory=list)
+    def update_metadata(self, metadata: Dict[str, Any]) -> None:
+        """
+        Update metadata.
+        
+        Args:
+            metadata: New or updated metadata
+        """
+        self.metadata.update(metadata)
+        self.updated_at = datetime.now()
     
-    # Metadata
-    tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    created_by: Optional[str] = None
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_by: Optional[str] = None
+    def add_tags(self, tags: List[str]) -> None:
+        """
+        Add tags to the model version.
+        
+        Args:
+            tags: Tags to add
+        """
+        for tag in tags:
+            if tag not in self.tags:
+                self.tags.append(tag)
+        self.updated_at = datetime.now()
+    
+    def remove_tags(self, tags: List[str]) -> None:
+        """
+        Remove tags from the model version.
+        
+        Args:
+            tags: Tags to remove
+        """
+        self.tags = [t for t in self.tags if t not in tags]
+        self.updated_at = datetime.now()
+    
+    def update_status(self, status: str) -> None:
+        """
+        Update the status of the model version.
+        
+        Args:
+            status: New status
+        """
+        self.status = status
+        self.updated_at = datetime.now()
 
-
-@dataclass
 class Model:
-    """A model in the registry (with multiple versions)."""
-    # Basic info
-    id: str
-    name: str
-    description: Optional[str] = None
+    """
+    Represents a machine learning model with its versions and metadata.
     
-    # Organization
-    owner: Optional[str] = None
-    team: Optional[str] = None
-    project: Optional[str] = None
+    This is the main class for interacting with model data, including
+    creating new versions, tracking metrics, and managing metadata.
+    """
     
-    # Categorization
-    task_type: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
-    
-    # Versions
-    latest_version: Optional[str] = None
-    production_version: Optional[str] = None
-    
-    # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    created_by: Optional[str] = None
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_by: Optional[str] = None
-
-
-class BaseModelStorage:
-    """Base class for model storage backends."""
-    
-    def __init__(self):
-        """Initialize the storage backend."""
-        pass
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
+    def __init__(
+        self,
+        model_id: str,
+        name: str,
+        created_at: Union[str, datetime],
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        framework: Optional[str] = None,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        versions: Optional[Dict[str, ModelVersion]] = None
+    ):
         """
-        Save a model artifact file.
+        Initialize a model.
         
         Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
+            model_id: Unique identifier for the model
+            name: Human-readable name
+            created_at: Creation timestamp
+            description: Human-readable description
+            tags: Tags for categorization and filtering
+            framework: ML framework (tensorflow, pytorch, etc.)
+            user_id: ID of the user who created the model
+            metadata: Additional metadata
+            versions: Dictionary of version_id -> ModelVersion
         """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file.
+        self.model_id = model_id
+        self.name = name
         
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class FileSystemModelStorage(BaseModelStorage):
-    """File system implementation of model storage."""
-    
-    def __init__(self, base_dir: str):
-        """
-        Initialize the file system storage.
-        
-        Args:
-            base_dir: Base directory for storing model artifacts
-        """
-        super().__init__()
-        self.base_dir = os.path.abspath(base_dir)
-        os.makedirs(self.base_dir, exist_ok=True)
-        logger.info(f"Initialized file system model storage at {self.base_dir}")
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file to the file system.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        # Create the directory structure
-        model_dir = os.path.join(self.base_dir, model_id, version_id)
-        os.makedirs(model_dir, exist_ok=True)
-        
-        # Define the file path
-        file_path = os.path.join(model_dir, artifact_path)
-        
-        # Ensure the parent directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Write the file
-        with open(file_path, 'wb') as f:
-            f.write(file_obj.read())
-        
-        # Return the storage path (relative to base_dir)
-        return os.path.join(model_id, version_id, artifact_path)
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file from the file system.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        file_path = os.path.join(self.base_dir, storage_path)
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Model artifact not found: {file_path}")
-        
-        return open(file_path, 'rb')
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file from the file system.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        file_path = os.path.join(self.base_dir, storage_path)
-        if not os.path.exists(file_path):
-            return False
-        
-        os.remove(file_path)
-        return True
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files in the file system.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        model_dir = os.path.join(self.base_dir, model_id)
-        if not os.path.exists(model_dir):
-            return []
-        
-        if version_id:
-            version_dir = os.path.join(model_dir, version_id)
-            if not os.path.exists(version_dir):
-                return []
-            
-            # List all files recursively
-            result = []
-            for root, _, files in os.walk(version_dir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, self.base_dir)
-                    result.append(rel_path)
-            
-            return result
+        # Convert string timestamps to datetime objects
+        if isinstance(created_at, str):
+            self.created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
         else:
-            # List all files for all versions
-            result = []
-            for root, _, files in os.walk(model_dir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, self.base_dir)
-                    result.append(rel_path)
+            self.created_at = created_at
             
-            return result
-
-
-class S3ModelStorage(BaseModelStorage):
-    """Amazon S3 implementation of model storage."""
-    
-    def __init__(self, bucket_name: str, base_prefix: str = "models/", 
-               region_name: Optional[str] = None):
-        """
-        Initialize the S3 storage.
+        self.description = description
+        self.tags = tags or []
+        self.framework = framework
+        self.user_id = user_id
+        self.metadata = metadata or {}
+        self.versions = versions or {}
+        self.updated_at = self.created_at
+        self.version_count = len(self.versions)
         
-        Args:
-            bucket_name: S3 bucket name
-            base_prefix: Base prefix for S3 objects
-            region_name: AWS region name
-        """
-        super().__init__()
-        self.bucket_name = bucket_name
-        self.base_prefix = base_prefix.rstrip("/") + "/"
-        self.region_name = region_name
-        
-        try:
-            import boto3
-            self.s3_client = boto3.client('s3', region_name=region_name)
-            logger.info(f"Initialized S3 model storage in bucket {bucket_name}")
-        except ImportError:
-            logger.error("boto3 is required for S3 storage. Please install it: pip install boto3")
-            raise
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file to S3.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        # Generate the S3 key
-        s3_key = f"{self.base_prefix}{model_id}/{version_id}/{artifact_path}"
-        
-        # Upload to S3
-        self.s3_client.upload_fileobj(file_obj, self.bucket_name, s3_key)
-        
-        # Return the storage path (relative to base_prefix)
-        return f"{model_id}/{version_id}/{artifact_path}"
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file from S3.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        import io
-        
-        # Generate the S3 key
-        s3_key = f"{self.base_prefix}{storage_path}"
-        
-        # Create a file-like object to write the download to
-        file_obj = io.BytesIO()
-        
-        try:
-            # Download from S3
-            self.s3_client.download_fileobj(self.bucket_name, s3_key, file_obj)
-            
-            # Reset file position to beginning
-            file_obj.seek(0)
-            
-            return file_obj
-        except Exception as e:
-            logger.error(f"Error downloading from S3: {e}")
-            raise
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file from S3.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        # Generate the S3 key
-        s3_key = f"{self.base_prefix}{storage_path}"
-        
-        try:
-            # Delete from S3
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting from S3: {e}")
-            return False
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files in S3.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        # Generate the S3 prefix
-        if version_id:
-            prefix = f"{self.base_prefix}{model_id}/{version_id}/"
-        else:
-            prefix = f"{self.base_prefix}{model_id}/"
-        
-        try:
-            # List objects with the specified prefix
-            paginator = self.s3_client.get_paginator('list_objects_v2')
-            result = []
-            
-            for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
-                if 'Contents' in page:
-                    for obj in page['Contents']:
-                        # Convert S3 key to storage path
-                        s3_key = obj['Key']
-                        if s3_key.startswith(self.base_prefix):
-                            storage_path = s3_key[len(self.base_prefix):]
-                            result.append(storage_path)
-            
-            return result
-        except Exception as e:
-            logger.error(f"Error listing objects in S3: {e}")
-            return []
-
-
-class IPFSModelStorage(BaseModelStorage):
-    """IPFS implementation of model storage."""
-    
-    def __init__(self, ipfs_client=None, pin: bool = True):
-        """
-        Initialize the IPFS storage.
-        
-        Args:
-            ipfs_client: IPFS client to use
-            pin: Whether to pin files to the IPFS node
-        """
-        super().__init__()
-        self.ipfs_client = ipfs_client
-        self.pin = pin
-        
-        # Mapping from storage paths to IPFS CIDs
-        self.path_to_cid: Dict[str, str] = {}
-        self.cid_to_path: Dict[str, str] = {}
-        
-        try:
-            if self.ipfs_client is None:
-                # Try to import ipfshttpclient
-                try:
-                    import ipfshttpclient
-                    self.ipfs_client = ipfshttpclient.connect()
-                except ImportError:
-                    # Try to import ipfs_client from our MCP server
-                    try:
-                        from ipfs_kit_py.ipfs_client import IPFSClient
-                        self.ipfs_client = IPFSClient()
-                    except ImportError:
-                        logger.error("No IPFS client available. Please provide an IPFS client.")
-                        raise
-            
-            logger.info("Initialized IPFS model storage")
-        except Exception as e:
-            logger.error(f"Error initializing IPFS client: {e}")
-            raise
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file to IPFS.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        # Generate the storage path
-        storage_path = f"{model_id}/{version_id}/{artifact_path}"
-        
-        # Add to IPFS
-        try:
-            result = self.ipfs_client.add(file_obj, pin=self.pin)
-            if isinstance(result, list):
-                # Some clients return a list of results
-                cid = result[0]['Hash']
-            elif isinstance(result, dict):
-                # Some clients return a single dict
-                cid = result['Hash']
-            else:
-                cid = str(result)
-            
-            # Store the mapping
-            self.path_to_cid[storage_path] = cid
-            self.cid_to_path[cid] = storage_path
-            
-            logger.debug(f"Added to IPFS: {storage_path} -> {cid}")
-            
-            return storage_path
-        except Exception as e:
-            logger.error(f"Error adding to IPFS: {e}")
-            raise
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file from IPFS.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        import io
-        
-        # Get the CID
-        cid = self.path_to_cid.get(storage_path)
-        if not cid:
-            raise FileNotFoundError(f"Model artifact not found: {storage_path}")
-        
-        # Create a file-like object to write the download to
-        file_obj = io.BytesIO()
-        
-        try:
-            # Get from IPFS
-            content = self.ipfs_client.cat(cid)
-            file_obj.write(content)
-            file_obj.seek(0)
-            
-            return file_obj
-        except Exception as e:
-            logger.error(f"Error getting from IPFS: {e}")
-            raise
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file from IPFS.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        # Get the CID
-        cid = self.path_to_cid.get(storage_path)
-        if not cid:
-            return False
-        
-        try:
-            # Unpin from IPFS
-            if self.pin:
-                self.ipfs_client.pin.rm(cid)
-            
-            # Remove from mappings
-            del self.path_to_cid[storage_path]
-            del self.cid_to_path[cid]
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error unpinning from IPFS: {e}")
-            return False
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files in IPFS.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        # Generate the prefix
-        if version_id:
-            prefix = f"{model_id}/{version_id}/"
-        else:
-            prefix = f"{model_id}/"
-        
-        # Filter paths by prefix
-        result = []
-        for path in self.path_to_cid.keys():
-            if path.startswith(prefix):
-                result.append(path)
-        
-        return result
-
-
-class BaseMetadataStore:
-    """Base class for model metadata storage."""
-    
-    def __init__(self):
-        """Initialize the metadata store."""
-        pass
-    
-    def save_model(self, model: Model) -> None:
-        """
-        Save a model's metadata.
-        
-        Args:
-            model: Model to save
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def get_model(self, model_id: str) -> Optional[Model]:
-        """
-        Get a model's metadata.
-        
-        Args:
-            model_id: ID of the model
-            
-        Returns:
-            Model object or None if not found
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def list_models(self, filters: Optional[Dict[str, Any]] = None, 
-                  sort_by: Optional[str] = None, 
-                  limit: Optional[int] = None) -> List[Model]:
-        """
-        List models' metadata.
-        
-        Args:
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
-            
-        Returns:
-            List of Model objects
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def delete_model(self, model_id: str) -> bool:
-        """
-        Delete a model's metadata.
-        
-        Args:
-            model_id: ID of the model
-            
-        Returns:
-            True if the model was deleted, False otherwise
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def save_model_version(self, version: ModelVersion) -> None:
-        """
-        Save a model version's metadata.
-        
-        Args:
-            version: ModelVersion to save
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def get_model_version(self, model_id: str, version_id: str) -> Optional[ModelVersion]:
-        """
-        Get a model version's metadata.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            
-        Returns:
-            ModelVersion object or None if not found
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def list_model_versions(self, model_id: str, 
-                          filters: Optional[Dict[str, Any]] = None,
-                          sort_by: Optional[str] = None, 
-                          limit: Optional[int] = None) -> List[ModelVersion]:
-        """
-        List a model's versions.
-        
-        Args:
-            model_id: ID of the model
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
-            
-        Returns:
-            List of ModelVersion objects
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def delete_model_version(self, model_id: str, version_id: str) -> bool:
-        """
-        Delete a model version's metadata.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            
-        Returns:
-            True if the version was deleted, False otherwise
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class JSONFileMetadataStore(BaseMetadataStore):
-    """JSON file implementation of model metadata storage."""
-    
-    def __init__(self, base_dir: str):
-        """
-        Initialize the JSON file storage.
-        
-        Args:
-            base_dir: Base directory for storing JSON files
-        """
-        super().__init__()
-        self.base_dir = os.path.abspath(base_dir)
-        self.models_dir = os.path.join(self.base_dir, "models")
-        self.versions_dir = os.path.join(self.base_dir, "versions")
-        
-        # Create directories
-        os.makedirs(self.models_dir, exist_ok=True)
-        os.makedirs(self.versions_dir, exist_ok=True)
-        
-        # Cache for models and versions
-        self._models_cache: Dict[str, Model] = {}
-        self._versions_cache: Dict[str, Dict[str, ModelVersion]] = {}
-        
-        # For thread safety
+        # Lock for thread safety
         self._lock = threading.RLock()
-        
-        logger.info(f"Initialized JSON file metadata store at {self.base_dir}")
     
-    def _model_to_dict(self, model: Model) -> Dict[str, Any]:
-        """Convert a Model object to a dictionary."""
-        return asdict(model)
-    
-    def _dict_to_model(self, data: Dict[str, Any]) -> Model:
-        """Convert a dictionary to a Model object."""
-        return Model(**data)
-    
-    def _version_to_dict(self, version: ModelVersion) -> Dict[str, Any]:
-        """Convert a ModelVersion object to a dictionary."""
-        return asdict(version)
-    
-    def _dict_to_version(self, data: Dict[str, Any]) -> ModelVersion:
-        """Convert a dictionary to a ModelVersion object."""
-        # Handle enum fields
-        if 'framework' in data and isinstance(data['framework'], str):
-            data['framework'] = ModelFramework(data['framework'])
-        if 'status' in data and isinstance(data['status'], str):
-            data['status'] = ModelStatus(data['status'])
-        
-        # Handle artifact enum fields
-        if 'artifacts' in data:
-            for artifact in data['artifacts']:
-                if 'type' in artifact and isinstance(artifact['type'], str):
-                    artifact['type'] = ArtifactType(artifact['type'])
-        
-        return ModelVersion(**data)
-    
-    def save_model(self, model: Model) -> None:
+    def to_dict(self, include_versions: bool = False) -> Dict[str, Any]:
         """
-        Save a model's metadata to a JSON file.
+        Convert model to a dictionary.
         
         Args:
-            model: Model to save
-        """
-        with self._lock:
-            # Convert to dict
-            model_dict = self._model_to_dict(model)
-            
-            # Define file path
-            file_path = os.path.join(self.models_dir, f"{model.id}.json")
-            
-            # Write to file
-            with open(file_path, 'w') as f:
-                json.dump(model_dict, f, indent=2)
-            
-            # Update cache
-            self._models_cache[model.id] = model
-    
-    def get_model(self, model_id: str) -> Optional[Model]:
-        """
-        Get a model's metadata from a JSON file.
-        
-        Args:
-            model_id: ID of the model
+            include_versions: Whether to include version data
             
         Returns:
-            Model object or None if not found
+            Model as a dictionary
         """
         with self._lock:
-            # Check cache first
-            if model_id in self._models_cache:
-                return self._models_cache[model_id]
+            result = {
+                "model_id": self.model_id,
+                "name": self.name,
+                "created_at": self.created_at.isoformat(),
+                "updated_at": self.updated_at.isoformat(),
+                "description": self.description,
+                "tags": self.tags,
+                "framework": self.framework,
+                "user_id": self.user_id,
+                "metadata": self.metadata,
+                "version_count": self.version_count
+            }
             
-            # Define file path
-            file_path = os.path.join(self.models_dir, f"{model_id}.json")
+            if include_versions:
+                result["versions"] = {
+                    v_id: version.to_dict() 
+                    for v_id, version in self.versions.items()
+                }
             
-            # Check if file exists
-            if not os.path.exists(file_path):
+            return result
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Model':
+        """Create a Model from a dictionary."""
+        versions = {}
+        if "versions" in data:
+            versions = {
+                v_id: ModelVersion.from_dict(v_data)
+                for v_id, v_data in data["versions"].items()
+            }
+        
+        return cls(
+            model_id=data["model_id"],
+            name=data["name"],
+            created_at=data["created_at"],
+            description=data.get("description"),
+            tags=data.get("tags"),
+            framework=data.get("framework"),
+            user_id=data.get("user_id"),
+            metadata=data.get("metadata"),
+            versions=versions
+        )
+    
+    def add_version(self, version: ModelVersion) -> None:
+        """
+        Add a version to the model.
+        
+        Args:
+            version: ModelVersion to add
+        """
+        with self._lock:
+            self.versions[version.version_id] = version
+            self.version_count = len(self.versions)
+            self.updated_at = datetime.now()
+    
+    def get_version(self, version_id: str) -> Optional[ModelVersion]:
+        """
+        Get a specific version of the model.
+        
+        Args:
+            version_id: Version ID to retrieve
+            
+        Returns:
+            ModelVersion if found, None otherwise
+        """
+        with self._lock:
+            return self.versions.get(version_id)
+    
+    def get_latest_version(self) -> Optional[ModelVersion]:
+        """
+        Get the latest version of the model.
+        
+        Returns:
+            Most recent ModelVersion if any exist, None otherwise
+        """
+        with self._lock:
+            if not self.versions:
                 return None
             
-            # Read from file
-            try:
-                with open(file_path, 'r') as f:
-                    model_dict = json.load(f)
-                
-                # Convert to Model object
-                model = self._dict_to_model(model_dict)
-                
-                # Update cache
-                self._models_cache[model_id] = model
-                
-                return model
-            except Exception as e:
-                logger.error(f"Error reading model from {file_path}: {e}")
-                return None
+            # Find version with latest created_at timestamp
+            return max(self.versions.values(), key=lambda v: v.created_at)
     
-    def list_models(self, filters: Optional[Dict[str, Any]] = None, 
-                  sort_by: Optional[str] = None, 
-                  limit: Optional[int] = None) -> List[Model]:
+    def get_versions(self, limit: Optional[int] = None, offset: int = 0) -> List[ModelVersion]:
         """
-        List models' metadata from JSON files.
+        Get versions of the model.
         
         Args:
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
+            limit: Maximum number of versions to return
+            offset: Number of versions to skip
             
         Returns:
-            List of Model objects
+            List of ModelVersion objects sorted by created_at (newest first)
         """
         with self._lock:
-            # Get all model files
-            model_files = [f for f in os.listdir(self.models_dir) if f.endswith('.json')]
+            sorted_versions = sorted(
+                self.versions.values(),
+                key=lambda v: v.created_at,
+                reverse=True
+            )
             
-            # Load all models
-            models = []
-            for file_name in model_files:
-                try:
-                    file_path = os.path.join(self.models_dir, file_name)
-                    with open(file_path, 'r') as f:
-                        model_dict = json.load(f)
-                    
-                    # Convert to Model object
-                    model = self._dict_to_model(model_dict)
-                    
-                    # Update cache
-                    self._models_cache[model.id] = model
-                    
-                    # Apply filters
-                    if filters:
-                        include = True
-                        for key, value in filters.items():
-                            if not hasattr(model, key) or getattr(model, key) != value:
-                                include = False
-                                break
-                        
-                        if not include:
-                            continue
-                    
-                    models.append(model)
-                except Exception as e:
-                    logger.error(f"Error reading model from {file_name}: {e}")
+            if offset:
+                sorted_versions = sorted_versions[offset:]
             
-            # Sort if requested
-            if sort_by and hasattr(Model, sort_by):
-                models.sort(key=lambda m: getattr(m, sort_by))
+            if limit is not None:
+                sorted_versions = sorted_versions[:limit]
             
-            # Limit if requested
-            if limit is not None and limit > 0:
-                models = models[:limit]
-            
-            return models
+            return sorted_versions
     
-    def delete_model(self, model_id: str) -> bool:
+    def remove_version(self, version_id: str) -> bool:
         """
-        Delete a model's metadata from a JSON file.
+        Remove a version from the model.
         
         Args:
-            model_id: ID of the model
+            version_id: Version ID to remove
             
         Returns:
-            True if the model was deleted, False otherwise
+            True if removed, False if not found
         """
         with self._lock:
-            # Define file path
-            file_path = os.path.join(self.models_dir, f"{model_id}.json")
-            
-            # Check if file exists
-            if not os.path.exists(file_path):
-                return False
-            
-            # Delete file
-            os.remove(file_path)
-            
-            # Remove from cache
-            if model_id in self._models_cache:
-                del self._models_cache[model_id]
-            
-            # Also remove any versions
-            version_dir = os.path.join(self.versions_dir, model_id)
-            if os.path.exists(version_dir):
-                for file_name in os.listdir(version_dir):
-                    os.remove(os.path.join(version_dir, file_name))
-                os.rmdir(version_dir)
-            
-            # Remove from versions cache
-            if model_id in self._versions_cache:
-                del self._versions_cache[model_id]
-            
-            return True
+            if version_id in self.versions:
+                del self.versions[version_id]
+                self.version_count = len(self.versions)
+                self.updated_at = datetime.now()
+                return True
+            return False
     
-    def save_model_version(self, version: ModelVersion) -> None:
+    def update_metadata(self, metadata: Dict[str, Any]) -> None:
         """
-        Save a model version's metadata to a JSON file.
+        Update metadata.
         
         Args:
-            version: ModelVersion to save
+            metadata: New or updated metadata
         """
         with self._lock:
-            # Convert to dict
-            version_dict = self._version_to_dict(version)
-            
-            # Create version directory for model if it doesn't exist
-            model_version_dir = os.path.join(self.versions_dir, version.model_id)
-            os.makedirs(model_version_dir, exist_ok=True)
-            
-            # Define file path
-            file_path = os.path.join(model_version_dir, f"{version.id}.json")
-            
-            # Write to file
-            with open(file_path, 'w') as f:
-                json.dump(version_dict, f, indent=2)
-            
-            # Update cache
-            if version.model_id not in self._versions_cache:
-                self._versions_cache[version.model_id] = {}
-            
-            self._versions_cache[version.model_id][version.id] = version
-            
-            # If this is the latest version, update the model
-            model = self.get_model(version.model_id)
-            if model and version.is_latest:
-                model.latest_version = version.id
-                model.updated_at = datetime.utcnow().isoformat()
-                self.save_model(model)
+            self.metadata.update(metadata)
+            self.updated_at = datetime.now()
     
-    def get_model_version(self, model_id: str, version_id: str) -> Optional[ModelVersion]:
+    def add_tags(self, tags: List[str]) -> None:
         """
-        Get a model version's metadata from a JSON file.
+        Add tags to the model.
         
         Args:
-            model_id: ID of the model
-            version_id: ID of the model version
+            tags: Tags to add
+        """
+        with self._lock:
+            for tag in tags:
+                if tag not in self.tags:
+                    self.tags.append(tag)
+            self.updated_at = datetime.now()
+    
+    def remove_tags(self, tags: List[str]) -> None:
+        """
+        Remove tags from the model.
+        
+        Args:
+            tags: Tags to remove
+        """
+        with self._lock:
+            self.tags = [t for t in self.tags if t not in tags]
+            self.updated_at = datetime.now()
+    
+    def update_version_status(self, version_id: str, status: str) -> bool:
+        """
+        Update the status of a specific version.
+        
+        Args:
+            version_id: Version ID to update
+            status: New status
             
         Returns:
-            ModelVersion object or None if not found
+            True if updated, False if version not found
         """
         with self._lock:
-            # Check cache first
-            if (model_id in self._versions_cache and 
-                version_id in self._versions_cache[model_id]):
-                return self._versions_cache[model_id][version_id]
+            version = self.versions.get(version_id)
+            if version:
+                version.update_status(status)
+                return True
+            return False
+    
+    def get_best_version(self, metric_name: str, higher_is_better: bool = True) -> Optional[ModelVersion]:
+        """
+        Get the best version according to a specific metric.
+        
+        Args:
+            metric_name: Name of the metric to optimize
+            higher_is_better: Whether higher values are better
             
-            # Define file path
-            file_path = os.path.join(self.versions_dir, model_id, f"{version_id}.json")
+        Returns:
+            Best ModelVersion according to the metric, or None if no versions have the metric
+        """
+        with self._lock:
+            valid_versions = [
+                v for v in self.versions.values()
+                if metric_name in v.metrics
+            ]
             
-            # Check if file exists
-            if not os.path.exists(file_path):
+            if not valid_versions:
                 return None
             
-            # Read from file
-            try:
-                with open(file_path, 'r') as f:
-                    version_dict = json.load(f)
-                
-                # Convert to ModelVersion object
-                version = self._dict_to_version(version_dict)
-                
-                # Update cache
-                if model_id not in self._versions_cache:
-                    self._versions_cache[model_id] = {}
-                
-                self._versions_cache[model_id][version_id] = version
-                
-                return version
-            except Exception as e:
-                logger.error(f"Error reading model version from {file_path}: {e}")
-                return None
-    
-    def list_model_versions(self, model_id: str, 
-                          filters: Optional[Dict[str, Any]] = None,
-                          sort_by: Optional[str] = None, 
-                          limit: Optional[int] = None) -> List[ModelVersion]:
-        """
-        List a model's versions from JSON files.
-        
-        Args:
-            model_id: ID of the model
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
+            # Choose optimal direction based on whether higher is better
+            key_func = lambda v: v.metrics[metric_name]
+            if not higher_is_better:
+                key_func = lambda v: -v.metrics[metric_name]
             
-        Returns:
-            List of ModelVersion objects
-        """
-        with self._lock:
-            # Check if model exists
-            model_version_dir = os.path.join(self.versions_dir, model_id)
-            if not os.path.exists(model_version_dir):
-                return []
-            
-            # Get all version files
-            version_files = [f for f in os.listdir(model_version_dir) if f.endswith('.json')]
-            
-            # Load all versions
-            versions = []
-            for file_name in version_files:
-                try:
-                    file_path = os.path.join(model_version_dir, file_name)
-                    with open(file_path, 'r') as f:
-                        version_dict = json.load(f)
-                    
-                    # Convert to ModelVersion object
-                    version = self._dict_to_version(version_dict)
-                    
-                    # Update cache
-                    if model_id not in self._versions_cache:
-                        self._versions_cache[model_id] = {}
-                    
-                    self._versions_cache[model_id][version.id] = version
-                    
-                    # Apply filters
-                    if filters:
-                        include = True
-                        for key, value in filters.items():
-                            if not hasattr(version, key) or getattr(version, key) != value:
-                                include = False
-                                break
-                        
-                        if not include:
-                            continue
-                    
-                    versions.append(version)
-                except Exception as e:
-                    logger.error(f"Error reading model version from {file_name}: {e}")
-            
-            # Sort if requested
-            if sort_by and hasattr(ModelVersion, sort_by):
-                versions.sort(key=lambda v: getattr(v, sort_by))
-            
-            # Limit if requested
-            if limit is not None and limit > 0:
-                versions = versions[:limit]
-            
-            return versions
-    
-    def delete_model_version(self, model_id: str, version_id: str) -> bool:
-        """
-        Delete a model version's metadata from a JSON file.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            
-        Returns:
-            True if the version was deleted, False otherwise
-        """
-        with self._lock:
-            # Define file path
-            file_path = os.path.join(self.versions_dir, model_id, f"{version_id}.json")
-            
-            # Check if file exists
-            if not os.path.exists(file_path):
-                return False
-            
-            # Get version data (to check if it's the latest)
-            version = self.get_model_version(model_id, version_id)
-            is_latest = version and version.is_latest
-            
-            # Delete file
-            os.remove(file_path)
-            
-            # Remove from cache
-            if (model_id in self._versions_cache and 
-                version_id in self._versions_cache[model_id]):
-                del self._versions_cache[model_id][version_id]
-            
-            # If this was the latest version, update the model
-            if is_latest:
-                model = self.get_model(model_id)
-                if model:
-                    model.latest_version = None
-                    
-                    # Find the newest version
-                    versions = self.list_model_versions(model_id, sort_by="created_at")
-                    if versions:
-                        newest_version = versions[-1]
-                        newest_version.is_latest = True
-                        model.latest_version = newest_version.id
-                        self.save_model_version(newest_version)
-                    
-                    self.save_model(model)
-            
-            return True
-
+            return max(valid_versions, key=key_func)
 
 class ModelRegistry:
     """
-    Model Registry for ML models and their versions.
+    Registry for managing machine learning models.
     
-    This class provides a centralized registry for storing, versioning, and
-    retrieving machine learning models and their related artifacts.
+    This class provides functionality for storing, retrieving, and managing
+    machine learning models and their versions, metadata, and metrics.
     """
     
-    def __init__(self, 
-               metadata_store: Optional[BaseMetadataStore] = None,
-               model_storage: Optional[BaseModelStorage] = None,
-               base_dir: Optional[str] = None):
+    def __init__(self, storage_path: Union[str, Path], config: Optional[Dict[str, Any]] = None):
         """
         Initialize the model registry.
         
         Args:
-            metadata_store: Store for model metadata
-            model_storage: Storage for model files
-            base_dir: Base directory for default file-based stores
+            storage_path: Path to store models and metadata
+            config: Configuration options
         """
-        # If base_dir is provided but not the stores, create file-based stores
-        if base_dir:
-            if not metadata_store:
-                metadata_dir = os.path.join(base_dir, "metadata")
-                os.makedirs(metadata_dir, exist_ok=True)
-                metadata_store = JSONFileMetadataStore(metadata_dir)
-            
-            if not model_storage:
-                storage_dir = os.path.join(base_dir, "storage")
-                os.makedirs(storage_dir, exist_ok=True)
-                model_storage = FileSystemModelStorage(storage_dir)
+        self.storage_path = Path(storage_path)
+        self.config = config or {}
         
-        # Ensure we have storage backends
-        if not metadata_store:
-            raise ValueError("metadata_store must be provided if base_dir is not provided")
+        # Ensure storage directories exist
+        self.models_path = self.storage_path / "models"
+        self.data_path = self.storage_path / "data"
+        self.index_path = self.storage_path / "index"
         
-        if not model_storage:
-            raise ValueError("model_storage must be provided if base_dir is not provided")
+        self.models_path.mkdir(parents=True, exist_ok=True)
+        self.data_path.mkdir(parents=True, exist_ok=True)
+        self.index_path.mkdir(parents=True, exist_ok=True)
         
-        self.metadata_store = metadata_store
-        self.model_storage = model_storage
+        # Lock for thread safety
+        self._lock = threading.RLock()
         
-        logger.info("Initialized model registry")
+        # In-memory cache of models
+        self._models: Dict[str, Model] = {}
+        
+        # Initialize executors
+        self._executor = ThreadPoolExecutor(
+            max_workers=self.config.get("max_workers", 4),
+            thread_name_prefix="model_registry_"
+        )
+        
+        # Load existing models
+        self._load_models()
+        
+        logger.info(f"Model Registry initialized at {self.storage_path} with {len(self._models)} models")
     
-    def create_model(self, 
-                   name: str, 
-                   description: Optional[str] = None,
-                   owner: Optional[str] = None,
-                   team: Optional[str] = None,
-                   project: Optional[str] = None,
-                   task_type: Optional[str] = None,
-                   tags: Optional[List[str]] = None,
-                   metadata: Optional[Dict[str, Any]] = None) -> Model:
+    def _load_models(self) -> None:
+        """Load existing models from storage."""
+        try:
+            # Load model metadata
+            model_files = list(self.index_path.glob("*.json"))
+            for model_file in model_files:
+                try:
+                    with open(model_file, 'r') as f:
+                        model_data = json.load(f)
+                    
+                    model = Model.from_dict(model_data)
+                    self._models[model.model_id] = model
+                    
+                except Exception as e:
+                    logger.error(f"Error loading model from {model_file}: {e}")
+            
+            logger.info(f"Loaded {len(self._models)} models from storage")
+            
+        except Exception as e:
+            logger.error(f"Error during model loading: {e}")
+    
+    def _save_model_metadata(self, model: Model) -> bool:
         """
-        Create a new model in the registry.
+        Save model metadata to storage.
         
         Args:
-            name: Name of the model
-            description: Optional description
-            owner: Optional owner (user or organization)
-            team: Optional team
-            project: Optional project
-            task_type: Optional task type (e.g., "classification", "segmentation")
-            tags: Optional list of tags
-            metadata: Optional additional metadata
+            model: Model to save
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            model_file = self.index_path / f"{model.model_id}.json"
+            model_data = model.to_dict(include_versions=True)
+            
+            # Write to a temporary file first, then rename to ensure atomic operation
+            temp_file = model_file.with_suffix(".tmp")
+            with open(temp_file, 'w') as f:
+                json.dump(model_data, f, indent=2)
+            
+            temp_file.rename(model_file)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error saving model metadata for {model.model_id}: {e}")
+            return False
+    
+    def create_model(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        framework: Optional[str] = None,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        model_id: Optional[str] = None
+    ) -> Model:
+        """
+        Create a new model.
+        
+        Args:
+            name: Human-readable name
+            description: Human-readable description
+            tags: Tags for categorization and filtering
+            framework: ML framework (tensorflow, pytorch, etc.)
+            user_id: ID of the user creating the model
+            metadata: Additional metadata
+            model_id: Optional custom model ID (generated if not provided)
             
         Returns:
             The created Model object
         """
-        # Generate a unique ID
-        model_id = str(uuid.uuid4())
-        
-        # Create the model
-        model = Model(
-            id=model_id,
-            name=name,
-            description=description,
-            owner=owner,
-            team=team,
-            project=project,
-            task_type=task_type,
-            tags=tags or [],
-            metadata=metadata or {},
-            created_at=datetime.utcnow().isoformat(),
-            updated_at=datetime.utcnow().isoformat()
-        )
-        
-        # Save the model
-        self.metadata_store.save_model(model)
-        
-        logger.info(f"Created model: {model_id} - {name}")
-        
-        return model
+        with self._lock:
+            # Generate model_id if not provided
+            if model_id is None:
+                model_id = f"model_{uuid.uuid4().hex[:12]}"
+            
+            # Ensure model_id is unique
+            if model_id in self._models:
+                raise ValueError(f"Model with ID '{model_id}' already exists")
+            
+            # Create model
+            model = Model(
+                model_id=model_id,
+                name=name,
+                created_at=datetime.now(),
+                description=description,
+                tags=tags,
+                framework=framework,
+                user_id=user_id,
+                metadata=metadata
+            )
+            
+            # Add to registry
+            self._models[model_id] = model
+            
+            # Save metadata
+            self._save_model_metadata(model)
+            
+            logger.info(f"Created model '{name}' with ID {model_id}")
+            
+            return model
     
     def get_model(self, model_id: str) -> Optional[Model]:
         """
-        Get a model from the registry.
+        Get a model by ID.
         
         Args:
-            model_id: ID of the model
+            model_id: ID of the model to retrieve
             
         Returns:
-            Model object or None if not found
+            Model if found, None otherwise
         """
-        return self.metadata_store.get_model(model_id)
+        return self._models.get(model_id)
     
-    def list_models(self, 
-                  filters: Optional[Dict[str, Any]] = None,
-                  sort_by: Optional[str] = None,
-                  limit: Optional[int] = None) -> List[Model]:
+    def list_models(
+        self,
+        limit: Optional[int] = None,
+        offset: int = 0,
+        sort_by: str = "updated_at",
+        ascending: bool = False,
+        filter_tags: Optional[List[str]] = None,
+        filter_framework: Optional[str] = None,
+        search_term: Optional[str] = None
+    ) -> List[Model]:
         """
-        List models in the registry.
+        List models with filtering and sorting.
         
         Args:
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
+            limit: Maximum number of models to return
+            offset: Number of models to skip
+            sort_by: Attribute to sort by
+            ascending: Whether to sort in ascending order
+            filter_tags: Filter by tags (models must have all specified tags)
+            filter_framework: Filter by framework
+            search_term: Search in name and description
             
         Returns:
-            List of Model objects
+            List of matching models
         """
-        return self.metadata_store.list_models(filters, sort_by, limit)
-    
-    def update_model(self, 
-                   model_id: str,
-                   name: Optional[str] = None,
-                   description: Optional[str] = None,
-                   owner: Optional[str] = None,
-                   team: Optional[str] = None,
-                   project: Optional[str] = None,
-                   task_type: Optional[str] = None,
-                   tags: Optional[List[str]] = None,
-                   metadata: Optional[Dict[str, Any]] = None) -> Optional[Model]:
-        """
-        Update a model in the registry.
-        
-        Args:
-            model_id: ID of the model to update
-            name: Optional new name
-            description: Optional new description
-            owner: Optional new owner
-            team: Optional new team
-            project: Optional new project
-            task_type: Optional new task type
-            tags: Optional new tags
-            metadata: Optional new metadata
+        with self._lock:
+            # Start with all models
+            models = list(self._models.values())
             
-        Returns:
-            Updated Model object or None if not found
-        """
-        # Get the model
-        model = self.metadata_store.get_model(model_id)
-        if not model:
-            return None
-        
-        # Update fields
-        if name is not None:
-            model.name = name
-        if description is not None:
-            model.description = description
-        if owner is not None:
-            model.owner = owner
-        if team is not None:
-            model.team = team
-        if project is not None:
-            model.project = project
-        if task_type is not None:
-            model.task_type = task_type
-        if tags is not None:
-            model.tags = tags
-        if metadata is not None:
-            # Merge with existing metadata
-            model.metadata.update(metadata)
-        
-        # Update timestamp
-        model.updated_at = datetime.utcnow().isoformat()
-        
-        # Save the model
-        self.metadata_store.save_model(model)
-        
-        return model
+            # Apply filters
+            if filter_tags:
+                models = [
+                    m for m in models 
+                    if all(tag in m.tags for tag in filter_tags)
+                ]
+            
+            if filter_framework:
+                models = [
+                    m for m in models 
+                    if m.framework == filter_framework
+                ]
+            
+            if search_term:
+                search_term = search_term.lower()
+                models = [
+                    m for m in models 
+                    if (
+                        search_term in m.name.lower() or 
+                        (m.description and search_term in m.description.lower())
+                    )
+                ]
+            
+            # Sort models
+            if sort_by == "name":
+                models.sort(key=lambda m: m.name, reverse=not ascending)
+            elif sort_by == "created_at":
+                models.sort(key=lambda m: m.created_at, reverse=not ascending)
+            elif sort_by == "version_count":
+                models.sort(key=lambda m: m.version_count, reverse=not ascending)
+            else:  # Default to updated_at
+                models.sort(key=lambda m: m.updated_at, reverse=not ascending)
+            
+            # Apply pagination
+            if offset:
+                models = models[offset:]
+            
+            if limit is not None:
+                models = models[:limit]
+            
+            return models
     
-    def delete_model(self, model_id: str) -> bool:
+    def delete_model(self, model_id: str, delete_files: bool = True) -> bool:
         """
-        Delete a model from the registry.
+        Delete a model and optionally its files.
         
         Args:
             model_id: ID of the model to delete
+            delete_files: Whether to delete model files
             
         Returns:
-            True if the model was deleted, False otherwise
+            True if deleted, False if not found
         """
-        # Delete model files from storage
-        files = self.model_storage.list_model_files(model_id)
-        for file_path in files:
-            self.model_storage.delete_model_file(file_path)
-        
-        # Delete model metadata
-        return self.metadata_store.delete_model(model_id)
+        with self._lock:
+            model = self._models.get(model_id)
+            if not model:
+                return False
+            
+            # Delete model files if requested
+            if delete_files:
+                model_dir = self.models_path / model_id
+                if model_dir.exists():
+                    try:
+                        shutil.rmtree(model_dir)
+                    except Exception as e:
+                        logger.error(f"Error deleting model files for {model_id}: {e}")
+            
+            # Delete model metadata file
+            model_file = self.index_path / f"{model_id}.json"
+            if model_file.exists():
+                try:
+                    model_file.unlink()
+                except Exception as e:
+                    logger.error(f"Error deleting model metadata file for {model_id}: {e}")
+            
+            # Remove from registry
+            del self._models[model_id]
+            
+            logger.info(f"Deleted model {model_id}")
+            
+            return True
     
-    def create_model_version(self,
-                           model_id: str,
-                           version: Optional[str] = None,
-                           name: Optional[str] = None,
-                           description: Optional[str] = None,
-                           framework: Optional[Union[ModelFramework, str]] = None,
-                           framework_version: Optional[str] = None,
-                           parent_version: Optional[str] = None,
-                           tags: Optional[List[str]] = None,
-                           metadata: Optional[Dict[str, Any]] = None) -> Optional[ModelVersion]:
+    def create_model_version(
+        self,
+        model_id: str,
+        model_data_path: Optional[Union[str, Path]] = None,
+        model_data: Optional[bytes] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        metrics: Optional[Dict[str, float]] = None,
+        tags: Optional[List[str]] = None,
+        framework: Optional[str] = None,
+        description: Optional[str] = None,
+        user_id: Optional[str] = None,
+        version_id: Optional[str] = None,
+        storage_backend: Optional[str] = None,
+        storage_uri: Optional[str] = None
+    ) -> Optional[ModelVersion]:
         """
         Create a new version of a model.
         
         Args:
             model_id: ID of the model
-            version: Optional version string (if not provided, a sequential version will be generated)
-            name: Optional name for this version
-            description: Optional description
-            framework: Optional ML framework used
-            framework_version: Optional framework version
-            parent_version: Optional ID of the parent version
-            tags: Optional list of tags
-            metadata: Optional additional metadata
+            model_data_path: Path to model data (ignored if model_data is provided)
+            model_data: Model data as bytes (ignored if model_data_path is provided)
+            metadata: Additional metadata
+            metrics: Performance metrics
+            tags: Tags for categorization and filtering
+            framework: ML framework (tensorflow, pytorch, etc.)
+            description: Human-readable description
+            user_id: ID of the user creating the version
+            version_id: Optional custom version ID (generated if not provided)
+            storage_backend: Storage backend identifier (ipfs, filecoin, s3, etc.)
+            storage_uri: URI for retrieving the model from storage
             
         Returns:
-            The created ModelVersion object or None if model not found
+            The created ModelVersion, or None if model not found
         """
-        # Get the model
-        model = self.metadata_store.get_model(model_id)
+        model = self.get_model(model_id)
         if not model:
+            logger.error(f"Cannot create version: Model {model_id} not found")
             return None
         
-        # Generate a unique ID for the version
-        version_id = str(uuid.uuid4())
+        # Generate version_id if not provided
+        if version_id is None:
+            version_id = f"v_{uuid.uuid4().hex[:8]}"
         
-        # Generate a version string if not provided
-        if version is None:
-            # List existing versions
-            versions = self.metadata_store.list_model_versions(model_id)
-            
-            # Find the latest version number
-            latest_num = 0
-            for v in versions:
+        # Ensure version directory exists
+        model_dir = self.models_path / model_id
+        version_dir = model_dir / version_id
+        version_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Determine storage path and size
+        path = None
+        size_bytes = None
+        
+        if model_data_path:
+            # Copy model data from path
+            model_data_path = Path(model_data_path)
+            if model_data_path.is_file():
+                target_path = version_dir / model_data_path.name
                 try:
-                    # Try to extract a number from the version
-                    num = int(re.search(r'\d+', v.version).group())
-                    latest_num = max(latest_num, num)
-                except (AttributeError, ValueError):
-                    pass
-            
-            # Create new version string
-            version = f"v{latest_num + 1}"
+                    shutil.copy2(model_data_path, target_path)
+                    path = str(target_path)
+                    size_bytes = target_path.stat().st_size
+                except Exception as e:
+                    logger.error(f"Error copying model data: {e}")
+            elif model_data_path.is_dir():
+                target_dir = version_dir / model_data_path.name
+                try:
+                    shutil.copytree(model_data_path, target_dir)
+                    path = str(target_dir)
+                    size_bytes = sum(f.stat().st_size for f in target_dir.glob('**/*') if f.is_file())
+                except Exception as e:
+                    logger.error(f"Error copying model directory: {e}")
         
-        # Use model name as default version name
-        version_name = name or f"{model.name} {version}"
-        
-        # Convert framework to enum if it's a string
-        if isinstance(framework, str):
+        elif model_data:
+            # Save model data bytes
+            target_path = version_dir / "model.bin"
             try:
-                framework = ModelFramework(framework)
-            except ValueError:
-                framework = ModelFramework.CUSTOM
+                with open(target_path, 'wb') as f:
+                    f.write(model_data)
+                path = str(target_path)
+                size_bytes = len(model_data)
+            except Exception as e:
+                logger.error(f"Error saving model data: {e}")
         
-        # Create the model version
-        model_version = ModelVersion(
-            id=version_id,
-            version=version,
+        # Create version
+        version = ModelVersion(
+            version_id=version_id,
             model_id=model_id,
-            name=version_name,
+            created_at=datetime.now(),
+            metadata=metadata,
+            metrics=metrics,
+            tags=tags,
+            path=path,
+            storage_backend=storage_backend,
+            storage_uri=storage_uri,
+            framework=framework or model.framework,
+            size_bytes=size_bytes,
             description=description,
-            framework=framework or ModelFramework.CUSTOM,
-            framework_version=framework_version,
-            status=ModelStatus.DRAFT,
-            is_latest=True,  # This will be the latest version
-            parent_version=parent_version,
-            tags=tags or [],
-            metadata=metadata or {},
-            created_at=datetime.utcnow().isoformat(),
-            updated_at=datetime.utcnow().isoformat()
+            user_id=user_id or model.user_id,
+            status="ready" if (path or storage_uri) else "created"
         )
         
-        # If there was a previous 'latest' version, update it
-        if model.latest_version:
-            prev_latest = self.metadata_store.get_model_version(model_id, model.latest_version)
-            if prev_latest:
-                prev_latest.is_latest = False
-                self.metadata_store.save_model_version(prev_latest)
+        # Add to model
+        model.add_version(version)
         
-        # Save the version
-        self.metadata_store.save_model_version(model_version)
+        # Save model metadata
+        self._save_model_metadata(model)
         
-        # Update the model with the new latest version
-        model.latest_version = version_id
-        model.updated_at = datetime.utcnow().isoformat()
-        self.metadata_store.save_model(model)
+        logger.info(f"Created version {version_id} for model {model_id}")
         
-        logger.info(f"Created model version: {model_id} - {version_id} ({version})")
-        
-        return model_version
+        return version
     
     def get_model_version(self, model_id: str, version_id: str) -> Optional[ModelVersion]:
         """
@@ -1531,1178 +851,101 @@ class ModelRegistry:
             version_id: ID of the version
             
         Returns:
-            ModelVersion object or None if not found
+            ModelVersion if found, None otherwise
         """
-        return self.metadata_store.get_model_version(model_id, version_id)
-    
-    def list_model_versions(self, 
-                          model_id: str,
-                          filters: Optional[Dict[str, Any]] = None,
-                          sort_by: Optional[str] = None,
-                          limit: Optional[int] = None) -> List[ModelVersion]:
-        """
-        List versions of a model.
-        
-        Args:
-            model_id: ID of the model
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
-            
-        Returns:
-            List of ModelVersion objects
-        """
-        return self.metadata_store.list_model_versions(model_id, filters, sort_by, limit)
-    
-    def update_model_version(self,
-                           model_id: str,
-                           version_id: str,
-                           name: Optional[str] = None,
-                           description: Optional[str] = None,
-                           status: Optional[Union[ModelStatus, str]] = None,
-                           metrics: Optional[ModelMetrics] = None,
-                           tags: Optional[List[str]] = None,
-                           metadata: Optional[Dict[str, Any]] = None) -> Optional[ModelVersion]:
-        """
-        Update a model version.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the version to update
-            name: Optional new name
-            description: Optional new description
-            status: Optional new status
-            metrics: Optional performance metrics
-            tags: Optional new tags
-            metadata: Optional new metadata
-            
-        Returns:
-            Updated ModelVersion object or None if not found
-        """
-        # Get the version
-        version = self.metadata_store.get_model_version(model_id, version_id)
-        if not version:
+        model = self.get_model(model_id)
+        if not model:
             return None
         
-        # Update fields
-        if name is not None:
-            version.name = name
-        if description is not None:
-            version.description = description
-        if status is not None:
-            if isinstance(status, str):
-                version.status = ModelStatus(status)
-            else:
-                version.status = status
-        if metrics is not None:
-            version.metrics = metrics
-        if tags is not None:
-            version.tags = tags
-        if metadata is not None:
-            # Merge with existing metadata
-            version.metadata.update(metadata)
-        
-        # Update timestamp
-        version.updated_at = datetime.utcnow().isoformat()
-        
-        # Save the version
-        self.metadata_store.save_model_version(version)
-        
-        # If this is the production version, update the model
-        if version.status == ModelStatus.PRODUCTION:
-            model = self.metadata_store.get_model(model_id)
-            if model:
-                model.production_version = version_id
-                model.updated_at = datetime.utcnow().isoformat()
-                self.metadata_store.save_model(model)
-        
-        return version
+        return model.get_version(version_id)
     
-    def delete_model_version(self, model_id: str, version_id: str) -> bool:
+    def upload_model(
+        self,
+        name: str,
+        model_data_path: Union[str, Path],
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        framework: Optional[str] = None,
+        user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        metrics: Optional[Dict[str, float]] = None,
+        version_description: Optional[str] = None,
+        storage_backend: Optional[str] = None
+    ) -> Tuple[Optional[Model], Optional[ModelVersion]]:
         """
-        Delete a model version.
+        Create a new model and upload its first version in one operation.
         
         Args:
-            model_id: ID of the model
-            version_id: ID of the version to delete
+            name: Human-readable name
+            model_data_path: Path to model data
+            description: Human-readable description
+            tags: Tags for categorization and filtering
+            framework: ML framework (tensorflow, pytorch, etc.)
+            user_id: ID of the user creating the model
+            metadata: Additional metadata
+            metrics: Initial performance metrics
+            version_description: Description for the first version
+            storage_backend: Storage backend identifier
             
         Returns:
-            True if the version was deleted, False otherwise
+            Tuple of (Model, ModelVersion), or (None, None) if failed
         """
-        # Delete version files from storage
-        files = self.model_storage.list_model_files(model_id, version_id)
-        for file_path in files:
-            self.model_storage.delete_model_file(file_path)
-        
-        # Delete version metadata
-        return self.metadata_store.delete_model_version(model_id, version_id)
-    
-    def add_model_artifact(self,
-                         model_id: str,
-                         version_id: str,
-                         file_path: str,
-                         artifact_type: Union[ArtifactType, str],
-                         name: Optional[str] = None,
-                         description: Optional[str] = None,
-                         metadata: Optional[Dict[str, Any]] = None) -> Optional[ModelArtifact]:
-        """
-        Add an artifact to a model version.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the version
-            file_path: Path to the file to add
-            artifact_type: Type of artifact
-            name: Optional name for the artifact
-            description: Optional description
-            metadata: Optional additional metadata
-            
-        Returns:
-            The created ModelArtifact object or None if version not found
-        """
-        # Get the version
-        version = self.metadata_store.get_model_version(model_id, version_id)
-        if not version:
-            return None
-        
-        # Generate artifact ID
-        artifact_id = str(uuid.uuid4())
-        
-        # Determine artifact name if not provided
-        if name is None:
-            name = os.path.basename(file_path)
-        
-        # Convert artifact type to enum if it's a string
-        if isinstance(artifact_type, str):
-            try:
-                artifact_type = ArtifactType(artifact_type)
-            except ValueError:
-                artifact_type = ArtifactType.OTHER
-        
-        # Get file size
-        file_size = os.path.getsize(file_path)
-        
-        # Compute content hash
-        sha256 = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256.update(chunk)
-        content_hash = sha256.hexdigest()
-        
-        # Determine content type
-        content_type = None
-        file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext == '.json':
-            content_type = 'application/json'
-        elif file_ext in ['.pt', '.pth']:
-            content_type = 'application/octet-stream'
-        elif file_ext == '.onnx':
-            content_type = 'application/onnx'
-        elif file_ext in ['.h5', '.hdf5']:
-            content_type = 'application/x-hdf5'
-        elif file_ext == '.pb':
-            content_type = 'application/x-protobuf'
-        elif file_ext in ['.yaml', '.yml']:
-            content_type = 'application/yaml'
-        elif file_ext == '.md':
-            content_type = 'text/markdown'
-        elif file_ext == '.txt':
-            content_type = 'text/plain'
-        
-        # Define artifact path in storage
-        artifact_storage_path = f"{artifact_type.value}/{name}"
-        
-        # Create the artifact object
-        artifact = ModelArtifact(
-            id=artifact_id,
-            name=name,
-            type=artifact_type,
-            description=description,
-            path=artifact_storage_path,
-            size_bytes=file_size,
-            content_hash=content_hash,
-            content_type=content_type,
-            metadata=metadata or {},
-            created_at=datetime.utcnow().isoformat()
-        )
-        
-        # Upload to storage
-        with open(file_path, 'rb') as f:
-            storage_path = self.model_storage.save_model_file(
-                model_id=model_id,
-                version_id=version_id,
-                artifact_path=artifact_storage_path,
-                file_obj=f
+        try:
+            # Create model
+            model = self.create_model(
+                name=name,
+                description=description,
+                tags=tags,
+                framework=framework,
+                user_id=user_id,
+                metadata=metadata
             )
-        
-        # Update the path if it was changed
-        if storage_path != artifact_storage_path:
-            artifact.path = storage_path
-        
-        # Add to version artifacts
-        version.artifacts.append(artifact)
-        version.updated_at = datetime.utcnow().isoformat()
-        
-        # Save the version
-        self.metadata_store.save_model_version(version)
-        
-        logger.info(f"Added artifact {artifact_id} to model {model_id} version {version_id}")
-        
-        return artifact
-    
-    def get_model_artifact(self, 
-                         model_id: str, 
-                         version_id: str, 
-                         artifact_id: str) -> Optional[ModelArtifact]:
-        """
-        Get an artifact from a model version.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the version
-            artifact_id: ID of the artifact
             
-        Returns:
-            ModelArtifact object or None if not found
-        """
-        # Get the version
-        version = self.metadata_store.get_model_version(model_id, version_id)
-        if not version:
-            return None
-        
-        # Find the artifact
-        for artifact in version.artifacts:
-            if artifact.id == artifact_id:
-                return artifact
-        
-        return None
-    
-    def get_artifact_content(self, 
-                           model_id: str, 
-                           version_id: str, 
-                           artifact_id: str) -> Optional[BinaryIO]:
-        """
-        Get the content of an artifact.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the version
-            artifact_id: ID of the artifact
+            # Create version
+            version = self.create_model_version(
+                model_id=model.model_id,
+                model_data_path=model_data_path,
+                metadata=metadata,
+                metrics=metrics,
+                tags=tags,
+                framework=framework,
+                description=version_description,
+                user_id=user_id,
+                storage_backend=storage_backend
+            )
             
-        Returns:
-            File-like object containing the artifact data or None if not found
-        """
-        # Get the artifact
-        artifact = self.get_model_artifact(model_id, version_id, artifact_id)
-        if not artifact:
-            return None
-        
-        # Get the file from storage
-        return self.model_storage.get_model_file(artifact.path)
-    
-    def delete_model_artifact(self, 
-                            model_id: str, 
-                            version_id: str, 
-                            artifact_id: str) -> bool
-"""
-Model Registry Module for MCP Server
-
-This module provides a comprehensive model registry for machine learning models.
-It allows storing, versioning, and retrieving ML models along with their metadata,
-performance metrics, and related artifacts.
-
-Key features:
-1. Version control for models and related artifacts
-2. Rich metadata and tagging system
-3. Performance metrics tracking
-4. Integrations with popular ML frameworks
-5. Storage backend abstraction layer
-
-Part of the MCP Roadmap Phase 2: AI/ML Integration (Q4 2025).
-"""
-
-import os
-import json
-import time
-import logging
-import uuid
-import hashlib
-import threading
-import re
-from enum import Enum
-from typing import Dict, List, Optional, Any, Union, Set, Tuple, BinaryIO
-from datetime import datetime
-from dataclasses import dataclass, field, asdict
-
-# Configure logger
-logger = logging.getLogger(__name__)
-
-# Try importing optional dependencies
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
-    logger.warning("NumPy not available. Some features will be limited.")
-
-try:
-    from huggingface_hub import HfApi, hf_hub_download, upload_file
-    HAS_HUGGINGFACE = True
-except ImportError:
-    HAS_HUGGINGFACE = False
-    logger.warning("Hugging Face Hub not available. HF integration will be disabled.")
-
-
-class ModelFramework(str, Enum):
-    """Enum for supported ML frameworks."""
-    PYTORCH = "pytorch"
-    TENSORFLOW = "tensorflow"
-    ONNX = "onnx"
-    SCIKIT_LEARN = "scikit-learn"
-    XGBOOST = "xgboost"
-    HUGGINGFACE = "huggingface"
-    CUSTOM = "custom"
-    OTHER = "other"
-
-
-class ModelStatus(str, Enum):
-    """Enum for model lifecycle status."""
-    DRAFT = "draft"
-    TRAINING = "training"
-    EVALUATING = "evaluating"
-    STAGING = "staging"
-    PRODUCTION = "production"
-    DEPRECATED = "deprecated"
-    ARCHIVED = "archived"
-
-
-class ArtifactType(str, Enum):
-    """Enum for types of model artifacts."""
-    MODEL_WEIGHTS = "model_weights"
-    CONFIG = "config"
-    TOKENIZER = "tokenizer"
-    PREPROCESSOR = "preprocessor"
-    METADATA = "metadata"
-    EVALUATION = "evaluation"
-    VISUALIZATION = "visualization"
-    DOCUMENTATION = "documentation"
-    SAMPLE_DATA = "sample_data"
-    TRAINING_CODE = "training_code"
-    OTHER = "other"
-
-
-@dataclass
-class ModelMetrics:
-    """Model performance metrics."""
-    # Common metrics
-    accuracy: Optional[float] = None
-    precision: Optional[float] = None
-    recall: Optional[float] = None
-    f1_score: Optional[float] = None
-    auc_roc: Optional[float] = None
-    
-    # Regression metrics
-    mse: Optional[float] = None
-    rmse: Optional[float] = None
-    mae: Optional[float] = None
-    r2: Optional[float] = None
-    
-    # NLP metrics
-    perplexity: Optional[float] = None
-    bleu_score: Optional[float] = None
-    rouge_score: Optional[float] = None
-    
-    # Custom metrics
-    custom_metrics: Dict[str, float] = field(default_factory=dict)
-    
-    # Inference performance
-    inference_time_ms: Optional[float] = None
-    throughput_qps: Optional[float] = None
-    memory_usage_mb: Optional[float] = None
-    
-    # Evaluation dataset info
-    evaluation_dataset: Optional[str] = None
-    evaluation_dataset_version: Optional[str] = None
-    evaluation_split: Optional[str] = None
-    evaluation_timestamp: Optional[str] = None
-
-
-@dataclass
-class ModelArtifact:
-    """A model artifact (file associated with a model version)."""
-    # Basic info
-    id: str
-    name: str
-    type: ArtifactType
-    description: Optional[str] = None
-    
-    # Storage info
-    path: str  # Path in the storage backend
-    size_bytes: int = 0
-    content_hash: Optional[str] = None
-    content_type: Optional[str] = None
-    
-    # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    created_by: Optional[str] = None
-    
-    def compute_hash(self, file_path: str) -> str:
-        """
-        Compute SHA-256 hash of a file.
-        
-        Args:
-            file_path: Path to the file
+            if not version:
+                logger.error(f"Failed to create version for newly created model {model.model_id}")
+                # Consider deleting the model if version creation failed
+                self.delete_model(model.model_id)
+                return None, None
+                
+            return model, version
             
-        Returns:
-            SHA-256 hash as hex string
-        """
-        sha256 = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256.update(chunk)
-        return sha256.hexdigest()
-
-
-@dataclass
-class ModelVersion:
-    """A specific version of a model."""
-    # Version info
-    id: str
-    version: str
-    model_id: str
-    
-    # Basic info
-    name: str
-    description: Optional[str] = None
-    framework: ModelFramework = ModelFramework.CUSTOM
-    framework_version: Optional[str] = None
-    
-    # Status
-    status: ModelStatus = ModelStatus.DRAFT
-    is_latest: bool = False
-    
-    # Performance metrics
-    metrics: Optional[ModelMetrics] = None
-    
-    # Artifacts
-    artifacts: List[ModelArtifact] = field(default_factory=list)
-    
-    # Lineage
-    parent_version: Optional[str] = None
-    dataset_ids: List[str] = field(default_factory=list)
-    
-    # Metadata
-    tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    created_by: Optional[str] = None
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_by: Optional[str] = None
-
-
-@dataclass
-class Model:
-    """A model in the registry (with multiple versions)."""
-    # Basic info
-    id: str
-    name: str
-    description: Optional[str] = None
-    
-    # Organization
-    owner: Optional[str] = None
-    team: Optional[str] = None
-    project: Optional[str] = None
-    
-    # Categorization
-    task_type: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
-    
-    # Versions
-    latest_version: Optional[str] = None
-    production_version: Optional[str] = None
-    
-    # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    created_by: Optional[str] = None
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_by: Optional[str] = None
-
-
-class BaseModelStorage:
-    """Base class for model storage backends."""
-    
-    def __init__(self):
-        """Initialize the storage backend."""
-        pass
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class FileSystemModelStorage(BaseModelStorage):
-    """File system implementation of model storage."""
-    
-    def __init__(self, base_dir: str):
-        """
-        Initialize the file system storage.
-        
-        Args:
-            base_dir: Base directory for storing model artifacts
-        """
-        super().__init__()
-        self.base_dir = os.path.abspath(base_dir)
-        os.makedirs(self.base_dir, exist_ok=True)
-        logger.info(f"Initialized file system model storage at {self.base_dir}")
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file to the file system.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        # Create the directory structure
-        model_dir = os.path.join(self.base_dir, model_id, version_id)
-        os.makedirs(model_dir, exist_ok=True)
-        
-        # Define the file path
-        file_path = os.path.join(model_dir, artifact_path)
-        
-        # Ensure the parent directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Write the file
-        with open(file_path, 'wb') as f:
-            f.write(file_obj.read())
-        
-        # Return the storage path (relative to base_dir)
-        return os.path.join(model_id, version_id, artifact_path)
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file from the file system.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        file_path = os.path.join(self.base_dir, storage_path)
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Model artifact not found: {file_path}")
-        
-        return open(file_path, 'rb')
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file from the file system.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        file_path = os.path.join(self.base_dir, storage_path)
-        if not os.path.exists(file_path):
-            return False
-        
-        os.remove(file_path)
-        return True
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files in the file system.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        model_dir = os.path.join(self.base_dir, model_id)
-        if not os.path.exists(model_dir):
-            return []
-        
-        if version_id:
-            version_dir = os.path.join(model_dir, version_id)
-            if not os.path.exists(version_dir):
-                return []
-            
-            # List all files recursively
-            result = []
-            for root, _, files in os.walk(version_dir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, self.base_dir)
-                    result.append(rel_path)
-            
-            return result
-        else:
-            # List all files for all versions
-            result = []
-            for root, _, files in os.walk(model_dir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, self.base_dir)
-                    result.append(rel_path)
-            
-            return result
-
-
-class S3ModelStorage(BaseModelStorage):
-    """Amazon S3 implementation of model storage."""
-    
-    def __init__(self, bucket_name: str, base_prefix: str = "models/", 
-               region_name: Optional[str] = None):
-        """
-        Initialize the S3 storage.
-        
-        Args:
-            bucket_name: S3 bucket name
-            base_prefix: Base prefix for S3 objects
-            region_name: AWS region name
-        """
-        super().__init__()
-        self.bucket_name = bucket_name
-        self.base_prefix = base_prefix.rstrip("/") + "/"
-        self.region_name = region_name
-        
-        try:
-            import boto3
-            self.s3_client = boto3.client('s3', region_name=region_name)
-            logger.info(f"Initialized S3 model storage in bucket {bucket_name}")
-        except ImportError:
-            logger.error("boto3 is required for S3 storage. Please install it: pip install boto3")
-            raise
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file to S3.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        # Generate the S3 key
-        s3_key = f"{self.base_prefix}{model_id}/{version_id}/{artifact_path}"
-        
-        # Upload to S3
-        self.s3_client.upload_fileobj(file_obj, self.bucket_name, s3_key)
-        
-        # Return the storage path (relative to base_prefix)
-        return f"{model_id}/{version_id}/{artifact_path}"
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file from S3.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        import io
-        
-        # Generate the S3 key
-        s3_key = f"{self.base_prefix}{storage_path}"
-        
-        # Create a file-like object to write the download to
-        file_obj = io.BytesIO()
-        
-        try:
-            # Download from S3
-            self.s3_client.download_fileobj(self.bucket_name, s3_key, file_obj)
-            
-            # Reset file position to beginning
-            file_obj.seek(0)
-            
-            return file_obj
         except Exception as e:
-            logger.error(f"Error downloading from S3: {e}")
-            raise
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file from S3.
+            logger.error(f"Error uploading model: {e}")
+            return None, None
         
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        # Generate the S3 key
-        s3_key = f"{self.base_prefix}{storage_path}"
-        
-        try:
-            # Delete from S3
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting from S3: {e}")
-            return False
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files in S3.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        # Generate the S3 prefix
-        if version_id:
-            prefix = f"{self.base_prefix}{model_id}/{version_id}/"
-        else:
-            prefix = f"{self.base_prefix}{model_id}/"
-        
-        try:
-            # List objects with the specified prefix
-            paginator = self.s3_client.get_paginator('list_objects_v2')
-            result = []
-            
-            for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
-                if 'Contents' in page:
-                    for obj in page['Contents']:
-                        # Convert S3 key to storage path
-                        s3_key = obj['Key']
-                        if s3_key.startswith(self.base_prefix):
-                            storage_path = s3_key[len(self.base_prefix):]
-                            result.append(storage_path)
-            
-            return result
-        except Exception as e:
-            logger.error(f"Error listing objects in S3: {e}")
-            return []
+# Singleton instance
+_instance = None
 
-
-class IPFSModelStorage(BaseModelStorage):
-    """IPFS implementation of model storage."""
+def get_instance(
+    storage_path: Union[str, Path] = None,
+    config: Optional[Dict[str, Any]] = None
+) -> ModelRegistry:
+    """
+    Get or create the singleton instance of the ModelRegistry.
     
-    def __init__(self, ipfs_client=None, pin: bool = True):
-        """
-        Initialize the IPFS storage.
+    Args:
+        storage_path: Path to store models and metadata
+        config: Configuration options
         
-        Args:
-            ipfs_client: IPFS client to use
-            pin: Whether to pin files to the IPFS node
-        """
-        super().__init__()
-        self.ipfs_client = ipfs_client
-        self.pin = pin
-        
-        # Mapping from storage paths to IPFS CIDs
-        self.path_to_cid: Dict[str, str] = {}
-        self.cid_to_path: Dict[str, str] = {}
-        
-        try:
-            if self.ipfs_client is None:
-                # Try to import ipfshttpclient
-                try:
-                    import ipfshttpclient
-                    self.ipfs_client = ipfshttpclient.connect()
-                except ImportError:
-                    # Try to import ipfs_client from our MCP server
-                    try:
-                        from ipfs_kit_py.ipfs_client import IPFSClient
-                        self.ipfs_client = IPFSClient()
-                    except ImportError:
-                        logger.error("No IPFS client available. Please provide an IPFS client.")
-                        raise
-            
-            logger.info("Initialized IPFS model storage")
-        except Exception as e:
-            logger.error(f"Error initializing IPFS client: {e}")
-            raise
-    
-    def save_model_file(self, model_id: str, version_id: str, 
-                      artifact_path: str, file_obj: BinaryIO) -> str:
-        """
-        Save a model artifact file to IPFS.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            artifact_path: Path where the artifact should be stored
-            file_obj: File-like object containing the artifact data
-            
-        Returns:
-            Storage path where the file was saved
-        """
-        # Generate the storage path
-        storage_path = f"{model_id}/{version_id}/{artifact_path}"
-        
-        # Add to IPFS
-        try:
-            result = self.ipfs_client.add(file_obj, pin=self.pin)
-            if isinstance(result, list):
-                # Some clients return a list of results
-                cid = result[0]['Hash']
-            elif isinstance(result, dict):
-                # Some clients return a single dict
-                cid = result['Hash']
-            else:
-                cid = str(result)
-            
-            # Store the mapping
-            self.path_to_cid[storage_path] = cid
-            self.cid_to_path[cid] = storage_path
-            
-            logger.debug(f"Added to IPFS: {storage_path} -> {cid}")
-            
-            return storage_path
-        except Exception as e:
-            logger.error(f"Error adding to IPFS: {e}")
-            raise
-    
-    def get_model_file(self, storage_path: str) -> BinaryIO:
-        """
-        Get a model artifact file from IPFS.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            File-like object containing the artifact data
-        """
-        import io
-        
-        # Get the CID
-        cid = self.path_to_cid.get(storage_path)
-        if not cid:
-            raise FileNotFoundError(f"Model artifact not found: {storage_path}")
-        
-        # Create a file-like object to write the download to
-        file_obj = io.BytesIO()
-        
-        try:
-            # Get from IPFS
-            content = self.ipfs_client.cat(cid)
-            file_obj.write(content)
-            file_obj.seek(0)
-            
-            return file_obj
-        except Exception as e:
-            logger.error(f"Error getting from IPFS: {e}")
-            raise
-    
-    def delete_model_file(self, storage_path: str) -> bool:
-        """
-        Delete a model artifact file from IPFS.
-        
-        Args:
-            storage_path: Storage path of the artifact
-            
-        Returns:
-            True if the file was deleted, False otherwise
-        """
-        # Get the CID
-        cid = self.path_to_cid.get(storage_path)
-        if not cid:
-            return False
-        
-        try:
-            # Unpin from IPFS
-            if self.pin:
-                self.ipfs_client.pin.rm(cid)
-            
-            # Remove from mappings
-            del self.path_to_cid[storage_path]
-            del self.cid_to_path[cid]
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error unpinning from IPFS: {e}")
-            return False
-    
-    def list_model_files(self, model_id: str, version_id: Optional[str] = None) -> List[str]:
-        """
-        List model artifact files in IPFS.
-        
-        Args:
-            model_id: ID of the model
-            version_id: Optional ID of the model version
-            
-        Returns:
-            List of storage paths for the model's artifacts
-        """
-        # Generate the prefix
-        if version_id:
-            prefix = f"{model_id}/{version_id}/"
-        else:
-            prefix = f"{model_id}/"
-        
-        # Filter paths by prefix
-        result = []
-        for path in self.path_to_cid.keys():
-            if path.startswith(prefix):
-                result.append(path)
-        
-        return result
-
-
-class BaseMetadataStore:
-    """Base class for model metadata storage."""
-    
-    def __init__(self):
-        """Initialize the metadata store."""
-        pass
-    
-    def save_model(self, model: Model) -> None:
-        """
-        Save a model's metadata.
-        
-        Args:
-            model: Model to save
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def get_model(self, model_id: str) -> Optional[Model]:
-        """
-        Get a model's metadata.
-        
-        Args:
-            model_id: ID of the model
-            
-        Returns:
-            Model object or None if not found
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def list_models(self, filters: Optional[Dict[str, Any]] = None, 
-                  sort_by: Optional[str] = None, 
-                  limit: Optional[int] = None) -> List[Model]:
-        """
-        List models' metadata.
-        
-        Args:
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
-            
-        Returns:
-            List of Model objects
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def delete_model(self, model_id: str) -> bool:
-        """
-        Delete a model's metadata.
-        
-        Args:
-            model_id: ID of the model
-            
-        Returns:
-            True if the model was deleted, False otherwise
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def save_model_version(self, version: ModelVersion) -> None:
-        """
-        Save a model version's metadata.
-        
-        Args:
-            version: ModelVersion to save
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def get_model_version(self, model_id: str, version_id: str) -> Optional[ModelVersion]:
-        """
-        Get a model version's metadata.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            
-        Returns:
-            ModelVersion object or None if not found
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def list_model_versions(self, model_id: str, 
-                          filters: Optional[Dict[str, Any]] = None,
-                          sort_by: Optional[str] = None, 
-                          limit: Optional[int] = None) -> List[ModelVersion]:
-        """
-        List a model's versions.
-        
-        Args:
-            model_id: ID of the model
-            filters: Optional filters to apply
-            sort_by: Optional field to sort by
-            limit: Optional limit on the number of results
-            
-        Returns:
-            List of ModelVersion objects
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-    
-    def delete_model_version(self, model_id: str, version_id: str) -> bool:
-        """
-        Delete a model version's metadata.
-        
-        Args:
-            model_id: ID of the model
-            version_id: ID of the model version
-            
-        Returns:
-            True if the version was deleted, False otherwise
-        """
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class JSONFileMetadataStore(BaseMetadataStore):
-    """JSON file implementation of model metadata storage."""
-    
-    def __init__(self, base_dir: str):
-        """
-        Initialize the JSON file storage.
-        
-        Args:
-            base_dir: Base directory for storing JSON files
-        """
-        super().__init__()
-        self.base_dir = os.path.abspath(base_dir)
-        self.models_dir = os.path.join(self.base_dir, "models")
-        self.versions_dir = os.path.join(self.base_dir, "versions")
-        
-        # Create directories
-        os.makedirs(self.models_dir, exist_ok=True)
-        os.makedirs(self.versions_dir, exist_ok=True)
-        
-        # Cache for models and versions
-        self._models_cache: Dict[str, Model] = {}
-        self._versions_cache: Dict[str, Dict[str, ModelVersion]] = {}
-        
-        # For thread safety
-        self._lock = threading.RLock()
-        
-        logger.info(f"Initialized JSON file metadata store at {self.base_dir}")
-    
-    def _model_to_dict(self, model: Model) -> Dict[str, Any]:
-        """Convert a Model object to a dictionary."""
-        return asdict(model)
-    
-    def _dict_to_model(self, data: Dict[str, Any]) -> Model:
-        """Convert a dictionary to a Model object."""
-        return Model(**data)
-    
-    def _version_to_dict(self, version: ModelVersion) -> Dict[str, Any]:
-        """Convert a ModelVersion object to a dictionary."""
-        return asdict(version)
-    
-    def _dict_to_version(self, data: Dict[str, Any]) -> ModelVersion:
-        """Convert a dictionary to a ModelVersion object."""
-        # Handle enum fields
-        if 'framework' in data and isinstance(data['framework'], str):
-            data['framework'] = ModelFramework(data['framework'])
-        if 'status' in data and isinstance(data['status'], str):
-            data['status'] = ModelStatus(data['status'])
-        
-        # Handle artifact enum fields
-        if 'artifacts' in data:
-            for artifact in data['artifacts']:
-                if 'type' in artifact and isinstance(artifact['type'], str):
-                    artifact['type'] = ArtifactType(artifact['type'])
-        
-        return ModelVersion(**data)
-    
-    def save_model(self, model: Model) -> None:
-        """
-        Save a model's metadata to a JSON file.
-        
-        Args:
-            model: Model to save
-        """
-        with self._lock:
-            # Convert to dict
-            model_dict = self._model_to_dict(model)
-            
-            # Define file path
-            file_path = os.path.join(self.models_dir, f"{model.id}.json")
-            
-            # Write to file
-            with open(file_path, 'w') as f:
-                json.dump(model_dict, f, indent=2)
-            
-            # Update cache
-            self._models_cache[model.id] = model
-    
-    def get_model(self, model_id: str) -> Optional[Model]:
-        """
-        Get a model's metadata from a JSON file.
-        
-        Args:
-            model_id: ID of the model
+    Returns:
+        ModelRegistry instance
+    """
+    global _instance
+    if _instance is None:
+        if storage_path is None:
+            storage_path = Path.home() / ".ipfs_kit" / "model_registry"
+        _instance = ModelRegistry(storage_path, config)
+    return _instance
