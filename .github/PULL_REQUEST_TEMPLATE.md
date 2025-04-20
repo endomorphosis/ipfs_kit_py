@@ -1,36 +1,26 @@
-## Description
+### Short Description:
+<!--Provide a brief description of the purpose of the pull request. What does this PR aim to achieve? -->
 
-<!-- Provide a brief description of the changes in this PR -->
+### What Has Changed:
+<!--Outline the key changes made in this PR. What was added, removed, or refactored? Mention any new features, bug fixes, or important changes to the project.-->
+- Describe first change
+- Describe second change
 
-## Related Issues
+### Steps for Reviewing:
+<!--Provide step-by-step instructions on how to review the changes. This might include specific files to look at, commands to run, or tests to perform.-->
+1. Step 1 for reviewing (e.g., review code in `filename`)
+2. Step 2 for testing/reviewing (e.g., run `npm test` or `python script.py`)
+3. Any other context or instructions for the reviewer
 
-<!-- Link to any related issues or tasks -->
+### Relevant documentation:
+<!--Documentation that is relevant to the code changes. If it wasn't updated provide a short explanation as to why.--> 
+- docs/example
 
-## Type of Change
+### Relevant tests:
+<!--Tests that are relevant to the code changes. If the test wasn't written provide a short explanation as to why.-->
+- tests/test
 
-<!-- Mark with an `x` all that apply -->
-
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Refactoring (no functional changes)
-- [ ] Test addition or update
-- [ ] Build/CI related changes
-
-## Implementation Notes
-
-<!-- Provide details about the implementation if needed -->
-
-## Testing
-
-<!-- Describe how you tested your changes -->
-
-## Checklist
-
-<!-- Mark with an `x` all that apply -->
-
+### Checklist
 - [ ] My code follows the code style of this project
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] I have updated the documentation accordingly
