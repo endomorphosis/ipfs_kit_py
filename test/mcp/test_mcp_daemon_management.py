@@ -110,7 +110,17 @@ def main():
     parser.add_argument("--check-interval", type=int, default=30,
                        help="Check interval for daemon monitor (seconds)")
     
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    
+    if __name__ == "__main__":
+    
+        args = parser.parse_args()
+    
+    else:
+    
+        # When run under pytest, use default values
+    
+        args = parser.parse_args([])
     
     # Execute the requested action
     if args.action == "health" or args.action == "all":

@@ -159,7 +159,12 @@ async def main():
     parser.add_argument("--trio-port", type=int, default=8102, help="Port for trio backend tests")
     parser.add_argument("--backend", choices=["asyncio", "trio", "both"], default="both", 
                         help="Which backend(s) to test")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Track overall success
     success = True

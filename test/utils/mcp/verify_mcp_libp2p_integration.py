@@ -584,7 +584,12 @@ def main():
     parser = argparse.ArgumentParser(description='Test LibP2P integration with MCP server')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--skip-install', action='store_true', help='Skip dependency installation')
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Set log level
     if args.verbose:

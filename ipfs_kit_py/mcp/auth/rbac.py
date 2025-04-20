@@ -27,6 +27,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mcp_rbac")
 
+class PermissionEffect(Enum):
+    """Effect of a permission evaluation."""
+    ALLOW = "allow"
+    DENY = "deny"
+    NEUTRAL = "neutral"
+
 class ResourceType(Enum):
     """Resource types that can be protected with access controls."""
     STORAGE = "storage"                # Storage operations

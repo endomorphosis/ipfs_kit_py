@@ -1,0 +1,155 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/barberb/ipfs_kit_py
+configfile: pytest.ini
+plugins: anyio-4.7.0, timeout-2.3.1
+collecting ... 
+----------------------------- live log collection ------------------------------
+01:37:20 [    INFO] ipfs_kit_py.libp2p: Optional dependencies missing: google-protobuf, eth-hash, eth-keys
+01:37:20 [    INFO] ipfs_kit_py.libp2p: Some advanced functionality may be limited
+01:37:20 [    INFO] ipfs_kit_py.libp2p: libp2p dependencies are available
+01:37:20 [ WARNING] ipfs_kit_py.libp2p: Could not patch stream read_until method: module 'anyio' has no attribute 'StreamReader'
+01:37:20 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+01:37:20 [ WARNING] ipfs_kit_py.libp2p.tools: Could not import libp2p constants
+01:37:20 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+01:37:20 [ WARNING] ipfs_kit_py.libp2p.kademlia.network: Provider class not found in kademlia network module
+01:37:20 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+01:37:20 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/.local/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+01:37:20 [   ERROR] ipfs_kit_py.libp2p_peer: Failed to import required libp2p modules: cannot import name 'ALPHA_VALUE' from 'ipfs_kit_py.libp2p.tools.constants' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/tools/constants/__init__.py)
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.high_level_api.libp2p_integration: Adding libp2p methods to IPFSSimpleAPI
+01:37:20 [    INFO] ipfs_kit_py.high_level_api: LibP2P integration module imported
+01:37:20 [    INFO] ipfs_kit_py.high_level_api: Successfully imported WebRTCBenchmarkIntegrationAnyIO
+01:37:20 [    INFO] ipfs_kit_py.lotus_kit: Lotus binary available: True
+01:37:20 [    INFO] ipfs_kit_py.lotus_kit: Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+01:37:20 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+01:37:22 [    INFO] ipfs_kit_py.high_level_api: FSSpec is not available, filesystem interface will be limited
+01:37:22 [    INFO] ipfs_kit_py.webrtc_streaming: PyAV not found, media handling features will be unavailable
+01:37:22 [    INFO] ipfs_kit_py.webrtc_streaming: aiortc not found, WebRTC features will be unavailable
+01:37:22 [    INFO] ipfs_kit_py.webrtc_streaming: WebRTC dependencies status: NUMPY=True, CV2=True, AV=False, AIORTC=False
+01:37:22 [    INFO] ipfs_kit_py.webrtc_streaming: WebRTC availability: False
+01:37:22 [    INFO] ipfs_kit_py.high_level_api: WebRTC capabilities: available=False
+01:37:22 [    INFO] ipfs_kit_py.high_level_api: WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]
+01:37:22 [    INFO] ipfs_kit_py.high_level_api: WebRTC benchmark helpers: anyio_support=True
+01:37:22 [    INFO] ipfs_kit_py.high_level_api: Loaded configuration from /home/barberb/.ipfs_kit/config.json
+01:37:22 [    INFO] ipfs_kit_py.ipfs.ipfs_py: Initializing connection to IPFS node at 127.0.0.1:5001
+01:37:22 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://up.storacha.network/bridge (Status code: 404)
+01:37:23 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://api.web3.storage (Status code: 404)
+01:37:23 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.io: [Errno -2] Name or service not known
+01:37:23 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.io, skipping endpoint
+01:37:23 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://up.web3.storage/bridge (Status code: 404)
+01:37:23 [    INFO] ipfs_kit_py.storacha_kit: Storacha kit initialized with API endpoint: https://up.storacha.network/bridge
+01:37:23 [ WARNING] ipfs_kit_py.huggingface_kit: huggingface_hub package not available. Some functionality will be limited.
+01:37:23 [    INFO] ipfs_kit_py.huggingface_kit: You can install it with: pip install huggingface_hub
+01:37:23 [ WARNING] ipfs_kit_py.huggingface_kit: huggingface_hub package is not installed. HuggingFace Hub functionality will be limited.
+01:37:23 [ WARNING] ipfs_kit_py.huggingface_kit: To enable HuggingFace Hub support, install with: pip install ipfs_kit_py[huggingface]
+01:37:23 [    INFO] ipfs_kit_py.ipfs_kit: Initialized Lotus Kit for Filecoin integration
+01:37:23 [    INFO] ipfs_kit_py.ipfs_kit: Starting required daemons for role: leecher
+01:37:23 [ WARNING] ipfs_kit_py.ipfs_kit: daemon_start method not found on ipfs object, attempting alternate checks
+01:37:23 [    INFO] ipfs_kit_py.ipfs_kit: IPFS daemon started successfully: already_running
+01:37:23 [    INFO] ipfs_kit_py.lotus_daemon: Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+01:37:24 [    INFO] ipfs_kit_py.lotus_daemon: Lotus daemon is running with PID None
+01:37:24 [ WARNING] ipfs_kit_py.ipfs_kit: Not all daemons are running. Non-running daemons: ipfs
+01:37:24 [    INFO] ipfs_kit_py.high_level_api: LibP2P integration applied to IPFSSimpleAPI
+01:37:24 [ WARNING] ipfs_kit_py.high_level_api: FSSpec is not available. Please install fsspec to use the filesystem interface.
+01:37:24 [ WARNING] ipfs_kit_py.high_level_api: Error importing IPFSSimpleAPI: fsspec is not available. Please install fsspec to use this feature.
+01:37:24 [    INFO] ipfs_kit_py.lassie_kit: Lassie binary available: False
+01:37:24 [    INFO] ipfs_kit_py.api: LibP2P functionality integrated into High-Level API.
+01:37:24 [    INFO] ipfs_kit_py.api: WebRTC API available at /api/v0/webrtc
+01:37:24 [ WARNING] ipfs_kit_py.api: Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.
+01:37:24 [    INFO] ipfs_kit_py.api: WAL API available at /api/v0/wal
+01:37:24 [    INFO] ipfs_kit_py.api: Storage Backends API available at /api/v0/storage
+01:37:24 [    INFO] ipfs_kit_py.api: Observability API available at /api/v0/observability
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting test/test_advanced_auth.py __________________
+ImportError while importing test module '/home/barberb/ipfs_kit_py/test/test_advanced_auth.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+test/test_advanced_auth.py:25: in <module>
+    from ipfs_kit_py.mcp.auth.backend_authorization import BackendAuthorizationManager, Operation
+ipfs_kit_py/libp2p/hooks.py:32: in patched_import
+    module = original_import(name, globals, locals, fromlist, level)
+ipfs_kit_py/mcp/auth/backend_authorization.py:20: in <module>
+    from .models import BackendPermission, Role, User, ApiKey
+E   ImportError: cannot import name 'BackendPermission' from 'ipfs_kit_py.mcp.auth.models' (/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/auth/models.py)
+------------------------------- Captured stdout --------------------------------
+Error importing huggingface_hub.hf_api: No module named 'filelock'
+Warning: boto3 is not installed. S3 functionality will be limited.
+To enable S3 support, install with: pip install ipfs_kit_py[s3]
+------------------------------- Captured stderr --------------------------------
+INFO:ipfs_kit_py.libp2p:Optional dependencies missing: google-protobuf, eth-hash, eth-keys
+INFO:ipfs_kit_py.libp2p:Some advanced functionality may be limited
+INFO:ipfs_kit_py.libp2p:libp2p dependencies are available
+WARNING:ipfs_kit_py.libp2p:Could not patch stream read_until method: module 'anyio' has no attribute 'StreamReader'
+WARNING:ipfs_kit_py.libp2p_peer:libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+WARNING:ipfs_kit_py.libp2p.tools:Could not import libp2p constants
+WARNING:ipfs_kit_py.libp2p_peer:libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+WARNING:ipfs_kit_py.libp2p.kademlia.network:Provider class not found in kademlia network module
+WARNING:ipfs_kit_py.libp2p_peer:libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+WARNING:ipfs_kit_py.libp2p_peer:libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/.local/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+ERROR:ipfs_kit_py.libp2p_peer:Failed to import required libp2p modules: cannot import name 'ALPHA_VALUE' from 'ipfs_kit_py.libp2p.tools.constants' (/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/tools/constants/__init__.py)
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.high_level_api.libp2p_integration:Adding libp2p methods to IPFSSimpleAPI
+INFO:ipfs_kit_py.high_level_api:LibP2P integration module imported
+INFO:ipfs_kit_py.high_level_api:Successfully imported WebRTCBenchmarkIntegrationAnyIO
+INFO:ipfs_kit_py.lotus_kit:Lotus binary available: True
+INFO:ipfs_kit_py.lotus_kit:Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.libp2p.protocol_integration:Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+INFO:ipfs_kit_py.high_level_api:FSSpec is not available, filesystem interface will be limited
+INFO:ipfs_kit_py.webrtc_streaming:PyAV not found, media handling features will be unavailable
+INFO:ipfs_kit_py.webrtc_streaming:aiortc not found, WebRTC features will be unavailable
+INFO:ipfs_kit_py.webrtc_streaming:WebRTC dependencies status: NUMPY=True, CV2=True, AV=False, AIORTC=False
+INFO:ipfs_kit_py.webrtc_streaming:WebRTC availability: False
+INFO:ipfs_kit_py.high_level_api:WebRTC capabilities: available=False
+INFO:ipfs_kit_py.high_level_api:WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]
+INFO:ipfs_kit_py.high_level_api:WebRTC benchmark helpers: anyio_support=True
+INFO:ipfs_kit_py.high_level_api:Loaded configuration from /home/barberb/.ipfs_kit/config.json
+INFO:ipfs_kit_py.ipfs.ipfs_py:Initializing connection to IPFS node at 127.0.0.1:5001
+INFO:ipfs_kit_py.storacha_kit:Found working Storacha endpoint: https://up.storacha.network/bridge (Status code: 404)
+INFO:ipfs_kit_py.storacha_kit:Found working Storacha endpoint: https://api.web3.storage (Status code: 404)
+WARNING:ipfs_kit_py.storacha_kit:DNS resolution failed for api.storacha.io: [Errno -2] Name or service not known
+WARNING:ipfs_kit_py.storacha_kit:DNS resolution failed for api.storacha.io, skipping endpoint
+INFO:ipfs_kit_py.storacha_kit:Found working Storacha endpoint: https://up.web3.storage/bridge (Status code: 404)
+INFO:ipfs_kit_py.storacha_kit:Storacha kit initialized with API endpoint: https://up.storacha.network/bridge
+WARNING:ipfs_kit_py.huggingface_kit:huggingface_hub package not available. Some functionality will be limited.
+INFO:ipfs_kit_py.huggingface_kit:You can install it with: pip install huggingface_hub
+WARNING:ipfs_kit_py.huggingface_kit:huggingface_hub package is not installed. HuggingFace Hub functionality will be limited.
+WARNING:ipfs_kit_py.huggingface_kit:To enable HuggingFace Hub support, install with: pip install ipfs_kit_py[huggingface]
+INFO:ipfs_kit_py.ipfs_kit:Initialized Lotus Kit for Filecoin integration
+INFO:ipfs_kit_py.ipfs_kit:Starting required daemons for role: leecher
+WARNING:ipfs_kit_py.ipfs_kit:daemon_start method not found on ipfs object, attempting alternate checks
+INFO:ipfs_kit_py.ipfs_kit:IPFS daemon started successfully: already_running
+INFO:ipfs_kit_py.lotus_daemon:Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+INFO:ipfs_kit_py.lotus_daemon:Lotus daemon is running with PID None
+WARNING:ipfs_kit_py.ipfs_kit:Not all daemons are running. Non-running daemons: ipfs
+INFO:ipfs_kit_py.high_level_api:LibP2P integration applied to IPFSSimpleAPI
+WARNING:ipfs_kit_py.high_level_api:FSSpec is not available. Please install fsspec to use the filesystem interface.
+WARNING:ipfs_kit_py.high_level_api:Error importing IPFSSimpleAPI: fsspec is not available. Please install fsspec to use this feature.
+INFO:ipfs_kit_py.lassie_kit:Lassie binary available: False
+INFO:ipfs_kit_py.api:LibP2P functionality integrated into High-Level API.
+INFO:ipfs_kit_py.api:WebRTC API available at /api/v0/webrtc
+WARNING:ipfs_kit_py.api:Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.
+INFO:ipfs_kit_py.api:WAL API available at /api/v0/wal
+INFO:ipfs_kit_py.api:Storage Backends API available at /api/v0/storage
+INFO:ipfs_kit_py.api:Observability API available at /api/v0/observability
+=========================== short test summary info ============================
+ERROR test/test_advanced_auth.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+========================= 3 warnings, 1 error in 4.68s =========================

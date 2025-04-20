@@ -164,7 +164,12 @@ def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="Test WebRTC Dashboard-Player Integration")
     parser.add_argument("--host", default=DEFAULT_HOST, help="Base URL for the static server")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Start tests
     logger.info("Starting integration tests...")

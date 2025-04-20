@@ -17,13 +17,13 @@ from .models import (
     User,
     Role,
     Permission,
-    ApiKey,
-    Session,
+    APIKey,
     TokenData,
     LoginRequest,
+    APIKeyCreate,
+    APIKeyResponse,
     RegisterRequest,
-    ApiKeyCreateRequest,
-    ApiKeyResponse
+    Session
 )
 from .persistence import (
     UserStore,
@@ -36,6 +36,18 @@ from .persistence import (
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Singleton instance
+_instance = None
+
+def get_instance():
+    """Get the singleton instance of the authentication service."""
+    global _instance
+    if _instance is None:
+        # Initialize with default settings
+        secret_key = secrets.token_hex(32)
+        _instance = AuthenticationService(secret_key=secret_key)
+        asyncio.create_task(_instance.initialize())
+    return _instance
 
 class AuthenticationService:
     """
@@ -726,8 +738,8 @@ class AuthenticationService:
         return user
 
     async def create_api_key(
-        self, user_id: str, request: ApiKeyCreateRequest
-    ) -> Tuple[bool, Optional[ApiKeyResponse], str]:
+        self, user_id: str, request: APIKeyCreate
+    ) -> Tuple[bool, Optional[APIKeyResponse], str]:
         """
         Create a new API key for a user.
 
@@ -752,7 +764,7 @@ class AuthenticationService:
         key_value = f"{self.api_key_prefix}{secrets.token_hex(16)}"
 
         # Create API key
-        api_key = ApiKey(
+        api_key = APIKey(
             name=request.name,
             key=key_value,
             user_id=user_id,
@@ -770,7 +782,7 @@ class AuthenticationService:
             return False, None, "Failed to create API key"
 
         # Create response object with the key (will only be shown once)
-        response = ApiKeyResponse(
+        response = APIKeyResponse(
             id=api_key.id,
             name=api_key.name,
             key=api_key.key,
@@ -787,7 +799,7 @@ class AuthenticationService:
 
     async def verify_api_key(
         self, api_key: str, ip_address: Optional[str] = None
-    ) -> Tuple[bool, Optional[ApiKey], str]:
+    ) -> Tuple[bool, Optional[APIKey], str]:
         """
         Verify an API key.
 
@@ -817,7 +829,7 @@ class AuthenticationService:
                 return False, None, "API key not found"
 
             # Create API key object
-            key_obj = ApiKey(**found_key)
+            key_obj = APIKey(**found_key)
 
             # Check if key is active
             if not key_obj.active:
@@ -857,7 +869,7 @@ class AuthenticationService:
             logger.error(f"Error verifying API key: {e}")
             return False, None, f"API key verification error: {str(e)}"
 
-    async def create_access_token_from_api_key(self, api_key: ApiKey) -> str:
+    async def create_access_token_from_api_key(self, api_key: APIKey) -> str:
         """
         Create a JWT access token from an API key.
 
@@ -1256,3 +1268,6 @@ class AuthenticationService:
         except Exception as e:
             logger.error(f"Error loading OAuth providers: {e}")
             return {}
+
+# Alias for backward compatibility
+AuthService = AuthenticationService

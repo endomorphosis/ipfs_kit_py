@@ -16,7 +16,7 @@ from typing import Dict, List, Any, Optional, Union, BinaryIO, Tuple
 
 from .storage_types import StorageBackendType, ContentReference
 from .backend_base import BackendStorage
-from .migration import MigrationController, MigrationPolicy
+from ipfs_kit_py.mcp.controllers.migration_controller import MigrationController, MigrationPolicy
 
 # Import backend implementations if available
 try:

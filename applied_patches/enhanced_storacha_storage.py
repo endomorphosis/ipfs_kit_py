@@ -31,7 +31,7 @@ except ImportError:
 
 # Import our connection manager
 try:
-    from mcp_extensions.storacha_connection import StorachaConnectionManager
+    from ipfs_kit_py.mcp.extensions.storacha_connection import StorachaConnectionManager
     ENHANCED_CONNECTION_AVAILABLE = True
     logger.info("Enhanced Storacha connection manager available")
 except ImportError:

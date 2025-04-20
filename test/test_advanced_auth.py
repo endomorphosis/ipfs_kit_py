@@ -19,7 +19,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from ipfs_kit_py.mcp.auth.models import User, Role, Permission, ApiKey, BackendPermission
+from ipfs_kit_py.mcp.auth.models import User, Role, Permission, APIKey, BackendPermission
 from ipfs_kit_py.mcp.auth.service import AuthenticationService
 from ipfs_kit_py.mcp.auth.audit import AuditLogger, AuditEventType
 from ipfs_kit_py.mcp.auth.backend_authorization import BackendAuthorizationManager, Operation
@@ -210,7 +210,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         user = await self.create_test_user()
         
         # Create API key request
-        api_key_request = ApiKey(
+        api_key_request = APIKey(
             name="Test API Key",
             user_id=user.id,
             roles={"api"},

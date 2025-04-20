@@ -521,7 +521,12 @@ def main():
     config_group.add_argument("--config", help="Path to JSON configuration file")
     
     # Parse arguments
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Determine which test categories to run
     categories = []

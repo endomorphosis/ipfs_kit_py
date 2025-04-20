@@ -21,7 +21,7 @@ class MigrationPolicy(BaseModel):
     metadata_sync: bool = Field(True, description="Synchronize metadata")
     auto_clean: bool = Field(False, description="Remove from source after migration")
     schedule: Optional[str] = Field(
-        None, description="Cron-style schedule for recurring migrations"
+        None, description="Cron-style schedule for recurring migrations")
     retention_days: Optional[int] = Field(None, description="Days to retain migration records")
 
 
@@ -103,7 +103,7 @@ class BackendMigrationCapabilities(BaseModel):
     supports_metadata: bool = Field(False, description="Whether backend supports metadata")
     supports_removal: bool = Field(False, description="Whether backend supports content removal")
     supports_bulk_operations: bool = Field(
-        False, description="Whether backend supports bulk operations"
+        False, description="Whether backend supports bulk operations")
     cost_per_gb: float = Field(0.0, description="Cost per GB for storage")
     retrieval_cost_per_gb: float = Field(0.0, description="Cost per GB for retrieval")
     max_file_size: Optional[int] = Field(None, description="Maximum file size in bytes")

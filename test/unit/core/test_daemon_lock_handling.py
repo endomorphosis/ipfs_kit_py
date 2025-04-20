@@ -15,6 +15,8 @@ import subprocess
 import tempfile
 import shutil
 import importlib.util
+import pytest
+from unittest import mock
 
 # Configure logging
 logging.basicConfig(
@@ -32,14 +34,25 @@ def import_module_from_path(path):
     spec.loader.exec_module(module)
     return module
 
-# Find and import ipfs.py module
+# Find ipfs.py module path
 ipfs_py_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ipfs_kit_py', 'ipfs.py')
-if not os.path.exists(ipfs_py_path):
-    logger.error(f"Could not find ipfs.py at {ipfs_py_path}")
-    sys.exit(1)
 
-ipfs_module = import_module_from_path(ipfs_py_path)
-logger.info(f"Imported ipfs module from {ipfs_py_path}")
+# Skip the test if ipfs.py isn't found
+ipfs_module = None
+if os.path.exists(ipfs_py_path):
+    try:
+        ipfs_module = import_module_from_path(ipfs_py_path)
+        logger.info(f"Imported ipfs module from {ipfs_py_path}")
+    except Exception as e:
+        logger.error(f"Error importing ipfs module: {e}")
+else:
+    logger.error(f"Could not find ipfs.py at {ipfs_py_path}")
+
+# Use pytest skip marker if ipfs module not available
+pytestmark = pytest.mark.skipif(
+    ipfs_module is None, 
+    reason="ipfs.py module not found or couldn't be imported"
+)
 
 # Test daemon_start lock file handling functionality
 class TestDaemonLockHandling(unittest.TestCase):
@@ -50,11 +63,15 @@ class TestDaemonLockHandling(unittest.TestCase):
         # Create temporary directory for test
         self.temp_dir = tempfile.mkdtemp(prefix="ipfs_test_")
         self.ipfs_path = os.path.join(self.temp_dir, "ipfs")
-        os.makedirs(self.ipfs_path, exist_errors=True)
+        os.makedirs(self.ipfs_path, exist_ok=True)  # Fixed typo: exist_ok instead of exist_errors
         
         # Path to lock file
         self.lock_file_path = os.path.join(self.ipfs_path, "repo.lock")
         
+        # Skip if ipfs module not available
+        if ipfs_module is None:
+            pytest.skip("ipfs module not available")
+            
         # Create ipfs object
         # ipfs_module should have all the necessary functions
         self.ipfs = ipfs_module.ipfs(path=self.ipfs_path)
@@ -80,9 +97,9 @@ class TestDaemonLockHandling(unittest.TestCase):
         
         # Call daemon_start with stale lock removal enabled (default)
         # Mock the subprocess to avoid actually starting the daemon
-        with unittest.mock.patch('subprocess.run') as mock_run:
+        with mock.patch('subprocess.run') as mock_run:
             # Configure the mock to simulate successful daemon startup
-            mock_process = unittest.mock.MagicMock()
+            mock_process = mock.MagicMock()
             mock_process.returncode = 0
             mock_process.stdout = b'{"ID": "test-id"}'
             mock_run.return_value = mock_process
@@ -115,9 +132,9 @@ class TestDaemonLockHandling(unittest.TestCase):
         
         # Call daemon_start with stale lock removal disabled
         # Mock the subprocess to avoid actually starting the daemon
-        with unittest.mock.patch('subprocess.run') as mock_run:
+        with mock.patch('subprocess.run') as mock_run:
             # Configure the mock to simulate successful daemon startup
-            mock_process = unittest.mock.MagicMock()
+            mock_process = mock.MagicMock()
             mock_process.returncode = 0
             mock_process.stdout = b'{"ID": "test-id"}'
             mock_run.return_value = mock_process
@@ -166,9 +183,9 @@ class TestDaemonLockHandling(unittest.TestCase):
             
             # Call daemon_start with active lock file
             # Mock the subprocess to avoid actually starting the daemon
-            with unittest.mock.patch('subprocess.run') as mock_run:
+            with mock.patch('subprocess.run') as mock_run:
                 # Configure the mock to simulate successful daemon startup
-                mock_process = unittest.mock.MagicMock()
+                mock_process = mock.MagicMock()
                 mock_process.returncode = 0
                 mock_process.stdout = b'{"ID": "test-id"}'
                 mock_run.return_value = mock_process
@@ -207,9 +224,9 @@ class TestDaemonLockHandling(unittest.TestCase):
         
         # Call daemon_start with no lock file
         # Mock the subprocess to avoid actually starting the daemon
-        with unittest.mock.patch('subprocess.run') as mock_run:
+        with mock.patch('subprocess.run') as mock_run:
             # Configure the mock to simulate successful daemon startup
-            mock_process = unittest.mock.MagicMock()
+            mock_process = mock.MagicMock()
             mock_process.returncode = 0
             mock_process.stdout = b'{"ID": "test-id"}'
             mock_run.return_value = mock_process

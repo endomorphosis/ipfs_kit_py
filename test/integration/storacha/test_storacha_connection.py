@@ -26,11 +26,14 @@ logger = logging.getLogger(__name__)
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add applied_patches and ipfs_kit_py to sys.path for imports
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'applied_patches'))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'ipfs_kit_py'))
 
 # Import our enhanced Storacha implementation
 try:
-    from enhanced_storacha_storage import EnhancedStorachaStorage
-    from mcp_extensions.storacha_connection import StorachaConnectionManager
+    from applied_patches.enhanced_storacha_storage import EnhancedStorachaStorage
+    from ipfs_kit_py.mcp.extensions.storacha_connection import StorachaConnectionManager
 except ImportError as e:
     logger.error(f"Import error: {e}")
     sys.exit(1)
@@ -313,7 +316,17 @@ if __name__ == "__main__":
     parser.add_argument("--api-endpoint", help="Storacha API endpoint")
     parser.add_argument("--test", choices=["connection", "storage", "all"], default="all", help="Test to run")
     
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    
+    if __name__ == "__main__":
+    
+        args = parser.parse_args()
+    
+    else:
+    
+        # When run under pytest, use default values
+    
+        args = parser.parse_args([])
     
     if args.test == "connection":
         test_connection_manager(args.api_key, args.api_endpoint)

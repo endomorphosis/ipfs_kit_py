@@ -62,7 +62,7 @@ class BackendStatusResponse(OperationResponse):
 
 class AllBackendsStatusResponse(OperationResponse):
     """Response model for status of all storage backends."""
-    backends: Dict[str, BackendStatusResponse] = Field(
+    backends: Dict[str, Any] = Field(
         {}, description="Status of each storage backend"
     )
     available_count: int = Field(0, description="Number of available backends")

@@ -272,7 +272,12 @@ def main():
     parser.add_argument("--hf-repo", help="HuggingFace repository for testing")
     parser.add_argument("--output", help="JSON file to save results to")
     parser.add_argument("--timeout", type=int, default=30, help="Timeout in seconds for operations")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Create test file
     test_file = create_test_file(args.size)

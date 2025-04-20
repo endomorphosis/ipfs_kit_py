@@ -784,7 +784,21 @@ class ipfs_kit:
         try:
             # All roles need the IPFS daemon
             if hasattr(self, 'ipfs'):
-                ipfs_result = self.ipfs.daemon_start()
+                # Use the appropriate method based on what's available
+                if hasattr(self.ipfs, 'daemon_start'):
+                    ipfs_result = self.ipfs.daemon_start()
+                else:
+                    # If daemon_start is not available, try using add() as a test to ensure daemon is running
+                    self.logger.warning("daemon_start method not found on ipfs object, attempting alternate checks")
+                    ipfs_result = {"success": False, "error": "No daemon start method available"}
+                    # Try to run a simple command to see if daemon is running or start it with system commands
+                    try:
+                        test_result = self.ipfs.run_ipfs_command(["ipfs", "id"])
+                        if test_result.get("success", False):
+                            ipfs_result = {"success": True, "status": "already_running"}
+                    except Exception as e:
+                        self.logger.error(f"Alternate daemon check failed: {str(e)}")
+                    
                 if not ipfs_result.get("success", False):
                     self.logger.error(f"Failed to start IPFS daemon: {ipfs_result.get('error', 'Unknown error')}")
                 else:

@@ -15,7 +15,7 @@ import pytz
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
 from croniter import croniter
-from .migration import MigrationController
+from ipfs_kit_py.mcp.controllers.migration_controller import MigrationController
 
 # Configure logger
 logger = logging.getLogger(__name__)

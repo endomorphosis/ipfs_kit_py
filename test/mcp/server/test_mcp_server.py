@@ -149,7 +149,12 @@ def main():
     parser.add_argument("--no-server", action="store_true", help="Don't start a server instance")
     parser.add_argument("--no-mini", action="store_true", help="Skip the minimal component tests")
     parser.add_argument("--no-api", action="store_true", help="Skip the API tests")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Define test state
     success = True

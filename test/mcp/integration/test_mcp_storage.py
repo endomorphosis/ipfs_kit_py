@@ -115,7 +115,17 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=10000, help="MCP server port")
     parser.add_argument("--prefix", default="/api/v0/mcp", help="MCP API prefix")
     
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    
+    if __name__ == "__main__":
+    
+        args = parser.parse_args()
+    
+    else:
+    
+        # When run under pytest, use default values
+    
+        args = parser.parse_args([])
     
     print(f"Testing MCP server at http://{args.host}:{args.port}{args.prefix}")
     result = test_mcp_server(args.host, args.port, args.prefix)

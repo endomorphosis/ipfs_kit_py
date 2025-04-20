@@ -38,7 +38,12 @@ logger = logging.getLogger(__name__)
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Run MCP server for tests')
 parser.add_argument('--port', type=int, default=8001, help='Port to run the server on')
-args = parser.parse_args()
+# Only parse args when running the script directly, not when imported by pytest
+if __name__ == "__main__":
+    args = parser.parse_args()
+else:
+    # When run under pytest, use default values
+    args = parser.parse_args([])
 
 # Patch missing methods in ipfs_kit
 try:

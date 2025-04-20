@@ -18,7 +18,13 @@ from typing import Dict, Any, List
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Test MCP server fixes')
 parser.add_argument('--port', type=int, default=8001, help='Port where MCP server is running')
-args = parser.parse_args()
+
+# Only parse args when running the script directly, not when imported by pytest
+if __name__ == "__main__":
+    args = parser.parse_args()
+else:
+    # When run under pytest, use default values
+    args = parser.parse_args([])
 
 # Configuration
 MCP_SERVER_URL = f"http://localhost:{args.port}"

@@ -50,7 +50,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             # Convert tags to list if provided
             filter_tags = tags.split(",") if tags else None
             
-            # Get models
+            # Get models with correct parameter names
             models = model_registry.list_models(
                 limit=limit,
                 offset=offset,
@@ -160,14 +160,20 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             temp_file = None
             if file:
                 # Save uploaded file to a temporary location
-                temp_file = os.path.join(model_registry.storage_path, "temp", f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
+                filename = file.filename or "uploaded_model"
+                extension = os.path.splitext(filename)[1] if filename else ""
+                temp_file = os.path.join(model_registry.storage_path, "temp", f"{uuid.uuid4()}{extension}")
                 os.makedirs(os.path.dirname(temp_file), exist_ok=True)
                 
-                with open(temp_file, "wb") as f:
-                    content = await file.read()
-                    f.write(content)
+                try:
+                    with open(temp_file, "wb") as f:
+                        content = await file.read()
+                        f.write(content)
+                except Exception as e:
+                    logger.error(f"Error saving uploaded file: {e}")
+                    raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
             
-            # Create version
+            # Create version with parameters that match the expected signature
             version = model_registry.create_model_version(
                 model_id=model_id,
                 model_data_path=temp_file if temp_file else None,
@@ -266,7 +272,11 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             version.update_metrics(metrics)
             
             # Save changes
-            model_registry._save_model_metadata(model_registry.get_model(model_id))
+            model = model_registry.get_model(model_id)
+            if model:
+                model_registry._save_model_metadata(model)
+            else:
+                logger.error(f"Model {model_id} not found when saving metrics")
             
             return version.to_dict()
         except HTTPException:
@@ -301,14 +311,20 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             metrics_dict = json.loads(metrics) if metrics else None
             
             # Save uploaded file to a temporary location
-            temp_file = os.path.join(model_registry.storage_path, "temp", f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
+            filename = file.filename or "uploaded_model"
+            extension = os.path.splitext(filename)[1] if filename else ""
+            temp_file = os.path.join(model_registry.storage_path, "temp", f"{uuid.uuid4()}{extension}")
             os.makedirs(os.path.dirname(temp_file), exist_ok=True)
             
-            with open(temp_file, "wb") as f:
-                content = await file.read()
-                f.write(content)
+            try:
+                with open(temp_file, "wb") as f:
+                    content = await file.read()
+                    f.write(content)
+            except Exception as e:
+                logger.error(f"Error saving uploaded file: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
             
-            # Upload model
+            # Upload model with parameters that match the expected signature
             model, version = model_registry.upload_model(
                 name=name,
                 model_data_path=temp_file,

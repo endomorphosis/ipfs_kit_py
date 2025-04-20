@@ -91,9 +91,8 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
             "success": True,
             "status": "available",
             "system_info": system_info,
-            "prometheus_enabled": PROMETHEUS_AVAILABLE  # Use the flag from the first import block,
-            and monitoring_system.config["prometheus_enabled"],
-            "prometheus_port": (,
+            "prometheus_enabled": PROMETHEUS_AVAILABLE and monitoring_system.config["prometheus_enabled"],
+            "prometheus_port": (
                 monitoring_system.config["prometheus_port"]
                 if PROMETHEUS_AVAILABLE and monitoring_system.config["prometheus_enabled"]
                 else None
@@ -238,7 +237,7 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
 
     @router.get("/history/{metric_name}")
     async def metric_history(
-        metric_name: str
+        metric_name: str,
         labels: Optional[str] = Query(
             None, description="Comma-separated list of label=value pairs"
         ),
@@ -469,7 +468,7 @@ def update_metrics_status(storage_backends: Dict[str, Any]) -> None:
         "available": MONITORING_AVAILABLE and monitoring_system is not None,
         "simulation": False,
         "prometheus_available": PROMETHEUS_AVAILABLE,  # Use the flag from the first import block
-        "features": (,
+        "features": (
             {
                 "system_metrics": True,
                 "process_metrics": True,

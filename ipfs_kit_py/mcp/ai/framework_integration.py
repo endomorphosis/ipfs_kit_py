@@ -20,6 +20,8 @@ import json
 import logging
 import tempfile
 import time
+import uuid
+import shutil
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any, Union, Callable, Iterator
@@ -920,3 +922,326 @@ class ModelEndpointManager:
         except Exception as e:
             logger.error(f"Error loading endpoint {endpoint_id}: {e}")
             return None
+
+
+class FrameworkIntegrationManager:
+    """
+    Manager for framework integrations.
+    
+    This class provides functionality for managing various framework integrations,
+    including LangChain, LlamaIndex, HuggingFace, and custom frameworks.
+    """
+    
+    def __init__(
+        self, 
+        storage_path: Optional[Union[str, Path]] = None,
+        config: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Initialize the framework integration manager.
+        
+        Args:
+            storage_path: Path for storing framework data
+            config: Configuration options
+        """
+        # Set default storage path if none provided
+        if storage_path is None:
+            self.storage_path = Path.home() / ".ipfs_kit" / "framework_integration"
+        elif isinstance(storage_path, str):
+            self.storage_path = Path(storage_path)
+        else:
+            self.storage_path = storage_path
+            
+        # Ensure directories exist
+        self.storage_path.mkdir(parents=True, exist_ok=True)
+        
+        # Configuration
+        self.config = config or {}
+        
+        # Framework integrations
+        self.integrations: Dict[str, FrameworkIntegrationBase] = {}
+        
+        # Endpoint manager
+        self.endpoint_manager = ModelEndpointManager(
+            storage_dir=str(self.storage_path / "endpoints")
+        )
+        
+        logger.info(f"Framework Integration Manager initialized at {self.storage_path}")
+    
+    def register_integration(self, name: str, integration: FrameworkIntegrationBase) -> bool:
+        """
+        Register a framework integration.
+        
+        Args:
+            name: Name of the integration
+            integration: Framework integration instance
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if name in self.integrations:
+            logger.warning(f"Integration '{name}' already exists and will be replaced")
+        
+        self.integrations[name] = integration
+        logger.info(f"Registered framework integration: {name}")
+        
+        return True
+    
+    def get_integration(self, name: str) -> Optional[FrameworkIntegrationBase]:
+        """
+        Get a framework integration by name.
+        
+        Args:
+            name: Name of the integration
+            
+        Returns:
+            Framework integration instance, or None if not found
+        """
+        return self.integrations.get(name)
+    
+    def create_langchain_integration(
+        self, 
+        name: str,
+        llm_type: str,
+        llm_model: str,
+        api_key: Optional[str] = None,
+        prompt_templates: Optional[Dict[str, str]] = None,
+        description: Optional[str] = None
+    ) -> Optional[LangChainIntegration]:
+        """
+        Create a LangChain integration.
+        
+        Args:
+            name: Name of the integration
+            llm_type: Type of LLM (openai, huggingface, etc.)
+            llm_model: Model name
+            api_key: API key (optional, can be set via environment variables)
+            prompt_templates: Dictionary of prompt templates
+            description: Human-readable description
+            
+        Returns:
+            LangChainIntegration instance, or None if creation failed
+        """
+        try:
+            config = LangChainConfig(
+                name=name,
+                llm_type=llm_type,
+                llm_model=llm_model,
+                llm_api_key=api_key,
+                prompt_templates=prompt_templates or {},
+                description=description
+            )
+            
+            integration = LangChainIntegration(config)
+            
+            if integration.validate_config():
+                self.register_integration(name, integration)
+                return integration
+            else:
+                logger.error(f"Invalid configuration for LangChain integration '{name}'")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating LangChain integration '{name}': {e}")
+            return None
+    
+    def create_llama_index_integration(
+        self,
+        name: str,
+        index_type: str = "vector",
+        vector_store_type: str = "simple",
+        llm_model: str = "gpt-3.5-turbo",
+        api_key: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> Optional[LlamaIndexIntegration]:
+        """
+        Create a LlamaIndex integration.
+        
+        Args:
+            name: Name of the integration
+            index_type: Type of index (vector, keyword, etc.)
+            vector_store_type: Type of vector store (simple, faiss, etc.)
+            llm_model: Model name for query-time LLM
+            api_key: API key (optional, can be set via environment variables)
+            description: Human-readable description
+            
+        Returns:
+            LlamaIndexIntegration instance, or None if creation failed
+        """
+        try:
+            config = LlamaIndexConfig(
+                name=name,
+                index_type=index_type,
+                vector_store_type=vector_store_type,
+                llm_model=llm_model,
+                llm_api_key=api_key,
+                description=description
+            )
+            
+            integration = LlamaIndexIntegration(config)
+            
+            if integration.validate_config():
+                self.register_integration(name, integration)
+                return integration
+            else:
+                logger.error(f"Invalid configuration for LlamaIndex integration '{name}'")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating LlamaIndex integration '{name}': {e}")
+            return None
+    
+    def create_huggingface_integration(
+        self,
+        name: str,
+        model_id: str,
+        api_key: Optional[str] = None,
+        use_local: bool = False,
+        local_model_path: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> Optional[HuggingFaceIntegration]:
+        """
+        Create a HuggingFace integration.
+        
+        Args:
+            name: Name of the integration
+            model_id: HuggingFace model ID
+            api_key: HuggingFace API token (optional, can be set via environment variables)
+            use_local: Whether to use a local model
+            local_model_path: Path to local model (if use_local is True)
+            description: Human-readable description
+            
+        Returns:
+            HuggingFaceIntegration instance, or None if creation failed
+        """
+        try:
+            config = HuggingFaceConfig(
+                name=name,
+                model_id=model_id,
+                api_key=api_key,
+                use_local=use_local,
+                local_model_path=local_model_path,
+                description=description
+            )
+            
+            integration = HuggingFaceIntegration(config)
+            
+            if integration.validate_config():
+                self.register_integration(name, integration)
+                return integration
+            else:
+                logger.error(f"Invalid configuration for HuggingFace integration '{name}'")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating HuggingFace integration '{name}': {e}")
+            return None
+    
+    def create_model_endpoint(
+        self,
+        name: str,
+        integration_name: str,
+        model_id: Optional[str] = None,
+        model_version_id: Optional[str] = None,
+        endpoint_type: EndpointType = EndpointType.LOCAL,
+        endpoint_url: Optional[str] = None,
+        inference_type: InferenceType = InferenceType.TEXT_GENERATION,
+        description: Optional[str] = None,
+        is_public: bool = False,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[ModelEndpoint]:
+        """
+        Create a model endpoint.
+        
+        Args:
+            name: Name of the endpoint
+            integration_name: Name of the framework integration to use
+            model_id: ID of the model in the model registry (optional)
+            model_version_id: ID of the model version (optional)
+            endpoint_type: Type of endpoint (REST, gRPC, etc.)
+            endpoint_url: URL of the endpoint (for remote endpoints)
+            inference_type: Type of inference task
+            description: Human-readable description
+            is_public: Whether the endpoint is public
+            metadata: Additional metadata
+            
+        Returns:
+            ModelEndpoint instance, or None if creation failed
+        """
+        try:
+            # Check if integration exists
+            integration = self.get_integration(integration_name)
+            if not integration:
+                logger.error(f"Integration '{integration_name}' not found")
+                return None
+            
+            # Determine framework type
+            framework_type = FrameworkType.CUSTOM
+            if isinstance(integration, LangChainIntegration):
+                framework_type = FrameworkType.LANGCHAIN
+            elif isinstance(integration, LlamaIndexIntegration):
+                framework_type = FrameworkType.LLAMA_INDEX
+            elif isinstance(integration, HuggingFaceIntegration):
+                framework_type = FrameworkType.HUGGINGFACE
+            
+            # Create endpoint ID
+            endpoint_id = f"endpoint_{uuid.uuid4().hex[:8]}"
+            
+            # Create endpoint
+            endpoint = ModelEndpoint(
+                id=endpoint_id,
+                name=name,
+                description=description,
+                model_id=model_id,
+                model_version_id=model_version_id,
+                framework_type=framework_type,
+                endpoint_type=endpoint_type,
+                endpoint_url=endpoint_url,
+                inference_type=inference_type,
+                is_public=is_public,
+                metadata=metadata or {}
+            )
+            
+            # Register with endpoint manager
+            self.endpoint_manager.create_endpoint(endpoint)
+            
+            return endpoint
+            
+        except Exception as e:
+            logger.error(f"Error creating model endpoint '{name}': {e}")
+            return None
+    
+    def get_model_endpoint(self, endpoint_id: str) -> Optional[ModelEndpoint]:
+        """
+        Get a model endpoint by ID.
+        
+        Args:
+            endpoint_id: ID of the endpoint
+            
+        Returns:
+            ModelEndpoint instance, or None if not found
+        """
+        return self.endpoint_manager.get_endpoint(endpoint_id)
+
+
+# Singleton instance
+_instance = None
+
+def get_instance(
+    storage_path: Optional[Union[str, Path]] = None,
+    config: Optional[Dict[str, Any]] = None
+) -> FrameworkIntegrationManager:
+    """
+    Get or create the singleton instance of the FrameworkIntegrationManager.
+    
+    Args:
+        storage_path: Path for storing framework data
+        config: Configuration options
+        
+    Returns:
+        FrameworkIntegrationManager instance
+    """
+    global _instance
+    if _instance is None:
+        _instance = FrameworkIntegrationManager(storage_path, config)
+    return _instance

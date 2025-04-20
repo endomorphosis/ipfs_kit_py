@@ -16,17 +16,15 @@ import time
 import asyncio
 import uuid
 from typing import Dict, Any, Optional, Tuple
-from ..models.migration import (
-from ..persistence.migration_store import MigrationStore
-from ..persistence.policy_store import PolicyStore
 
 # Internal imports
-
+from ipfs_kit_py.mcp.models.migration import (
     MigrationPolicy,
     MigrationRequest,
-    MigrationBatchRequest)
-
-
+    MigrationBatchRequest
+)
+from ipfs_kit_py.mcp.persistence.migration_store import MigrationStore
+from ipfs_kit_py.mcp.persistence.policy_store import PolicyStore
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +53,7 @@ class MigrationController:
         migrations = await self.migration_store.load_all()
         for migration_id, migration in migrations.items():
             # Resume in-progress migrations
-            if migration.get("status") == "in_progress": ,
+            if migration.get("status") == "in_progress":
                 migration["status"] = "interrupted"
                 await self.migration_store.update(migration_id, migration)
 
@@ -277,7 +275,7 @@ class MigrationController:
         return {"success": True, "migration": migration}
 
     async def list_migrations(
-        self
+        self,
         status: Optional[str] = None,
         batch_id: Optional[str] = None,
         limit: int = 100,
@@ -420,13 +418,13 @@ class MigrationController:
 
             # Calculate target storage cost
             target_cost = 0.0
-            if target_backend == "s3": ,
+            if target_backend == "s3":
                 # S3 pricing model (simplified)
                 target_cost = size_bytes / (1024 * 1024 * 1024) * 0.023  # $0.023 per GB
-            elif target_backend == "filecoin": ,
+            elif target_backend == "filecoin":
                 # Filecoin pricing model (simplified)
                 target_cost = size_bytes / (1024 * 1024 * 1024) * 0.005  # $0.005 per GB
-            elif target_backend == "storacha": ,
+            elif target_backend == "storacha":
                 # Storacha pricing model (simplified)
                 target_cost = size_bytes / (1024 * 1024 * 1024) * 0.015  # $0.015 per GB
             else:
@@ -447,9 +445,7 @@ class MigrationController:
                 "transfer_cost": transfer_cost,
                 "time_estimate_seconds": time_estimate_seconds,
                 "theoretical_bandwidth": "5 MB/s",
-                "reliability": (,
-                    "high" if size_bytes < 1073741824 else "medium"
-                ),  # Less reliable for files over 1GB
+                "reliability": "high" if size_bytes < 1073741824 else "medium",  # Less reliable for files over 1GB
             }
 
             return {
@@ -464,9 +460,9 @@ class MigrationController:
             return {"success": False, "error": f"Error estimating migration: {str(e)}"}
 
     async def _update_migration_status(
-        self
-        migration_id: str
-        status: str
+        self,
+        migration_id: str,
+        status: str,
         progress: float = None,
         error: str = None,
         result: Dict[str, Any] = None,

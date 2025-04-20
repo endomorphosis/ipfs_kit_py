@@ -92,30 +92,30 @@ class MCPServerCapabilities:
 
 class MCPFeatureSet:
     """Represents a set of features that an MCP server supports."""
-    def __init__(selfself, features: List[str], version: str = MCP_PROTOCOL_VERSION):
+    def __init__(self, features: List[str], version: str = MCP_PROTOCOL_VERSION):
         self.features = set(features)
         self.version = version
         # Create a unique hash of this feature set for comparing compatibility
         feature_string = ",".join(sorted(self.features)) + "|" + self.version
         self.feature_hash = hashlib.sha256(feature_string.encode()).hexdigest()
 
-    def is_compatible_with(selfself, other: "MCPFeatureSet") -> bool:
+    def is_compatible_with(self, other: "MCPFeatureSet") -> bool:
         """Check if this feature set is compatible with another feature set."""
         # For now, simple version match is sufficient
         # In the future, we could have more sophisticated compatibility checks
         return self.version == other.version
 
-    def shares_features_with(selfself, other: "MCPFeatureSet", min_shared: int = 1) -> bool:
+    def shares_features_with(self, other: "MCPFeatureSet", min_shared: int = 1) -> bool:
         """Check if this feature set shares at least min_shared features with another set."""
         shared_features = self.features.intersection(other.features)
         return len(shared_features) >= min_shared
 
-    def can_handle_request(selfself, required_features: List[str]) -> bool:
+    def can_handle_request(self, required_features: List[str]) -> bool:
         """Check if this feature set can handle a request requiring specific features."""
         required = set(required_features)
         return required.issubset(self.features)
 
-    def to_dict(selfself) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "features": list(self.features),
@@ -124,25 +124,25 @@ class MCPFeatureSet:
         }
 
     @classmethod
-    def from_dict(selfcls, data: Dict[str, Any]) -> "MCPFeatureSet": ,
+    def from_dict(cls, data: Dict[str, Any]) -> "MCPFeatureSet":
         """Create from dictionary representation."""
         return cls(
             features=data.get("features", []),
             version=data.get("version", MCP_PROTOCOL_VERSION),
+        )
 
 
 class MCPServerInfo:
     """Information about an MCP server for discovery and coordination."""
-    def __init___v2(self
-        self
-        server_id: str
-        role: str
-        feature_set: MCPFeatureSet
+    def __init__(self,
+        server_id: str,
+        role: str,
+        feature_set: MCPFeatureSet,
         api_endpoint: Optional[str] = None,
         websocket_endpoint: Optional[str] = None,
         libp2p_peer_id: Optional[str] = None,
         libp2p_addresses: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None):
         """
         Initialize MCP server information.
 
@@ -168,7 +168,7 @@ class MCPServerInfo:
         self.first_seen = time.time()
         self.health_status = {"healthy": True, "last_checked": time.time()}
 
-    def to_dict_v2(selfself) -> Dict[str, Any]:
+    def to_dict_v2(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "server_id": self.server_id,
@@ -185,23 +185,25 @@ class MCPServerInfo:
         }
 
     @classmethod
-    def from_dict_v2(selfcls, data: Dict[str, Any]) -> "MCPServerInfo": ,
+    def from_dict_v2(cls, data: Dict[str, Any]) -> "MCPServerInfo":
         """Create from dictionary representation."""
         server_info = cls(
             server_id=data.get("server_id", str(uuid.uuid4())),
             role=data.get("role", MCPServerRole.EDGE),
             feature_set=MCPFeatureSet.from_dict(data.get("feature_set", {"features": []})),
-api_endpoint=data.get("api_endpoint")
-websocket_endpoint=data.get("websocket_endpoint")
-libp2p_peer_id=data.get("libp2p_peer_id")
+            api_endpoint=data.get("api_endpoint"),
+            websocket_endpoint=data.get("websocket_endpoint"),
+            libp2p_peer_id=data.get("libp2p_peer_id"),
             libp2p_addresses=data.get("libp2p_addresses", []),
             metadata=data.get("metadata", {}),
+        )
 
         # Restore timestamps
         server_info.last_seen = data.get("last_seen", time.time())
         server_info.first_seen = data.get("first_seen", time.time())
         server_info.health_status = data.get(
             "health_status", {"healthy": True, "last_checked": time.time()}
+        )
 
         return server_info
 
@@ -214,17 +216,16 @@ class MCPDiscoveryModel:
     and collaborate on handling requests. It works with both direct libp2p peer
     discovery and WebSocket-based discovery for environments with NAT/firewalls.
     """
-    # DISABLED REDEFINITION
-        self
+    def __init__(self,
         server_id: Optional[str] = None,
         role: str = MCPServerRole.MASTER,
         features: Optional[List[str]] = None,
-libp2p_model = None
-ipfs_model = None
-cache_manager = None
-credential_manager = None
-resources = None
-metadata = None
+        libp2p_model = None,
+        ipfs_model = None,
+        cache_manager = None,
+        credential_manager = None,
+        resources = None,
+        metadata = None):
         """
         Initialize the MCP discovery model.
 
@@ -305,9 +306,10 @@ metadata = None
 
         logger.info(
             f"MCP Discovery Model initialized with ID {self.server_id} and role {self.role}"
+        )
         logger.info(f"Features: {', '.join(self.feature_set.features)}")
 
-    def _detect_available_features(selfself) -> List[str]:
+    def _detect_available_features(self) -> List[str]:
         """
         Detect available features based on loaded components and controllers.
 
@@ -340,7 +342,7 @@ metadata = None
             # Check for IPFS Cluster
             try:
                 if hasattr(self.ipfs_model, "ipfs_cluster_service") or hasattr(
-                    self.ipfs_model, "ipfs_cluster_follow"
+                    self.ipfs_model, "ipfs_cluster_follow"):
                     features.append(MCPServerCapabilities.IPFS_CLUSTER)
             except (AttributeError, Exception):
                 pass
@@ -348,7 +350,7 @@ metadata = None
         # Return detected features (will be extended with controller detection at MCP server level)
         return features
 
-    def _create_local_server_info(selfself) -> MCPServerInfo:
+    def _create_local_server_info(self) -> MCPServerInfo:
         """
         Create server info for this local server.
 
@@ -381,20 +383,21 @@ metadata = None
 
         # Create server info
         return MCPServerInfo(
-server_id=self.server_id
-role=self.role
-feature_set=self.feature_set
-api_endpoint=api_endpoint
-websocket_endpoint=websocket_endpoint
-libp2p_peer_id=libp2p_peer_id
-libp2p_addresses=libp2p_addresses
+            server_id=self.server_id,
+            role=self.role,
+            feature_set=self.feature_set,
+            api_endpoint=api_endpoint,
+            websocket_endpoint=websocket_endpoint,
+            libp2p_peer_id=libp2p_peer_id,
+            libp2p_addresses=libp2p_addresses,
             metadata={
                 "version": MCP_PROTOCOL_VERSION,
                 "uptime": 0,  # Will be updated when needed
                 "resources": self.resources,
-}
+            }
+        )
 
-    def update_server_info(selfself, **kwargs) -> Dict[str, Any]:
+    def update_server_info(self, **kwargs) -> Dict[str, Any]:
         """
         Update local server info with new values.
 
@@ -408,11 +411,11 @@ libp2p_addresses=libp2p_addresses
         for key, value in kwargs.items():
             if hasattr(self.server_info, key):
                 setattr(self.server_info, key, value)
-            elif key == "features": ,
+            elif key == "features":
                 # Special case for updating features
                 self.feature_set = MCPFeatureSet(value)
                 self.server_info.feature_set = self.feature_set
-            elif key == "metadata": ,
+            elif key == "metadata":
                 # Update metadata dict
                 self.server_info.metadata.update(value)
 
@@ -420,9 +423,9 @@ libp2p_addresses=libp2p_addresses
         self.server_info.metadata["uptime"] = time.time() - self.stats["start_time"]
 
         # Return updated server info
-        return self.server_info.to_dict()
+        return self.server_info.to_dict_v2()
 
-    def announce_server(selfself) -> Dict[str, Any]:
+    def announce_server(self) -> Dict[str, Any]:
         """
         Announce this server to the network.
 
@@ -445,7 +448,7 @@ libp2p_addresses=libp2p_addresses
         # Get announcement message
         announcement = {
             "message_type": MCPMessageType.ANNOUNCE,
-            "server_info": self.server_info.to_dict(),
+            "server_info": self.server_info.to_dict_v2(),
             "timestamp": time.time(),
         }
 
@@ -461,6 +464,7 @@ libp2p_addresses=libp2p_addresses
                     hasattr(self.libp2p_model, "libp2p_peer")
                     and self.libp2p_model.libp2p_peer
                     and hasattr(self.libp2p_model.libp2p_peer, "pubsub_publish")
+                ):
                     self.libp2p_model.libp2p_peer.pubsub_publish(pubsub_topic, message_data)
                     result["announcement_channels"].append("libp2p_pubsub")
             except Exception as e:
@@ -485,11 +489,11 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def discover_servers(self
-        self
+    def discover_servers(self,
         methods: Optional[List[str]] = None,
         compatible_only: bool = True,
-        feature_requirements: Optional[List[str]] = None,
+        feature_requirements: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """
         Discover MCP servers in the network.
 
@@ -529,6 +533,7 @@ libp2p_addresses=libp2p_addresses
                 if hasattr(self.libp2p_model, "discover_peers"):
                     peers_result = self.libp2p_model.discover_peers(
                         discovery_method="all", limit=100
+                    )
 
                 if peers_result.get("success", False):
                     for peer_addr in peers_result.get("peers", []):
@@ -564,15 +569,17 @@ libp2p_addresses=libp2p_addresses
                 # Filter by compatibility if requested
                 if compatible_only and not self.feature_set.is_compatible_with(
                     server_info.feature_set
+                ):
                     continue
 
                 # Filter by feature requirements if specified
                 if feature_requirements and not server_info.feature_set.can_handle_request(
                     feature_requirements
+                ):
                     continue
 
                 # Add to filtered list
-                filtered_servers.append(server_info.to_dict())
+                filtered_servers.append(server_info.to_dict_v2())
 
         # Update result
         result["success"] = True
@@ -585,7 +592,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def register_server(selfself, server_info_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def register_server(self, server_info_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
         Register a server from discovery.
 
@@ -604,7 +611,7 @@ libp2p_addresses=libp2p_addresses
 
         try:
             # Parse server info
-            server_info = MCPServerInfo.from_dict(server_info_dict)
+            server_info = MCPServerInfo.from_dict_v2(server_info_dict)
 
             # Skip our own server
             if server_info.server_id == self.server_id:
@@ -639,6 +646,7 @@ libp2p_addresses=libp2p_addresses
             if is_new:
                 logger.info(
                     f"Discovered new MCP server: {server_info.server_id} (role: {server_info.role})"
+                )
             else:
                 logger.debug(f"Updated existing MCP server: {server_info.server_id}")
 
@@ -648,7 +656,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def get_server_info(selfself, server_id: str) -> Dict[str, Any]:
+    def get_server_info(self, server_id: str) -> Dict[str, Any]:
         """
         Get information about a specific server.
 
@@ -671,7 +679,7 @@ libp2p_addresses=libp2p_addresses
             # Update our server info first
             self.update_server_info()
             result["success"] = True
-            result["server_info"] = self.server_info.to_dict()
+            result["server_info"] = self.server_info.to_dict_v2()
             result["is_local"] = True
             return result
 
@@ -679,7 +687,7 @@ libp2p_addresses=libp2p_addresses
         with self.server_lock:
             if server_id in self.known_servers:
                 result["success"] = True
-                result["server_info"] = self.known_servers[server_id].to_dict()
+                result["server_info"] = self.known_servers[server_id].to_dict_v2()
                 result["is_local"] = False
                 return result
 
@@ -687,8 +695,7 @@ libp2p_addresses=libp2p_addresses
         result["error"] = f"Server not found: {server_id}"
         return result
 
-    def get_compatible_servers(self
-    def __init__(self, feature_requirements: Optional[List[str]] = None
+    def get_compatible_servers(self, feature_requirements: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Get all servers with compatible feature sets.
 
@@ -735,7 +742,7 @@ libp2p_addresses=libp2p_addresses
             compatible_servers = []
             for server_id in compatible_server_ids:
                 if server_id in self.known_servers:
-                    compatible_servers.append(self.known_servers[server_id].to_dict())
+                    compatible_servers.append(self.known_servers[server_id].to_dict_v2())
 
         # Update result
         result["servers"] = compatible_servers
@@ -743,7 +750,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def check_server_health(selfself, server_id: str) -> Dict[str, Any]:
+    def check_server_health(self, server_id: str) -> Dict[str, Any]:
         """
         Check health status of a specific server.
 
@@ -789,8 +796,7 @@ libp2p_addresses=libp2p_addresses
                 # This would be an actual HTTP request to the server's health endpoint
                 # For now, we'll just simulate a response based on last_seen time
                 time_since_last_seen = time.time() - server_info.last_seen
-                is_healthy = (
-                    time_since_last_seen < 300
+                is_healthy = time_since_last_seen < 300
 
                 # Update server health info
                 with self.server_lock:
@@ -813,8 +819,7 @@ libp2p_addresses=libp2p_addresses
                 # This would be an actual WebSocket health check
                 # For now, we'll just simulate a response based on last_seen time
                 time_since_last_seen = time.time() - server_info.last_seen
-                is_healthy = (
-                    time_since_last_seen < 300
+                is_healthy = time_since_last_seen < 300
 
                 # Update server health info
                 with self.server_lock:
@@ -837,12 +842,12 @@ libp2p_addresses=libp2p_addresses
             and server_info.libp2p_peer_id
             and getattr(self, "has_libp2p", False)
             and self.libp2p_model
+        ):
             try:
                 # This would be a direct libp2p health check
                 # For now, we'll just simulate a response based on last_seen time
                 time_since_last_seen = time.time() - server_info.last_seen
-                is_healthy = (
-                    time_since_last_seen < 300
+                is_healthy = time_since_last_seen < 300
 
                 # Update server health info
                 with self.server_lock:
@@ -865,9 +870,11 @@ libp2p_addresses=libp2p_addresses
                 if server_id in self.known_servers:
                     result["healthy"] = self.known_servers[server_id].health_status.get(
                         "healthy", False
+                    )
                     result["health_source"] = "last_known"
                     result["last_checked"] = self.known_servers[server_id].health_status.get(
                         "last_checked", 0
+                    )
                     health_checked = True
 
         # Set success based on whether we could check health
@@ -875,7 +882,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def remove_server(selfself, server_id: str) -> Dict[str, Any]:
+    def remove_server(self, server_id: str) -> Dict[str, Any]:
         """
         Remove a server from known servers.
 
@@ -912,6 +919,7 @@ libp2p_addresses=libp2p_addresses
                 if (
                     feature_hash in self.feature_groups
                     and server_id in self.feature_groups[feature_hash]
+                ):
                     self.feature_groups[feature_hash].remove(server_id)
 
                 result["success"] = True
@@ -920,7 +928,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def clean_stale_servers(selfself, max_age_seconds: int = 3600) -> Dict[str, Any]:
+    def clean_stale_servers(self, max_age_seconds: int = 3600) -> Dict[str, Any]:
         """
         Remove servers that haven't been seen for a specified time.
 
@@ -961,6 +969,7 @@ libp2p_addresses=libp2p_addresses
                     if (
                         feature_hash in self.feature_groups
                         and server_id in self.feature_groups[feature_hash]
+                    ):
                         self.feature_groups[feature_hash].remove(server_id)
 
                     # Add to removed list
@@ -971,7 +980,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def register_task_handler(selfself, task_type: str, handler: Callable) -> Dict[str, Any]:
+    def register_task_handler(self, task_type: str, handler: Callable) -> Dict[str, Any]:
         """
         Register a handler for a specific task type.
 
@@ -995,12 +1004,13 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def dispatch_task(self
-        self
-        task_type: str
-        task_data: Any
+    def dispatch_task(
+        self,
+        task_type: str,
+        task_data: Any,
         required_features: Optional[List[str]] = None,
-        preferred_server_id: Optional[str] = None,
+        preferred_server_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Dispatch a task to a compatible server.
 
@@ -1031,6 +1041,7 @@ libp2p_addresses=libp2p_addresses
         # If we can handle locally, do it
         if can_handle_locally and (
             preferred_server_id is None or preferred_server_id == self.server_id
+        ):
             try:
                 # Call task handler
                 handler = self.task_handlers[task_type]
@@ -1063,6 +1074,7 @@ libp2p_addresses=libp2p_addresses
                     # Check if server has required features
                     if not required_features or server_info.feature_set.can_handle_request(
                         required_features
+                    ):
                         # Check if server is healthy
                         if server_info.health_status.get("healthy", False):
                             target_server_id = preferred_server_id
@@ -1075,6 +1087,7 @@ libp2p_addresses=libp2p_addresses
             if (
                 compatible_servers.get("success", False)
                 and compatible_servers.get("server_count", 0) > 0
+            ):
                 # Pick a random compatible server
                 server_dict = random.choice(compatible_servers["servers"])
                 target_server_id = server_dict["server_id"]
@@ -1120,7 +1133,7 @@ libp2p_addresses=libp2p_addresses
             result["error"] = f"Error dispatching task: {str(e)}"
             return result
 
-    def handle_message(selfself, message_data: Dict[str, Any]) -> Dict[str, Any]:
+    def handle_message(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Handle a message from another MCP server.
 
@@ -1237,7 +1250,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def get_stats(selfself) -> Dict[str, Any]:
+    def get_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the discovery model.
 
@@ -1276,7 +1289,7 @@ libp2p_addresses=libp2p_addresses
 
         return result
 
-    def reset(selfself) -> Dict[str, Any]:
+    def reset(self) -> Dict[str, Any]:
         """
         Reset the discovery model, clearing all state.
 

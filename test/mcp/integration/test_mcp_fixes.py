@@ -12,24 +12,32 @@ import sys
 import time
 import requests
 import tempfile
-import argparse
+import pytest
 from typing import Dict, Any, List
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Test MCP server fixes')
-parser.add_argument('--port', type=int, default=8001, help='Port where MCP server is running')
-args = parser.parse_args()
-
 # Configuration
-MCP_SERVER_URL = f"http://localhost:{args.port}"
-MCP_API_PREFIX = "/api/v0/mcp"
+DEFAULT_PORT = 8001
 
-# Test variables
+
+# Create a fixture for server configuration
+@pytest.fixture
+def server_config(request):
+    """Return server configuration with port."""
+    # Check if running under pytest with custom port
+    port = getattr(request.config, "getoption", lambda x: None)("--port") or DEFAULT_PORT
+    return {
+        "url": f"http://localhost:{port}",
+        "api_prefix": "/api/v0/mcp"
+    }
+
+
+# Test content
 TEST_CONTENT = "Hello, IPFS! This is a test from the MCP server fix verification script."
 
-def make_request(method, endpoint, **kwargs):
+
+def make_request(server_config, method, endpoint, **kwargs):
     """Make HTTP request with unified error handling."""
-    url = f"{MCP_SERVER_URL}{endpoint}"
+    url = f"{server_config['url']}{endpoint}"
     
     try:
         print(f"Request: {method.upper()} {url}")
@@ -64,184 +72,211 @@ def make_request(method, endpoint, **kwargs):
                 print(f"Response text: {e.response.text}")
         return {"success": False, "error": str(e)}
 
-def test_json_add():
-    """Test adding content using JSON payload."""
-    print("\n=== Testing JSON Add Endpoint ===")
-    
-    response = make_request(
-        "POST",
-        f"{MCP_API_PREFIX}/ipfs/add",
-        json={"content": TEST_CONTENT, "filename": "test.txt"}
-    )
-    
-    if isinstance(response, dict) and response.get("success", False):
-        print(f"✅ JSON Add test passed. CID: {response.get('cid', 'N/A')}")
-        return response.get("cid")
-    else:
-        print("❌ JSON Add test failed")
-        return None
 
-def test_form_add():
-    """Test adding content using form data."""
-    print("\n=== Testing Form Add Endpoint ===")
+class TestMCPFixes:
+    """Test class for MCP server fixes."""
     
-    # Send form data with content
-    data = {
-        "content": f"{TEST_CONTENT} via form data",
-        "filename": "test_form.txt"
-    }
+    @pytest.mark.skip(reason="Requires running MCP server")
+    def test_json_add(self, server_config):
+        """Test adding content using JSON payload."""
+        print("\n=== Testing JSON Add Endpoint ===")
+        
+        response = make_request(
+            server_config,
+            "POST",
+            f"{server_config['api_prefix']}/ipfs/add",
+            json={"content": TEST_CONTENT, "filename": "test.txt"}
+        )
+        
+        assert isinstance(response, dict)
+        assert response.get("success", False)
+        cid = response.get("cid")
+        assert cid is not None
+        print(f"✅ JSON Add test passed. CID: {cid}")
+        return cid
     
-    response = make_request(
-        "POST",
-        f"{MCP_API_PREFIX}/ipfs/add",
-        data=data
-    )
+    @pytest.mark.skip(reason="Requires running MCP server")
+    def test_form_add(self, server_config):
+        """Test adding content using form data."""
+        print("\n=== Testing Form Add Endpoint ===")
+        
+        # Send form data with content
+        data = {
+            "content": f"{TEST_CONTENT} via form data",
+            "filename": "test_form.txt"
+        }
+        
+        response = make_request(
+            server_config,
+            "POST",
+            f"{server_config['api_prefix']}/ipfs/add",
+            data=data
+        )
+        
+        assert isinstance(response, dict)
+        assert response.get("success", False)
+        cid = response.get("cid")
+        assert cid is not None
+        print(f"✅ Form Add test passed. CID: {cid}")
+        return cid
     
-    if isinstance(response, dict) and response.get("success", False):
-        print(f"✅ Form Add test passed. CID: {response.get('cid', 'N/A')}")
-        return response.get("cid")
-    else:
-        print("❌ Form Add test failed")
-        return None
-
-def test_file_upload():
-    """Test uploading a file using multipart form."""
-    print("\n=== Testing File Upload Endpoint ===")
+    @pytest.mark.skip(reason="Requires running MCP server")
+    def test_file_upload(self, server_config):
+        """Test uploading a file using multipart form."""
+        print("\n=== Testing File Upload Endpoint ===")
+        
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
+            file_content = f"{TEST_CONTENT} from file upload at {time.time()}"
+            temp_file.write(file_content.encode())
+            temp_file_path = temp_file.name
+        
+        try:
+            # Upload the file
+            with open(temp_file_path, "rb") as f:
+                files = {"file": ("test_upload.txt", f, "text/plain")}
+                
+                response = requests.post(
+                    f"{server_config['url']}{server_config['api_prefix']}/ipfs/add",
+                    files=files
+                )
+                
+                # Print response info
+                print(f"Response status: {response.status_code}")
+                content = response.json() if response.content else {}
+                print(f"Response: {json.dumps(content, indent=2)}")
+                
+                assert response.status_code == 200
+                assert content.get("success", False)
+                cid = content.get("cid")
+                assert cid is not None
+                print(f"✅ File Upload test passed. CID: {cid}")
+                return cid
+        finally:
+            # Clean up
+            os.unlink(temp_file_path)
     
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
-        file_content = f"{TEST_CONTENT} from file upload at {time.time()}"
-        temp_file.write(file_content.encode())
-        temp_file_path = temp_file.name
-    
-    try:
-        # Upload the file
-        with open(temp_file_path, "rb") as f:
-            files = {"file": ("test_upload.txt", f, "text/plain")}
-            
-            response = requests.post(
-                f"{MCP_SERVER_URL}{MCP_API_PREFIX}/ipfs/add",
-                files=files
-            )
-            
-            # Print response info
-            print(f"Response status: {response.status_code}")
-            content = response.json() if response.content else {}
-            print(f"Response: {json.dumps(content, indent=2)}")
-            
-            if response.status_code == 200 and content.get("success", False):
-                print(f"✅ File Upload test passed. CID: {content.get('cid', 'N/A')}")
-                return content.get("cid")
-            else:
-                print("❌ File Upload test failed")
-                return None
-    finally:
-        # Clean up
-        os.unlink(temp_file_path)
-
-def test_get_content(cid):
-    """Test retrieving content by CID."""
-    print(f"\n=== Testing Get Content Endpoint (CID: {cid}) ===")
-    
-    if not cid:
-        print("❌ No CID provided, skipping test")
-        return False
-    
-    # Test /ipfs/cat/{cid} endpoint
-    response = requests.get(f"{MCP_SERVER_URL}{MCP_API_PREFIX}/ipfs/cat/{cid}")
-    
-    print(f"Response status: {response.status_code}")
-    if len(response.content) > 100:
-        print(f"Response content: {response.content[:100]}... (truncated)")
-    else:
-        print(f"Response content: {response.content}")
-    
-    if response.status_code == 200 and response.content:
+    @pytest.mark.skip(reason="Requires running MCP server")
+    def test_get_content(self, server_config):
+        """Test retrieving content by CID."""
+        # First add some content to get a CID
+        cid = self.test_json_add(server_config)
+        print(f"\n=== Testing Get Content Endpoint (CID: {cid}) ===")
+        
+        # Test /ipfs/cat/{cid} endpoint
+        response = requests.get(f"{server_config['url']}{server_config['api_prefix']}/ipfs/cat/{cid}")
+        
+        print(f"Response status: {response.status_code}")
+        if len(response.content) > 100:
+            print(f"Response content: {response.content[:100]}... (truncated)")
+        else:
+            print(f"Response content: {response.content}")
+        
+        assert response.status_code == 200
+        assert response.content
         print("✅ Cat Content test passed")
-        success_cat = True
-    else:
-        print("❌ Cat Content test failed")
-        success_cat = False
-    
-    # Test /ipfs/get/{cid} endpoint (alias)
-    response = requests.get(f"{MCP_SERVER_URL}{MCP_API_PREFIX}/ipfs/get/{cid}")
-    
-    print(f"Response status: {response.status_code}")
-    if len(response.content) > 100:
-        print(f"Response content: {response.content[:100]}... (truncated)")
-    else:
-        print(f"Response content: {response.content}")
-    
-    if response.status_code == 200 and response.content:
+        
+        # Test /ipfs/get/{cid} endpoint (alias)
+        response = requests.get(f"{server_config['url']}{server_config['api_prefix']}/ipfs/get/{cid}")
+        
+        print(f"Response status: {response.status_code}")
+        if len(response.content) > 100:
+            print(f"Response content: {response.content[:100]}... (truncated)")
+        else:
+            print(f"Response content: {response.content}")
+        
+        assert response.status_code == 200
+        assert response.content
         print("✅ Get Content test passed")
-        success_get = True
-    else:
-        print("❌ Get Content test failed")
-        success_get = False
     
-    return success_cat and success_get
-
-def test_pin_operations(cid):
-    """Test pin, list pins, and unpin operations."""
-    print(f"\n=== Testing Pin Operations (CID: {cid}) ===")
-    
-    if not cid:
-        print("❌ No CID provided, skipping test")
-        return False
-    
-    # Test /ipfs/pin endpoint
-    print("\nTesting Pin operation...")
-    pin_response = make_request(
-        "POST",
-        f"{MCP_API_PREFIX}/ipfs/pin",
-        json={"cid": cid}
-    )
-    
-    if isinstance(pin_response, dict) and pin_response.get("success", False):
+    @pytest.mark.skip(reason="Requires running MCP server")
+    def test_pin_operations(self, server_config):
+        """Test pin, list pins, and unpin operations."""
+        # First add some content to get a CID
+        cid = self.test_json_add(server_config)
+        print(f"\n=== Testing Pin Operations (CID: {cid}) ===")
+        
+        # Test /ipfs/pin endpoint
+        print("\nTesting Pin operation...")
+        pin_response = make_request(
+            server_config,
+            "POST",
+            f"{server_config['api_prefix']}/ipfs/pin",
+            json={"cid": cid}
+        )
+        
+        assert isinstance(pin_response, dict)
+        assert pin_response.get("success", False)
         print("✅ Pin test passed")
-        pin_success = True
-    else:
-        print("❌ Pin test failed")
-        pin_success = False
-    
-    # Test /ipfs/pins endpoint (listing pins)
-    print("\nTesting List Pins operation...")
-    list_response = make_request(
-        "GET",
-        f"{MCP_API_PREFIX}/ipfs/pins"
-    )
-    
-    if isinstance(list_response, dict) and list_response.get("success", False):
-        print("✅ List Pins test passed")
+        
+        # Test /ipfs/pins endpoint (listing pins)
+        print("\nTesting List Pins operation...")
+        list_response = make_request(
+            server_config,
+            "GET",
+            f"{server_config['api_prefix']}/ipfs/pins"
+        )
+        
+        assert isinstance(list_response, dict)
+        assert list_response.get("success", False)
         pins = list_response.get("pins", [])
         if pins:
             print(f"Found {len(pins)} pinned items")
         else:
             print("No pins found (but API call succeeded)")
-        list_success = True
-    else:
-        print("❌ List Pins test failed")
-        list_success = False
-    
-    # Test /ipfs/unpin endpoint
-    print("\nTesting Unpin operation...")
-    unpin_response = make_request(
-        "POST",
-        f"{MCP_API_PREFIX}/ipfs/unpin",
-        json={"cid": cid}
-    )
-    
-    if isinstance(unpin_response, dict) and unpin_response.get("success", False):
+        print("✅ List Pins test passed")
+        
+        # Test /ipfs/unpin endpoint
+        print("\nTesting Unpin operation...")
+        unpin_response = make_request(
+            server_config,
+            "POST",
+            f"{server_config['api_prefix']}/ipfs/unpin",
+            json={"cid": cid}
+        )
+        
+        assert isinstance(unpin_response, dict)
+        assert unpin_response.get("success", False)
         print("✅ Unpin test passed")
-        unpin_success = True
-    else:
-        print("❌ Unpin test failed")
-        unpin_success = False
     
-    return pin_success and list_success and unpin_success
+    @pytest.mark.skip(reason="Requires running MCP server")
+    def test_health(self, server_config):
+        """Test health endpoint."""
+        print("\n=== Testing Health Endpoint ===")
+        health_response = make_request(server_config, "GET", f"{server_config['api_prefix']}/health")
+        
+        assert isinstance(health_response, dict)
+        assert health_response.get("success", False)
+        print("✅ Health check passed")
 
-def run_all_tests():
-    """Run all tests and compile results."""
+
+# Add pytest command line option for port
+def pytest_addoption(parser):
+    parser.addoption("--port", action="store", default=DEFAULT_PORT, help="Port where MCP server is running")
+
+
+# For direct execution of the script (not through pytest)
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Test MCP server fixes')
+    parser.add_argument('--port', type=int, default=DEFAULT_PORT, help='Port where MCP server is running')
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
+    
+    server_config = {
+        "url": f"http://localhost:{args.port}",
+        "api_prefix": "/api/v0/mcp"
+    }
+    
+    # Create an instance of our test class
+    tester = TestMCPFixes()
+    
+    # Run the tests manually
     print("Starting MCP Server Fix Verification Tests")
     results = {
         "success": True,
@@ -249,44 +284,55 @@ def run_all_tests():
         "timestamp": time.time()
     }
     
-    # Test 1: Health Check
-    print("\n=== Testing Health Endpoint ===")
-    health_response = make_request("GET", f"{MCP_API_PREFIX}/health")
-    health_success = isinstance(health_response, dict) and health_response.get("success", False)
-    results["tests"]["health"] = health_success
-    
-    if not health_success:
-        print("❌ Health check failed. Server may not be running.")
+    try:
+        tester.test_health(server_config)
+        results["tests"]["health"] = True
+    except Exception as e:
+        print(f"❌ Health check failed: {e}")
+        results["tests"]["health"] = False
         results["success"] = False
-        return results
-    else:
-        print("✅ Health check passed")
     
-    # Test 2: JSON Add
-    cid_json = test_json_add()
-    results["tests"]["json_add"] = bool(cid_json)
-    
-    # Test 3: Form Add
-    cid_form = test_form_add()
-    results["tests"]["form_add"] = bool(cid_form)
-    
-    # Test 4: File Upload
-    cid_file = test_file_upload()
-    results["tests"]["file_upload"] = bool(cid_file)
-    
-    # Use the first available CID for subsequent tests
-    test_cid = cid_json or cid_form or cid_file
-    
-    # Test 5: Get Content
-    get_success = test_get_content(test_cid)
-    results["tests"]["get_content"] = get_success
-    
-    # Test 6: Pin Operations
-    pin_success = test_pin_operations(test_cid)
-    results["tests"]["pin_operations"] = pin_success
-    
-    # Calculate overall success
-    results["success"] = all(results["tests"].values())
+    if results["tests"].get("health", False):
+        # Continue with other tests only if health check passes
+        try:
+            cid_json = tester.test_json_add(server_config)
+            results["tests"]["json_add"] = True
+        except Exception as e:
+            print(f"❌ JSON Add test failed: {e}")
+            results["tests"]["json_add"] = False
+            results["success"] = False
+        
+        try:
+            tester.test_form_add(server_config)
+            results["tests"]["form_add"] = True
+        except Exception as e:
+            print(f"❌ Form Add test failed: {e}")
+            results["tests"]["form_add"] = False
+            results["success"] = False
+        
+        try:
+            tester.test_file_upload(server_config)
+            results["tests"]["file_upload"] = True
+        except Exception as e:
+            print(f"❌ File Upload test failed: {e}")
+            results["tests"]["file_upload"] = False
+            results["success"] = False
+        
+        try:
+            tester.test_get_content(server_config)
+            results["tests"]["get_content"] = True
+        except Exception as e:
+            print(f"❌ Get Content test failed: {e}")
+            results["tests"]["get_content"] = False
+            results["success"] = False
+        
+        try:
+            tester.test_pin_operations(server_config)
+            results["tests"]["pin_operations"] = True
+        except Exception as e:
+            print(f"❌ Pin Operations test failed: {e}")
+            results["tests"]["pin_operations"] = False
+            results["success"] = False
     
     # Print summary
     print("\n=== Test Summary ===")
@@ -302,7 +348,3 @@ def run_all_tests():
         json.dump(results, f, indent=2)
     
     print("\nDetailed results saved to: mcp_fix_verification_results.json")
-    return results
-
-if __name__ == "__main__":
-    run_all_tests()

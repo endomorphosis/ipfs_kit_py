@@ -115,7 +115,12 @@ def main():
     parser = argparse.ArgumentParser(description="Test real API storage backends")
     parser.add_argument("--url", default="http://localhost:9992/api/v0", help="Server URL")
     parser.add_argument("--backend", help="Specific backend to test")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     print(f"=== TESTING STORAGE BACKENDS - {args.url} ===\n")
     

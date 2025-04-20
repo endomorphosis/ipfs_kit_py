@@ -275,7 +275,12 @@ def main():
     parser = argparse.ArgumentParser(description="Test WebRTC controller shutdown")
     parser.add_argument("--url", default="http://localhost:9993", help="Base URL for MCP server")
     parser.add_argument("--timeout", type=int, default=30, help="Operation timeout in seconds")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Create and run the tester
     tester = WebRTCShutdownTester(server_url=args.url, timeout=args.timeout)

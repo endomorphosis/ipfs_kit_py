@@ -1053,7 +1053,12 @@ def main():
     parser.add_argument("--skip-training", action="store_true", help="Skip distributed training tests")
     parser.add_argument("--ipfs", action="store_true", help="Use IPFS storage backend for tests")
     parser.add_argument("--s3", action="store_true", help="Use S3 storage backend for tests")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Run tests
     success = run_integration_tests(args)

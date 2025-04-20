@@ -25,7 +25,7 @@ from ipfs_kit_py.mcp.storage_manager.backends.filecoin_backend import FilecoinBa
 from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
 
 # Import migration controller
-from ipfs_kit_py.mcp.storage_manager.migration import MigrationController, MigrationPolicy, MigrationPriorityLevel
+from ipfs_kit_py.mcp.controllers.migration_controller import MigrationController, MigrationPolicy, MigrationPriorityLevel
 from ipfs_kit_py.mcp.storage_manager.storage_types import ContentReference
 
 

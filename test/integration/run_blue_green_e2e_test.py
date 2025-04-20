@@ -686,7 +686,12 @@ def main():
     parser.add_argument("--scenarios", "-s", nargs="+",
                         choices=["gradual_migration", "automatic_failover", "performance_comparison", "response_validation"],
                         help="Specific scenarios to run (default: all)")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Run end-to-end tests
     try:

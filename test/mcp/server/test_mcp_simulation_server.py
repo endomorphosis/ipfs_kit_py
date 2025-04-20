@@ -193,7 +193,12 @@ def main():
     parser = argparse.ArgumentParser(description="Run MCP Simulation Server")
     parser.add_argument("--port", type=int, default=8765, help="Port to listen on")
     parser.add_argument("--host", default="localhost", help="Host to bind to")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     logger.info(f"Starting MCP Simulation Server on {args.host}:{args.port}")
     logger.info("All storage backends are simulated and will report as working")

@@ -372,7 +372,12 @@ class SearchVerificationTest:
 async def main():
     parser = argparse.ArgumentParser(description='MCP Search Verification Test')
     parser.add_argument('--no-cleanup', action='store_true', help='Do not clean up test data')
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     test = SearchVerificationTest(cleanup=not args.no_cleanup)
     success = await test.run()

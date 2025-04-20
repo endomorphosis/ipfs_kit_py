@@ -66,7 +66,17 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all integration tests")
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    
+    if __name__ == "__main__":
+    
+        args = parser.parse_args()
+    
+    else:
+    
+        # When run under pytest, use default values
+    
+        args = parser.parse_args([])
     
     # If no test type is specified, run all
     if not (args.standard or args.anyio or args.mocked or args.all):

@@ -192,7 +192,12 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--report", action="store_true", help="Generate test report")
     parser.add_argument("--output", default="test_results.json", help="Output file for test report")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     # Default to all tests if none specified
     if not any([args.integration, args.e2e, args.performance, args.anyio, args.all]):

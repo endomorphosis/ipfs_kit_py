@@ -687,4 +687,96 @@ def _enforce_retention_policies_sync(lifecycle_manager: LifecycleManager, conten
     last_accessed = datetime.fromisoformat(metadata.last_accessed) if metadata.last_accessed else None
     
     if rule.is_expired(last_modified, last_accessed):
-        logger.info(f"
+        logger.info(f"Content {content_id} has expired under rule {rule.id}")
+        
+        # Take action based on rule
+        if rule.expiration_action == RetentionAction.DELETE:
+            logger.info(f"Deleting content {content_id}")
+            metadata.current_state = DataLifecycleState.PENDING_DELETION
+            # In a real implementation, you would delete the content from storage
+            
+        elif rule.expiration_action == RetentionAction.ARCHIVE:
+            logger.info(f"Archiving content {content_id}")
+            metadata.current_state = DataLifecycleState.ARCHIVED
+            # In a real implementation, you would move the content to archive storage
+            
+        elif rule.expiration_action == RetentionAction.ANONYMIZE:
+            logger.info(f"Anonymizing content {content_id}")
+            metadata.current_state = DataLifecycleState.ANONYMIZED
+            # In a real implementation, you would anonymize the content
+            
+        elif rule.expiration_action == RetentionAction.NOTIFY:
+            logger.info(f"Notifying about expired content {content_id}")
+            # In a real implementation, you would send a notification
+            
+        elif rule.expiration_action == RetentionAction.CUSTOM:
+            logger.info(f"Applying custom action to content {content_id}")
+            # In a real implementation, you would apply a custom action
+        
+        # Update metadata
+        metadata.last_modified = datetime.utcnow().isoformat()
+        
+        return True
+    
+    return False
+
+
+def main():
+    """Run the lifecycle management example."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Data Lifecycle Management Example")
+    parser.add_argument(
+        "--storage-path", 
+        help="Path for the storage files",
+        default=os.path.join(tempfile.gettempdir(), "lifecycle_example_storage")
+    )
+    parser.add_argument(
+        "--metadata-path", 
+        help="Path for the metadata database",
+        default=os.path.join(tempfile.gettempdir(), "lifecycle_metadata.json")
+    )
+    parser.add_argument(
+        "--verbose", 
+        action="store_true", 
+        help="Enable verbose logging"
+    )
+    args = parser.parse_args()
+
+    # Configure logging level
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger("lifecycle-example").setLevel(logging.DEBUG)
+    
+    # Create storage path if it doesn't exist
+    os.makedirs(args.storage_path, exist_ok=True)
+    
+    # Initialize the lifecycle manager
+    lifecycle_manager = LifecycleManager(metadata_db_path=args.metadata_path)
+    
+    try:
+        # Start the lifecycle manager
+        logger.info("Starting lifecycle manager...")
+        lifecycle_manager.start()
+        
+        # Demonstrate rule creation
+        demonstrate_rule_creation(lifecycle_manager)
+        
+        # Demonstrate content lifecycle
+        demonstrate_content_lifecycle(lifecycle_manager, args.storage_path)
+        
+        logger.info("\nLifecycle management example completed successfully!")
+        logger.info(f"Metadata database saved to: {args.metadata_path}")
+        logger.info(f"Example content stored in: {args.storage_path}")
+        
+    except KeyboardInterrupt:
+        logger.info("Example interrupted by user")
+    except Exception as e:
+        logger.error(f"Error running example: {e}", exc_info=True)
+    finally:
+        # Stop the lifecycle manager
+        logger.info("Stopping lifecycle manager...")
+        lifecycle_manager.stop()
+
+
+if __name__ == "__main__":
+    main()

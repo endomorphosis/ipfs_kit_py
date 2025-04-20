@@ -15,7 +15,7 @@ import pytz
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
 from croniter import croniter
-from .migration import MigrationController
+from ipfs_kit_py.mcp.controllers.migration_controller import MigrationController
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -38,11 +38,11 @@ class MigrationSchedule:
     Represents when a migration policy should be automatically executed.
     """
     def __init__(
-        self
-        name: str
-        policy_name: str
-        schedule_type: str
-        schedule_value: Any
+        self,
+        name: str,
+        policy_name: str,
+        schedule_type: str,
+        schedule_value: Any,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ):
@@ -291,7 +291,7 @@ class MigrationSchedule:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MigrationSchedule": ,
+    def from_dict(cls, data: Dict[str, Any]) -> "MigrationSchedule":
         """Create schedule from dictionary representation."""
         schedule = cls(
             name=data["name"],
@@ -318,9 +318,9 @@ class MigrationScheduler:
     Manages scheduling and execution of migration policies based on
     time schedules.
     """
-    def __init___v2(
-        self
-        migration_controller: MigrationController
+    def __init__(
+        self,
+        migration_controller: MigrationController,
         schedules: Optional[List[MigrationSchedule]] = None,
         options: Optional[Dict[str, Any]] = None,
     ):
@@ -781,11 +781,11 @@ class MigrationScheduler:
             logger.info("Migration scheduler thread stopped")
 
     def create_schedule(
-        self
-        name: str
-        policy_name: str
-        schedule_type: str
-        schedule_value: Any
+        self,
+        name: str,
+        policy_name: str,
+        schedule_type: str,
+        schedule_value: Any,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
         enabled: bool = True,
@@ -843,10 +843,10 @@ class MigrationScheduler:
             return {"success": False, "error": str(e)}
 
     def create_daily_schedule(
-        self
-        name: str
-        policy_name: str
-        time_str: str
+        self,
+        name: str,
+        policy_name: str,
+        time_str: str,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -873,11 +873,11 @@ class MigrationScheduler:
         )
 
     def create_weekly_schedule(
-        self
-        name: str
-        policy_name: str
-        day_of_week: Union[str, int]
-        time_str: str
+        self,
+        name: str,
+        policy_name: str,
+        day_of_week: Union[str, int],
+        time_str: str,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -913,11 +913,11 @@ class MigrationScheduler:
         )
 
     def create_monthly_schedule(
-        self
-        name: str
-        policy_name: str
-        day_of_month: int
-        time_str: str
+        self,
+        name: str,
+        policy_name: str,
+        day_of_month: int,
+        time_str: str,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -945,10 +945,10 @@ class MigrationScheduler:
         )
 
     def create_interval_schedule(
-        self
-        name: str
-        policy_name: str
-        interval_seconds: int
+        self,
+        name: str,
+        policy_name: str,
+        interval_seconds: int,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -985,10 +985,10 @@ class MigrationScheduler:
         )
 
     def create_cron_schedule(
-        self
-        name: str
-        policy_name: str
-        cron_expression: str
+        self,
+        name: str,
+        policy_name: str,
+        cron_expression: str,
         description: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -1013,3 +1013,4 @@ class MigrationScheduler:
             description=description or f"Cron: {cron_expression}",
             options=options,
         )
+```

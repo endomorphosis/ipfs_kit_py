@@ -232,9 +232,9 @@ class MigrationStore:
         for migration in all_migrations.values():
             status = migration.get("status", "unknown")
 
-            if status == "in_progress": ,
+            if status == "in_progress":
                 active += 1
-            elif status == "completed": ,
+            elif status == "completed":
                 completed += 1
 
                 # Add to total bytes if available
@@ -244,9 +244,9 @@ class MigrationStore:
                 # Add to total cost if available
                 if "result" in migration and "cost" in migration["result"]:
                     total_cost += migration["result"]["cost"]
-            elif status == "failed": ,
+            elif status == "failed":
                 failed += 1
-            elif status == "queued": ,
+            elif status == "queued":
                 queued += 1
 
             # Track backend usage
@@ -300,7 +300,7 @@ class MigrationStore:
 
         for migration_id, migration in all_migrations.items():
             # Skip if still active
-            if migration.get("status") == "in_progress": ,
+            if migration.get("status") == "in_progress":
                 continue
 
             # Check creation time

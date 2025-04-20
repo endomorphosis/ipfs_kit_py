@@ -181,7 +181,7 @@ class MCPDiscoveryControllerAnyIO:
 
     Exposes HTTP API endpoints for MCP server discovery and collaboration.
     """
-    # DISABLED REDEFINITION
+    def __init__(self, discovery_model):
         """
         Initialize the MCP discovery controller.
 
@@ -375,7 +375,7 @@ class MCPDiscoveryControllerAnyIO:
         loop = anyio.get_event_loop()
         return loop.run_until_complete(self.update_local_server_async(request))
 
-    def announce_server(self, request: Optional[AnnounceRequest] = None):
+    def announce_server(self, request=None):
         """Synchronous version that warns if called from async context."""
         self._warn_if_async_context("announce_server")
         # Call the original implementation
@@ -529,9 +529,7 @@ class MCPDiscoveryControllerAnyIO:
             "is_local": True,
         }
 
-    async def announce_server_async(
-        self, request: Optional[AnnounceRequest] = None
-    ) -> Dict[str, Any]:
+    async def announce_server_async(self, request=None) -> Dict[str, Any]:
         """
         Announce this server to the network.
 
@@ -542,7 +540,7 @@ class MCPDiscoveryControllerAnyIO:
             Dict with announcement status
         """
         # Update metadata if provided
-        if request and request.additional_metadata:
+        if request and hasattr(request, 'additional_metadata') and request.additional_metadata:
             await anyio.to_thread.run_sync(
                 self.discovery_model.update_server_info,
                 metadata=request.additional_metadata,

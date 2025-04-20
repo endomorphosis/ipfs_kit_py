@@ -1,143 +1,144 @@
-# AI/ML Integration for MCP Server
+# AI/ML Integration Package for MCP Server
 
-This directory contains the AI/ML integration components for the MCP Server, which provide comprehensive machine learning lifecycle management capabilities.
+This package implements AI/ML capabilities for the MCP server as described in Phase 2 of the MCP Roadmap (Q4 2025).
 
 ## Overview
 
-The MCP AI/ML integration provides a complete ecosystem for managing machine learning workflows:
-
-1. **Model Registry** - Version-controlled storage for ML models with metadata tracking
-2. **Dataset Management** - Versioning, preprocessing, and quality metrics for ML datasets
-3. **Distributed Training** - Orchestration for model training across multiple nodes
-4. **Framework Integration** - Seamless connectivity with popular AI tools and services
-
-These components work together to provide a comprehensive platform for machine learning operations (MLOps) that integrates with the distributed storage capabilities of the IPFS Kit Python library.
+The AI/ML integration package provides comprehensive machine learning capabilities including model management, dataset handling, distributed training, and framework integrations. These components enable efficient ML workflows from data preparation to model deployment.
 
 ## Components
 
-### Model Registry (`model_registry.py`)
+### Implemented
 
-The Model Registry provides:
-- Model versioning with metadata tracking
-- Multiple storage backends (File System, S3, IPFS)
-- Performance metrics tracking
-- Artifact management
-- Model lineage tracking
-- Framework-agnostic design
-- Custom metadata and tagging system
+- **AI/ML Integrator**: The core integration point that coordinates all AI/ML components and provides a unified API interface.
+- **Dataset Manager**: Comprehensive dataset management with version control, metadata tracking, and dataset lineage.
+- **Async Streaming**: Asynchronous streaming capabilities for efficient data transfer in ML workflows.
 
-Example usage can be found in `examples/model_registry_example.py`.
+### In Progress
 
-### Dataset Management (`dataset_manager.py`)
+- **Model Registry**: Version-controlled model storage with metadata management and performance tracking.
+- **Distributed Training**: Job orchestration for model training across multiple nodes with hyperparameter optimization.
+- **Framework Integration**: Integrations with popular ML frameworks like LangChain, LlamaIndex, and HuggingFace.
 
-The Dataset Management system offers:
-- Version-controlled dataset storage
-- Dataset preprocessing pipelines
-- Data quality metrics and validation
-- Dataset lineage tracking
-- Multiple storage backends (File System, S3, IPFS)
-- Support for various data formats (CSV, JSON, Image, Text, etc.)
-- Split management (train/validation/test)
+## Usage
 
-Example usage can be found in `examples/dataset_manager_example.py`.
-
-### Distributed Training (`distributed_training.py`)
-
-The Distributed Training system provides:
-- Training job orchestration
-- Multi-node training support
-- Hyperparameter optimization
-- Model checkpointing and resumption
-- Training metrics collection and monitoring
-- Support for various ML frameworks (PyTorch, TensorFlow, etc.)
-- Integration with model registry and dataset management
-
-Example usage can be found in `examples/distributed_training_example.py`.
-
-### Framework Integration (`framework_integration.py`)
-
-The Framework Integration module offers:
-- LangChain integration for LLM workflows and agents
-- LlamaIndex integration for data indexing and retrieval
-- HuggingFace integration for model hosting and inference
-- Custom model serving for specialized deployments
-- Model endpoint management with monitoring
-- Framework-agnostic design with flexible configuration
-- Integration with model registry and dataset manager
-
-## Getting Started
-
-### Prerequisites
-
-The AI/ML integration has the following core dependencies:
-- Python 3.8+
-- IPFS Kit Python Library
-
-Each component may have additional optional dependencies:
-- Model Registry: None
-- Dataset Management: `pandas`, `PIL`, `pyarrow`
-- Distributed Training: `numpy`, `ray`, `torch`, `tensorflow`
-- Framework Integration: `langchain`, `llama-index`, `huggingface-hub`, `transformers`
-
-### Installation
-
-The AI/ML components are included with the IPFS Kit Python Library. You can install optional dependencies based on your needs:
-
-```bash
-# Install basic IPFS Kit
-pip install ipfs-kit-py
-
-# Install with ML capabilities
-pip install ipfs-kit-py[ml]
-
-# Install with all AI/ML dependencies
-pip install ipfs-kit-py[ml-full]
-```
-
-### Basic Usage
-
-Here's a simple example of using the model registry to store a model:
+### Dataset Management
 
 ```python
-from ipfs_kit_py.mcp.ai.model_registry import ModelRegistry, Model, ModelVersion, ModelFramework
+from ipfs_kit_py.mcp.ai.dataset_manager import get_instance as get_dataset_manager
 
-# Create a model registry
-registry = ModelRegistry()
+# Get dataset manager instance
+dataset_manager = get_dataset_manager()
 
-# Create a model
-model = Model(
-    id="my-model",
-    name="My Model",
-    description="A sample model",
-    framework=ModelFramework.PYTORCH
+# Create a new dataset
+dataset = dataset_manager.create_dataset(
+    name="my-dataset",
+    description="Sample dataset for image classification",
+    domain="computer_vision",
+    tags=["images", "classification"]
 )
-registry.save_model(model)
 
-# Create a version for the model
-version = ModelVersion(
-    id="v1",
-    model_id=model.id,
+# Add a version to the dataset
+version = dataset_manager.create_dataset_version(
+    dataset_id=dataset.id,
+    description="Initial version",
     version="1.0.0",
-    description="Initial version"
+    files=[
+        {
+            "name": "train.csv",
+            "path": "/path/to/train.csv",
+            "format": "csv",
+            "split": "train",
+            "size_bytes": 1024000
+        }
+    ],
+    schema={"features": ["image_path", "label"]}
 )
-registry.save_model_version(version)
 
-# Store model files
-registry.add_model_file(model.id, version.id, "model.pt", "path/to/model.pt")
+# List all datasets
+datasets = dataset_manager.list_datasets()
 ```
 
-## Integration with MCP Server
+### AI/ML Integration
 
-The AI/ML components can be integrated with the MCP Server to provide a complete solution for distributed AI/ML workflows. The MCP Server provides REST API endpoints for interacting with the AI/ML components.
+```python
+from ipfs_kit_py.mcp.ai.ai_ml_integrator import get_instance as get_ai_ml_integrator
 
-## Documentation
+# Get integrator instance
+integrator = get_ai_ml_integrator()
 
-For detailed documentation on each component, refer to the docstrings in the respective module files:
-- Model Registry: `model_registry.py`
-- Dataset Management: `dataset_manager.py`
-- Distributed Training: `distributed_training.py`
-- Framework Integration: `framework_integration.py`
+# Initialize components
+integrator.initialize()
+
+# Register with MCP server
+integrator.register_with_server(mcp_server, prefix="/ai")
+```
+
+## API Endpoints
+
+Once registered with an MCP server, the following endpoints become available:
+
+### Dataset Endpoints
+
+- `GET /ai/datasets` - List available datasets
+- `GET /ai/datasets/{dataset_id}` - Get dataset details
+- `POST /ai/datasets` - Create a new dataset
+- `GET /ai/datasets/{dataset_id}/versions` - List dataset versions
+- `POST /ai/datasets/{dataset_id}/versions` - Create a new dataset version
+
+### Model Endpoints (Coming Soon)
+
+- `GET /ai/models` - List available models
+- `GET /ai/models/{model_id}` - Get model details
+- `POST /ai/models` - Create a new model
+- `GET /ai/models/{model_id}/versions` - List model versions
+- `POST /ai/models/{model_id}/versions` - Create a new model version
+
+### Training Endpoints (Coming Soon)
+
+- `GET /ai/jobs` - List training jobs
+- `POST /ai/jobs` - Create a new training job
+- `GET /ai/jobs/{job_id}` - Get job details
+- `POST /ai/jobs/{job_id}/start` - Start a training job
+- `POST /ai/jobs/{job_id}/stop` - Stop a training job
+
+## Future Development
+
+The following features are planned for future development:
+
+1. **Model Registry Completion**:
+   - Model versioning and lineage tracking
+   - Performance metrics storage
+   - Artifact management
+   - Deployment configuration
+
+2. **Distributed Training Implementation**:
+   - Job queuing and scheduling
+   - Resource allocation
+   - Checkpointing and resumption
+   - Multi-node coordination
+
+3. **Framework Integrations**:
+   - LangChain integration for LLM workflows
+   - LlamaIndex integration for data indexing
+   - HuggingFace integration for model hosting
+   - PyTorch/TensorFlow integration
+
+4. **Advanced Features**:
+   - Automated ML (AutoML)
+   - Feature store integration
+   - Experiment tracking
+   - Model explainability
+
+## Requirements
+
+- Python 3.9+
+- FastAPI (for API endpoints)
+- Pydantic (for data validation)
+- Optional: PyTorch/TensorFlow (for model training)
+- Optional: Sentence Transformers (for vector embeddings)
+- Optional: LangChain/LlamaIndex (for LLM workflows)
 
 ## Contributing
 
-Contributions to the AI/ML integration are welcome. Please follow the project's contributing guidelines and ensure that all tests pass before submitting a pull request.
+Contributions are welcome! Please see the main project documentation for contribution guidelines.

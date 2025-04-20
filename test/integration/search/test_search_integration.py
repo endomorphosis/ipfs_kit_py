@@ -541,7 +541,12 @@ async def main():
     parser = argparse.ArgumentParser(description="Test MCP Search Integration")
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help=f"MCP API endpoint (default: {DEFAULT_ENDPOINT})")
     parser.add_argument("--skip-cleanup", action="store_true", help="Skip cleanup of test data")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     base_url = args.endpoint
     

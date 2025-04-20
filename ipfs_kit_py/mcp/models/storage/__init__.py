@@ -111,6 +111,7 @@ class BaseStorageModel:
 
     def _handle_error(
         self, result: Dict[str, Any], error: Exception, message: Optional[str] = None
+    ) -> None:
         """Handle errors in a standardized way.
 
         Args:
@@ -119,7 +120,7 @@ class BaseStorageModel:
             message: Optional custom error message
 
         Returns:
-            Updated result dictionary with error information
+            None
         """
         result["success"] = False
         result["error"] = message or str(error)

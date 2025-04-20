@@ -28,7 +28,7 @@ from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
 from ipfs_kit_py.mcp.controllers.ipfs_controller_anyio import IPFSControllerAnyio
 from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManagerController
 from ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio import (
-    StorageManagerControllerAnyio,
+    StorageManagerControllerAnyIO,
 )
 
 # Export controllers for external use
@@ -36,5 +36,5 @@ __all__ = [
     "IPFSController",
     "IPFSControllerAnyio",
     "StorageManagerController",
-    "StorageManagerControllerAnyio",
+    "StorageManagerControllerAnyIO",
 ]

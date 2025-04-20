@@ -474,7 +474,12 @@ def main():
     parser = argparse.ArgumentParser(description="MCP Storage Backends Integration Example")
     parser.add_argument("--backend", help="Specific backend to test (ipfs, storacha, s3, huggingface)")
     parser.add_argument("--config", help="Path to configuration file with credentials")
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    if __name__ == "__main__":
+        args = parser.parse_args()
+    else:
+        # When run under pytest, use default values
+        args = parser.parse_args([])
     
     print("=== MCP Storage Backends Integration ===")
     

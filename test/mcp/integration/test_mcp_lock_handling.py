@@ -368,7 +368,17 @@ def main():
     parser.add_argument("--no-server", action="store_true",
                         help="Don't start a server, just run tests against existing one")
     
-    args = parser.parse_args()
+    # Only parse args when running the script directly, not when imported by pytest
+    
+    if __name__ == "__main__":
+    
+        args = parser.parse_args()
+    
+    else:
+    
+        # When run under pytest, use default values
+    
+        args = parser.parse_args([])
     base_url = args.base_url
     
     # Start MCP server if needed

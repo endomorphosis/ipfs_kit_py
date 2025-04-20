@@ -1,721 +1,885 @@
 """
-Security Dashboard for Advanced Authentication & Authorization
+MCP Security Dashboard
 
-This module provides a comprehensive dashboard for managing the security aspects of the MCP server,
-including user management, role configuration, API key management, and audit log review.
+This script provides a web-based dashboard for monitoring and managing
+the security aspects of the MCP server, including:
 
-Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
+- User authentication statistics
+- Active sessions and API keys
+- Failed login attempts and other security events
+- Role and permission management
+- Backend access control
+- Audit log visualization
+
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements - Advanced Authentication & Authorization.
 """
 
-import logging
+import os
 import time
-from typing import Dict, List, Any, Optional
+import json
+import asyncio
+import logging
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
-from pydantic import BaseModel
+from typing import Dict, List, Any, Optional, Set, Union
 
-from ipfs_kit_py.mcp.auth.router import get_admin_user, get_current_user
+import aiofiles
+import pandas as pd
+import plotly.express as px
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, Request, Response
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, JSONResponse
+
 from ipfs_kit_py.mcp.auth.models import User, Role, Permission
-from ipfs_kit_py.mcp.rbac import rbac_manager
-from ipfs_kit_py.mcp.auth.audit import get_instance as get_audit_logger
-from ipfs_kit_py.mcp.auth.auth_system_integration import get_auth_system
-from ipfs_kit_py.mcp.auth.api_key_cache import get_api_key_cache
+from ipfs_kit_py.mcp.auth.service import get_instance as get_auth_service
+from ipfs_kit_py.mcp.auth.auth_integration import get_auth_system
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/api/v0/security", tags=["security"])
+router = APIRouter(prefix="/api/v0/security", tags=["Security Dashboard"])
+
+# Setup templates
+try:
+    template_dir = os.path.join(os.path.dirname(__file__), "templates")
+    if not os.path.exists(template_dir):
+        os.makedirs(template_dir)
+    templates = Jinja2Templates(directory=template_dir)
+except Exception as e:
+    logger.error(f"Error setting up templates: {e}")
+    templates = None
 
 
-# ----- Models -----
-
-class SecurityOverview(BaseModel):
-    """Security system overview statistics."""
-    user_count: int
-    active_users_24h: int
-    inactive_users_30d: int
-    failed_logins_24h: int
-    active_sessions: int
-    api_key_count: int
-    expired_api_keys: int
-    custom_roles: List[str]
-    last_successful_login: Optional[datetime]
-    last_failed_login: Optional[datetime]
-    audit_log_count_24h: int
-    high_priority_audit_events_24h: int
-
-
-class UserOverview(BaseModel):
-    """Overview of a user for management purposes."""
-    id: str
-    username: str
-    email: Optional[str]
-    full_name: Optional[str]
-    roles: List[str]
-    active: bool
-    last_login: Optional[datetime]
-    sessions_count: int
-    api_keys_count: int
-    created_at: datetime
-    login_failures: int
-
-
-class RoleDetail(BaseModel):
-    """Detailed information about a role."""
-    id: str
-    name: str
-    description: Optional[str]
-    permissions: List[str]
-    parent_role: Optional[str]
-    user_count: int
-    is_system_role: bool
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
-
-
-class ApiKeyDetail(BaseModel):
-    """Detailed information about an API key."""
-    id: str
-    name: str
-    user_id: str
-    username: Optional[str]
-    created_at: datetime
-    expires_at: Optional[datetime]
-    last_used: Optional[datetime]
-    use_count: int
-    permissions: List[str]
-    is_active: bool
-
-
-class AuditLogEntry(BaseModel):
-    """Audit log entry details."""
-    id: str
-    timestamp: datetime
-    user_id: Optional[str]
-    username: Optional[str]
-    ip_address: Optional[str]
-    action: str
-    target: Optional[str]
-    status: str
-    details: Optional[Dict[str, Any]]
-    priority: str
-
-
-# ----- Endpoints -----
-
-@router.get("/dashboard", response_model=SecurityOverview)
-async def get_security_overview(current_user: User = Depends(get_admin_user)):
-    """
-    Get an overview of the security system status.
+class SecurityDashboard:
+    """Security dashboard for MCP server."""
     
-    This endpoint provides key metrics about the authentication and authorization system,
-    including user activity, failed logins, and API key usage.
+    def __init__(self):
+        """Initialize security dashboard."""
+        self.auth_system = get_auth_system()
+        self.auth_service = get_auth_service()
+        self.metrics_cache = {}
+        self.metrics_cache_time = 0
+        self.metrics_cache_ttl = 300  # 5 minutes
     
-    Requires admin permission.
-    """
-    auth_system = get_auth_system()
-    auth_service = auth_system.auth_service
-    api_key_cache = get_api_key_cache()
-    audit_logger = get_audit_logger()
-    
-    # Calculate time boundaries
-    now = datetime.utcnow()
-    last_24h = now - timedelta(hours=24)
-    last_30d = now - timedelta(days=30)
-    
-    # Get user counts
-    users = await auth_service.user_store.get_all_users()
-    user_count = len(users)
-    
-    # Active users in last 24 hours
-    active_users_24h = sum(
-        1 for user in users.values() 
-        if user.get("last_login") and user.get("last_login") > last_24h.timestamp()
-    )
-    
-    # Inactive users in last 30 days
-    inactive_users_30d = sum(
-        1 for user in users.values()
-        if not user.get("last_login") or user.get("last_login") < last_30d.timestamp()
-    )
-    
-    # Get session counts
-    sessions = await auth_service.session_store.get_all_sessions()
-    active_sessions = len(sessions)
-    
-    # Get login statistics
-    login_attempts = await audit_logger.query_logs(
-        action="login", 
-        start_time=last_24h
-    )
-    failed_logins_24h = sum(1 for log in login_attempts if log.get("status") == "failure")
-    
-    # Get latest login timestamps
-    successful_logins = sorted(
-        [log for log in login_attempts if log.get("status") == "success"],
-        key=lambda x: x.get("timestamp", 0),
-        reverse=True
-    )
-    failed_logins = sorted(
-        [log for log in login_attempts if log.get("status") == "failure"],
-        key=lambda x: x.get("timestamp", 0),
-        reverse=True
-    )
-    
-    last_successful_login = datetime.fromtimestamp(successful_logins[0].get("timestamp")) if successful_logins else None
-    last_failed_login = datetime.fromtimestamp(failed_logins[0].get("timestamp")) if failed_logins else None
-    
-    # Get API key statistics
-    api_keys = await api_key_cache.get_all_keys()
-    api_key_count = len(api_keys)
-    expired_api_keys = sum(
-        1 for key in api_keys.values()
-        if key.get("expires_at") and key.get("expires_at") < now.timestamp()
-    )
-    
-    # Get custom roles
-    custom_roles = list(rbac_manager._custom_roles.keys())
-    
-    # Get audit log statistics
-    audit_logs = await audit_logger.query_logs(start_time=last_24h)
-    audit_log_count_24h = len(audit_logs)
-    high_priority_audit_events_24h = sum(
-        1 for log in audit_logs
-        if log.get("priority") in ["high", "critical"]
-    )
-    
-    return SecurityOverview(
-        user_count=user_count,
-        active_users_24h=active_users_24h,
-        inactive_users_30d=inactive_users_30d,
-        failed_logins_24h=failed_logins_24h,
-        active_sessions=active_sessions,
-        api_key_count=api_key_count,
-        expired_api_keys=expired_api_keys,
-        custom_roles=custom_roles,
-        last_successful_login=last_successful_login,
-        last_failed_login=last_failed_login,
-        audit_log_count_24h=audit_log_count_24h,
-        high_priority_audit_events_24h=high_priority_audit_events_24h
-    )
-
-
-@router.get("/users", response_model=List[UserOverview])
-async def list_users(
-    active: Optional[bool] = None,
-    role: Optional[str] = None,
-    search: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_admin_user)
-):
-    """
-    List users with filtering options.
-    
-    Requires admin permission.
-    """
-    auth_system = get_auth_system()
-    auth_service = auth_system.auth_service
-    api_key_cache = get_api_key_cache()
-    
-    # Get all users
-    users_dict = await auth_service.user_store.get_all_users()
-    
-    # Get sessions for counting
-    sessions = await auth_service.session_store.get_all_sessions()
-    sessions_by_user = {}
-    for session_id, session in sessions.items():
-        user_id = session.get("user_id")
-        if user_id:
-            if user_id not in sessions_by_user:
-                sessions_by_user[user_id] = []
-            sessions_by_user[user_id].append(session)
-    
-    # Get API keys for counting
-    api_keys = await api_key_cache.get_all_keys()
-    api_keys_by_user = {}
-    for key_id, key in api_keys.items():
-        user_id = key.get("user_id")
-        if user_id:
-            if user_id not in api_keys_by_user:
-                api_keys_by_user[user_id] = []
-            api_keys_by_user[user_id].append(key)
-    
-    # Apply filters
-    filtered_users = []
-    for user_id, user_data in users_dict.items():
-        # Convert to User object for easier handling
-        try:
-            user = User(**user_data)
-        except:
-            # Skip invalid users
-            continue
+    async def get_auth_metrics(self, force_refresh: bool = False) -> Dict[str, Any]:
+        """
+        Get authentication metrics.
+        
+        Args:
+            force_refresh: Whether to force a refresh of cached metrics
             
-        # Apply active filter if specified
-        if active is not None:
-            is_active = user.is_active if hasattr(user, "is_active") else True
-            if is_active != active:
-                continue
+        Returns:
+            Authentication metrics
+        """
+        # Check cache
+        now = time.time()
+        if (not force_refresh and 
+            self.metrics_cache and 
+            now - self.metrics_cache_time < self.metrics_cache_ttl):
+            return self.metrics_cache
         
-        # Apply role filter if specified
-        if role and role not in user.roles:
-            continue
-            
-        # Apply search filter if specified
-        if search:
-            search_lower = search.lower()
-            if (
-                (user.username and search_lower in user.username.lower()) or
-                (user.email and search_lower in user.email.lower()) or
-                (user.full_name and search_lower in user.full_name.lower())
-            ):
-                pass  # Match, include user
-            else:
-                continue  # No match, skip user
+        metrics = {
+            "timestamp": now,
+            "users": {
+                "total": 0,
+                "active": 0,
+                "inactive": 0,
+                "by_role": {},
+                "new_last_24h": 0,
+                "new_last_7d": 0,
+                "new_last_30d": 0,
+            },
+            "sessions": {
+                "total": 0,
+                "active": 0,
+                "expired": 0,
+            },
+            "api_keys": {
+                "total": 0,
+                "active": 0,
+                "expired": 0,
+            },
+            "logins": {
+                "successful_24h": 0,
+                "failed_24h": 0,
+                "oauth_24h": 0,
+                "apikey_24h": 0,
+            },
+            "backend_access": {
+                "total_24h": 0,
+                "denied_24h": 0,
+                "by_backend": {},
+            },
+            "audit_logs": {
+                "total_24h": 0,
+                "by_severity": {},
+                "by_type": {},
+            }
+        }
         
-        # User passed all filters, include in results
-        login_failures = 0
-        # TODO: Get login failures from audit log
-        
-        filtered_users.append(UserOverview(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            full_name=user.full_name,
-            roles=list(user.roles) if user.roles else [],
-            active=user.is_active if hasattr(user, "is_active") else True,
-            last_login=datetime.fromtimestamp(user.last_login) if user.last_login else None,
-            sessions_count=len(sessions_by_user.get(user.id, [])),
-            api_keys_count=len(api_keys_by_user.get(user.id, [])),
-            created_at=datetime.fromtimestamp(user.created_at) if user.created_at else datetime.utcnow(),
-            login_failures=login_failures
-        ))
-    
-    # Sort by username
-    filtered_users.sort(key=lambda u: u.username)
-    
-    # Apply pagination
-    paginated_users = filtered_users[offset:offset + limit]
-    
-    return paginated_users
-
-
-@router.get("/roles", response_model=List[RoleDetail])
-async def list_roles(current_user: User = Depends(get_admin_user)):
-    """
-    List all roles in the system.
-    
-    Requires admin permission.
-    """
-    auth_system = get_auth_system()
-    auth_service = auth_system.auth_service
-    
-    # Get all users for counting
-    users_dict = await auth_service.user_store.get_all_users()
-    
-    # Count users per role
-    role_user_counts = {}
-    for user_id, user_data in users_dict.items():
         try:
-            user = User(**user_data)
-            for role in user.roles:
-                if role not in role_user_counts:
-                    role_user_counts[role] = 0
-                role_user_counts[role] += 1
-        except:
-            # Skip invalid users
-            continue
-    
-    # Get system roles
-    system_roles = []
-    for role in Role:
-        permissions = rbac_manager.get_effective_permissions(role)
-        system_roles.append(RoleDetail(
-            id=role.value,
-            name=role.name.capitalize(),
-            description=f"System role: {role.name}",
-            permissions=permissions,
-            parent_role=None,  # TODO: Get parent from hierarchy
-            user_count=role_user_counts.get(role.value, 0),
-            is_system_role=True,
-            created_at=None,
-            updated_at=None
-        ))
-    
-    # Get custom roles
-    custom_roles = []
-    for role_id, role_data in rbac_manager._custom_roles.items():
-        custom_roles.append(RoleDetail(
-            id=role_id,
-            name=role_data.get("name", role_id),
-            description=role_data.get("description"),
-            permissions=[p.value if hasattr(p, "value") else p for p in role_data.get("permissions", [])],
-            parent_role=role_data.get("parent").value if role_data.get("parent") else None,
-            user_count=role_user_counts.get(role_id, 0),
-            is_system_role=False,
-            created_at=role_data.get("created_at"),
-            updated_at=role_data.get("updated_at")
-        ))
-    
-    # Combine and sort
-    all_roles = system_roles + custom_roles
-    all_roles.sort(key=lambda r: (not r.is_system_role, r.name))
-    
-    return all_roles
-
-
-@router.get("/api-keys", response_model=List[ApiKeyDetail])
-async def list_api_keys(
-    active: Optional[bool] = None,
-    user_id: Optional[str] = None,
-    current_user: User = Depends(get_admin_user)
-):
-    """
-    List API keys with filtering options.
-    
-    Requires admin permission.
-    """
-    auth_system = get_auth_system()
-    auth_service = auth_system.auth_service
-    api_key_cache = get_api_key_cache()
-    
-    # Get all API keys
-    api_keys = await api_key_cache.get_all_keys()
-    
-    # Get all users for username lookup
-    users_dict = await auth_service.user_store.get_all_users()
-    
-    # Apply filters and build response
-    now = datetime.utcnow().timestamp()
-    filtered_keys = []
-    for key_id, key_data in api_keys.items():
-        # Apply active filter if specified
-        if active is not None:
-            is_active = (
-                key_data.get("expires_at") is None or 
-                key_data.get("expires_at") > now
-            )
-            if is_active != active:
-                continue
+            # Get users
+            users = await self.auth_service.list_users()
+            metrics["users"]["total"] = len(users)
+            
+            # Process user metrics
+            roles_count = {}
+            active_count = 0
+            inactive_count = 0
+            new_24h = 0
+            new_7d = 0
+            new_30d = 0
+            
+            for user in users:
+                # Count by role
+                for role in user.roles:
+                    roles_count[role] = roles_count.get(role, 0) + 1
+                
+                # Count active/inactive
+                if user.active:
+                    active_count += 1
+                else:
+                    inactive_count += 1
+                
+                # Count new users
+                created_time = user.created_at
+                days_since_creation = (now - created_time) / 86400  # Convert to days
+                
+                if days_since_creation <= 1:
+                    new_24h += 1
+                if days_since_creation <= 7:
+                    new_7d += 1
+                if days_since_creation <= 30:
+                    new_30d += 1
+            
+            metrics["users"]["active"] = active_count
+            metrics["users"]["inactive"] = inactive_count
+            metrics["users"]["by_role"] = roles_count
+            metrics["users"]["new_last_24h"] = new_24h
+            metrics["users"]["new_last_7d"] = new_7d
+            metrics["users"]["new_last_30d"] = new_30d
+            
+            # Get sessions
+            sessions = await self.auth_service.list_sessions()
+            metrics["sessions"]["total"] = len(sessions)
+            
+            # Process session metrics
+            active_sessions = 0
+            expired_sessions = 0
+            
+            for session in sessions:
+                if session.active and session.expires_at > now:
+                    active_sessions += 1
+                else:
+                    expired_sessions += 1
+            
+            metrics["sessions"]["active"] = active_sessions
+            metrics["sessions"]["expired"] = expired_sessions
+            
+            # Get API keys
+            api_keys = await self.auth_service.list_api_keys()
+            metrics["api_keys"]["total"] = len(api_keys)
+            
+            # Process API key metrics
+            active_keys = 0
+            expired_keys = 0
+            
+            for key in api_keys:
+                if key.active and (key.expires_at is None or key.expires_at > now):
+                    active_keys += 1
+                else:
+                    expired_keys += 1
+            
+            metrics["api_keys"]["active"] = active_keys
+            metrics["api_keys"]["expired"] = expired_keys
+            
+            # Get audit logs for the last 24 hours
+            logs = await self.get_audit_logs(hours=24)
+            
+            # Process login metrics
+            successful_logins = 0
+            failed_logins = 0
+            oauth_logins = 0
+            apikey_logins = 0
+            
+            for log in logs:
+                if log.get("event_type") == "AUTH":
+                    action = log.get("action", "")
+                    if action == "login_attempt":
+                        if log.get("details", {}).get("success", False):
+                            successful_logins += 1
+                        else:
+                            failed_logins += 1
+                    elif action == "oauth_login":
+                        oauth_logins += 1
+                    elif action == "api_key_auth":
+                        apikey_logins += 1
+            
+            metrics["logins"]["successful_24h"] = successful_logins
+            metrics["logins"]["failed_24h"] = failed_logins
+            metrics["logins"]["oauth_24h"] = oauth_logins
+            metrics["logins"]["apikey_24h"] = apikey_logins
+            
+            # Process backend access metrics
+            backend_access = 0
+            denied_access = 0
+            backend_counts = {}
+            
+            for log in logs:
+                if log.get("event_type") == "BACKEND":
+                    backend_access += 1
+                    
+                    if not log.get("details", {}).get("granted", True):
+                        denied_access += 1
+                    
+                    backend = log.get("details", {}).get("backend")
+                    if backend:
+                        backend_counts[backend] = backend_counts.get(backend, 0) + 1
+            
+            metrics["backend_access"]["total_24h"] = backend_access
+            metrics["backend_access"]["denied_24h"] = denied_access
+            metrics["backend_access"]["by_backend"] = backend_counts
+            
+            # Process audit log metrics
+            metrics["audit_logs"]["total_24h"] = len(logs)
+            
+            severity_counts = {}
+            type_counts = {}
+            
+            for log in logs:
+                severity = log.get("severity", "UNKNOWN")
+                event_type = log.get("event_type", "UNKNOWN")
+                
+                severity_counts[severity] = severity_counts.get(severity, 0) + 1
+                type_counts[event_type] = type_counts.get(event_type, 0) + 1
+            
+            metrics["audit_logs"]["by_severity"] = severity_counts
+            metrics["audit_logs"]["by_type"] = type_counts
+            
+            # Update cache
+            self.metrics_cache = metrics
+            self.metrics_cache_time = now
+            
+            return metrics
         
-        # Apply user filter if specified
-        if user_id and key_data.get("user_id") != user_id:
-            continue
+        except Exception as e:
+            logger.error(f"Error getting auth metrics: {e}")
+            return {
+                "error": str(e),
+                "timestamp": now
+            }
+    
+    async def get_audit_logs(
+        self, 
+        hours: int = 24,
+        user_id: Optional[str] = None,
+        event_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get audit logs for the specified period.
         
-        # Get username if available
-        username = None
-        if key_data.get("user_id") in users_dict:
-            username = users_dict[key_data.get("user_id")].get("username")
+        Args:
+            hours: Number of hours to look back
+            user_id: Optional user ID filter
+            event_type: Optional event type filter
+            
+        Returns:
+            List of audit logs
+        """
+        try:
+            # Calculate start time
+            now = time.time()
+            start_time = now - (hours * 3600)
+            
+            # Build filters
+            filters = {
+                "from_time": start_time
+            }
+            
+            if user_id:
+                filters["user_id"] = user_id
+            
+            if event_type:
+                filters["event_type"] = event_type
+            
+            # Get logs
+            audit_logger = self.auth_system.audit_logger
+            if not audit_logger:
+                return []
+            
+            logs = await audit_logger.get_logs(filters=filters)
+            return logs
         
-        # Convert dates
-        created_at = datetime.fromtimestamp(key_data.get("created_at", 0))
-        expires_at = datetime.fromtimestamp(key_data.get("expires_at")) if key_data.get("expires_at") else None
-        last_used = datetime.fromtimestamp(key_data.get("last_used")) if key_data.get("last_used") else None
+        except Exception as e:
+            logger.error(f"Error getting audit logs: {e}")
+            return []
+    
+    async def get_suspicious_activities(self, hours: int = 24) -> List[Dict[str, Any]]:
+        """
+        Get suspicious activities from audit logs.
         
-        # Check if active
-        is_active = True
-        if expires_at and expires_at < datetime.utcnow():
-            is_active = False
+        Args:
+            hours: Number of hours to look back
+            
+        Returns:
+            List of suspicious activities
+        """
+        try:
+            # Get audit logs
+            logs = await self.get_audit_logs(hours=hours)
+            
+            # Define suspicious patterns
+            suspicious_activities = []
+            
+            # Check for multiple failed logins
+            failed_logins = {}
+            
+            for log in logs:
+                if log.get("event_type") == "AUTH" and log.get("action") == "login_attempt":
+                    if not log.get("details", {}).get("success", False):
+                        user_id = log.get("user_id")
+                        ip = log.get("details", {}).get("ip_address")
+                        
+                        if user_id:
+                            key = f"{user_id}:{ip}" if ip else user_id
+                            failed_logins[key] = failed_logins.get(key, 0) + 1
+            
+            # Flag users with more than 5 failed logins
+            for key, count in failed_logins.items():
+                if count >= 5:
+                    user_id = key.split(":")[0] if ":" in key else key
+                    ip = key.split(":")[1] if ":" in key else None
+                    
+                    suspicious_activities.append({
+                        "type": "failed_login",
+                        "user_id": user_id,
+                        "ip_address": ip,
+                        "count": count,
+                        "severity": "HIGH" if count >= 10 else "MEDIUM",
+                        "description": f"Multiple failed login attempts ({count}) for user {user_id}"
+                    })
+            
+            # Check for denied backend access
+            denied_backend = {}
+            
+            for log in logs:
+                if log.get("event_type") == "BACKEND" and not log.get("details", {}).get("granted", True):
+                    user_id = log.get("user_id")
+                    backend = log.get("details", {}).get("backend")
+                    
+                    if user_id and backend:
+                        key = f"{user_id}:{backend}"
+                        denied_backend[key] = denied_backend.get(key, 0) + 1
+            
+            # Flag users with more than 3 denied backend access
+            for key, count in denied_backend.items():
+                if count >= 3:
+                    user_id, backend = key.split(":")
+                    
+                    suspicious_activities.append({
+                        "type": "denied_backend",
+                        "user_id": user_id,
+                        "backend": backend,
+                        "count": count,
+                        "severity": "MEDIUM",
+                        "description": f"Multiple denied access attempts ({count}) to backend {backend} for user {user_id}"
+                    })
+            
+            # Check for permission denials
+            denied_permissions = {}
+            
+            for log in logs:
+                if log.get("event_type") == "PERMISSION" and not log.get("details", {}).get("granted", True):
+                    user_id = log.get("user_id")
+                    permission = log.get("details", {}).get("permission")
+                    
+                    if user_id and permission:
+                        key = f"{user_id}:{permission}"
+                        denied_permissions[key] = denied_permissions.get(key, 0) + 1
+            
+            # Flag users with more than 3 denied permissions
+            for key, count in denied_permissions.items():
+                if count >= 3:
+                    user_id, permission = key.split(":")
+                    
+                    suspicious_activities.append({
+                        "type": "denied_permission",
+                        "user_id": user_id,
+                        "permission": permission,
+                        "count": count,
+                        "severity": "MEDIUM",
+                        "description": f"Multiple permission denials ({count}) for {permission} to user {user_id}"
+                    })
+            
+            # Check for API key usage from unusual IP
+            api_key_ips = {}
+            
+            for log in logs:
+                if log.get("event_type") == "AUTH" and log.get("action") == "api_key_auth":
+                    key_id = log.get("details", {}).get("key_id")
+                    ip = log.get("details", {}).get("ip_address")
+                    
+                    if key_id and ip:
+                        if key_id not in api_key_ips:
+                            api_key_ips[key_id] = set()
+                        
+                        api_key_ips[key_id].add(ip)
+            
+            # Flag API keys used from more than 3 different IPs
+            for key_id, ips in api_key_ips.items():
+                if len(ips) >= 3:
+                    suspicious_activities.append({
+                        "type": "api_key_multiple_ips",
+                        "key_id": key_id,
+                        "ip_count": len(ips),
+                        "ips": list(ips),
+                        "severity": "MEDIUM",
+                        "description": f"API key {key_id} used from {len(ips)} different IP addresses"
+                    })
+            
+            return suspicious_activities
         
-        # Build response object
-        filtered_keys.append(ApiKeyDetail(
-            id=key_id,
-            name=key_data.get("name", "Unnamed API Key"),
-            user_id=key_data.get("user_id"),
-            username=username,
-            created_at=created_at,
-            expires_at=expires_at,
-            last_used=last_used,
-            use_count=key_data.get("use_count", 0),
-            permissions=[p for p in key_data.get("permissions", [])],
-            is_active=is_active
-        ))
+        except Exception as e:
+            logger.error(f"Error getting suspicious activities: {e}")
+            return []
     
-    # Sort by creation date (newest first)
-    filtered_keys.sort(key=lambda k: k.created_at, reverse=True)
-    
-    return filtered_keys
-
-
-@router.get("/audit-logs", response_model=List[AuditLogEntry])
-async def query_audit_logs(
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    user_id: Optional[str] = None,
-    action: Optional[str] = None,
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_admin_user)
-):
-    """
-    Query audit logs with filtering options.
-    
-    Requires admin permission.
-    """
-    audit_logger = get_audit_logger()
-    
-    # Prepare filter parameters
-    query_params = {}
-    if start_time:
-        query_params["start_time"] = start_time
-    if end_time:
-        query_params["end_time"] = end_time
-    if user_id:
-        query_params["user_id"] = user_id
-    if action:
-        query_params["action"] = action
-    if status:
-        query_params["status"] = status
-    if priority:
-        query_params["priority"] = priority
-    
-    # Query audit logs
-    logs = await audit_logger.query_logs(**query_params)
-    
-    # Sort by timestamp (newest first)
-    logs.sort(key=lambda l: l.get("timestamp", 0), reverse=True)
-    
-    # Apply pagination
-    paginated_logs = logs[offset:offset + limit]
-    
-    # Format response
-    result = []
-    for log in paginated_logs:
-        # Convert timestamp
-        timestamp = datetime.fromtimestamp(log.get("timestamp", 0))
+    async def get_user_activity_summary(self, user_id: str, days: int = 30) -> Dict[str, Any]:
+        """
+        Get a summary of user activity.
         
-        # Add to result
-        result.append(AuditLogEntry(
-            id=log.get("id", ""),
-            timestamp=timestamp,
-            user_id=log.get("user_id"),
-            username=log.get("username"),
-            ip_address=log.get("ip_address"),
-            action=log.get("action", "unknown"),
-            target=log.get("target"),
-            status=log.get("status", "unknown"),
-            details=log.get("details", {}),
-            priority=log.get("priority", "normal")
-        ))
-    
-    return result
-
-
-@router.post("/roles/{role_id}/revoke", status_code=status.HTTP_200_OK)
-async def revoke_role_from_users(
-    role_id: str = Path(...),
-    user_ids: List[str] = [],
-    current_user: User = Depends(get_admin_user)
-):
-    """
-    Revoke a role from multiple users.
-    
-    Requires admin permission.
-    """
-    auth_system = get_auth_system()
-    auth_service = auth_system.auth_service
-    
-    # Check if role exists
-    if (role_id not in [r.value for r in Role] and 
-        role_id not in rbac_manager._custom_roles):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Role {role_id} not found"
-        )
-    
-    # Get all affected users
-    results = {"success": [], "failure": []}
-    for user_id in user_ids:
+        Args:
+            user_id: User ID
+            days: Number of days to look back
+            
+        Returns:
+            User activity summary
+        """
         try:
             # Get user
-            user = await auth_service.get_user(user_id)
-            if not user:
-                results["failure"].append({
-                    "user_id": user_id,
-                    "reason": "User not found"
-                })
-                continue
+            auth_service = get_auth_service()
+            user_success, user_result = await auth_service.get_user(user_id)
             
-            # Check if user has the role
-            if role_id not in user.roles:
-                results["failure"].append({
-                    "user_id": user_id,
-                    "reason": f"User does not have role {role_id}"
-                })
-                continue
+            if not user_success:
+                return {"error": "User not found"}
             
-            # Remove role
-            user_dict = user.dict()
-            user_dict["roles"] = [r for r in user.roles if r != role_id]
+            user = user_result
             
-            # Update user
-            success = await auth_service.user_store.update(user.id, user_dict)
-            if success:
-                results["success"].append(user_id)
+            # Get audit logs for user
+            logs = await self.get_audit_logs(hours=days * 24, user_id=user_id)
+            
+            # Process logs
+            login_count = 0
+            backend_access_count = 0
+            permission_checks = 0
+            data_operations = 0
+            
+            # Activity by day
+            days_ago = {}
+            for i in range(days):
+                days_ago[i] = 0
+            
+            # Activity by hour
+            hour_activity = {}
+            for i in range(24):
+                hour_activity[i] = 0
+            
+            for log in logs:
+                # Count by type
+                event_type = log.get("event_type", "")
+                if event_type == "AUTH" and log.get("action") == "login_attempt":
+                    if log.get("details", {}).get("success", False):
+                        login_count += 1
+                elif event_type == "BACKEND":
+                    backend_access_count += 1
+                elif event_type == "PERMISSION":
+                    permission_checks += 1
+                elif event_type == "DATA":
+                    data_operations += 1
                 
-                # Log the action
-                audit_logger = get_audit_logger()
-                await audit_logger.log_event(
-                    action="revoke_role",
-                    user_id=current_user.id,
-                    username=current_user.username,
-                    target=f"user:{user_id}",
-                    status="success",
-                    details={
-                        "role_id": role_id,
-                        "admin_user": current_user.username
-                    },
-                    priority="high"
-                )
-            else:
-                results["failure"].append({
-                    "user_id": user_id,
-                    "reason": "Failed to update user"
-                })
-                
+                # Process by day and hour
+                timestamp = log.get("timestamp", 0)
+                if timestamp > 0:
+                    log_time = datetime.fromtimestamp(timestamp)
+                    now = datetime.now()
+                    
+                    # Days ago
+                    days_diff = (now - log_time).days
+                    if days_diff < days:
+                        days_ago[days_diff] = days_ago.get(days_diff, 0) + 1
+                    
+                    # Hour of day
+                    hour = log_time.hour
+                    hour_activity[hour] = hour_activity.get(hour, 0) + 1
+            
+            # Get API keys for user
+            api_keys = []
+            all_keys = await auth_service.list_api_keys()
+            for key in all_keys:
+                if key.user_id == user_id:
+                    api_keys.append(key)
+            
+            # Get sessions for user
+            sessions = []
+            all_sessions = await auth_service.list_sessions()
+            for session in all_sessions:
+                if session.user_id == user_id:
+                    sessions.append(session)
+            
+            # Build summary
+            summary = {
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "roles": list(user.roles),
+                    "active": user.active,
+                    "created_at": user.created_at,
+                    "last_login": user.last_login,
+                },
+                "activity": {
+                    "login_count": login_count,
+                    "backend_access_count": backend_access_count,
+                    "permission_checks": permission_checks,
+                    "data_operations": data_operations,
+                    "total_logs": len(logs),
+                    "by_day": days_ago,
+                    "by_hour": hour_activity,
+                },
+                "api_keys": {
+                    "total": len(api_keys),
+                    "active": sum(1 for k in api_keys if k.active),
+                    "expired": sum(1 for k in api_keys if not k.active),
+                },
+                "sessions": {
+                    "total": len(sessions),
+                    "active": sum(1 for s in sessions if s.active),
+                    "expired": sum(1 for s in sessions if not s.active),
+                }
+            }
+            
+            return summary
+        
         except Exception as e:
-            results["failure"].append({
-                "user_id": user_id,
-                "reason": str(e)
-            })
+            logger.error(f"Error getting user activity summary: {e}")
+            return {"error": str(e)}
     
-    # Return results
-    return {
-        "role_id": role_id,
-        "success_count": len(results["success"]),
-        "failure_count": len(results["failure"]),
-        "details": results
-    }
-
-
-@router.post("/api-keys/revoke-all", status_code=status.HTTP_200_OK)
-async def revoke_all_api_keys(
-    user_id: Optional[str] = None,
-    current_user: User = Depends(get_admin_user)
-):
-    """
-    Revoke all API keys, optionally for a specific user.
-    
-    Requires admin permission.
-    """
-    api_key_cache = get_api_key_cache()
-    
-    # Get all API keys
-    api_keys = await api_key_cache.get_all_keys()
-    
-    # Filter by user if specified
-    revoked_count = 0
-    revoked_keys = []
-    
-    for key_id, key_data in api_keys.items():
-        # Skip if not matching user (when filter is applied)
-        if user_id and key_data.get("user_id") != user_id:
-            continue
+    async def get_backend_access_summary(self, days: int = 30) -> Dict[str, Any]:
+        """
+        Get a summary of backend access.
+        
+        Args:
+            days: Number of days to look back
             
-        # Delete the key
-        success = await api_key_cache.delete_key(key_id)
-        if success:
-            revoked_count += 1
-            revoked_keys.append(key_id)
+        Returns:
+            Backend access summary
+        """
+        try:
+            # Get audit logs for backend access
+            logs = await self.get_audit_logs(hours=days * 24, event_type="BACKEND")
+            
+            # Process logs
+            backend_counts = {}
+            operation_counts = {}
+            user_counts = {}
+            denied_counts = {}
+            
+            # Access by day
+            days_ago = {}
+            for i in range(days):
+                days_ago[i] = 0
+            
+            for log in logs:
+                details = log.get("details", {})
+                backend = details.get("backend", "unknown")
+                operation = details.get("operation", "unknown")
+                user_id = log.get("user_id", "unknown")
+                granted = details.get("granted", True)
+                
+                # Count by backend
+                backend_counts[backend] = backend_counts.get(backend, 0) + 1
+                
+                # Count by operation
+                operation_counts[operation] = operation_counts.get(operation, 0) + 1
+                
+                # Count by user
+                user_counts[user_id] = user_counts.get(user_id, 0) + 1
+                
+                # Count denied access
+                if not granted:
+                    denied_key = f"{backend}:{operation}"
+                    denied_counts[denied_key] = denied_counts.get(denied_key, 0) + 1
+                
+                # Process by day
+                timestamp = log.get("timestamp", 0)
+                if timestamp > 0:
+                    log_time = datetime.fromtimestamp(timestamp)
+                    now = datetime.now()
+                    
+                    # Days ago
+                    days_diff = (now - log_time).days
+                    if days_diff < days:
+                        days_ago[days_diff] = days_ago.get(days_diff, 0) + 1
+            
+            # Find top users
+            top_users = sorted(
+                user_counts.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:10]
+            
+            # Build summary
+            summary = {
+                "total_access": len(logs),
+                "by_backend": backend_counts,
+                "by_operation": operation_counts,
+                "top_users": dict(top_users),
+                "denied_access": denied_counts,
+                "by_day": days_ago,
+            }
+            
+            return summary
+        
+        except Exception as e:
+            logger.error(f"Error getting backend access summary: {e}")
+            return {"error": str(e)}
+
+# Create dashboard instance
+dashboard = SecurityDashboard()
+
+# Define routes
+@router.get("/dashboard", response_class=HTMLResponse, summary="Security dashboard UI")
+async def get_dashboard(request: Request):
+    """Get the security dashboard UI."""
+    if not templates:
+        return HTMLResponse("Templates not available", status_code=500)
     
-    # Log the action
-    audit_logger = get_audit_logger()
-    await audit_logger.log_event(
-        action="revoke_all_api_keys",
-        user_id=current_user.id,
-        username=current_user.username,
-        target=f"user:{user_id}" if user_id else "all_users",
-        status="success",
-        details={
-            "revoked_count": revoked_count,
-            "admin_user": current_user.username
-        },
-        priority="high"
+    metrics = await dashboard.get_auth_metrics()
+    suspicious = await dashboard.get_suspicious_activities()
+    
+    return templates.TemplateResponse(
+        "security_dashboard.html",
+        {
+            "request": request,
+            "metrics": metrics,
+            "suspicious": suspicious,
+            "current_time": datetime.now().isoformat(),
+        }
     )
-    
-    # Return results
-    return {
-        "success": True,
-        "revoked_count": revoked_count,
-        "user_id": user_id,
-        "revoked_keys": revoked_keys
-    }
 
-
-@router.get("/stats/logins", response_model=Dict[str, Any])
-async def get_login_statistics(
-    days: int = Query(7, ge=1, le=30),
-    current_user: User = Depends(get_admin_user)
+@router.get("/metrics", summary="Get security metrics")
+async def get_metrics(
+    force_refresh: bool = Query(False, description="Force refresh of metrics cache")
 ):
-    """
-    Get login statistics for the specified number of days.
-    
-    Requires admin permission.
-    """
-    audit_logger = get_audit_logger()
-    
-    # Calculate start time
-    start_time = datetime.utcnow() - timedelta(days=days)
-    
-    # Query login events
-    login_events = await audit_logger.query_logs(
-        action="login",
-        start_time=start_time
-    )
-    
-    # Group by day and status
-    daily_stats = {}
-    for event in login_events:
-        # Get date from timestamp
-        timestamp = event.get("timestamp", 0)
-        date_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
-        
-        # Initialize day if needed
-        if date_str not in daily_stats:
-            daily_stats[date_str] = {
-                "success": 0,
-                "failure": 0,
-                "total": 0
-            }
-        
-        # Update counts
-        status = event.get("status", "unknown")
-        if status == "success":
-            daily_stats[date_str]["success"] += 1
-        elif status == "failure":
-            daily_stats[date_str]["failure"] += 1
-        
-        daily_stats[date_str]["total"] += 1
-    
-    # Ensure all days are present
-    for i in range(days):
-        date = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
-        if date not in daily_stats:
-            daily_stats[date] = {
-                "success": 0,
-                "failure": 0,
-                "total": 0
-            }
-    
-    # Convert to list and sort by date
-    daily_list = [{"date": date, **stats} for date, stats in daily_stats.items()]
-    daily_list.sort(key=lambda x: x["date"])
-    
-    # Calculate totals
-    total_success = sum(day["success"] for day in daily_list)
-    total_failure = sum(day["failure"] for day in daily_list)
-    
-    return {
-        "daily": daily_list,
-        "total_success": total_success,
-        "total_failure": total_failure,
-        "total": total_success + total_failure,
-        "success_rate": total_success / (total_success + total_failure) * 100 if (total_success + total_failure) > 0 else 0,
-        "days": days
-    }
+    """Get security metrics."""
+    metrics = await dashboard.get_auth_metrics(force_refresh=force_refresh)
+    return metrics
 
+@router.get("/suspicious", summary="Get suspicious activities")
+async def get_suspicious_activities(
+    hours: int = Query(24, description="Hours to look back", ge=1, le=720)
+):
+    """Get suspicious activities."""
+    activities = await dashboard.get_suspicious_activities(hours=hours)
+    return {"activities": activities, "count": len(activities), "hours": hours}
 
-# Add the router to app in main auth_system_integration.py
+@router.get("/users/{user_id}/activity", summary="Get user activity summary")
+async def get_user_activity(
+    user_id: str,
+    days: int = Query(30, description="Days to look back", ge=1, le=365)
+):
+    """Get user activity summary."""
+    summary = await dashboard.get_user_activity_summary(user_id=user_id, days=days)
+    return summary
+
+@router.get("/backend/summary", summary="Get backend access summary")
+async def get_backend_summary(
+    days: int = Query(30, description="Days to look back", ge=1, le=365)
+):
+    """Get backend access summary."""
+    summary = await dashboard.get_backend_access_summary(days=days)
+    return summary
+
+@router.get("/audit/logs", summary="Get audit logs")
+async def get_audit_logs(
+    hours: int = Query(24, description="Hours to look back", ge=1, le=720),
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    event_type: Optional[str] = Query(None, description="Filter by event type")
+):
+    """Get audit logs."""
+    logs = await dashboard.get_audit_logs(hours=hours, user_id=user_id, event_type=event_type)
+    return {"logs": logs, "count": len(logs), "hours": hours}
+
+# Create a basic dashboard HTML template
+dashboard_html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Security Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            font-size: 18px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .metric .label {
+            color: #666;
+        }
+        .metric .value {
+            font-weight: bold;
+        }
+        .alert {
+            background-color: #fff8f8;
+            border-left: 4px solid #ff4444;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .alert.high {
+            border-left-color: #ff4444;
+        }
+        .alert.medium {
+            border-left-color: #ffbb33;
+        }
+        .alert.low {
+            border-left-color: #ffbb33;
+        }
+        .alert .severity {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        .alert .severity.high {
+            color: #ff4444;
+        }
+        .alert .severity.medium {
+            color: #ffbb33;
+        }
+        .alert .severity.low {
+            color: #33b5e5;
+        }
+        header {
+            margin-bottom: 20px;
+        }
+        header h1 {
+            margin: 0;
+        }
+        header p {
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>MCP Security Dashboard</h1>
+        <p>Last updated: {{ current_time }}</p>
+    </header>
+    
+    <div class="dashboard">
+        <!-- User metrics -->
+        <div class="card">
+            <h2>User Statistics</h2>
+            <div class="metric">
+                <span class="label">Total Users</span>
+                <span class="value">{{ metrics.users.total }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">Active Users</span>
+                <span class="value">{{ metrics.users.active }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">New (24h)</span>
+                <span class="value">{{ metrics.users.new_last_24h }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">New (7d)</span>
+                <span class="value">{{ metrics.users.new_last_7d }}</span>
+            </div>
+        </div>
+        
+        <!-- Authentication metrics -->
+        <div class="card">
+            <h2>Authentication</h2>
+            <div class="metric">
+                <span class="label">Active Sessions</span>
+                <span class="value">{{ metrics.sessions.active }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">Active API Keys</span>
+                <span class="value">{{ metrics.api_keys.active }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">Logins (24h)</span>
+                <span class="value">{{ metrics.logins.successful_24h }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">Failed Logins (24h)</span>
+                <span class="value">{{ metrics.logins.failed_24h }}</span>
+            </div>
+        </div>
+        
+        <!-- Backend access metrics -->
+        <div class="card">
+            <h2>Backend Access</h2>
+            <div class="metric">
+                <span class="label">Total Access (24h)</span>
+                <span class="value">{{ metrics.backend_access.total_24h }}</span>
+            </div>
+            <div class="metric">
+                <span class="label">Denied Access (24h)</span>
+                <span class="value">{{ metrics.backend_access.denied_24h }}</span>
+            </div>
+        </div>
+        
+        <!-- Suspicious activities -->
+        <div class="card">
+            <h2>Suspicious Activities</h2>
+            {% if suspicious %}
+                {% for activity in suspicious %}
+                <div class="alert {{ activity.severity|lower }}">
+                    <div class="severity {{ activity.severity|lower }}">{{ activity.severity }}</div>
+                    <div>{{ activity.description }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No suspicious activities detected</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        // Auto-refresh dashboard every 5 minutes
+        setTimeout(function() {
+            window.location.reload();
+        }, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
+"""
+
+# Create template file if templates directory exists

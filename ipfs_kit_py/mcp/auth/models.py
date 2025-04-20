@@ -11,6 +11,8 @@ Part of the MCP Roadmap Phase 1: Core Functionality Enhancements.
 
 import os
 import enum
+import time
+import secrets
 from typing import Dict, List, Optional, Set, Union, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field, validator, root_validator
@@ -246,16 +248,33 @@ class APIKeyBase(BaseModel):
 class APIKeyCreate(APIKeyBase):
     """Model for creating a new API key."""
     user_id: str
-
-
+    
+    
 class APIKey(APIKeyBase):
     """Complete API key model."""
     id: str
-    key: str  # Only returned once when created
+    key: str  # The actual API key value (hashed in storage)
     user_id: str
     created_at: datetime
+    updated_at: Optional[datetime] = None
     last_used: Optional[datetime] = None
     is_active: bool = True
+    backend_restrictions: Optional[Dict[str, bool]] = None
+
+    class Config:
+        orm_mode = True
+
+
+class Session(BaseModel):
+    """Session model for user authentication."""
+    id: str = Field(default_factory=lambda: secrets.token_hex(16))
+    user_id: str
+    expires_at: float
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    active: bool = True
+    created_at: float = Field(default_factory=time.time)
+    last_activity: float = Field(default_factory=time.time)
 
     class Config:
         orm_mode = True
@@ -267,9 +286,38 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    """Request model for user registration."""
+    username: str
+    email: str
+    password: str
+    full_name: Optional[str] = None
+
+    @validator('password')
+    def password_strength(cls, v):
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        # Add more password strength rules as needed
+        return v
+
+
 class RefreshTokenRequest(BaseModel):
     """Request model for refreshing an access token."""
     refresh_token: str
+
+
+class APIKeyResponse(BaseModel):
+    """Response model for API key creation."""
+    id: str
+    name: str
+    key: str  # Only returned once when created
+    user_id: str
+    created_at: float
+    expires_at: Optional[float] = None
+    roles: List[str] = []
+    permissions: List[str] = []
+    backend_restrictions: Optional[Dict[str, bool]] = None
 
 
 class OAuthProvider(str, enum.Enum):

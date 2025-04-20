@@ -12,15 +12,14 @@ import logging
 import importlib.util
 from typing import Dict, Any, Optional
 from fastapi import (
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.security.api_key import APIKeyHeader, APIKeyQuery
-
-APIRouter,
+    APIRouter,
     Depends,
     HTTPException,
     Request,
     Form,
     Query)
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security.api_key import APIKeyHeader, APIKeyQuery
 
 
 
@@ -64,7 +63,7 @@ if AUTH_MANAGER_AVAILABLE:
             "jwt_secret": jwt_secret,
             "default_admin_password": default_admin_password,
             "allow_anonymous_access": True,
-            "anon_allowed_paths": [,
+            "anon_allowed_paths": [
                 "/api/v0/health",
                 "/api/v0/metrics/status",
                 "/api/v0/ipfs/version",
@@ -84,7 +83,7 @@ api_key_query = APIKeyQuery(name="api_key", auto_error=False)
 
 # Dependency for authentication
 async def get_current_user(
-    request: Request
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     api_key_header_value: Optional[str] = Depends(api_key_header),
     api_key_query_value: Optional[str] = Depends(api_key_query),
@@ -307,7 +306,7 @@ def create_auth_router(api_prefix: str) -> APIRouter:
 
     @router.post("/refresh")
     async def refresh_token(
-        request: Request
+        request: Request,
         refresh_token: str = Form(...),
     ):
         """
@@ -499,7 +498,7 @@ def create_auth_router(api_prefix: str) -> APIRouter:
 
     @router.post("/users/{user_id}", dependencies=[Depends(require_admin)])
     async def update_user(
-        user_id: int
+        user_id: int,
         full_name: Optional[str] = Form(None),
         email: Optional[str] = Form(None),
         role_name: Optional[str] = Form(None),
@@ -533,7 +532,7 @@ def create_auth_router(api_prefix: str) -> APIRouter:
 
     @router.post("/users/{user_id}/reset-password", dependencies=[Depends(require_admin)])
     async def reset_password(
-        user_id: int
+        user_id: int,
         new_password: str = Form(...),
         admin_user: Dict[str, Any] = Depends(require_admin),
     ):
@@ -594,7 +593,7 @@ def create_auth_router(api_prefix: str) -> APIRouter:
 
     @router.post("/roles/{role_id}/permissions", dependencies=[Depends(require_admin)])
     async def update_role_permissions(
-        role_id: int
+        role_id: int,
         permissions: str = Form(...),  # Comma-separated list
     ):
         """
@@ -676,7 +675,7 @@ def update_auth_status(storage_backends: Dict[str, Any]) -> None:
     storage_backends["auth"] = {
         "available": AUTH_MANAGER_AVAILABLE and auth_manager is not None,
         "simulation": False,
-        "features": (,
+        "features": (
             {
                 "user_management": True,
                 "api_keys": True,

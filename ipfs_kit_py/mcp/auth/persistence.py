@@ -180,7 +180,7 @@ class BaseStore:
 
 class UserStore(BaseStore):
     """Store for user data."""
-    def __init___v2(self, data_dir: str = None):
+    def __init__(self, data_dir: str = None):
         """Initialize the user store."""
         super().__init__(data_dir, "users")
 
@@ -192,7 +192,7 @@ class UserStore(BaseStore):
         self.username_index = {}  # username -> user_id
         self.email_index = {}  # email -> user_id
 
-    async def initialize_v2(self):
+    async def initialize(self):
         """Initialize the user store."""
         await super().initialize()
 
@@ -268,7 +268,7 @@ class UserStore(BaseStore):
             f"Rebuilt user indexes: {len(self.username_index)} usernames, {len(self.email_index)} emails"
         )
 
-    async def create_v2(self, item_id: str, item_data: Dict[str, Any]) -> bool:
+    async def create(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Create a new user.
 
@@ -299,7 +299,7 @@ class UserStore(BaseStore):
 
         return True
 
-    async def update_v2(self, item_id: str, item_data: Dict[str, Any]) -> bool:
+    async def update(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Update an existing user.
 
@@ -348,7 +348,7 @@ class UserStore(BaseStore):
 
         return True
 
-    async def delete_v2(self, item_id: str) -> bool:
+    async def delete(self, item_id: str) -> bool:
         """
         Delete a user.
 
@@ -421,7 +421,7 @@ class UserStore(BaseStore):
 
 class RoleStore(BaseStore):
     """Store for role data."""
-    # DISABLED REDEFINITION
+    def __init__(self, data_dir: str = None):
         """Initialize the role store."""
         super().__init__(data_dir, "roles")
 
@@ -431,7 +431,7 @@ class RoleStore(BaseStore):
         # In-memory index
         self.name_index = {}  # name -> role_id
 
-    # DISABLED REDEFINITION
+    async def initialize(self):
         """Initialize the role store."""
         await super().initialize()
 
@@ -483,7 +483,7 @@ class RoleStore(BaseStore):
 
         logger.info(f"Rebuilt role name index: {len(self.name_index)} names")
 
-    # DISABLED REDEFINITION
+    async def create(self, item_id: str, item_data: dict) -> bool:
         """
         Create a new role.
 
@@ -510,7 +510,7 @@ class RoleStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def update(self, item_id: str, item_data: dict) -> bool:
         """
         Update an existing role.
 
@@ -547,7 +547,7 @@ class RoleStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def delete(self, item_id: str) -> bool:
         """
         Delete a role.
 
@@ -577,7 +577,7 @@ class RoleStore(BaseStore):
 
         return True
 
-    async def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+    async def get_by_name(self, name: str) -> Optional[dict]:
         """
         Get a role by name.
 
@@ -598,7 +598,8 @@ class RoleStore(BaseStore):
 
 class PermissionStore(BaseStore):
     """Store for permission data."""
-    # DISABLED REDEFINITION
+    
+    def __init__(self, data_dir: str = None):
         """Initialize the permission store."""
         super().__init__(data_dir, "permissions")
 
@@ -608,14 +609,14 @@ class PermissionStore(BaseStore):
         # In-memory index
         self.name_index = {}  # name -> permission_id
 
-    # DISABLED REDEFINITION
+    async def initialize(self):
         """Initialize the permission store."""
         await super().initialize()
 
         # Load index
         await self._load_index()
 
-    async def _load_index_v2(self):
+    async def _load_index(self):
         """Load name index."""
         # Load name index
         if os.path.exists(self.name_index_file):
@@ -631,7 +632,7 @@ class PermissionStore(BaseStore):
         if not self.name_index:
             await self._rebuild_index()
 
-    async def _save_index_v2(self):
+    async def _save_index(self):
         """Save name index."""
         # Save name index
         try:
@@ -640,7 +641,7 @@ class PermissionStore(BaseStore):
         except Exception as e:
             logger.error(f"Failed to save permission name index: {e}")
 
-    async def _rebuild_index_v2(self):
+    async def _rebuild_index(self):
         """Rebuild name index from all permission files."""
         # Clear index
         self.name_index = {}
@@ -660,7 +661,7 @@ class PermissionStore(BaseStore):
 
         logger.info(f"Rebuilt permission name index: {len(self.name_index)} names")
 
-    # DISABLED REDEFINITION
+    async def create(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Create a new permission.
 
@@ -687,7 +688,7 @@ class PermissionStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def update(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Update an existing permission.
 
@@ -724,7 +725,7 @@ class PermissionStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def delete(self, item_id: str) -> bool:
         """
         Delete a permission.
 
@@ -754,7 +755,7 @@ class PermissionStore(BaseStore):
 
         return True
 
-    async def get_by_name_v2(self, name: str) -> Optional[Dict[str, Any]]:
+    async def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get a permission by name.
 
@@ -775,24 +776,24 @@ class PermissionStore(BaseStore):
 
 class ApiKeyStore(BaseStore):
     """Store for API key data."""
-    # DISABLED REDEFINITION
+
+    def __init__(self, data_dir: str = None):
         """Initialize the API key store."""
         super().__init__(data_dir, "apikeys")
-
         # Index file for mapping users to API keys
         self.user_index_file = os.path.join(self.data_dir, "_user_index.json")
 
         # In-memory index
         self.user_index = {}  # user_id -> list of key_ids
 
-    # DISABLED REDEFINITION
+    async def initialize(self):
         """Initialize the API key store."""
         await super().initialize()
 
         # Load index
         await self._load_index()
 
-    # DISABLED REDEFINITION
+    async def _load_index(self):
         """Load user index."""
         # Load user index
         if os.path.exists(self.user_index_file):
@@ -808,7 +809,7 @@ class ApiKeyStore(BaseStore):
         if not self.user_index:
             await self._rebuild_index()
 
-    # DISABLED REDEFINITION
+    async def _save_index(self):
         """Save user index."""
         # Save user index
         try:
@@ -817,7 +818,7 @@ class ApiKeyStore(BaseStore):
         except Exception as e:
             logger.error(f"Failed to save API key user index: {e}")
 
-    # DISABLED REDEFINITION
+    async def _rebuild_index(self):
         """Rebuild user index from all API key files."""
         # Clear index
         self.user_index = {}
@@ -840,7 +841,7 @@ class ApiKeyStore(BaseStore):
 
         logger.info(f"Rebuilt API key user index: {len(self.user_index)} users")
 
-    # DISABLED REDEFINITION
+    async def create(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Create a new API key.
 
@@ -870,7 +871,7 @@ class ApiKeyStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def update(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Update an existing API key.
 
@@ -917,7 +918,7 @@ class ApiKeyStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def delete(self, item_id: str) -> bool:
         """
         Delete an API key.
 
@@ -977,7 +978,8 @@ class ApiKeyStore(BaseStore):
 
 class SessionStore(BaseStore):
     """Store for session data."""
-    # DISABLED REDEFINITION
+    
+    def __init__(self, data_dir: str = None):
         """Initialize the session store."""
         super().__init__(data_dir, "sessions")
 
@@ -987,14 +989,14 @@ class SessionStore(BaseStore):
         # In-memory index
         self.user_index = {}  # user_id -> list of session_ids
 
-    # DISABLED REDEFINITION
+    async def initialize(self):
         """Initialize the session store."""
         await super().initialize()
 
         # Load index
         await self._load_index()
 
-    # DISABLED REDEFINITION
+    async def _load_index(self):
         """Load user index."""
         # Load user index
         if os.path.exists(self.user_index_file):
@@ -1010,7 +1012,7 @@ class SessionStore(BaseStore):
         if not self.user_index:
             await self._rebuild_index()
 
-    # DISABLED REDEFINITION
+    async def _save_index(self):
         """Save user index."""
         # Save user index
         try:
@@ -1019,7 +1021,7 @@ class SessionStore(BaseStore):
         except Exception as e:
             logger.error(f"Failed to save session user index: {e}")
 
-    # DISABLED REDEFINITION
+    async def _rebuild_index(self):
         """Rebuild user index from all session files."""
         # Clear index
         self.user_index = {}
@@ -1042,7 +1044,7 @@ class SessionStore(BaseStore):
 
         logger.info(f"Rebuilt session user index: {len(self.user_index)} users")
 
-    # DISABLED REDEFINITION
+    async def create(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Create a new session.
 
@@ -1072,7 +1074,7 @@ class SessionStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def update(self, item_id: str, item_data: Dict[str, Any]) -> bool:
         """
         Update an existing session.
 
@@ -1119,7 +1121,7 @@ class SessionStore(BaseStore):
 
         return True
 
-    # DISABLED REDEFINITION
+    async def delete(self, item_id: str) -> bool:
         """
         Delete a session.
 
