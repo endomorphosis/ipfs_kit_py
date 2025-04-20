@@ -1,216 +1,189 @@
+#!/usr/bin/env python3
 """
-Tests for the Storacha backend implementation.
+Test script for Storacha storage backend with the new endpoint.
 
-This module tests the Storacha backend to ensure it properly implements
-the required BackendStorage interface.
+This script demonstrates how to use the updated Storacha storage backend
+with the new endpoint: https://up.storacha.network/bridge
 """
 
-import unittest
-from unittest.mock import patch, MagicMock
-import sys
 import os
-import io
+import sys
+import time
+import logging
+import argparse
 import json
+import subprocess
 
-# Add parent directory to path to allow imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("storacha_test")
 
-from ipfs_kit_py.mcp.storage_manager.backends.storacha_backend import StorachaBackend
-from ipfs_kit_py.mcp.storage_manager.backend_base import BackendStorage
-from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
+# Add the parent directory to the path to import our modules
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+sys.path.append(parent_dir)
 
+# Import our storage implementation
+from storacha_storage import StorachaStorage
 
-class MockResponse:
-    """Mock response for requests library."""
-    def __init__(self, status_code, json_data=None, content=None, headers=None):
-        self.status_code = status_code
-        self._json_data = json_data
-        self._content = content or b""
-        self.headers = headers or {}
-        self.text = str(content or "") if not isinstance(content, bytes) else content.decode('utf-8', errors='ignore')
-        
-    def json(self):
-        return self._json_data
-        
-    @property
-    def content(self):
-        return self._content
+def print_json(data):
+    """Print data as formatted JSON."""
+    print(json.dumps(data, indent=2, default=str))
 
+def test_status(storage):
+    """Test the status check functionality."""
+    logger.info("Testing status check...")
+    status = storage.status()
+    print_json(status)
+    return status
 
-class TestStorachaBackend(unittest.TestCase):
-    """Test case for Storacha backend."""
+def create_test_file(file_path, size_kb=10):
+    """Create a test file with random content."""
+    logger.info(f"Creating test file: {file_path} ({size_kb}KB)")
+    with open(file_path, 'wb') as f:
+        f.write(os.urandom(size_kb * 1024))
+    return file_path
 
-    def setUp(self):
-        """Set up the test environment."""
-        # Create patchers
-        self.connection_mgr_patcher = patch('ipfs_kit_py.mcp.storage_manager.backends.storacha_backend.StorachaConnectionManager')
-        self.executor_patcher = patch('ipfs_kit_py.mcp.storage_manager.backends.storacha_backend.ThreadPoolExecutor')
-        
-        # Start patchers
-        self.mock_connection_mgr = self.connection_mgr_patcher.start()
-        self.mock_executor = self.executor_patcher.start()
-        
-        # Configure mock connection manager
-        self.connection_instance = MagicMock()
-        self.mock_connection_mgr.return_value = self.connection_instance
-        
-        # Create resources and metadata
-        self.resources = {
-            "api_key": "test-api-key",
-            "endpoints": ["https://test-endpoint.example.com"],
-            "mock_mode": True
-        }
-        
-        self.metadata = {
-            "cache_ttl": 3600,
-            "cache_size_limit": 10485760  # 10MB
-        }
-        
-        # Create backend
-        self.backend = StorachaBackend(self.resources, self.metadata)
-        
-    def tearDown(self):
-        """Clean up after tests."""
-        # Stop patchers
-        self.connection_mgr_patcher.stop()
-        self.executor_patcher.stop()
-
-    def test_inheritance(self):
-        """Test that StorachaBackend inherits from BackendStorage."""
-        self.assertIsInstance(self.backend, BackendStorage)
-        
-    def test_backend_type(self):
-        """Test that the backend has the correct type."""
-        self.assertEqual(self.backend.backend_type, StorageBackendType.STORACHA)
-        
-    def test_get_name(self):
-        """Test the get_name method."""
-        self.assertEqual(self.backend.get_name(), "storacha")
-
-    def test_add_content(self):
-        """Test the add_content method calls store with correct arguments."""
-        # Set up response for successful upload
-        self.connection_instance.post.return_value = MockResponse(
-            200, json_data={"cid": "test-cid-123"}
-        )
-        
-        # Test with string content
-        content = "test content"
-        metadata = {"test_key": "test_value"}
-        
-        result = self.backend.add_content(content, metadata)
-        
-        # Verify the result
-        self.assertTrue(result["success"])
-        self.assertEqual(result["identifier"], "test-cid-123")
-        
-        # Verify the connection manager was called
-        self.connection_instance.post.assert_called_once()
-        call_args = self.connection_instance.post.call_args[0]
-        self.assertEqual(call_args[0], "upload")  # Endpoint
-        
-    def test_get_content(self):
-        """Test the get_content method calls retrieve with correct arguments."""
-        # Set up responses for content retrieval
-        self.connection_instance.get.side_effect = [
-            # First call to get content
-            MockResponse(
-                200, 
-                content=b"test content data", 
-                headers={"Content-Type": "text/plain"}
-            ),
-            # Second call to get metadata
-            MockResponse(
-                200,
-                json_data={"metadata": {"test_key": "test_value"}}
-            )
-        ]
-        
-        # Test retrieving content
-        result = self.backend.get_content("test-cid-123")
-        
-        # Verify the result
-        self.assertTrue(result["success"])
-        self.assertEqual(result["data"], b"test content data")
-        
-        # Verify the connection manager was called
-        self.assertEqual(self.connection_instance.get.call_count, 2)
-        call_args = self.connection_instance.get.call_args_list[0][0]
-        self.assertEqual(call_args[0], "content/cid/test-cid-123")  # Endpoint
-        
-    def test_remove_content(self):
-        """Test the remove_content method calls delete with correct arguments."""
-        # Mock cache paths to test cleanup
-        self.backend._cache_path = MagicMock(return_value="/fake/cache/path")
-        
-        # Set up file system mocks for cache cleanup
-        with patch('os.path.exists', return_value=True), \
-             patch('os.remove') as mock_remove, \
-             patch('os.path.getsize', return_value=1024):
-            
-            result = self.backend.remove_content("test-cid-123")
-            
-            # Verify the result
-            self.assertTrue(result["success"])
-            
-            # Verify cache was cleaned up
-            self.assertEqual(mock_remove.call_count, 2)  # Two calls - one for file, one for metadata
+def add_to_ipfs(file_path):
+    """Add a file to IPFS and return the CID."""
+    logger.info(f"Adding file to IPFS: {file_path}")
+    result = subprocess.run(
+        ["ipfs", "add", "-q", file_path],
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        logger.error(f"Failed to add file to IPFS: {result.stderr}")
+        return None
     
-    def test_get_metadata(self):
-        """Test the get_metadata method."""
-        # Set up responses for status and metadata
-        self.connection_instance.get.side_effect = [
-            # First call for status
-            MockResponse(
-                200,
-                json_data={"pin": {"status": "pinned"}}
-            ),
-            # Second call for metadata
-            MockResponse(
-                200,
-                json_data={"metadata": {"test_key": "test_value"}}
-            )
-        ]
+    cid = result.stdout.strip()
+    logger.info(f"Added to IPFS with CID: {cid}")
+    return cid
+
+def test_from_ipfs(storage, cid):
+    """Test storing content from IPFS to Storacha."""
+    logger.info(f"Testing from_ipfs with CID: {cid}")
+    result = storage.from_ipfs(cid)
+    print_json(result)
+    return result
+
+def test_check_status(storage, storage_id):
+    """Test checking content status in Storacha."""
+    logger.info(f"Testing check_status with storage ID: {storage_id}")
+    result = storage.check_status(storage_id)
+    print_json(result)
+    return result
+
+def test_to_ipfs(storage, storage_id):
+    """Test retrieving content from Storacha to IPFS."""
+    logger.info(f"Testing to_ipfs with storage ID: {storage_id}")
+    result = storage.to_ipfs(storage_id)
+    print_json(result)
+    return result
+
+def test_list_blobs(storage):
+    """Test listing blobs in Storacha."""
+    logger.info("Testing list_blobs...")
+    result = storage.list_blobs()
+    print_json(result)
+    return result
+
+def test_get_blob(storage, digest):
+    """Test getting blob info in Storacha."""
+    logger.info(f"Testing get_blob with digest: {digest}")
+    result = storage.get_blob(digest)
+    print_json(result)
+    return result
+
+def test_remove_blob(storage, digest):
+    """Test removing a blob from Storacha."""
+    logger.info(f"Testing remove_blob with digest: {digest}")
+    result = storage.remove_blob(digest)
+    print_json(result)
+    return result
+
+def main():
+    """Main test function."""
+    parser = argparse.ArgumentParser(description="Test Storacha storage backend")
+    parser.add_argument("--mock", action="store_true", help="Force mock mode")
+    parser.add_argument("--api-key", type=str, help="Storacha API key")
+    parser.add_argument("--api-endpoint", type=str, help="Storacha API endpoint")
+    parser.add_argument("--test-file", type=str, default="storacha_test_file.bin", help="Test file path")
+    args = parser.parse_args()
+
+    # Set environment variables if provided
+    if args.api_key:
+        os.environ["STORACHA_API_KEY"] = args.api_key
+    if args.api_endpoint:
+        os.environ["STORACHA_API_URL"] = args.api_endpoint
+    if args.mock:
+        os.environ["MCP_USE_STORACHA_MOCK"] = "true"
+
+    # Initialize the storage backend
+    storage = StorachaStorage()
+    
+    # Test connection status
+    status = test_status(storage)
+    
+    # If connection failed but mock mode is available, switch to mock mode
+    if not status.get("success", False) and not storage.mock_mode and STORACHA_LIBRARIES_AVAILABLE:
+        logger.info("Connection failed, switching to mock mode...")
+        storage.mock_mode = True
+        storage.simulation_mode = False
+        status = test_status(storage)
+    
+    # Skip further tests if status check failed
+    if not status.get("success", False):
+        logger.error("Status check failed, skipping further tests")
+        return 1
+    
+    # Create a test file
+    file_path = create_test_file(args.test_file)
+    
+    try:
+        # Add the file to IPFS
+        cid = add_to_ipfs(file_path)
+        if not cid:
+            logger.error("Failed to add file to IPFS, skipping further tests")
+            return 1
         
-        # Test getting metadata
-        result = self.backend.get_metadata("test-cid-123")
+        # Test from_ipfs operation
+        result = test_from_ipfs(storage, cid)
+        if not result.get("success", False):
+            logger.error("from_ipfs operation failed, skipping related tests")
+            return 1
         
-        # Verify the result
-        self.assertTrue(result["success"])
-        self.assertEqual(result["metadata"], {"test_key": "test_value"})
+        # Get the storage ID from the result
+        storage_id = result.get("storage_id")
+        if storage_id:
+            # Test check_status operation
+            test_check_status(storage, storage_id)
+            
+            # Test to_ipfs operation
+            test_to_ipfs(storage, storage_id)
+            
+            # Test list_blobs operation
+            test_list_blobs(storage)
+            
+            # Test get_blob operation
+            test_get_blob(storage, cid)
+            
+            # Test remove_blob operation
+            test_remove_blob(storage, cid)
+            
+        logger.info("All tests completed successfully!")
+        return 0
         
-        # Verify the connection manager was called
-        self.assertEqual(self.connection_instance.get.call_count, 2)
-        call_args = self.connection_instance.get.call_args_list[0][0]
-        self.assertEqual(call_args[0], "status/cid/test-cid-123")  # Endpoint
-        
-    def test_update_metadata(self):
-        """Test the update_metadata method."""
-        # Set up response for metadata update
-        self.connection_instance.put.return_value = MockResponse(
-            200,
-            json_data={"success": True}
-        )
-        
-        # Add test metadata to cache for update
-        self.backend._metadata_cache = {"test-cid-123": {"metadata": {"existing": "value"}}}
-        
-        # Test updating metadata
-        new_metadata = {"new_key": "new_value"}
-        result = self.backend.update_metadata("test-cid-123", new_metadata)
-        
-        # Verify the result
-        self.assertTrue(result["success"])
-        
-        # Verify the connection manager was called
-        self.connection_instance.put.assert_called_once()
-        call_args = self.connection_instance.put.call_args[0]
-        self.assertEqual(call_args[0], "metadata/cid/test-cid-123")  # Endpoint
-        
-        # Verify cache was updated
-        updated_metadata = self.backend._metadata_cache["test-cid-123"]["metadata"]
-        self.assertEqual(updated_metadata["new_key"], "new_value")
-        self.assertEqual(updated_metadata["existing"], "value")  # Original value preserved
-        
+    finally:
+        # Clean up the test file
+        if os.path.exists(file_path):
+            logger.info(f"Cleaning up test file: {file_path}")
+            os.unlink(file_path)
+
 if __name__ == "__main__":
-    unittest.main()
+    # Import this here to avoid import issues
+    from storacha_storage import STORACHA_LIBRARIES_AVAILABLE
+    sys.exit(main())

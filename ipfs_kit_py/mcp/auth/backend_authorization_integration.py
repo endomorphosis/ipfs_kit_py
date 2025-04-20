@@ -1,556 +1,507 @@
 """
-Integrated Backend Authorization Module
+Backend Authorization Integration
 
-This module integrates RBAC with backend-specific authorization, providing a unified
-permission system that controls access to different storage backends based on user roles.
+This module provides a comprehensive backend authorization system that integrates with RBAC,
+allowing fine-grained control over which users and API keys can access different storage backends.
 
-Part of the MCP Roadmap Phase 1: Advanced Authentication & Authorization.
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
 """
 
-import os
-import json
 import logging
-import time
-from typing import Dict, List, Optional, Union, Any
-from enum import Enum
 import asyncio
-from datetime import datetime, timedelta
-import functools
+from typing import Dict, List, Set, Optional, Any, Union
+from dataclasses import dataclass, field
 
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
+from ipfs_kit_py.mcp.auth.rbac import PermissionEffect, RBACManager
+from ipfs_kit_py.mcp.auth.models import User
+from ipfs_kit_py.mcp.auth.api_key_enhanced import ApiKey
 
-from ..auth.models import User, Role, Permission
-from ..rbac import rbac_manager, has_permission, check_permission, require_permission
+logger = logging.getLogger(__name__)
 
-# Configure logging
-logger = logging.getLogger("mcp.auth.backend_auth")
 
-# Backend permission mapping
-class BackendPermission(Enum):
-    """Permission types for backend operations"""
-    READ = "read"
-    WRITE = "write"
-    DELETE = "delete"
-    ADMIN = "admin"
-    LIST = "list"
-    PIN = "pin"
-    SYNC = "sync"
+@dataclass
+class BackendPermission:
+    """Permission configuration for a specific backend."""
+    backend_id: str
+    allowed_users: Set[str] = field(default_factory=set)
+    allowed_roles: Set[str] = field(default_factory=set)
+    denied_users: Set[str] = field(default_factory=set)
+    denied_roles: Set[str] = field(default_factory=set)
+    # Operation-specific permissions
+    read_only_users: Set[str] = field(default_factory=set)
+    read_only_roles: Set[str] = field(default_factory=set)
+    admin_users: Set[str] = field(default_factory=set)
+    admin_roles: Set[str] = field(default_factory=set)
+    # Default policy
+    default_allow: bool = False
 
-# Backend operation to permission mapping
-OPERATION_PERMISSION_MAP = {
-    # Generic operations
-    "list": BackendPermission.LIST,
-    "get": BackendPermission.READ,
-    "add": BackendPermission.WRITE,
-    "delete": BackendPermission.DELETE,
-    "info": BackendPermission.READ,
-    
-    # IPFS specific
-    "pin_add": BackendPermission.PIN,
-    "pin_rm": BackendPermission.PIN,
-    "pin_ls": BackendPermission.LIST,
-    "cat": BackendPermission.READ,
-    "get": BackendPermission.READ,
-    "add": BackendPermission.WRITE,
-    "dag_get": BackendPermission.READ,
-    "dag_put": BackendPermission.WRITE,
-    "files_cp": BackendPermission.WRITE,
-    "files_ls": BackendPermission.LIST,
-    "files_mkdir": BackendPermission.WRITE,
-    "files_rm": BackendPermission.DELETE,
-    "files_read": BackendPermission.READ,
-    "files_write": BackendPermission.WRITE,
-    "files_stat": BackendPermission.READ,
-    "dht_findpeer": BackendPermission.READ,
-    "dht_findprovs": BackendPermission.READ,
-    "dht_put": BackendPermission.WRITE,
-    "dht_get": BackendPermission.READ,
-    
-    # Filecoin specific
-    "deal_create": BackendPermission.WRITE,
-    "deal_list": BackendPermission.LIST,
-    "deal_status": BackendPermission.READ,
-    "deal_verify": BackendPermission.READ,
-    "miner_list": BackendPermission.LIST,
-    "miner_info": BackendPermission.READ,
-    
-    # S3 specific
-    "bucket_create": BackendPermission.WRITE,
-    "bucket_list": BackendPermission.LIST,
-    "bucket_delete": BackendPermission.DELETE,
-    "object_put": BackendPermission.WRITE,
-    "object_get": BackendPermission.READ,
-    "object_delete": BackendPermission.DELETE,
-    "object_list": BackendPermission.LIST,
-    
-    # Storacha specific
-    "upload": BackendPermission.WRITE,
-    "download": BackendPermission.READ,
-    "delete": BackendPermission.DELETE,
-    "status": BackendPermission.READ,
-    "list": BackendPermission.LIST,
-    
-    # HuggingFace specific
-    "model_download": BackendPermission.READ,
-    "model_push": BackendPermission.WRITE,
-    "model_list": BackendPermission.LIST,
-    "dataset_download": BackendPermission.READ,
-    "dataset_push": BackendPermission.WRITE,
-    "dataset_list": BackendPermission.LIST,
-    
-    # Lassie specific
-    "fetch": BackendPermission.READ,
-    "fetch_all": BackendPermission.READ,
-    "fetch_range": BackendPermission.READ,
-    "status": BackendPermission.READ,
-}
 
-class BackendAuthorization:
+class BackendAuthorizationManager:
     """
-    Backend Authorization Manager for controlling access to storage backends
-    based on user roles and permissions.
+    Backend Authorization Manager for MCP server.
+    
+    This class manages permissions for different storage backends, integrating with the RBAC system
+    to provide fine-grained control over who can access which backend and what operations they can perform.
     """
     
-    def __init__(self):
-        """Initialize the backend authorization manager."""
-        # Mapping of backend names to custom permission sets
-        self.backend_permissions: Dict[str, Dict[Role, List[BackendPermission]]] = {}
-        
-        # Cache of permission checks for performance
-        self.permission_cache = {}
-        
-        # Audit logging for backend access
-        self.access_log = []
-        self.max_log_entries = 1000
-        
-        # Default authorization map for standard backends
-        self._init_default_backend_permissions()
-        
-        # Load custom backend permissions if available
-        self._load_custom_permissions()
-    
-    def _init_default_backend_permissions(self):
-        """Initialize default backend permissions based on roles."""
-        # Default backend permissions for different roles
-        default_permissions = {
-            Role.ADMIN: [
-                BackendPermission.READ,
-                BackendPermission.WRITE,
-                BackendPermission.DELETE,
-                BackendPermission.ADMIN,
-                BackendPermission.LIST,
-                BackendPermission.PIN,
-                BackendPermission.SYNC
-            ],
-            Role.DEVELOPER: [
-                BackendPermission.READ,
-                BackendPermission.WRITE,
-                BackendPermission.LIST,
-                BackendPermission.PIN
-            ],
-            Role.USER: [
-                BackendPermission.READ,
-                BackendPermission.WRITE,
-                BackendPermission.LIST
-            ],
-            Role.ANONYMOUS: [
-                BackendPermission.READ,
-                BackendPermission.LIST
-            ]
-        }
-        
-        # Standard backends
-        standard_backends = ["ipfs", "filecoin", "storacha", "s3", "huggingface", "lassie"]
-        
-        # Initialize permissions for standard backends
-        for backend in standard_backends:
-            self.backend_permissions[backend] = default_permissions.copy()
-    
-    def _load_custom_permissions(self):
-        """Load custom backend permissions from configuration file."""
-        config_path = os.environ.get(
-            "BACKEND_AUTH_CONFIG",
-            os.path.join(os.path.expanduser("~"), ".ipfs_kit", "backend_auth.json")
-        )
-        
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                
-                # Process backend permissions
-                if "backend_permissions" in config:
-                    for backend, roles_config in config["backend_permissions"].items():
-                        if backend not in self.backend_permissions:
-                            self.backend_permissions[backend] = {}
-                        
-                        for role_name, permissions in roles_config.items():
-                            try:
-                                role = Role(role_name)
-                                backend_perms = [BackendPermission(p) for p in permissions]
-                                self.backend_permissions[backend][role] = backend_perms
-                            except ValueError:
-                                logger.warning(f"Invalid role or permission in config: {role_name}, {permissions}")
-                
-                logger.info(f"Loaded custom backend permissions from {config_path}")
-            except Exception as e:
-                logger.error(f"Error loading backend permissions from {config_path}: {e}")
-    
-    def has_backend_permission(self, user: User, backend: str, 
-                             permission: Union[BackendPermission, str],
-                             log_access: bool = True) -> bool:
+    def __init__(
+        self,
+        rbac_manager: RBACManager,
+        storage_backend_manager = None,  # Type hint omitted for circular import avoidance
+        default_allow: bool = False
+    ):
         """
-        Check if a user has the required permission for a backend.
+        Initialize the Backend Authorization Manager.
         
         Args:
-            user: User object
-            backend: Backend name
-            permission: Required permission
-            log_access: Whether to log this access check
+            rbac_manager: Role-Based Access Control manager
+            storage_backend_manager: Storage Backend Manager instance
+            default_allow: Whether to allow access by default if no specific permission is found
+        """
+        self.rbac_manager = rbac_manager
+        self.storage_backend_manager = storage_backend_manager
+        self.default_allow = default_allow
+        
+        # Backend permissions dictionary (backend_id -> BackendPermission)
+        self._backend_permissions: Dict[str, BackendPermission] = {}
+        
+        # Initialization state
+        self._initialized = False
+        
+        logger.info("Backend Authorization Manager initialized")
+    
+    async def initialize(self):
+        """
+        Initialize the Backend Authorization Manager.
+        
+        This method initializes default permissions for all backends and sets up
+        the necessary RBAC permissions.
+        """
+        if self._initialized:
+            return
+        
+        logger.info("Initializing backend authorization system")
+        
+        # Get all available backends
+        if self.storage_backend_manager:
+            backend_ids = await self.storage_backend_manager.list_backends()
+            
+            # Create default permissions for each backend
+            for backend_id in backend_ids:
+                self._backend_permissions[backend_id] = BackendPermission(
+                    backend_id=backend_id,
+                    default_allow=self.default_allow
+                )
+                logger.debug(f"Created default permissions for backend: {backend_id}")
+        
+        # Create RBAC permissions for backend access
+        await self._create_rbac_permissions()
+        
+        self._initialized = True
+        logger.info("Backend authorization system initialized")
+    
+    async def _create_rbac_permissions(self):
+        """Create RBAC permissions for backend access."""
+        # Create basic backend permissions
+        for backend_id, perm in self._backend_permissions.items():
+            # Create backend access permission
+            access_perm_id = f"backend:{backend_id}:access"
+            if not self.rbac_manager.get_permission(access_perm_id):
+                self.rbac_manager.create_permission({
+                    "id": access_perm_id,
+                    "name": f"Access {backend_id} Backend",
+                    "description": f"Permission to access the {backend_id} backend",
+                    "resource_type": "backend",
+                    "actions": ["access"],
+                    "effect": PermissionEffect.ALLOW,
+                    "backend_id": backend_id
+                })
+            
+            # Create backend read permission
+            read_perm_id = f"backend:{backend_id}:read"
+            if not self.rbac_manager.get_permission(read_perm_id):
+                self.rbac_manager.create_permission({
+                    "id": read_perm_id,
+                    "name": f"Read from {backend_id} Backend",
+                    "description": f"Permission to read from the {backend_id} backend",
+                    "resource_type": "backend",
+                    "actions": ["read"],
+                    "effect": PermissionEffect.ALLOW,
+                    "backend_id": backend_id
+                })
+            
+            # Create backend write permission
+            write_perm_id = f"backend:{backend_id}:write"
+            if not self.rbac_manager.get_permission(write_perm_id):
+                self.rbac_manager.create_permission({
+                    "id": write_perm_id,
+                    "name": f"Write to {backend_id} Backend",
+                    "description": f"Permission to write to the {backend_id} backend",
+                    "resource_type": "backend",
+                    "actions": ["write"],
+                    "effect": PermissionEffect.ALLOW,
+                    "backend_id": backend_id
+                })
+            
+            # Create backend admin permission
+            admin_perm_id = f"backend:{backend_id}:admin"
+            if not self.rbac_manager.get_permission(admin_perm_id):
+                self.rbac_manager.create_permission({
+                    "id": admin_perm_id,
+                    "name": f"Administer {backend_id} Backend",
+                    "description": f"Permission to administer the {backend_id} backend",
+                    "resource_type": "backend",
+                    "actions": ["admin"],
+                    "effect": PermissionEffect.ALLOW,
+                    "backend_id": backend_id
+                })
+        
+        logger.info("Created RBAC permissions for backend access")
+    
+    async def check_backend_access(
+        self,
+        user: Optional[User],
+        backend_id: str,
+        operation: str = "access",
+        api_key: Optional[ApiKey] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Check if a user or API key has permission to access a backend.
+        
+        Args:
+            user: User attempting access (or None if using API key only)
+            backend_id: ID of the backend to check
+            operation: Operation to perform (e.g., "access", "read", "write", "admin")
+            api_key: Optional API key being used for access
+            context: Optional additional context for condition evaluation
             
         Returns:
-            True if the user has permission, False otherwise
+            True if access is allowed, False otherwise
         """
-        # Admin role always has access
-        if user.role == Role.ADMIN or user.role == Role.SYSTEM:
-            if log_access:
-                self._log_access(user, backend, permission, True, "Admin/System role")
+        # Ensure initialization
+        if not self._initialized:
+            await self.initialize()
+        
+        # If backend doesn't exist, deny access
+        if backend_id not in self._backend_permissions:
+            logger.warning(f"Backend {backend_id} not found in permissions")
+            return False
+        
+        backend_perm = self._backend_permissions[backend_id]
+        user_id = user.id if user else None
+        
+        # Check API key permissions first if provided
+        if api_key:
+            # Check if the API key has explicit backend permissions
+            if hasattr(api_key, "permissions") and hasattr(api_key.permissions, "allowed_backends"):
+                # If allowed backends is specified and this backend is not in it, deny access
+                if (api_key.permissions.allowed_backends is not None and 
+                    backend_id not in api_key.permissions.allowed_backends):
+                    return False
+                
+                # If this backend is explicitly denied, deny access
+                if backend_id in getattr(api_key.permissions, "denied_backends", []):
+                    return False
+            
+            # Check RBAC permissions for the API key if it has roles or permission IDs
+            if hasattr(api_key, "permissions"):
+                # Check direct permissions
+                if hasattr(api_key.permissions, "permission_ids"):
+                    permission_id = f"backend:{backend_id}:{operation}"
+                    if permission_id in api_key.permissions.permission_ids:
+                        return True
+                
+                # Check role-based permissions
+                if hasattr(api_key.permissions, "role_ids") and self.rbac_manager:
+                    for role_id in api_key.permissions.role_ids:
+                        if self.rbac_manager.check_permission(
+                            user_id=user_id or api_key.user_id,
+                            action=operation,
+                            resource_type="backend",
+                            resource_id=backend_id,
+                            backend_id=backend_id,
+                            context=context
+                        ):
+                            return True
+        
+        # If no user is provided and API key check failed, deny access
+        if not user:
+            return False
+        
+        # Check user-specific permissions
+        if user_id in backend_perm.denied_users:
+            return False
+        
+        if operation != "access" and operation != "read" and user_id in backend_perm.read_only_users:
+            return False
+        
+        if operation == "admin" and user_id not in backend_perm.admin_users:
+            # Check admin roles
+            if not any(role in backend_perm.admin_roles for role in user.roles):
+                return False
+        
+        if user_id in backend_perm.allowed_users:
             return True
         
-        # Convert string permission to enum if needed
-        if isinstance(permission, str):
-            try:
-                permission = BackendPermission(permission)
-            except ValueError:
-                # Check if it's an operation that maps to a permission
-                if permission in OPERATION_PERMISSION_MAP:
-                    permission = OPERATION_PERMISSION_MAP[permission]
-                else:
-                    logger.warning(f"Unknown permission or operation: {permission}")
-                    if log_access:
-                        self._log_access(user, backend, permission, False, "Unknown permission")
-                    return False
+        # Check role-based permissions
+        for role in user.roles:
+            if role in backend_perm.denied_roles:
+                return False
+            
+            if operation != "access" and operation != "read" and role in backend_perm.read_only_roles:
+                return False
+            
+            if role in backend_perm.allowed_roles:
+                return True
         
-        # Check cache
-        cache_key = f"{user.id}:{backend}:{permission.value}"
-        if cache_key in self.permission_cache:
-            cached_result = self.permission_cache[cache_key]
-            # Check if cache is still valid (5 minutes)
-            if cached_result["timestamp"] > datetime.now() - timedelta(minutes=5):
-                if log_access:
-                    self._log_access(user, backend, permission, cached_result["result"], "Cached result")
-                return cached_result["result"]
+        # Check RBAC permissions
+        if self.rbac_manager:
+            if self.rbac_manager.check_permission(
+                user_id=user_id,
+                action=operation,
+                resource_type="backend",
+                resource_id=backend_id,
+                backend_id=backend_id,
+                group_ids=[role for role in user.roles],
+                context=context
+            ):
+                return True
         
-        # Check if backend exists in permissions map
-        if backend not in self.backend_permissions:
-            # Default to false for unknown backends
-            if log_access:
-                self._log_access(user, backend, permission, False, "Unknown backend")
-            return False
-        
-        # Check if role exists in backend permissions
-        if user.role not in self.backend_permissions[backend]:
-            # Default to false for undefined role permissions
-            if log_access:
-                self._log_access(user, backend, permission, False, "Role not defined for backend")
-            return False
-        
-        # Check if permission is in allowed permissions for role
-        allowed = permission in self.backend_permissions[backend][user.role]
-        
-        # Cache the result
-        self.permission_cache[cache_key] = {
-            "result": allowed,
-            "timestamp": datetime.now()
-        }
-        
-        if log_access:
-            self._log_access(user, backend, permission, allowed, "Direct permission check")
-        
-        return allowed
+        # No explicit permission found, use default
+        return backend_perm.default_allow
     
-    def set_backend_permissions(self, backend: str, role: Role, 
-                              permissions: List[BackendPermission]) -> bool:
+    async def set_backend_permission(
+        self,
+        backend_id: str,
+        permission_type: str,
+        entity_id: str,
+        entity_type: str = "user",
+        add: bool = True
+    ) -> bool:
         """
-        Set permissions for a role on a specific backend.
+        Set a permission for a backend.
         
         Args:
-            backend: Backend name
-            role: User role
-            permissions: List of allowed permissions
+            backend_id: ID of the backend
+            permission_type: Type of permission (allowed, denied, read_only, admin)
+            entity_id: ID of the user or role
+            entity_type: Type of entity (user or role)
+            add: True to add the permission, False to remove it
             
         Returns:
-            True if permissions were set successfully
+            True if the permission was set successfully, False otherwise
         """
-        if backend not in self.backend_permissions:
-            self.backend_permissions[backend] = {}
+        # Ensure initialization
+        if not self._initialized:
+            await self.initialize()
         
-        self.backend_permissions[backend][role] = permissions
+        # Create backend permission if it doesn't exist
+        if backend_id not in self._backend_permissions:
+            self._backend_permissions[backend_id] = BackendPermission(
+                backend_id=backend_id,
+                default_allow=self.default_allow
+            )
         
-        # Clear cache entries for this backend and role
-        cache_keys = [k for k in self.permission_cache if k.split(':')[1] == backend]
-        for key in cache_keys:
-            del self.permission_cache[key]
+        backend_perm = self._backend_permissions[backend_id]
         
-        logger.info(f"Set {len(permissions)} permissions for role {role.value} on backend {backend}")
+        # Determine which permission set to modify
+        if entity_type == "user":
+            if permission_type == "allowed":
+                permission_set = backend_perm.allowed_users
+            elif permission_type == "denied":
+                permission_set = backend_perm.denied_users
+            elif permission_type == "read_only":
+                permission_set = backend_perm.read_only_users
+            elif permission_type == "admin":
+                permission_set = backend_perm.admin_users
+            else:
+                logger.error(f"Invalid permission type: {permission_type}")
+                return False
+        elif entity_type == "role":
+            if permission_type == "allowed":
+                permission_set = backend_perm.allowed_roles
+            elif permission_type == "denied":
+                permission_set = backend_perm.denied_roles
+            elif permission_type == "read_only":
+                permission_set = backend_perm.read_only_roles
+            elif permission_type == "admin":
+                permission_set = backend_perm.admin_roles
+            else:
+                logger.error(f"Invalid permission type: {permission_type}")
+                return False
+        else:
+            logger.error(f"Invalid entity type: {entity_type}")
+            return False
+        
+        # Add or remove the permission
+        if add:
+            permission_set.add(entity_id)
+        else:
+            if entity_id in permission_set:
+                permission_set.remove(entity_id)
+        
+        logger.info(
+            f"{'Added' if add else 'Removed'} {permission_type} permission for "
+            f"{entity_type} {entity_id} on backend {backend_id}"
+        )
+        
         return True
     
-    def get_backend_permissions(self, backend: str, role: Optional[Role] = None) -> Dict:
+    async def get_backend_permissions(self, backend_id: str) -> Optional[BackendPermission]:
         """
         Get permissions for a backend.
         
         Args:
-            backend: Backend name
-            role: Optional role to filter by
+            backend_id: ID of the backend
             
         Returns:
-            Dictionary of permissions by role (or for specific role)
+            BackendPermission object or None if not found
         """
-        if backend not in self.backend_permissions:
-            return {}
+        # Ensure initialization
+        if not self._initialized:
+            await self.initialize()
         
-        if role:
-            if role not in self.backend_permissions[backend]:
-                return {}
-            
-            return {
-                "backend": backend,
-                "role": role.value,
-                "permissions": [p.value for p in self.backend_permissions[backend][role]]
-            }
-        
-        # Return all roles for this backend
-        result = {
-            "backend": backend,
-            "roles": {}
-        }
-        
-        for r, perms in self.backend_permissions[backend].items():
-            result["roles"][r.value] = [p.value for p in perms]
-        
-        return result
+        return self._backend_permissions.get(backend_id)
     
-    def list_backends(self) -> List[str]:
+    async def list_accessible_backends(
+        self,
+        user: Optional[User],
+        operation: str = "access",
+        api_key: Optional[ApiKey] = None
+    ) -> List[str]:
         """
-        Get list of backends with defined permissions.
-        
-        Returns:
-            List of backend names
-        """
-        return list(self.backend_permissions.keys())
-    
-    def _log_access(self, user: User, backend: str, 
-                   permission: Union[BackendPermission, str],
-                   allowed: bool, reason: str):
-        """
-        Log an access check for audit purposes.
+        List all backends that a user or API key has permission to access.
         
         Args:
-            user: User object
-            backend: Backend name
-            permission: Requested permission
-            allowed: Whether access was allowed
-            reason: Reason for the decision
-        """
-        # Convert permission to string if it's an enum
-        perm_str = permission.value if isinstance(permission, BackendPermission) else str(permission)
-        
-        # Create log entry
-        entry = {
-            "timestamp": datetime.now().isoformat(),
-            "user_id": user.id,
-            "username": user.username,
-            "role": user.role.value,
-            "backend": backend,
-            "permission": perm_str,
-            "allowed": allowed,
-            "reason": reason
-        }
-        
-        # Add to log
-        self.access_log.append(entry)
-        
-        # Trim log if needed
-        if len(self.access_log) > self.max_log_entries:
-            self.access_log = self.access_log[-self.max_log_entries:]
-    
-    def get_access_logs(self, limit: int = 100, 
-                      filter_user: Optional[str] = None,
-                      filter_backend: Optional[str] = None,
-                      filter_allowed: Optional[bool] = None) -> List[Dict]:
-        """
-        Get backend access audit logs with optional filtering.
-        
-        Args:
-            limit: Maximum number of log entries to return
-            filter_user: Optional user ID to filter by
-            filter_backend: Optional backend name to filter by
-            filter_allowed: Optional filter by allowed/denied
+            user: User to check
+            operation: Operation to check permission for
+            api_key: Optional API key to check
             
         Returns:
-            List of log entries
+            List of backend IDs the user has permission to access
         """
-        # Apply filters
-        filtered_logs = self.access_log
+        # Ensure initialization
+        if not self._initialized:
+            await self.initialize()
         
-        if filter_user:
-            filtered_logs = [log for log in filtered_logs if log["user_id"] == filter_user]
+        # Check permissions for each backend
+        accessible_backends = []
+        for backend_id in self._backend_permissions:
+            has_access = await self.check_backend_access(
+                user=user,
+                backend_id=backend_id,
+                operation=operation,
+                api_key=api_key
+            )
+            
+            if has_access:
+                accessible_backends.append(backend_id)
         
-        if filter_backend:
-            filtered_logs = [log for log in filtered_logs if log["backend"] == filter_backend]
-        
-        if filter_allowed is not None:
-            filtered_logs = [log for log in filtered_logs if log["allowed"] == filter_allowed]
-        
-        # Return the most recent entries up to limit
-        return filtered_logs[-limit:]
+        return accessible_backends
     
-    def clear_permission_cache(self):
-        """Clear the permission cache."""
-        self.permission_cache = {}
-        logger.info("Backend permission cache cleared")
+    async def set_default_policy(self, backend_id: str, allow: bool) -> bool:
+        """
+        Set the default access policy for a backend.
+        
+        Args:
+            backend_id: ID of the backend
+            allow: Whether to allow access by default
+            
+        Returns:
+            True if the policy was set successfully, False otherwise
+        """
+        # Ensure initialization
+        if not self._initialized:
+            await self.initialize()
+        
+        # Create backend permission if it doesn't exist
+        if backend_id not in self._backend_permissions:
+            self._backend_permissions[backend_id] = BackendPermission(
+                backend_id=backend_id,
+                default_allow=allow
+            )
+            return True
+        
+        # Update existing permission
+        self._backend_permissions[backend_id].default_allow = allow
+        logger.info(f"Set default policy for backend {backend_id} to {'allow' if allow else 'deny'}")
+        
+        return True
 
 
 # Singleton instance
-_backend_auth_instance = None
-
-def get_backend_auth() -> BackendAuthorization:
-    """Get the singleton backend authorization instance."""
-    global _backend_auth_instance
-    if _backend_auth_instance is None:
-        _backend_auth_instance = BackendAuthorization()
-    return _backend_auth_instance
+_backend_auth_manager = None
 
 
-# API Integration Helpers
-
-def require_backend_permission(backend: str, permission: Union[BackendPermission, str]):
+def get_backend_auth_manager() -> BackendAuthorizationManager:
     """
-    Decorator to require a specific backend permission.
+    Get the singleton backend authorization manager instance.
+    
+    Returns:
+        BackendAuthorizationManager instance
+    """
+    global _backend_auth_manager
+    return _backend_auth_manager
+
+
+async def initialize_backend_auth_manager(
+    rbac_manager: RBACManager,
+    storage_backend_manager = None,
+    default_allow: bool = False
+) -> BackendAuthorizationManager:
+    """
+    Initialize the backend authorization manager.
     
     Args:
-        backend: Backend name
-        permission: Required permission
+        rbac_manager: Role-Based Access Control manager
+        storage_backend_manager: Storage Backend Manager instance
+        default_allow: Whether to allow access by default if no specific permission is found
         
     Returns:
-        Decorator function
+        Initialized BackendAuthorizationManager instance
     """
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
-            # Get user from request
-            from ..auth.router import get_current_user
-            try:
-                user = await get_current_user(request)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Not authenticated"
-                )
-            
-            # Get backend auth
-            backend_auth = get_backend_auth()
-            
-            # Check permission
-            if not backend_auth.has_backend_permission(user, backend, permission):
-                logger.warning(f"Backend permission denied: {backend}/{permission} for user {user.username}")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Permission denied: {permission} required for {backend} backend"
-                )
-            
-            # Permission granted
-            return await func(request, *args, **kwargs)
-        return wrapper
-    return decorator
+    global _backend_auth_manager
+    
+    if _backend_auth_manager is None:
+        _backend_auth_manager = BackendAuthorizationManager(
+            rbac_manager=rbac_manager,
+            storage_backend_manager=storage_backend_manager,
+            default_allow=default_allow
+        )
+    
+    # Initialize the manager
+    await _backend_auth_manager.initialize()
+    
+    return _backend_auth_manager
 
 
-def check_backend_operation(backend: str, operation: str, user: User) -> bool:
+async def setup_backend_authorization(storage_backend_manager, rbac_manager=None) -> BackendAuthorizationManager:
     """
-    Check if a user has permission for a specific backend operation.
+    Set up backend authorization.
+    
+    This is a convenience function that initializes the backend authorization manager
+    and returns it for use.
     
     Args:
-        backend: Backend name
-        operation: Operation name
-        user: User object
+        storage_backend_manager: Storage Backend Manager instance
+        rbac_manager: Optional Role-Based Access Control manager (will use global if None)
         
     Returns:
-        True if the user has permission for the operation
+        Initialized BackendAuthorizationManager instance
     """
-    # Map operation to permission
-    if operation in OPERATION_PERMISSION_MAP:
-        permission = OPERATION_PERMISSION_MAP[operation]
-    else:
-        logger.warning(f"Unknown operation: {operation}")
-        return False
+    # Get RBAC manager if not provided
+    if rbac_manager is None:
+        from ipfs_kit_py.mcp.auth.rbac import rbac_manager as global_rbac_manager
+        rbac_manager = global_rbac_manager
     
-    # Check permission
-    backend_auth = get_backend_auth()
-    return backend_auth.has_backend_permission(user, backend, permission)
-
-
-async def verify_backend_permissions(user_id: Optional[str] = None) -> Dict:
-    """
-    Verify backend permissions for testing and debugging.
+    # Initialize backend authorization manager
+    manager = await initialize_backend_auth_manager(
+        rbac_manager=rbac_manager,
+        storage_backend_manager=storage_backend_manager,
+        default_allow=False  # Default to deny for security
+    )
     
-    Args:
-        user_id: Optional user ID to check (defaults to test users)
-        
-    Returns:
-        Dictionary with verification results
-    """
-    from ..auth.service import get_user_by_id
-    from ..auth.models import User, Role
+    logger.info("Backend authorization set up complete")
     
-    # Get backend auth
-    backend_auth = get_backend_auth()
-    
-    # Get user
-    user = None
-    if user_id:
-        user = await get_user_by_id(user_id)
-    
-    # If no user provided or found, create test users for each role
-    if not user:
-        test_users = {
-            Role.ADMIN: User(id="test_admin", username="test_admin", role=Role.ADMIN),
-            Role.DEVELOPER: User(id="test_developer", username="test_developer", role=Role.DEVELOPER),
-            Role.USER: User(id="test_user", username="test_user", role=Role.USER),
-            Role.ANONYMOUS: User(id="test_anon", username="test_anon", role=Role.ANONYMOUS)
-        }
-    else:
-        # Just use the provided user
-        test_users = {user.role: user}
-    
-    # Test permissions for all backends
-    backends = backend_auth.list_backends()
-    
-    # Test all permission types
-    permission_types = list(BackendPermission)
-    
-    # Results structure
-    results = {
-        "backends": {},
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    # Test each backend
-    for backend in backends:
-        backend_results = {}
-        
-        # Test each user role
-        for role, test_user in test_users.items():
-            role_results = {}
-            
-            # Test each permission
-            for permission in permission_types:
-                allowed = backend_auth.has_backend_permission(
-                    test_user, backend, permission, log_access=False)
-                role_results[permission.value] = allowed
-            
-            backend_results[role.value] = role_results
-        
-        results["backends"][backend] = backend_results
-    
-    return results
+    return manager

@@ -157,18 +157,20 @@ class ContentSearchService:
     Uses AnyIO for database operations.
     """
 
-    def __init__(
+    async def __init__(
         self,
         db_path: str = DEFAULT_DB_PATH,
         vector_index_path: str = DEFAULT_INDEX_PATH,
         embedding_model_name: str = DEFAULT_MODEL_NAME,
-        vector_dimension: int = 384  # Default for all-MiniLM-L6-v2
+        vector_dimension: int = 384,  # Default for all-MiniLM-L6-v2
+        ipfs_model = None  # Add parameter for IPFS model
     ):
         self.db_path = db_path
         self.vector_index_path = vector_index_path
         self.embedding_model_name = embedding_model_name
         self.vector_dimension = vector_dimension
         self.db_lock = anyio.Lock() # Lock for database operations
+        self.ipfs_model = ipfs_model  # Store IPFS model reference
 
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         os.makedirs(vector_index_path, exist_ok=True)
@@ -370,7 +372,7 @@ class ContentSearchService:
     async def _extract_text(
         self,
         cid: str,
-        conn: sqlite3.Connection, # Pass connection instead of cursor
+        conn: sqlite3.Connection,
         content_data: Optional[bytes] = None
     ) -> Tuple[Optional[str], bool]:
         """Extract text from content for search indexing (using AnyIO)."""
@@ -405,24 +407,65 @@ class ContentSearchService:
                     return decoded_text
                 text = await anyio.to_thread.run_sync(decode_data)
             else:
-                # Fetching from IPFS should ideally use ipfs_model, but keeping subprocess for now
-                # TODO: Refactor to use self.ipfs_model if available
-                process = await anyio.run_process(["ipfs", "cat", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                stdout = process.stdout
-                stderr = process.stderr
-                if process.returncode != 0:
-                    logger.warning(f"Error fetching content for CID {cid}: {stderr.decode()}")
-                    return None, False
+                # Use IPFS model if available, otherwise fall back to subprocess
+                if self.ipfs_model and hasattr(self.ipfs_model, 'retrieve'):
+                    # Use the IPFS model with the standardized interface
+                    logger.info(f"Retrieving content for CID {cid} using IPFS model")
+                    
+                    # Run the retrieve operation in a thread to avoid blocking
+                    def retrieve_with_model():
+                        result = self.ipfs_model.retrieve(cid)
+                        if result.get('success', False):
+                            return result.get('data')
+                        else:
+                            logger.warning(f"Error retrieving content for CID {cid} using IPFS model: {result.get('error', 'Unknown error')}")
+                            return None
+                    
+                    # Get the content using the IPFS model
+                    content = await anyio.to_thread.run_sync(retrieve_with_model)
+                    
+                    if content:
+                        # Process content based on type
+                        def process_content():
+                            if isinstance(content, bytes):
+                                decoded_text = content.decode('utf-8', errors='replace')
+                            elif isinstance(content, str):
+                                decoded_text = content
+                            else:
+                                # Handle other types (like JSON)
+                                decoded_text = str(content)
+                                
+                            if content_type in JSON_CONTENT_TYPES:
+                                try:
+                                    json_data = json.loads(decoded_text)
+                                    return self._extract_text_from_json(json_data)
+                                except: return decoded_text # Fallback
+                            return decoded_text
+                            
+                        text = await anyio.to_thread.run_sync(process_content)
+                    else:
+                        logger.warning(f"No content retrieved for CID {cid} using IPFS model")
+                        return None, False
+                else:
+                    # Fall back to subprocess for backward compatibility
+                    logger.warning(f"IPFS model not available, falling back to subprocess for CID {cid}")
+                    import subprocess
+                    process = await anyio.run_process(["ipfs", "cat", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout = process.stdout
+                    stderr = process.stderr
+                    if process.returncode != 0:
+                        logger.warning(f"Error fetching content for CID {cid}: {stderr.decode()}")
+                        return None, False
 
-                def decode_data_fetched():
-                    decoded_text = stdout.decode('utf-8', errors='replace')
-                    if content_type in JSON_CONTENT_TYPES:
-                        try:
-                            json_data = json.loads(decoded_text)
-                            return self._extract_text_from_json(json_data)
-                        except: return decoded_text # Fallback
-                    return decoded_text
-                text = await anyio.to_thread.run_sync(decode_data_fetched)
+                    def decode_data_fetched():
+                        decoded_text = stdout.decode('utf-8', errors='replace')
+                        if content_type in JSON_CONTENT_TYPES:
+                            try:
+                                json_data = json.loads(decoded_text)
+                                return self._extract_text_from_json(json_data)
+                            except: return decoded_text # Fallback
+                        return decoded_text
+                    text = await anyio.to_thread.run_sync(decode_data_fetched)
 
 
             if not text:

@@ -1,1103 +1,1404 @@
 """
-Role-Based Access Control (RBAC) for MCP Server.
+Role-Based Access Control (RBAC) Module for MCP Server
 
-This module provides a comprehensive role-based access control system for the MCP server,
-enabling fine-grained permission management based on user roles.
+This module implements comprehensive role-based access control for the MCP server:
+- Role and permission management
+- Resource-based access controls
+- Backend-specific authorization
+- Policy enforcement
 
-Key features:
-1. Role hierarchy with inheritance
-2. Permission-based access control
-3. Resource-specific access rules
-4. Backend-specific permissions
-5. Flexible policy enforcement
-
-Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements.
 """
 
-import logging
-import json
 import os
 import time
-import threading
+import json
+import logging
+import uuid
+import hashlib
 from enum import Enum
-from typing import Dict, List, Set, Optional, Any, Union, Tuple
-from dataclasses import dataclass, field, asdict
+from typing import Dict, List, Set, Optional, Union, Any, Callable, Tuple
+from collections import defaultdict
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("mcp_rbac")
 
-# Default roles and permissions
-DEFAULT_ROLES_FILE = "config/rbac_roles.json"
-DEFAULT_PERMISSIONS_FILE = "config/rbac_permissions.json"
+class ResourceType(Enum):
+    """Resource types that can be protected with access controls."""
+    STORAGE = "storage"                # Storage operations
+    API = "api"                        # API endpoints
+    BACKEND = "backend"                # Storage backends
+    SYSTEM = "system"                  # System operations
+    CONFIG = "config"                  # Configuration management
+    USER = "user"                      # User management
+    ROLE = "role"                      # Role management
+    PERMISSION = "permission"          # Permission management
+    MONITORING = "monitoring"          # Monitoring capabilities
+    ANALYTICS = "analytics"            # Analytics capabilities
 
+class ActionType(Enum):
+    """Action types that can be performed on resources."""
+    CREATE = "create"                  # Create a resource
+    READ = "read"                      # Read/view a resource
+    UPDATE = "update"                  # Update/modify a resource
+    DELETE = "delete"                  # Delete a resource
+    LIST = "list"                      # List resources
+    MANAGE = "manage"                  # Manage resource settings
+    EXECUTE = "execute"                # Execute an operation
+    ALL = "*"                          # All actions
 
-class PermissionEffect(str, Enum):
-    """Effect of a permission (allow or deny)."""
-    ALLOW = "allow"
-    DENY = "deny"
-
-
-@dataclass
 class Permission:
-    """
-    Permission definition for accessing resources.
-    
-    A Permission defines what actions can be performed on which resources.
-    """
-    # Required fields
-    id: str
-    name: str
-    description: str
-    resource_type: str  # e.g., "file", "storage", "backend", "admin"
-    actions: List[str]  # e.g., ["read", "write", "delete", "list"]
-    effect: PermissionEffect = PermissionEffect.ALLOW
-    
-    # Optional fields
-    resource_prefix: Optional[str] = None  # Prefix for resource IDs this permission applies to
-    backend_id: Optional[str] = None  # Specific backend this permission applies to
-    conditions: Dict[str, Any] = field(default_factory=dict)  # Additional conditions
-
-
-@dataclass
-class Role:
-    """
-    Role definition combining multiple permissions.
-    
-    A Role is a collection of permissions that can be assigned to users.
-    """
-    # Required fields
-    id: str
-    name: str
-    description: str
-    
-    # Optional fields
-    permissions: List[str] = field(default_factory=list)  # List of permission IDs
-    parent_roles: List[str] = field(default_factory=list)  # Parent roles (for inheritance)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class AccessPolicy:
-    """
-    Access policy defining role assignments and additional rules.
-    
-    An AccessPolicy links users to roles and defines additional access rules.
-    """
-    # Required fields
-    id: str
-    name: str
-    description: str
-    
-    # Core policy elements
-    role_assignments: Dict[str, List[str]] = field(default_factory=dict)  # user_id -> role_ids
-    group_role_assignments: Dict[str, List[str]] = field(default_factory=dict)  # group_id -> role_ids
-    
-    # Additional policy settings
-    default_roles: List[str] = field(default_factory=list)  # Default roles for new users
-    deny_by_default: bool = True  # Deny access by default if no matching permission
-    
-    # Policy metadata
-    created_at: float = field(default_factory=time.time)
-    updated_at: float = field(default_factory=time.time)
-    version: int = 1
-
-
-class RBACManager:
-    """
-    Role-Based Access Control Manager for MCP server.
-    
-    This class is responsible for managing roles, permissions, and access policies,
-    and enforcing access control rules based on user roles and permissions.
-    """
+    """Permission definition for role-based access control."""
     
     def __init__(
         self,
-        roles_file: Optional[str] = None,
-        permissions_file: Optional[str] = None,
-        policy_file: Optional[str] = None,
-        auto_save: bool = True,
-        refresh_interval: Optional[int] = 300,  # 5 minutes
+        name: str,
+        resource_type: Union[ResourceType, str],
+        actions: Set[Union[ActionType, str]],
+        description: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        conditions: Optional[Dict[str, Any]] = None
     ):
         """
-        Initialize the RBAC Manager.
+        Initialize permission.
         
         Args:
-            roles_file: Path to JSON file with role definitions
-            permissions_file: Path to JSON file with permission definitions
-            policy_file: Path to JSON file with access policy
-            auto_save: Whether to automatically save changes to files
-            refresh_interval: Interval in seconds to refresh from files (None to disable)
+            name: Permission name
+            resource_type: Resource type
+            actions: Allowed actions
+            description: Optional description
+            resource_id: Optional specific resource ID (None for all)
+            conditions: Optional conditions for permission
         """
-        self._roles_file = roles_file or DEFAULT_ROLES_FILE
-        self._permissions_file = permissions_file or DEFAULT_PERMISSIONS_FILE
-        self._policy_file = policy_file
-        self._auto_save = auto_save
+        self.id = str(uuid.uuid4())
+        self.name = name
         
-        # State storage
-        self._roles: Dict[str, Role] = {}
-        self._permissions: Dict[str, Permission] = {}
-        self._access_policy: Optional[AccessPolicy] = None
-        
-        # Role hierarchy cache (role_id -> all permission IDs including inherited)
-        self._role_permissions_cache: Dict[str, Set[str]] = {}
-        
-        # For thread safety
-        self._lock = threading.RLock()
-        
-        # Load initial data
-        self._load_permissions()
-        self._load_roles()
-        if policy_file:
-            self._load_policy()
+        # Convert resource_type to enum if string
+        if isinstance(resource_type, str):
+            try:
+                self.resource_type = ResourceType(resource_type)
+            except ValueError:
+                raise ValueError(f"Invalid resource type: {resource_type}")
         else:
-            # Create default policy if none exists
-            self._access_policy = AccessPolicy(
-                id="default",
-                name="Default Policy",
-                description="Default access policy"
-            )
+            self.resource_type = resource_type
         
-        # Rebuild role permissions cache
-        self._rebuild_role_cache()
+        # Convert actions to enum set
+        self.actions = set()
+        for action in actions:
+            if isinstance(action, str):
+                try:
+                    self.actions.add(ActionType(action))
+                except ValueError:
+                    raise ValueError(f"Invalid action type: {action}")
+            else:
+                self.actions.add(action)
         
-        # Set up background refresh if needed
-        self._refresh_interval = refresh_interval
-        self._shutdown_event = threading.Event()
+        self.description = description or ""
+        self.resource_id = resource_id
+        self.conditions = conditions or {}
         
-        if refresh_interval:
-            self._refresh_thread = threading.Thread(
-                target=self._refresh_background,
-                daemon=True,
-                name="rbac-refresh"
-            )
-            self._refresh_thread.start()
-            logger.debug(f"Started RBAC refresh thread (interval: {refresh_interval}s)")
+        # Timestamp for creation and update tracking
+        self.created_at = time.time()
+        self.updated_at = self.created_at
     
-    def _load_roles(self) -> bool:
+    def matches(self, resource_type: Union[ResourceType, str], 
+               action: Union[ActionType, str], 
+               resource_id: Optional[str] = None,
+               context: Optional[Dict[str, Any]] = None) -> bool:
         """
-        Load roles from file.
-        
-        Returns:
-            True if roles were loaded successfully, False otherwise
-        """
-        if not os.path.exists(self._roles_file):
-            logger.warning(f"Roles file not found: {self._roles_file}")
-            return False
-        
-        try:
-            with open(self._roles_file, 'r') as f:
-                roles_data = json.load(f)
-            
-            # Reset roles dictionary
-            self._roles = {}
-            
-            # Parse roles
-            for role_data in roles_data:
-                role = Role(**role_data)
-                self._roles[role.id] = role
-            
-            logger.info(f"Loaded {len(self._roles)} roles from {self._roles_file}")
-            return True
-        except Exception as e:
-            logger.error(f"Error loading roles from {self._roles_file}: {e}")
-            return False
-    
-    def _load_permissions(self) -> bool:
-        """
-        Load permissions from file.
-        
-        Returns:
-            True if permissions were loaded successfully, False otherwise
-        """
-        if not os.path.exists(self._permissions_file):
-            logger.warning(f"Permissions file not found: {self._permissions_file}")
-            return False
-        
-        try:
-            with open(self._permissions_file, 'r') as f:
-                permissions_data = json.load(f)
-            
-            # Reset permissions dictionary
-            self._permissions = {}
-            
-            # Parse permissions
-            for perm_data in permissions_data:
-                # Convert effect string to enum if needed
-                if "effect" in perm_data and isinstance(perm_data["effect"], str):
-                    perm_data["effect"] = PermissionEffect(perm_data["effect"])
-                
-                permission = Permission(**perm_data)
-                self._permissions[permission.id] = permission
-            
-            logger.info(f"Loaded {len(self._permissions)} permissions from {self._permissions_file}")
-            return True
-        except Exception as e:
-            logger.error(f"Error loading permissions from {self._permissions_file}: {e}")
-            return False
-    
-    def _load_policy(self) -> bool:
-        """
-        Load access policy from file.
-        
-        Returns:
-            True if policy was loaded successfully, False otherwise
-        """
-        if not self._policy_file or not os.path.exists(self._policy_file):
-            logger.warning(f"Policy file not found: {self._policy_file}")
-            return False
-        
-        try:
-            with open(self._policy_file, 'r') as f:
-                policy_data = json.load(f)
-            
-            self._access_policy = AccessPolicy(**policy_data)
-            logger.info(f"Loaded access policy from {self._policy_file}")
-            return True
-        except Exception as e:
-            logger.error(f"Error loading policy from {self._policy_file}: {e}")
-            return False
-    
-    def _save_roles(self) -> bool:
-        """
-        Save roles to file.
-        
-        Returns:
-            True if roles were saved successfully, False otherwise
-        """
-        if not self._auto_save:
-            return False
-        
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self._roles_file), exist_ok=True)
-            
-            # Convert roles to serializable format
-            roles_data = [asdict(role) for role in self._roles.values()]
-            
-            with open(self._roles_file, 'w') as f:
-                json.dump(roles_data, f, indent=2)
-            
-            logger.info(f"Saved {len(self._roles)} roles to {self._roles_file}")
-            return True
-        except Exception as e:
-            logger.error(f"Error saving roles to {self._roles_file}: {e}")
-            return False
-    
-    def _save_permissions(self) -> bool:
-        """
-        Save permissions to file.
-        
-        Returns:
-            True if permissions were saved successfully, False otherwise
-        """
-        if not self._auto_save:
-            return False
-        
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self._permissions_file), exist_ok=True)
-            
-            # Convert permissions to serializable format
-            permissions_data = []
-            for permission in self._permissions.values():
-                perm_dict = asdict(permission)
-                
-                # Convert enum to string
-                if "effect" in perm_dict and isinstance(perm_dict["effect"], PermissionEffect):
-                    perm_dict["effect"] = perm_dict["effect"].value
-                
-                permissions_data.append(perm_dict)
-            
-            with open(self._permissions_file, 'w') as f:
-                json.dump(permissions_data, f, indent=2)
-            
-            logger.info(f"Saved {len(self._permissions)} permissions to {self._permissions_file}")
-            return True
-        except Exception as e:
-            logger.error(f"Error saving permissions to {self._permissions_file}: {e}")
-            return False
-    
-    def _save_policy(self) -> bool:
-        """
-        Save access policy to file.
-        
-        Returns:
-            True if policy was saved successfully, False otherwise
-        """
-        if not self._auto_save or not self._policy_file or not self._access_policy:
-            return False
-        
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self._policy_file), exist_ok=True)
-            
-            with open(self._policy_file, 'w') as f:
-                json.dump(asdict(self._access_policy), f, indent=2)
-            
-            logger.info(f"Saved access policy to {self._policy_file}")
-            return True
-        except Exception as e:
-            logger.error(f"Error saving policy to {self._policy_file}: {e}")
-            return False
-    
-    def _refresh_background(self) -> None:
-        """Background thread for refreshing RBAC data from files."""
-        while not self._shutdown_event.is_set():
-            # Wait for interval or shutdown
-            if self._shutdown_event.wait(self._refresh_interval):
-                break
-            
-            # Refresh data
-            with self._lock:
-                self._load_permissions()
-                self._load_roles()
-                if self._policy_file:
-                    self._load_policy()
-                
-                # Rebuild cache
-                self._rebuild_role_cache()
-            
-            logger.debug("Refreshed RBAC data from files")
-    
-    def _rebuild_role_cache(self) -> None:
-        """Rebuild the role permissions cache."""
-        # Reset cache
-        self._role_permissions_cache = {}
-        
-        # Process each role
-        for role_id in self._roles:
-            self._get_role_permissions(role_id)
-    
-    def _get_role_permissions(self, role_id: str) -> Set[str]:
-        """
-        Get all permission IDs for a role, including those from parent roles.
+        Check if this permission matches a given access request.
         
         Args:
-            role_id: ID of the role
+            resource_type: Resource type to check
+            action: Action to check
+            resource_id: Optional specific resource ID
+            context: Optional request context for condition evaluation
             
         Returns:
-            Set of permission IDs
+            True if permission matches
         """
-        # Check cache first
-        if role_id in self._role_permissions_cache:
-            return self._role_permissions_cache[role_id]
-        
-        # Get role
-        role = self._roles.get(role_id)
-        if not role:
-            logger.warning(f"Role not found: {role_id}")
-            return set()
-        
-        # Start with this role's permissions
-        permissions = set(role.permissions)
-        
-        # Add permissions from parent roles
-        for parent_id in role.parent_roles:
-            # Skip if this would cause a circular reference
-            if parent_id == role_id:
-                logger.warning(f"Circular reference detected in role {role_id}")
-                continue
-            
-            # Get parent permissions (recursive)
-            parent_permissions = self._get_role_permissions(parent_id)
-            permissions.update(parent_permissions)
-        
-        # Cache the result
-        self._role_permissions_cache[role_id] = permissions
-        
-        return permissions
-    
-    def _get_user_permissions(self, user_id: str, group_ids: Optional[List[str]] = None) -> Set[str]:
-        """
-        Get all permission IDs for a user based on their roles.
-        
-        Args:
-            user_id: ID of the user
-            group_ids: Optional list of group IDs the user belongs to
-            
-        Returns:
-            Set of permission IDs
-        """
-        if not self._access_policy:
-            return set()
-        
-        # Get roles assigned to the user
-        user_roles = set(self._access_policy.role_assignments.get(user_id, []))
-        
-        # Add default roles if user has no specific roles
-        if not user_roles:
-            user_roles.update(self._access_policy.default_roles)
-        
-        # Add roles from groups
-        if group_ids:
-            for group_id in group_ids:
-                group_roles = self._access_policy.group_role_assignments.get(group_id, [])
-                user_roles.update(group_roles)
-        
-        # Get permissions for all roles
-        all_permissions = set()
-        for role_id in user_roles:
-            role_permissions = self._get_role_permissions(role_id)
-            all_permissions.update(role_permissions)
-        
-        return all_permissions
-    
-    def check_permission(
-        self,
-        user_id: str,
-        action: str,
-        resource_type: str,
-        resource_id: Optional[str] = None,
-        backend_id: Optional[str] = None,
-        group_ids: Optional[List[str]] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> bool:
-        """
-        Check if a user has permission to perform an action on a resource.
-        
-        Args:
-            user_id: ID of the user
-            action: Action to perform (e.g., "read", "write", "delete")
-            resource_type: Type of resource (e.g., "file", "storage", "backend")
-            resource_id: Optional ID of the specific resource
-            backend_id: Optional ID of the backend
-            group_ids: Optional list of group IDs the user belongs to
-            context: Optional additional context for condition evaluation
-            
-        Returns:
-            True if the user has permission, False otherwise
-        """
-        if not self._access_policy:
-            # No policy defined, use default behavior
-            return not self._access_policy.deny_by_default
-        
-        with self._lock:
-            # Get user permissions
-            permission_ids = self._get_user_permissions(user_id, group_ids)
-            
-            # No permissions assigned
-            if not permission_ids:
-                # Use default behavior from policy
-                return not self._access_policy.deny_by_default
-            
-            # Keep track of the most specific match
-            best_match = None
-            best_match_specificity = -1
-            
-            # Check each permission
-            for perm_id in permission_ids:
-                permission = self._permissions.get(perm_id)
-                if not permission:
-                    continue
-                
-                # Check resource type
-                if permission.resource_type != resource_type:
-                    continue
-                
-                # Check action
-                if action not in permission.actions:
-                    continue
-                
-                # Check backend (if applicable)
-                if permission.backend_id and backend_id and permission.backend_id != backend_id:
-                    continue
-                
-                # Check resource ID prefix (if applicable)
-                if permission.resource_prefix and resource_id:
-                    if not resource_id.startswith(permission.resource_prefix):
-                        continue
-                
-                # Evaluate conditions (if applicable)
-                if permission.conditions and not self._evaluate_conditions(permission.conditions, context):
-                    continue
-                
-                # Calculate specificity score for this match
-                specificity = 0
-                if permission.backend_id:
-                    specificity += 10
-                if permission.resource_prefix:
-                    specificity += len(permission.resource_prefix)
-                if permission.conditions:
-                    specificity += len(permission.conditions) * 5
-                
-                # Keep track of the most specific match
-                if specificity > best_match_specificity:
-                    best_match = permission
-                    best_match_specificity = specificity
-            
-            # No matching permission found
-            if best_match is None:
-                # Use default behavior from policy
-                return not self._access_policy.deny_by_default
-            
-            # Check effect of the most specific permission
-            return best_match.effect == PermissionEffect.ALLOW
-    
-    def _evaluate_conditions(self, conditions: Dict[str, Any], context: Optional[Dict[str, Any]]) -> bool:
-        """
-        Evaluate conditions against context.
-        
-        This is a simplified condition evaluation. In a real implementation,
-        this would be more sophisticated with support for complex conditions.
-        
-        Args:
-            conditions: Dictionary of conditions to evaluate
-            context: Context to evaluate against
-            
-        Returns:
-            True if all conditions are met, False otherwise
-        """
-        if not context:
-            return False
-        
-        for key, expected_value in conditions.items():
-            if key not in context:
+        # Convert resource_type to enum if string
+        if isinstance(resource_type, str):
+            try:
+                resource_type = ResourceType(resource_type)
+            except ValueError:
                 return False
-            
-            actual_value = context[key]
-            
-            # Simple equality check for now
-            if actual_value != expected_value:
+        
+        # Convert action to enum if string
+        if isinstance(action, str):
+            try:
+                action = ActionType(action)
+            except ValueError:
+                return False
+        
+        # Check resource type
+        if self.resource_type != resource_type:
+            return False
+        
+        # Check resource ID
+        if self.resource_id is not None and resource_id is not None and self.resource_id != resource_id:
+            return False
+        
+        # Check actions
+        if ActionType.ALL not in self.actions and action not in self.actions:
+            return False
+        
+        # Check conditions
+        if self.conditions and context:
+            if not self._evaluate_conditions(self.conditions, context):
                 return False
         
         return True
     
-    # Role management
-    
-    def create_role(self, role: Role) -> bool:
+    def _evaluate_conditions(self, conditions: Dict[str, Any], context: Dict[str, Any]) -> bool:
         """
-        Create a new role.
+        Evaluate conditions against context.
         
         Args:
-            role: Role to create
+            conditions: Condition definitions
+            context: Request context
             
         Returns:
-            True if the role was created successfully, False if it already exists
+            True if conditions are satisfied
         """
-        with self._lock:
-            if role.id in self._roles:
-                logger.warning(f"Role already exists: {role.id}")
+        for key, condition in conditions.items():
+            # Skip if key doesn't exist in context
+            if key not in context:
                 return False
             
-            self._roles[role.id] = role
-            self._role_permissions_cache[role.id] = set(role.permissions)
+            context_value = context[key]
             
-            # Save to file if auto-save is enabled
-            self._save_roles()
-            
-            return True
-    
-    def update_role(self, role: Role) -> bool:
-        """
-        Update an existing role.
-        
-        Args:
-            role: Role to update
-            
-        Returns:
-            True if the role was updated successfully, False if it doesn't exist
-        """
-        with self._lock:
-            if role.id not in self._roles:
-                logger.warning(f"Role not found: {role.id}")
-                return False
-            
-            self._roles[role.id] = role
-            
-            # Reset cache for this role and all roles that inherit from it
-            del self._role_permissions_cache[role.id]
-            for other_role in self._roles.values():
-                if role.id in other_role.parent_roles:
-                    if other_role.id in self._role_permissions_cache:
-                        del self._role_permissions_cache[other_role.id]
-            
-            # Rebuild this role's cache entry
-            self._get_role_permissions(role.id)
-            
-            # Save to file if auto-save is enabled
-            self._save_roles()
-            
-            return True
-    
-    def delete_role(self, role_id: str) -> bool:
-        """
-        Delete a role.
-        
-        Args:
-            role_id: ID of the role to delete
-            
-        Returns:
-            True if the role was deleted successfully, False if it doesn't exist
-        """
-        with self._lock:
-            if role_id not in self._roles:
-                logger.warning(f"Role not found: {role_id}")
-                return False
-            
-            # Check if other roles inherit from this one
-            for other_role in self._roles.values():
-                if role_id in other_role.parent_roles:
-                    logger.warning(f"Cannot delete role {role_id}: other roles inherit from it")
+            # Exact value match
+            if isinstance(condition, (str, int, float, bool)):
+                if context_value != condition:
                     return False
             
-            # Remove from cache
-            if role_id in self._role_permissions_cache:
-                del self._role_permissions_cache[role_id]
+            # List contains
+            elif isinstance(condition, list):
+                if not isinstance(context_value, list):
+                    # Single value - check if it's in condition list
+                    if context_value not in condition:
+                        return False
+                else:
+                    # List value - check if any value is in condition list
+                    if not any(v in condition for v in context_value):
+                        return False
             
-            # Remove from roles dictionary
-            del self._roles[role_id]
+            # Dictionary with operators
+            elif isinstance(condition, dict):
+                for op, value in condition.items():
+                    if op == "eq" and context_value != value:
+                        return False
+                    elif op == "ne" and context_value == value:
+                        return False
+                    elif op == "gt" and not (isinstance(context_value, (int, float)) and context_value > value):
+                        return False
+                    elif op == "lt" and not (isinstance(context_value, (int, float)) and context_value < value):
+                        return False
+                    elif op == "gte" and not (isinstance(context_value, (int, float)) and context_value >= value):
+                        return False
+                    elif op == "lte" and not (isinstance(context_value, (int, float)) and context_value <= value):
+                        return False
+                    elif op == "contains" and not (isinstance(context_value, str) and value in context_value):
+                        return False
+                    elif op == "in" and context_value not in value:
+                        return False
+        
+        return True
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert to dictionary representation.
+        
+        Returns:
+            Dictionary with permission fields
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "resource_type": self.resource_type.value,
+            "actions": [action.value for action in self.actions],
+            "description": self.description,
+            "resource_id": self.resource_id,
+            "conditions": self.conditions,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Permission':
+        """
+        Create from dictionary representation.
+        
+        Args:
+            data: Dictionary with permission fields
             
-            # Save to file if auto-save is enabled
-            self._save_roles()
+        Returns:
+            Permission instance
+        """
+        # Create instance
+        permission = cls(
+            name=data["name"],
+            resource_type=data["resource_type"],
+            actions=set(data["actions"]),
+            description=data.get("description"),
+            resource_id=data.get("resource_id"),
+            conditions=data.get("conditions")
+        )
+        
+        # Set fields that aren't in constructor
+        permission.id = data.get("id", permission.id)
+        permission.created_at = data.get("created_at", permission.created_at)
+        permission.updated_at = data.get("updated_at", permission.updated_at)
+        
+        return permission
+
+class Role:
+    """Role definition for role-based access control."""
+    
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        permissions: Optional[List[Union[str, Permission]]] = None,
+        parent_roles: Optional[List[str]] = None
+    ):
+        """
+        Initialize role.
+        
+        Args:
+            name: Role name
+            description: Optional description
+            permissions: Optional list of permissions (IDs or objects)
+            parent_roles: Optional parent role IDs for inheritance
+        """
+        self.id = str(uuid.uuid4())
+        self.name = name
+        self.description = description or ""
+        
+        # Store permission IDs
+        self.permissions = set()
+        if permissions:
+            for perm in permissions:
+                if isinstance(perm, Permission):
+                    self.permissions.add(perm.id)
+                else:
+                    self.permissions.add(perm)
+        
+        self.parent_roles = set(parent_roles) if parent_roles else set()
+        
+        # Timestamp for creation and update tracking
+        self.created_at = time.time()
+        self.updated_at = self.created_at
+    
+    def add_permission(self, permission: Union[str, Permission]) -> None:
+        """
+        Add a permission to this role.
+        
+        Args:
+            permission: Permission ID or object
+        """
+        if isinstance(permission, Permission):
+            self.permissions.add(permission.id)
+        else:
+            self.permissions.add(permission)
+        
+        self.updated_at = time.time()
+    
+    def remove_permission(self, permission_id: str) -> None:
+        """
+        Remove a permission from this role.
+        
+        Args:
+            permission_id: Permission ID
+        """
+        if permission_id in self.permissions:
+            self.permissions.remove(permission_id)
+            self.updated_at = time.time()
+    
+    def add_parent_role(self, role_id: str) -> None:
+        """
+        Add a parent role for inheritance.
+        
+        Args:
+            role_id: Parent role ID
+        """
+        self.parent_roles.add(role_id)
+        self.updated_at = time.time()
+    
+    def remove_parent_role(self, role_id: str) -> None:
+        """
+        Remove a parent role.
+        
+        Args:
+            role_id: Parent role ID
+        """
+        if role_id in self.parent_roles:
+            self.parent_roles.remove(role_id)
+            self.updated_at = time.time()
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert to dictionary representation.
+        
+        Returns:
+            Dictionary with role fields
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "permissions": list(self.permissions),
+            "parent_roles": list(self.parent_roles),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Role':
+        """
+        Create from dictionary representation.
+        
+        Args:
+            data: Dictionary with role fields
+            
+        Returns:
+            Role instance
+        """
+        # Create instance
+        role = cls(
+            name=data["name"],
+            description=data.get("description"),
+            permissions=data.get("permissions"),
+            parent_roles=data.get("parent_roles")
+        )
+        
+        # Set fields that aren't in constructor
+        role.id = data.get("id", role.id)
+        role.created_at = data.get("created_at", role.created_at)
+        role.updated_at = data.get("updated_at", role.updated_at)
+        
+        return role
+
+class RBACStore:
+    """Storage backend for RBAC data."""
+    
+    def __init__(self, store_path: str):
+        """
+        Initialize RBAC data store.
+        
+        Args:
+            store_path: Path to store RBAC data
+        """
+        self.store_path = store_path
+        
+        # Create store directories
+        self.permissions_dir = os.path.join(store_path, "permissions")
+        self.roles_dir = os.path.join(store_path, "roles")
+        
+        os.makedirs(self.permissions_dir, exist_ok=True)
+        os.makedirs(self.roles_dir, exist_ok=True)
+        
+        # Caches for in-memory access
+        self._permission_cache = {}  # id -> Permission
+        self._role_cache = {}        # id -> Role
+        self._role_name_cache = {}   # name -> id
+    
+    def save_permission(self, permission: Permission) -> bool:
+        """
+        Save a permission to the store.
+        
+        Args:
+            permission: Permission to save
+            
+        Returns:
+            Success flag
+        """
+        try:
+            # Convert to dict
+            perm_dict = permission.to_dict()
+            
+            # Save to file
+            file_path = os.path.join(self.permissions_dir, f"{permission.id}.json")
+            with open(file_path, 'w') as f:
+                json.dump(perm_dict, f, indent=2)
+            
+            # Update cache
+            self._permission_cache[permission.id] = permission
             
             return True
-    
-    def add_permission_to_role(self, role_id: str, permission_id: str) -> bool:
-        """
-        Add a permission to a role.
-        
-        Args:
-            role_id: ID of the role
-            permission_id: ID of the permission to add
-            
-        Returns:
-            True if the permission was added successfully, False otherwise
-        """
-        with self._lock:
-            if role_id not in self._roles:
-                logger.warning(f"Role not found: {role_id}")
-                return False
-            
-            if permission_id not in self._permissions:
-                logger.warning(f"Permission not found: {permission_id}")
-                return False
-            
-            # Add permission if not already present
-            if permission_id not in self._roles[role_id].permissions:
-                self._roles[role_id].permissions.append(permission_id)
-                
-                # Reset cache for this role and all roles that inherit from it
-                if role_id in self._role_permissions_cache:
-                    del self._role_permissions_cache[role_id]
-                
-                # Rebuild this role's cache entry
-                self._get_role_permissions(role_id)
-                
-                # Save to file if auto-save is enabled
-                self._save_roles()
-            
-            return True
-    
-    def remove_permission_from_role(self, role_id: str, permission_id: str) -> bool:
-        """
-        Remove a permission from a role.
-        
-        Args:
-            role_id: ID of the role
-            permission_id: ID of the permission to remove
-            
-        Returns:
-            True if the permission was removed successfully, False otherwise
-        """
-        with self._lock:
-            if role_id not in self._roles:
-                logger.warning(f"Role not found: {role_id}")
-                return False
-            
-            # Remove permission if present
-            if permission_id in self._roles[role_id].permissions:
-                self._roles[role_id].permissions.remove(permission_id)
-                
-                # Reset cache for this role and all roles that inherit from it
-                if role_id in self._role_permissions_cache:
-                    del self._role_permissions_cache[role_id]
-                
-                # Rebuild this role's cache entry
-                self._get_role_permissions(role_id)
-                
-                # Save to file if auto-save is enabled
-                self._save_roles()
-            
-            return True
-    
-    # Permission management
-    
-    def create_permission(self, permission: Permission) -> bool:
-        """
-        Create a new permission.
-        
-        Args:
-            permission: Permission to create
-            
-        Returns:
-            True if the permission was created successfully, False if it already exists
-        """
-        with self._lock:
-            if permission.id in self._permissions:
-                logger.warning(f"Permission already exists: {permission.id}")
-                return False
-            
-            self._permissions[permission.id] = permission
-            
-            # Reset cache for all roles (since this might affect permission resolution)
-            self._role_permissions_cache = {}
-            
-            # Save to file if auto-save is enabled
-            self._save_permissions()
-            
-            return True
-    
-    def update_permission(self, permission: Permission) -> bool:
-        """
-        Update an existing permission.
-        
-        Args:
-            permission: Permission to update
-            
-        Returns:
-            True if the permission was updated successfully, False if it doesn't exist
-        """
-        with self._lock:
-            if permission.id not in self._permissions:
-                logger.warning(f"Permission not found: {permission.id}")
-                return False
-            
-            self._permissions[permission.id] = permission
-            
-            # Reset cache for all roles (since this might affect permission resolution)
-            self._role_permissions_cache = {}
-            
-            # Save to file if auto-save is enabled
-            self._save_permissions()
-            
-            return True
-    
-    def delete_permission(self, permission_id: str) -> bool:
-        """
-        Delete a permission.
-        
-        Args:
-            permission_id: ID of the permission to delete
-            
-        Returns:
-            True if the permission was deleted successfully, False if it doesn't exist
-        """
-        with self._lock:
-            if permission_id not in self._permissions:
-                logger.warning(f"Permission not found: {permission_id}")
-                return False
-            
-            # Check if any roles use this permission
-            for role in self._roles.values():
-                if permission_id in role.permissions:
-                    logger.warning(f"Cannot delete permission {permission_id}: it is used by role {role.id}")
-                    return False
-            
-            # Remove from permissions dictionary
-            del self._permissions[permission_id]
-            
-            # Save to file if auto-save is enabled
-            self._save_permissions()
-            
-            return True
-    
-    # Policy management
-    
-    def create_access_policy(self, policy: AccessPolicy) -> bool:
-        """
-        Create a new access policy.
-        
-        Args:
-            policy: Access policy to create
-            
-        Returns:
-            True if the policy was created successfully, False if one already exists
-        """
-        with self._lock:
-            if self._access_policy:
-                logger.warning("Access policy already exists")
-                return False
-            
-            self._access_policy = policy
-            
-            # Save to file if auto-save is enabled
-            self._save_policy()
-            
-            return True
-    
-    def update_access_policy(self, policy: AccessPolicy) -> bool:
-        """
-        Update the access policy.
-        
-        Args:
-            policy: Access policy to update
-            
-        Returns:
-            True if the policy was updated successfully, False if none exists
-        """
-        with self._lock:
-            if not self._access_policy:
-                logger.warning("No access policy exists")
-                return False
-            
-            # Update version and timestamp
-            policy.version = self._access_policy.version + 1
-            policy.updated_at = time.time()
-            
-            self._access_policy = policy
-            
-            # Save to file if auto-save is enabled
-            self._save_policy()
-            
-            return True
-    
-    def assign_role_to_user(self, user_id: str, role_id: str) -> bool:
-        """
-        Assign a role to a user.
-        
-        Args:
-            user_id: ID of the user
-            role_id: ID of the role to assign
-            
-        Returns:
-            True if the role was assigned successfully, False otherwise
-        """
-        with self._lock:
-            if not self._access_policy:
-                logger.warning("No access policy exists")
-                return False
-            
-            if role_id not in self._roles:
-                logger.warning(f"Role not found: {role_id}")
-                return False
-            
-            # Initialize user's roles list if not present
-            if user_id not in self._access_policy.role_assignments:
-                self._access_policy.role_assignments[user_id] = []
-            
-            # Add role if not already assigned
-            if role_id not in self._access_policy.role_assignments[user_id]:
-                self._access_policy.role_assignments[user_id].append(role_id)
-                
-                # Update policy timestamp
-                self._access_policy.updated_at = time.time()
-                
-                # Save to file if auto-save is enabled
-                self._save_policy()
-            
-            return True
-    
-    def unassign_role_from_user(self, user_id: str, role_id: str) -> bool:
-        """
-        Unassign a role from a user.
-        
-        Args:
-            user_id: ID of the user
-            role_id: ID of the role to unassign
-            
-        Returns:
-            True if the role was unassigned successfully, False otherwise
-        """
-        with self._lock:
-            if not self._access_policy:
-                logger.warning("No access policy exists")
-                return False
-            
-            if user_id not in self._access_policy.role_assignments:
-                logger.warning(f"User has no role assignments: {user_id}")
-                return False
-            
-            # Remove role if assigned
-            if role_id in self._access_policy.role_assignments[user_id]:
-                self._access_policy.role_assignments[user_id].remove(role_id)
-                
-                # Update policy timestamp
-                self._access_policy.updated_at = time.time()
-                
-                # Save to file if auto-save is enabled
-                self._save_policy()
-            
-            return True
-    
-    def assign_role_to_group(self, group_id: str, role_id: str) -> bool:
-        """
-        Assign a role to a group.
-        
-        Args:
-            group_id: ID of the group
-            role_id: ID of the role to assign
-            
-        Returns:
-            True if the role was assigned successfully, False otherwise
-        """
-        with self._lock:
-            if not self._access_policy:
-                logger.warning("No access policy exists")
-                return False
-            
-            if role_id not in self._roles:
-                logger.warning(f"Role not found: {role_id}")
-                return False
-            
-            # Initialize group's roles list if not present
-            if group_id not in self._access_policy.group_role_assignments:
-                self._access_policy.group_role_assignments[group_id] = []
-            
-            # Add role if not already assigned
-            if role_id not in self._access_policy.group_role_assignments[group_id]:
-                self._access_policy.group_role_assignments[group_id].append(role_id)
-                
-                # Update policy timestamp
-                self._access_policy.updated_at = time.time()
-                
-                # Save to file if auto-save is enabled
-                self._save_policy()
-            
-            return True
-    
-    def unassign_role_from_group(self, group_id: str, role_id: str) -> bool:
-        """
-        Unassign a role from a group.
-        
-        Args:
-            group_id: ID of the group
-            role_id: ID of the role to unassign
-            
-        Returns:
-            True if the role was unassigned successfully, False otherwise
-        """
-        with self._lock:
-            if not self._access_policy:
-                logger.warning("No access policy exists")
-                return False
-            
-            if group_id not in self._access_policy.group_role_assignments:
-                logger.warning(f"Group has no role assignments: {group_id}")
-                return False
-            
-            # Remove role if assigned
-            if role_id in self._access_policy.group_role_assignments[group_id]:
-                self._access_policy.group_role_assignments[group_id].remove(role_id)
-                
-                # Update policy timestamp
-                self._access_policy.updated_at = time.time()
-                
-                # Save to file if auto-save is enabled
-                self._save_policy()
-            
-            return True
-    
-    def get_user_roles(self, user_id: str, include_default_roles: bool = True) -> List[str]:
-        """
-        Get all roles assigned to a user.
-        
-        Args:
-            user_id: ID of the user
-            include_default_roles: Whether to include default roles
-            
-        Returns:
-            List of role IDs assigned to the user
-        """
-        if not self._access_policy:
-            return []
-        
-        # Get directly assigned roles
-        roles = list(self._access_policy.role_assignments.get(user_id, []))
-        
-        # Add default roles if requested
-        if include_default_roles and not roles:
-            roles.extend(self._access_policy.default_roles)
-        
-        return roles
-    
-    def get_group_roles(self, group_id: str) -> List[str]:
-        """
-        Get all roles assigned to a group.
-        
-        Args:
-            group_id: ID of the group
-            
-        Returns:
-            List of role IDs assigned to the group
-        """
-        if not self._access_policy:
-            return []
-        
-        return list(self._access_policy.group_role_assignments.get(group_id, []))
-    
-    def get_all_permissions(self) -> Dict[str, Permission]:
-        """
-        Get all permissions.
-        
-        Returns:
-            Dictionary of permission ID to Permission object
-        """
-        with self._lock:
-            return self._permissions.copy()
-    
-    def get_all_roles(self) -> Dict[str, Role]:
-        """
-        Get all roles.
-        
-        Returns:
-            Dictionary of role ID to Role object
-        """
-        with self._lock:
-            return self._roles.copy()
+        except Exception as e:
+            logger.error(f"Error saving permission {permission.id}: {e}")
+            return False
     
     def get_permission(self, permission_id: str) -> Optional[Permission]:
         """
         Get a permission by ID.
         
         Args:
-            permission_id: ID of the permission
+            permission_id: Permission ID
             
         Returns:
-            Permission object or None if not found
+            Permission or None if not found
         """
-        with self._lock:
-            return self._permissions.get(permission_id)
+        # Check cache
+        if permission_id in self._permission_cache:
+            return self._permission_cache[permission_id]
+        
+        # Try to load from file
+        try:
+            file_path = os.path.join(self.permissions_dir, f"{permission_id}.json")
+            if not os.path.exists(file_path):
+                return None
+            
+            with open(file_path, 'r') as f:
+                perm_dict = json.load(f)
+            
+            # Create permission
+            permission = Permission.from_dict(perm_dict)
+            
+            # Update cache
+            self._permission_cache[permission_id] = permission
+            
+            return permission
+        except Exception as e:
+            logger.error(f"Error loading permission {permission_id}: {e}")
+            return None
+    
+    def list_permissions(self) -> List[Permission]:
+        """
+        List all permissions.
+        
+        Returns:
+            List of all permissions
+        """
+        permissions = []
+        
+        # Get all permission files
+        for filename in os.listdir(self.permissions_dir):
+            if filename.endswith(".json"):
+                permission_id = filename[:-5]  # Remove .json extension
+                permission = self.get_permission(permission_id)
+                if permission:
+                    permissions.append(permission)
+        
+        return permissions
+    
+    def delete_permission(self, permission_id: str) -> bool:
+        """
+        Delete a permission.
+        
+        Args:
+            permission_id: Permission ID
+            
+        Returns:
+            Success flag
+        """
+        try:
+            # Remove from cache
+            if permission_id in self._permission_cache:
+                del self._permission_cache[permission_id]
+            
+            # Remove file
+            file_path = os.path.join(self.permissions_dir, f"{permission_id}.json")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting permission {permission_id}: {e}")
+            return False
+    
+    def save_role(self, role: Role) -> bool:
+        """
+        Save a role to the store.
+        
+        Args:
+            role: Role to save
+            
+        Returns:
+            Success flag
+        """
+        try:
+            # Convert to dict
+            role_dict = role.to_dict()
+            
+            # Save to file
+            file_path = os.path.join(self.roles_dir, f"{role.id}.json")
+            with open(file_path, 'w') as f:
+                json.dump(role_dict, f, indent=2)
+            
+            # Update caches
+            self._role_cache[role.id] = role
+            self._role_name_cache[role.name] = role.id
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error saving role {role.id}: {e}")
+            return False
     
     def get_role(self, role_id: str) -> Optional[Role]:
         """
         Get a role by ID.
         
         Args:
-            role_id: ID of the role
+            role_id: Role ID
             
         Returns:
-            Role object or None if not found
+            Role or None if not found
         """
-        with self._lock:
-            return self._roles.get(role_id)
+        # Check cache
+        if role_id in self._role_cache:
+            return self._role_cache[role_id]
+        
+        # Try to load from file
+        try:
+            file_path = os.path.join(self.roles_dir, f"{role_id}.json")
+            if not os.path.exists(file_path):
+                return None
+            
+            with open(file_path, 'r') as f:
+                role_dict = json.load(f)
+            
+            # Create role
+            role = Role.from_dict(role_dict)
+            
+            # Update caches
+            self._role_cache[role_id] = role
+            self._role_name_cache[role.name] = role.id
+            
+            return role
+        except Exception as e:
+            logger.error(f"Error loading role {role_id}: {e}")
+            return None
     
-    def get_access_policy(self) -> Optional[AccessPolicy]:
+    def get_role_by_name(self, role_name: str) -> Optional[Role]:
         """
-        Get the current access policy.
+        Get a role by name.
+        
+        Args:
+            role_name: Role name
+            
+        Returns:
+            Role or None if not found
+        """
+        # Check name cache
+        if role_name in self._role_name_cache:
+            role_id = self._role_name_cache[role_name]
+            return self.get_role(role_id)
+        
+        # Scan roles
+        for role_id in self._find_role_ids():
+            role = self.get_role(role_id)
+            if role and role.name == role_name:
+                self._role_name_cache[role_name] = role_id
+                return role
+        
+        return None
+    
+    def list_roles(self) -> List[Role]:
+        """
+        List all roles.
         
         Returns:
-            Current access policy or None if none exists
+            List of all roles
         """
-        with self._lock:
-            return self._access_policy
+        roles = []
+        
+        # Get all role files
+        for role_id in self._find_role_ids():
+            role = self.get_role(role_id)
+            if role:
+                roles.append(role)
+        
+        return roles
     
-    def shutdown(self) -> None:
+    def delete_role(self, role_id: str) -> bool:
         """
-        Shutdown the RBAC manager.
+        Delete a role.
         
-        This stops the background refresh thread and saves any pending changes.
+        Args:
+            role_id: Role ID
+            
+        Returns:
+            Success flag
         """
-        logger.info("Shutting down RBAC manager")
+        try:
+            # Get role first to remove from name cache
+            role = self.get_role(role_id)
+            if role:
+                if role.name in self._role_name_cache:
+                    del self._role_name_cache[role.name]
+            
+            # Remove from ID cache
+            if role_id in self._role_cache:
+                del self._role_cache[role_id]
+            
+            # Remove file
+            file_path = os.path.join(self.roles_dir, f"{role_id}.json")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting role {role_id}: {e}")
+            return False
+    
+    def _find_role_ids(self) -> List[str]:
+        """
+        Find all role IDs.
         
-        # Stop background refresh
-        if hasattr(self, "_refresh_thread") and self._refresh_thread.is_alive():
-            self._shutdown_event.set()
-            self._refresh_thread.join(timeout=5.0)
-            if self._refresh_thread.is_alive():
-                logger.warning("Background refresh thread did not terminate in time")
+        Returns:
+            List of role IDs
+        """
+        roles = []
         
-        # Save changes
-        with self._lock:
-            self._save_roles()
-            self._save_permissions()
-            self._save_policy()
+        # Get all role files
+        for filename in os.listdir(self.roles_dir):
+            if filename.endswith(".json"):
+                role_id = filename[:-5]  # Remove .json extension
+                roles.append(role_id)
+        
+        return roles
+
+class RBACManager:
+    """
+    Role-Based Access Control Manager.
+    
+    This class manages permissions, roles, and access control policies.
+    """
+    
+    def __init__(self, store_path: str):
+        """
+        Initialize RBAC manager.
+        
+        Args:
+            store_path: Path to store RBAC data
+        """
+        self.store = RBACStore(store_path)
+        
+        # Initialize with default permissions and roles
+        self._ensure_default_permissions()
+        self._ensure_default_roles()
+        
+        logger.info("RBAC Manager initialized")
+    
+    def _ensure_default_permissions(self) -> None:
+        """Create default permissions if they don't exist."""
+        # System-wide permissions
+        self._ensure_permission(
+            name="system:admin",
+            resource_type=ResourceType.SYSTEM,
+            actions={ActionType.ALL},
+            description="Full system administration"
+        )
+        
+        # Storage permissions
+        self._ensure_permission(
+            name="storage:read",
+            resource_type=ResourceType.STORAGE,
+            actions={ActionType.READ},
+            description="Read storage content"
+        )
+        self._ensure_permission(
+            name="storage:write",
+            resource_type=ResourceType.STORAGE,
+            actions={ActionType.CREATE, ActionType.UPDATE},
+            description="Write to storage"
+        )
+        self._ensure_permission(
+            name="storage:delete",
+            resource_type=ResourceType.STORAGE,
+            actions={ActionType.DELETE},
+            description="Delete storage content"
+        )
+        self._ensure_permission(
+            name="storage:list",
+            resource_type=ResourceType.STORAGE,
+            actions={ActionType.LIST},
+            description="List storage contents"
+        )
+        
+        # Backend permissions
+        self._ensure_permission(
+            name="backend:manage",
+            resource_type=ResourceType.BACKEND,
+            actions={ActionType.MANAGE},
+            description="Manage storage backends"
+        )
+        self._ensure_permission(
+            name="backend:read",
+            resource_type=ResourceType.BACKEND,
+            actions={ActionType.READ},
+            description="View backend information"
+        )
+        
+        # API permissions
+        self._ensure_permission(
+            name="api:access",
+            resource_type=ResourceType.API,
+            actions={ActionType.EXECUTE},
+            description="Access API endpoints"
+        )
+        
+        # User management permissions
+        self._ensure_permission(
+            name="user:manage",
+            resource_type=ResourceType.USER,
+            actions={ActionType.CREATE, ActionType.READ, ActionType.UPDATE, ActionType.DELETE, ActionType.LIST},
+            description="Manage users"
+        )
+        self._ensure_permission(
+            name="user:read",
+            resource_type=ResourceType.USER,
+            actions={ActionType.READ, ActionType.LIST},
+            description="View user information"
+        )
+        
+        # Role management permissions
+        self._ensure_permission(
+            name="role:manage",
+            resource_type=ResourceType.ROLE,
+            actions={ActionType.CREATE, ActionType.READ, ActionType.UPDATE, ActionType.DELETE, ActionType.LIST},
+            description="Manage roles"
+        )
+        self._ensure_permission(
+            name="role:read",
+            resource_type=ResourceType.ROLE,
+            actions={ActionType.READ, ActionType.LIST},
+            description="View role information"
+        )
+        
+        # Configuration permissions
+        self._ensure_permission(
+            name="config:manage",
+            resource_type=ResourceType.CONFIG,
+            actions={ActionType.CREATE, ActionType.READ, ActionType.UPDATE, ActionType.DELETE},
+            description="Manage system configuration"
+        )
+        self._ensure_permission(
+            name="config:read",
+            resource_type=ResourceType.CONFIG,
+            actions={ActionType.READ},
+            description="View system configuration"
+        )
+        
+        # Monitoring permissions
+        self._ensure_permission(
+            name="monitoring:view",
+            resource_type=ResourceType.MONITORING,
+            actions={ActionType.READ},
+            description="View monitoring data"
+        )
+        self._ensure_permission(
+            name="monitoring:manage",
+            resource_type=ResourceType.MONITORING,
+            actions={ActionType.MANAGE},
+            description="Manage monitoring settings"
+        )
+        
+        # Analytics permissions
+        self._ensure_permission(
+            name="analytics:view",
+            resource_type=ResourceType.ANALYTICS,
+            actions={ActionType.READ},
+            description="View analytics data"
+        )
+        self._ensure_permission(
+            name="analytics:manage",
+            resource_type=ResourceType.ANALYTICS,
+            actions={ActionType.MANAGE},
+            description="Manage analytics settings"
+        )
+    
+    def _ensure_permission(
+        self,
+        name: str,
+        resource_type: ResourceType,
+        actions: Set[ActionType],
+        description: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        conditions: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Create permission if it doesn't exist.
+        
+        Args:
+            name: Permission name
+            resource_type: Resource type
+            actions: Allowed actions
+            description: Optional description
+            resource_id: Optional specific resource ID
+            conditions: Optional conditions
+        """
+        # Check if permission exists by name
+        existing_permissions = self.list_permissions()
+        for perm in existing_permissions:
+            if perm.name == name:
+                return
+        
+        # Create permission
+        permission = Permission(
+            name=name,
+            resource_type=resource_type,
+            actions=actions,
+            description=description,
+            resource_id=resource_id,
+            conditions=conditions
+        )
+        
+        # Save permission
+        self.store.save_permission(permission)
+        logger.info(f"Created default permission: {name}")
+    
+    def _ensure_default_roles(self) -> None:
+        """Create default roles if they don't exist."""
+        # Get permission IDs by name
+        permission_map = {}
+        for perm in self.list_permissions():
+            permission_map[perm.name] = perm.id
+        
+        # Admin role
+        admin_permissions = [
+            permission_map.get("system:admin")
+        ]
+        self._ensure_role(
+            name="admin",
+            description="Administrator with full access",
+            permissions=[p for p in admin_permissions if p is not None]
+        )
+        
+        # User role
+        user_permissions = [
+            permission_map.get("storage:read"),
+            permission_map.get("storage:list"),
+            permission_map.get("api:access"),
+            permission_map.get("backend:read")
+        ]
+        self._ensure_role(
+            name="user",
+            description="Standard user",
+            permissions=[p for p in user_permissions if p is not None]
+        )
+        
+        # Backend manager role
+        backend_permissions = [
+            permission_map.get("backend:manage"),
+            permission_map.get("backend:read"),
+            permission_map.get("storage:read"),
+            permission_map.get("storage:list"),
+            permission_map.get("api:access")
+        ]
+        self._ensure_role(
+            name="backend_manager",
+            description="Backend manager",
+            permissions=[p for p in backend_permissions if p is not None]
+        )
+        
+        # Monitoring role
+        monitoring_permissions = [
+            permission_map.get("monitoring:view"),
+            permission_map.get("analytics:view"),
+            permission_map.get("api:access")
+        ]
+        self._ensure_role(
+            name="monitoring",
+            description="Monitoring access",
+            permissions=[p for p in monitoring_permissions if p is not None]
+        )
+        
+        # Read-only role
+        readonly_permissions = [
+            permission_map.get("storage:read"),
+            permission_map.get("storage:list"),
+            permission_map.get("backend:read"),
+            permission_map.get("user:read"),
+            permission_map.get("role:read"),
+            permission_map.get("config:read"),
+            permission_map.get("monitoring:view"),
+            permission_map.get("analytics:view"),
+            permission_map.get("api:access")
+        ]
+        self._ensure_role(
+            name="readonly",
+            description="Read-only access",
+            permissions=[p for p in readonly_permissions if p is not None]
+        )
+    
+    def _ensure_role(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        permissions: Optional[List[str]] = None,
+        parent_roles: Optional[List[str]] = None
+    ) -> None:
+        """
+        Create role if it doesn't exist.
+        
+        Args:
+            name: Role name
+            description: Optional description
+            permissions: Optional permission IDs
+            parent_roles: Optional parent role IDs
+        """
+        # Check if role exists
+        existing_role = self.get_role_by_name(name)
+        if existing_role:
+            return
+        
+        # Create role
+        role = Role(
+            name=name,
+            description=description,
+            permissions=permissions,
+            parent_roles=parent_roles
+        )
+        
+        # Save role
+        self.store.save_role(role)
+        logger.info(f"Created default role: {name}")
+    
+    def create_permission(
+        self,
+        name: str,
+        resource_type: Union[ResourceType, str],
+        actions: Set[Union[ActionType, str]],
+        description: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        conditions: Optional[Dict[str, Any]] = None
+    ) -> Permission:
+        """
+        Create a new permission.
+        
+        Args:
+            name: Permission name
+            resource_type: Resource type
+            actions: Allowed actions
+            description: Optional description
+            resource_id: Optional specific resource ID
+            conditions: Optional conditions
+            
+        Returns:
+            Created permission
+        """
+        # Create permission
+        permission = Permission(
+            name=name,
+            resource_type=resource_type,
+            actions=actions,
+            description=description,
+            resource_id=resource_id,
+            conditions=conditions
+        )
+        
+        # Save permission
+        self.store.save_permission(permission)
+        logger.info(f"Created permission: {name}")
+        
+        return permission
+    
+    def get_permission(self, permission_id: str) -> Optional[Permission]:
+        """
+        Get a permission by ID.
+        
+        Args:
+            permission_id: Permission ID
+            
+        Returns:
+            Permission or None if not found
+        """
+        return self.store.get_permission(permission_id)
+    
+    def get_permission_by_name(self, name: str) -> Optional[Permission]:
+        """
+        Get a permission by name.
+        
+        Args:
+            name: Permission name
+            
+        Returns:
+            Permission or None if not found
+        """
+        for permission in self.list_permissions():
+            if permission.name == name:
+                return permission
+        return None
+    
+    def list_permissions(self) -> List[Permission]:
+        """
+        List all permissions.
+        
+        Returns:
+            List of all permissions
+        """
+        return self.store.list_permissions()
+    
+    def update_permission(self, permission_id: str, **kwargs) -> Optional[Permission]:
+        """
+        Update a permission.
+        
+        Args:
+            permission_id: Permission ID
+            **kwargs: Fields to update
+            
+        Returns:
+            Updated permission or None if not found
+        """
+        permission = self.get_permission(permission_id)
+        if not permission:
+            logger.warning(f"Permission {permission_id} not found")
+            return None
+        
+        # Update fields
+        for key, value in kwargs.items():
+            if key == "name":
+                permission.name = value
+            elif key == "description":
+                permission.description = value
+            elif key == "resource_type":
+                if isinstance(value, str):
+                    permission.resource_type = ResourceType(value)
+                else:
+                    permission.resource_type = value
+            elif key == "actions":
+                # Convert string actions to enum
+                actions = set()
+                for action in value:
+                    if isinstance(action, str):
+                        actions.add(ActionType(action))
+                    else:
+                        actions.add(action)
+                permission.actions = actions
+            elif key == "resource_id":
+                permission.resource_id = value
+            elif key == "conditions":
+                permission.conditions = value
+        
+        # Update timestamp
+        permission.updated_at = time.time()
+        
+        # Save permission
+        self.store.save_permission(permission)
+        logger.info(f"Updated permission: {permission.name}")
+        
+        return permission
+    
+    def delete_permission(self, permission_id: str) -> bool:
+        """
+        Delete a permission.
+        
+        Args:
+            permission_id: Permission ID
+            
+        Returns:
+            Success flag
+        """
+        # First check if any roles reference this permission
+        for role in self.list_roles():
+            if permission_id in role.permissions:
+                logger.warning(f"Cannot delete permission {permission_id}: referenced by role {role.name}")
+                return False
+        
+        # Delete permission
+        success = self.store.delete_permission(permission_id)
+        if success:
+            logger.info(f"Deleted permission {permission_id}")
+        
+        return success
+    
+    def create_role(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        permissions: Optional[List[Union[str, Permission]]] = None,
+        parent_roles: Optional[List[str]] = None
+    ) -> Role:
+        """
+        Create a new role.
+        
+        Args:
+            name: Role name
+            description: Optional description
+            permissions: Optional list of permissions (IDs or objects)
+            parent_roles: Optional parent role IDs
+            
+        Returns:
+            Created role
+        """
+        # Check if role with this name already exists
+        existing_role = self.get_role_by_name(name)
+        if existing_role:
+            raise ValueError(f"Role with name {name} already exists")
+        
+        # Create role
+        role = Role(
+            name=name,
+            description=description,
+            permissions=permissions,
+            parent_roles=parent_roles
+        )
+        
+        # Save role
+        self.store.save_role(role)
+        logger.info(f"Created role: {name}")
+        
+        return role
+    
+    def get_role(self, role_id: str) -> Optional[Role]:
+        """
+        Get a role by ID.
+        
+        Args:
+            role_id: Role ID
+            
+        Returns:
+            Role or None if not found
+        """
+        return self.store.get_role(role_id)
+    
+    def get_role_by_name(self, name: str) -> Optional[Role]:
+        """
+        Get a role by name.
+        
+        Args:
+            name: Role name
+            
+        Returns:
+            Role or None if not found
+        """
+        return self.store.get_role_by_name(name)
+    
+    def list_roles(self) -> List[Role]:
+        """
+        List all roles.
+        
+        Returns:
+            List of all roles
+        """
+        return self.store.list_roles()
+    
+    def update_role(self, role_id: str, **kwargs) -> Optional[Role]:
+        """
+        Update a role.
+        
+        Args:
+            role_id: Role ID
+            **kwargs: Fields to update
+            
+        Returns:
+            Updated role or None if not found
+        """
+        role = self.get_role(role_id)
+        if not role:
+            logger.warning(f"Role {role_id} not found")
+            return None
+        
+        # Update fields
+        for key, value in kwargs.items():
+            if key == "name":
+                role.name = value
+            elif key == "description":
+                role.description = value
+            elif key == "permissions":
+                # Convert Permission objects to IDs
+                permissions = set()
+                for perm in value:
+                    if isinstance(perm, Permission):
+                        permissions.add(perm.id)
+                    else:
+                        permissions.add(perm)
+                role.permissions = permissions
+            elif key == "parent_roles":
+                role.parent_roles = set(value)
+        
+        # Update timestamp
+        role.updated_at = time.time()
+        
+        # Save role
+        self.store.save_role(role)
+        logger.info(f"Updated role: {role.name}")
+        
+        return role
+    
+    def delete_role(self, role_id: str) -> bool:
+        """
+        Delete a role.
+        
+        Args:
+            role_id: Role ID
+            
+        Returns:
+            Success flag
+        """
+        # First check if any roles reference this role as parent
+        for role in self.list_roles():
+            if role_id != role.id and role_id in role.parent_roles:
+                logger.warning(f"Cannot delete role {role_id}: referenced as parent by role {role.name}")
+                return False
+        
+        # Delete role
+        success = self.store.delete_role(role_id)
+        if success:
+            logger.info(f"Deleted role {role_id}")
+        
+        return success
+    
+    def get_role_permissions(self, role_id: str, include_parents: bool = True) -> Set[str]:
+        """
+        Get all permission IDs granted to a role.
+        
+        Args:
+            role_id: Role ID
+            include_parents: Whether to include permissions from parent roles
+            
+        Returns:
+            Set of permission IDs
+        """
+        role = self.get_role(role_id)
+        if not role:
+            return set()
+        
+        # Start with direct permissions
+        permissions = set(role.permissions)
+        
+        # Add parent permissions if requested
+        if include_parents and role.parent_roles:
+            for parent_id in role.parent_roles:
+                parent_permissions = self.get_role_permissions(parent_id, include_parents=True)
+                permissions.update(parent_permissions)
+        
+        return permissions
+    
+    def has_permission(
+        self,
+        role_ids: List[str],
+        resource_type: Union[ResourceType, str],
+        action: Union[ActionType, str],
+        resource_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Check if roles have permission for an action.
+        
+        Args:
+            role_ids: List of role IDs
+            resource_type: Resource type
+            action: Action to check
+            resource_id: Optional specific resource ID
+            context: Optional request context for condition evaluation
+            
+        Returns:
+            True if permission granted
+        """
+        # For each role, get all permissions (including from parents)
+        all_permission_ids = set()
+        for role_id in role_ids:
+            role_permissions = self.get_role_permissions(role_id, include_parents=True)
+            all_permission_ids.update(role_permissions)
+        
+        # Check each permission
+        for permission_id in all_permission_ids:
+            permission = self.get_permission(permission_id)
+            if not permission:
+                continue
+            
+            # Check if permission matches request
+            if permission.matches(resource_type, action, resource_id, context):
+                return True
+        
+        return False
+    
+    def get_backend_permissions(self, role_ids: List[str]) -> Dict[str, Set[str]]:
+        """
+        Get backend-specific permissions for roles.
+        
+        Args:
+            role_ids: List of role IDs
+            
+        Returns:
+            Dictionary mapping backend IDs to allowed actions
+        """
+        # Get all permissions for these roles
+        all_permission_ids = set()
+        for role_id in role_ids:
+            role_permissions = self.get_role_permissions(role_id, include_parents=True)
+            all_permission_ids.update(role_permissions)
+        
+        # Filter for backend permissions with specific resource IDs
+        backend_permissions = defaultdict(set)
+        for permission_id in all_permission_ids:
+            permission = self.get_permission(permission_id)
+            if not permission:
+                continue
+            
+            if permission.resource_type == ResourceType.BACKEND and permission.resource_id:
+                # Add actions for this backend
+                backend_id = permission.resource_id
+                for action in permission.actions:
+                    backend_permissions[backend_id].add(action.value)
+        
+        return dict(backend_permissions)
+    
+    def user_has_permission(
+        self,
+        user_roles: List[str],
+        permission_name: str,
+        resource_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Higher-level method to check if a user has a specific permission.
+        
+        Args:
+            user_roles: List of role names or IDs for the user
+            permission_name: Name of the permission to check
+            resource_id: Optional specific resource ID
+            context: Optional request context for condition evaluation
+            
+        Returns:
+            True if permission granted
+        """
+        # Get permission
+        permission = self.get_permission_by_name(permission_name)
+        if not permission:
+            logger.warning(f"Permission {permission_name} not found")
+            return False
+        
+        # Convert role names to IDs if needed
+        role_ids = []
+        for role in user_roles:
+            if ":" in role or "-" in role:  # Assume UUID format
+                role_ids.append(role)
+            else:
+                role_obj = self.get_role_by_name(role)
+                if role_obj:
+                    role_ids.append(role_obj.id)
+        
+        # Check permission
+        return self.has_permission(
+            role_ids=role_ids,
+            resource_type=permission.resource_type,
+            action=next(iter(permission.actions)) if permission.actions else ActionType.READ,
+            resource_id=resource_id,
+            context=context
+        )
+
+
+# Singleton instance
+_instance = None
+
+def get_instance(store_path=None):
+    """Get or create a singleton instance of the RBAC manager."""
+    global _instance
+    if _instance is None:
+        # Default store path
+        if store_path is None:
+            store_path = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "rbac")
+        
+        _instance = RBACManager(store_path)
+    
+    return _instance

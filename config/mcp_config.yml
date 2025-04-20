@@ -1,0 +1,160 @@
+# MCP Server Configuration
+# This configuration file contains settings for the Model Context Protocol (MCP) server
+# including the new optimized data routing system.
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 8765
+  debug: false
+  workers: 4
+  timeout_seconds: 30
+
+# Storage backends
+backends:
+  - id: "ipfs"
+    type: "ipfs"
+    enabled: true
+    priority: 1
+    weight: 10
+    
+  - id: "filecoin"
+    type: "filecoin"
+    enabled: true
+    priority: 2
+    weight: 8
+    
+  - id: "s3"
+    type: "s3"
+    enabled: true
+    priority: 3
+    weight: 5
+    
+  - id: "storacha"
+    type: "storacha"
+    enabled: true
+    priority: 4
+    weight: 6
+    
+  - id: "huggingface"
+    type: "huggingface"
+    enabled: true
+    priority: 5
+    weight: 4
+    
+  - id: "lassie"
+    type: "lassie"
+    enabled: true
+    priority: 6
+    weight: 3
+
+# Routing configuration
+routing:
+  # Routing strategy: "adaptive", "round_robin", "random", "fixed"
+  strategy: "adaptive"
+  
+  # Default backend when using fixed strategy
+  default_backend: "ipfs"
+  
+  # Default priority: "performance", "cost", "reliability", "geographic", "balanced"
+  default_priority: "balanced"
+  
+  # Enable learning from routing outcomes
+  enable_learning: true
+  
+  # Collect metrics on startup
+  collect_metrics_on_startup: true
+  
+  # Analyzer settings
+  analyzer:
+    # Network analyzer settings
+    network:
+      # Latency measurement settings
+      latency:
+        probe_interval_seconds: 60
+        timeout_seconds: 5
+        samples_to_keep: 100
+      
+      # Bandwidth measurement settings
+      bandwidth:
+        probe_interval_seconds: 300
+        timeout_seconds: 30
+        samples_to_keep: 50
+      
+      # Error rate measurement settings
+      error_rate:
+        probe_interval_seconds: 120
+        samples_to_keep: 100
+    
+    # Content analyzer settings
+    content:
+      # Enable content type detection
+      detect_type: true
+      
+      # Enable content size analysis
+      analyze_size: true
+      
+      # Enable access pattern tracking
+      track_access_patterns: true
+  
+  # Geographic settings
+  geographic:
+    # Default region if client location is unknown
+    default_region: "us-east-1"
+    
+    # Backend regions
+    backend_regions:
+      ipfs: "global"
+      filecoin: "global"
+      s3: "us-east-1"
+      storacha: "global"
+      huggingface: "us-east-1"
+      lassie: "global"
+  
+  # Cost settings
+  cost:
+    # Storage cost per GB per month
+    storage_cost_per_gb:
+      ipfs: 0.0
+      filecoin: 0.00002
+      s3: 0.023
+      storacha: 0.015
+      huggingface: 0.01
+      lassie: 0.005
+    
+    # Retrieval cost per GB
+    retrieval_cost_per_gb:
+      ipfs: 0.0
+      filecoin: 0.0001
+      s3: 0.0
+      storacha: 0.0
+      huggingface: 0.0001
+      lassie: 0.0001
+
+# Authentication settings
+auth:
+  enabled: true
+  token_expiry_hours: 24
+  refresh_token_expiry_days: 30
+
+# Logging settings
+logging:
+  level: "info"
+  file: "mcp_server.log"
+  max_size_mb: 10
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Advanced settings
+advanced:
+  # Enable performance monitoring
+  monitor_performance: true
+  
+  # Enable periodic metrics collection
+  collect_metrics: true
+  
+  # Metrics collection interval in seconds
+  metrics_interval_seconds: 300
+  
+  # Maximum content size in bytes
+  max_content_size_bytes: 1073741824  # 1 GB

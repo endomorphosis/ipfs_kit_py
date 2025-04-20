@@ -46,6 +46,7 @@ class MCPFeatureIntegration:
         self.register_monitoring_feature()
         self.register_advanced_ipfs_feature()
         self.register_optimized_routing_feature()
+        self.register_ai_ml_feature()
         
         logger.info(f"Registered features: {', '.join(self.registered_features)}")
     
@@ -200,6 +201,33 @@ class MCPFeatureIntegration:
         except Exception as e:
             logger.error(f"Error registering Optimized Routing feature: {e}")
     
+    def register_ai_ml_feature(self) -> None:
+        """Register the AI/ML Integration feature."""
+        try:
+            # Import the AI/ML integrator
+            from ipfs_kit_py.mcp.ai.ai_ml_integrator import get_instance as get_ai_ml
+            
+            # Initialize the AI/ML components
+            ai_ml = get_ai_ml(config=self.config.get("ai_ml", {}))
+            
+            # Initialize components
+            if not ai_ml.initialized:
+                ai_ml.initialize()
+            
+            # Register the AI/ML router with the application
+            ai_ml.register_with_server(self.app, prefix="/api/v0/ai")
+            
+            # Store reference to AI/ML integrator on app for access in other parts
+            self.app._ai_ml_integrator = ai_ml
+            
+            self.registered_features.add("ai_ml")
+            logger.info("Registered AI/ML Integration feature")
+            
+        except ImportError as e:
+            logger.warning(f"Could not register AI/ML Integration feature: {e}")
+        except Exception as e:
+            logger.error(f"Error registering AI/ML Integration feature: {e}")
+    
     def shutdown(self) -> None:
         """Shutdown and cleanup all registered features."""
         # Shutdown monitoring
@@ -221,6 +249,16 @@ class MCPFeatureIntegration:
                 logger.info("Stopped routing updates")
             except Exception as e:
                 logger.error(f"Error stopping routing updates: {e}")
+        
+        # Shutdown AI/ML
+        if "ai_ml" in self.registered_features:
+            try:
+                # Clean up any AI/ML resources if needed
+                if hasattr(self.app, "_ai_ml_integrator"):
+                    # Currently no specific cleanup needed, but adding the hook for future use
+                    logger.info("Stopped AI/ML services")
+            except Exception as e:
+                logger.error(f"Error stopping AI/ML services: {e}")
         
         logger.info("MCP Feature Integration shutdown complete")
 

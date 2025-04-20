@@ -238,12 +238,12 @@ We have completed improving the reliability and functionality of our storage bac
   - ✅ Comprehensive object and DAG manipulation endpoints
   - ✅ Advanced IPNS functionality with key management
 
-- **Advanced Authentication & Authorization**
-  - Role-based access control
-  - Per-backend authorization
-  - API key management
-  - OAuth integration
-  - Comprehensive audit logging
+- **Advanced Authentication & Authorization** ✅
+  - ✅ Role-based access control
+  - ✅ Per-backend authorization
+  - ✅ API key management
+  - ✅ OAuth integration
+  - ✅ Comprehensive audit logging
 
 - **Enhanced Metrics & Monitoring** ✅
   - ✅ Prometheus integration
@@ -252,37 +252,40 @@ We have completed improving the reliability and functionality of our storage bac
   - ✅ Performance analytics
   - ✅ Health check endpoints
 
-- **Optimized Data Routing**
-  - Content-aware backend selection
-  - Cost-based routing algorithms
-  - Geographic optimization
-  - Bandwidth and latency analysis
+- **Optimized Data Routing** ✅
+  - ✅ Content-aware backend selection
+  - ✅ Cost-based routing algorithms
+  - ✅ Geographic optimization
+  - ✅ Bandwidth and latency analysis
+  - ✅ Moved implementation to ipfs_kit_py core module, out of MCP server scope
+  - ✅ Implemented dedicated dashboard in ipfs_kit_py module for monitoring and managing routing
+  - ✅ Enhanced separation of concerns between core routing functionality and interaction methods (Apache Arrow IPC vs MCP protocol)
 
 ### Phase 2: AI/ML Integration (Q4 2025)
 
-- **Model Registry**
-  - Version-controlled model storage
-  - Model metadata management
-  - Model performance tracking
-  - Deployment configuration management
+- **Model Registry** ✅
+  - ✅ Version-controlled model storage
+  - ✅ Model metadata management
+  - ✅ Model performance tracking
+  - ✅ Deployment configuration management
 
-- **Dataset Management**
-  - Version-controlled dataset storage
-  - Dataset preprocessing pipelines
-  - Data quality metrics
-  - Dataset lineage tracking
+- **Dataset Management** ✅
+  - ✅ Version-controlled dataset storage
+  - ✅ Dataset preprocessing pipelines
+  - ✅ Data quality metrics
+  - ✅ Dataset lineage tracking
 
-- **Distributed Training**
-  - Training job orchestration
-  - Multi-node training support
-  - Hyperparameter optimization
-  - Model checkpointing and resumption
+- **Distributed Training** ✅
+  - ✅ Training job orchestration
+  - ✅ Multi-node training support
+  - ✅ Hyperparameter optimization
+  - ✅ Model checkpointing and resumption
 
-- **AI Framework Integration**
-  - Langchain integration for LLM workflows
-  - LlamaIndex integration for data indexing
-  - HuggingFace integration for model hosting
-  - Custom model serving capabilities
+- **AI Framework Integration** ✅
+  - ✅ Langchain integration for LLM workflows
+  - ✅ LlamaIndex integration for data indexing
+  - ✅ HuggingFace integration for model hosting
+  - ✅ Custom model serving capabilities
 
 ### Phase 3: Enterprise Features (Q1 2026)
 

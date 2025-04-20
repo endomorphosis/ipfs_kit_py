@@ -1,704 +1,784 @@
 """
-API Key Management System
+Enhanced API Key Management System
 
-This module provides a comprehensive API key management system that allows users
-to create, manage, and revoke API keys with specific permissions for programmatic access.
+This module provides a comprehensive API key management system for the MCP server.
+It supports features such as:
+- Scoped API keys with specific permissions
+- Auto-expiring keys
+- Per-backend authorization
+- Rate limiting
+- Usage tracking and auditing
 
-Part of the MCP Roadmap Phase 1: Advanced Authentication & Authorization.
+Part of the MCP Roadmap Phase 1: Core Functionality Enhancements - "Advanced Authentication & Authorization".
 """
 
 import os
-import json
 import time
-import logging
-import secrets
-import hashlib
+import json
+import uuid
+import hmac
 import base64
-from typing import Dict, List, Optional, Union, Any
-from enum import Enum
+import hashlib
+import secrets
+import logging
+from typing import Dict, List, Any, Optional, Union, Set, Tuple
 from datetime import datetime, timedelta
-import re
-import asyncio
-import sqlite3
-from pathlib import Path
 
-from fastapi import Depends, HTTPException, status, Request, Response, Header, APIRouter
-from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from fastapi import APIRouter, Request, Response, Depends, HTTPException, status, Form, Query
+from fastapi.security import APIKeyHeader
 
-from ..auth.models import User, Role, Permission
-from ..rbac import rbac_manager, has_permission, check_permission
-from .backend_authorization_integration import BackendPermission, get_backend_auth
+from ipfs_kit_py.mcp.auth.models import User, Role, Permission
+from ipfs_kit_py.mcp.auth.service import AuthService
+from ipfs_kit_py.mcp.auth.rbac import RBACManager
+from ipfs_kit_py.mcp.auth.audit_logging import AuditLogger, AuditEventType, AuditSeverity
 
 # Configure logging
-logger = logging.getLogger("mcp.auth.apikey")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("api_key_enhanced")
 
-# API Key header
-API_KEY_NAME = "X-API-Key"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+# API key header name
+API_KEY_HEADER = "X-API-Key"
 
+# API key header security
+api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
 
-class ApiKeyScope(str, Enum):
-    """Scope of an API key"""
-    READ_ONLY = "read_only"
-    READ_WRITE = "read_write"
-    FULL_ACCESS = "full_access"
-    CUSTOM = "custom"
-
-
-class ApiKeyStatus(str, Enum):
-    """Status of an API key"""
-    ACTIVE = "active"
-    REVOKED = "revoked"
-    EXPIRED = "expired"
-    DISABLED = "disabled"
-
-
-class ApiKeyManager:
-    """
-    API Key Management System for the MCP server.
+class APIKey:
+    """API key class with enhanced features."""
     
-    Features:
-    - Key generation with customizable permissions
-    - Scoped access for specific backends
-    - Per-key usage statistics
-    - Rate limiting
-    - Automatic expiration
-    - Audit logging
-    """
-    
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(
+        self,
+        user_id: str,
+        name: str,
+        permissions: Optional[List[str]] = None,
+        expires_at: Optional[float] = None,
+        rate_limit: Optional[int] = None,
+        backends: Optional[List[str]] = None,
+        ip_whitelist: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
         """
-        Initialize the API key manager.
+        Initialize API key.
         
         Args:
-            db_path: Path to SQLite database for key storage
+            user_id: User ID
+            name: Key name
+            permissions: Optional list of permission IDs
+            expires_at: Optional expiration timestamp
+            rate_limit: Optional rate limit (requests per minute)
+            backends: Optional list of allowed backend IDs
+            ip_whitelist: Optional list of allowed IP addresses
+            metadata: Optional metadata
         """
-        # Set database path
-        if db_path:
-            self.db_path = db_path
-        else:
-            data_dir = os.environ.get(
-                "MCP_DATA_DIR", 
-                os.path.join(os.path.expanduser("~"), ".ipfs_kit")
-            )
-            Path(data_dir).mkdir(exist_ok=True)
-            self.db_path = os.path.join(data_dir, "apikeys.db")
-        
-        # Cache for API key lookups
-        self.key_cache: Dict[str, Dict[str, Any]] = {}
-        self.key_cache_ttl = 300  # 5 minutes
-        
-        # Initialize database
-        self._init_db()
-        
-        # Load settings
-        self.settings = {
-            "default_key_expiry_days": 90,
-            "max_keys_per_user": 10,
-            "key_rate_limit": 1000,  # requests per hour
-            "enable_rate_limiting": False
-        }
-        
-        # Rate limiting counters
-        self.rate_counters: Dict[str, Dict[str, Any]] = {}
-        
-        # Usage statistics
-        self.usage_stats: Dict[str, Dict[str, int]] = {}
-        
-        logger.info(f"API Key Manager initialized with database at {self.db_path}")
+        self.id = str(uuid.uuid4())
+        self.user_id = user_id
+        self.name = name
+        self.key = self._generate_key()
+        self.key_hash = self._hash_key(self.key)
+        self.permissions = set(permissions) if permissions else set()
+        self.expires_at = expires_at
+        self.rate_limit = rate_limit
+        self.backends = set(backends) if backends else set()
+        self.ip_whitelist = set(ip_whitelist) if ip_whitelist else set()
+        self.metadata = metadata or {}
+        self.created_at = time.time()
+        self.last_used_at = None
+        self.use_count = 0
     
-    def _init_db(self):
-        """Initialize the SQLite database for API key storage."""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # Create API keys table
-                cursor.execute('''
-                CREATE TABLE IF NOT EXISTS api_keys (
-                    id TEXT PRIMARY KEY,
-                    key_hash TEXT UNIQUE,
-                    name TEXT,
-                    user_id TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    expires_at TIMESTAMP,
-                    last_used_at TIMESTAMP,
-                    scope TEXT,
-                    status TEXT,
-                    usage_count INTEGER DEFAULT 0,
-                    metadata TEXT
-                )
-                ''')
-                
-                # Create API key permissions table
-                cursor.execute('''
-                CREATE TABLE IF NOT EXISTS api_key_permissions (
-                    key_id TEXT,
-                    permission TEXT,
-                    backend TEXT,
-                    FOREIGN KEY (key_id) REFERENCES api_keys(id),
-                    PRIMARY KEY (key_id, permission, backend)
-                )
-                ''')
-                
-                # Create API key usage log table
-                cursor.execute('''
-                CREATE TABLE IF NOT EXISTS api_key_usage (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    key_id TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    endpoint TEXT,
-                    ip_address TEXT,
-                    user_agent TEXT,
-                    status_code INTEGER,
-                    FOREIGN KEY (key_id) REFERENCES api_keys(id)
-                )
-                ''')
-                
-                conn.commit()
-                logger.info("API key database initialized")
-                
-        except Exception as e:
-            logger.error(f"Error initializing API key database: {e}")
-            raise
-    
-    def _hash_key(self, api_key: str) -> str:
+    def _generate_key(self) -> str:
         """
-        Hash an API key for secure storage.
+        Generate a secure API key.
+        
+        Returns:
+            API key string
+        """
+        # Generate a secure random key
+        random_bytes = secrets.token_bytes(32)
+        
+        # Convert to a URL-safe base64 string
+        encoded = base64.urlsafe_b64encode(random_bytes).decode().rstrip('=')
+        
+        # Add a prefix for easy identification
+        return f"mcp_{encoded}"
+    
+    def _hash_key(self, key: str) -> str:
+        """
+        Hash an API key for storage.
         
         Args:
-            api_key: Raw API key
+            key: API key string
             
         Returns:
             Hashed key
         """
-        # Use SHA-256 for key hashing
-        return hashlib.sha256(api_key.encode()).hexdigest()
+        # Use SHA-256 for hashing
+        return hashlib.sha256(key.encode()).hexdigest()
     
-    def _generate_key(self) -> str:
+    def verify_key(self, key: str) -> bool:
         """
-        Generate a cryptographically secure API key.
-        
-        Returns:
-            Generated API key
-        """
-        # Generate a 32-byte random token
-        token = secrets.token_bytes(32)
-        
-        # Encode as URL-safe base64
-        key = base64.urlsafe_b64encode(token).decode().rstrip('=')
-        
-        # Add a prefix for easy identification
-        return f"mcp_{key}"
-    
-    def _key_from_cache(self, api_key: str) -> Optional[Dict[str, Any]]:
-        """
-        Get API key info from cache.
+        Verify an API key against the stored hash.
         
         Args:
-            api_key: API key to look up
+            key: API key string
             
         Returns:
-            API key data dict if found and valid, None otherwise
+            True if key is valid
         """
-        # Check if key is in cache
-        key_hash = self._hash_key(api_key)
+        return hmac.compare_digest(self._hash_key(key), self.key_hash)
+    
+    def is_expired(self) -> bool:
+        """
+        Check if the API key is expired.
         
-        if key_hash in self.key_cache:
-            cache_entry = self.key_cache[key_hash]
+        Returns:
+            True if expired
+        """
+        return self.expires_at is not None and time.time() > self.expires_at
+    
+    def can_access_backend(self, backend_id: str) -> bool:
+        """
+        Check if the API key can access a backend.
+        
+        Args:
+            backend_id: Backend ID
             
-            # Check if cache entry is still valid
-            if time.time() - cache_entry['cache_time'] < self.key_cache_ttl:
-                return cache_entry['data']
+        Returns:
+            True if access allowed
+        """
+        # If no backends specified, allow all
+        if not self.backends:
+            return True
+        
+        return backend_id in self.backends
+    
+    def is_ip_allowed(self, ip_address: str) -> bool:
+        """
+        Check if an IP address is allowed to use this API key.
+        
+        Args:
+            ip_address: IP address
             
-            # Cache entry expired, remove it
-            del self.key_cache[key_hash]
+        Returns:
+            True if allowed
+        """
+        # If no IP whitelist, allow all
+        if not self.ip_whitelist:
+            return True
+        
+        # Check exact match
+        if ip_address in self.ip_whitelist:
+            return True
+        
+        # Check CIDR ranges (simplified - in production would use ipaddress module)
+        for allowed_ip in self.ip_whitelist:
+            if '/' in allowed_ip:
+                # This is a CIDR range
+                if ip_address.startswith(allowed_ip.split('/')[0].rsplit('.', 1)[0]):
+                    return True
+        
+        return False
+    
+    def record_usage(self) -> None:
+        """Record API key usage."""
+        self.last_used_at = time.time()
+        self.use_count += 1
+    
+    def to_dict(self, include_key: bool = False) -> Dict[str, Any]:
+        """
+        Convert to dictionary representation.
+        
+        Args:
+            include_key: Whether to include the API key
+            
+        Returns:
+            Dictionary with API key fields
+        """
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "name": self.name,
+            "key": self.key if include_key else None,
+            "permissions": list(self.permissions),
+            "expires_at": self.expires_at,
+            "rate_limit": self.rate_limit,
+            "backends": list(self.backends),
+            "ip_whitelist": list(self.ip_whitelist),
+            "metadata": self.metadata,
+            "created_at": self.created_at,
+            "last_used_at": self.last_used_at,
+            "use_count": self.use_count,
+            "is_expired": self.is_expired()
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'APIKey':
+        """
+        Create from dictionary representation.
+        
+        Args:
+            data: Dictionary with API key fields
+            
+        Returns:
+            API key instance
+        """
+        # Create instance
+        api_key = cls(
+            user_id=data["user_id"],
+            name=data["name"],
+            permissions=data.get("permissions"),
+            expires_at=data.get("expires_at"),
+            rate_limit=data.get("rate_limit"),
+            backends=data.get("backends"),
+            ip_whitelist=data.get("ip_whitelist"),
+            metadata=data.get("metadata")
+        )
+        
+        # Set fields that aren't in constructor
+        api_key.id = data.get("id", api_key.id)
+        api_key.key = data.get("key", api_key.key)
+        api_key.key_hash = data.get("key_hash", api_key.key_hash)
+        api_key.created_at = data.get("created_at", api_key.created_at)
+        api_key.last_used_at = data.get("last_used_at")
+        api_key.use_count = data.get("use_count", 0)
+        
+        return api_key
+
+
+class APIKeyStore:
+    """Storage backend for API keys."""
+    
+    def __init__(self, store_path: str):
+        """
+        Initialize API key store.
+        
+        Args:
+            store_path: Path to store API keys
+        """
+        self.store_path = store_path
+        
+        # Create store directory
+        os.makedirs(store_path, exist_ok=True)
+        
+        # Cache for in-memory access
+        self._key_cache = {}  # id -> APIKey
+        self._key_hash_map = {}  # key_hash -> id
+    
+    def save_key(self, api_key: APIKey) -> bool:
+        """
+        Save an API key to the store.
+        
+        Args:
+            api_key: API key to save
+            
+        Returns:
+            Success flag
+        """
+        try:
+            # Convert to dict
+            key_dict = api_key.to_dict(include_key=False)
+            key_dict["key_hash"] = api_key.key_hash
+            
+            # Save to file
+            file_path = os.path.join(self.store_path, f"{api_key.id}.json")
+            with open(file_path, 'w') as f:
+                json.dump(key_dict, f, indent=2)
+            
+            # Update caches
+            self._key_cache[api_key.id] = api_key
+            self._key_hash_map[api_key.key_hash] = api_key.id
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error saving API key {api_key.id}: {e}")
+            return False
+    
+    def get_key(self, key_id: str) -> Optional[APIKey]:
+        """
+        Get an API key by ID.
+        
+        Args:
+            key_id: API key ID
+            
+        Returns:
+            API key or None if not found
+        """
+        # Check cache
+        if key_id in self._key_cache:
+            return self._key_cache[key_id]
+        
+        # Try to load from file
+        try:
+            file_path = os.path.join(self.store_path, f"{key_id}.json")
+            if not os.path.exists(file_path):
+                return None
+            
+            with open(file_path, 'r') as f:
+                key_dict = json.load(f)
+            
+            # Create API key
+            api_key = APIKey.from_dict(key_dict)
+            
+            # Update caches
+            self._key_cache[key_id] = api_key
+            self._key_hash_map[api_key.key_hash] = key_id
+            
+            return api_key
+        except Exception as e:
+            logger.error(f"Error loading API key {key_id}: {e}")
+            return None
+    
+    def get_key_by_hash(self, key_hash: str) -> Optional[APIKey]:
+        """
+        Get an API key by hash.
+        
+        Args:
+            key_hash: API key hash
+            
+        Returns:
+            API key or None if not found
+        """
+        # Check hash map
+        if key_hash in self._key_hash_map:
+            key_id = self._key_hash_map[key_hash]
+            return self.get_key(key_id)
+        
+        # Scan all keys
+        for filename in os.listdir(self.store_path):
+            if filename.endswith(".json"):
+                key_id = filename[:-5]  # Remove .json extension
+                api_key = self.get_key(key_id)
+                if api_key and api_key.key_hash == key_hash:
+                    # Update hash map
+                    self._key_hash_map[key_hash] = key_id
+                    return api_key
         
         return None
     
-    def _store_key_in_cache(self, api_key: str, key_data: Dict[str, Any]):
+    def get_keys_for_user(self, user_id: str) -> List[APIKey]:
         """
-        Store API key info in cache.
+        Get all API keys for a user.
         
         Args:
-            api_key: API key
-            key_data: API key data to cache
-        """
-        key_hash = self._hash_key(api_key)
-        
-        self.key_cache[key_hash] = {
-            'data': key_data,
-            'cache_time': time.time()
-        }
-    
-    async def create_key(self, user_id: str, name: str, 
-                        permissions: Optional[List[str]] = None,
-                        backend_permissions: Optional[Dict[str, List[str]]] = None,
-                        scope: ApiKeyScope = ApiKeyScope.READ_ONLY,
-                        expires_in_days: Optional[int] = None,
-                        metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Create a new API key.
-        
-        Args:
-            user_id: User ID who owns this key
-            name: Name/description of the key
-            permissions: List of permission strings (if scope is CUSTOM)
-            backend_permissions: Dict of backend names to permission lists
-            scope: API key scope
-            expires_in_days: Days until key expires (default from settings)
-            metadata: Additional metadata for the key
+            user_id: User ID
             
         Returns:
-            Dict with key information including the raw key (displayed only once)
+            List of API keys
         """
-        # Check if user has reached maximum key limit
-        keys = await self.list_keys(user_id)
-        if len(keys) >= self.settings["max_keys_per_user"]:
-            raise ValueError(f"User has reached maximum API key limit ({self.settings['max_keys_per_user']})")
+        keys = []
         
-        # Generate key and ID
-        api_key = self._generate_key()
-        key_id = base64.urlsafe_b64encode(os.urandom(16)).decode().rstrip('=')
-        key_hash = self._hash_key(api_key)
+        # Get all key files
+        for filename in os.listdir(self.store_path):
+            if filename.endswith(".json"):
+                key_id = filename[:-5]  # Remove .json extension
+                api_key = self.get_key(key_id)
+                if api_key and api_key.user_id == user_id:
+                    keys.append(api_key)
         
-        # Set expiration if provided, otherwise use default
-        if expires_in_days is None:
-            expires_in_days = self.settings["default_key_expiry_days"]
+        return keys
+    
+    def delete_key(self, key_id: str) -> bool:
+        """
+        Delete an API key.
         
-        expires_at = (datetime.now() + timedelta(days=expires_in_days)).isoformat() if expires_in_days else None
-        
-        # Serialize metadata
-        metadata_json = json.dumps(metadata) if metadata else None
-        
+        Args:
+            key_id: API key ID
+            
+        Returns:
+            Success flag
+        """
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
+            # Get key for cache cleanup
+            api_key = self.get_key(key_id)
+            
+            # Remove from caches
+            if api_key:
+                if key_id in self._key_cache:
+                    del self._key_cache[key_id]
                 
-                # Add key to database
-                cursor.execute('''
-                INSERT INTO api_keys 
-                (id, key_hash, name, user_id, expires_at, scope, status, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    key_id, key_hash, name, user_id, expires_at, 
-                    scope.value, ApiKeyStatus.ACTIVE.value, metadata_json
-                ))
-                
-                # Add permissions if scope is CUSTOM
-                if scope == ApiKeyScope.CUSTOM and permissions:
-                    for permission in permissions:
-                        cursor.execute('''
-                        INSERT INTO api_key_permissions
-                        (key_id, permission, backend)
-                        VALUES (?, ?, 'global')
-                        ''', (key_id, permission))
-                
-                # Add backend-specific permissions
-                if backend_permissions:
-                    for backend, perms in backend_permissions.items():
-                        for permission in perms:
-                            cursor.execute('''
-                            INSERT INTO api_key_permissions
-                            (key_id, permission, backend)
-                            VALUES (?, ?, ?)
-                            ''', (key_id, permission, backend))
-                
-                conn.commit()
-                
-                # Get the created key
-                cursor.execute('''
-                SELECT * FROM api_keys WHERE id = ?
-                ''', (key_id,))
-                
-                key_data = dict(cursor.fetchone())
-                
-                # Fetch permissions
-                cursor.execute('''
-                SELECT permission, backend FROM api_key_permissions
-                WHERE key_id = ?
-                ''', (key_id,))
-                
-                perms = cursor.fetchall()
-                key_permissions = {}
-                
-                for perm in perms:
-                    backend = perm['backend']
-                    if backend not in key_permissions:
-                        key_permissions[backend] = []
-                    key_permissions[backend].append(perm['permission'])
-                
-                key_data['permissions'] = key_permissions
-                
-                # Add the raw key to the result (only time it's available in plaintext)
-                key_data['key'] = api_key
-                
-                logger.info(f"Created API key '{name}' for user {user_id} with scope {scope.value}")
-                
-                return key_data
-                
+                if api_key.key_hash in self._key_hash_map:
+                    del self._key_hash_map[api_key.key_hash]
+            
+            # Remove file
+            file_path = os.path.join(self.store_path, f"{key_id}.json")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            return True
         except Exception as e:
-            logger.error(f"Error creating API key: {e}")
-            raise
+            logger.error(f"Error deleting API key {key_id}: {e}")
+            return False
     
-    async def get_key_info(self, api_key: str, check_valid: bool = True) -> Optional[Dict[str, Any]]:
+    def find_key_by_actual_key(self, key: str) -> Optional[APIKey]:
         """
-        Get information about an API key.
+        Find an API key by the actual key string.
         
         Args:
-            api_key: API key
-            check_valid: Whether to check if key is valid (not revoked/expired)
+            key: API key string
             
         Returns:
-            API key data or None if not found
+            API key or None if not found
         """
-        # Check cache first
-        key_data = self._key_from_cache(api_key)
-        if key_data:
-            # Perform validation check if required
-            if check_valid:
-                if key_data['status'] != ApiKeyStatus.ACTIVE.value:
-                    return None
-                
-                # Check expiration
-                if key_data.get('expires_at'):
-                    expires_at = datetime.fromisoformat(key_data['expires_at'])
-                    if expires_at < datetime.now():
-                        # Update status to EXPIRED
-                        await self.update_key_status(key_data['id'], ApiKeyStatus.EXPIRED)
-                        return None
-            
-            return key_data
+        # Hash the key
+        key_hash = hashlib.sha256(key.encode()).hexdigest()
         
-        # Look up key in database
-        key_hash = self._hash_key(api_key)
-        
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                
-                cursor.execute('''
-                SELECT * FROM api_keys WHERE key_hash = ?
-                ''', (key_hash,))
-                
-                row = cursor.fetchone()
-                
-                if not row:
-                    return None
-                
-                key_data = dict(row)
-                
-                # Fetch permissions
-                cursor.execute('''
-                SELECT permission, backend FROM api_key_permissions
-                WHERE key_id = ?
-                ''', (key_data['id'],))
-                
-                perms = cursor.fetchall()
-                key_permissions = {}
-                
-                for perm in perms:
-                    backend = perm['backend']
-                    if backend not in key_permissions:
-                        key_permissions[backend] = []
-                    key_permissions[backend].append(perm['permission'])
-                
-                key_data['permissions'] = key_permissions
-                
-                # Validate key if requested
-                if check_valid:
-                    if key_data['status'] != ApiKeyStatus.ACTIVE.value:
-                        return None
-                    
-                    # Check expiration
-                    if key_data.get('expires_at'):
-                        expires_at = datetime.fromisoformat(key_data['expires_at'])
-                        if expires_at < datetime.now():
-                            # Update status to EXPIRED
-                            await self.update_key_status(key_data['id'], ApiKeyStatus.EXPIRED)
-                            return None
-                
-                # Store in cache for future lookups
-                self._store_key_in_cache(api_key, key_data)
-                
-                return key_data
-                
-        except Exception as e:
-            logger.error(f"Error getting API key info: {e}")
-            return None
+        # Find by hash
+        return self.get_key_by_hash(key_hash)
+
+
+class RateLimiter:
+    """Rate limiter for API keys."""
     
-    async def validate_key(self, api_key: str, required_permission: Optional[str] = None,
-                        backend: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Validate an API key and check permissions.
-        
-        Args:
-            api_key: API key to validate
-            required_permission: Optional permission to check
-            backend: Optional backend name for backend-specific permission
-            
-        Returns:
-            Dict with validation results
-        """
-        if not api_key:
-            return {
-                "valid": False,
-                "reason": "No API key provided"
-            }
-        
-        # Get key info
-        key_info = await self.get_key_info(api_key)
-        
-        if not key_info:
-            return {
-                "valid": False,
-                "reason": "Invalid, expired, or revoked API key"
-            }
-        
-        # Check rate limiting if enabled
-        if self.settings["enable_rate_limiting"]:
-            rate_limited = self._check_rate_limit(key_info['id'])
-            if rate_limited:
-                return {
-                    "valid": False,
-                    "reason": "Rate limit exceeded",
-                    "key_id": key_info['id'],
-                    "user_id": key_info['user_id']
-                }
-        
-        # If no permission check needed, key is valid
-        if not required_permission:
-            return {
-                "valid": True,
-                "key_id": key_info['id'],
-                "user_id": key_info['user_id'],
-                "scope": key_info['scope']
-            }
-        
-        # Check permission based on scope
-        has_perm = False
-        
-        # Full access always has permission
-        if key_info['scope'] == ApiKeyScope.FULL_ACCESS.value:
-            has_perm = True
-        
-        # Read-only scope can only perform read operations
-        elif key_info['scope'] == ApiKeyScope.READ_ONLY.value:
-            has_perm = required_permission.startswith('read:') or required_permission == 'read'
-        
-        # Read-write scope can perform read and write operations
-        elif key_info['scope'] == ApiKeyScope.READ_WRITE.value:
-            has_perm = required_permission.startswith('read:') or required_permission == 'read' or \
-                      required_permission.startswith('write:') or required_permission == 'write'
-        
-        # Custom scope checks specific permissions
-        elif key_info['scope'] == ApiKeyScope.CUSTOM.value:
-            perms = key_info.get('permissions', {})
-            
-            # Check backend-specific permission first
-            if backend and backend in perms and required_permission in perms[backend]:
-                has_perm = True
-            # Then check global permissions
-            elif 'global' in perms and required_permission in perms['global']:
-                has_perm = True
-        
-        # Update usage stats
-        await self._update_key_usage(key_info['id'])
-        
-        if has_perm:
-            return {
-                "valid": True,
-                "key_id": key_info['id'],
-                "user_id": key_info['user_id'],
-                "scope": key_info['scope']
-            }
-        else:
-            return {
-                "valid": False,
-                "reason": f"Missing required permission: {required_permission}",
-                "key_id": key_info['id'],
-                "user_id": key_info['user_id']
-            }
+    def __init__(self):
+        """Initialize rate limiter."""
+        self.usage = {}  # key_id -> [(timestamp, count)]
+        self.clean_interval = 60  # Seconds between cleanup
+        self.last_cleanup = time.time()
     
-    def _check_rate_limit(self, key_id: str) -> bool:
+    def check_rate_limit(self, key_id: str, limit: int) -> bool:
         """
         Check if an API key has exceeded its rate limit.
         
         Args:
             key_id: API key ID
+            limit: Rate limit (requests per minute)
             
         Returns:
-            True if rate limited, False otherwise
+            True if within limit
         """
-        # Get current hour timestamp (floor to hour)
-        current_hour = int(time.time()) // 3600 * 3600
+        now = time.time()
         
-        # Initialize counter if needed
-        if key_id not in self.rate_counters or self.rate_counters[key_id]['hour'] != current_hour:
-            self.rate_counters[key_id] = {
-                'hour': current_hour,
-                'count': 0
-            }
+        # Clean old usage data periodically
+        if now - self.last_cleanup > self.clean_interval:
+            self._cleanup_old_data(now)
+            self.last_cleanup = now
+        
+        # Get usage for this key
+        if key_id not in self.usage:
+            self.usage[key_id] = []
+        
+        # Filter to last minute
+        minute_ago = now - 60
+        recent_usage = [u for u in self.usage[key_id] if u[0] > minute_ago]
+        
+        # Calculate total requests in last minute
+        total_requests = sum(u[1] for u in recent_usage)
         
         # Check limit
-        if self.rate_counters[key_id]['count'] >= self.settings["key_rate_limit"]:
-            return True
-        
-        # Increment counter
-        self.rate_counters[key_id]['count'] += 1
-        return False
-    
-    async def _update_key_usage(self, key_id: str):
-        """
-        Update usage statistics for an API key.
-        
-        Args:
-            key_id: API key ID
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # Update last used timestamp and increment usage count
-                cursor.execute('''
-                UPDATE api_keys
-                SET last_used_at = CURRENT_TIMESTAMP,
-                    usage_count = usage_count + 1
-                WHERE id = ?
-                ''', (key_id,))
-                
-                conn.commit()
-                
-        except Exception as e:
-            logger.error(f"Error updating API key usage: {e}")
-    
-    async def log_key_usage(self, key_id: str, endpoint: str, ip_address: str, 
-                          user_agent: str, status_code: int):
-        """
-        Log API key usage for audit purposes.
-        
-        Args:
-            key_id: API key ID
-            endpoint: API endpoint accessed
-            ip_address: Client IP address
-            user_agent: Client User-Agent string
-            status_code: HTTP status code of response
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                cursor.execute('''
-                INSERT INTO api_key_usage
-                (key_id, endpoint, ip_address, user_agent, status_code)
-                VALUES (?, ?, ?, ?, ?)
-                ''', (key_id, endpoint, ip_address, user_agent, status_code))
-                
-                conn.commit()
-                
-        except Exception as e:
-            logger.error(f"Error logging API key usage: {e}")
-    
-    async def list_keys(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        List API keys, optionally filtered by user.
-        
-        Args:
-            user_id: Optional user ID to filter by
-            
-        Returns:
-            List of API key data dictionaries
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                
-                if user_id:
-                    cursor.execute('''
-                    SELECT * FROM api_keys WHERE user_id = ?
-                    ORDER BY created_at DESC
-                    ''', (user_id,))
-                else:
-                    cursor.execute('''
-                    SELECT * FROM api_keys
-                    ORDER BY created_at DESC
-                    ''')
-                
-                rows = cursor.fetchall()
-                result = []
-                
-                for row in rows:
-                    key_data = dict(row)
-                    
-                    # Fetch permissions
-                    cursor.execute('''
-                    SELECT permission, backend FROM api_key_permissions
-                    WHERE key_id = ?
-                    ''', (key_data['id'],))
-                    
-                    perms = cursor.fetchall()
-                    key_permissions = {}
-                    
-                    for perm in perms:
-                        backend = perm['backend']
-                        if backend not in key_permissions:
-                            key_permissions[backend] = []
-                        key_permissions[backend].append(perm['permission'])
-                    
-                    key_data['permissions'] = key_permissions
-                    
-                    # Parse metadata if present
-                    if key_data.get('metadata'):
-                        try:
-                            key_data['metadata'] = json.loads(key_data['metadata'])
-                        except:
-                            key_data['metadata'] = {}
-                    
-                    result.append(key_data)
-                
-                return result
-                
-        except Exception as e:
-            logger.error(f"Error listing API keys: {e}")
-            return []
-    
-    async def update_key_status(self, key_id: str, status: ApiKeyStatus) -> bool:
-        """
-        Update an API key's status.
-        
-        Args:
-            key_id: API key ID
-            status: New status
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                cursor.execute('''
-                UPDATE api_keys
-                SET status = ?
-                WHERE id = ?
-                ''', (status.value, key_id))
-                
-                conn.commit()
-                
-                # Clear cache entries for this key
-                for k in list(self.key_cache.keys()):
-                    if self.key_cache[k]['data'].get('id') == key_id:
-                        del self.key_cache[k]
-                
-                logger.info(f"Updated API key {key_id} status to {status.value}")
-                return True
-                
-        except Exception as e:
-            logger.error(f"Error updating API key status: {e}")
+        if total_requests >= limit:
             return False
+        
+        # Record usage
+        if recent_usage and recent_usage[-1][0] > now - 1:
+            # Increment last entry if less than a second ago
+            recent_usage[-1] = (recent_usage[-1][0], recent_usage[-1][1] + 1)
+        else:
+            # Add new entry
+            recent_usage.append((now, 1))
+        
+        # Update usage
+        self.usage[key_id] = recent_usage
+        
+        return True
+    
+    def _cleanup_old_data(self, now: float) -> None:
+        """
+        Clean up old usage data.
+        
+        Args:
+            now: Current timestamp
+        """
+        minute_ago = now - 60
+        
+        for key_id in list(self.usage.keys()):
+            # Keep only last minute of data
+            self.usage[key_id] = [u for u in self.usage[key_id] if u[0] > minute_ago]
+            
+            # Remove empty entries
+            if not self.usage[key_id]:
+                del self.usage[key_id]
+
+
+class EnhancedAPIKeyManager:
+    """Enhanced API key manager with advanced features."""
+    
+    def __init__(
+        self,
+        store_path: str,
+        auth_service: AuthService,
+        rbac_manager: RBACManager,
+        audit_logger: Optional[AuditLogger] = None
+    ):
+        """
+        Initialize API key manager.
+        
+        Args:
+            store_path: Path to store API keys
+            auth_service: Auth service instance
+            rbac_manager: RBAC manager instance
+            audit_logger: Optional audit logger instance
+        """
+        self.store = APIKeyStore(store_path)
+        self.auth_service = auth_service
+        self.rbac_manager = rbac_manager
+        self.audit_logger = audit_logger
+        self.rate_limiter = RateLimiter()
+        
+        # Create router
+        self.router = APIRouter()
+        
+        # Set up routes
+        self.setup_routes()
+        
+        logger.info("Enhanced API key manager initialized")
+    
+    def setup_routes(self):
+        """Set up router endpoints."""
+        
+        @self.router.post("/apikeys")
+        async def create_api_key(
+            request: Request,
+            name: str = Form(...),
+            permissions: Optional[str] = Form(None),
+            expiry_days: Optional[int] = Form(None),
+            rate_limit: Optional[int] = Form(None),
+            backends: Optional[str] = Form(None),
+            ip_whitelist: Optional[str] = Form(None),
+            metadata: Optional[str] = Form(None),
+            current_user: User = Depends(self.auth_service.get_current_user)
+        ):
+            """
+            Create a new API key.
+            
+            Args:
+                request: FastAPI request
+                name: Key name
+                permissions: Optional comma-separated list of permissions
+                expiry_days: Optional expiry in days
+                rate_limit: Optional rate limit (requests per minute)
+                backends: Optional comma-separated list of allowed backends
+                ip_whitelist: Optional comma-separated list of allowed IP addresses
+                metadata: Optional JSON metadata
+                current_user: Current authenticated user
+            """
+            try:
+                # Parse form data
+                permissions_list = permissions.split(',') if permissions else None
+                backends_list = backends.split(',') if backends else None
+                ip_whitelist_list = ip_whitelist.split(',') if ip_whitelist else None
+                metadata_dict = json.loads(metadata) if metadata else None
+                
+                # Calculate expiry timestamp
+                expires_at = None
+                if expiry_days:
+                    expires_at = time.time() + (expiry_days * 24 * 60 * 60)
+                
+                # Create API key
+                api_key = await self.create_key(
+                    user_id=current_user.id,
+                    name=name,
+                    permissions=permissions_list,
+                    expires_at=expires_at,
+                    rate_limit=rate_limit,
+                    backends=backends_list,
+                    ip_whitelist=ip_whitelist_list,
+                    metadata=metadata_dict
+                )
+                
+                if not api_key:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to create API key"
+                    )
+                
+                # Log key creation
+                if self.audit_logger:
+                    self.audit_logger.log(
+                        event_type=AuditEventType.API_KEY,
+                        action="api_key_created",
+                        severity=AuditSeverity.INFO,
+                        user_id=current_user.id,
+                        details={
+                            "key_id": api_key.id,
+                            "name": name,
+                            "ip": request.client.host if request.client else None
+                        }
+                    )
+                
+                # Return API key
+                return {
+                    "success": True,
+                    "api_key": api_key.to_dict(include_key=True)
+                }
+                
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid metadata JSON"
+                )
+            except Exception as e:
+                logger.error(f"Error creating API key: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error creating API key: {str(e)}"
+                )
+        
+        @self.router.get("/apikeys")
+        async def list_api_keys(
+            current_user: User = Depends(self.auth_service.get_current_user)
+        ):
+            """
+            List API keys for current user.
+            
+            Args:
+                current_user: Current authenticated user
+            """
+            try:
+                # Get keys for user
+                keys = await self.get_keys_for_user(current_user.id)
+                
+                # Return keys
+                return {
+                    "success": True,
+                    "api_keys": [key.to_dict() for key in keys]
+                }
+                
+            except Exception as e:
+                logger.error(f"Error listing API keys: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error listing API keys: {str(e)}"
+                )
+        
+        @self.router.delete("/apikeys/{key_id}")
+        async def revoke_api_key(
+            request: Request,
+            key_id: str,
+            current_user: User = Depends(self.auth_service.get_current_user)
+        ):
+            """
+            Revoke an API key.
+            
+            Args:
+                request: FastAPI request
+                key_id: API key ID
+                current_user: Current authenticated user
+            """
+            try:
+                # Get key
+                api_key = self.store.get_key(key_id)
+                
+                if not api_key:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"API key {key_id} not found"
+                    )
+                
+                # Check ownership
+                if api_key.user_id != current_user.id and not current_user.role in [Role.ADMIN, Role.SYSTEM]:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You do not own this API key"
+                    )
+                
+                # Revoke key
+                success = await self.revoke_key(key_id)
+                
+                if not success:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to revoke API key"
+                    )
+                
+                # Log key revocation
+                if self.audit_logger:
+                    self.audit_logger.log(
+                        event_type=AuditEventType.API_KEY,
+                        action="api_key_revoked",
+                        severity=AuditSeverity.INFO,
+                        user_id=current_user.id,
+                        details={
+                            "key_id": key_id,
+                            "ip": request.client.host if request.client else None
+                        }
+                    )
+                
+                return {
+                    "success": True,
+                    "message": f"API key {key_id} revoked"
+                }
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error revoking API key: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error revoking API key: {str(e)}"
+                )
+    
+    async def create_key(
+        self,
+        user_id: str,
+        name: str,
+        permissions: Optional[List[str]] = None,
+        expires_at: Optional[float] = None,
+        rate_limit: Optional[int] = None,
+        backends: Optional[List[str]] = None,
+        ip_whitelist: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[APIKey]:
+        """
+        Create a new API key.
+        
+        Args:
+            user_id: User ID
+            name: Key name
+            permissions: Optional list of permission IDs
+            expires_at: Optional expiration timestamp
+            rate_limit: Optional rate limit (requests per minute)
+            backends: Optional list of allowed backend IDs
+            ip_whitelist: Optional list of allowed IP addresses
+            metadata: Optional metadata
+            
+        Returns:
+            Created API key or None if failed
+        """
+        try:
+            # Create API key
+            api_key = APIKey(
+                user_id=user_id,
+                name=name,
+                permissions=permissions,
+                expires_at=expires_at,
+                rate_limit=rate_limit,
+                backends=backends,
+                ip_whitelist=ip_whitelist,
+                metadata=metadata
+            )
+            
+            # Save to store
+            if not self.store.save_key(api_key):
+                logger.error(f"Failed to save API key {api_key.id}")
+                return None
+            
+            return api_key
+        except Exception as e:
+            logger.error(f"Error creating API key: {e}")
+            return None
+    
+    async def get_keys_for_user(self, user_id: str) -> List[APIKey]:
+        """
+        Get all API keys for a user.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            List of API keys
+        """
+        return self.store.get_keys_for_user(user_id)
     
     async def revoke_key(self, key_id: str) -> bool:
         """
@@ -708,600 +788,136 @@ class ApiKeyManager:
             key_id: API key ID
             
         Returns:
-            True if successful, False otherwise
+            Success flag
         """
-        return await self.update_key_status(key_id, ApiKeyStatus.REVOKED)
+        return self.store.delete_key(key_id)
     
-    async def delete_key(self, key_id: str) -> bool:
+    async def verify_api_key(
+        self,
+        key: str,
+        ip_address: Optional[str] = None,
+        required_permissions: Optional[Set[str]] = None,
+        required_backend: Optional[str] = None
+    ) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
         """
-        Permanently delete an API key.
+        Verify an API key.
         
         Args:
-            key_id: API key ID
+            key: API key string
+            ip_address: Optional IP address
+            required_permissions: Optional set of required permissions
+            required_backend: Optional required backend
             
         Returns:
-            True if successful, False otherwise
+            Tuple of (success, user_id, error_details)
         """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+        # Find API key
+        api_key = self.store.find_key_by_actual_key(key)
+        
+        if not api_key:
+            return False, None, {"error": "Invalid API key"}
+        
+        # Check if expired
+        if api_key.is_expired():
+            return False, None, {"error": "API key expired"}
+        
+        # Check IP whitelist
+        if ip_address and not api_key.is_ip_allowed(ip_address):
+            return False, None, {"error": "IP address not allowed"}
+        
+        # Check rate limit
+        if api_key.rate_limit and not self.rate_limiter.check_rate_limit(api_key.id, api_key.rate_limit):
+            return False, None, {"error": "Rate limit exceeded"}
+        
+        # Check backend access
+        if required_backend and not api_key.can_access_backend(required_backend):
+            return False, None, {"error": f"No access to backend: {required_backend}"}
+        
+        # Check permissions
+        if required_permissions:
+            # Get user role and permissions
+            user = await self.auth_service.get_user(api_key.user_id)
+            if not user:
+                return False, None, {"error": "API key user not found"}
+            
+            # Check each required permission
+            for permission in required_permissions:
+                has_permission = self.rbac_manager.check_permission(
+                    user_id=user.id,
+                    permission=permission
+                )
                 
-                # Delete permissions
-                cursor.execute('''
-                DELETE FROM api_key_permissions
-                WHERE key_id = ?
-                ''', (key_id,))
+                # Also check API key specific permissions
+                if not has_permission and api_key.permissions:
+                    has_permission = permission in api_key.permissions
                 
-                # Delete usage logs
-                cursor.execute('''
-                DELETE FROM api_key_usage
-                WHERE key_id = ?
-                ''', (key_id,))
-                
-                # Delete key
-                cursor.execute('''
-                DELETE FROM api_keys
-                WHERE id = ?
-                ''', (key_id,))
-                
-                conn.commit()
-                
-                # Clear cache entries for this key
-                for k in list(self.key_cache.keys()):
-                    if self.key_cache[k]['data'].get('id') == key_id:
-                        del self.key_cache[k]
-                
-                logger.info(f"Deleted API key {key_id}")
-                return True
-                
-        except Exception as e:
-            logger.error(f"Error deleting API key: {e}")
-            return False
+                if not has_permission:
+                    return False, None, {"error": f"Missing permission: {permission}"}
+        
+        # Record usage
+        api_key.record_usage()
+        self.store.save_key(api_key)
+        
+        return True, api_key.user_id, None
     
-    async def update_key_permissions(self, key_id: str, 
-                                  permissions: Optional[List[str]] = None,
-                                  backend_permissions: Optional[Dict[str, List[str]]] = None) -> bool:
+    async def get_user_from_api_key(self, api_key_header: str) -> Optional[User]:
         """
-        Update permissions for an API key.
+        Get user from API key.
         
         Args:
-            key_id: API key ID
-            permissions: List of global permissions
-            backend_permissions: Dict of backend-specific permissions
+            api_key_header: API key header value
             
         Returns:
-            True if successful, False otherwise
+            User object or None if invalid
         """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # Delete existing permissions
-                cursor.execute('''
-                DELETE FROM api_key_permissions
-                WHERE key_id = ?
-                ''', (key_id,))
-                
-                # Add global permissions
-                if permissions:
-                    for permission in permissions:
-                        cursor.execute('''
-                        INSERT INTO api_key_permissions
-                        (key_id, permission, backend)
-                        VALUES (?, ?, 'global')
-                        ''', (key_id, permission))
-                
-                # Add backend permissions
-                if backend_permissions:
-                    for backend, perms in backend_permissions.items():
-                        for permission in perms:
-                            cursor.execute('''
-                            INSERT INTO api_key_permissions
-                            (key_id, permission, backend)
-                            VALUES (?, ?, ?)
-                            ''', (key_id, permission, backend))
-                
-                # Update key scope to CUSTOM if permissions are specified
-                if permissions or backend_permissions:
-                    cursor.execute('''
-                    UPDATE api_keys
-                    SET scope = ?
-                    WHERE id = ?
-                    ''', (ApiKeyScope.CUSTOM.value, key_id))
-                
-                conn.commit()
-                
-                # Clear cache entries for this key
-                for k in list(self.key_cache.keys()):
-                    if self.key_cache[k]['data'].get('id') == key_id:
-                        del self.key_cache[k]
-                
-                logger.info(f"Updated permissions for API key {key_id}")
-                return True
-                
-        except Exception as e:
-            logger.error(f"Error updating API key permissions: {e}")
-            return False
-    
-    async def get_key_usage_logs(self, key_id: str, limit: int = 100) -> List[Dict[str, Any]]:
-        """
-        Get usage logs for an API key.
-        
-        Args:
-            key_id: API key ID
-            limit: Maximum number of logs to return
-            
-        Returns:
-            List of usage log entries
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                
-                cursor.execute('''
-                SELECT * FROM api_key_usage
-                WHERE key_id = ?
-                ORDER BY timestamp DESC
-                LIMIT ?
-                ''', (key_id, limit))
-                
-                rows = cursor.fetchall()
-                
-                return [dict(row) for row in rows]
-                
-        except Exception as e:
-            logger.error(f"Error getting API key usage logs: {e}")
-            return []
-    
-    async def get_user_from_key(self, api_key: str) -> Optional[Dict[str, Any]]:
-        """
-        Get user information from an API key.
-        
-        Args:
-            api_key: API key
-            
-        Returns:
-            User information or None if key is invalid
-        """
-        key_info = await self.get_key_info(api_key)
-        
-        if not key_info:
+        if not api_key_header:
             return None
         
-        from ..auth.service import get_user_by_id
-        user = await get_user_by_id(key_info['user_id'])
+        # Verify API key
+        success, user_id, error = await self.verify_api_key(api_key_header)
         
-        if not user:
+        if not success or not user_id:
             return None
         
-        # Return user info along with key scope
-        return {
-            "user": user,
-            "key_id": key_info['id'],
-            "scope": key_info['scope'],
-            "permissions": key_info.get('permissions', {})
-        }
+        # Get user
+        return await self.auth_service.get_user(user_id)
 
 
-# Singleton instance
-_api_key_manager_instance = None
-
-def get_api_key_manager() -> ApiKeyManager:
-    """Get the singleton API key manager instance."""
-    global _api_key_manager_instance
-    if _api_key_manager_instance is None:
-        _api_key_manager_instance = ApiKeyManager()
-    return _api_key_manager_instance
-
-
-# API Key Authentication
-
-async def get_api_key_user(
-    api_key: str = Depends(api_key_header),
-    require_auth: bool = True
+# Create dependency for current user from API key or token
+async def get_current_user_from_api_key_or_token(
+    request: Request,
+    api_key_header: str = Depends(api_key_header),
+    auth_service: Optional[AuthService] = None,
+    api_key_manager: Optional[EnhancedAPIKeyManager] = None
 ) -> Optional[User]:
     """
-    Get a user from an API key.
+    Get current user from API key or token.
     
     Args:
-        api_key: API key from header
-        require_auth: Whether to raise an exception if authentication fails
+        request: FastAPI request
+        api_key_header: API key header value
+        auth_service: Optional auth service instance
+        api_key_manager: Optional API key manager instance
         
     Returns:
-        User object if authenticated, None otherwise
-        
-    Raises:
-        HTTPException: If authentication fails and require_auth is True
+        User object or None if not authenticated
     """
-    if not api_key:
-        if require_auth:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="API key required"
-            )
-        return None
+    # Try API key first
+    if api_key_header and api_key_manager:
+        user = await api_key_manager.get_user_from_api_key(api_key_header)
+        if user:
+            # Store in request state
+            request.state.user = user
+            request.state.auth_method = "api_key"
+            return user
     
-    # Get API key manager
-    api_key_manager = get_api_key_manager()
+    # Try token
+    if auth_service:
+        user = await auth_service.get_current_user(request)
+        if user:
+            # Already stored in request state by auth service
+            request.state.auth_method = "token"
+            return user
     
-    # Get user from key
-    user_info = await api_key_manager.get_user_from_key(api_key)
-    
-    if not user_info:
-        if require_auth:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid API key"
-            )
-        return None
-    
-    # Enhance user object with API key information
-    user = user_info["user"]
-    
-    # Add API key context to the user object
-    user.api_key_context = {
-        "key_id": user_info["key_id"],
-        "scope": user_info["scope"],
-        "permissions": user_info["permissions"]
-    }
-    
-    return user
-
-
-# API Key middleware
-async def api_key_middleware(request: Request, call_next):
-    """
-    Middleware to handle API key authentication.
-    
-    This middleware checks for API keys in the request header and validates them.
-    If a valid API key is found, the user is authenticated without needing
-    a JWT token or other authentication method.
-    
-    Args:
-        request: Request object
-        call_next: Next middleware or endpoint handler
-        
-    Returns:
-        Response from next middleware or endpoint
-    """
-    # Check if this is a route that should be protected
-    path = request.url.path
-    
-    # Skip authentication for certain paths
-    skip_paths = [
-        "/health",
-        "/api/v0/status",
-        "/api/v0/auth/login",
-        "/api/v0/auth/register",
-        "/api/v0/auth/refresh",
-        "/docs",
-        "/redoc",
-        "/openapi.json"
-    ]
-    
-    # Extract API key from header
-    api_key = request.headers.get(API_KEY_NAME)
-    
-    # If no API key and path doesn't need auth, just continue
-    if not api_key and any(path.startswith(p) for p in skip_paths):
-        return await call_next(request)
-    
-    # If there's an API key, validate it
-    if api_key:
-        # Get API key manager
-        api_key_manager = get_api_key_manager()
-        
-        # Validate key (without checking specific permissions here)
-        validation = await api_key_manager.validate_key(api_key)
-        
-        if validation["valid"]:
-            # Get user information from key
-            user_info = await api_key_manager.get_user_from_key(api_key)
-            
-            if user_info:
-                # Store user and key info in request state for endpoints to access
-                request.state.api_key_user = user_info["user"]
-                request.state.api_key = {
-                    "key_id": user_info["key_id"],
-                    "scope": user_info["scope"],
-                    "permissions": user_info["permissions"]
-                }
-                
-                # Get client information for logging
-                client_host = request.client.host if request.client else "unknown"
-                user_agent = request.headers.get("User-Agent", "unknown")
-                
-                # Record key usage asynchronously (don't wait for it)
-                asyncio.create_task(
-                    api_key_manager.log_key_usage(
-                        user_info["key_id"],
-                        path,
-                        client_host,
-                        user_agent,
-                        200  # This will be updated after the response if possible
-                    )
-                )
-    
-    # Continue processing the request
-    response = await call_next(request)
-    
-    # Update status code in key usage if API key was used
-    if api_key and hasattr(request.state, "api_key") and request.state.api_key:
-        api_key_manager = get_api_key_manager()
-        key_id = request.state.api_key["key_id"]
-        
-        # Update status code in the last log entry
-        client_host = request.client.host if request.client else "unknown"
-        user_agent = request.headers.get("User-Agent", "unknown")
-        
-        asyncio.create_task(
-            api_key_manager.log_key_usage(
-                key_id,
-                path,
-                client_host,
-                user_agent,
-                response.status_code
-            )
-        )
-    
-    return response
-
-
-# Create API router
-def create_api_key_router(get_current_admin_user=None) -> APIRouter:
-    """
-    Create an API router for API key management.
-    
-    Args:
-        get_current_admin_user: Function to get the current admin user
-        
-    Returns:
-        Configured APIRouter
-    """
-    router = APIRouter(prefix="/api/v0/auth/apikeys", tags=["API Keys"])
-    
-    # Get API key manager
-    api_key_manager = get_api_key_manager()
-    
-    from ..auth.router import get_current_user
-    
-    @router.post("/create")
-    async def create_api_key(
-        name: str,
-        scope: ApiKeyScope = ApiKeyScope.READ_ONLY,
-        expires_in_days: Optional[int] = None,
-        permissions: Optional[List[str]] = None,
-        backend_permissions: Optional[Dict[str, List[str]]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        current_user: User = Depends(get_current_user)
-    ):
-        """Create a new API key."""
-        try:
-            # Only allow CUSTOM scope if permissions are provided
-            if scope == ApiKeyScope.CUSTOM and not (permissions or backend_permissions):
-                return {
-                    "success": False,
-                    "message": "Custom scope requires permissions"
-                }
-            
-            # Create key
-            key_data = await api_key_manager.create_key(
-                user_id=current_user.id,
-                name=name,
-                permissions=permissions,
-                backend_permissions=backend_permissions,
-                scope=scope,
-                expires_in_days=expires_in_days,
-                metadata=metadata
-            )
-            
-            return {
-                "success": True,
-                "message": "API key created",
-                "data": key_data
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error creating API key: {str(e)}"
-            }
-    
-    @router.get("/list")
-    async def list_api_keys(
-        current_user: User = Depends(get_current_user)
-    ):
-        """List API keys for the current user."""
-        # Admins can list all keys with a query parameter
-        all_keys = False
-        if current_user.role in [Role.ADMIN, Role.SYSTEM]:
-            all_keys = True
-        
-        try:
-            if all_keys:
-                keys = await api_key_manager.list_keys()
-            else:
-                keys = await api_key_manager.list_keys(current_user.id)
-            
-            # Remove sensitive data
-            for key in keys:
-                if 'key_hash' in key:
-                    del key['key_hash']
-            
-            return {
-                "success": True,
-                "message": "API keys retrieved",
-                "data": keys
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error listing API keys: {str(e)}"
-            }
-    
-    @router.delete("/{key_id}")
-    async def revoke_api_key(
-        key_id: str,
-        current_user: User = Depends(get_current_user)
-    ):
-        """Revoke an API key."""
-        try:
-            # Check if the key belongs to the user unless admin
-            if current_user.role not in [Role.ADMIN, Role.SYSTEM]:
-                keys = await api_key_manager.list_keys(current_user.id)
-                if not any(k['id'] == key_id for k in keys):
-                    return {
-                        "success": False,
-                        "message": "API key not found or doesn't belong to you"
-                    }
-            
-            # Revoke key
-            success = await api_key_manager.revoke_key(key_id)
-            
-            if success:
-                return {
-                    "success": True,
-                    "message": "API key revoked"
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Failed to revoke API key"
-                }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error revoking API key: {str(e)}"
-            }
-    
-    @router.put("/{key_id}/permissions")
-    async def update_api_key_permissions(
-        key_id: str,
-        permissions: Optional[List[str]] = None,
-        backend_permissions: Optional[Dict[str, List[str]]] = None,
-        current_user: User = Depends(get_current_user)
-    ):
-        """Update permissions for an API key."""
-        try:
-            # Check if the key belongs to the user unless admin
-            if current_user.role not in [Role.ADMIN, Role.SYSTEM]:
-                keys = await api_key_manager.list_keys(current_user.id)
-                if not any(k['id'] == key_id for k in keys):
-                    return {
-                        "success": False,
-                        "message": "API key not found or doesn't belong to you"
-                    }
-            
-            # Update permissions
-            success = await api_key_manager.update_key_permissions(
-                key_id=key_id,
-                permissions=permissions,
-                backend_permissions=backend_permissions
-            )
-            
-            if success:
-                return {
-                    "success": True,
-                    "message": "API key permissions updated"
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Failed to update API key permissions"
-                }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error updating API key permissions: {str(e)}"
-            }
-    
-    @router.get("/{key_id}/usage")
-    async def get_api_key_usage(
-        key_id: str,
-        limit: int = 100,
-        current_user: User = Depends(get_current_user)
-    ):
-        """Get usage logs for an API key."""
-        try:
-            # Check if the key belongs to the user unless admin
-            if current_user.role not in [Role.ADMIN, Role.SYSTEM]:
-                keys = await api_key_manager.list_keys(current_user.id)
-                if not any(k['id'] == key_id for k in keys):
-                    return {
-                        "success": False,
-                        "message": "API key not found or doesn't belong to you"
-                    }
-            
-            # Get usage logs
-            logs = await api_key_manager.get_key_usage_logs(key_id, limit)
-            
-            return {
-                "success": True,
-                "message": "API key usage logs retrieved",
-                "data": logs
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error getting API key usage logs: {str(e)}"
-            }
-    
-    @router.delete("/{key_id}/delete")
-    async def delete_api_key(
-        key_id: str,
-        current_user: User = Depends(get_current_admin_user or get_current_user)
-    ):
-        """Permanently delete an API key (admin only)."""
-        # Only admins can permanently delete keys
-        if not get_current_admin_user and current_user.role not in [Role.ADMIN, Role.SYSTEM]:
-            return {
-                "success": False,
-                "message": "Admin permission required"
-            }
-        
-        try:
-            # Delete key
-            success = await api_key_manager.delete_key(key_id)
-            
-            if success:
-                return {
-                    "success": True,
-                    "message": "API key deleted"
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Failed to delete API key"
-                }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error deleting API key: {str(e)}"
-            }
-    
-    return router
-
-
-# Setup function for FastAPI app
-def setup_api_key_authentication(app):
-    """
-    Set up API key authentication for a FastAPI app.
-    
-    Args:
-        app: FastAPI application
-    """
-    # Add API key middleware
-    app.middleware("http")(api_key_middleware)
-    
-    # Create and include API key router
-    from ..auth.router import get_admin_user
-    api_key_router = create_api_key_router(get_admin_user)
-    app.include_router(api_key_router)
-    
-    logger.info("API Key authentication system initialized")
+    # Not authenticated
+    return None
