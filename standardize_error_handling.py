@@ -30,7 +30,7 @@ class ErrorCategory(str, enum.Enum):
     AUTHENTICATION = "authentication"
     AUTHORIZATION = "authorization"
     RATE_LIMIT = "rate_limit"
-    TIMEOUT = "timeout"
+    TIMEOUT_ERROR = "timeout"  # Named TIMEOUT_ERROR for API consistency
     DEPENDENCY_ERROR = "dependency_error"
     STORAGE_ERROR = "storage_error"
     NETWORK_ERROR = "network_error"
@@ -174,8 +174,8 @@ ERROR_CODE_TO_CATEGORY = {
     ErrorCode.QUOTA_EXCEEDED: ErrorCategory.RATE_LIMIT,
     
     # Timeout errors
-    ErrorCode.OPERATION_TIMEOUT: ErrorCategory.TIMEOUT,
-    ErrorCode.CONNECTION_TIMEOUT: ErrorCategory.TIMEOUT,
+    ErrorCode.OPERATION_TIMEOUT: ErrorCategory.TIMEOUT_ERROR,
+    ErrorCode.CONNECTION_TIMEOUT: ErrorCategory.TIMEOUT_ERROR,
     
     # Dependency errors
     ErrorCode.DEPENDENCY_UNAVAILABLE: ErrorCategory.DEPENDENCY_ERROR,
@@ -821,10 +821,32 @@ try:
         @app.exception_handler(Exception)
         async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
             # Convert to MCP error
-            error = error_from_exception(exc)
+            error = error_from_exception(exc, include_traceback=True)
             
-            # Use the MCP error handler
-            return await mcp_error_handler(request, error)
+            # Extract or generate correlation ID
+            correlation_id = request.headers.get("X-Correlation-ID")
+            if not correlation_id:
+                correlation_id = str(uuid.uuid4())
+            
+            # Update error with correlation ID
+            error.correlation_id = correlation_id
+            
+            # Log the error
+            logger.error(
+                f"API Error {error.code.value} [{correlation_id}]: {error.message}", 
+                extra={"correlation_id": correlation_id}
+            )
+            
+            # Create response
+            response = JSONResponse(
+                status_code=error.status_code,
+                content=error.to_dict()
+            )
+            
+            # Add correlation ID header
+            response.headers["X-Correlation-ID"] = correlation_id
+            
+            return response
         
         # Add middleware for correlation ID propagation
         @app.middleware("http")

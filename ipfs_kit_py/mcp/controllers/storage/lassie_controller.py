@@ -23,6 +23,13 @@ import mcp_error_handling
 logger = logging.getLogger(__name__)
 
 # Define Pydantic models for requests and responses
+class FetchCIDRequest(BaseModel):
+    """Request model for Lassie CID fetch operations."""
+    cid: str = Field(..., description="Content Identifier (CID) to fetch")
+    timeout_seconds: Optional[int] = Field(300, description="Timeout in seconds")
+    output_dir: Optional[str] = Field(None, description="Directory to save fetched content")
+    verbose: Optional[bool] = Field(False, description="Enable verbose logging")
+
 class FetchRequest(BaseModel):
     """Request model for Lassie fetch operations."""
     cid: str = Field(..., description="Content Identifier (CID) to fetch")

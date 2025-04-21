@@ -13,7 +13,7 @@ import anyio
 import warnings
 from unittest.mock import patch, MagicMock, AsyncMock, call
 
-from ipfs_kit_py.mcp_server.models.storage.filecoin_model_anyio import FilecoinModelAnyIO
+from ipfs_kit_py.mcp.models.storage.filecoin_model_anyio import FilecoinModelAnyIO
 
 
 class TestFilecoinModelAnyIO(unittest.TestCase):

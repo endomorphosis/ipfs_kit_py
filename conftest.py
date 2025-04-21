@@ -7,7 +7,6 @@ It automatically applies fixes for common test issues.
 
 import os
 import sys
-import pytest
 import logging
 from pathlib import Path
 
@@ -15,25 +14,33 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import our direct pytest fix first (before any pytest imports)
+try:
+    import pytest_direct_fix
+    logger.info("Successfully applied direct pytest fixes")
+except ImportError as e:
+    logger.error(f"Error importing pytest_direct_fix: {e}")
+
+# Import mock dependencies for tests
+try:
+    import mock_dependencies
+    logger.info("Successfully loaded mock dependencies")
+except ImportError as e:
+    logger.error(f"Error importing mock_dependencies: {e}")
+
+# Now we can safely import pytest
+import pytest
+
 # Add the project root to the Python path
 project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
-# Make sure we do the imports safely
+# Import our test fix script
 try:
-    # Import our test fixes in a safe way that doesn't conflict with pytest's assertion rewriting
-    test_fixes_path = project_root / 'test' / 'fix_all_tests.py'
-    if test_fixes_path.exists():
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("fix_all_tests", test_fixes_path)
-        fix_all_tests = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(fix_all_tests)
-        
-        # Apply all fixes
-        fix_all_tests.apply_all_fixes()
-        logger.info("Successfully applied all test fixes")
+    import fix_test_imports
+    logger.info("Successfully imported fix_test_imports")
 except ImportError as e:
-    logger.error(f"Error importing test fixes: {e}")
+    logger.error(f"Error importing fix_test_imports: {e}")
 except Exception as e:
     logger.error(f"Error applying test fixes: {e}")
 

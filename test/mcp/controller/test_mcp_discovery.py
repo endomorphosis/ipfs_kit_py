@@ -46,8 +46,8 @@ with open(server_path, 'r') as f:
     server_content = f.read()
 
 # Check for necessary imports
-has_imports = "from ipfs_kit_py.mcp_server.controllers.mcp_discovery_controller import MCPDiscoveryController" in server_content
-has_model_import = "from ipfs_kit_py.mcp_server.models.mcp_discovery_model import MCPDiscoveryModel" in server_content
+has_imports = "from ipfs_kit_py.mcp.controllers.mcp_discovery_controller import MCPDiscoveryController" in server_content
+has_model_import = "from ipfs_kit_py.mcp.models.mcp_discovery_model import MCPDiscoveryModel" in server_content
 has_flag = "HAS_MCP_DISCOVERY_CONTROLLER = True" in server_content
 
 # Check for model initialization

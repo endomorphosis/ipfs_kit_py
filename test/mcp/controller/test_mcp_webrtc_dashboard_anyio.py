@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from starlette.testclient import TestClient as StarletteTestClient
 from http import HTTPStatus
 
-from ipfs_kit_py.mcp_server.controllers.webrtc_dashboard_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.webrtc_dashboard_controller_anyio import (
     WebRTCDashboardControllerAnyIO,
     create_webrtc_dashboard_router_anyio
 )

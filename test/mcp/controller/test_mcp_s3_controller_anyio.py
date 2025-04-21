@@ -28,11 +28,11 @@ except ImportError:
     
     pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
-from ipfs_kit_py.mcp_server.controllers.storage.s3_controller import (
+from ipfs_kit_py.mcp.controllers.storage.s3_controller import (
     S3UploadRequest, S3DownloadRequest, S3DeleteRequest,
     IPFSS3Request, S3IPFSRequest
 )
-from ipfs_kit_py.mcp_server.controllers.storage.s3_controller_anyio import S3ControllerAnyIO
+from ipfs_kit_py.mcp.controllers.storage.s3_controller_anyio import S3ControllerAnyIO
 
 
 @pytest.fixture

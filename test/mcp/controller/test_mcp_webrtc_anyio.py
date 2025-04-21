@@ -11,7 +11,7 @@ import time
 import anyio
 import anyio
 from fastapi import FastAPI
-from ipfs_kit_py.mcp_server.server_anyio import MCPServer
+from ipfs_kit_py.mcp.server_anyio import MCPServer
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 

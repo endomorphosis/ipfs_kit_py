@@ -39,7 +39,7 @@ def mock_filecoin_model():
 @pytest.fixture
 def controller(mock_filecoin_model):
     """Create FilecoinControllerAnyIO instance with mock model."""
-    from ipfs_kit_py.mcp_server.controllers.storage.filecoin_controller_anyio import FilecoinControllerAnyIO
+    from ipfs_kit_py.mcp.controllers.storage.filecoin_controller_anyio import FilecoinControllerAnyIO
     return FilecoinControllerAnyIO(mock_filecoin_model)
 
 

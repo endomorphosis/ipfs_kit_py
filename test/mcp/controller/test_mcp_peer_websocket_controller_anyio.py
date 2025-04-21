@@ -14,7 +14,7 @@ from fastapi import APIRouter
 from starlette.websockets import WebSocket, WebSocketDisconnect # Correct import
 
 # Import PeerWebSocketControllerAnyIO and related modules
-from ipfs_kit_py.mcp_server.controllers.peer_websocket_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.peer_websocket_controller_anyio import (
     PeerWebSocketControllerAnyIO,
     PeerWebSocketResponse,
     StartServerRequest,

@@ -9,6 +9,93 @@ import pytest
 import logging
 from typing import Any, Callable, Generator, Optional
 
+
+
+
+# Import pytest_anyio from fix_libp2p_mocks or create a dummy
+try:
+    import os
+    import sys
+    import importlib.util
+    
+    fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
+    if os.path.exists(fix_script_path):
+        spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
+        fix_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fix_module)
+        
+        # Get pytest_anyio from the module
+        pytest_anyio = fix_module.pytest_anyio
+    else:
+        # Create a dummy implementation
+        import pytest
+        class DummyAnyioFixture:
+            def __call__(self, func):
+                return pytest.fixture(func)
+        pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
+except ImportError as e:
+    import pytest
+    # Create a dummy implementation
+    class DummyAnyioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
+# Import pytest_anyio from fix_libp2p_mocks or create a dummy
+try:
+    import os
+    import sys
+    import importlib.util
+    
+    fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
+    if os.path.exists(fix_script_path):
+        spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
+        fix_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fix_module)
+        
+        # Get pytest_anyio from the module
+        pytest_anyio = fix_module.pytest_anyio
+    else:
+        # Create a dummy implementation
+        import pytest
+        class DummyAnyioFixture:
+            def __call__(self, func):
+                return pytest.fixture(func)
+        pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
+except ImportError as e:
+    import pytest
+    # Create a dummy implementation
+    class DummyAnyioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
+# Import pytest_anyio from fix_libp2p_mocks or create a dummy
+try:
+    import os
+    import sys
+    import importlib.util
+    
+    fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
+    if os.path.exists(fix_script_path):
+        spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
+        fix_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fix_module)
+        
+        # Get pytest_anyio from the module
+        pytest_anyio = fix_module.pytest_anyio
+    else:
+        # Create a dummy implementation
+        import pytest
+        class DummyAnyioFixture:
+            def __call__(self, func):
+                return pytest.fixture(func)
+        pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
+except ImportError as e:
+    import pytest
+    # Create a dummy implementation
+    class DummyAnyioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
 logger = logging.getLogger(__name__)
 
 # Re-export pytest.mark.anyio for convenience

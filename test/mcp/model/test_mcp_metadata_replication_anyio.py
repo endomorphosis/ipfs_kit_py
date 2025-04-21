@@ -16,9 +16,9 @@ import anyio
 import requests
 
 # Import MCP components
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-from ipfs_kit_py.mcp_server.controllers.ipfs_controller import IPFSController
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
 from ipfs_kit_py.fs_journal_replication import (
     MetadataReplicationManager,
     ReplicationLevel,

@@ -15,8 +15,8 @@ import anyio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ipfs_kit_py.mcp_server.controllers.distributed_controller_anyio import DistributedControllerAnyIO
-from ipfs_kit_py.mcp_server.controllers.distributed_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.distributed_controller_anyio import DistributedControllerAnyIO
+from ipfs_kit_py.mcp.controllers.distributed_controller_anyio import (
     PeerDiscoveryRequest, NodeRegistrationRequest, ClusterCacheRequest, 
     ClusterStateRequest, StateSyncRequest, DistributedTaskRequest
 )

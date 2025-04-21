@@ -15,8 +15,8 @@ import anyio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ipfs_kit_py.mcp_server.controllers.credential_controller_anyio import CredentialControllerAnyIO
-from ipfs_kit_py.mcp_server.controllers.credential_controller import (
+from ipfs_kit_py.mcp.controllers.credential_controller_anyio import CredentialControllerAnyIO
+from ipfs_kit_py.mcp.controllers.credential_controller import (
     GenericCredentialRequest, S3CredentialRequest, 
     StorachaCredentialRequest, FilecoinCredentialRequest, IPFSCredentialRequest
 )

@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 from fastapi import FastAPI, APIRouter
 from fastapi.testclient import TestClient
 
-from ipfs_kit_py.mcp_server.controllers.webrtc_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.webrtc_controller_anyio import (
     WebRTCControllerAnyIO, WebRTCResponse, ResourceStatsResponse, StreamRequest,
     StreamResponse, ConnectionResponse, ConnectionsListResponse, 
     ConnectionStatsResponse, DependencyResponse, BenchmarkRequest, BenchmarkResponse,

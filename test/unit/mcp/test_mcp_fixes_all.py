@@ -20,8 +20,8 @@ import time
 # Add the parent directory to the path to enable importing ipfs_kit_py
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-from ipfs_kit_py.mcp_server.controllers.ipfs_controller import IPFSController
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
 
 class TestMCPFixes(unittest.TestCase):
     """Test the MCP server fixes."""

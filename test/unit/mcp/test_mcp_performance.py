@@ -39,7 +39,7 @@ except ImportError:
 try:
     # Try to import the MCP server
     from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
-    from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+    from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
     HAS_MCP = True
 except ImportError:
     HAS_MCP = False

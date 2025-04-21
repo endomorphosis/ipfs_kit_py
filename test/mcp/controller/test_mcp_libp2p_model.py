@@ -7,7 +7,7 @@ import time
 from unittest.mock import MagicMock, patch, AsyncMock
 
 # Import the class to test
-from ipfs_kit_py.mcp_server.models.libp2p_model import LibP2PModel
+from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
 
 # Mock the dependencies that LibP2PModel might try to import or use
 # Mock IPFSLibp2pPeer and related components if HAS_LIBP2P is True during test setup

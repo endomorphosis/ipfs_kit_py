@@ -276,6 +276,7 @@ fastapi_module.APIRouter = APIRouter
 fastapi_module.WebSocket = WebSocket
 fastapi_module.WebSocketDisconnect = WebSocketDisconnect
 fastapi_module.__version__ = "0.100.0"  # Mock version
+fastapi_module.__spec__ = None  # Fix for ValueError: fastapi.__spec__ is not set
 
 # fastapi.middleware module
 middleware_module = types.ModuleType("fastapi.middleware")
@@ -395,41 +396,11 @@ networkx_module.MultiDiGraph = Graph
 MOCK_MODULES["networkx"] = networkx_module
 MOCK_MODULES["nx"] = networkx_module  # Common alias
 
-# Custom module finder for mock modules
-class MockFinder(type(sys.meta_path[0])):  # Inherit from a real meta path finder
-    """
-    Custom module finder for mocking dependencies.
-    """
-    
-    def find_spec(self, fullname, path, target=None):
-        if fullname in MOCK_MODULES:
-            logger.info(f"Using mock implementation for {fullname}")
-            return types.ModuleSpec(
-                fullname, 
-                MockLoader(fullname),
-                is_package=fullname.rsplit(".", 1)[-1] == "__init__" if "." in fullname else True
-            )
-        return None
-
-class MockLoader:
-    """
-    Custom module loader for mock implementations.
-    """
-    
-    def __init__(self, fullname):
-        self.fullname = fullname
-    
-    def create_module(self, spec):
-        if self.fullname in MOCK_MODULES:
-            return MOCK_MODULES[self.fullname]
-        return None
-    
-    def exec_module(self, module):
-        # The module is already initialized in create_module
-        pass
-
-# Install our mock finder at the start of sys.meta_path
-sys.meta_path.insert(0, MockFinder())
+def register_mock_modules():
+    """Register mock modules in sys.modules."""
+    for name, module in MOCK_MODULES.items():
+        sys.modules[name] = module
+    logger.info(f"Registered {len(MOCK_MODULES)} mock modules")
 
 def apply_additional_patches():
     """Apply additional patches to specific modules."""
@@ -439,10 +410,16 @@ def apply_additional_patches():
         huggingface_module.__version__ = "0.15.0"
         sys.modules["huggingface_hub"] = huggingface_module
 
-    # Patch any other specific modules as needed
+    # Create mock api_stability module
+    api_stability_module = types.ModuleType("api_stability")
+    api_stability_module.stable_api = {"endpoints": []}
+    sys.modules["api_stability"] = api_stability_module
     
     logger.info("Applied additional patches to system modules")
     return True
+
+# Register modules the safer way
+register_mock_modules()
 
 # Apply additional patches
 apply_additional_patches()

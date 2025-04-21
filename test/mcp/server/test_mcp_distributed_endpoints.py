@@ -24,7 +24,7 @@ except ImportError:
     FASTAPI_AVAILABLE = False
     print("FastAPI not available, skipping HTTP tests")
 
-from ipfs_kit_py.mcp_server.controllers.distributed_controller import DistributedController
+from ipfs_kit_py.mcp.controllers.distributed_controller import DistributedController
 
 
 @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")

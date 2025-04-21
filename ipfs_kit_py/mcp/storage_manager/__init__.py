@@ -11,9 +11,11 @@ features from the roadmap, including:
 
 from .manager import UnifiedStorageManager
 from .storage_types import ContentReference, StorageBackendType
+from .backend_base import BackendStorage
 
 __all__ = [
     "StorageBackendType",
     "ContentReference",
     "UnifiedStorageManager",
+    "BackendStorage",
 ]

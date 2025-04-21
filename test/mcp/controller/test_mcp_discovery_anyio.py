@@ -18,7 +18,7 @@ def test_mcp_discovery_controller_anyio_import():
         print("Successfully imported MCPDiscoveryControllerAnyIO from the original location!")
         
         # Now verify that we can access the controller through the backward compatibility path
-        import ipfs_kit_py.mcp_server.controllers
+        import ipfs_kit_py.mcp.controllers
         assert hasattr(ipfs_kit_py.mcp_server.controllers, 'MCPDiscoveryControllerAnyIO'), \
             "MCPDiscoveryControllerAnyIO not found in ipfs_kit_py.mcp_server.controllers module"
             

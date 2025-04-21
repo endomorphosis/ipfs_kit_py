@@ -3,7 +3,7 @@ import json
 import time
 from unittest.mock import patch, MagicMock
 
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 
 
 class TestMCPFixesComprehensive(unittest.TestCase):

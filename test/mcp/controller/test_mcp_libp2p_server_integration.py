@@ -24,7 +24,7 @@ from test.test_mcp_libp2p_integration import TestLibP2PModel, HAS_LIBP2P
 
 # Import server and controller
 try:
-    from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 except ImportError:
     pytest.skip("MCPServer not available", allow_module_level=True)
 
@@ -45,7 +45,7 @@ class TestMCPLibP2PServerIntegration:
     @pytest.fixture
     def test_libp2p_model(self):
         """Create a TestLibP2PModel instance for testing."""
-        from ipfs_kit_py.mcp_server.persistence.cache_manager import MCPCacheManager
+        from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
         
         # Create a cache manager for the model
         cache_manager = MCPCacheManager(
@@ -100,7 +100,7 @@ class TestMCPLibP2PServerIntegration:
             
             # Then try to import and create the controller
             try:
-                from ipfs_kit_py.mcp_server.controllers.libp2p_controller import LibP2PController
+                from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
                 server.controllers["libp2p"] = LibP2PController(test_libp2p_model)
             except ImportError as e:
                 pytest.skip(f"LibP2PController not available: {e}")

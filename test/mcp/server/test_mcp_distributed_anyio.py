@@ -40,8 +40,8 @@ except ImportError:
 # Import MCP server and components
 try:
     from ipfs_kit_py.mcp import MCPServer
-    from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-    from ipfs_kit_py.mcp_server.controllers.distributed_controller import (
+    from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+    from ipfs_kit_py.mcp.controllers.distributed_controller import (
         DistributedController, 
         PeerDiscoveryRequest,
         ClusterCacheRequest,

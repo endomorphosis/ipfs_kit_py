@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, status, Response
 
 # Import the controller to test
 try:
-    from ipfs_kit_py.mcp_server.controllers.libp2p_controller_anyio import (
+    from ipfs_kit_py.mcp.controllers.libp2p_controller_anyio import (
         LibP2PControllerAnyIO, HAS_LIBP2P, HealthResponse, PeerDiscoveryRequest,
         PeerConnectionRequest, ContentDataRequest, DHTFindPeerRequest,
         DHTProvideRequest, DHTFindProvidersRequest, PubSubPublishRequest,

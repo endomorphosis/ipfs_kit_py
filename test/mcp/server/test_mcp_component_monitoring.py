@@ -24,7 +24,7 @@ except ImportError:
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 
 @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")

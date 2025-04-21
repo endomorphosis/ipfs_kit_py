@@ -15,9 +15,9 @@ import sniffio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-from ipfs_kit_py.mcp_server.controllers.ipfs_controller_anyio import IPFSControllerAnyIO
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.controllers.ipfs_controller_anyio import IPFSControllerAnyIO
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 @pytest.mark.anyio
 class TestMCPDHTOperationsAnyIOExtended:

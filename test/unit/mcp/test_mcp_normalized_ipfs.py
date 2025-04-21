@@ -138,14 +138,14 @@ sys.modules['ipfs_kit_py.credential_manager'] = MagicMock()
 sys.modules['ipfs_kit_py.credential_manager'].CredentialManager = MagicMock
 
 # Import directly to avoid circular imports
-from ipfs_kit_py.mcp_server.utils.method_normalizer import IPFSMethodAdapter, normalize_instance, SIMULATION_FUNCTIONS
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-from ipfs_kit_py.mcp_server.persistence.cache_manager import MCPCacheManager
+from ipfs_kit_py.mcp.utils.method_normalizer import IPFSMethodAdapter, normalize_instance, SIMULATION_FUNCTIONS
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
 
 # Import server with patching
 with patch('ipfs_kit_py.api.app'), \
      patch('fastapi.APIRouter'):
-    from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 class TestMCPNormalizedIPFSIntegration(unittest.TestCase):
     """Test the integration of NormalizedIPFS with MCP Server."""

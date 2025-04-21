@@ -15,7 +15,7 @@ class TestFilecoinControllerSimple(unittest.TestCase):
         """Test FilecoinController initialization."""
         # Import directly in the test to isolate import errors
         try:
-            from ipfs_kit_py.mcp_server.controllers.storage.filecoin_controller import FilecoinController
+            from ipfs_kit_py.mcp.controllers.storage.filecoin_controller import FilecoinController
             
             # Create mock dependencies
             mock_filecoin_model = MagicMock()

@@ -52,7 +52,7 @@ def mock_storacha_model():
 @pytest.fixture
 def controller(mock_storacha_model):
     """Create StorachaControllerAnyIO instance with mock model."""
-    from ipfs_kit_py.mcp_server.controllers.storage.storacha_controller_anyio import StorachaControllerAnyIO
+    from ipfs_kit_py.mcp.controllers.storage.storacha_controller_anyio import StorachaControllerAnyIO
     return StorachaControllerAnyIO(mock_storacha_model)
 
 

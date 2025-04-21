@@ -26,9 +26,9 @@ except ImportError:
 # Add the parent directory to the path so we can import the ipfs_kit_py module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-from ipfs_kit_py.mcp_server.controllers.ipfs_controller import IPFSController
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
 
 
 @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")

@@ -15,7 +15,7 @@ import time
 # Add the parent directory to the path so we can import the ipfs_kit_py module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 
 
 class TestMCPDHTOperations(unittest.TestCase):

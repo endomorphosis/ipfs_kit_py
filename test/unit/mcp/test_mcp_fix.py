@@ -13,7 +13,7 @@ import sys
 # Simple test that directly creates an instance of the IPFS model with our fix
 def test_get_content_bytes_fix():
     """Test the fix for the get_content method handling bytes responses."""
-    from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+    from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
     
     class MockIPFS:
         """Minimal mock IPFS instance."""
@@ -46,7 +46,7 @@ def test_get_content_bytes_fix():
 # Additional test for dictionary response
 def test_get_content_dict_fix():
     """Test the fix for the get_content method handling dictionary responses."""
-    from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+    from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
     
     class MockIPFS:
         """Minimal mock IPFS instance."""

@@ -25,7 +25,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import necessary modules
 import ipfs_kit_py.ipfs
 from ipfs_kit_py.ipfs_kit import ipfs_kit
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 # Import and apply compatibility layer
 import mcp_compatibility

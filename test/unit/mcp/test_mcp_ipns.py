@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Import the model directly to test IPNS methods
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 
 # Import high-level API for comparison
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI

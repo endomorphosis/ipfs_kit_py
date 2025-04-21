@@ -13,7 +13,7 @@ import pytest
 from fastapi import APIRouter, HTTPException
 
 # Import HuggingFaceControllerAnyIO and related models
-from ipfs_kit_py.mcp_server.controllers.storage.huggingface_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.storage.huggingface_controller_anyio import (
     HuggingFaceControllerAnyIO,
     HuggingFaceAuthRequest,
     HuggingFaceRepoCreationRequest,

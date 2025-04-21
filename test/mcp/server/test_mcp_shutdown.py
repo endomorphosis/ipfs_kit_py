@@ -29,7 +29,7 @@ def test_mcp_shutdown():
     This test creates an MCP server with both WebRTC and WebSocket controllers,
     then shuts it down to check for proper handling of async shutdown methods.
     """
-    from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
     
     # Create MCP server with isolation mode for testing
     logger.info("Creating MCP server...")

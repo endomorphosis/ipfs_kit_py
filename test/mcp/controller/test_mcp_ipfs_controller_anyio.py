@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 # Import the controller to test
 try:
-    from ipfs_kit_py.mcp_server.controllers.ipfs_controller_anyio import (
+    from ipfs_kit_py.mcp.controllers.ipfs_controller_anyio import (
         IPFSControllerAnyIO, ContentRequest, CIDRequest, OperationResponse, 
         AddContentResponse, GetContentResponse, PinResponse, ListPinsResponse,
         MakeDirRequest, WriteFileRequest, ReadFileRequest, RemoveFileRequest,

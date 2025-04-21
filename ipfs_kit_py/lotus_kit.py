@@ -18,6 +18,9 @@ from urllib.parse import urljoin
 from importlib import import_module
 from concurrent.futures import ThreadPoolExecutor
 import requests
+
+# Flag to indicate lotus_kit is available
+LOTUS_KIT_AVAILABLE = True
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -108,6 +111,10 @@ def handle_error(result, error, message=None):
     result["error"] = message or str(error)
     result["error_type"] = type(error).__name__
     return result
+
+
+# Flag to indicate lotus_kit is available
+LOTUS_KIT_AVAILABLE = True
 
 
 class lotus_kit:

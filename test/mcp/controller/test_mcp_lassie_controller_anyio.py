@@ -19,7 +19,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 # Import Pydantic models from the controller
-from ipfs_kit_py.mcp_server.controllers.storage.lassie_controller import (
+from ipfs_kit_py.mcp.controllers.storage.lassie_controller import (
     FetchCIDRequest, RetrieveContentRequest, ExtractCARRequest,
     IPFSLassieRequest, LassieIPFSRequest, OperationResponse
 )
@@ -170,7 +170,7 @@ class TestLassieControllerAnyIOInitialization(unittest.TestCase):
         self.mock_lassie_model = MockLassieModelAnyIO()
         
         # Import the controller
-        from ipfs_kit_py.mcp_server.controllers.storage.lassie_controller_anyio import LassieControllerAnyIO
+        from ipfs_kit_py.mcp.controllers.storage.lassie_controller_anyio import LassieControllerAnyIO
         
         # Create the controller
         self.controller = LassieControllerAnyIO(self.mock_lassie_model)
@@ -214,7 +214,7 @@ class TestLassieControllerAnyIO:
     @pytest.fixture
     def controller(self):
         """Create a LassieControllerAnyIO instance for testing."""
-        from ipfs_kit_py.mcp_server.controllers.storage.lassie_controller_anyio import LassieControllerAnyIO
+        from ipfs_kit_py.mcp.controllers.storage.lassie_controller_anyio import LassieControllerAnyIO
         
         # Create mock model
         mock_model = MockLassieModelAnyIO()
@@ -655,7 +655,7 @@ class TestLassieControllerAnyIOHTTPEndpoints:
     @pytest.fixture
     def app(self):
         """Create FastAPI app with controller routes."""
-        from ipfs_kit_py.mcp_server.controllers.storage.lassie_controller_anyio import LassieControllerAnyIO
+        from ipfs_kit_py.mcp.controllers.storage.lassie_controller_anyio import LassieControllerAnyIO
         
         # Create app and router
         app = FastAPI()

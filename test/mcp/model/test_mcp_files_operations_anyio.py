@@ -16,9 +16,9 @@ import sniffio
 from fastapi import FastAPI, Body
 from fastapi.testclient import TestClient
 
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-from ipfs_kit_py.mcp_server.controllers.ipfs_controller_anyio import IPFSControllerAnyIO
-from ipfs_kit_py.mcp_server.controllers.ipfs_controller import MakeDirRequest
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.controllers.ipfs_controller_anyio import IPFSControllerAnyIO
+from ipfs_kit_py.mcp.controllers.ipfs_controller import MakeDirRequest
 
 # Configure logger
 logger = logging.getLogger(__name__)

@@ -77,3 +77,33 @@ class BackendStorage(ABC):
             Dict with operation result including metadata
         """
         pass
+        
+    # Method aliases for backward compatibility with test code
+    def store(self, content, key=None, **kwargs):
+        """Alias for add_content method."""
+        metadata = kwargs.get('metadata', {})
+        return self.add_content(content, metadata)
+        
+    def retrieve(self, key, **kwargs):
+        """Alias for get_content method."""
+        return self.get_content(key)
+        
+    def delete(self, key, **kwargs):
+        """Alias for remove_content method."""
+        return self.remove_content(key)
+        
+    def list_keys(self, **kwargs):
+        """List all content keys in the storage backend.
+        
+        This is a basic implementation that should be overridden by subclasses.
+        
+        Returns:
+            Dict with operation result including a list of keys
+        """
+        # Default implementation returns empty list
+        # Subclasses should override this with actual implementation
+        return {
+            "success": True,
+            "keys": [],
+            "message": "Default implementation. Subclasses should override."
+        }

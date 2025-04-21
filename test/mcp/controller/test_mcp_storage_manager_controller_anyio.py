@@ -15,7 +15,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
 from fastapi.testclient import TestClient
 
 # Import controller class and models
-from ipfs_kit_py.mcp_server.controllers.storage_manager_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio import (
     StorageManagerControllerAnyIO,
     OperationResponse,
     ReplicationPolicyRequest,

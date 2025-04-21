@@ -1,28 +1,48 @@
 """
 Mock implementation of pytest_anyio for tests.
 
-This provides a compatible interface for tests that use pytest_anyio
-without requiring the actual package to be installed.
+This module provides a mock implementation of the pytest_anyio module to allow
+tests to run without this dependency installed.
 """
 
 import sys
-import pytest
+import types
 import logging
 import functools
-from typing import Callable, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Create simple async fixture decorator that wraps pytest.fixture
+# Create a mock fixture decorator
 def fixture(*args, **kwargs):
-    """Mock pytest_anyio.fixture that passes through to pytest.fixture."""
-    return pytest.fixture(*args, **kwargs)
+    """Mock fixture decorator that works like pytest.fixture."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    
+    # Allow both @fixture and @fixture(scope="function") syntax
+    if len(args) == 1 and callable(args[0]):
+        return decorator(args[0])
+    return decorator
 
-# Add module to sys.modules so it can be imported
-sys.modules["pytest_anyio"] = sys.modules[__name__]
+# Create a mock mark decorator
+def mark(*args, **kwargs):
+    """Mock mark decorator."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# Create pytest_anyio module
+pytest_anyio_module = types.ModuleType("pytest_anyio")
+pytest_anyio_module.fixture = fixture
+pytest_anyio_module.mark = mark
+pytest_anyio_module.__version__ = "0.1.0"  # Mock version
+
+# Register the module
+sys.modules["pytest_anyio"] = pytest_anyio_module
+
 logger.info("Registered mock pytest_anyio module")
-
-# Helper to run async functions in tests
-async def run_async(coro):
-    """Run an async coroutine and return its result."""
-    return await coro

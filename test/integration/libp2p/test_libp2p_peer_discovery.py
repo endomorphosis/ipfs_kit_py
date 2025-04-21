@@ -39,7 +39,7 @@ spec = importlib.util.spec_from_file_location(
     os.path.abspath(os.path.join(
         os.path.dirname(__file__),
         "..", "..", "..",
-        "ipfs_kit_py", "ipfs_kit_py", "high_level_api.py"
+        "ipfs_kit_py", "high_level_api.py"
     ))
 )
 high_level_api = importlib.util.module_from_spec(spec)

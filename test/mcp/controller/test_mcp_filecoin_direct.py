@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # First check if the directory structure exists
 try:
     from ipfs_kit_py.lotus_kit import lotus_kit
-    from ipfs_kit_py.mcp_server.models.storage.filecoin_model import FilecoinModel
+    from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
     print("Successfully imported FilecoinModel")
 except ImportError as e:
     print(f"Error importing FilecoinModel: {e}")

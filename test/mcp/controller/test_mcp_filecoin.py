@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("mcp_filecoin_test")
 
 # Import MCP server components
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 from ipfs_kit_py.lotus_kit import lotus_kit
 

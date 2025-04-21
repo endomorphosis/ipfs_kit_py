@@ -14,7 +14,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.testclient import TestClient
 
 # Import the controller and models
-from ipfs_kit_py.mcp_server.controllers.aria2_controller_anyio import (
+from ipfs_kit_py.mcp.controllers.aria2_controller_anyio import (
     Aria2ControllerAnyIO, URIListModel, DownloadIDModel, DaemonOptionsModel, 
     MetalinkFileModel
 )
