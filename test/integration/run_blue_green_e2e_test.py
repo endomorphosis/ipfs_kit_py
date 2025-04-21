@@ -31,8 +31,8 @@ if parent_dir not in sys.path:
 
 # Import components
 try:
-    from ipfs_kit_py.mcp_server.blue_green_proxy import AsyncMCPServerProxy, DeploymentMode
-    from ipfs_kit_py.mcp_server.metrics_collector import ServerType
+    from ipfs_kit_py.mcp.blue_green_proxy import AsyncMCPServerProxy, DeploymentMode
+    from ipfs_kit_py.mcp.metrics_collector import ServerType
     COMPONENTS_AVAILABLE = True
 except ImportError as e:
     logger.error(f"Failed to import Blue/Green components: {e}")

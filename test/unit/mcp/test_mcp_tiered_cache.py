@@ -28,7 +28,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, "/home/barberb/ipfs_kit_py")
 
 # Import the MCP Server
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 from ipfs_kit_py.arc_cache import ARCache
 from ipfs_kit_py.disk_cache import DiskCache

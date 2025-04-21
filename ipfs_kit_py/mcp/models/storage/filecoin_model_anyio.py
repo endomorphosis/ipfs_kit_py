@@ -647,34 +647,3 @@ class FilecoinModelAnyIO(FilecoinModel):
             if temp_path and os.path.exists(temp_path):
                 try: await run_in_thread(os.unlink, temp_path) # Use helper
                 except Exception as e_unlink: logger.warning(f"Error cleaning up temp file {temp_path}: {e_unlink}")
-
-</final_file_content>
-
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.<environment_details>
-# VSCode Visible Files
-../../../response_5d5aff75-2635-4976-8e87-2965a5654cef/tools-3
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/0
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/1
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/2
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/3
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/0
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/1
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/2
-../../../response_854f226f-b0d9-49b8-8080-aafaae5b1648/3
-ipfs_kit_py/mcp/models/storage/filecoin_model_anyio.py
-
-# VSCode Open Tabs
-ipfs_kit_py/ipfs.py
-ipfs_kit_py/mcp/controllers/peer_websocket_controller_anyio.py
-mcp_search.py
-ipfs_kit_py/mcp/models/storage/filecoin_model_anyio.py
-
-# Current Time
-4/14/2025, 11:23:38 AM (America/Los_Angeles, UTC-7:00)
-
-# Context Window Usage
-809,515 / 1,000K tokens used (81%)
-
-# Current Mode
-ACT MODE
-</environment_details>

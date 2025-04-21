@@ -17,7 +17,7 @@ import asyncio
 from typing import Dict, Any, Optional, List, Set, Tuple
 from enum import Enum
 
-from .models import BackendPermission, Role, User, ApiKey
+from .models import BackendPermission, Role, User, APIKey
 from .audit import AuditEventType, get_instance as get_audit_logger
 
 # Configure logging
@@ -185,7 +185,7 @@ class BackendAuthorizationManager:
         self,
         backend_id: str,
         user: Optional[User] = None,
-        api_key: Optional[ApiKey] = None,
+        api_key: Optional[APIKey] = None,
         operation: Operation = Operation.RETRIEVE,
         resource_id: Optional[str] = None,
     ) -> Tuple[bool, str]:

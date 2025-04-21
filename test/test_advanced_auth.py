@@ -27,7 +27,7 @@ from ipfs_kit_py.mcp.auth.backend_authorization import BackendAuthorizationManag
 
 class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
     """Test cases for advanced authentication features."""
-    
+
     async def asyncSetUp(self):
         """Set up test environment."""
         # Create authentication service with test secret key
@@ -36,12 +36,12 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             token_expire_minutes=60,
             refresh_token_expire_days=7,
             password_reset_expire_hours=24,
-            api_key_prefix="ipfk_test_",
+            api_key_prefix="ipfk_test_"
         )
-        
+
         # Initialize authentication service
         await self.auth_service.initialize()
-        
+
         # Create audit logger for testing (with console logging disabled)
         self.audit_logger = AuditLogger(
             log_file="test_audit.log",
@@ -49,16 +49,16 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             file_logging=False,
             json_logging=True
         )
-        
+
         # Start audit logger
         await self.audit_logger.start()
-        
+
         # Create backend authorization manager
         self.backend_auth = BackendAuthorizationManager()
-        
+
         # Initialize backend authorization manager
         await self.backend_auth.initialize()
-        
+
         # Create test user data
         self.test_user_data = {
             "username": "testuser",
@@ -66,7 +66,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             "password": "TestPassword123",
             "full_name": "Test User"
         }
-        
+
         # Create test admin data
         self.test_admin_data = {
             "username": "testadmin",
@@ -79,7 +79,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         """Clean up after tests."""
         # Stop audit logger
         await self.audit_logger.stop()
-        
+
         # Remove test files
         if os.path.exists("test_audit.log"):
             os.remove("test_audit.log")
@@ -90,10 +90,10 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         success, user, message = await self.auth_service.register_user(
             self.auth_service.user_store._create_register_request(self.test_user_data)
         )
-        
+
         self.assertTrue(success, f"Failed to create test user: {message}")
         self.assertIsNotNone(user)
-        
+
         return user
 
     async def create_test_admin(self) -> User:
@@ -102,51 +102,51 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         success, admin, message = await self.auth_service.register_user(
             self.auth_service.user_store._create_register_request(self.test_admin_data)
         )
-        
+
         self.assertTrue(success, f"Failed to create test admin: {message}")
         self.assertIsNotNone(admin)
-        
+
         # Add admin role to user
         admin.roles.add("admin")
         await self.auth_service.user_store.update(admin.id, admin.dict())
-        
+
         return admin
 
     async def test_user_registration_and_authentication(self):
         """Test user registration and authentication."""
         # Create test user
         user = await self.create_test_user()
-        
+
         # Verify user data
         self.assertEqual(user.username, self.test_user_data["username"])
         self.assertEqual(user.email, self.test_user_data["email"])
         self.assertEqual(user.full_name, self.test_user_data["full_name"])
         self.assertTrue(user.active)
         self.assertIn("user", user.roles)
-        
+
         # Test authentication with correct password
         authenticated_user = await self.auth_service.authenticate_user(
             username=self.test_user_data["username"],
             password=self.test_user_data["password"]
         )
-        
+
         self.assertIsNotNone(authenticated_user)
         self.assertEqual(authenticated_user.id, user.id)
-        
+
         # Test authentication with wrong password
         authenticated_user = await self.auth_service.authenticate_user(
             username=self.test_user_data["username"],
             password="WrongPassword123"
         )
-        
+
         self.assertIsNone(authenticated_user)
-        
+
         # Test authentication with email
         authenticated_user = await self.auth_service.authenticate_user(
             username=self.test_user_data["email"],
             password=self.test_user_data["password"]
         )
-        
+
         self.assertIsNotNone(authenticated_user)
         self.assertEqual(authenticated_user.id, user.id)
 
@@ -154,52 +154,52 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         """Test token creation and verification."""
         # Create test user
         user = await self.create_test_user()
-        
+
         # Create session for user
         session = await self.auth_service.create_session(
             user=user,
             ip_address="127.0.0.1",
             user_agent="Test Client"
         )
-        
+
         # Create access token
         access_token = await self.auth_service.create_access_token(user, session)
         self.assertIsNotNone(access_token)
-        
+
         # Create refresh token
         refresh_token = await self.auth_service.create_refresh_token(user, session)
         self.assertIsNotNone(refresh_token)
-        
+
         # Verify access token
         valid, token_data, error = await self.auth_service.verify_token(access_token)
         self.assertTrue(valid)
         self.assertIsNotNone(token_data)
         self.assertEqual(token_data.sub, user.id)
         self.assertEqual(token_data.scope, "access")
-        
+
         # Verify refresh token
         valid, token_data, error = await self.auth_service.verify_token(refresh_token)
         self.assertTrue(valid)
         self.assertIsNotNone(token_data)
         self.assertEqual(token_data.sub, user.id)
         self.assertEqual(token_data.scope, "refresh")
-        
+
         # Test refresh token to get new access token
         success, new_access_token, error = await self.auth_service.refresh_access_token(refresh_token)
         self.assertTrue(success)
         self.assertIsNotNone(new_access_token)
-        
+
         # Verify new access token
         valid, token_data, error = await self.auth_service.verify_token(new_access_token)
         self.assertTrue(valid)
         self.assertIsNotNone(token_data)
         self.assertEqual(token_data.sub, user.id)
         self.assertEqual(token_data.scope, "access")
-        
+
         # Test token revocation
         success = await self.auth_service.revoke_token(access_token)
         self.assertTrue(success)
-        
+
         # Verify revoked token
         valid, token_data, error = await self.auth_service.verify_token(access_token)
         self.assertFalse(valid)
@@ -208,7 +208,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         """Test API key creation and verification."""
         # Create test user
         user = await self.create_test_user()
-        
+
         # Create API key request
         api_key_request = APIKey(
             name="Test API Key",
@@ -217,55 +217,55 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             direct_permissions={"storage:read", "storage:list"},
             expires_at=time.time() + 86400  # 1 day expiration
         )
-        
+
         # Create API key
         success, api_key_response, message = await self.auth_service.create_api_key(
             user_id=user.id,
             request=self.auth_service.api_key_store._create_api_key_request(api_key_request)
         )
-        
+
         self.assertTrue(success, f"Failed to create API key: {message}")
         self.assertIsNotNone(api_key_response)
         self.assertEqual(api_key_response.name, "Test API Key")
         self.assertEqual(api_key_response.user_id, user.id)
         self.assertTrue(api_key_response.key.startswith(self.auth_service.api_key_prefix))
-        
+
         # Verify API key
         valid, api_key_obj, error = await self.auth_service.verify_api_key(
             api_key=api_key_response.key,
             ip_address="127.0.0.1"
         )
-        
+
         self.assertTrue(valid)
         self.assertIsNotNone(api_key_obj)
         self.assertEqual(api_key_obj.user_id, user.id)
         self.assertEqual(api_key_obj.name, "Test API Key")
-        
+
         # Create access token from API key
         token = await self.auth_service.create_access_token_from_api_key(api_key_obj)
         self.assertIsNotNone(token)
-        
+
         # Verify token created from API key
         valid, token_data, error = await self.auth_service.verify_token(token)
         self.assertTrue(valid)
         self.assertIsNotNone(token_data)
         self.assertEqual(token_data.sub, user.id)
         self.assertTrue(token_data.is_api_key)
-        
+
         # Test API key revocation
         success, message = await self.auth_service.revoke_api_key(
             key_id=api_key_obj.id,
             user_id=user.id
         )
-        
+
         self.assertTrue(success, f"Failed to revoke API key: {message}")
-        
+
         # Try to verify revoked API key
         valid, api_key_obj, error = await self.auth_service.verify_api_key(
             api_key=api_key_response.key,
             ip_address="127.0.0.1"
         )
-        
+
         self.assertFalse(valid)
 
     async def test_role_based_access_control(self):
@@ -273,49 +273,49 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         # Create test user and admin
         user = await self.create_test_user()
         admin = await self.create_test_admin()
-        
+
         # Check user permissions
         user_permissions = await self.auth_service.get_user_permissions(user.id)
         self.assertIn("storage:read", user_permissions)
         self.assertIn("storage:list", user_permissions)
         self.assertNotIn("admin:*", user_permissions)
-        
+
         # Check admin permissions
         admin_permissions = await self.auth_service.get_user_permissions(admin.id)
         self.assertIn("admin:*", admin_permissions)
-        
+
         # Test permission checking
         has_permission = await self.auth_service.check_permission(
             user_id=user.id,
             required_permission="storage:read"
         )
         self.assertTrue(has_permission)
-        
+
         has_permission = await self.auth_service.check_permission(
             user_id=user.id,
             required_permission="storage:write"
         )
         self.assertFalse(has_permission)
-        
+
         has_permission = await self.auth_service.check_permission(
             user_id=admin.id,
             required_permission="storage:write"
         )
         self.assertTrue(has_permission)
-        
+
         # Test role checking
         has_role = await self.auth_service.check_role(
             user_id=user.id,
             required_role="user"
         )
         self.assertTrue(has_role)
-        
+
         has_role = await self.auth_service.check_role(
             user_id=user.id,
             required_role="admin"
         )
         self.assertFalse(has_role)
-        
+
         has_role = await self.auth_service.check_role(
             user_id=admin.id,
             required_role="admin"
@@ -332,7 +332,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             ip_address="127.0.0.1",
             user_agent="Test Browser"
         )
-        
+
         await self.audit_logger.log_permission_check(
             user_id="test_user_123",
             permission="storage:read",
@@ -340,7 +340,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             resource_id="test_file_123",
             granted=True
         )
-        
+
         await self.audit_logger.log_backend_access(
             success=True,
             backend_id="ipfs",
@@ -349,16 +349,16 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             ip_address="127.0.0.1",
             action="store"
         )
-        
+
         # Wait for logs to be processed
         await asyncio.sleep(0.1)
-        
+
         # Get recent logs
         logs = await self.audit_logger.get_recent_logs(limit=10)
-        
+
         # Check if logs were created
         self.assertGreaterEqual(len(logs), 3)
-        
+
         # Check event counts
         counts = await self.audit_logger.get_event_counts()
         self.assertIn(AuditEventType.USER_LOGIN, counts)
@@ -370,7 +370,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
         # Create test user and admin
         user = await self.create_test_user()
         admin = await self.create_test_admin()
-        
+
         # Check basic access to IPFS backend
         allowed, reason = await self.backend_auth.check_backend_access(
             backend_id="ipfs",
@@ -378,7 +378,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             operation=Operation.RETRIEVE
         )
         self.assertTrue(allowed, f"Expected access to be allowed, got: {reason}")
-        
+
         # Check write access to IPFS backend
         allowed, reason = await self.backend_auth.check_backend_access(
             backend_id="ipfs",
@@ -386,7 +386,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             operation=Operation.STORE
         )
         self.assertTrue(allowed, f"Expected access to be allowed, got: {reason}")
-        
+
         # Check access to Filecoin backend (admin only)
         allowed, reason = await self.backend_auth.check_backend_access(
             backend_id="filecoin",
@@ -394,7 +394,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             operation=Operation.RETRIEVE
         )
         self.assertFalse(allowed, f"Expected access to be denied, got: {reason}")
-        
+
         # Admin should have access to Filecoin backend
         allowed, reason = await self.backend_auth.check_backend_access(
             backend_id="filecoin",
@@ -402,10 +402,10 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             operation=Operation.RETRIEVE
         )
         self.assertTrue(allowed, f"Expected admin access to be allowed, got: {reason}")
-        
+
         # Set S3 backend to read-only
         await self.backend_auth.set_backend_read_only("s3", True)
-        
+
         # Check read access to S3 backend
         allowed, reason = await self.backend_auth.check_backend_access(
             backend_id="s3",
@@ -413,7 +413,7 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             operation=Operation.RETRIEVE
         )
         self.assertTrue(allowed, f"Expected read access to be allowed, got: {reason}")
-        
+
         # Check write access to S3 backend (should be denied due to read-only)
         allowed, reason = await self.backend_auth.check_backend_access(
             backend_id="s3",
@@ -421,12 +421,12 @@ class TestAdvancedAuthentication(unittest.IsolatedAsyncioTestCase):
             operation=Operation.STORE
         )
         self.assertFalse(allowed, f"Expected write access to be denied due to read-only, got: {reason}")
-        
+
         # Get accessible backends for user
         backends = self.backend_auth.get_accessible_backends(user)
         self.assertIn("ipfs", backends)
         self.assertNotIn("filecoin", backends)
-        
+
         # Get accessible backends for admin
         backends = self.backend_auth.get_accessible_backends(admin)
         self.assertIn("ipfs", backends)

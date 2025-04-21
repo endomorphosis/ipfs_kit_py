@@ -13,10 +13,11 @@ import unittest
 import anyio
 import atexit
 from unittest.mock import MagicMock, patch
+import asyncio
 
 # Track all event loops to ensure proper cleanup
 all_event_loops = []
-original_new_event_loop = anyio.new_event_loop
+original_new_event_loop = asyncio.new_event_loop
 
 def patched_new_event_loop(*args, **kwargs):
     loop = original_new_event_loop(*args, **kwargs)

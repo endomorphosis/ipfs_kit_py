@@ -10,15 +10,6 @@ import time
 import anyio
 import anyio.from_thread
 from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, 
-from pydantic import BaseModel, Field
-
-# Import Pydantic models for request/response validation
-
-
-# Use AnyIO for async operations
-
-.from_thread
 
 # Import WebRTC dependencies and status flags
 try:
@@ -910,10 +901,10 @@ class WebRTCController:
                         "server_id": conn_info.get("server_id"),
                         "has_stats": "last_stats_update" in conn_info,
                         "quality": conn_info.get("quality"),
-                        "last_activity": conn_info.get(,
+                        "last_activity": conn_info.get(
                             "last_activity", conn_info.get("added_at", current_time)
                         ),
-                        "inactive_seconds": current_time,
+                        "inactive_seconds": current_time
                         - conn_info.get("last_activity", conn_info.get("added_at", current_time)),
                     }
                     for conn_id, conn_info in self.active_connections.items()
@@ -928,7 +919,7 @@ class WebRTCController:
             "resource_management": {
                 "enabled": True,
                 "auto_cleanup_threshold": 80,  # Auto cleanup when health score drops below this
-                "last_auto_cleanup": (,
+                "last_auto_cleanup": (
                     self.last_auto_cleanup if hasattr(self, "last_auto_cleanup") else None
                 ),
             },
@@ -1184,7 +1175,7 @@ class WebRTCController:
             logger.error(f"Error streaming content: {e}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1235,7 +1226,7 @@ class WebRTCController:
                 del self.active_streaming_servers[server_id]
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1297,7 +1288,7 @@ class WebRTCController:
             logger.error(f"Error listing connections: {e}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1372,7 +1363,7 @@ class WebRTCController:
             logger.error(f"Error getting connection stats: {e}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1425,7 +1416,7 @@ class WebRTCController:
                 del self.active_connections[connection_id]
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1472,7 +1463,7 @@ class WebRTCController:
             self.active_connections.clear()
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1534,7 +1525,7 @@ class WebRTCController:
             logger.error(f"Error setting quality: {e}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))
@@ -1663,7 +1654,7 @@ class WebRTCController:
             logger.error(f"Error running benchmark: {e}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=str(e,
+        message_override=str(e)
         endpoint="/api/v0/webrtc",
         doc_category="api"
     ))

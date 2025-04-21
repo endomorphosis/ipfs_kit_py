@@ -12,16 +12,19 @@ import json
 import tempfile
 from typing import Dict, List, Any, Optional
 from fastapi import (
-from pydantic import BaseModel, Field
-
-APIRouter,
+    APIRouter,
     HTTPException,
     File,
     UploadFile,
-    Form)
+    Form
+)
+from pydantic import BaseModel, Field
 
-# Import Pydantic models for request/response validation
-
+import sys
+import os
+# Add the parent directory to sys.path to allow importing mcp_error_handling
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import mcp_error_handling
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -31,14 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Define Pydantic models for requests and responses
 class S3CredentialsRequest(BaseModel):
-    """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
-
-Request model for S3 credentials."""
+    """Request model for S3 credentials."""
     access_key: str = Field(..., description="AWS Access Key ID")
     secret_key: str = Field(..., description="AWS Secret Access Key")
     endpoint_url: Optional[str] = Field(
@@ -263,7 +259,7 @@ class S3Controller:
         logger.info("S3 routes registered")
 
     async def handle_upload_request(
-        self
+        self,
         request: S3UploadRequest = None,
         file: UploadFile = File(None),
         bucket: str = Form(None),
@@ -292,12 +288,13 @@ class S3Controller:
             # Form-based upload
             if not bucket:
                 mcp_error_handling.raise_http_exception(
-        code="MISSING_PARAMETER",
-        message_override={
-                        "error": "Bucket name is required",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    )
+                    code="MISSING_PARAMETER",
+                    message_override={
+                        "error": "Bucket name is required"
+                    },
+                    endpoint="/api/v0/s3",
+                    doc_category="storage"
+                )
 
             # Use filename as key if not provided
             if not key:
@@ -310,12 +307,13 @@ class S3Controller:
                     metadata_dict = json.loads(metadata)
                 except json.JSONDecodeError:
                     mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override={
-                            "error": "Invalid metadata JSON",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    )
+                        code="INVALID_REQUEST",
+                        message_override={
+                            "error": "Invalid metadata JSON"
+                        },
+                        endpoint="/api/v0/s3",
+                        doc_category="storage"
+                    )
 
             # Create temporary file to store the uploaded content
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -337,12 +335,13 @@ class S3Controller:
             # JSON request
             if not request:
                 mcp_error_handling.raise_http_exception(
-        code="MISSING_PARAMETER",
-        message_override={
-                        "error": "Missing request data",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    )
+                    code="MISSING_PARAMETER",
+                    message_override={
+                        "error": "Missing request data"
+                    },
+                    endpoint="/api/v0/s3",
+                    doc_category="storage"
+                )
 
             # Delegate to S3 model
             result = self.s3_model.upload_file(
@@ -355,14 +354,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Add duration if not already present
@@ -390,14 +388,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Return successful response
@@ -420,14 +417,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Return successful response
@@ -449,14 +445,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Return successful response
@@ -480,14 +475,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Return successful response
@@ -509,14 +503,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Return successful response
@@ -558,14 +551,13 @@ class S3Controller:
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error"),
                     "error_type": result.get("error_type", "UnknownError"),
                 },
+                endpoint="/api/v0/s3",
+                doc_category="storage"
             )
 
         # Add duration if not already present

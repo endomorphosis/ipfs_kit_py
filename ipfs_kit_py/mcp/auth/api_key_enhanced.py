@@ -921,3 +921,6 @@ async def get_current_user_from_api_key_or_token(
     
     # Not authenticated
     return None
+
+# Add alias for backward compatibility 
+ApiKey = APIKey

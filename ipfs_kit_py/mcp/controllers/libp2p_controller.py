@@ -648,7 +648,7 @@ class LibP2PController:
         return result
 
     async def get_peers(
-        self
+        self,
         method: str = Query("all", description="Discovery method (dht, mdns, bootstrap, all)"),
         limit: int = Query(10, description="Maximum number of peers to discover", ge=1, le=100),
     ):
@@ -740,7 +740,7 @@ class LibP2PController:
         return result
 
     async def find_providers(
-        self
+        self,
         cid: str = Path(..., description="Content ID to find providers for"),
         timeout: int = Query(30, description="Timeout in seconds", ge=1, le=300),
     ):
@@ -766,7 +766,7 @@ class LibP2PController:
 
         # If not successful but it's just that no providers were found,
         # return empty result instead of error
-        if not result.get("success") and result.get("error_type") == "provider_lookup_error": ,
+        if not result.get("success") and result.get("error_type") == "provider_lookup_error":
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=result.get("error", "Failed to find content providers"),
@@ -775,7 +775,7 @@ class LibP2PController:
         return result
 
     async def retrieve_content_info(
-        self
+        self,
         cid: str = Path(..., description="Content ID to retrieve info for"),
         timeout: int = Query(60, description="Timeout in seconds", ge=1, le=300),
     ):
@@ -816,7 +816,7 @@ class LibP2PController:
         return result
 
     async def retrieve_content(
-        self
+        self,
         cid: str = Path(..., description="Content ID to retrieve"),
         timeout: int = Query(60, description="Timeout in seconds", ge=1, le=300),
     ):

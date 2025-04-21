@@ -5,7 +5,7 @@ Test script for MCP server CLI controller integration.
 
 import logging
 import sys
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 # Configure logging
 logging.basicConfig(

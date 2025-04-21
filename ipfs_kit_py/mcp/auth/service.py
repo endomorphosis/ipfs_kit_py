@@ -23,7 +23,9 @@ from .models import (
     APIKeyCreate,
     APIKeyResponse,
     RegisterRequest,
-    Session
+    Session,
+    RoleModel,
+    PermissionModel
 )
 from .persistence import (
     UserStore,
@@ -46,7 +48,14 @@ def get_instance():
         # Initialize with default settings
         secret_key = secrets.token_hex(32)
         _instance = AuthenticationService(secret_key=secret_key)
-        asyncio.create_task(_instance.initialize())
+        # Only create async task if an event loop is running
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                asyncio.create_task(_instance.initialize())
+        except RuntimeError:
+            # No running event loop; skip async initialization for sync context
+            pass
     return _instance
 
 class AuthenticationService:
@@ -152,7 +161,7 @@ class AuthenticationService:
             existing_role = await self.role_store.get_by_name(role_data["name"])
             if not existing_role:
                 # Create role
-                role = Role(
+                role = RoleModel(
                     name=role_data["name"],
                     description=role_data["description"],
                     permissions=role_data["permissions"],
@@ -206,7 +215,7 @@ class AuthenticationService:
             existing_perm = await self.permission_store.get_by_name(perm_data["name"])
             if not existing_perm:
                 # Create permission
-                perm = Permission(
+                perm = PermissionModel(
                     name=perm_data["name"],
                     description=perm_data["description"],
                     resource_type=perm_data["resource_type"],

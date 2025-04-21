@@ -11,7 +11,7 @@ import tempfile
 import shutil
 from unittest.mock import MagicMock, patch
 
-from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 
 
 class TestMCPMFSOperations(unittest.TestCase):

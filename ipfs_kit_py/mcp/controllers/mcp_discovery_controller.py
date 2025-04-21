@@ -10,20 +10,9 @@ import time
 import uuid
 import asyncio
 from typing import Dict, List, Any, Optional
-from fastapi import (
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from ipfs_kit_py.mcp.models.mcp_discovery_model import (
-
-APIRouter,
-    HTTPException)
-
-
-
-
-# Import MCP Discovery Model
-
-    MCPDiscoveryModel,
-)
+from ipfs_kit_py.mcp.models.mcp_discovery_model import MCPDiscoveryModel
 
 # Configure logger
 logger = logging.getLogger(__name__)

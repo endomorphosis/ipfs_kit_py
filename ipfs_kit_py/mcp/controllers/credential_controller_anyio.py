@@ -13,7 +13,7 @@ from typing import Optional
 
 import anyio
 import sniffio
-from fastapi import APIRouter, 
+from fastapi import APIRouter
 
 from ipfs_kit_py.mcp.controllers.credential_controller import (
     CredentialInfoResponse,
@@ -168,11 +168,10 @@ Get the current async backend being used."""
         ]
         if credential_request.service not in supported_services:
             mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override=f"Unsupported service: {credential_request.service}. Supported services: {',
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    )}",
+                code="INVALID_REQUEST",
+                message_override=f"Unsupported service: {credential_request.service}. Supported services: {", ".join(supported_services)}', '.join(supported_services)}",
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
             )
 
         try:
@@ -204,11 +203,11 @@ Get the current async backend being used."""
         except Exception as e:
             logger.error(f"Error adding credential: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
+            )
 
     async def list_credentials(self, service: Optional[str] = None):
         """
@@ -309,11 +308,11 @@ Get the current async backend being used."""
         except Exception as e:
             logger.error(f"Error adding S3 credential: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
+            )
 
     async def add_storacha_credentials(self, credential_request: StorachaCredentialRequest):
         """
@@ -361,11 +360,11 @@ Get the current async backend being used."""
         except Exception as e:
             logger.error(f"Error adding Storacha credential: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
+            )
 
     async def add_filecoin_credentials(self, credential_request: FilecoinCredentialRequest):
         """
@@ -417,11 +416,11 @@ Get the current async backend being used."""
         except Exception as e:
             logger.error(f"Error adding Filecoin credential: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
+            )
 
     async def add_ipfs_credentials(self, credential_request: IPFSCredentialRequest):
         """
@@ -483,11 +482,11 @@ Get the current async backend being used."""
         except Exception as e:
             logger.error(f"Error adding IPFS credential: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
+            )
 
     async def remove_credential(self, service: str, name: str):
         """
@@ -526,8 +525,8 @@ Get the current async backend being used."""
         except Exception as e:
             logger.error(f"Error removing credential: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
+            )

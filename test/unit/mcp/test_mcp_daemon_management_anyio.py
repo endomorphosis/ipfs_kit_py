@@ -16,7 +16,7 @@ import anyio
 import pytest
 
 # Import server components
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 
 
 # Keep original unittest class for backward compatibility

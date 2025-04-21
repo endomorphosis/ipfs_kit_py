@@ -23,7 +23,7 @@ async def async_test():
     logger.info("Starting async test...")
     
     # Import MCPServer after we're in the async context
-    from ipfs_kit_py.mcp_server.server_anyio import MCPServer
+    from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
     
     # Check the async backend
     try:

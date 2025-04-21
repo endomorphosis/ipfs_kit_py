@@ -34,8 +34,8 @@ class MCPServerBasicTest(unittest.TestCase):
     def test_ipfs_model(self):
         """Test the IPFS model component directly."""
         try:
-            from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-            from ipfs_kit_py.mcp_server.persistence.cache_manager import MCPCacheManager
+            from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+            from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
             from ipfs_kit_py.ipfs_kit import ipfs_kit
         except ImportError as e:
             logger.error(f"Failed to import MCP components: {e}")
@@ -93,9 +93,9 @@ class MCPServerBasicTest(unittest.TestCase):
     def test_ipfs_controller(self):
         """Test the IPFS controller component directly."""
         try:
-            from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-            from ipfs_kit_py.mcp_server.controllers.ipfs_controller import IPFSController
-            from ipfs_kit_py.mcp_server.persistence.cache_manager import MCPCacheManager
+            from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+            from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
+            from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
             from ipfs_kit_py.ipfs_kit import ipfs_kit
             from fastapi import APIRouter
         except ImportError as e:
@@ -144,7 +144,7 @@ class MCPServerBasicTest(unittest.TestCase):
     def test_cache_manager(self):
         """Test the cache manager component directly."""
         try:
-            from ipfs_kit_py.mcp_server.persistence.cache_manager import MCPCacheManager
+            from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
         except ImportError as e:
             logger.error(f"Failed to import MCP components: {e}")
             self.skipTest(f"Couldn't import necessary components: {e}")

@@ -20,7 +20,7 @@ import inspect
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import method normalization utilities
-from ipfs_kit_py.mcp_server.utils import IPFSMethodAdapter
+from ipfs_kit_py.mcp.utils import IPFSMethodAdapter
 
 # Import IPFS and IPFSKit
 from ipfs_kit_py.ipfs import ipfs_py

@@ -14,7 +14,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 
-from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Refactored import
+from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
 from ipfs_kit_py.credential_manager import CredentialManager
 
 class TestMCPCredentialManagement(unittest.TestCase):

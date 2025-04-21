@@ -192,7 +192,7 @@ sys.modules["ipfs_kit_py.libp2p_peer"].IPFSLibp2pPeer = MockIPFSLibp2pPeer
 
 # Now import our modules
 from ipfs_kit_py.libp2p.enhanced_dht_discovery import EnhancedDHTDiscovery
-from ipfs_kit_py.libp2p.p2p_integration import IPFSP2PIntegration
+from ipfs_kit_py.libp2p.p2p_integration import LibP2PIntegration
 from ipfs_kit_py.libp2p.ipfs_kit_integration import IPFSKitLibp2pIntegration
 
 
@@ -221,7 +221,7 @@ class TestLibp2pIntegration(unittest.TestCase):
         )
         
         # Create P2P integration instance
-        self.p2p_integration = IPFSP2PIntegration(
+        self.p2p_integration = LibP2PIntegration(
             peer=self.mock_peer,
             discovery=self.discovery,
             debug_mode=True
@@ -382,7 +382,7 @@ class TestLibp2pIntegration(unittest.TestCase):
         target_peer.request_content = mock_request
         
         # Configure our integration to use the target peer
-        p2p_integration = IPFSP2PIntegration(
+        p2p_integration = LibP2PIntegration(
             peer=target_peer,
             discovery=self.discovery
         )

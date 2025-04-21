@@ -229,7 +229,7 @@ class Aria2Model:
                 # Check if already counted using cache
                 if self.cache_manager:
                     prev_result = self.cache_manager.get(cache_key)
-                    if not prev_result or prev_result.get("state") != "complete": ,
+                    if not prev_result or prev_result.get("state") != "complete":
                         self.operation_stats["downloads_completed"] += 1
                         self.operation_stats["bytes_downloaded"] += result.get("total_length", 0)
                 else:

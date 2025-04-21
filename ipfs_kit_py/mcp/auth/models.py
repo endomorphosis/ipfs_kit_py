@@ -329,6 +329,48 @@ class OAuthProvider(str, enum.Enum):
     MICROSOFT = "microsoft"
 
 
+class BackendPermission(BaseModel):
+    """
+    Backend-specific permission model.
+    
+    Controls access to specific storage backends for users or API keys.
+    """
+    backend_id: str
+    read_access: bool = True
+    write_access: bool = False
+    extra_permissions: Dict[str, bool] = {}
+    
+    class Config:
+        orm_mode = True
+
+
+class PermissionModel(BaseModel):
+    """Permission model for storing permission data."""
+    id: str = Field(default_factory=lambda: secrets.token_hex(16))
+    name: str
+    description: str
+    resource_type: str
+    actions: Set[str] = set()
+    created_at: float = Field(default_factory=time.time)
+    updated_at: float = Field(default_factory=time.time)
+
+    class Config:
+        orm_mode = True
+
+
+class RoleModel(BaseModel):
+    """Role model for storing role data."""
+    id: str = Field(default_factory=lambda: secrets.token_hex(16))
+    name: str
+    description: str
+    permissions: Set[str] = set()
+    created_at: float = Field(default_factory=time.time)
+    updated_at: float = Field(default_factory=time.time)
+
+    class Config:
+        orm_mode = True
+
+
 class OAuthConnection(BaseModel):
     """OAuth connection model."""
     id: str

@@ -47,7 +47,7 @@ METHOD_MAPPINGS = {
     "block_put": ["ipfs_block_put", "block_put"],
     # IPNS operations
     "name_publish": ["ipfs_name_publish", "name_publish", "publish"],
-    "name_resolve": [,
+    "name_resolve": [
         "ipfs_name_resolve",
         "name_resolve",
         "resolve",
@@ -70,7 +70,7 @@ for standard_name, variants in METHOD_MAPPINGS.items():
 def simulate_cat(cid: str) -> Dict[str, Any]:
     """Simulated cat method that returns test content."""
     logger.info(f"Using simulated cat for CID: {cid}")
-    if cid == "QmTest123" or cid == "QmTestCacheCID" or cid == "QmTestClearCID": ,
+    if cid == "QmTest123" or cid == "QmTestCacheCID" or cid == "QmTestClearCID":
         content = b"Test content"
     else:
         content = f"Simulated content for {cid}".encode("utf-8")
@@ -197,7 +197,7 @@ def simulate_list_pins() -> Dict[str, Any]:
             test_cid_1: {"Type": "recursive"},
             test_cid_2: {"Type": "recursive"},
         },
-        "pins": [,
+        "pins": [
             {"cid": "QmTest123", "type": "recursive", "pinned": True},
             {"cid": "QmTest456", "type": "recursive", "pinned": True},
             {"cid": test_cid_1, "type": "recursive", "pinned": True},
@@ -216,7 +216,7 @@ def simulate_id() -> Dict[str, Any]:
         "operation": "id",
         "ID": "QmSimulatedPeerId",
         "PublicKey": "SimulatedPublicKey",
-        "Addresses": [,
+        "Addresses": [
             "/ip4/127.0.0.1/tcp/4001/p2p/QmSimulatedPeerId",
             "/ip4/127.0.0.1/udp/4001/quic/p2p/QmSimulatedPeerId",
         ],
@@ -258,18 +258,18 @@ def simulate_files_ls(path: str = "/") -> Dict[str, Any]:
 
     # Create some simulated directory entries
     entries = []
-    if path == "/": ,
+    if path == "/":
         entries = [
             {"Name": "docs", "Type": 1, "Size": 0, "Hash": "QmSimDir1"},
             {"Name": "images", "Type": 1, "Size": 0, "Hash": "QmSimDir2"},
             {"Name": "test.txt", "Type": 0, "Size": 125, "Hash": "QmSimFile1"},
         ]
-    elif path == "/docs": ,
+    elif path == "/docs":
         entries = [
             {"Name": "readme.md", "Type": 0, "Size": 256, "Hash": "QmSimFile2"},
             {"Name": "config.json", "Type": 0, "Size": 512, "Hash": "QmSimFile3"},
         ]
-    elif path == "/images": ,
+    elif path == "/images":
         entries = [
             {"Name": "logo.png", "Type": 0, "Size": 1024, "Hash": "QmSimFile4"},
             {"Name": "banner.jpg", "Type": 0, "Size": 2048, "Hash": "QmSimFile5"},
@@ -433,7 +433,7 @@ def simulate_dht_findpeer(peer_id: str) -> Dict[str, Any]:
         "success": True,
         "operation": "dht_findpeer",
         "ID": peer_id,
-        "Addrs": [,
+        "Addrs": [
             f"/ip4/192.168.1.{hash(peer_id) % 255}/tcp/4001/p2p/{peer_id}",
             f"/ip4/127.0.0.1/tcp/4001/p2p/{peer_id}",
         ],

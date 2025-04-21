@@ -26,9 +26,9 @@ class TestMCPFix(unittest.TestCase):
     def setUp(self):
         """Set up test environment with mock IPFS instances."""
         # Import MCP components
-        from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
-        from ipfs_kit_py.mcp_server.controllers.ipfs_controller import IPFSController
-        from ipfs_kit_py.mcp_server.persistence.cache_manager import MCPCacheManager
+        from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+        from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
+        from ipfs_kit_py.mcp.persistence.cache_manager import MCPCacheManager
         
         # Create a temporary directory for cache
         self.temp_dir = tempfile.mkdtemp()
@@ -137,7 +137,7 @@ class TestMCPFix(unittest.TestCase):
                 """Raise an exception for testing error handling."""
                 raise ValueError("Simulated error for testing")
         
-        from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+        from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
         error_model = IPFSModel(ErrorMockIPFS(), self.cache_manager)
         
         # Test the model with error handling

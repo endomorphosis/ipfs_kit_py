@@ -22,6 +22,14 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 
+class AuditSeverity(Enum):
+    """Severity levels for audit events."""
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
 class AuditEventType(Enum):
     """Types of audit events."""
     AUTHENTICATION = "authentication"  # Login/logout events

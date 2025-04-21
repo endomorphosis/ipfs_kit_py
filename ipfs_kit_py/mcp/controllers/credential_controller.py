@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, 
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 # Import Pydantic models for request/response validation

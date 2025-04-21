@@ -37,7 +37,6 @@ from ipfs_kit_py.mfs_enhanced_resumable import (
 
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
-@pytest_anyio.fixture
 @pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 async def permission_manager():
@@ -64,7 +63,6 @@ async def permission_manager():
 
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
-@pytest_anyio.fixture
 @pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 
@@ -115,7 +113,6 @@ async def resumable_ops(permission_manager):
 
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
-@pytest_anyio.fixture
 @pytest.mark.skipif(not HAS_PYTEST_ASYNCIO, reason="pytest_asyncio not available")
 @pytest_asyncio.fixture
 

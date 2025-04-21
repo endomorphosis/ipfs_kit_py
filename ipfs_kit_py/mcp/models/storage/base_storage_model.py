@@ -39,7 +39,7 @@ class BaseStorageModel:
     """
 
     def __init__(
-        self
+        self,
         kit_instance: Any = None,
         cache_manager: Any = None,
         credential_manager: Any = None,
@@ -182,7 +182,7 @@ class BaseStorageModel:
         return result
 
     def _update_stats(
-        self
+        self,
         operation: str,
         success: bool,
         duration_ms: float,
@@ -261,7 +261,7 @@ class BaseStorageModel:
         }
 
     def _handle_operation_result(
-        self
+        self,
         result: Dict[str, Any],
         operation: str,
         start_time: float,
@@ -290,7 +290,7 @@ class BaseStorageModel:
         return result
 
     async def _handle_operation_result_async(
-        self
+        self,
         result: Dict[str, Any],
         operation: str,
         start_time: float,
@@ -607,7 +607,7 @@ class BaseStorageModel:
         return min(delay, max_delay)
 
     async def _with_retry_async(
-        self
+        self,
         operation_func,
         operation_name: str,
         retry_config: Optional[Dict[str, Any]] = None,
@@ -696,7 +696,7 @@ class BaseStorageModel:
         return result
 
     def _with_retry_sync(
-        self
+        self,
         operation_func,
         operation_name: str,
         retry_config: Optional[Dict[str, Any]] = None,
