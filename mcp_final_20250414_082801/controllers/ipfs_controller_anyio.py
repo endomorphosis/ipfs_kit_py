@@ -644,8 +644,8 @@ class IPFSControllerAnyIO:
             }
 
     async def publish_name(
-        self
-        request: Request = None,
+    self,
+    request: Request = None,
         path: str = Body(None, embed=True),
         key: str = Body("self", embed=True),
         ttl: str = Body("24h", embed=True),
@@ -751,8 +751,8 @@ class IPFSControllerAnyIO:
             }
 
     async def put_dag_node(
-        self
-        request: Request = None,
+    self,
+    request: Request = None,
         data: Dict[str, Any] = None,
         format: str = "dag-cbor",
     ) -> Dict[str, Any]:
@@ -1861,8 +1861,8 @@ class IPFSControllerAnyIO:
             }
 
     async def handle_add_request(
-        self
-        request: Request
+    self,
+    request: Request
         content_request: Optional[ContentRequest] = None,
         file: Optional[UploadFile] = File(None),
         pin: bool = Form(False),
@@ -1998,8 +1998,8 @@ class IPFSControllerAnyIO:
         return result
 
     async def add_file(
-        self
-        file: UploadFile = File(...),
+    self,
+    file: UploadFile = File(...),
         pin: bool = Form(False),
         wrap_with_directory: bool = Form(False),
     ) -> Dict[str, Any]:
@@ -3840,8 +3840,8 @@ class IPFSControllerAnyIO:
             }
 
     async def read_file(
-        self
-        path: str = None,
+    self,
+    path: str = None,
         offset: int = 0,
         count: int = -1,
         request: ReadFileRequest = None,

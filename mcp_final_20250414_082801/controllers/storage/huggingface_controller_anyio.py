@@ -127,8 +127,8 @@ class HuggingFaceControllerAnyIO(HuggingFaceController):
         return super().handle_download_request(request)
 
     def handle_list_models_request(
-        self
-        author: Optional[str] = None,
+    self,
+    author: Optional[str] = None,
         search: Optional[str] = None,
         limit: int = 50,
     ):
@@ -297,8 +297,8 @@ class HuggingFaceControllerAnyIO(HuggingFaceController):
         return result
 
     async def handle_list_models_request_async(
-        self
-        author: Optional[str] = None,
+    self,
+    author: Optional[str] = None,
         search: Optional[str] = None,
         limit: int = 50,
     ):

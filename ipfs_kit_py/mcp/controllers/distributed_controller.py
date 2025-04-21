@@ -363,7 +363,9 @@ class DistributedController:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def list_known_peers(
-        self, include_metrics: bool = False, filter_role: Optional[str] = None
+        self, 
+        include_metrics=False, 
+        filter_role=None
     ) -> Dict[str, Any]:
         """
         List all known peers in the cluster.
@@ -486,7 +488,7 @@ class DistributedController:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def list_nodes(
-        self
+        self,
         include_metrics: bool = False,
         filter_role: Optional[str] = None,
         filter_status: Optional[str] = None,
@@ -813,7 +815,7 @@ class DistributedController:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def list_tasks(
-        self
+        self,
         filter_status: Optional[str] = None,
         filter_type: Optional[str] = None,
         filter_node: Optional[str] = None,

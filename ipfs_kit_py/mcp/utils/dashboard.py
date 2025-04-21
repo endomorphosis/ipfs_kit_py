@@ -244,11 +244,11 @@ class MCPDashboard:
                 # Format status with color if enabled
                 status = change["status"]
                 if self.use_colors:
-                    if status == "changed": ,
+                    if status == "changed":
                         status = f"{COLORS['green']}changed{COLORS['reset']}"
-                    elif status == "error": ,
+                    elif status == "error":
                         status = f"{COLORS['red']}error{COLORS['reset']}"
-                    elif status == "fixed": ,
+                    elif status == "fixed":
                         status = f"{COLORS['green']}fixed{COLORS['reset']}"
 
                 # Add file info

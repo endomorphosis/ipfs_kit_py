@@ -14,29 +14,8 @@ import warnings
 import sniffio
 import anyio
 from typing import Optional
-from fastapi import (
+from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 from ipfs_kit_py.mcp.controllers.storage.s3_controller import (
-
-#  # Removed F401
-
-
-
-
-
-
-# AnyIO import
-
-
-# Import Pydantic models for request/response validation
-
-    APIRouter,
-    HTTPException,
-    File,
-    UploadFile,
-    Form)
-
-# Import original controller for inheritance
-
     S3Controller,
     S3UploadRequest,
     S3DownloadRequest,
@@ -92,7 +71,7 @@ Get the current async backend being used."""
     # Override synchronous methods to warn when called from async context
 
     def handle_upload_request(
-        self
+        self,
         request: S3UploadRequest = None,
         file: UploadFile = File(None),
         bucket: str = Form(None),
@@ -206,7 +185,7 @@ Get the current async backend being used."""
     # Async versions of all methods
 
     async def handle_upload_request_async(
-        self
+        self,
         request: S3UploadRequest = None,
         file: UploadFile = File(None),
         bucket: str = Form(None),
@@ -235,12 +214,13 @@ Get the current async backend being used."""
             # Form-based upload
             if not bucket:
                 mcp_error_handling.raise_http_exception(
-        code="MISSING_PARAMETER",
-        message_override={
+                    code="MISSING_PARAMETER",
+                    message_override={
                         "error": "Bucket name is required",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    )
+                        "endpoint": "/api/v0/s3_anyio",
+                        "doc_category": "storage"
+                    }
+                )
 
             # Use filename as key if not provided
             if not key:
@@ -253,12 +233,13 @@ Get the current async backend being used."""
                     metadata_dict = json.loads(metadata)
                 except json.JSONDecodeError:
                     mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override={
+                        code="INVALID_REQUEST",
+                        message_override={
                             "error": "Invalid metadata JSON",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    )
+                            "endpoint": "/api/v0/s3_anyio",
+                            "doc_category": "storage"
+                        }
+                    )
 
             # Use anyio for temporary file handling
             async with await anyio.open_file(tempfile.mktemp(), "wb+") as temp_file:
@@ -283,12 +264,13 @@ Get the current async backend being used."""
             # JSON request
             if not request:
                 mcp_error_handling.raise_http_exception(
-        code="MISSING_PARAMETER",
-        message_override={
+                    code="MISSING_PARAMETER",
+                    message_override={
                         "error": "Missing request data",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    )
+                        "endpoint": "/api/v0/s3_anyio",
+                        "doc_category": "storage"
+                    }
+                )
 
             # Delegate to S3 model using anyio.to_thread.run_sync
             result = await anyio.to_thread.run_sync(
@@ -302,14 +284,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Add duration if not already present
@@ -340,14 +321,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -372,14 +352,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -403,14 +382,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -438,14 +416,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -472,14 +449,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -521,14 +497,13 @@ Get the current async backend being used."""
         # If operation failed, raise HTTP exception
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/s3_anyio",
-        doc_category="storage"
-    ),
+                code="INTERNAL_ERROR",
+                message_override={
+                    "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
-                },
+                    "endpoint": "/api/v0/s3_anyio",
+                    "doc_category": "storage"
+                }
             )
 
         # Add duration if not already present

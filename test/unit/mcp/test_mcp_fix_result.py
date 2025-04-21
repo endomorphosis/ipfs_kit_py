@@ -46,6 +46,11 @@ class TestMCPFix(unittest.TestCase):
             def cat(self, cid):
                 """Return bytes for the provided CID."""
                 return f"Test content for {cid}".encode("utf-8")
+            
+            # Implement ipfs_cat for compatibility with both implementations
+            def ipfs_cat(self, cid):
+                """Return bytes for the provided CID."""
+                return self.cat(cid)
         
         # Create IPFS mock that returns dictionary response
         class MockDictIPFS:
@@ -58,6 +63,11 @@ class TestMCPFix(unittest.TestCase):
                     "data": f"Test content for {cid}".encode("utf-8"),
                     "simulated": False
                 }
+            
+            # Implement ipfs_cat for compatibility with both implementations
+            def ipfs_cat(self, cid):
+                """Return dictionary for the provided CID."""
+                return self.cat(cid)
         
         # Create IPFS model instances with different mock implementations
         self.bytes_model = IPFSModel(MockBytesIPFS(), self.cache_manager)
@@ -136,6 +146,11 @@ class TestMCPFix(unittest.TestCase):
             def cat(self, cid):
                 """Raise an exception for testing error handling."""
                 raise ValueError("Simulated error for testing")
+            
+            # Implement ipfs_cat for compatibility with both implementations
+            def ipfs_cat(self, cid):
+                """Raise an exception for testing error handling."""
+                return self.cat(cid)
         
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
         error_model = IPFSModel(ErrorMockIPFS(), self.cache_manager)

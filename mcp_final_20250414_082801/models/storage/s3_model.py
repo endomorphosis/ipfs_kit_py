@@ -45,8 +45,8 @@ credential_manager = None
         logger.info("S3 Model initialized")
 
     def upload_file(
-        self
-        file_path: str
+    self,
+    file_path: str
         bucket: str
         key: str
         metadata: Optional[Dict[str, Any]] = None,

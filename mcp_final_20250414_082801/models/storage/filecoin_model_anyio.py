@@ -508,8 +508,8 @@ stacklevel=3
             return self._handle_exception(e, result, "get_deal_info_async")
 
     def start_deal(
-        self
-        data_cid: str
+    self,
+    data_cid: str
         miner: str
         price: str
         duration: int
@@ -535,8 +535,8 @@ stacklevel=3
             data_cid, miner, price, duration, wallet, verified, fast_retrieval
 
     async def start_deal_async(
-        self
-        data_cid: str
+    self,
+    data_cid: str
         miner: str
         price: str
         duration: int
@@ -789,8 +789,8 @@ start_time
             return self._handle_exception(e, result, "get_miner_info_async")
 
     def ipfs_to_filecoin(
-        self
-        cid: str
+    self,
+    cid: str
         miner: str
         price: str
         duration: int
@@ -818,8 +818,8 @@ start_time
             cid, miner, price, duration, wallet, verified, fast_retrieval, pin
 
     async def ipfs_to_filecoin_async(
-        self
-        cid: str
+    self,
+    cid: str
         miner: str
         price: str
         duration: int

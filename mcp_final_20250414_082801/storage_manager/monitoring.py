@@ -202,8 +202,8 @@ class MonitoringSystem:
                 logger.error(f"Failed to save monitoring state: {e}")
 
     def record_operation(
-        self
-        backend_type: Union[StorageBackendType, str]
+    self,
+    backend_type: Union[StorageBackendType, str]
         operation: Union[OperationType, str]
         duration: float
         success: bool
@@ -581,8 +581,8 @@ class MonitoringSystem:
         return {"capacity_metrics": results, "timestamp": time.time()}
 
     def get_performance_metrics(
-        self
-        backend_type: Optional[Union[StorageBackendType, str]] = None,
+    self,
+    backend_type: Optional[Union[StorageBackendType, str]] = None,
         operation: Optional[Union[OperationType, str]] = None,
     ) -> Dict[str, Any]:
         """

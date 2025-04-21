@@ -28,8 +28,8 @@ class PerformanceOptimizationService:
     from the MCP roadmap.
     """
     def __init__(
-        self
-        backend_registry,
+    self,
+    backend_registry,
         unified_storage_service,
         cache_size: int = 100,
         performance_window: int = 100,
@@ -519,8 +519,8 @@ class PerformanceOptimizationService:
             await asyncio.sleep(60)
 
     async def schedule_request(
-        self
-        backend: str
+    self,
+    backend: str
         func: Callable
         *args,
         future: asyncio.Future = None,
@@ -711,8 +711,8 @@ class PerformanceOptimizationService:
         return None, None
 
     async def store_content(
-        self
-        content: Union[bytes, io.BytesIO, str],
+    self,
+    content: Union[bytes, io.BytesIO, str],
         backends: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """

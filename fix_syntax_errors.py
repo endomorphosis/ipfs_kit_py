@@ -22,7 +22,7 @@ def fix_syntax_errors_in_file(file_path):
     content = re.sub(r'def\s+(\w+)\s*\(\s*\n\s*self\s*\n\s+', r'def \1(\n    self,\n    ', content)
     
     # Fix 2: Trailing commas in if statements
-    # Pattern: "if condition: ,"
+    # Pattern: "if condition:"
     # Replace with: "if condition:"
     content = re.sub(r'if\s+([^:]+):\s*,', r'if \1:', content)
     

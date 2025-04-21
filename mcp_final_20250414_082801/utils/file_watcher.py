@@ -37,8 +37,8 @@ class MCPFileHandler(FileSystemEventHandler):
     Monitors file changes and triggers server restart when Python files change.
     """
     def __init__(
-        self
-        root_dirs: List[str]
+    self,
+    root_dirs: List[str]
         restart_callback: Callable
         ignore_dirs: Optional[List[str]] = None,
         ignore_patterns: Optional[List[str]] = None,
@@ -598,8 +598,8 @@ class MCPFileWatcher:
     Monitors file changes and triggers server restart.
     """
     def __init___v2(
-        self
-        project_root: str
+    self,
+    project_root: str
         additional_dirs: Optional[List[str]] = None,
         ignore_dirs: Optional[List[str]] = None,
         ignore_patterns: Optional[List[str]] = None,

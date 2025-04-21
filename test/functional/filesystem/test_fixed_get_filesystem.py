@@ -87,57 +87,65 @@ class TestImprovedGetFilesystem(unittest.TestCase):
     
     def test_cache_reuse(self):
         """Test that the filesystem instance is cached and reused."""
-        # First call should create the filesystem
-        fs1 = self.test_instance.get_filesystem()
-        self.assertEqual(fs1, self.mock_filesystem_instance)
-        self.mock_ipfs_filesystem.assert_called_once()
-        
-        # Reset the mock to verify it's not called again
-        self.mock_ipfs_filesystem.reset_mock()
-        
-        # Second call should reuse the cached instance
-        fs2 = self.test_instance.get_filesystem()
-        self.assertEqual(fs2, self.mock_filesystem_instance)
-        self.mock_ipfs_filesystem.assert_not_called()
+        # Make sure fsspec is "available" for this test
+        with patch.object(self.test_instance, '_check_fsspec_available', return_value=True):
+            # First call should create the filesystem
+            fs1 = self.test_instance.get_filesystem()
+            self.assertEqual(fs1, self.mock_filesystem_instance)
+            self.mock_ipfs_filesystem.assert_called_once()
+            
+            # Reset the mock to verify it's not called again
+            self.mock_ipfs_filesystem.reset_mock()
+            
+            # Second call should reuse the cached instance
+            fs2 = self.test_instance.get_filesystem()
+            self.assertEqual(fs2, self.mock_filesystem_instance)
+            self.mock_ipfs_filesystem.assert_not_called()
     
     def test_explicit_parameters(self):
         """Test that explicit parameters override config values."""
         # Reset mock for clean test
         self.mock_ipfs_filesystem.reset_mock()
         
-        # Call with explicit parameters
-        test_gateway_urls = ["https://override.com"]
-        self.test_instance.get_filesystem(gateway_urls=test_gateway_urls)
-        
-        # Verify the parameters were passed correctly
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["gateway_urls"], test_gateway_urls)
+        # Make sure fsspec is "available" for this test
+        with patch.object(self.test_instance, '_check_fsspec_available', return_value=True):
+            # Call with explicit parameters
+            test_gateway_urls = ["https://override.com"]
+            self.test_instance.get_filesystem(gateway_urls=test_gateway_urls)
+            
+            # Verify the parameters were passed correctly
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["gateway_urls"], test_gateway_urls)
     
     def test_config_parameters(self):
         """Test that config values are used when no explicit parameters provided."""
         # Reset mock for clean test
         self.mock_ipfs_filesystem.reset_mock()
         
-        # Call method without explicit parameters
-        self.test_instance.get_filesystem()
-        
-        # Verify config values were used
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["gateway_urls"], self.test_config["gateway_urls"])
-        self.assertEqual(call_kwargs["use_gateway_fallback"], self.test_config["use_gateway_fallback"])
-        self.assertEqual(call_kwargs["ipfs_path"], self.test_config["ipfs_path"])
+        # Make sure fsspec is "available" for this test
+        with patch.object(self.test_instance, '_check_fsspec_available', return_value=True):
+            # Call method without explicit parameters
+            self.test_instance.get_filesystem()
+            
+            # Verify config values were used
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["gateway_urls"], self.test_config["gateway_urls"])
+            self.assertEqual(call_kwargs["use_gateway_fallback"], self.test_config["use_gateway_fallback"])
+            self.assertEqual(call_kwargs["ipfs_path"], self.test_config["ipfs_path"])
     
     def test_cache_config_mapping(self):
         """Test the special case for cache_config mapping to config["cache"]."""
         # Reset mock for clean test
         self.mock_ipfs_filesystem.reset_mock()
         
-        # Call method
-        self.test_instance.get_filesystem()
-        
-        # Verify the cache config was correctly mapped
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["cache_config"], self.test_config["cache"])
+        # Make sure fsspec is "available" for this test
+        with patch.object(self.test_instance, '_check_fsspec_available', return_value=True):
+            # Call method
+            self.test_instance.get_filesystem()
+            
+            # Verify the cache config was correctly mapped
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["cache_config"], self.test_config["cache"])
     
     def test_fsspec_not_available(self):
         """Test behavior when fsspec is not available."""
@@ -148,8 +156,7 @@ class TestImprovedGetFilesystem(unittest.TestCase):
         # Create a fresh instance without caching
         fresh_instance = MockIPFSKit(config=self.test_config)
         
-        # Need to patch the FSSPEC_AVAILABLE value in the instance's method
-        # This is because the method will re-check FSSPEC_AVAILABLE internally
+        # Need to patch the _check_fsspec_available method to return False
         with patch.object(fresh_instance, '_check_fsspec_available', return_value=False):
             # Should raise ImportError
             with self.assertRaises(ImportError):
@@ -222,14 +229,16 @@ class TestImprovedGetFilesystem(unittest.TestCase):
         # Reset mock for clean test
         self.mock_ipfs_filesystem.reset_mock()
         
-        # Call with additional kwargs
-        additional_kwargs = {"extra_param": "value", "another_param": 123}
-        self.test_instance.get_filesystem(**additional_kwargs)
-        
-        # Verify the additional kwargs were passed
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["extra_param"], "value")
-        self.assertEqual(call_kwargs["another_param"], 123)
+        # Make sure fsspec is "available" for this test
+        with patch.object(self.test_instance, '_check_fsspec_available', return_value=True):
+            # Call with additional kwargs
+            additional_kwargs = {"extra_param": "value", "another_param": 123}
+            self.test_instance.get_filesystem(**additional_kwargs)
+            
+            # Verify the additional kwargs were passed
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["extra_param"], "value")
+            self.assertEqual(call_kwargs["another_param"], 123)
     
     def test_default_values(self):
         """Test that default values are used when neither explicit nor config values are present."""
@@ -240,13 +249,15 @@ class TestImprovedGetFilesystem(unittest.TestCase):
         with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
             instance_no_config = IPFSSimpleAPI()
         
-        # Get filesystem
-        instance_no_config.get_filesystem()
-        
-        # Verify default values were used
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["role"], "leecher")
-        self.assertEqual(call_kwargs["use_mmap"], True)
+        # Make sure fsspec is "available" for this test
+        with patch.object(instance_no_config, '_check_fsspec_available', return_value=True):
+            # Get filesystem
+            instance_no_config.get_filesystem()
+            
+            # Verify default values were used
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["role"], "leecher")
+            self.assertEqual(call_kwargs["use_mmap"], True)
 
     def test_return_mock_parameter(self):
         """Test that the return_mock parameter works correctly."""
@@ -267,80 +278,82 @@ class TestImprovedGetFilesystem(unittest.TestCase):
 
     def test_parameter_precedence(self):
         """Test the parameter precedence (explicit > kwargs > config > defaults)."""
-        # Case 1: Explicit parameter should override everything
-        # Create a fresh test instance and reset the mocks
-        self.mock_ipfs_filesystem.reset_mock()
-        test_instance = self.test_instance
-        
-        # Make sure the instance doesn't have a cached filesystem
-        test_instance._filesystem = None
-        
-        # Call with explicit parameters
-        test_instance.get_filesystem(
-            gateway_urls=["https://explicit.com"],
-            use_gateway_fallback=False,
-            some_param="explicit"
-        )
-        
-        # Verify the call arguments
-        self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["gateway_urls"], ["https://explicit.com"])
-        self.assertEqual(call_kwargs["use_gateway_fallback"], False)
-        self.assertEqual(call_kwargs["some_param"], "explicit")
-        
-        # Case 2: kwargs should override config but not explicit params
-        # Create a new test instance to avoid caching
-        self.mock_ipfs_filesystem.reset_mock()
-        with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
-            test_instance = IPFSSimpleAPI(config=self.test_config)
-        
-        # Call with explicit parameters and kwargs
-        test_instance.get_filesystem(
-            gateway_urls=["https://explicit.com"],  # Explicit will win
-            **{"use_gateway_fallback": False, "some_param": "from_kwargs"}
-        )
-        
-        # Verify the call arguments
-        self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["gateway_urls"], ["https://explicit.com"])  # From explicit param
-        self.assertEqual(call_kwargs["use_gateway_fallback"], False)  # From kwargs
-        self.assertEqual(call_kwargs["some_param"], "from_kwargs")  # From kwargs
-        
-        # Case 3: Config should override defaults but not kwargs or explicit
-        # Create instance with a different config
-        self.mock_ipfs_filesystem.reset_mock()
-        config_with_defaults = {
-            "role": "config_role",
-            "use_mmap": False  # Different from default
-        }
-        with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
-            instance_with_defaults = IPFSSimpleAPI(config=config_with_defaults)
-        
-        # Call without overriding params
-        instance_with_defaults.get_filesystem()
-        
-        # Verify the call arguments
-        self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["role"], "config_role")  # From config
-        self.assertEqual(call_kwargs["use_mmap"], False)  # From config
-        
-        # Case 4: Defaults should be used when no other source provides the value
-        # Create a new test instance without any config
-        self.mock_ipfs_filesystem.reset_mock()
-        with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
-            empty_config_instance = IPFSSimpleAPI(config={})
-        
-        # Call get_filesystem
-        empty_config_instance.get_filesystem()
-        
-        # Verify the call arguments
-        self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
-        call_kwargs = self.mock_ipfs_filesystem.call_args[1]
-        self.assertEqual(call_kwargs["role"], "leecher")  # Default value
-        self.assertEqual(call_kwargs["use_mmap"], True)  # Default value
+        # Make sure fsspec is "available" for all tests
+        with patch.object(self.test_instance, '_check_fsspec_available', return_value=True):
+            # Case 1: Explicit parameter should override everything
+            # Create a fresh test instance and reset the mocks
+            self.mock_ipfs_filesystem.reset_mock()
+            test_instance = self.test_instance
+            
+            # Make sure the instance doesn't have a cached filesystem
+            test_instance._filesystem = None
+            
+            # Call with explicit parameters
+            test_instance.get_filesystem(
+                gateway_urls=["https://explicit.com"],
+                use_gateway_fallback=False,
+                some_param="explicit"
+            )
+            
+            # Verify the call arguments
+            self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["gateway_urls"], ["https://explicit.com"])
+            self.assertEqual(call_kwargs["use_gateway_fallback"], False)
+            self.assertEqual(call_kwargs["some_param"], "explicit")
+            
+            # Case 2: kwargs should override config but not explicit params
+            # Create a new test instance to avoid caching
+            self.mock_ipfs_filesystem.reset_mock()
+            with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
+                test_instance = IPFSSimpleAPI(config=self.test_config)
+            
+            # Call with explicit parameters and kwargs
+            test_instance.get_filesystem(
+                gateway_urls=["https://explicit.com"],  # Explicit will win
+                **{"use_gateway_fallback": False, "some_param": "from_kwargs"}
+            )
+            
+            # Verify the call arguments
+            self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["gateway_urls"], ["https://explicit.com"])  # From explicit param
+            self.assertEqual(call_kwargs["use_gateway_fallback"], False)  # From kwargs
+            self.assertEqual(call_kwargs["some_param"], "from_kwargs")  # From kwargs
+            
+            # Case 3: Config should override defaults but not kwargs or explicit
+            # Create instance with a different config
+            self.mock_ipfs_filesystem.reset_mock()
+            config_with_defaults = {
+                "role": "config_role",
+                "use_mmap": False  # Different from default
+            }
+            with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
+                instance_with_defaults = IPFSSimpleAPI(config=config_with_defaults)
+            
+            # Call without overriding params
+            instance_with_defaults.get_filesystem()
+            
+            # Verify the call arguments
+            self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["role"], "config_role")  # From config
+            self.assertEqual(call_kwargs["use_mmap"], False)  # From config
+            
+            # Case 4: Defaults should be used when no other source provides the value
+            # Create a new test instance without any config
+            self.mock_ipfs_filesystem.reset_mock()
+            with patch.object(IPFSSimpleAPI, 'get_filesystem', return_value=None):
+                empty_config_instance = IPFSSimpleAPI(config={})
+            
+            # Call get_filesystem
+            empty_config_instance.get_filesystem()
+            
+            # Verify the call arguments
+            self.assertTrue(self.mock_ipfs_filesystem.called, "IPFSFileSystem constructor was not called")
+            call_kwargs = self.mock_ipfs_filesystem.call_args[1]
+            self.assertEqual(call_kwargs["role"], "leecher")  # Default value
+            self.assertEqual(call_kwargs["use_mmap"], True)  # Default value
 
 if __name__ == "__main__":
     unittest.main()

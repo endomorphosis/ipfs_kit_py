@@ -11,6 +11,20 @@ import anyio
 import anyio.from_thread
 from typing import Dict, List, Any, Optional
 
+try:
+    from fastapi import APIRouter
+    from pydantic import BaseModel, Field
+except ImportError:
+    # Create a simple BaseModel class as fallback
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+            
+    # Add Field as a no-op function
+    def Field(**kwargs):
+        return None
+
 # Import WebRTC dependencies and status flags
 try:
     from ipfs_kit_py.webrtc_streaming import (
@@ -893,7 +907,7 @@ class WebRTCController:
             },
             "connections": {
                 "count": len(self.active_connections),
-                "connections": [,
+                "connections": [
                     {
                         "id": conn_id,
                         "added_at": conn_info.get("added_at"),
@@ -1100,7 +1114,7 @@ class WebRTCController:
                 }
 
             # Apply quality throttling based on system health
-            if health_score < 50 and request.quality == "high": ,
+            if health_score < 50 and request.quality == "high":
                 logger.warning(
                     f"Downgrading quality from high to medium due to health score {health_score}"
                 )
@@ -1174,11 +1188,11 @@ class WebRTCController:
         except Exception as e:
             logger.error(f"Error streaming content: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def stop_streaming(self, server_id: str) -> Dict[str, Any]:
         """
@@ -1225,11 +1239,11 @@ class WebRTCController:
                 logger.info(f"Removing server {server_id} from tracking despite error")
                 del self.active_streaming_servers[server_id]
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def list_connections(self) -> Dict[str, Any]:
         """
@@ -1287,11 +1301,11 @@ class WebRTCController:
         except Exception as e:
             logger.error(f"Error listing connections: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def get_connection_stats(self, connection_id: str) -> Dict[str, Any]:
         """
@@ -1362,11 +1376,11 @@ class WebRTCController:
         except Exception as e:
             logger.error(f"Error getting connection stats: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def close_connection(self, connection_id: str) -> Dict[str, Any]:
         """
@@ -1415,11 +1429,11 @@ class WebRTCController:
                 logger.info(f"Removing connection {connection_id} from tracking despite error")
                 del self.active_connections[connection_id]
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def close_all_connections(self) -> Dict[str, Any]:
         """
@@ -1462,11 +1476,11 @@ class WebRTCController:
             # Even in case of errors, clear tracking to avoid leaks
             self.active_connections.clear()
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def set_quality(self, request: QualityRequest) -> Dict[str, Any]:
         """
@@ -1524,11 +1538,11 @@ class WebRTCController:
         except Exception as e:
             logger.error(f"Error setting quality: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )
 
     async def get_resources_endpoint(self) -> Dict[str, Any]:
         """
@@ -1653,8 +1667,8 @@ class WebRTCController:
         except Exception as e:
             logger.error(f"Error running benchmark: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e)
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/webrtc",
+                doc_category="api"
+            )

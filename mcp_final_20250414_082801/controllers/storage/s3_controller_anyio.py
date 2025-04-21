@@ -85,8 +85,8 @@ class S3ControllerAnyIO(S3Controller):
     # Override synchronous methods to warn when called from async context
 
     def handle_upload_request(
-        self
-        request: S3UploadRequest = None,
+    self,
+    request: S3UploadRequest = None,
         file: UploadFile = File(None),
         bucket: str = Form(None),
         key: str = Form(None),
@@ -199,8 +199,8 @@ class S3ControllerAnyIO(S3Controller):
     # Async versions of all methods
 
     async def handle_upload_request_async(
-        self
-        request: S3UploadRequest = None,
+    self,
+    request: S3UploadRequest = None,
         file: UploadFile = File(None),
         bucket: str = Form(None),
         key: str = Form(None),

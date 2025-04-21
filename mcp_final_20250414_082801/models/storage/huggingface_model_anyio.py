@@ -309,8 +309,8 @@ credential_manager = None
         return result
 
     async def upload_file_async(
-        self
-        file_path: str
+    self,
+    file_path: str
         repo_id: str
         path_in_repo: Optional[str] = None,
         commit_message: Optional[str] = None,
@@ -395,8 +395,8 @@ repo_type=repo_type
         return result
 
     def upload_file(
-        self
-        file_path: str
+    self,
+    file_path: str
         repo_id: str
         path_in_repo: Optional[str] = None,
         commit_message: Optional[str] = None,
@@ -495,8 +495,8 @@ repo_type=repo_type
         return result
 
     async def download_file_async(
-        self
-        repo_id: str
+    self,
+    repo_id: str
         filename: str
         destination: str
         revision: Optional[str] = None,
@@ -582,8 +582,8 @@ repo_type=repo_type
         return result
 
     def download_file(
-        self
-        repo_id: str
+    self,
+    repo_id: str
         filename: str
         destination: str
         revision: Optional[str] = None,
@@ -678,8 +678,8 @@ repo_type=repo_type
         return result
 
     async def list_models_async(
-        self
-        author: Optional[str] = None,
+    self,
+    author: Optional[str] = None,
         search: Optional[str] = None,
         limit: int = 50,
         """List models on Hugging Face Hub asynchronously.
@@ -729,8 +729,8 @@ repo_type=repo_type
         return result
 
     def list_models(
-        self
-        author: Optional[str] = None,
+    self,
+    author: Optional[str] = None,
         search: Optional[str] = None,
         limit: int = 50,
         """List models on Hugging Face Hub (sync version).
@@ -795,8 +795,8 @@ repo_type=repo_type
         return result
 
     async def ipfs_to_huggingface_async(
-        self
-        cid: str
+    self,
+    cid: str
         repo_id: str
         path_in_repo: Optional[str] = None,
         commit_message: Optional[str] = None,
@@ -948,8 +948,8 @@ repo_type=repo_type
         return result
 
     def ipfs_to_huggingface(
-        self
-        cid: str
+    self,
+    cid: str
         repo_id: str
         path_in_repo: Optional[str] = None,
         commit_message: Optional[str] = None,
@@ -1098,8 +1098,8 @@ repo_type=repo_type
         return result
 
     async def huggingface_to_ipfs_async(
-        self
-        repo_id: str
+    self,
+    repo_id: str
         filename: str
         pin: bool = True,
         revision: Optional[str] = None,
@@ -1236,8 +1236,8 @@ repo_type=repo_type
         return result
 
     def huggingface_to_ipfs(
-        self
-        repo_id: str
+    self,
+    repo_id: str
         filename: str
         pin: bool = True,
         revision: Optional[str] = None,

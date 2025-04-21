@@ -447,15 +447,15 @@ class DataRoutingService:
                             metadata.bandwidth = stats["throughput"]
 
                     # Apply backend-specific defaults
-                    if backend_type == "ipfs": ,
+                    if backend_type == "ipfs":
                         metadata.tier = "hot"
                         if not metadata.cost_per_gb:
                             metadata.cost_per_gb = 0.01
-                    elif backend_type == "s3": ,
+                    elif backend_type == "s3":
                         metadata.tier = "warm"
                         if not metadata.cost_per_gb:
                             metadata.cost_per_gb = 0.023
-                    elif backend_type == "filecoin": ,
+                    elif backend_type == "filecoin":
                         metadata.tier = "cold"
                         if not metadata.cost_per_gb:
                             metadata.cost_per_gb = 0.005
@@ -652,8 +652,8 @@ class DataRoutingService:
                 logger.error(f"Error updating metrics: {e}")
 
     async def _apply_policy(
-        self
-        policy: RoutingPolicy
+    self,
+    policy: RoutingPolicy
         request: ContentRequest
         available_backends: List[str]
     ) -> Optional[RoutingResult]:
@@ -833,13 +833,13 @@ class DataRoutingService:
         if policy.criteria.get("type") == "cost" and metadata.cost_per_gb > 0:
             # Extra weight to cost factor for cost-optimized routing
             score = score * 0.7 + (1.0 - cost_factor) * 0.3
-        elif policy.criteria.get("type") == "performance": ,
+        elif policy.criteria.get("type") == "performance":
             # Extra weight to performance factor for performance-optimized routing
             score = score * 0.7 + perf_factor * 0.3
-        elif policy.criteria.get("type") == "geographic": ,
+        elif policy.criteria.get("type") == "geographic":
             # Extra weight to geographic factor for geography-optimized routing
             score = score * 0.7 + geo_factor * 0.3
-        elif policy.criteria.get("type") == "archive": ,
+        elif policy.criteria.get("type") == "archive":
             # For archive, give extra weight to reliability
             score = score * 0.7 + reliability_factor * 0.3
 
@@ -897,9 +897,9 @@ class DataRoutingService:
             perf_factor = perf_factor * 0.7 + latency_factor * 0.3
 
         # Adjust based on tier
-        if metadata.tier == "hot": ,
+        if metadata.tier == "hot":
             perf_factor *= 1.2
-        elif metadata.tier == "cold": ,
+        elif metadata.tier == "cold":
             perf_factor *= 0.8
 
         # Normalize to range [0,1]
@@ -1106,17 +1106,17 @@ class DataRoutingService:
         reasons.append(f"Selected by '{policy.name}' policy")
 
         # Add specific reasons based on policy type
-        if policy.criteria.get("type") == "cost": ,
+        if policy.criteria.get("type") == "cost":
             cost_per_gb = metadata.cost_per_gb
             reasons.append(f"Cost optimized: ${cost_per_gb:.4f}/GB")
-        elif policy.criteria.get("type") == "performance": ,
+        elif policy.criteria.get("type") == "performance":
             reasons.append(f"Performance optimized: {metadata.performance:.2f} performance score")
-        elif policy.criteria.get("type") == "geographic": ,
+        elif policy.criteria.get("type") == "geographic":
             if metadata.geographic_region:
                 reasons.append(f"Geographically optimized: {metadata.geographic_region} region")
-        elif policy.criteria.get("type") == "archive": ,
+        elif policy.criteria.get("type") == "archive":
             reasons.append(f"Optimized for archival: {metadata.reliability:.2f} reliability score")
-        elif policy.criteria.get("type") == "content": ,
+        elif policy.criteria.get("type") == "content":
             reasons.append(f"Content-aware selection: {self._format_size(request.content_size)}")
 
         # Add capacity reason
@@ -1167,11 +1167,11 @@ class DataRoutingService:
             base_latency = metadata.latency
         else:
             # Estimate based on tier
-            if metadata.tier == "hot": ,
+            if metadata.tier == "hot":
                 base_latency = 0.05  # 50ms
-            elif metadata.tier == "warm": ,
+            elif metadata.tier == "warm":
                 base_latency = 0.2  # 200ms
-            elif metadata.tier == "cold": ,
+            elif metadata.tier == "cold":
                 base_latency = 1.0  # 1s
             else:
                 base_latency = 0.1  # 100ms
@@ -1190,11 +1190,11 @@ class DataRoutingService:
 
         # Adjust for operation type
         op_factor = 1.0
-        if request.operation == "store": ,
+        if request.operation == "store":
             op_factor = 1.2  # Store operations typically take longer
-        elif request.operation == "retrieve": ,
+        elif request.operation == "retrieve":
             op_factor = 1.0
-        elif request.operation == "delete": ,
+        elif request.operation == "delete":
             op_factor = 0.5  # Delete operations are typically faster
 
         return base_latency * size_factor * op_factor
@@ -1221,15 +1221,15 @@ class DataRoutingService:
 
         # Adjust based on operation
         op_factor = 1.0
-        if request.operation == "store": ,
+        if request.operation == "store":
             op_factor = 1.0
-        elif request.operation == "retrieve": ,
+        elif request.operation == "retrieve":
             # Some backends charge for retrieval
-            if metadata.tier == "cold": ,
+            if metadata.tier == "cold":
                 op_factor = 0.2  # Retrieval charge for cold storage
             else:
                 op_factor = 0.02  # Minimal retrieval charge for hot/warm
-        elif request.operation == "delete": ,
+        elif request.operation == "delete":
             # Some backends charge minimal fees for delete
             op_factor = 0.01
 

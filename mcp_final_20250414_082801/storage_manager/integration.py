@@ -276,8 +276,8 @@ class MCPStorageService:
         self.storage_manager = storage_manager
 
     def store_content(
-        self
-        data: bytes
+    self,
+    data: bytes
         preferred_backend: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         synchronous: bool = True,

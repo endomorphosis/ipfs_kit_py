@@ -25,7 +25,7 @@ HAS_LIBP2P = importlib.util.find_spec("ipfs_kit_py.mcp.controllers.libp2p_contro
 
 # Import all controller modules for convenient access
 from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
-from ipfs_kit_py.mcp.controllers.ipfs_controller_anyio import IPFSControllerAnyio
+from ipfs_kit_py.mcp.controllers.ipfs_controller_anyio import IPFSControllerAnyIO
 from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManagerController
 from ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio import (
     StorageManagerControllerAnyIO,
@@ -34,7 +34,7 @@ from ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio import (
 # Export controllers for external use
 __all__ = [
     "IPFSController",
-    "IPFSControllerAnyio",
+    "IPFSControllerAnyIO",
     "StorageManagerController",
     "StorageManagerControllerAnyIO",
 ]

@@ -680,17 +680,17 @@ async def discover_nodes():
 
     method = config["discovery"]["method"]
 
-    if method == "config": ,
+    if method == "config":
         # Simply use the nodes already in configuration
         # This is mostly for testing or static clusters
         return
 
-    elif method == "dns": ,
+    elif method == "dns":
         # DNS-based discovery would use DNS SRV records
         # Not implemented in this basic version
         pass
 
-    elif method == "multicast": ,
+    elif method == "multicast":
         # Multicast discovery would use UDP multicasting
         # Not implemented in this basic version
         pass

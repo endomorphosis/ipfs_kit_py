@@ -54,8 +54,8 @@ credential_manager = None
             return None
 
     async def upload_file_async(
-        self
-        file_path: str
+    self,
+    file_path: str
         bucket: str
         key: str
         metadata: Optional[Dict[str, Any]] = None,
@@ -124,8 +124,8 @@ credential_manager = None
         return result
 
     def upload_file(
-        self
-        file_path: str
+    self,
+    file_path: str
         bucket: str
         key: str
         metadata: Optional[Dict[str, Any]] = None,

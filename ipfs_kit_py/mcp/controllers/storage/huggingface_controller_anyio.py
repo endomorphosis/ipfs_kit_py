@@ -1,535 +1,161 @@
-"""
-Hugging Face Controller for the MCP server with AnyIO support.
+"""HuggingFace Controller AnyIO Module
 
-This controller handles HTTP requests related to Hugging Face Hub operations and
-delegates the business logic to the Hugging Face model, with support for both asyncio
-and trio via the AnyIO library.
+This module provides AnyIO-compatible HuggingFace controller functionality.
 """
 
-import logging
-import time
-import warnings
-import sniffio
 import anyio
-from typing import Optional
-from fastapi import (
-from ipfs_kit_py.mcp.controllers.storage.huggingface_controller import (
+import logging
+from typing import Dict, List, Optional, Union, Any
+from pydantic import BaseModel, Field
 
-# AnyIO import
-
-
-# Import Pydantic models for request/response validation
-
-    APIRouter,
-    HTTPException)
-
-# Import original controller for inheritance
-
-    HuggingFaceController,
-    HuggingFaceAuthRequest,
-    HuggingFaceRepoCreationRequest,
-    HuggingFaceUploadRequest,
-    HuggingFaceDownloadRequest,
-    IPFSHuggingFaceRequest,
-    HuggingFaceIPFSRequest,
-    HuggingFaceAuthResponse,
-    HuggingFaceRepoCreationResponse,
-    HuggingFaceUploadResponse,
-    HuggingFaceDownloadResponse,
-    HuggingFaceListModelsResponse,
-    IPFSHuggingFaceResponse,
-    HuggingFaceIPFSResponse,
-    OperationResponse,
-)
-
-# Configure logger
 logger = logging.getLogger(__name__)
 
 
-class HuggingFaceControllerAnyIO(HuggingFaceController):
-    """
-    Controller for Hugging Face Hub operations with AnyIO support.
+class HuggingFaceAuthRequest(BaseModel):
+    """Request model for HuggingFace authentication."""
+    api_key: str = Field(..., description="HuggingFace API key/token")
+    username: Optional[str] = Field(None, description="HuggingFace username")
+    remember: bool = Field(True, description="Remember credentials for future use")
 
-    Provides endpoints for Hugging Face Hub operations supporting both asyncio
-    and trio backends through AnyIO compatibility.
-    """
-    @staticmethod
-    def get_backend():
-        """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
 
-Get the current async backend being used."""
+class HuggingFaceListModelsRequest:
+    """Request model for listing HuggingFace models."""
+    
+    def __init__(
+        self,
+        filter_by: Optional[Dict[str, Any]] = None,
+        sort_by: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ):
+        self.filter_by = filter_by or {}
+        self.sort_by = sort_by
+        self.limit = limit
+        self.offset = offset
+
+
+class HuggingFaceControllerAnyIO:
+    """AnyIO-compatible controller for HuggingFace operations."""
+    
+    def __init__(self, huggingface_model):
+        """Initialize with a HuggingFace model."""
+        self.huggingface_model = huggingface_model
+        self.logger = logging.getLogger(__name__)
+    
+    async def list_models(self, request: HuggingFaceListModelsRequest) -> Dict[str, Any]:
+        """List HuggingFace models based on filters."""
+        self.logger.info(f"Listing HuggingFace models with filters: {request.filter_by}")
         try:
-            return sniffio.current_async_library()
-        except sniffio.AsyncLibraryNotFoundError:
-            return None
-
-    def _warn_if_async_context(self, method_name):
-        """Warn if called from async context without using async version."""
-        backend = self.get_backend()
-        if backend is not None:
-            warnings.warn(
-                f"Synchronous method {method_name} called from async context. "
-                f"Use {method_name}_async instead for better performance.",
-                stacklevel=3,
+            models = await self.huggingface_model.list_models_async(
+                filter_by=request.filter_by,
+                sort_by=request.sort_by,
+                limit=request.limit,
+                offset=request.offset
             )
-
-    # Override synchronous methods to warn when called from async context
-
-    def handle_auth_request(self, request: HuggingFaceAuthRequest):
-        """
-        Handle authentication request to Hugging Face Hub.
-
-        Args:
-            request: Authentication request parameters
-
-        Returns:
-            Authentication response
-        """
-        self._warn_if_async_context("handle_auth_request")
-        # Remove async keyword as this is now a sync implementation
-        return super().handle_auth_request(request)
-
-    def handle_repo_creation_request(self, request: HuggingFaceRepoCreationRequest):
-        """
-        Handle repository creation request on Hugging Face Hub.
-
-        Args:
-            request: Repository creation request parameters
-
-        Returns:
-            Repository creation response
-        """
-        self._warn_if_async_context("handle_repo_creation_request")
-        return super().handle_repo_creation_request(request)
-
-    def handle_upload_request(self, request: HuggingFaceUploadRequest):
-        """
-        Handle upload request to Hugging Face Hub.
-
-        Args:
-            request: Upload request parameters
-
-        Returns:
-            Upload response
-        """
-        self._warn_if_async_context("handle_upload_request")
-        return super().handle_upload_request(request)
-
-    def handle_download_request(self, request: HuggingFaceDownloadRequest):
-        """
-        Handle download request from Hugging Face Hub.
-
-        Args:
-            request: Download request parameters
-
-        Returns:
-            Download response
-        """
-        self._warn_if_async_context("handle_download_request")
-        return super().handle_download_request(request)
-
-    def handle_list_models_request(
-        self
-        author: Optional[str] = None,
-        search: Optional[str] = None,
-        limit: int = 50,
-    ):
-        """
-        Handle list models request from Hugging Face Hub.
-
-        Args:
-            author: Optional filter by author/organization
-            search: Optional search query
-            limit: Maximum number of results to return
-
-        Returns:
-            List models response
-        """
-        self._warn_if_async_context("handle_list_models_request")
-        return super().handle_list_models_request(author, search, limit)
-
-    def handle_ipfs_to_huggingface_request(self, request: IPFSHuggingFaceRequest):
-        """
-        Handle transfer from IPFS to Hugging Face Hub.
-
-        Args:
-            request: IPFS to Hugging Face Hub request parameters
-
-        Returns:
-            IPFS to Hugging Face Hub response
-        """
-        self._warn_if_async_context("handle_ipfs_to_huggingface_request")
-        return super().handle_ipfs_to_huggingface_request(request)
-
-    def handle_huggingface_to_ipfs_request(self, request: HuggingFaceIPFSRequest):
-        """
-        Handle transfer from Hugging Face Hub to IPFS.
-
-        Args:
-            request: Hugging Face Hub to IPFS request parameters
-
-        Returns:
-            Hugging Face Hub to IPFS response
-        """
-        self._warn_if_async_context("handle_huggingface_to_ipfs_request")
-        return super().handle_huggingface_to_ipfs_request(request)
-
-    def handle_status_request(self):
-        """
-        Handle status request for Hugging Face Hub backend.
-
-        Returns:
-            Status response
-        """
-        self._warn_if_async_context("handle_status_request")
-        return super().handle_status_request()
-
-    # Async versions of all methods
-
-    async def handle_auth_request_async(self, request: HuggingFaceAuthRequest):
-        """
-        Handle authentication request to Hugging Face Hub asynchronously.
-
-        Args:
-            request: Authentication request parameters
-
-        Returns:
-            Authentication response
-        """
-        # Run the synchronous method in a thread using anyio
-        return await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.authenticate(token=request.token)
-        )
-
-    async def handle_repo_creation_request_async(self, request: HuggingFaceRepoCreationRequest):
-        """
-        Handle repository creation request on Hugging Face Hub asynchronously.
-
-        Args:
-            request: Repository creation request parameters
-
-        Returns:
-            Repository creation response
-        """
-        result = await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.create_repository(
-                repo_id=request.repo_id,
-                repo_type=request.repo_type,
+            return {
+                "models": models,
+                "count": len(models),
+                "success": True,
+                "message": "Models retrieved successfully"
+            }
+        except Exception as e:
+            self.logger.error(f"Error listing models: {str(e)}")
+            return {
+                "models": [],
+                "count": 0,
+                "success": False,
+                "message": f"Error listing models: {str(e)}"
+            }
+    
+    async def get_model_info(self, request) -> Dict[str, Any]:
+        """Get information about a specific HuggingFace model."""
+        model_id = request.model_id
+        self.logger.info(f"Getting info for model: {model_id}")
+        try:
+            model_info = await self.huggingface_model.get_model_info_async(model_id)
+            return {
+                "model_info": model_info,
+                "success": True,
+                "message": f"Model info retrieved for {model_id}"
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting model info: {str(e)}")
+            return {
+                "model_info": {},
+                "success": False,
+                "message": f"Error getting model info: {str(e)}"
+            }
+    
+    async def download_model(self, request) -> Dict[str, Any]:
+        """Download a HuggingFace model."""
+        model_id = request.model_id
+        self.logger.info(f"Downloading model: {model_id}")
+        try:
+            result = await self.huggingface_model.download_model_async(
+                model_id=model_id,
+                revision=request.revision,
+                subfolder=request.subfolder,
+                local_dir=request.local_dir
+            )
+            return {
+                "local_path": result.get("local_path", ""),
+                "success": True,
+                "message": f"Model {model_id} downloaded successfully"
+            }
+        except Exception as e:
+            self.logger.error(f"Error downloading model: {str(e)}")
+            return {
+                "local_path": "",
+                "success": False,
+                "message": f"Error downloading model: {str(e)}"
+            }
+    
+    async def upload_model(self, request) -> Dict[str, Any]:
+        """Upload a model to HuggingFace."""
+        model_id = request.model_id
+        self.logger.info(f"Uploading model: {model_id}")
+        try:
+            result = await self.huggingface_model.upload_model_async(
+                local_path=request.local_path,
+                model_id=model_id,
                 private=request.private,
+                commit_message=request.commit_message
             )
-        )
-
-        # If operation failed, raise HTTP exception
-        if not result.get("success", False):
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/huggingface_anyio",
-        doc_category="storage"
-    ),
-                    "error_type": result.get("error_type", "RepositoryCreationError"),
-                },
+            return {
+                "model_id": model_id,
+                "url": result.get("url", ""),
+                "success": True,
+                "message": f"Model uploaded successfully as {model_id}"
+            }
+        except Exception as e:
+            self.logger.error(f"Error uploading model: {str(e)}")
+            return {
+                "model_id": model_id,
+                "url": "",
+                "success": False,
+                "message": f"Error uploading model: {str(e)}"
+            }
+            
+    async def authenticate(self, request: HuggingFaceAuthRequest) -> Dict[str, Any]:
+        """Authenticate with HuggingFace using API key."""
+        self.logger.info(f"Authenticating with HuggingFace for user: {request.username or 'unknown'}")
+        try:
+            result = await self.huggingface_model.login_async(
+                api_key=request.api_key,
+                username=request.username,
+                remember=request.remember
             )
-
-        # Return successful response
-        return result
-
-    async def handle_upload_request_async(self, request: HuggingFaceUploadRequest):
-        """
-        Handle upload request to Hugging Face Hub asynchronously.
-
-        Args:
-            request: Upload request parameters
-
-        Returns:
-            Upload response
-        """
-        result = await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.upload_file(
-                file_path=request.file_path,
-                repo_id=request.repo_id,
-                path_in_repo=request.path_in_repo,
-                commit_message=request.commit_message,
-                repo_type=request.repo_type,
-            )
-        )
-
-        # If operation failed, raise HTTP exception
-        if not result.get("success", False):
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/huggingface_anyio",
-        doc_category="storage"
-    ),
-                    "error_type": result.get("error_type", "UploadError"),
-                },
-            )
-
-        # Return successful response
-        return result
-
-    async def handle_download_request_async(self, request: HuggingFaceDownloadRequest):
-        """
-        Handle download request from Hugging Face Hub asynchronously.
-
-        Args:
-            request: Download request parameters
-
-        Returns:
-            Download response
-        """
-        result = await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.download_file(
-                repo_id=request.repo_id,
-                filename=request.filename,
-                destination=request.destination,
-                revision=request.revision,
-                repo_type=request.repo_type,
-            )
-        )
-
-        # If operation failed, raise HTTP exception
-        if not result.get("success", False):
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/huggingface_anyio",
-        doc_category="storage"
-    ),
-                    "error_type": result.get("error_type", "DownloadError"),
-                },
-            )
-
-        # Return successful response
-        return result
-
-    async def handle_list_models_request_async(
-        self
-        author: Optional[str] = None,
-        search: Optional[str] = None,
-        limit: int = 50,
-    ):
-        """
-        Handle list models request from Hugging Face Hub asynchronously.
-
-        Args:
-            author: Optional filter by author/organization
-            search: Optional search query
-            limit: Maximum number of results to return
-
-        Returns:
-            List models response
-        """
-        result = await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.list_models(author=author, search=search, limit=limit)
-        )
-
-        # If operation failed, raise HTTP exception
-        if not result.get("success", False):
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get("error",
-        endpoint="/api/v0/huggingface_anyio",
-        doc_category="storage"
-    ),
-                    "error_type": result.get("error_type", "ListModelsError"),
-                },
-            )
-
-        # Return successful response
-        return result
-
-    async def handle_ipfs_to_huggingface_request_async(self, request: IPFSHuggingFaceRequest):
-        """
-        Handle transfer from IPFS to Hugging Face Hub asynchronously.
-
-        Args:
-            request: IPFS to Hugging Face Hub request parameters
-
-        Returns:
-            IPFS to Hugging Face Hub response
-        """
-        result = await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.ipfs_to_huggingface(
-                cid=request.cid,
-                repo_id=request.repo_id,
-                path_in_repo=request.path_in_repo,
-                commit_message=request.commit_message,
-                repo_type=request.repo_type,
-                pin=request.pin,
-            )
-        )
-
-        # If operation failed, raise HTTP exception
-        if not result.get("success", False):
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get(,
-        endpoint="/api/v0/huggingface_anyio",
-        doc_category="storage"
-    ),
-                    "error_type": result.get("error_type", "IPFSToHuggingFaceError"),
-                },
-            )
-
-        # Return successful response
-        return result
-
-    async def handle_huggingface_to_ipfs_request_async(self, request: HuggingFaceIPFSRequest):
-        """
-        Handle transfer from Hugging Face Hub to IPFS asynchronously.
-
-        Args:
-            request: Hugging Face Hub to IPFS request parameters
-
-        Returns:
-            Hugging Face Hub to IPFS response
-        """
-        result = await anyio.to_thread.run_sync(
-            lambda: self.huggingface_model.huggingface_to_ipfs(
-                repo_id=request.repo_id,
-                filename=request.filename,
-                pin=request.pin,
-                revision=request.revision,
-                repo_type=request.repo_type,
-            )
-        )
-
-        # If operation failed, raise HTTP exception
-        if not result.get("success", False):
-            mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override={
-                    "error": result.get(,
-        endpoint="/api/v0/huggingface_anyio",
-        doc_category="storage"
-    ),
-                    "error_type": result.get("error_type", "HuggingFaceToIPFSError"),
-                },
-            )
-
-        # Return successful response
-        return result
-
-    async def handle_status_request_async(self):
-        """
-        Handle status request for Hugging Face Hub backend asynchronously.
-
-        Returns:
-            Status response
-        """
-        # Get stats from the model using anyio for potentially blocking operations
-        stats = await anyio.to_thread.run_sync(self.huggingface_model.get_stats)
-
-        # Create response with status information
-        return {
-            "success": True,
-            "operation_id": f"status-{int(time.time())}",
-            "duration_ms": 0,
-            "is_available": True,
-            "backend": "huggingface",
-            "stats": stats,
-            "timestamp": time.time(),
-        }
-
-    def register_routes(self, router: APIRouter):
-        """
-        Register routes with a FastAPI router.
-
-        In AnyIO mode, registers the async versions of handlers.
-
-        Args:
-            router: FastAPI router to register routes with
-        """
-        # Authentication endpoint
-        router.add_api_route(
-            "/huggingface/auth",
-            self.handle_auth_request_async,
-            methods=["POST"],
-            response_model=HuggingFaceAuthResponse,
-            summary="Authenticate with Hugging Face Hub",
-            description="Authenticate with Hugging Face Hub using an API token",
-        )
-
-        # Repository creation endpoint
-        router.add_api_route(
-            "/huggingface/repo/create",
-            self.handle_repo_creation_request_async,
-            methods=["POST"],
-            response_model=HuggingFaceRepoCreationResponse,
-            summary="Create Hugging Face Repository",
-            description="Create a new repository on Hugging Face Hub",
-        )
-
-        # Upload endpoint
-        router.add_api_route(
-            "/huggingface/upload",
-            self.handle_upload_request_async,
-            methods=["POST"],
-            response_model=HuggingFaceUploadResponse,
-            summary="Upload to Hugging Face Hub",
-            description="Upload a file to a Hugging Face Hub repository",
-        )
-
-        # Download endpoint
-        router.add_api_route(
-            "/huggingface/download",
-            self.handle_download_request_async,
-            methods=["POST"],
-            response_model=HuggingFaceDownloadResponse,
-            summary="Download from Hugging Face Hub",
-            description="Download a file from a Hugging Face Hub repository",
-        )
-
-        # List models endpoint
-        router.add_api_route(
-            "/huggingface/models",
-            self.handle_list_models_request_async,
-            methods=["GET"],
-            response_model=HuggingFaceListModelsResponse,
-            summary="List Hugging Face Models",
-            description="List models on Hugging Face Hub with optional filters",
-        )
-
-        # IPFS to Hugging Face endpoint
-        router.add_api_route(
-            "/huggingface/from_ipfs",
-            self.handle_ipfs_to_huggingface_request_async,
-            methods=["POST"],
-            response_model=IPFSHuggingFaceResponse,
-            summary="IPFS to Hugging Face Hub",
-            description="Transfer content from IPFS to Hugging Face Hub",
-        )
-
-        # Hugging Face to IPFS endpoint
-        router.add_api_route(
-            "/huggingface/to_ipfs",
-            self.handle_huggingface_to_ipfs_request_async,
-            methods=["POST"],
-            response_model=HuggingFaceIPFSResponse,
-            summary="Hugging Face Hub to IPFS",
-            description="Transfer content from Hugging Face Hub to IPFS",
-        )
-
-        # Status endpoint for testing
-        router.add_api_route(
-            "/storage/huggingface/status",
-            self.handle_status_request_async,
-            methods=["GET"],
-            response_model=OperationResponse,
-            summary="Hugging Face Hub Status",
-            description="Get current status of the Hugging Face Hub backend",
-        )
-
-        logger.info("Hugging Face routes registered with AnyIO support")
+            return {
+                "authenticated": True,
+                "username": result.get("username", request.username),
+                "success": True,
+                "message": "Successfully authenticated with HuggingFace"
+            }
+        except Exception as e:
+            self.logger.error(f"Error authenticating with HuggingFace: {str(e)}")
+            return {
+                "authenticated": False,
+                "username": request.username,
+                "success": False,
+                "message": f"Error authenticating with HuggingFace: {str(e)}"
+            }

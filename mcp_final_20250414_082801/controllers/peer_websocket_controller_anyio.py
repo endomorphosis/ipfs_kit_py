@@ -576,8 +576,8 @@ class PeerWebSocketControllerAnyIO:
             }
 
     async def get_discovered_peers(
-        self
-        filter_role: Optional[str] = None,
+    self,
+    filter_role: Optional[str] = None,
         filter_capabilities: Optional[str] = None,
     ) -> Dict[str, Any]:
         """

@@ -1,0 +1,276 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/barberb/ipfs_kit_py
+configfile: pytest.ini
+testpaths: test
+plugins: anyio-4.7.0, timeout-2.3.1
+collecting ... 
+----------------------------- live log collection ------------------------------
+02:22:09 [    INFO] ipfs_kit_py.libp2p: Optional dependencies missing: google-protobuf, eth-hash, eth-keys
+02:22:09 [    INFO] ipfs_kit_py.libp2p: Some advanced functionality may be limited
+02:22:09 [    INFO] ipfs_kit_py.libp2p: libp2p dependencies are available
+02:22:09 [    INFO] ipfs_kit_py.libp2p: Successfully patched INetStream with read_until method
+02:22:09 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+02:22:09 [ WARNING] ipfs_kit_py.libp2p.tools: Could not import libp2p constants
+02:22:09 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+02:22:09 [ WARNING] ipfs_kit_py.libp2p.kademlia.network: Provider class not found in kademlia network module
+02:22:09 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+02:22:09 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/.local/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+02:22:09 [ WARNING] ipfs_kit_py.libp2p_peer: libp2p.typing module not available: No module named 'libp2p.typing'. Using fallback TProtocol type.
+02:22:09 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+02:22:09 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+02:22:10 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+02:22:10 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+02:22:10 [    INFO] ipfs_kit_py.high_level_api.libp2p_integration: Adding libp2p methods to IPFSSimpleAPI
+02:22:10 [    INFO] ipfs_kit_py.high_level_api: LibP2P integration module imported
+02:22:10 [    INFO] ipfs_kit_py.high_level_api: Successfully imported WebRTCBenchmarkIntegrationAnyIO
+02:22:10 [    INFO] ipfs_kit_py.lotus_kit: Lotus binary available: True
+02:22:10 [    INFO] ipfs_kit_py.lotus_kit: Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+02:22:10 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+02:22:10 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+02:22:10 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+02:22:10 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+02:22:12 [    INFO] ipfs_kit_py.high_level_api: FSSpec is not available, filesystem interface will be limited
+02:22:12 [    INFO] ipfs_kit_py.webrtc_streaming: PyAV not found, media handling features will be unavailable
+02:22:12 [    INFO] ipfs_kit_py.webrtc_streaming: aiortc not found, WebRTC features will be unavailable
+02:22:12 [    INFO] ipfs_kit_py.webrtc_streaming: WebRTC dependencies status: NUMPY=True, CV2=True, AV=False, AIORTC=False
+02:22:12 [    INFO] ipfs_kit_py.webrtc_streaming: WebRTC availability: False
+02:22:12 [    INFO] ipfs_kit_py.high_level_api: WebRTC capabilities: available=False
+02:22:12 [    INFO] ipfs_kit_py.high_level_api: WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]
+02:22:12 [    INFO] ipfs_kit_py.high_level_api: WebRTC benchmark helpers: anyio_support=True
+02:22:12 [    INFO] ipfs_kit_py.high_level_api: Loaded configuration from /home/barberb/.ipfs_kit/config.json
+02:22:12 [    INFO] ipfs_kit_py.ipfs.ipfs_py: Initializing connection to IPFS node at 127.0.0.1:5001
+02:22:13 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://up.storacha.network/bridge (Status code: 404)
+02:22:13 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://api.web3.storage (Status code: 404)
+02:22:13 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.io: [Errno -2] Name or service not known
+02:22:13 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.io, skipping endpoint
+02:22:13 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://up.web3.storage/bridge (Status code: 404)
+02:22:13 [    INFO] ipfs_kit_py.storacha_kit: Storacha kit initialized with API endpoint: https://up.storacha.network/bridge
+02:22:13 [ WARNING] ipfs_kit_py.huggingface_kit: huggingface_hub package not available. Some functionality will be limited.
+02:22:13 [    INFO] ipfs_kit_py.huggingface_kit: You can install it with: pip install huggingface_hub
+02:22:13 [ WARNING] ipfs_kit_py.huggingface_kit: huggingface_hub package is not installed. HuggingFace Hub functionality will be limited.
+02:22:13 [ WARNING] ipfs_kit_py.huggingface_kit: To enable HuggingFace Hub support, install with: pip install ipfs_kit_py[huggingface]
+02:22:13 [    INFO] ipfs_kit_py.ipfs_kit: Initialized Lotus Kit for Filecoin integration
+02:22:13 [    INFO] ipfs_kit_py.ipfs_kit: Starting required daemons for role: leecher
+02:22:13 [ WARNING] ipfs_kit_py.ipfs_kit: daemon_start method not found on ipfs object, attempting alternate checks
+02:22:13 [    INFO] ipfs_kit_py.ipfs_kit: IPFS daemon started successfully: already_running
+02:22:13 [    INFO] ipfs_kit_py.lotus_daemon: Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+02:22:14 [    INFO] ipfs_kit_py.lotus_daemon: Lotus daemon is running with PID None
+02:22:14 [ WARNING] ipfs_kit_py.ipfs_kit: Not all daemons are running. Non-running daemons: ipfs
+02:22:14 [    INFO] ipfs_kit_py.high_level_api: LibP2P integration applied to IPFSSimpleAPI
+02:22:14 [ WARNING] ipfs_kit_py.high_level_api: FSSpec is not available. Please install fsspec to use the filesystem interface.
+02:22:14 [ WARNING] ipfs_kit_py.high_level_api: Error importing IPFSSimpleAPI: fsspec is not available. Please install fsspec to use this feature.
+02:22:14 [    INFO] ipfs_kit_py.lassie_kit: Lassie binary available: False
+02:22:14 [    INFO] ipfs_kit_py.api: LibP2P functionality integrated into High-Level API.
+02:22:14 [    INFO] ipfs_kit_py.api: WebRTC API available at /api/v0/webrtc
+02:22:14 [ WARNING] ipfs_kit_py.api: Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.
+02:22:14 [    INFO] ipfs_kit_py.api: WAL API available at /api/v0/wal
+02:22:14 [    INFO] ipfs_kit_py.api: Storage Backends API available at /api/v0/storage
+02:22:14 [    INFO] ipfs_kit_py.api: Observability API available at /api/v0/observability
+02:22:14 [   ERROR] error_handling_test: Could not import standardized error handling module. Make sure standardize_error_handling.py is accessible.
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+02:22:14 [    INFO] ipfs_kit_py.libp2p.protocol_integration: Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+02:22:14 [   ERROR] libp2p_integration_test: Could not import install_libp2p module
+02:22:15 [    INFO] test.integration.lotus.test_filecoin_minimal: Successfully imported FilecoinModel
+02:22:15 [    INFO] test.integration.lotus.test_filecoin_minimal: Successfully imported lotus_kit
+02:22:15 [    INFO] test.integration.lotus.test_filecoin_minimal: Successfully imported FilecoinModelAnyIO
+02:22:15 [    INFO] test.integration.lotus.test_filecoin_minimal_direct: Successfully imported lotus_kit
+02:22:15 [    INFO] ipfs_kit_py.mcp.models.storage.filecoin_model: Initialized Filecoin model with API URL: http://127.0.0.1:1234/rpc/v0
+02:22:15 [ WARNING] libp2p_mcp_integration_test: Import error: cannot import name 'EnhancedContentRouter' from 'ipfs_kit_py.libp2p.enhanced_content_routing' (unknown location), attempting to install dependencies
+02:22:15 [   ERROR] libp2p_mcp_integration_test: Failed to import install_libp2p module
+02:22:15 [    INFO] ipfs_kit_py.mcp_server: Successfully imported MCPServer and related classes for backward compatibility
+02:22:15 [    INFO] ipfs_kit_py.mcp_server: Successfully redirected import to the new consolidated structure
+02:22:15 [    INFO] ipfs_kit_py.mcp_server: Successfully redirected direct import from ipfs_kit_py.mcp_server.server_bridge to ipfs_kit_py.mcp.server_bridge
+02:22:15 [    INFO] mcp_compatibility: No object provided, applying compatibility methods to ipfs_kit module
+02:22:15 [    INFO] mcp_compatibility: Added basic compatibility attributes to ipfs_kit module
+02:22:15 [    INFO] mcp_compatibility: Found MCPServer class in ipfs_kit_py.mcp_server.server_bridge
+02:22:15 [    INFO] mcp_compatibility: Patching MCP server class: MCPServer
+02:22:15 [    INFO] mcp_compatibility: Successfully patched MCP server class: MCPServer
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions: Error importing extension huggingface: No module named 'huggingface_storage'
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions: Error importing extension s3: No module named 'enhanced_s3_storage'
+02:22:15 [ WARNING] ipfs_kit_py.mcp.extensions.filecoin: FilecoinStorage module not found
+02:22:15 [ WARNING] ipfs_kit_py.mcp.extensions.filecoin: Advanced Filecoin features not available. Some functionality will be limited.
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: filecoin as ipfs_kit_py.mcp.extensions.filecoin
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions: Error importing extension storacha: No module named 'storacha_storage'
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions: Error importing extension lassie: No module named 'lassie_storage'
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: migration as ipfs_kit_py.mcp.extensions.migration
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions.metrics: Error importing Monitoring system: No module named 'mcp_monitoring'
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: metrics as ipfs_kit_py.mcp.extensions.metrics
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions.auth: Error importing Auth Manager: No module named 'mcp_auth'
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions.auth: OAuth dependencies available
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: auth as ipfs_kit_py.mcp.extensions.auth
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: routing as ipfs_kit_py.mcp.extensions.routing
+02:22:15 [    INFO] faiss.loader: Loading faiss with AVX2 support.
+02:22:15 [    INFO] faiss.loader: Successfully loaded faiss with AVX2 support.
+02:22:15 [    INFO] faiss: Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions.search: Error importing search module: cannot import name 'ContentSearchService' from 'ipfs_kit_py.mcp.search' (/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/search/__init__.py)
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions.search: Tried paths: ['/home/barberb/ipfs_kit_py/ipfs_kit_py', '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp', '/home/barberb/ipfs_kit_py']
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: search as ipfs_kit_py.mcp.extensions.search
+02:22:15 [   ERROR] ipfs_kit_py.mcp.extensions.websocket: Error importing WebSocket module: No module named 'mcp_websocket'
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: websocket as ipfs_kit_py.mcp.extensions.websocket
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions.udm: Loaded 0 content entries from /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/extensions/udm_data/content_registry.json
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions.udm: Loaded 0 metadata entries from /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/extensions/udm_data/metadata_registry.json
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions.udm: Loaded content map from /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/extensions/udm_data/content_map.json
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions.udm: Unified data management system initialized
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: udm as ipfs_kit_py.mcp.extensions.udm
+02:22:15 [    INFO] ipfs_kit_py.mcp.extensions: Successfully imported extension: webrtc as ipfs_kit_py.mcp.extensions.webrtc
+02:22:15 [    INFO] applied_patches.enhanced_storacha_storage: Enhanced Storacha connection manager available
+02:22:15 [   ERROR] blue_green_integration_tests: Failed to import Blue/Green components: No module named 'ipfs_kit_py.mcp_server.blue_green_proxy'
+02:22:15 [    INFO] ipfs_kit_py.mcp.server_bridge: Initialized MCPServer: mcp-server (loglevel=debug)
+02:22:15 [    INFO] mcp_compatibility: Adding compatibility methods to MCPServer
+02:22:15 [    INFO] ipfs_kit_py.mcp.server_bridge: Registering MCP routes with app using prefix: /mcp
+02:22:15 [    INFO] ipfs_kit_py.mcp_server: Successfully redirected import from ipfs_kit_py.mcp_server.controllers.aria2_controller_anyio to ipfs_kit_py.mcp.controllers.aria2_controller_anyio
+02:22:15 [    INFO] ipfs_kit_py.mcp.controllers.cli_controller: FastAPI and Pydantic imported successfully.
+02:22:15 [    INFO] test.mcp.controller.test_mcp_communication: Loading libp2p mocks from /home/barberb/ipfs_kit_py/test/mcp/fix_libp2p_mocks.py
+02:22:15 [    INFO] fix_libp2p_mocks: Adding mock pytest_anyio to sys.modules
+02:22:15 [    INFO] fix_libp2p_mocks: Applying libp2p mocks for testing
+02:22:15 [    INFO] fix_libp2p_mocks: Creating mock module: libp2p.host.host_interface
+02:22:15 [    INFO] fix_libp2p_mocks: Patching MCP command handlers
+02:22:15 [    INFO] test.mcp.controller.test_mcp_communication: Successfully applied all libp2p and MCP fixes
+02:22:15 [    INFO] test.mcp.controller.test_mcp_communication_anyio: Loading libp2p mocks from /home/barberb/ipfs_kit_py/test/mcp/fix_libp2p_mocks.py
+02:22:15 [    INFO] fix_libp2p_mocks: Applying libp2p mocks for testing
+02:22:15 [    INFO] fix_libp2p_mocks: Patching MCP command handlers
+02:22:15 [    INFO] test.mcp.controller.test_mcp_communication_anyio: Successfully applied all libp2p and MCP fixes
+02:22:15 [    INFO] ipfs_kit_py.mcp_server: Successfully redirected import from ipfs_kit_py.mcp_server.controllers.credential_controller_anyio to ipfs_kit_py.mcp.controllers.credential_controller_anyio
+02:22:15 [    INFO] ipfs_kit_py.mcp_server: Successfully redirected import from ipfs_kit_py.mcp_server.controllers.credential_controller to ipfs_kit_py.mcp.controllers.credential_controller
+collected 1155 items / 10 errors / 1 skipped
+
+==================================== ERRORS ====================================
+____ ERROR collecting test/integration/libp2p/test_libp2p_peer_discovery.py ____
+test/integration/libp2p/test_libp2p_peer_discovery.py:41: in <module>
+    spec.loader.exec_module(high_level_api)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1186: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/barberb/ipfs_kit_py/test/integration/ipfs_kit_py/high_level_api.py'
+_ ERROR collecting test/integration/libp2p/test_mcp_discovery_comprehensive.py _
+ImportError while importing test module '/home/barberb/ipfs_kit_py/test/integration/libp2p/test_mcp_discovery_comprehensive.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+test/integration/libp2p/test_mcp_discovery_comprehensive.py:28: in <module>
+    from test_discovery.mcp_discovery_mock import (
+ipfs_kit_py/libp2p/hooks.py:32: in patched_import
+    module = original_import(name, globals, locals, fromlist, level)
+test_discovery/__init__.py:7: in <module>
+    from .mcp_discovery_mock import MCPDiscoveryMock
+E   ImportError: cannot import name 'MCPDiscoveryMock' from 'test_discovery.mcp_discovery_mock' (/home/barberb/ipfs_kit_py/test_discovery/mcp_discovery_mock.py)
+________ ERROR collecting test/integration/libp2p/test_mock_network.py _________
+ImportError while importing test module '/home/barberb/ipfs_kit_py/test/integration/libp2p/test_mock_network.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+test/integration/libp2p/test_mock_network.py:18: in <module>
+    from test_discovery.enhanced_mcp_discovery_mock import MockNetwork
+test/integration/libp2p/test_mcp_discovery_scenario.py:42: in patched_import
+    return original_import(name, *args, **kwargs)
+ipfs_kit_py/libp2p/hooks.py:32: in patched_import
+    module = original_import(name, globals, locals, fromlist, level)
+test_discovery/__init__.py:7: in <module>
+    from .mcp_discovery_mock import MCPDiscoveryMock
+E   ImportError: cannot import name 'MCPDiscoveryMock' from 'test_discovery.mcp_discovery_mock' (/home/barberb/ipfs_kit_py/test_discovery/mcp_discovery_mock.py)
+________ ERROR collecting test/integration/lotus/test_filecoin_model.py ________
+test/integration/lotus/test_filecoin_model.py:35: in <module>
+    if "error" in result:
+E   NameError: name 'result' is not defined
+------------------------------- Captured stdout --------------------------------
+Successfully imported FilecoinModel
+Failed to import FilecoinModel through storage module: cannot import name 'FilecoinModel' from 'ipfs_kit_py.mcp.models.storage' (/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/storage/__init__.py)
+Created FilecoinModel instance: <ipfs_kit_py.mcp.models.storage.filecoin_model.FilecoinModel object at 0x7bd6d4f60590>
+Failed to check connection: 'FilecoinModel' object has no attribute 'check_connection'
+------------------------------- Captured stderr --------------------------------
+INFO:ipfs_kit_py.mcp.models.storage.filecoin_model:Initialized Filecoin model with API URL: http://127.0.0.1:1234/rpc/v0
+____ ERROR collecting test/integration/mcp/test_mcp_comprehensive_fixes.py _____
+ImportError while importing test module '/home/barberb/ipfs_kit_py/test/integration/mcp/test_mcp_comprehensive_fixes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+test/integration/mcp/test_mcp_comprehensive_fixes.py:6: in <module>
+    from ipfs_kit_py.mcp_server.models.ipfs_model import IPFSModel
+test/integration/libp2p/test_mcp_discovery_scenario.py:42: in patched_import
+    return original_import(name, *args, **kwargs)
+ipfs_kit_py/libp2p/hooks.py:32: in patched_import
+    module = original_import(name, globals, locals, fromlist, level)
+E   ModuleNotFoundError: No module named 'ipfs_kit_py.mcp_server.models'
+------------------------------- Captured stderr --------------------------------
+INFO:ipfs_kit_py.mcp_server:Successfully imported MCPServer and related classes for backward compatibility
+INFO:ipfs_kit_py.mcp_server:Successfully redirected import to the new consolidated structure
+_______ ERROR collecting test/integration/test_blue_green_deployment.py ________
+test/integration/test_blue_green_deployment.py:124: in <module>
+    async def metrics_collector(config) -> Generator[MetricsCollector, None, None]:
+E   NameError: name 'MetricsCollector' is not defined
+------------------------------- Captured stderr --------------------------------
+ERROR:blue_green_integration_tests:Failed to import Blue/Green components: No module named 'ipfs_kit_py.mcp_server.blue_green_proxy'
+___ ERROR collecting test/mcp/controller/test_mcp_block_operations_anyio.py ____
+ImportError while importing test module '/home/barberb/ipfs_kit_py/test/mcp/controller/test_mcp_block_operations_anyio.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+test/mcp/controller/test_mcp_block_operations_anyio.py:18: in <module>
+    from test_mcp_block_operations import TestMCPBlockOperations
+ipfs_kit_py/mcp_server/__init__.py:116: in import_hook
+    return original_import(name, globals, locals, fromlist, level)
+test/integration/libp2p/test_mcp_discovery_scenario.py:42: in patched_import
+    return original_import(name, *args, **kwargs)
+ipfs_kit_py/libp2p/hooks.py:32: in patched_import
+    module = original_import(name, globals, locals, fromlist, level)
+E   ModuleNotFoundError: No module named 'test_mcp_block_operations'
+_____ ERROR collecting test/mcp/controller/test_mcp_communication_anyio.py _____
+test/mcp/controller/test_mcp_communication_anyio.py:124: in <module>
+    class TestMCPServerCommunication:
+test/mcp/controller/test_mcp_communication_anyio.py:127: in TestMCPServerCommunication
+    @pytest_anyio.fixture
+E   NameError: name 'pytest_anyio' is not defined
+------------------------------- Captured stderr --------------------------------
+INFO:test.mcp.controller.test_mcp_communication_anyio:Loading libp2p mocks from /home/barberb/ipfs_kit_py/test/mcp/fix_libp2p_mocks.py
+INFO:fix_libp2p_mocks:Applying libp2p mocks for testing
+INFO:fix_libp2p_mocks:Patching MCP command handlers
+INFO:test.mcp.controller.test_mcp_communication_anyio:Successfully applied all libp2p and MCP fixes
+__________ ERROR collecting test/mcp/controller/test_mcp_discovery.py __________
+test/mcp/controller/test_mcp_discovery.py:45: in <module>
+    with open(server_path, 'r') as f:
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/barberb/ipfs_kit_py/test/mcp/controller/ipfs_kit_py/mcp/server.py'
+------------------------------- Captured stdout --------------------------------
+Testing MCP Discovery Controller Integration
+-------------------------------------------
+Checking if required files exist...
+MCP Discovery Model: MISSING
+MCP Discovery Controller: MISSING
+
+Checking server.py for discovery integration...
+___ ERROR collecting test/mcp/controller/test_mcp_discovery_comprehensive.py ___
+ImportError while importing test module '/home/barberb/ipfs_kit_py/test/mcp/controller/test_mcp_discovery_comprehensive.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+test/mcp/controller/test_mcp_discovery_comprehensive.py:28: in <module>
+    from test_discovery.mcp_discovery_mock import (
+E   ImportError: cannot import name 'MockMCPDiscoveryModel' from 'test_discovery.mcp_discovery_mock' (/home/barberb/ipfs_kit_py/test_discovery/mcp_discovery_mock.py)
+=========================== short test summary info ============================
+ERROR test/integration/libp2p/test_libp2p_peer_discovery.py - FileNotFoundErr...
+ERROR test/integration/libp2p/test_mcp_discovery_comprehensive.py
+ERROR test/integration/libp2p/test_mock_network.py
+ERROR test/integration/lotus/test_filecoin_model.py - NameError: name 'result...
+ERROR test/integration/mcp/test_mcp_comprehensive_fixes.py
+ERROR test/integration/test_blue_green_deployment.py - NameError: name 'Metri...
+ERROR test/mcp/controller/test_mcp_block_operations_anyio.py
+ERROR test/mcp/controller/test_mcp_communication_anyio.py - NameError: name '...
+ERROR test/mcp/controller/test_mcp_discovery.py - FileNotFoundError: [Errno 2...
+ERROR test/mcp/controller/test_mcp_discovery_comprehensive.py
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 10 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+================== 1 skipped, 2 warnings, 10 errors in 6.09s ===================

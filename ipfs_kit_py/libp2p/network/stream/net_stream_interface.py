@@ -5,9 +5,56 @@ This module provides interfaces and implementations for working with
 network streams in the libp2p networking stack.
 """
 
+# Import anyio first
 import anyio
 import logging
 from typing import Optional, Union, List, Dict, Any, Callable, Awaitable
+
+# Import or define compatibility types if needed
+try:
+    from anyio import StreamReader, StreamWriter
+except ImportError:
+    # Define protocol types if not available in anyio
+    from typing import Protocol
+    
+    class StreamReader(Protocol):
+        """Protocol for stream reading operations."""
+        
+        async def read(self, max_bytes: int = -1) -> bytes:
+            """Read up to max_bytes from the stream."""
+            ...
+            
+        async def read_exact(self, nbytes: int) -> bytes:
+            """Read exactly nbytes from the stream."""
+            ...
+            
+        async def read_until(self, delimiter: bytes, max_bytes: int = -1) -> bytes:
+            """Read until delimiter is found."""
+            ...
+    
+    
+    class StreamWriter(Protocol):
+        """Protocol for stream writing operations."""
+        
+        def write(self, data: bytes) -> None:
+            """Write data to the stream."""
+            ...
+            
+        async def drain(self) -> None:
+            """Flush the write buffer."""
+            ...
+            
+        def close(self) -> None:
+            """Close the stream."""
+            ...
+            
+        async def wait_closed(self) -> None:
+            """Wait until the stream is closed."""
+            ...
+    
+    # Make these types available through anyio module for API compatibility
+    anyio.StreamReader = StreamReader
+    anyio.StreamWriter = StreamWriter
 
 # Set up logger
 logger = logging.getLogger(__name__)

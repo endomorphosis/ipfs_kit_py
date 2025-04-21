@@ -1,27 +1,30 @@
+#!/usr/bin/env python3
 """
-Constants for libp2p functionality.
+Constants for libp2p tools.
 
-This module re-exports constants from the parent constants module for
-backward compatibility with code that imports from this path.
+This module provides constants used by various libp2p components.
 """
 
-import logging
-import sys
+# Alpha value for Kademlia DHT
+ALPHA_VALUE = 3
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Constants for DHT operation
+K_VALUE = 20  # k-bucket size
+ID_SIZE = 256  # ID size in bits
+ROUTING_TABLE_FLUSH_PERIOD = 600  # seconds
 
-# Import constants from parent module
-try:
-    from ..constants import *
-except ImportError:
-    logger.warning("Could not import constants from parent module")
-    
-    # Define basic constants for compatibility
-    ALPHA_VALUE = 3
-    MAX_PROVIDERS_PER_KEY = 20
-    CLOSER_PEER_COUNT = 16
-    MAX_MESSAGE_SIZE = 1024 * 1024  # 1MB
-    DEFAULT_PROTOCOL_TIMEOUT = 10
-    PROTOCOL_KAD_DHT = "/ipfs/kad/1.0.0"
-    DHT_RECORD_TTL = 24 * 60 * 60  # 24 hours
+# Constants for peer routing
+MAX_PROVIDERS_PER_KEY = 20
+PROVIDER_RECORD_TTL = 24 * 60 * 60  # 24 hours in seconds
+
+# Constants for protocol negotiation
+PROTOCOL_ID_PREFIX = "/ipfs/"
+LIB_P2P_CIRCUIT_RELAY = "/libp2p/circuit/relay/0.1.0"
+
+# Constants for stream handling
+MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
+DEFAULT_STREAM_TIMEOUT = 60  # seconds
+
+# Constants for PubSub
+PUBSUB_TOPIC_PREFIX = "/ipfs/pubsub/"
+PUBSUB_SIGNATURE_POLICY = "StrictSign"  # StrictSign, StrictNoSign, WarnOnlySign

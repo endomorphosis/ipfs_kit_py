@@ -176,8 +176,8 @@ class UnifiedStorageService:
         return None, None
 
     async def store_content(
-        self
-        backend: str
+    self,
+    backend: str
         content: Union[bytes, BinaryIO, str]
         cid: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:

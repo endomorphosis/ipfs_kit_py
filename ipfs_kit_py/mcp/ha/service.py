@@ -291,7 +291,7 @@ class HighAvailabilityService:
                 return {"status": "error", "message": "Cluster not initialized"}
 
             # Only the primary can accept join requests
-            if self.node_info.role != "primary": ,
+            if self.node_info.role != "primary":
                 return {
                     "status": "redirect",
                     "primary_node": self.cluster_state.primary_node_id,
@@ -422,7 +422,7 @@ class HighAvailabilityService:
                 return {"status": "error", "message": "Cluster not initialized"}
 
             # Only the primary can trigger an orderly failover
-            if not forced and self.node_info.role != "primary": ,
+            if not forced and self.node_info.role != "primary":
                 return {
                     "status": "error",
                     "message": "Only the primary node can trigger a normal failover",
@@ -505,7 +505,7 @@ class HighAvailabilityService:
                     pass
 
         # If we're the primary, try to hand off
-        if self.node_info.role == "primary": ,
+        if self.node_info.role == "primary":
             await self._hand_off_primary_role()
 
         # Update node status to indicate shutdown
@@ -620,7 +620,7 @@ class HighAvailabilityService:
         """
         # Get cluster coordinator nodes from environment
         coordinator_hosts = os.environ.get("MCP_CLUSTER_HOSTS", "").split(",")
-        if not coordinator_hosts or coordinator_hosts[0] == "": ,
+        if not coordinator_hosts or coordinator_hosts[0] == "":
             return False
 
         # Try to join the cluster through each coordinator
@@ -643,7 +643,7 @@ class HighAvailabilityService:
                     cluster_info = await response.json()
 
                     # If the node is still initializing, skip it
-                    if cluster_info.get("status") == "initializing": ,
+                    if cluster_info.get("status") == "initializing":
                         continue
 
                     # Get the primary node
@@ -683,7 +683,7 @@ class HighAvailabilityService:
             ) as response:
                 data = await response.json()
 
-                if data.get("status") == "success": ,
+                if data.get("status") == "success":
                     # Get full cluster state
                     self.cluster_state = ClusterState(**data.get("cluster_state"))
 
@@ -698,7 +698,7 @@ class HighAvailabilityService:
                     await self._save_state()
 
                     return True
-                elif data.get("status") == "redirect": ,
+                elif data.get("status") == "redirect":
                     # We got redirected to another node
                     new_primary = data.get("primary_node")
                     if new_primary in self.cluster_state.nodes:
@@ -782,7 +782,7 @@ class HighAvailabilityService:
                         self.node_info.load = await self._get_load_metrics()
 
                         # If we're the primary, update the state directly
-                        if self.node_info.role == "primary": ,
+                        if self.node_info.role == "primary":
                             async with self.state_lock:
                                 self.cluster_state.nodes[self.node_id].last_heartbeat = time.time()
                                 self.cluster_state.nodes[self.node_id].load = self.node_info.load
@@ -863,7 +863,7 @@ class HighAvailabilityService:
         """Perform health checks for all nodes and services."""
         while True:
             try:
-                if self.cluster_state and self.node_info.role == "primary": ,
+                if self.cluster_state and self.node_info.role == "primary":
                     await self._check_node_health()
                     await self._check_service_health()
             except asyncio.CancelledError:
@@ -898,7 +898,7 @@ class HighAvailabilityService:
                 time_since_heartbeat = current_time - node.last_heartbeat
 
                 if time_since_heartbeat > failover_timeout:
-                    if node.status != "failed": ,
+                    if node.status != "failed":
                         logger.warning(
                             f"Node {node_id} marked as failed (no heartbeat for {time_since_heartbeat:.1f}s)"
                         )
@@ -912,7 +912,7 @@ class HighAvailabilityService:
                             except Exception as e:
                                 logger.error(f"Error in node status callback: {e}")
                 elif time_since_heartbeat > failover_timeout / 2:
-                    if node.status == "active": ,
+                    if node.status == "active":
                         logger.warning(
                             f"Node {node_id} marked as degraded (slow heartbeat: {time_since_heartbeat:.1f}s)"
                         )
@@ -951,7 +951,7 @@ class HighAvailabilityService:
                 node_id = service.node_id
                 if node_id not in self.cluster_state.nodes:
                     # Node doesn't exist, mark service as failed
-                    if service.status != "failed": ,
+                    if service.status != "failed":
                         service.status = "failed"
                         state_updated = True
                     continue
@@ -959,7 +959,7 @@ class HighAvailabilityService:
                 node = self.cluster_state.nodes[node_id]
                 if node.status in ["failed", "shutdown"]:
                     # Node is unhealthy, mark service as failed
-                    if service.status != "failed": ,
+                    if service.status != "failed":
                         service.status = "failed"
                         state_updated = True
                     continue
@@ -973,7 +973,7 @@ class HighAvailabilityService:
                         state_updated = True
                 else:
                     # For remote services, we could check them via HTTP if they have a health check endpoint
-                    if service.health_check and node.status == "active": ,
+                    if service.health_check and node.status == "active":
                         try:
                             # Construct the health check URL
                             service_url = (
@@ -983,17 +983,17 @@ class HighAvailabilityService:
                             # Perform health check
                             async with self.http_session.get(service_url, timeout=5) as response:
                                 if response.status != 200:
-                                    if service.status != "degraded": ,
+                                    if service.status != "degraded":
                                         service.status = "degraded"
                                         state_updated = True
                                 else:
                                     # Service is healthy
-                                    if service.status != "active": ,
+                                    if service.status != "active":
                                         service.status = "active"
                                         state_updated = True
                         except Exception as e:
                             logger.warning(f"Error checking service {service_id} health: {e}")
-                            if service.status != "degraded": ,
+                            if service.status != "degraded":
                                 service.status = "degraded"
                                 state_updated = True
 
@@ -1013,7 +1013,7 @@ class HighAvailabilityService:
             try:
                 if self.cluster_state and len(self.cluster_state.nodes) > 1:
                     # If we're the primary, propagate our state to others
-                    if self.node_info.role == "primary": ,
+                    if self.node_info.role == "primary":
                         await self._propagate_state_update()
                     else:
                         # If we're not the primary, sync from the primary
@@ -1035,7 +1035,7 @@ class HighAvailabilityService:
             return
 
         # Only the primary should propagate state updates
-        if self.node_info.role != "primary": ,
+        if self.node_info.role != "primary":
             return
 
         # Get local copy of state to avoid holding lock during HTTP requests
@@ -1099,7 +1099,7 @@ class HighAvailabilityService:
         """Monitor for primary node failures and trigger failover if needed."""
         while True:
             try:
-                if self.cluster_state and self.node_info.role != "primary": ,
+                if self.cluster_state and self.node_info.role != "primary":
                     # Check if primary node is healthy
                     primary_node_id = self.cluster_state.primary_node_id
 
@@ -1140,7 +1140,7 @@ class HighAvailabilityService:
         # Only perform election if not already in progress
         async with self.election_lock:
             # Check if primary has already changed
-            if self.node_info.role == "primary": ,
+            if self.node_info.role == "primary":
                 return
 
             # Get active nodes
@@ -1162,7 +1162,7 @@ class HighAvailabilityService:
             # Select new primary
             new_primary_id = None
 
-            if strategy == "manual": ,
+            if strategy == "manual":
                 # In manual mode, we don't automatically elect a new primary
                 logger.warning("Manual primary selection mode, not electing new primary")
                 return
@@ -1215,7 +1215,7 @@ class HighAvailabilityService:
                     for node_id, node in self.cluster_state.nodes.items():
                         if node_id == new_primary_id:
                             node.role = "primary"
-                        elif node.role == "primary": ,
+                        elif node.role == "primary":
                             node.role = "secondary"
 
                     # Add failover event
@@ -1287,7 +1287,7 @@ class HighAvailabilityService:
             return {"status": "error", "message": "Cluster not initialized"}
 
         # For non-forced failover, only the primary can initiate
-        if not forced and self.node_info.role != "primary": ,
+        if not forced and self.node_info.role != "primary":
             return {
                 "status": "error",
                 "message": "Only the primary node can trigger a normal failover",
@@ -1300,7 +1300,7 @@ class HighAvailabilityService:
                 "message": f"Target node {target_node} not found in cluster",
             }
 
-        if target_node and self.cluster_state.nodes[target_node].status != "active": ,
+        if target_node and self.cluster_state.nodes[target_node].status != "active":
             return {
                 "status": "error",
                 "message": f"Target node {target_node} is not active",
@@ -1349,7 +1349,7 @@ class HighAvailabilityService:
             for node_id, node in self.cluster_state.nodes.items():
                 if node_id == new_primary:
                     node.role = "primary"
-                elif node.role == "primary": ,
+                elif node.role == "primary":
                     node.role = "secondary"
 
             # Add failover event
@@ -1393,7 +1393,7 @@ class HighAvailabilityService:
 
     async def _hand_off_primary_role(self):
         """Attempt to hand off primary role to another node during shutdown."""
-        if not self.cluster_state or self.node_info.role != "primary": ,
+        if not self.cluster_state or self.node_info.role != "primary":
             return
 
         # Find active nodes other than ourselves
@@ -1417,7 +1417,7 @@ class HighAvailabilityService:
             reason="Orderly shutdown of primary node",
         )
 
-        if result.get("status") == "success": ,
+        if result.get("status") == "success":
             logger.info(f"Successfully handed off primary role to {new_primary}")
         else:
             logger.warning(f"Failed to hand off primary role: {result.get('message')}")

@@ -28,8 +28,8 @@ class PerformanceOptimizationService:
     from the MCP roadmap.
     """
     def __init__(
-        self
-        backend_registry,
+    self,
+    backend_registry,
         unified_storage_service,
         cache_size: int = 100,
         performance_window: int = 100,
@@ -158,7 +158,7 @@ class PerformanceOptimizationService:
             capabilities.update(backend_capabilities)
 
         # Special handling for known backend types
-        if backend == "ipfs": ,
+        if backend == "ipfs":
             capabilities.update(
                 {
                     "supports_batching": False,
@@ -168,7 +168,7 @@ class PerformanceOptimizationService:
                     "performance_tier": "high",
                 }
             )
-        elif backend == "s3": ,
+        elif backend == "s3":
             capabilities.update(
                 {
                     "supports_batching": True,
@@ -177,7 +177,7 @@ class PerformanceOptimizationService:
                     "performance_tier": "high",
                 }
             )
-        elif backend == "filecoin": ,
+        elif backend == "filecoin":
             capabilities.update(
                 {
                     "supports_batching": False,
@@ -333,7 +333,7 @@ class PerformanceOptimizationService:
 
             # Process each group of operations
             for op_type, requests in operations_by_type.items():
-                if op_type == "get_content": ,
+                if op_type == "get_content":
                     # Batch get_content operations
                     cids = [request["args"][0] for request in requests]
 
@@ -473,7 +473,7 @@ class PerformanceOptimizationService:
 
                 for backend in self.backend_registry.get_available_backends():
                     # Skip unhealthy backends
-                    if self.backend_health.get(backend, {}).get("status") == "unhealthy": ,
+                    if self.backend_health.get(backend, {}).get("status") == "unhealthy":
                         self.backend_weights[backend] = 0
                         continue
 
@@ -482,7 +482,7 @@ class PerformanceOptimizationService:
 
                     # Adjust weight based on health
                     health = self.backend_health.get(backend, {})
-                    if health.get("status") == "degraded": ,
+                    if health.get("status") == "degraded":
                         weight *= 0.5
 
                     # Adjust weight based on success rate
@@ -499,9 +499,9 @@ class PerformanceOptimizationService:
                     perf_tier = self.backend_capabilities.get(backend, {}).get(
                         "performance_tier", "standard"
                     )
-                    if perf_tier == "high": ,
+                    if perf_tier == "high":
                         weight *= 1.5
-                    elif perf_tier == "archive": ,
+                    elif perf_tier == "archive":
                         weight *= 0.7
 
                     # Save weight
@@ -519,8 +519,8 @@ class PerformanceOptimizationService:
             await asyncio.sleep(60)
 
     async def schedule_request(
-        self
-        backend: str
+    self,
+    backend: str
         func: Callable
         *args,
         future: asyncio.Future = None,
@@ -711,8 +711,8 @@ class PerformanceOptimizationService:
         return None, None
 
     async def store_content(
-        self
-        content: Union[bytes, io.BytesIO, str],
+    self,
+    content: Union[bytes, io.BytesIO, str],
         backends: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """

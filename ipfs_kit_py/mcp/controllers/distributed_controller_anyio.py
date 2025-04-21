@@ -13,7 +13,7 @@ import uuid
 import anyio
 import sniffio
 from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, 
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 # Configure logger
@@ -387,11 +387,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error during peer discovery")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -405,19 +405,19 @@ class DistributedControllerAnyIO:
         except TimeoutError:
             logger.error("Peer discovery timed out")
             mcp_error_handling.raise_http_exception(
-        code="TIMEOUT",
-        message_override="Peer discovery timed out",
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                code="TIMEOUT",
+                message_override="Peer discovery timed out",
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
         except Exception as e:
             logger.error(f"Error discovering peers: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def list_known_peers(
         self, include_metrics: bool = False, filter_role: Optional[str] = None
@@ -462,11 +462,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error listing peers")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -480,11 +480,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error listing known peers: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def register_node(self, request: NodeRegistrationRequest) -> Dict[str, Any]:
         """
@@ -534,11 +534,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error during node registration")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -555,11 +555,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error registering node: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def update_node_status(
         self, node_id: str, status: str, resources: Optional[Dict[str, Any]] = None
@@ -599,11 +599,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error updating node status")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -615,14 +615,14 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error updating node status: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def list_nodes(
-        self
+        self,
         include_metrics: bool = False,
         filter_role: Optional[str] = None,
         filter_status: Optional[str] = None,
@@ -670,11 +670,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error listing nodes")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -686,11 +686,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error listing nodes: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def cache_operation(self, request: ClusterCacheRequest) -> Dict[str, Any]:
         """
@@ -738,11 +738,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error performing cache operation")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -758,11 +758,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error performing cache operation: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def get_cache_status(self) -> Dict[str, Any]:
         """
@@ -791,11 +791,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error getting cache status")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -807,11 +807,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error getting cache status: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def state_operation(self, request: ClusterStateRequest) -> Dict[str, Any]:
         """
@@ -857,11 +857,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error performing state operation")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -877,11 +877,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error performing state operation: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def synchronize_state(self, sync_data: StateSyncRequest) -> Dict[str, Any]:
         """
@@ -925,11 +925,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error synchronizing state")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -941,11 +941,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error synchronizing state: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def submit_task(self, request: DistributedTaskRequest) -> Dict[str, Any]:
         """
@@ -1001,11 +1001,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error submitting task")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -1022,19 +1022,19 @@ class DistributedControllerAnyIO:
         except TimeoutError as e:
             logger.error(f"Task submission timed out: {e}")
             mcp_error_handling.raise_http_exception(
-        code="TIMEOUT",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="TIMEOUT",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
         except Exception as e:
             logger.error(f"Error submitting task: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def get_task_status(self, task_id: str) -> Dict[str, Any]:
         """
@@ -1085,11 +1085,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error getting task status: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def cancel_task(self, task_id: str) -> Dict[str, Any]:
         """
@@ -1140,14 +1140,14 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error cancelling task: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def list_tasks(
-        self
+        self,
         filter_status: Optional[str] = None,
         filter_type: Optional[str] = None,
         filter_node: Optional[str] = None,
@@ -1195,11 +1195,11 @@ class DistributedControllerAnyIO:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error listing tasks")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/distributed_anyio",
+                    doc_category="api"
+                )
 
             return {
                 "success": True,
@@ -1211,11 +1211,11 @@ class DistributedControllerAnyIO:
         except Exception as e:
             logger.error(f"Error listing tasks: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=str(e,
-        endpoint="/api/v0/distributed_anyio",
-        doc_category="api"
-    ))
+                code="INTERNAL_ERROR",
+                message_override=str(e),
+                endpoint="/api/v0/distributed_anyio",
+                doc_category="api"
+            )
 
     async def simple_sync(self):
         """
@@ -1305,12 +1305,12 @@ class DistributedControllerAnyIO:
                 try:
                     data = await websocket.receive_text()
                     # Process any client messages (e.g., changing filters)
-                    if data == "ping": ,
+                    if data == "ping":
                         await websocket.send_text("pong")
                     else:
                         try:
                             msg = json.loads(data)
-                            if msg.get("type") == "update_subscription": ,
+                            if msg.get("type") == "update_subscription":
                                 # Update subscription parameters
                                 # Check if execute_command is already async
                                 if hasattr(self.ipfs_model.execute_command, "__await__"):

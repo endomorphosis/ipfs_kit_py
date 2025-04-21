@@ -268,7 +268,7 @@ class AlertingService:
                     for alert_data in alerts_data:
                         alert = AlertInstance(**alert_data)
                         # Only load still-firing alerts
-                        if alert.status == "firing": ,
+                        if alert.status == "firing":
                             self.alerts[alert.id] = alert
 
                     logger.info(f"Loaded {len(self.alerts)} active alerts")
@@ -377,7 +377,7 @@ class AlertingService:
 
                     data = await response.json()
 
-                    if data["status"] != "success": ,
+                    if data["status"] != "success":
                         logger.error(
                             f"Prometheus query failed: {data.get('error', 'Unknown error')}"
                         )
@@ -389,7 +389,7 @@ class AlertingService:
                     if result_type == "vector" and len(data["data"]["result"]) > 0:
                         # Return the value of the first result
                         return float(data["data"]["result"][0]["value"][1])
-                    elif result_type == "scalar": ,
+                    elif result_type == "scalar":
                         return float(data["data"]["result"][1])
                     else:
                         logger.warning(f"Unsupported result type or empty result: {result_type}")
@@ -410,17 +410,17 @@ class AlertingService:
         Returns:
             True if condition is met
         """
-        if comparison == "gt": ,
+        if comparison == "gt":
             return value > threshold
-        elif comparison == "lt": ,
+        elif comparison == "lt":
             return value < threshold
-        elif comparison == "eq": ,
+        elif comparison == "eq":
             return value == threshold
-        elif comparison == "ne": ,
+        elif comparison == "ne":
             return value != threshold
-        elif comparison == "ge": ,
+        elif comparison == "ge":
             return value >= threshold
-        elif comparison == "le": ,
+        elif comparison == "le":
             return value <= threshold
         else:
             logger.error(f"Invalid comparison operator: {comparison}")
@@ -437,7 +437,7 @@ class AlertingService:
         # Check if an alert already exists for this rule
         existing_alert = None
         for alert in self.alerts.values():
-            if alert.rule_id == rule.id and alert.status == "firing": ,
+            if alert.rule_id == rule.id and alert.status == "firing":
                 existing_alert = alert
                 break
 
@@ -484,7 +484,7 @@ class AlertingService:
             rule_id: Rule ID
         """
         for alert_id, alert in list(self.alerts.items()):
-            if alert.rule_id == rule_id and alert.status == "firing": ,
+            if alert.rule_id == rule_id and alert.status == "firing":
                 alert.status = "resolved"
                 alert.end_time = time.time()
 
@@ -500,7 +500,7 @@ class AlertingService:
             try:
                 # Process notifications for all firing alerts
                 for alert_id, alert in list(self.alerts.items()):
-                    if alert.status == "firing": ,
+                    if alert.status == "firing":
                         # Check if notification should be sent
                         if not alert.notified:
                             # Initial notification
@@ -623,13 +623,13 @@ class AlertingService:
             channel: Notification channel
             alert: Alert instance
         """
-        if channel.type == "email": ,
+        if channel.type == "email":
             await self._send_email_notification(channel, alert)
-        elif channel.type == "slack": ,
+        elif channel.type == "slack":
             await self._send_slack_notification(channel, alert)
-        elif channel.type == "webhook": ,
+        elif channel.type == "webhook":
             await self._send_webhook_notification(channel, alert)
-        elif channel.type == "console": ,
+        elif channel.type == "console":
             self._send_console_notification(alert)
         else:
             logger.warning(f"Unsupported notification channel type: {channel.type}")
@@ -644,13 +644,13 @@ class AlertingService:
             channel: Notification channel
             alert: Alert instance
         """
-        if channel.type == "email": ,
+        if channel.type == "email":
             await self._send_email_resolution(channel, alert)
-        elif channel.type == "slack": ,
+        elif channel.type == "slack":
             await self._send_slack_resolution(channel, alert)
-        elif channel.type == "webhook": ,
+        elif channel.type == "webhook":
             await self._send_webhook_resolution(channel, alert)
-        elif channel.type == "console": ,
+        elif channel.type == "console":
             self._send_console_resolution(alert)
         else:
             logger.warning(f"Unsupported notification channel type: {channel.type}")
@@ -1377,7 +1377,7 @@ Annotations: {json.dumps(alert.annotations)}
             True if successful
         """
         alert = self.alerts.get(alert_id)
-        if not alert and alert.status == "silenced": ,
+        if not alert and alert.status == "silenced":
             return False
 
         alert.status = "firing"
@@ -1395,7 +1395,7 @@ Annotations: {json.dumps(alert.annotations)}
             True if successful
         """
         alert = self.alerts.get(alert_id)
-        if not alert or alert.status != "firing": ,
+        if not alert or alert.status != "firing":
             return False
 
         alert.status = "resolved"

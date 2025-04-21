@@ -13,9 +13,14 @@ from typing import Dict, Any, List
 
 import pytest
 import anyio
-from fastapi import FastAPI, WebSocket
-from fastapi.testclient import TestClient
-from fastapi.websockets import WebSocketDisconnect
+
+# Import our mock WebSocket implementation instead of fastapi's
+import sys
+import os
+
+# Add the parent directory to sys.path to make test/mock_fastapi.py importable
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from test.mock_fastapi import WebSocket, WebSocketDisconnect
 
 from ipfs_kit_py.wal_websocket_anyio import (
     SubscriptionType,
@@ -23,6 +28,31 @@ from ipfs_kit_py.wal_websocket_anyio import (
     WALWebSocketHandler,
     register_wal_websocket
 )
+
+# Mock FastAPI app
+class MockFastAPI:
+    def __init__(self):
+        self.routes = []
+        self.router = MockRouter()
+        
+    def websocket(self, path):
+        def decorator(func):
+            self.routes.append(MockRoute(path, func))
+            return func
+        return decorator
+
+class MockRouter:
+    def __init__(self):
+        self.on_shutdown = []
+        
+    def add_event_handler(self, event, func):
+        if event == "shutdown":
+            self.on_shutdown.append(func)
+
+class MockRoute:
+    def __init__(self, path, endpoint):
+        self.path = path
+        self.endpoint = endpoint
 
 # Mark all tests in this module as anyio tests
 pytestmark = pytest.mark.anyio
@@ -172,8 +202,8 @@ async def connected_websocket(connection_manager, mock_websocket):
 
 @pytest.fixture
 def fastapi_app():
-    """Create a FastAPI app for testing."""
-    return FastAPI()
+    """Create a mock FastAPI app for testing."""
+    return MockFastAPI()
 
 async def test_connection_manager_connect(connection_manager, mock_websocket):
     """Test connecting a WebSocket."""

@@ -13,6 +13,20 @@ from types import ModuleType
 
 logger = logging.getLogger(__name__)
 
+# Direct imports for backward compatibility
+try:
+    # Directly import and re-export the MCPServer class for backward compatibility
+    from ipfs_kit_py.mcp.server_bridge import MCPServer, MCPCacheManager, AsyncMCPServer
+    from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
+    from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+    
+    logger.info("Successfully imported MCPServer and related classes for backward compatibility")
+    
+    # Make these available at the module level
+    __all__ = ['MCPServer', 'MCPCacheManager', 'AsyncMCPServer', 'IPFSController', 'IPFSModel']
+except ImportError as e:
+    logger.error(f"Failed to import from ipfs_kit_py.mcp: {e}")
+
 # Define the mapping between old paths and new paths
 MODULE_MAPPING = {
     'ipfs_kit_py.mcp_server.controllers': 'ipfs_kit_py.mcp.controllers',
@@ -20,8 +34,12 @@ MODULE_MAPPING = {
     'ipfs_kit_py.mcp_server.storage': 'ipfs_kit_py.mcp.storage_manager',
     'ipfs_kit_py.mcp_server.persistence': 'ipfs_kit_py.mcp.persistence',
     'ipfs_kit_py.mcp_server.api': 'ipfs_kit_py.mcp.api',
-    'ipfs_kit_py.mcp_server.extensions': 'ipfs_kit_py.mcp.extensions'
+    'ipfs_kit_py.mcp_server.extensions': 'ipfs_kit_py.mcp.extensions',
+    'ipfs_kit_py.mcp_server.server_bridge': 'ipfs_kit_py.mcp.server_bridge'
 }
+
+# Create a server_bridge module directly in sys.modules
+sys.modules['ipfs_kit_py.mcp_server.server_bridge'] = sys.modules[__name__]
 
 class RedirectModule(ModuleType):
     """

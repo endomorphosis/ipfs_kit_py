@@ -378,8 +378,8 @@ credential_manager = None
             return self._handle_exception(e, result, "get_deal_info")
 
     def start_deal(
-        self
-        data_cid: str
+    self,
+    data_cid: str
         miner: str
         price: str
         duration: int
@@ -592,8 +592,8 @@ start_time
             return self._handle_exception(e, result, "get_miner_info")
 
     def ipfs_to_filecoin(
-        self
-        cid: str
+    self,
+    cid: str
         miner: str
         price: str
         duration: int
@@ -1451,8 +1451,8 @@ start_time
 
     # Multisig methods
     def create_multisig(
-        self
-        required_signers: int
+    self,
+    required_signers: int
         signer_addresses: List[str]
         unlock_duration: int
         initial_balance: str
@@ -1615,8 +1615,8 @@ sender_address
             return self._handle_exception(e, result, "list_pending_multisig_transactions")
 
     def propose_multisig_transaction(
-        self
-        multisig_address: str
+    self,
+    multisig_address: str
         recipient_address: str
         value: str
         proposer_address: str

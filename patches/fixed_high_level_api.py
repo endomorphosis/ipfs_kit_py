@@ -200,7 +200,10 @@ class IPFSSimpleAPI:
         fsspec_available = self._check_fsspec_available()
         if not fsspec_available:
             logger.warning("FSSpec is not available. Please install fsspec to use the filesystem interface.")
-            if not return_mock:
+            if return_mock:
+                logger.error("Using mock filesystem due to missing fsspec dependency")
+                return MockIPFSFileSystem(**kwargs)
+            else:
                 raise ImportError("fsspec is not available. Please install fsspec to use this feature.")
         
         # Try to import IPFSFileSystem if fsspec is available

@@ -100,7 +100,7 @@ class TestIPFSFileSystemMetrics(unittest.TestCase):
         self.test_cid = "QmTestCid123456789"
 
         # Patch the IPFS run_ipfs_command method to return successful results
-        self.ipfs_command_patcher = patch("ipfs_kit_py.ipfs.ipfs_py.run_ipfs_command")
+        self.ipfs_command_patcher = patch("ipfs_kit_py.ipfs.ipfs_py.ipfs_py.run_ipfs_command")
         self.mock_ipfs_command = self.ipfs_command_patcher.start()
         self.mock_ipfs_command.return_value = {
             "success": True,

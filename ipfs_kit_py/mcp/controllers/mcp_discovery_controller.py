@@ -315,7 +315,7 @@ class MCPDiscoveryController:
             "is_local": True,
         }
 
-    async def announce_server(self, request: Optional[AnnounceRequest] = None) -> Dict[str, Any]:
+    async def announce_server(self, request: Optional["AnnounceRequest"] = None) -> Dict[str, Any]:
         """
         Announce this server to the network.
 

@@ -48,8 +48,8 @@ class StorachaConnectionManager:
     DEFAULT_ENDPOINTS = ["https://api.web3.storage/", "https://w3s.link/"]
 
     def __init__(
-        self
-        api_endpoints=None,
+    self,
+    api_endpoints=None,
         api_key=None,
         max_retries=DEFAULT_MAX_RETRIES,
         mock_mode=False,
@@ -528,8 +528,8 @@ class StorachaBackend(BackendStorage):
         return hasattr(obj, "read") and callable(obj.read)
 
     def store(
-        self
-        data: Union[bytes, BinaryIO, str]
+    self,
+    data: Union[bytes, BinaryIO, str]
         container: Optional[str] = None,
         path: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -620,8 +620,8 @@ class StorachaBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def retrieve(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -718,8 +718,8 @@ class StorachaBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def delete_v2(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -807,8 +807,8 @@ class StorachaBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def list(
-        self
-        container: Optional[str] = None,
+    self,
+    container: Optional[str] = None,
         prefix: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -887,8 +887,8 @@ class StorachaBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def exists(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> bool:
@@ -914,8 +914,8 @@ class StorachaBackend(BackendStorage):
             return False
 
     def get_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -1024,8 +1024,8 @@ class StorachaBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def update_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         metadata: Dict[str, Any]
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -1132,8 +1132,8 @@ class StorachaBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def migrate_to(
-        self
-        source_identifier: str
+    self,
+    source_identifier: str
         target_backend: BackendStorage
         target_container: Optional[str] = None,
         target_path: Optional[str] = None,
@@ -1281,8 +1281,8 @@ class StorachaBackend(BackendStorage):
         return result
 
     def migrate_from(
-        self
-        source_backend: BackendStorage
+    self,
+    source_backend: BackendStorage
         source_identifier: str
         target_path: Optional[str] = None,
         source_container: Optional[str] = None,

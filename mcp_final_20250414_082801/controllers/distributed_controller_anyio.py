@@ -570,8 +570,8 @@ class DistributedControllerAnyIO:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def list_nodes(
-        self
-        include_metrics: bool = False,
+    self,
+    include_metrics: bool = False,
         filter_role: Optional[str] = None,
         filter_status: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -1020,8 +1020,8 @@ class DistributedControllerAnyIO:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def list_tasks(
-        self
-        filter_status: Optional[str] = None,
+    self,
+    filter_status: Optional[str] = None,
         filter_type: Optional[str] = None,
         filter_node: Optional[str] = None,
     ) -> Dict[str, Any]:

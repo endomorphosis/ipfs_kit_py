@@ -633,8 +633,8 @@ class LibP2PControllerAnyIO(LibP2PController):
         return result
 
     async def get_peers_async(
-        self
-        method: str = Query("all", description="Discovery method (dht, mdns, bootstrap, all)"),
+    self,
+    method: str = Query("all", description="Discovery method (dht, mdns, bootstrap, all)"),
         limit: int = Query(10, description="Maximum number of peers to discover", ge=1, le=100),
     ):
         """
@@ -702,8 +702,8 @@ class LibP2PControllerAnyIO(LibP2PController):
         return result
 
     async def find_providers_async(
-        self
-        cid: str = Path(..., description="Content ID to find providers for"),
+    self,
+    cid: str = Path(..., description="Content ID to find providers for"),
         timeout: int = Query(30, description="Timeout in seconds", ge=1, le=300),
     ):
         """
@@ -740,8 +740,8 @@ class LibP2PControllerAnyIO(LibP2PController):
         return result
 
     async def retrieve_content_info_async(
-        self
-        cid: str = Path(..., description="Content ID to retrieve info for"),
+    self,
+    cid: str = Path(..., description="Content ID to retrieve info for"),
         timeout: int = Query(60, description="Timeout in seconds", ge=1, le=300),
     ):
         """
@@ -784,8 +784,8 @@ class LibP2PControllerAnyIO(LibP2PController):
         return result
 
     async def retrieve_content_async(
-        self
-        cid: str = Path(..., description="Content ID to retrieve"),
+    self,
+    cid: str = Path(..., description="Content ID to retrieve"),
         timeout: int = Query(60, description="Timeout in seconds", ge=1, le=300),
     ):
         """

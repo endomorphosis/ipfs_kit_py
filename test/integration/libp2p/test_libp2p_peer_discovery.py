@@ -33,9 +33,14 @@ sys.modules["ipfs_kit_py.libp2p_peer"] = mock_libp2p_peer
 # Patch the module system to import from high_level_api.py instead of high_level_api/__init__.py
 # This mirrors how the package imports it in ipfs_kit_py/__init__.py
 import importlib.util
+import sys, os
 spec = importlib.util.spec_from_file_location(
     "high_level_api",
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), "ipfs_kit_py", "high_level_api.py")
+    os.path.abspath(os.path.join(
+        os.path.dirname(__file__),
+        "..", "..", "..",
+        "ipfs_kit_py", "ipfs_kit_py", "high_level_api.py"
+    ))
 )
 high_level_api = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(high_level_api)

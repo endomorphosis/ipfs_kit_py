@@ -46,8 +46,8 @@ class AuthenticationService:
     from the MCP roadmap.
     """
     def __init__(
-        self
-        secret_key: str
+    self,
+    secret_key: str
         token_expire_minutes: int = 60,
         refresh_token_expire_days: int = 7,
         password_reset_expire_hours: int = 24,
@@ -435,8 +435,8 @@ class AuthenticationService:
         return user
 
     async def create_session(
-        self
-        user: User
+    self,
+    user: User
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> Session:
@@ -1010,8 +1010,8 @@ class AuthenticationService:
         return required_role in user.roles
 
     async def login(
-        self
-        request: LoginRequest
+    self,
+    request: LoginRequest
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> Tuple[bool, Dict[str, Any], str]:

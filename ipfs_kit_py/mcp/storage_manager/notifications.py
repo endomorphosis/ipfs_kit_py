@@ -459,13 +459,13 @@ class WebSocketStorageNotifier:
         try:
             message_type = message.get("type")
 
-            if message_type == "subscribe": ,
+            if message_type == "subscribe":
                 await self._handle_subscribe(websocket, client_id, message)
-            elif message_type == "unsubscribe": ,
+            elif message_type == "unsubscribe":
                 await self._handle_unsubscribe(websocket, client_id, message)
-            elif message_type == "get_history": ,
+            elif message_type == "get_history":
                 await self._handle_get_history(websocket, client_id, message)
-            elif message_type == "ping": ,
+            elif message_type == "ping":
                 await websocket.send_json({"type": "pong", "timestamp": time.time()})
             else:
                 await websocket.send_json(

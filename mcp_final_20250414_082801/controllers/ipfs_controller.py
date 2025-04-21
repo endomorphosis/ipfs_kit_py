@@ -2788,8 +2788,8 @@ class IPFSController:
             raise HTTPException(status_code=500, detail=f"Error getting node ID: {str(e)}")
 
     async def write_file_v2(
-        self
-        path: str
+    self,
+    path: str
         content: Union[str, bytes] = Body(...),
         create: bool = True,
         truncate: bool = True,
@@ -4019,8 +4019,8 @@ class IPFSController:
             }
 
     async def handle_add_request(
-        self
-        request: Request
+    self,
+    request: Request
         content_request: Optional[ContentRequest] = None,
         file: Optional[UploadFile] = File(None),
         pin: bool = Form(False),

@@ -41,8 +41,8 @@ class ContentReference:
     content is physically stored.
     """
     def __init__(
-        self
-        content_id: str
+    self,
+    content_id: str
         content_hash: Optional[str] = None,
         backend_locations: Optional[Dict[StorageBackendType, str]] = None,
         metadata: Optional[Dict[str, Any]] = None,

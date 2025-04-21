@@ -166,10 +166,11 @@ Get the current async backend being used."""
             "huggingface",
             "lassie",
         ]
+
         if credential_request.service not in supported_services:
             mcp_error_handling.raise_http_exception(
                 code="INVALID_REQUEST",
-                message_override=f"Unsupported service: {credential_request.service}. Supported services: {", ".join(supported_services)}', '.join(supported_services)}",
+                message_override=f"Unsupported service: {credential_request.service}. Supported services: {' '.join(supported_services)}",
                 endpoint="/api/v0/credential_anyio",
                 doc_category="api"
             )
@@ -181,7 +182,7 @@ Get the current async backend being used."""
                 await self.credential_manager.add_credential(
                     service=credential_request.service,
                     name=credential_request.name,
-                    values=credential_request.values,
+                    values=credential_request.values
                 )
             else:
                 # Run synchronous method in a thread
@@ -189,7 +190,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service=credential_request.service,
                     name=credential_request.name,
-                    values=credential_request.values,
+                    values=credential_request.values
                 )
 
             return {
@@ -197,7 +198,7 @@ Get the current async backend being used."""
                 "operation": "add_credential",
                 "service": credential_request.service,
                 "name": credential_request.name,
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -244,7 +245,7 @@ Get the current async backend being used."""
                 "success": True,
                 "credentials": credentials,
                 "count": len(credentials),
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -254,7 +255,7 @@ Get the current async backend being used."""
                 "credentials": [],
                 "count": 0,
                 "timestamp": time.time(),
-                "error": str(e),
+                "error": str(e)
             }
 
     async def add_s3_credentials(self, credential_request: S3CredentialRequest):
@@ -267,12 +268,12 @@ Get the current async backend being used."""
         Returns:
             Credential operation response
         """
-        logger.debug(f"Adding S3 credentials, name: {credential_request.name}")
+        logger.debug(f"Adding S3 credentials name: {credential_request.name}")
 
         # Convert S3 credentials to generic format
         values = {
             "aws_access_key_id": credential_request.aws_access_key_id,
-            "aws_secret_access_key": credential_request.aws_secret_access_key,
+            "aws_secret_access_key": credential_request.aws_secret_access_key
         }
 
         # Add optional fields if present
@@ -294,7 +295,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="s3",
                     name=credential_request.name,
-                    values=values,
+                    values=values
                 )
 
             return {
@@ -302,7 +303,7 @@ Get the current async backend being used."""
                 "operation": "add_s3_credential",
                 "service": "s3",
                 "name": credential_request.name,
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -324,7 +325,7 @@ Get the current async backend being used."""
         Returns:
             Credential operation response
         """
-        logger.debug(f"Adding Storacha credentials, name: {credential_request.name}")
+        logger.debug(f"Adding Storacha credentials name: {credential_request.name}")
 
         # Convert Storacha credentials to generic format
         values = {"api_token": credential_request.api_token}
@@ -346,7 +347,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="storacha",
                     name=credential_request.name,
-                    values=values,
+                    values=values
                 )
 
             return {
@@ -354,7 +355,7 @@ Get the current async backend being used."""
                 "operation": "add_storacha_credential",
                 "service": "storacha",
                 "name": credential_request.name,
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -376,7 +377,7 @@ Get the current async backend being used."""
         Returns:
             Credential operation response
         """
-        logger.debug(f"Adding Filecoin credentials, name: {credential_request.name}")
+        logger.debug(f"Adding Filecoin credentials name: {credential_request.name}")
 
         # Convert Filecoin credentials to generic format
         values = {"api_key": credential_request.api_key}
@@ -402,7 +403,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="filecoin",
                     name=credential_request.name,
-                    values=values,
+                    values=values
                 )
 
             return {
@@ -410,7 +411,7 @@ Get the current async backend being used."""
                 "operation": "add_filecoin_credential",
                 "service": "filecoin",
                 "name": credential_request.name,
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -432,7 +433,7 @@ Get the current async backend being used."""
         Returns:
             Credential operation response
         """
-        logger.debug(f"Adding IPFS credentials, name: {credential_request.name}")
+        logger.debug(f"Adding IPFS credentials name: {credential_request.name}")
 
         # Convert IPFS credentials to generic format
         values = {}
@@ -448,11 +449,10 @@ Get the current async backend being used."""
         # Ensure at least one credential field is provided
         if not values:
             mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override="At least one credential field (identity,
-        endpoint="/api/v0/credential_anyio",
-        doc_category="api"
-    ) must be provided",
+                code="INVALID_REQUEST",
+                message_override="At least one credential field (identity, api_address, or cluster_secret) must be provided",
+                endpoint="/api/v0/credential_anyio",
+                doc_category="api"
             )
 
         try:
@@ -468,7 +468,7 @@ Get the current async backend being used."""
                     self.credential_manager.add_credential,
                     service="ipfs",
                     name=credential_request.name,
-                    values=values,
+                    values=values
                 )
 
             return {
@@ -476,7 +476,7 @@ Get the current async backend being used."""
                 "operation": "add_ipfs_credential",
                 "service": "ipfs",
                 "name": credential_request.name,
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -511,7 +511,7 @@ Get the current async backend being used."""
                 await anyio.to_thread.run_sync(
                     self.credential_manager.remove_credential,
                     service=service,
-                    name=name,
+                    name=name
                 )
 
             return {
@@ -519,7 +519,7 @@ Get the current async backend being used."""
                 "operation": "remove_credential",
                 "service": service,
                 "name": name,
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:

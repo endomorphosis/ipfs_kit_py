@@ -769,8 +769,8 @@ class StorageManagerController:
             }
 
     async def handle_verify_request(
-        self
-        content_id: str = Body(..., embed=True),
+    self,
+    content_id: str = Body(..., embed=True),
         backends: List[str] = Body(None, embed=True),
     ):
         """
@@ -986,8 +986,8 @@ class StorageManagerController:
         return result
 
     def _transfer_content(
-        self
-        source_backend: str
+    self,
+    source_backend: str
         target_backend: str
         content_id: str
         options: Optional[Dict[str, Any]] = None,

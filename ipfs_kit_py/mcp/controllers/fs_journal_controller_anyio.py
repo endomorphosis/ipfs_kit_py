@@ -23,7 +23,7 @@ through the MCP server using AnyIO for backend-agnostic async operations.
 
 
 try:
-    from fastapi import APIRouter, , Depends, Query, Path, Body
+    from fastapi import APIRouter, Depends, Query, Path, Body
     from pydantic import BaseModel, Field
 except ImportError:
     # For testing without FastAPI
@@ -411,11 +411,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error enabling filesystem journaling: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to enable filesystem journaling: {str(e,
+        message_override=f"Failed to enable filesystem journaling: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}",
-            )
+    )
 
     async def get_status(self):
         """
@@ -467,14 +466,13 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error getting filesystem journal status: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to get filesystem journal status: {str(e,
+        message_override=f"Failed to get filesystem journal status: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}",
-            )
+    )
 
     async def list_transactions(
-        self
+        self,
         status: str = Query("all", description="Transaction status filter"),
         limit: int = Query(10, description="Maximum transactions to return"),
     ):
@@ -520,10 +518,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error listing transactions: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to list transactions: {str(e,
+        message_override=f"Failed to list transactions: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def add_transaction(self, request: TransactionRequest):
         """
@@ -566,11 +564,10 @@ class FsJournalControllerAnyIO:
                 if not found_match:
                     mcp_error_handling.raise_http_exception(
         code="INVALID_REQUEST",
-        message_override=f"Invalid operation type: {request.operation_type}. Must be one of: {',
+        message_override=f"Invalid operation type: {request.operation_type}. Must be one of: {', '.join(valid_operations)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}",
-                    )
+    )
 
             # Use anyio for these potentially blocking operations
             async with anyio.create_task_group() as tg:
@@ -622,10 +619,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error adding transaction: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to add transaction: {str(e,
+        message_override=f"Failed to add transaction: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def create_checkpoint(self):
         """
@@ -660,10 +657,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error creating checkpoint: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to create checkpoint: {str(e,
+        message_override=f"Failed to create checkpoint: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def recover(self, request: RecoverRequest):
         """
@@ -705,11 +702,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error recovering filesystem state: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to recover filesystem state: {str(e,
+        message_override=f"Failed to recover filesystem state: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}"
-            )
+    )
 
     async def mount(self, request: MountRequest):
         """
@@ -750,10 +746,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error mounting CID: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to mount CID: {str(e,
+        message_override=f"Failed to mount CID: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def mkdir(self, request: MkdirRequest):
         """
@@ -793,10 +789,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error creating directory: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to create directory: {str(e,
+        message_override=f"Failed to create directory: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def write(self, request: WriteRequest):
         """
@@ -835,11 +831,10 @@ class FsJournalControllerAnyIO:
                 except Exception as e:
                     mcp_error_handling.raise_http_exception(
         code="INVALID_REQUEST",
-        message_override=f"Failed to read content file: {str(e,
+        message_override=f"Failed to read content file: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}"
-                    )
+    )
             else:
                 mcp_error_handling.raise_http_exception(
         code="INVALID_REQUEST",
@@ -864,10 +859,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error writing to file: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to write to file: {str(e,
+        message_override=f"Failed to write to file: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def read(self, path: str = Query(..., description="Path to read")):
         """
@@ -906,10 +901,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error reading file: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to read file: {str(e,
+        message_override=f"Failed to read file: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}")
+    )
 
     async def remove(self, request: RemoveRequest):
         """
@@ -950,11 +945,10 @@ class FsJournalControllerAnyIO:
             logger.error(f"Error removing file/directory: {str(e)}")
             mcp_error_handling.raise_http_exception(
         code="INTERNAL_ERROR",
-        message_override=f"Failed to remove file/directory: {str(e,
+        message_override=f"Failed to remove file/directory: {str(e)}",
         endpoint="/fs-journal",
         doc_category="extensions"
-    )}"
-            )
+    )
 
     async def move(self, request: MoveRequest):
         """
@@ -1001,7 +995,7 @@ class FsJournalControllerAnyIO:
     )}")
 
     async def list_directory(
-        self
+        self,
         path: str = Query("/", description="Path to list"),
         recursive: bool = Query(False, description="List recursively"),
     ):

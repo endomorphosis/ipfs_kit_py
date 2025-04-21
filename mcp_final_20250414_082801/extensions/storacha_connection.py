@@ -37,8 +37,8 @@ class StorachaConnectionManager:
     ]
 
     def __init__(
-        self
-        api_key: Optional[str] = None,
+    self,
+    api_key: Optional[str] = None,
         api_endpoint: Optional[str] = None,
         endpoints: Optional[List[str]] = None,
         max_retries: int = 3,

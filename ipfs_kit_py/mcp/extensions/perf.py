@@ -421,18 +421,18 @@ def select_backend(available_backends: List[str] = None) -> str:
     # Use appropriate strategy
     strategy = config["load_balancing"]["strategy"]
 
-    if strategy == "round_robin": ,
+    if strategy == "round_robin":
         # Simple round-robin
         # Use the global stats dictionary
         global stats
         counts = stats["load_balancing"].get("requests_per_backend", {})
         return min(available_backends, key=lambda b: counts.get(b, 0))
 
-    elif strategy == "least_connections": ,
+    elif strategy == "least_connections":
         # Choose backend with fewest active connections
         return min(available_backends, key=lambda b: active_connections.get(b, 0))
 
-    elif strategy == "weighted": ,
+    elif strategy == "weighted":
         # Use configured weights
         weights = config["load_balancing"]["backend_weights"]
         weighted_backends = [(b, weights.get(b, 5)) for b in available_backends]
@@ -700,7 +700,7 @@ def create_performance_router(api_prefix: str) -> APIRouter:
 # Simple middleware
 async def cache_middleware(request: Request, call_next):
     """Middleware for caching responses."""
-    if not config["caching"]["enabled"] or request.method != "GET": ,
+    if not config["caching"]["enabled"] or request.method != "GET":
         return await call_next(request)
 
     try:

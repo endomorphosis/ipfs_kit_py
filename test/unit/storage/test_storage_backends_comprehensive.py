@@ -471,16 +471,13 @@ class StorageBackendTester:
     
     def print_summary(self):
         """Print a summary of test results."""
-        print("
-=== STORAGE BACKEND COMPREHENSIVE TEST RESULTS ===
-")
+        print("\n=== STORAGE BACKEND COMPREHENSIVE TEST RESULTS ===\n")
         
         # Server info
         print(f"MCP Server: {self.mcp_url}")
         
         # Backend status
-        print("
-Backend Status:")
+        print("\nBackend Status:")
         for backend, status in self.results["backend_status"].items():
             status_text = "✅ Available" if status.get("success", False) else "❌ Not available"
             print(f"  {backend}: {status_text}")
@@ -488,14 +485,12 @@ Backend Status:")
         # IPFS upload
         ipfs_success = self.results["ipfs_upload"].get("success", False)
         ipfs_cid = self.results["ipfs_upload"].get("cid", "N/A")
-        print(f"
-IPFS Upload: {'✅ Success' if ipfs_success else '❌ Failed'}")
+        print(f"\nIPFS Upload: {'✅ Success' if ipfs_success else '❌ Failed'}")
         if ipfs_success:
             print(f"  CID: {ipfs_cid}")
         
         # Backend transfers
-        print("
-Backend Transfers:")
+        print("\nBackend Transfers:")
         for backend in self.backends:
             transfer = self.results["backend_transfers"].get(backend, {})
             if transfer.get("skipped", False):
@@ -505,8 +500,7 @@ Backend Transfers:")
                 print(f"  {backend}: {'✅ Success' if success else '❌ Failed'}")
         
         # Backend retrievals
-        print("
-Backend Retrievals:")
+        print("\nBackend Retrievals:")
         for backend in self.backends:
             retrieval = self.results["backend_retrievals"].get(backend, {})
             if retrieval.get("skipped", False):
@@ -516,8 +510,7 @@ Backend Retrievals:")
                 print(f"  {backend}: {'✅ Success' if success else '❌ Failed'}")
         
         # Content verification
-        print("
-Content Verification:")
+        print("\nContent Verification:")
         for backend in self.backends:
             verification = self.results["content_verification"].get(backend, {})
             if not verification:
@@ -535,15 +528,10 @@ if __name__ == "__main__":
     parser.add_argument("--size", type=int, default=100, help="Test content size in KB")
     
     # Only parse args when running the script directly, not when imported by pytest
-    
     if __name__ == "__main__":
-    
         args = parser.parse_args()
-    
     else:
-    
         # When run under pytest, use default values
-    
         args = parser.parse_args([])
     
     tester = StorageBackendTester(mcp_url=args.url, api_prefix=args.prefix)

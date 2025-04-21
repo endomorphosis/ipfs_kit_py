@@ -256,8 +256,8 @@ class S3Controller:
         logger.info("S3 routes registered")
 
     async def handle_upload_request(
-        self
-        request: S3UploadRequest = None,
+    self,
+    request: S3UploadRequest = None,
         file: UploadFile = File(None),
         bucket: str = Form(None),
         key: str = Form(None),

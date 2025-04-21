@@ -440,8 +440,8 @@ class CliControllerAnyIO:
             }
 
     async def add_content(
-        self
-        content: str = Body(..., description="Content to add"),
+    self,
+    content: str = Body(..., description="Content to add"),
         filename: Optional[str] = Body(None, description="Optional filename"),
         wrap_with_directory: bool = Body(False, description="Wrap content with a directory"),
         chunker: str = Body("size-262144", description="Chunking algorithm (e.g., size-262144)"),
@@ -518,8 +518,8 @@ class CliControllerAnyIO:
             raise HTTPException(status_code=404, detail=f"Content not found: {str(e)}")
 
     async def pin_content(
-        self
-        cid: str = Path(..., description="Content identifier"),
+    self,
+    cid: str = Path(..., description="Content identifier"),
         recursive: bool = Query(True, description="Pin recursively"),
     ) -> Dict[str, Any]:
         """
@@ -550,8 +550,8 @@ class CliControllerAnyIO:
             return {"success": False, "result": {"error": str(e)}}
 
     async def unpin_content(
-        self
-        cid: str = Path(..., description="Content identifier"),
+    self,
+    cid: str = Path(..., description="Content identifier"),
         recursive: bool = Query(True, description="Unpin recursively"),
     ) -> Dict[str, Any]:
         """
@@ -584,8 +584,8 @@ class CliControllerAnyIO:
             return {"success": False, "result": {"error": str(e)}}
 
     async def list_pins(
-        self
-        pin_type: str = Query("all", description="Pin type filter"),
+    self,
+    pin_type: str = Query("all", description="Pin type filter"),
         quiet: bool = Query(False, description="Return only CIDs"),
     ) -> Dict[str, Any]:
         """
@@ -718,8 +718,8 @@ class CliControllerAnyIO:
             return {"success": False, "result": {"error": str(e), "pins": {}}}
 
     async def wal_command(
-        self
-        command: str = Path(..., description="WAL command to execute"),
+    self,
+    command: str = Path(..., description="WAL command to execute"),
         body: Dict[str, Any] = Body({}, description="Command parameters"),
     ) -> Dict[str, Any]:
         """

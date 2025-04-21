@@ -277,8 +277,8 @@ class MigrationController:
         return {"success": True, "migration": migration}
 
     async def list_migrations(
-        self
-        status: Optional[str] = None,
+    self,
+    status: Optional[str] = None,
         batch_id: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
@@ -464,8 +464,8 @@ class MigrationController:
             return {"success": False, "error": f"Error estimating migration: {str(e)}"}
 
     async def _update_migration_status(
-        self
-        migration_id: str
+    self,
+    migration_id: str
         status: str
         progress: float = None,
         error: str = None,

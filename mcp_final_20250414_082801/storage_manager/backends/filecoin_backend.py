@@ -53,8 +53,8 @@ class FilecoinBackend(BackendStorage):
         self.deal_duration = metadata.get("deal_duration", 518400)  # Default: 180 days
 
     def store(
-        self
-        data: Union[bytes, BinaryIO, str]
+    self,
+    data: Union[bytes, BinaryIO, str]
         container: Optional[str] = None,
         path: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -183,8 +183,8 @@ class FilecoinBackend(BackendStorage):
                     logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
 
     def retrieve(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -261,8 +261,8 @@ class FilecoinBackend(BackendStorage):
                     logger.warning(f"Failed to clean up temporary file {temp_file}: {e}")
 
     def delete(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -333,8 +333,8 @@ class FilecoinBackend(BackendStorage):
             }
 
     def list(
-        self
-        container: Optional[str] = None,
+    self,
+    container: Optional[str] = None,
         prefix: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -415,8 +415,8 @@ class FilecoinBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def exists(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> bool:
@@ -455,8 +455,8 @@ class FilecoinBackend(BackendStorage):
             return False
 
     def get_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -570,8 +570,8 @@ class FilecoinBackend(BackendStorage):
             }
 
     def update_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         metadata: Dict[str, Any]
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,

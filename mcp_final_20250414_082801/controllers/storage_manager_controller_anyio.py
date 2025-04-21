@@ -112,8 +112,8 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         return super().handle_transfer_request(request)
 
     def handle_verify_request(
-        self
-        content_id: str = Body(..., embed=True),
+    self,
+    content_id: str = Body(..., embed=True),
         backends: List[str] = Body(None, embed=True),
     ):
         """
@@ -194,8 +194,8 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         return await anyio.to_thread.run_sync(self.handle_transfer_request, request)
 
     async def handle_verify_request_async(
-        self
-        content_id: str = Body(..., embed=True),
+    self,
+    content_id: str = Body(..., embed=True),
         backends: List[str] = Body(None, embed=True),
     ):
         """

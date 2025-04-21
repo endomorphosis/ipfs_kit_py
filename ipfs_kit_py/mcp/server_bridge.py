@@ -135,7 +135,15 @@ class MCPServer:
                 description: str = "MCP Server",
                 host: str = "0.0.0.0",
                 port: int = 8000,
-                config: Optional[Dict[str, Any]] = None):
+                config: Optional[Dict[str, Any]] = None,
+                debug_mode: Optional[bool] = None,
+                loglevel: str = "info",
+                isolation_mode: bool = False,
+                persistence_path: Optional[str] = None,
+                ipfs_host: str = "127.0.0.1",
+                ipfs_port: int = 5001,
+                storage_backends: Optional[List[str]] = None,
+                **kwargs):
         """
         Initialize the MCP server.
         
@@ -145,6 +153,14 @@ class MCPServer:
             host: Host to bind to
             port: Port to bind to
             config: Optional configuration dictionary
+            debug_mode: Optional debug mode flag (for backward compatibility)
+            loglevel: Logging level to use
+            isolation_mode: If True, server operates in isolation mode
+            persistence_path: Path for persisting data
+            ipfs_host: IPFS daemon host
+            ipfs_port: IPFS daemon port
+            storage_backends: List of storage backends to enable
+            **kwargs: Additional keyword arguments for future compatibility
         """
         self.name = name
         self.description = description
@@ -154,9 +170,36 @@ class MCPServer:
         self.controllers = {}
         self.models = {}
         self.running = False
-        self.cache_manager = MCPCacheManager()
+        self.isolation_mode = isolation_mode
+        self.persistence_path = persistence_path
+        self.ipfs_host = ipfs_host
+        self.ipfs_port = ipfs_port
+        self.storage_backends = storage_backends or ["ipfs"]
         
-        logger.info(f"Initialized MCPServer: {name}")
+        # Initialize cache manager with persistence path if provided
+        if persistence_path:
+            self.cache_manager = MCPCacheManager(cache_dir=persistence_path)
+        else:
+            self.cache_manager = MCPCacheManager()
+        
+        # Handle debug_mode for backward compatibility
+        if debug_mode is not None:
+            logger.info(f"Using debug_mode={debug_mode} (backward compatibility)")
+            self.loglevel = "debug" if debug_mode else "info"
+            self.debug_mode = debug_mode  # Store for compatibility
+        else:
+            self.loglevel = loglevel
+            self.debug_mode = self.loglevel.lower() == "debug"  # Derive debug_mode from loglevel
+        
+        # Set up logging level
+        numeric_level = getattr(logging, self.loglevel.upper(), None)
+        if not isinstance(numeric_level, int):
+            numeric_level = logging.INFO
+            
+        root_logger = logging.getLogger()
+        root_logger.setLevel(numeric_level)
+        
+        logger.info(f"Initialized MCPServer: {name} (loglevel={self.loglevel})")
     
     def register_controller(self, controller_name: str, controller: Any) -> bool:
         """
@@ -242,6 +285,10 @@ class MCPServer:
         # Stop cache manager
         if self.cache_manager:
             self.cache_manager.stop()
+            
+    def shutdown(self):
+        """Alias for stop() for backward compatibility."""
+        return self.stop()
 
 
 class AsyncMCPServer:
@@ -254,7 +301,15 @@ class AsyncMCPServer:
                 description: str = "Async MCP Server",
                 host: str = "0.0.0.0",
                 port: int = 8000,
-                config: Optional[Dict[str, Any]] = None):
+                config: Optional[Dict[str, Any]] = None,
+                debug_mode: Optional[bool] = None,
+                loglevel: str = "info",
+                isolation_mode: bool = False,
+                persistence_path: Optional[str] = None,
+                ipfs_host: str = "127.0.0.1",
+                ipfs_port: int = 5001,
+                storage_backends: Optional[List[str]] = None,
+                **kwargs):
         """
         Initialize the async MCP server.
         
@@ -264,6 +319,14 @@ class AsyncMCPServer:
             host: Host to bind to
             port: Port to bind to
             config: Optional configuration dictionary
+            debug_mode: Optional debug mode flag (for backward compatibility)
+            loglevel: Logging level to use
+            isolation_mode: If True, server operates in isolation mode
+            persistence_path: Path for persisting data
+            ipfs_host: IPFS daemon host
+            ipfs_port: IPFS daemon port
+            storage_backends: List of storage backends to enable
+            **kwargs: Additional keyword arguments for future compatibility
         """
         self.name = name
         self.description = description
@@ -273,9 +336,36 @@ class AsyncMCPServer:
         self.controllers = {}
         self.models = {}
         self.running = False
-        self.cache_manager = MCPCacheManager()
+        self.isolation_mode = isolation_mode
+        self.persistence_path = persistence_path
+        self.ipfs_host = ipfs_host
+        self.ipfs_port = ipfs_port
+        self.storage_backends = storage_backends or ["ipfs"]
         
-        logger.info(f"Initialized AsyncMCPServer: {name}")
+        # Initialize cache manager with persistence path if provided
+        if persistence_path:
+            self.cache_manager = MCPCacheManager(cache_dir=persistence_path)
+        else:
+            self.cache_manager = MCPCacheManager()
+        
+        # Handle debug_mode for backward compatibility
+        if debug_mode is not None:
+            logger.info(f"Using debug_mode={debug_mode} (backward compatibility)")
+            self.loglevel = "debug" if debug_mode else "info"
+            self.debug_mode = debug_mode  # Store for compatibility
+        else:
+            self.loglevel = loglevel
+            self.debug_mode = self.loglevel.lower() == "debug"  # Derive debug_mode from loglevel
+        
+        # Set up logging level
+        numeric_level = getattr(logging, self.loglevel.upper(), None)
+        if not isinstance(numeric_level, int):
+            numeric_level = logging.INFO
+            
+        root_logger = logging.getLogger()
+        root_logger.setLevel(numeric_level)
+        
+        logger.info(f"Initialized AsyncMCPServer: {name} (loglevel={self.loglevel})")
     
     async def register_controller(self, controller_name: str, controller: Any) -> bool:
         """
@@ -365,6 +455,18 @@ class AsyncMCPServer:
         # Stop cache manager
         if self.cache_manager:
             self.cache_manager.stop()
+            
+    async def shutdown(self):
+        """Alias for stop() for backward compatibility."""
+        return await self.stop()
+    
+    def shutdown(self):
+        """Non-async alias for stop() for backward compatibility in teardown methods."""
+        if self.running:
+            logger.warning("Using non-async shutdown method on AsyncMCPServer - this may not fully clean up")
+            self.running = False
+            if self.cache_manager:
+                self.cache_manager.stop()
     
     async def __aenter__(self):
         """Async context manager entry."""

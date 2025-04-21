@@ -194,8 +194,8 @@ class LassieBackend(BackendStorage):
         }
 
     def store(
-        self
-        data: Union[bytes, BinaryIO, str]
+    self,
+    data: Union[bytes, BinaryIO, str]
         container: Optional[str] = None,
         path: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -328,8 +328,8 @@ class LassieBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def retrieve(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -471,8 +471,8 @@ class LassieBackend(BackendStorage):
                 pass
 
     def delete(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -549,8 +549,8 @@ class LassieBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def list(
-        self
-        container: Optional[str] = None,
+    self,
+    container: Optional[str] = None,
         prefix: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -642,8 +642,8 @@ class LassieBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def exists(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> bool:
@@ -707,8 +707,8 @@ class LassieBackend(BackendStorage):
             return False
 
     def get_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -795,8 +795,8 @@ class LassieBackend(BackendStorage):
             return {"success": False, "error": str(e), "backend": self.get_name()}
 
     def update_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         metadata: Dict[str, Any]
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -863,8 +863,8 @@ class LassieBackend(BackendStorage):
     # Extended Lassie-specific operations
 
     def fetch_car(
-        self
-        cid: str
+    self,
+    cid: str
         output_path: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:

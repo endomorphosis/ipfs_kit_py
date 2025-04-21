@@ -115,8 +115,8 @@ credential_manager = None
         return stats
 
     def fetch_cid(
-        self
-        cid: str
+    self,
+    cid: str
         output_file: Optional[str] = None,
         path: Optional[str] = None,
         block_limit: Optional[int] = None,

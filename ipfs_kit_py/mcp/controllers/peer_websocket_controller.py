@@ -9,13 +9,10 @@ import logging
 import time
 import uuid
 from typing import Dict, List, Any, Optional
-from fastapi import (
+
+# Import FastAPI components
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
-
-APIRouter)
-
-# Import Pydantic models for request/response validation
-
 
 # Import peer WebSocket components (first try anyio version, then fall back to regular)
 try:
@@ -574,7 +571,7 @@ class PeerWebSocketController:
             }
 
     async def get_discovered_peers(
-        self
+        self,
         filter_role: Optional[str] = None,
         filter_capabilities: Optional[str] = None,
     ) -> Dict[str, Any]:

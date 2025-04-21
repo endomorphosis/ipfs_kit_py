@@ -560,9 +560,9 @@ class PeerWebSocketControllerAnyIO:
             }
 
     async def get_discovered_peers(
-        self
-        filter_role: Optional[str] = None,
-        filter_capabilities: Optional[str] = None,
+        self,
+        filter_role=None,
+        filter_capabilities=None,
     ) -> Dict[str, Any]:
         """
         Get list of discovered peers.

@@ -137,8 +137,8 @@ stacklevel=3
         return result
 
     def fetch_cid(
-        self
-        cid: str
+    self,
+    cid: str
         output_file: Optional[str] = None,
         path: Optional[str] = None,
         block_limit: Optional[int] = None,
@@ -215,8 +215,8 @@ providers=providers
         return result
 
     async def fetch_cid_async(
-        self
-        cid: str
+    self,
+    cid: str
         output_file: Optional[str] = None,
         path: Optional[str] = None,
         block_limit: Optional[int] = None,

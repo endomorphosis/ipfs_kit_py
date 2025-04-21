@@ -9,24 +9,8 @@ import uuid
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 
-try:
-    import pytest_asyncio
-except ImportError:
-    # Mock pytest_asyncio functionality for environments without it
-    import pytest
-    
-    # Create a minimal mock for pytest_anyio.fixture
-    def fixture(*args, **kwargs):
-        """Mock pytest_anyio.fixture that falls back to pytest.fixture"""
-        # Just use regular pytest fixture
-        return pytest.fixture(*args, **kwargs)
-    
-    # Create a mock module
-    class MockPytestAsyncio:
-        fixture = fixture
-    
-    # Use the mock
-    pytest_asyncio = MockPytestAsyncio
+# Import our custom pytest_anyio module
+from test.pytest_anyio import fixture as anyio_fixture, anyio
 
 try:
     from ipfs_kit_py.webrtc_streaming import HAVE_WEBRTC, IPFSMediaStreamTrack, WebRTCStreamingManager
@@ -106,12 +90,11 @@ if (os.environ.get('FORCE_WEBRTC_TESTS') == '1' or
     _can_test_webrtc = True
     print(f"Force environment variable detected, enabling all WebRTC tests")
 
-# No skipif marker - all tests should run now
-@pytest.mark.anyio
+@anyio
 class TestWebRTCStreaming:
     """Test WebRTC streaming functionality."""
     
-    @pytest_anyio.fixture
+    @anyio_fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -177,8 +160,6 @@ class TestWebRTCStreaming:
                 
                 # No need to verify other method calls since we're using a mocked create_offer
     
-    # We need to re-use the skip since we've already fixed the handler test
-#     # @pytest.mark.skip(reason="This test requires more extensive mocking of WebRTC media components") - removed by fix_all_tests.py
     async def test_ipfs_media_stream_track(self, setup):
         """Test IPFSMediaStreamTrack class."""
         _, test_content, test_cid = setup
@@ -196,7 +177,7 @@ class TestWebRTCStreaming:
         # 
         # This would add complexity without providing significant additional test coverage
         pass
-#     
+    
     async def test_handle_webrtc_streaming(self, setup):
         """Test the WebRTC signaling handler.
         
@@ -374,11 +355,11 @@ class TestWebRTCStreaming:
             mock_manager.handle_answer.assert_called_once()
 
 
-@pytest.mark.anyio
+@anyio
 class TestAsyncWebRTCStreaming:
     """Test asynchronous WebRTC streaming functionality."""
     
-    @pytest_anyio.fixture
+    @anyio_fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -440,11 +421,11 @@ class TestAsyncWebRTCStreaming:
             assert api_passed, "API object was not passed to WebRTCStreamingManager constructor"
 
 
-@pytest.mark.anyio
+@anyio
 class TestWebRTCMetrics:
     """Test WebRTC metrics collection functionality."""
     
-    @pytest_anyio.fixture
+    @anyio_fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -723,21 +704,11 @@ class TestWebRTCMetrics:
             manager.close_all_connections = original_close_all
 
 
-# WebRTC integration tests often require full dependencies that may not be available
-# in all environments. We'll mark the entire test class to be skipped until
-# all dependencies are properly mocked.
-
-# Environment variable can force these tests to run
-if os.environ.get('FORCE_NOTIFICATION_TESTS') == '1':
-    _can_test_notifications = True
-    print(f"FORCE_NOTIFICATION_TESTS=1 environment variable detected, enabling notification tests")
-# 
-# All tests should run now, no skipif needed
-@pytest.mark.anyio
+@anyio
 class TestWebRTCNotifications:
     """Test WebRTC integration with the notification system."""
     
-    @pytest_anyio.fixture
+    @anyio_fixture
     async def setup(self):
         """Set up test environment."""
         api = IPFSSimpleAPI()
@@ -749,11 +720,11 @@ class TestWebRTCNotifications:
         yield api, test_cid, mock_emit_event
 
 
-@pytest.mark.anyio
+@anyio
 class TestWebRTCResourceCleanup:
     """Test proper cleanup of WebRTC resources to prevent ResourceWarnings."""
     
-    @pytest_anyio.fixture
+    @anyio_fixture
     async def setup(self):
         """Set up test environment with proper cleanup."""
         api = IPFSSimpleAPI()

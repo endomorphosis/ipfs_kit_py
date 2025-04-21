@@ -454,8 +454,8 @@ class FsJournalControllerAnyIO:
             )
 
     async def list_transactions(
-        self
-        status: str = Query("all", description="Transaction status filter"),
+    self,
+    status: str = Query("all", description="Transaction status filter"),
         limit: int = Query(10, description="Maximum transactions to return"),
     ):
         """
@@ -871,8 +871,8 @@ class FsJournalControllerAnyIO:
             raise HTTPException(status_code=500, detail=f"Failed to move file/directory: {str(e)}")
 
     async def list_directory(
-        self
-        path: str = Query("/", description="Path to list"),
+    self,
+    path: str = Query("/", description="Path to list"),
         recursive: bool = Query(False, description="List recursively"),
     ):
         """

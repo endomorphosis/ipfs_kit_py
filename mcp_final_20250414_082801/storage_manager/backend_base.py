@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 class BackendStorage(ABC):
     """Base class for all backend storage implementations."""
     def __init__(
-        self
-        backend_type: StorageBackendType
+    self,
+    backend_type: StorageBackendType
         resources: Dict[str, Any]
         metadata: Dict[str, Any]
     ):
@@ -40,8 +40,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def store(
-        self
-        data: Union[bytes, BinaryIO, str]
+    self,
+    data: Union[bytes, BinaryIO, str]
         container: Optional[str] = None,
         path: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -62,8 +62,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def retrieve(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -82,8 +82,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def delete(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -102,8 +102,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def list(
-        self
-        container: Optional[str] = None,
+    self,
+    container: Optional[str] = None,
         prefix: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -122,8 +122,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def exists(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> bool:
@@ -142,8 +142,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def get_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -162,8 +162,8 @@ class BackendStorage(ABC):
 
     @abstractmethod
     def update_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         metadata: Dict[str, Any]
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,

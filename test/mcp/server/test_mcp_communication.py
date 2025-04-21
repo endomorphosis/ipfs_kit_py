@@ -19,6 +19,10 @@ import logging
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Check for pytest_asyncio availability
 try:
     import pytest_asyncio
@@ -31,9 +35,32 @@ except ImportError:
             return pytest.fixture(func)
     pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Import our mock pytest_anyio module from fix_libp2p_mocks
+try:
+    # Try using a relative import path first
+    import os
+    import sys
+    import importlib.util
+    
+    fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
+    if os.path.exists(fix_script_path):
+        logger.info(f"Loading pytest_anyio from {fix_script_path}")
+        spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
+        fix_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fix_module)
+        
+        # Get the pytest_anyio from the module
+        pytest_anyio = fix_module.pytest_anyio
+        logger.info("Successfully imported pytest_anyio from fix_libp2p_mocks.py")
+    else:
+        raise ImportError(f"Could not find fix_libp2p_mocks.py at {fix_script_path}")
+except ImportError as e:
+    logger.warning(f"Failed to import pytest_anyio from fix_libp2p_mocks: {e}, falling back to dummy implementation")
+    # Use a dummy implementation similar to pytest_asyncio
+    class DummyAnyioFixture:
+        def __call__(self, func):
+            return pytest.fixture(func)
+    pytest_anyio = type('DummyPytestAnyio', (), {'fixture': DummyAnyioFixture()})
 
 # Apply our comprehensive libp2p mock fix
 try:

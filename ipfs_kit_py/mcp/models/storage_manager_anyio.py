@@ -159,7 +159,7 @@ class StorageManagerAnyIO:
             logger.warning(
                 f"Storage Manager shutdown called synchronously in async context ({backend})"
 
-            if backend == "asyncio": ,
+            if backend == "asyncio":
                 # For asyncio, we can use run_until_complete
                 try:
                     import asyncio
@@ -176,7 +176,7 @@ class StorageManagerAnyIO:
                 except (RuntimeError, ImportError) as e:
                     logger.error(f"Error running asyncio shutdown: {e}")
                     # Fall through to manual cleanup
-            elif backend == "trio": ,
+            elif backend == "trio":
                 # For trio, we need a different approach
                 try:
                     import trio
@@ -198,9 +198,9 @@ class StorageManagerAnyIO:
                     except Exception as e:
                         logger.error(f"Error in async shutdown: {e}")
 
-                if backend == "asyncio": ,
+                if backend == "asyncio":
                     asyncio.create_task(_run_async())
-                elif backend == "trio": ,
+                elif backend == "trio":
                     import trio
 
                     # For trio, use system task as it doesn't require a nursery

@@ -27,8 +27,8 @@ class UnifiedStorageAPI:
         self.storage_manager = storage_manager
 
     def handle_request(
-        self
-        method: str
+    self,
+    method: str
         path: str
         params: Dict[str, Any]
         data: Optional[bytes] = None,

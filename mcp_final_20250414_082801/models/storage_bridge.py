@@ -169,8 +169,8 @@ class StorageBridgeModel:
         return result
 
     def transfer_content(
-        self
-        source_backend: str
+    self,
+    source_backend: str
         target_backend: str
         content_id: str
         source_options: Optional[Dict[str, Any]] = None,
@@ -329,8 +329,8 @@ class StorageBridgeModel:
         return result
 
     async def async_transfer_content(
-        self
-        source_backend: str
+    self,
+    source_backend: str
         target_backend: str
         content_id: str
         source_options: Optional[Dict[str, Any]] = None,
@@ -556,8 +556,8 @@ class StorageBridgeModel:
         return result
 
     def replicate_content(
-        self
-        content_id: str
+    self,
+    content_id: str
         target_backends: List[str]
         source_backend: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -668,8 +668,8 @@ class StorageBridgeModel:
         return result
 
     async def async_replicate_content(
-        self
-        content_id: str
+    self,
+    content_id: str
         target_backends: List[str]
         source_backend: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -833,8 +833,8 @@ class StorageBridgeModel:
         return result
 
     def verify_content(
-        self
-        content_id: str
+    self,
+    content_id: str
         backends: Optional[List[str]] = None,
         reference_backend: Optional[str] = None,
         """
@@ -940,8 +940,8 @@ class StorageBridgeModel:
         return result
 
     async def async_verify_content(
-        self
-        content_id: str
+    self,
+    content_id: str
         backends: Optional[List[str]] = None,
         reference_backend: Optional[str] = None,
         """
@@ -1328,8 +1328,8 @@ content_hash
         return result
 
     def _get_content_from_backend(
-        self
-        backend_name: str
+    self,
+    backend_name: str
         content_id: str
         options: Optional[Dict[str, Any]] = None,
         """
@@ -1449,8 +1449,8 @@ content_hash
         return result
 
     def _store_content_in_backend(
-        self
-        backend_name: str
+    self,
+    backend_name: str
         content_id: str
         content: bytes
         options: Optional[Dict[str, Any]] = None,
@@ -1541,8 +1541,8 @@ content_hash
         return result
 
     def _check_content_integrity(
-        self
-        backend_name: str
+    self,
+    backend_name: str
         content_id: str
         reference_content: bytes
         reference_hash: str
@@ -1965,8 +1965,8 @@ source_backend=source_backend
         return result
 
     def _select_backends_by_policy(
-        self
-        content_id: str
+    self,
+    content_id: str
         metadata: Dict[str, Any]
         target_backends: List[str]
         tier_requirements: Dict[str, Any]

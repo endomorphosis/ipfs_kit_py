@@ -38,8 +38,8 @@ class MigrationSchedule:
     Represents when a migration policy should be automatically executed.
     """
     def __init__(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         schedule_type: str
         schedule_value: Any
@@ -319,8 +319,8 @@ class MigrationScheduler:
     time schedules.
     """
     def __init___v2(
-        self
-        migration_controller: MigrationController
+    self,
+    migration_controller: MigrationController
         schedules: Optional[List[MigrationSchedule]] = None,
         options: Optional[Dict[str, Any]] = None,
     ):
@@ -781,8 +781,8 @@ class MigrationScheduler:
             logger.info("Migration scheduler thread stopped")
 
     def create_schedule(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         schedule_type: str
         schedule_value: Any
@@ -843,8 +843,8 @@ class MigrationScheduler:
             return {"success": False, "error": str(e)}
 
     def create_daily_schedule(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         time_str: str
         description: Optional[str] = None,
@@ -873,8 +873,8 @@ class MigrationScheduler:
         )
 
     def create_weekly_schedule(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         day_of_week: Union[str, int]
         time_str: str
@@ -913,8 +913,8 @@ class MigrationScheduler:
         )
 
     def create_monthly_schedule(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         day_of_month: int
         time_str: str
@@ -945,8 +945,8 @@ class MigrationScheduler:
         )
 
     def create_interval_schedule(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         interval_seconds: int
         description: Optional[str] = None,
@@ -985,8 +985,8 @@ class MigrationScheduler:
         )
 
     def create_cron_schedule(
-        self
-        name: str
+    self,
+    name: str
         policy_name: str
         cron_expression: str
         description: Optional[str] = None,

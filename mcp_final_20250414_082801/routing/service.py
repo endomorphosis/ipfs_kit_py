@@ -652,8 +652,8 @@ class DataRoutingService:
                 logger.error(f"Error updating metrics: {e}")
 
     async def _apply_policy(
-        self
-        policy: RoutingPolicy
+    self,
+    policy: RoutingPolicy
         request: ContentRequest
         available_backends: List[str]
     ) -> Optional[RoutingResult]:

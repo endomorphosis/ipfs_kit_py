@@ -31,8 +31,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     verifies permissions for protected routes.
     """
     def __init__(
-        self
-        app: FastAPI
+    self,
+    app: FastAPI
         auth_service: AuthenticationService
         exclude_paths: List[str] = None,
         require_auth: bool = False,

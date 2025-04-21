@@ -449,7 +449,7 @@ def create_ipfs_router(api_prefix: str) -> APIRouter:
             size: The key size in bits (for RSA)
         """
         args = ["key", "gen", "--type", type]
-        if type == "rsa": ,
+        if type == "rsa":
             args.extend(["--size", str(size)])
         args.append(name)
 

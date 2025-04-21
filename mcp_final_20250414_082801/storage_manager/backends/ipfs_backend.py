@@ -27,8 +27,8 @@ class IPFSBackend(BackendStorage):
         self.ipfs = ipfs_py(resources, metadata)
 
     def store(
-        self
-        data: Union[bytes, BinaryIO, str]
+    self,
+    data: Union[bytes, BinaryIO, str]
         container: Optional[str] = None,
         path: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
@@ -71,8 +71,8 @@ class IPFSBackend(BackendStorage):
         }
 
     def retrieve(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -100,8 +100,8 @@ class IPFSBackend(BackendStorage):
         }
 
     def delete(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -124,8 +124,8 @@ class IPFSBackend(BackendStorage):
         }
 
     def list(
-        self
-        container: Optional[str] = None,
+    self,
+    container: Optional[str] = None,
         prefix: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -161,8 +161,8 @@ class IPFSBackend(BackendStorage):
         }
 
     def exists(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> bool:
@@ -175,8 +175,8 @@ class IPFSBackend(BackendStorage):
         return result.get("success", False)
 
     def get_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -209,8 +209,8 @@ class IPFSBackend(BackendStorage):
         }
 
     def update_metadata(
-        self
-        identifier: str
+    self,
+    identifier: str
         metadata: Dict[str, Any]
         container: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,

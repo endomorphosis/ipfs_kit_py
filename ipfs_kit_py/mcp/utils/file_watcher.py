@@ -37,9 +37,9 @@ class MCPFileHandler(FileSystemEventHandler):
     Monitors file changes and triggers server restart when Python files change.
     """
     def __init__(
-        self
-        root_dirs: List[str]
-        restart_callback: Callable
+        self,
+        root_dirs: List[str],
+        restart_callback: Callable,
         ignore_dirs: Optional[List[str]] = None,
         ignore_patterns: Optional[List[str]] = None,
         error_reporter: Optional[Callable] = None,
@@ -127,7 +127,7 @@ class MCPFileHandler(FileSystemEventHandler):
         # Check if file is in an ignored directory
         rel_path = os.path.relpath(abs_path, self.root_dirs[0])
         for ignore_dir in self.ignore_dirs:
-            if f"/{ignore_dir}/" in f"/{rel_path}/": ,
+            if f"/{ignore_dir}/" in f"/{rel_path}/":
                 return False
 
         # Check if file matches an ignored pattern
@@ -598,8 +598,8 @@ class MCPFileWatcher:
     Monitors file changes and triggers server restart.
     """
     def __init___v2(
-        self
-        project_root: str
+        self,
+        project_root: str,
         additional_dirs: Optional[List[str]] = None,
         ignore_dirs: Optional[List[str]] = None,
         ignore_patterns: Optional[List[str]] = None,
@@ -672,7 +672,7 @@ class MCPFileWatcher:
         """Configure custom error logging to capture all errors."""
         # Create custom handler to capture errors
         class ErrorCaptureHandler(logging.Handler):
-            # DISABLED REDEFINITION
+            def __init__(self, error_reporter):
                 super().__init__()
                 self.error_reporter = error_reporter
                 # Only capture errors and warnings

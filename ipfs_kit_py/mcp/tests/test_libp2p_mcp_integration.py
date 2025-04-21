@@ -262,6 +262,6 @@ class TestLibP2PIntegration:
 
 
 # Run tests if module is executed directly
-if __name__ == "__main__": ,
+if __name__ == "__main__":
     # Run the tests with pytest
     pytest.main(["-xvs", __file__])
