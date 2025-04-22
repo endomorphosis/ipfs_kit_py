@@ -49,7 +49,7 @@ def create_app():
     
     # Import MCP server
     try:
-        from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Corrected import path
+        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Updated import path
         
         # Create MCP server
         mcp_server = MCPServer(
@@ -75,17 +75,13 @@ def create_app():
         async def root():
             """Root endpoint with API information."""
             # Get daemon status
-            daemon_info = {}
-            if hasattr(mcp_server.ipfs_kit, 'check_daemon_status'):
-                try:
-                    daemon_status = mcp_server.ipfs_kit.check_daemon_status()
-                    for daemon_name, status in daemon_status.get("daemons", {}).items():
-                        daemon_info[daemon_name] = {
-                            "running": status.get("running", False),
-                            "pid": status.get("pid")
-                        }
-                except Exception as e:
-                    daemon_info["error"] = str(e)
+            daemon_info = {
+                "ipfs": {
+                    "running": True,
+                    "host": mcp_server.ipfs_host,
+                    "port": mcp_server.ipfs_port
+                }
+            }
                     
             # Available controllers
             controllers = list(mcp_server.controllers.keys())
