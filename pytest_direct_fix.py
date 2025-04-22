@@ -116,8 +116,32 @@ def patch_terminal_reporter():
         self._session = None
         self.stats = {}
         self.reportchars = ''
-        self.startpath = os.getcwd()  # Add the missing startpath attribute
-        self.startdir = self.startpath  # Also used in some versions
+        
+        # Add terminal attributes
+        self.isatty = getattr(file, 'isatty', lambda: False)
+        self._main_color = None
+        self._known_types = None
+        self._is_last_item = False
+        
+        # Handle the startpath/startdir carefully
+        cwd = os.getcwd()
+        
+        # Check if startpath is a property vs a regular attribute
+        if hasattr(type(self), 'startpath') and isinstance(getattr(type(self), 'startpath'), property):
+            # It's a property, don't try to set it directly
+            # We need to find a different way to store the start path
+            self._startpath = cwd  # Store in a different attribute
+        else:
+            # It's a regular attribute
+            self.startpath = cwd  # Add the missing startpath attribute
+            
+        # For startdir, do the same check
+        if hasattr(type(self), 'startdir') and isinstance(getattr(type(self), 'startdir'), property):
+            # It's a property, don't try to set it directly
+            self._startdir = cwd  # Store in a different attribute
+        else:
+            # It's a regular attribute
+            self.startdir = cwd
         
         # Also patch the write_sep method to handle pytest's arguments
         original_write_sep = self.write_sep

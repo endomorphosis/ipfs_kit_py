@@ -17,7 +17,10 @@ import logging
 import time
 import uuid
 import asyncio
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
 
 import uvicorn
 
@@ -58,14 +61,124 @@ def create_app():
             persistence_path=os.path.expanduser(persistence_path)
         )
         
-        # Force loading all storage backends
-        # Ensure we have real implementations initialized
-        if hasattr(mcp_server, 'storage_manager') and hasattr(mcp_server.storage_manager, '_init_storage_models'):
+        # Register controllers
+        from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
+        from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManagerController
+        from ipfs_kit_py.mcp.controllers.storage.filecoin_controller import FilecoinController
+        from ipfs_kit_py.mcp.controllers.storage.huggingface_controller import HuggingFaceController
+        from ipfs_kit_py.mcp.controllers.storage.storacha_controller import StorachaController
+        from ipfs_kit_py.mcp.controllers.storage.lassie_controller import LassieController
+        from ipfs_kit_py.mcp.controllers.storage.s3_controller import S3Controller
+        
+        # Import models
+        from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+        from ipfs_kit_py.mcp.models.storage_manager import StorageManager
+        
+        # Create and register models
+        # Import ipfs_kit for model initialization
+        try:
+            from ipfs_kit_py import ipfs_kit
+            ipfs_instance = ipfs_kit
+        except ImportError:
+            ipfs_instance = None
+            logger.warning("Could not import ipfs_kit, using None as instance")
+            
+        # Create config for model
+        ipfs_config = {
+            "ipfs_host": mcp_server.ipfs_host,
+            "ipfs_port": mcp_server.ipfs_port,
+            "debug_mode": debug_mode
+        }
+            
+        ipfs_model = IPFSModel(
+            ipfs_kit_instance=ipfs_instance,
+            config=ipfs_config
+        )
+        mcp_server.register_model("ipfs", ipfs_model)
+        
+        # Create properly formatted resources and metadata for StorageManager
+        resources = {
+            "ipfs": {
+                "host": mcp_server.ipfs_host,
+                "port": mcp_server.ipfs_port
+            }
+        }
+        
+        metadata = {
+            "debug_mode": debug_mode,
+            "isolation_mode": isolation_mode,
+            "persistence_path": os.path.expanduser(persistence_path)
+        }
+        
+        # Create StorageManager with correct parameters
+        storage_model = StorageManager(
+            ipfs_model=ipfs_model,  # Pass the IPFS model we created earlier
+            resources=resources,
+            metadata=metadata
+        )
+        mcp_server.register_model("storage_manager", storage_model)
+        
+        # Create and register controllers
+        ipfs_controller = IPFSController(ipfs_model)
+        mcp_server.register_controller("ipfs", ipfs_controller)
+        
+        storage_manager_controller = StorageManagerController(storage_model)
+        mcp_server.register_controller("storage_manager", storage_manager_controller)
+        
+        # Storage backends controllers
+        filecoin_controller = FilecoinController(storage_model)
+        mcp_server.register_controller("filecoin", filecoin_controller)
+        
+        huggingface_controller = HuggingFaceController(storage_model)
+        mcp_server.register_controller("huggingface", huggingface_controller)
+        
+        storacha_controller = StorachaController(storage_model)
+        mcp_server.register_controller("storacha", storacha_controller)
+        
+        lassie_controller = LassieController(storage_model)
+        mcp_server.register_controller("lassie", lassie_controller)
+        
+        s3_controller = S3Controller(storage_model)
+        mcp_server.register_controller("s3", s3_controller)
+        
+        # Try to import and register LibP2P controller if available
+        try:
+            from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
+            from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
+            
+            # Create LibP2P model without debug_mode parameter
             try:
-                mcp_server.storage_manager._init_storage_models()
-                logger.info("Initialized all storage backends")
+                libp2p_model = LibP2PModel()  # Don't pass debug_mode
+                mcp_server.register_model("libp2p", libp2p_model)
+                
+                libp2p_controller = LibP2PController(libp2p_model)
+                mcp_server.register_controller("libp2p", libp2p_controller)
+                logger.info("LibP2P controller registered successfully")
             except Exception as e:
-                logger.error(f"Error initializing storage backends: {e}")
+                logger.warning(f"Failed to initialize LibP2P model: {e}")
+        except ImportError as e:
+            logger.info(f"LibP2P controller not available: {e}")
+        
+        # Try to register WebRTC controller if available
+        try:
+            from ipfs_kit_py.mcp.controllers.webrtc_controller import WebRTCController
+            from ipfs_kit_py.mcp.models.webrtc_model import WebRTCModel
+            
+            # Create WebRTC model with config instead of debug_mode
+            try:
+                webrtc_model = WebRTCModel(config={"debug_mode": debug_mode})
+                mcp_server.register_model("webrtc", webrtc_model)
+                
+                webrtc_controller = WebRTCController(webrtc_model)
+                mcp_server.register_controller("webrtc", webrtc_controller)
+                logger.info("WebRTC controller registered successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize WebRTC model: {e}")
+        except ImportError as e:
+            logger.info(f"WebRTC controller not available: {e}")
+        
+        # Log registered controllers
+        logger.info(f"Registered controllers: {list(mcp_server.controllers.keys())}")
         
         # Register with app
         mcp_server.register_with_app(app, prefix=api_prefix)
@@ -162,6 +275,45 @@ def create_app():
                 "server_id": str(uuid.uuid4())
             }
         
+        # Add SSE endpoint for server-sent events
+        @app.get("/sse")
+        async def sse(request: Request):
+            """Server-Sent Events (SSE) endpoint for real-time updates."""
+            async def event_generator():
+                """Generate SSE events."""
+                # Initial connection established event
+                yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
+                
+                # Keep connection alive with heartbeats
+                counter = 0
+                while True:
+                    if await request.is_disconnected():
+                        logger.info("SSE client disconnected")
+                        break
+                        
+                    # Send a heartbeat every 15 seconds
+                    if counter % 15 == 0:
+                        status_data = {
+                            "event": "heartbeat",
+                            "timestamp": time.time(),
+                            "server_id": str(uuid.uuid4())
+                        }
+                        yield f"event: heartbeat\ndata: {json.dumps(status_data)}\n\n"
+                    
+                    # Wait a second between iterations
+                    await asyncio.sleep(1)
+                    counter += 1
+            
+            return StreamingResponse(
+                event_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*"
+                }
+            )
+        
         # Add a storage backends health check
         @app.get(f"{api_prefix}/storage/health")
         async def storage_health():
@@ -203,13 +355,14 @@ def create_app():
         
         return app, mcp_server
         
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP server: {e}")
+    except Exception as server_error:
+        error_message = str(server_error)
+        logger.error(f"Failed to initialize MCP server: {error_message}")
         app = FastAPI()
         
         @app.get("/")
         async def error():
-            return {"error": f"Failed to initialize MCP server: {str(e)}"}
+            return {"error": f"Failed to initialize MCP server: {error_message}"}
             
         return app, None
 
