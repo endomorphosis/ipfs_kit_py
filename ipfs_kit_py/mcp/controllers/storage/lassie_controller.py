@@ -78,7 +78,7 @@ class LassieController:
         self.lassie_model = lassie_model
         logger.info("Lassie Controller initialized")
 
-    def register_routes(self, router: APIRouter):
+    def register_routes(self, router: APIRouter, prefix: str = ""):
         """
         Register routes with a FastAPI router.
 

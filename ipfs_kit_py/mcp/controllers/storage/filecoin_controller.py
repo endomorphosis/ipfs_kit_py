@@ -172,6 +172,151 @@ class FilecoinController:
         self.filecoin_model = filecoin_model
         self.logger = logging.getLogger(__name__)
         
+    def register_routes(self, router, prefix: str = ""):
+        """
+        Register routes with a FastAPI router.
+        
+        Args:
+            router: FastAPI router to register routes with
+            prefix: Optional prefix for all routes
+        """
+        # Status endpoint
+        router.add_api_route(
+            "/filecoin/status",
+            self.handle_status_request,
+            methods=["GET"],
+            summary="Get Filecoin node status",
+            description="Check if the Filecoin node is available and get its version"
+        )
+        
+        # Wallet endpoints
+        router.add_api_route(
+            "/filecoin/wallets",
+            self.handle_list_wallets_request,
+            methods=["GET"],
+            summary="List Filecoin wallets",
+            description="List all available Filecoin wallets"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallets/create",
+            self.handle_create_wallet_request,
+            methods=["POST"],
+            summary="Create Filecoin wallet",
+            description="Create a new Filecoin wallet"
+        )
+        
+        router.add_api_route(
+            "/filecoin/wallets/{address}/balance",
+            self.handle_wallet_balance_request,
+            methods=["GET"],
+            summary="Get wallet balance",
+            description="Get the balance of a specific Filecoin wallet"
+        )
+        
+        # Storage deal endpoints
+        router.add_api_route(
+            "/filecoin/deals",
+            self.handle_list_deals_request,
+            methods=["GET"],
+            summary="List storage deals",
+            description="List all Filecoin storage deals"
+        )
+        
+        router.add_api_route(
+            "/filecoin/deals/{deal_id}",
+            self.handle_deal_info_request,
+            methods=["GET"],
+            summary="Get deal info",
+            description="Get information about a specific storage deal"
+        )
+        
+        router.add_api_route(
+            "/filecoin/deals/create",
+            self.create_deal,
+            methods=["POST"],
+            summary="Create storage deal",
+            description="Create a new Filecoin storage deal"
+        )
+        
+        router.add_api_route(
+            "/filecoin/deals/status",
+            self.get_deal_status,
+            methods=["POST"],
+            summary="Get deal status",
+            description="Get the status of a storage deal"
+        )
+        
+        # Miner endpoints
+        router.add_api_route(
+            "/filecoin/miners",
+            self.handle_list_miners_request,
+            methods=["GET"],
+            summary="List miners",
+            description="List available Filecoin miners"
+        )
+        
+        router.add_api_route(
+            "/filecoin/miners/info",
+            self.handle_miner_info_request,
+            methods=["POST"],
+            summary="Get miner info",
+            description="Get information about a specific miner"
+        )
+        
+        # File import endpoints
+        router.add_api_route(
+            "/filecoin/imports",
+            self.handle_list_imports_request,
+            methods=["GET"],
+            summary="List imports",
+            description="List all imports in Filecoin"
+        )
+        
+        router.add_api_route(
+            "/filecoin/imports/file",
+            self.handle_import_file_request,
+            methods=["POST"],
+            summary="Import file",
+            description="Import a file to Filecoin"
+        )
+        
+        # Content transfer endpoints
+        router.add_api_route(
+            "/filecoin/from_ipfs",
+            self.handle_ipfs_to_filecoin_request,
+            methods=["POST"],
+            summary="IPFS to Filecoin",
+            description="Transfer content from IPFS to Filecoin"
+        )
+        
+        router.add_api_route(
+            "/filecoin/to_ipfs",
+            self.handle_filecoin_to_ipfs_request,
+            methods=["POST"],
+            summary="Filecoin to IPFS",
+            description="Transfer content from Filecoin to IPFS"
+        )
+        
+        # Chain endpoints
+        router.add_api_route(
+            "/filecoin/chain/head",
+            self.get_chain_head,
+            methods=["GET"],
+            summary="Get chain head",
+            description="Get the current Filecoin chain head tipset"
+        )
+        
+        router.add_api_route(
+            "/filecoin/chain/tipset",
+            self.get_tipset,
+            methods=["POST"],
+            summary="Get tipset",
+            description="Get a specific tipset by key or height"
+        )
+        
+        self.logger.info("Filecoin controller routes registered")
+        
     async def handle_status_request(self) -> Dict[str, Any]:
         """Handle request to check Filecoin node status."""
         self.logger.info("Checking Filecoin node status")

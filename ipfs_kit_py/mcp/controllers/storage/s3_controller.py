@@ -158,7 +158,7 @@ class S3Controller:
         self.s3_model = s3_model
         logger.info("S3 Controller initialized")
 
-    def register_routes(self, router: APIRouter):
+    def register_routes(self, router: APIRouter, prefix: str = ""):
         """
         Register routes with a FastAPI router.
 

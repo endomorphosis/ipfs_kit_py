@@ -69,7 +69,7 @@ class HuggingFaceController:
         self.huggingface_model = huggingface_model
         logger.info("Hugging Face Controller initialized")
 
-    def register_routes(self, router: APIRouter):
+    def register_routes(self, router: APIRouter, prefix: str = ""):
         """
         Register routes with a FastAPI router.
 

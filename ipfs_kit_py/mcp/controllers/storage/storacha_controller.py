@@ -179,7 +179,7 @@ class StorachaController:
         self.storacha_model = storacha_model
         logger.info("Storacha Controller initialized")
 
-    def register_routes(self, router: APIRouter, prefix: str = "/storacha"):
+    def register_routes(self, router: APIRouter, prefix: str = ""):
         """
         Register routes with a FastAPI router.
 

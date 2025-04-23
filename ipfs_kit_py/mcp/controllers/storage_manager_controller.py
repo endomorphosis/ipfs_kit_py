@@ -319,7 +319,7 @@ class StorageManagerController:
 
         logger.info("Synchronous shutdown for Storage Manager Controller completed")
 
-    def register_routes(self, router: APIRouter):
+    def register_routes(self, router: APIRouter, prefix: str = ""):
         """
         Register routes with a FastAPI router.
 
