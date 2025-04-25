@@ -1,127 +1,76 @@
-# MCP Tools Fixes Documentation
+# MCP Server Tools Fixes
 
-This document provides information about the fixes implemented to ensure all MCP server tools work correctly.
+This document explains the fixes made to the MCP Server to ensure all tools and endpoints function correctly.
 
-## Overview
+## Overview of the Problem
 
-The MCP (Model Context Protocol) server provides a set of tools for interacting with IPFS and other storage backends. These tools are exposed via a REST API and can be used by clients such as Cline. The MCP server was missing implementations for some of the methods required by these tools, which have now been added.
+The MCP server was experiencing issues with the following endpoints:
+- Missing IPFS controller endpoints (404 errors)
+- Storage backend endpoints were functioning correctly but could be improved
 
-## Implemented Fixes
+## Solution Implemented
 
-The following files have been created or modified to fix the MCP server tools:
+### 1. Custom IPFS Router Extensions
 
-1. **ipfs_kit_py/mcp/models/ipfs_model_extensions.py** - Contains implementations for all the missing IPFS model methods:
-   - `add_content` - Add content to IPFS
-   - `cat` - Retrieve content from IPFS by CID
-   - `pin_add` - Pin content to IPFS
-   - `pin_rm` - Unpin content from IPFS
-   - `pin_ls` - List pinned content
-   - `swarm_peers` - List connected peers
-   - `swarm_connect` - Connect to a peer
-   - `swarm_disconnect` - Disconnect from a peer
-   - `storage_transfer` - Transfer content between storage backends
-   - `get_version` - Get IPFS version information
+We created a new module `ipfs_router_extensions.py` that contains direct implementations of IPFS endpoints using the FastAPI router system. This module:
+- Provides implementations for key IPFS commands like `version`, `add`, `cat`, and pin management
+- Uses direct subprocess calls to the IPFS CLI for reliable functionality
+- Registers these endpoints under the `/api/v0/ipfs/` prefix
 
-2. **ipfs_kit_py/mcp/models/ipfs_model_initializer.py** - Initializes the IPFS model with the extensions.
+### 2. Enhanced MCP Server
 
-3. **ipfs_kit_py/mcp/run_mcp_server_initializer.py** - Patches the MCP server to initialize the IPFS model extensions during startup.
+We modified the `enhanced_mcp_server_fixed.py` file to:
+- Create a simplified MCPServer class that replaces the original unavailable one
+- Register controllers and models properly
+- Import and use the IPFS and storage backend routers from both:
+  - `mcp_extensions.py` for storage backends
+  - `ipfs_router_extensions.py` for IPFS operations
 
-4. **ipfs_kit_py/mcp/sse_cors_fix.py** - Fixes SSE (Server-Sent Events) and CORS issues to ensure proper communication with Cline.
+### 3. Verification Tools
 
-5. **verify_mcp_compatibility.py** - Updated to check and apply the IPFS model extensions and SSE/CORS fixes.
+We created a verification script `verify_mcp_tools_fixed.py` that:
+- Tests all server endpoints systematically
+- Verifies storage backend status endpoints
+- Confirms IPFS endpoint functionality
 
-6. **start_mcp_server_fixed.sh** - Updated to explicitly initialize the extensions during server startup.
+## Tests Performed
 
-7. **test_mcp_tools.py** - Test script to verify all extensions and tools work correctly.
+The following endpoints were tested and confirmed working:
 
-8. **verify_mcp_tools.sh** - Convenience script to automate the verification process.
+### Storage Backends
+- `/api/v0/huggingface/status` - ✅ Working
+- `/api/v0/s3/status` - ✅ Working
+- `/api/v0/filecoin/status` - ✅ Working
+- `/api/v0/storacha/status` - ✅ Working
+- `/api/v0/lassie/status` - ✅ Working
 
-## Available MCP Tools
+### IPFS Endpoints
+- `/api/v0/ipfs/version` - ✅ Working
+- `/api/v0/ipfs/pin/ls` - ✅ Working
 
-The following MCP tools are now available:
+## Running the Server
 
-1. **ipfs_add** - Add content to IPFS
-   - Input: `{"content": "string", "pin": boolean}`
-   - Output: `{"cid": "string", "size": number}`
-
-2. **ipfs_cat** - Retrieve content from IPFS
-   - Input: `{"cid": "string"}`
-   - Output: `{"content": "string"}`
-
-3. **ipfs_pin** - Pin content in IPFS
-   - Input: `{"cid": "string"}`
-   - Output: `{"success": boolean}`
-
-4. **storage_transfer** - Transfer content between storage backends
-   - Input: `{"source": "string", "destination": "string", "identifier": "string"}`
-   - Output: `{"success": boolean, "destinationId": "string"}`
-
-## Verification
-
-To verify that all the MCP server tools are working correctly, run the `verify_mcp_tools.sh` script:
+To run the fixed MCP server:
 
 ```bash
-./verify_mcp_tools.sh
+python enhanced_mcp_server_fixed.py --port 9997 --debug
 ```
 
-This script will:
-1. Run the MCP compatibility verification
-2. Test the IPFS model extensions
-3. Test the Cline MCP integration
-4. Start the MCP server if it's not already running
-5. Test the MCP server API
-6. Stop the test server if it was started
+## Verifying Functionality
 
-If all tests pass, the MCP server tools are working correctly.
-
-## Usage
-
-To start the MCP server with all tools enabled, run:
+To verify the server is functioning correctly:
 
 ```bash
-./start_mcp_server_fixed.sh
+python verify_mcp_tools_fixed.py
 ```
-
-The MCP server will start on port 9994 by default. You can access the API at:
-
-```
-http://localhost:9994/api/v0
-```
-
-## Cline Integration
-
-The MCP server is automatically configured to integrate with Cline. The configuration file is located at:
-
-```
-.config/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
-```
-
-This file defines the MCP server URL, available tools, and input/output schemas.
-
-## Troubleshooting
-
-If you encounter issues with the MCP server tools, check the following:
-
-1. Make sure the MCP server is running: `./start_mcp_server_fixed.sh`
-2. Check the logs in `mcp_server.log` and `logs/mcp_server_stdout.log`
-3. Run the verification script: `./verify_mcp_tools.sh`
-4. If specific tools are not working, check the API responses for more details
 
 ## Architecture
 
-The MCP server follows a Model-Controller architecture:
+The solution follows a modular architecture:
 
-1. **Models** (e.g., IPFSModel) - Handle the business logic and interactions with IPFS and other storage backends
-2. **Controllers** (e.g., IPFSController) - Handle HTTP requests and responses, and delegate to the models
+1. **Core Server** (`enhanced_mcp_server_fixed.py`): Initializes FastAPI app, registers models and controllers
+2. **Storage Extensions** (`mcp_extensions.py`): Provides storage backend routes for various services
+3. **IPFS Extensions** (`ipfs_router_extensions.py`): Implements IPFS-specific functionality
+4. **Verification Tool** (`verify_mcp_tools_fixed.py`): Tests and validates endpoint functionality
 
-The extensions we've added primarily focus on the model layer, providing implementations for methods that were previously missing or incomplete.
-
-## Future Improvements
-
-Potential areas for future improvements include:
-
-1. Adding more comprehensive error handling
-2. Implementing additional storage backends
-3. Adding authentication and authorization
-4. Improving performance with caching
-5. Adding more advanced IPFS operations (e.g., pubsub, DHT)
+This approach ensures a clean separation of concerns and allows for easy maintenance and extension.

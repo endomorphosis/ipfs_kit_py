@@ -6,6 +6,7 @@ This module initializes the IPFSModel with extensions to support MCP server tool
 
 import logging
 import importlib
+import sys
 from typing import Type
 
 # Configure logger
@@ -27,20 +28,34 @@ def initialize_ipfs_model():
         # Import extensions
         from ipfs_kit_py.mcp.models.ipfs_model_extensions import add_ipfs_model_extensions
         
-        # Apply extensions to the IPFSModel class
+        # Apply extensions to the IPFSModel class directly
         add_ipfs_model_extensions(IPFSModel)
         
-        # Add methods as instance methods
-        IPFSModel.add_content = add_ipfs_model_extensions.__globals__['add_content']
-        IPFSModel.cat = add_ipfs_model_extensions.__globals__['cat']
-        IPFSModel.pin_add = add_ipfs_model_extensions.__globals__['pin_add']
-        IPFSModel.pin_rm = add_ipfs_model_extensions.__globals__['pin_rm']
-        IPFSModel.pin_ls = add_ipfs_model_extensions.__globals__['pin_ls']
-        IPFSModel.swarm_peers = add_ipfs_model_extensions.__globals__['swarm_peers']
-        IPFSModel.swarm_connect = add_ipfs_model_extensions.__globals__['swarm_connect']
-        IPFSModel.swarm_disconnect = add_ipfs_model_extensions.__globals__['swarm_disconnect']
-        IPFSModel.storage_transfer = add_ipfs_model_extensions.__globals__['storage_transfer']
-        IPFSModel.get_version = add_ipfs_model_extensions.__globals__['get_version']
+        # Extract method functions from the module
+        extension_module = sys.modules.get('ipfs_kit_py.mcp.models.ipfs_model_extensions')
+        
+        if extension_module:
+            # Use direct module access for methods
+            for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
+                               'swarm_peers', 'swarm_connect', 'swarm_disconnect',
+                               'storage_transfer', 'get_version']:
+                method = getattr(extension_module, method_name, None)
+                if method:
+                    setattr(IPFSModel, method_name, method)
+                else:
+                    logger.warning(f"Method {method_name} not found in extensions module")
+        else:
+            # Fallback to the globals dictionary of the function
+            methods_dict = add_ipfs_model_extensions.__globals__
+            
+            # Directly attach methods to the class
+            for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
+                               'swarm_peers', 'swarm_connect', 'swarm_disconnect',
+                               'storage_transfer', 'get_version']:
+                if method_name in methods_dict:
+                    setattr(IPFSModel, method_name, methods_dict[method_name])
+                else:
+                    logger.warning(f"Method {method_name} not found in function globals")
         
         logger.info("Successfully initialized IPFSModel with extensions")
         return True
