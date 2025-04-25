@@ -123,7 +123,7 @@ def main():
     """Run the verification script."""
     parser = argparse.ArgumentParser(description="Verify SSE endpoints on MCP server")
     parser.add_argument("--url", type=str, default="http://localhost:9997", help="Base URL of the MCP server")
-    parser.add_argument("--timeout", type=int, default=5, help="Timeout in seconds")
+    parser.add_argument("--timeout", type=int, default=3, help="Timeout in seconds")
     
     args = parser.parse_args()
     
