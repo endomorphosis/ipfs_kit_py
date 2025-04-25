@@ -1,0 +1,140 @@
+{
+  "mcpServers": [
+    {
+      "name": "ipfs-kit-mcp",
+      "description": "IPFS Kit MCP Server with storage backends (IPFS, Filecoin, Hugging Face, Storacha, Lassie, S3)",
+      "url": "http://localhost:9994/api/v0",
+      "enabled": true,
+      "authentication": {
+        "type": "none"
+      },
+      "resources": [
+        {
+          "uri": "ipfs://info",
+          "description": "IPFS node information",
+          "mediaType": "application/json"
+        },
+        {
+          "uri": "storage://backends",
+          "description": "Available storage backends",
+          "mediaType": "application/json"
+        }
+      ],
+      "tools": [
+        {
+          "name": "ipfs_add",
+          "description": "Add content to IPFS",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Content to add to IPFS"
+              },
+              "pin": {
+                "type": "boolean",
+                "description": "Whether to pin the content",
+                "default": true
+              }
+            },
+            "required": ["content"]
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "cid": {
+                "type": "string",
+                "description": "Content identifier (CID) of the added content"
+              },
+              "size": {
+                "type": "integer",
+                "description": "Size of the added content in bytes"
+              }
+            }
+          }
+        },
+        {
+          "name": "ipfs_cat",
+          "description": "Retrieve content from IPFS",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "cid": {
+                "type": "string",
+                "description": "Content identifier (CID) to retrieve"
+              }
+            },
+            "required": ["cid"]
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Retrieved content"
+              }
+            }
+          }
+        },
+        {
+          "name": "ipfs_pin",
+          "description": "Pin content in IPFS",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "cid": {
+                "type": "string",
+                "description": "Content identifier (CID) to pin"
+              }
+            },
+            "required": ["cid"]
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "description": "Whether the pinning was successful"
+              }
+            }
+          }
+        },
+        {
+          "name": "storage_transfer",
+          "description": "Transfer content between storage backends",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Source storage backend (ipfs, filecoin, huggingface, storacha, lassie, s3)"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Destination storage backend (ipfs, filecoin, huggingface, storacha, lassie, s3)"
+              },
+              "identifier": {
+                "type": "string",
+                "description": "Content identifier in the source backend"
+              }
+            },
+            "required": ["source", "destination", "identifier"]
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "description": "Whether the transfer was successful"
+              },
+              "destinationId": {
+                "type": "string",
+                "description": "Identifier of the content in the destination backend"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

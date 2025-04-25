@@ -1,3 +1,9 @@
+import logging
+import time
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
 async def stat_file(self, path: str):
     """
     Get information about a file or directory in MFS.

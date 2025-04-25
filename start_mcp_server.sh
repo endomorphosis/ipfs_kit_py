@@ -80,18 +80,17 @@ if [ -f "$PID_FILE" ]; then
     rm -f "$PID_FILE"
 else
     echo "No PID file found, checking for running processes..."
-    pkill -f "python.*run_mcp_server.py" 2>/dev/null || echo "No running MCP server found"
+    pkill -f "python.*(run_mcp_server|enhanced_mcp_server).*py" 2>/dev/null || echo "No running MCP server found"
     sleep 2
 fi
 
 # Ensure the log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"
 
-# Build the command with all options
-CMD="./run_mcp_server.py --port $PORT --api-prefix $API_PREFIX --log-file $LOG_FILE"
-[ "$DEBUG" = "false" ] && CMD="$CMD --no-debug"
-[ "$ISOLATION" = "false" ] && CMD="$CMD --no-isolation"
-[ "$SKIP_DAEMON" = "false" ] && CMD="$CMD --no-skip-daemon"
+# Build the command with all options - using only arguments that the enhanced script accepts
+CMD="./ipfs_kit_py/enhanced_mcp_server_real.py --port $PORT"
+[ "$DEBUG" = "true" ] && CMD="$CMD --debug"
+# Note: Other arguments (api-prefix, isolation, skip-daemon) are not used by the enhanced script
 
 # Start the server
 echo "Starting MCP server..."
@@ -115,7 +114,7 @@ if [ "$BACKGROUND" = "true" ]; then
     sleep 3
     if ps -p "$PID" > /dev/null; then
         echo "MCP server is running. Testing health endpoint..."
-        if curl -s "http://localhost:$PORT$API_PREFIX/health" > /dev/null 2>&1; then
+        if curl -s "http://localhost:$PORT/api/v0/health" > /dev/null 2>&1 || curl -s "http://localhost:$PORT/health" > /dev/null 2>&1; then
             echo "MCP server is healthy"
             echo "You can access the API at: http://localhost:$PORT$API_PREFIX"
             echo "API documentation available at: http://localhost:$PORT/docs"

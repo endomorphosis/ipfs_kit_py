@@ -184,7 +184,7 @@ def _check_dns_resolution(host):
 STORACHA_ENDPOINTS = [
     "https://up.storacha.network/bridge",     # Primary endpoint
     "https://api.web3.storage",               # Legacy endpoint
-    "https://api.storacha.io",                # Alternative endpoint
+    "https://api.storacha.network",                # Alternative endpoint
     "https://up.web3.storage/bridge"          # Yet another alternative
 ]
 """

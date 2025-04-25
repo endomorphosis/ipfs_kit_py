@@ -32,14 +32,34 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+import argparse
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Run the MCP server with real storage backends")
+parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "9994")),
+                    help="Port to run the server on")
+parser.add_argument("--api-prefix", type=str, default="/api/v0",
+                    help="API prefix for endpoints")
+parser.add_argument("--log-file", type=str, default="mcp_real_storage_server.log",
+                    help="Log file path")
+parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+args = parser.parse_args()
+
 # Get configuration from environment variables or use defaults
-debug_mode = os.environ.get("MCP_DEBUG_MODE", "true").lower() == "true"
+debug_mode = args.debug if args.debug else os.environ.get("MCP_DEBUG_MODE", "true").lower() == "true"
 isolation_mode = os.environ.get("MCP_ISOLATION_MODE", "false").lower() == "false"  # Turn off isolation for real mode
-api_prefix = "/api/v0"  # Fixed prefix for consistency
+api_prefix = args.api_prefix  # Use command line argument
 persistence_path = os.environ.get("MCP_PERSISTENCE_PATH", "~/.ipfs_kit/mcp_real_storage")
 
 # Port configuration
-port = int(os.environ.get("MCP_PORT", "9994"))  # Using a different port than other servers
+port = args.port  # Use command line argument
+
+# Update log file based on args
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename=args.log_file
+)
 
 def create_app():
     """Create and configure the FastAPI app with MCP server."""
@@ -52,7 +72,7 @@ def create_app():
     
     # Import MCP server
     try:
-        from ipfs_kit_py.mcp.server_bridge import MCPServer  # Updated import path
+        from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Using mcp_server path
         
         # Create MCP server
         mcp_server = MCPServer(
@@ -159,23 +179,8 @@ def create_app():
         except ImportError as e:
             logger.info(f"LibP2P controller not available: {e}")
         
-        # Try to register WebRTC controller if available
-        try:
-            from ipfs_kit_py.mcp.controllers.webrtc_controller import WebRTCController
-            from ipfs_kit_py.mcp.models.webrtc_model import WebRTCModel
-            
-            # Create WebRTC model with config instead of debug_mode
-            try:
-                webrtc_model = WebRTCModel(config={"debug_mode": debug_mode})
-                mcp_server.register_model("webrtc", webrtc_model)
-                
-                webrtc_controller = WebRTCController(webrtc_model)
-                mcp_server.register_controller("webrtc", webrtc_controller)
-                logger.info("WebRTC controller registered successfully")
-            except Exception as e:
-                logger.warning(f"Failed to initialize WebRTC model: {e}")
-        except ImportError as e:
-            logger.info(f"WebRTC controller not available: {e}")
+        # WebRTC controller is disabled to avoid import errors
+        logger.info("WebRTC controller disabled")
         
         # Log registered controllers
         logger.info(f"Registered controllers: {list(mcp_server.controllers.keys())}")
@@ -201,9 +206,10 @@ def create_app():
             
             # Storage backends status
             storage_backends = {}
-            if hasattr(mcp_server, 'storage_manager'):
+            if "storage_manager" in mcp_server.models:
                 try:
-                    for backend_name, backend in mcp_server.storage_manager.storage_models.items():
+                    storage_manager = mcp_server.models["storage_manager"]
+                    for backend_name, backend in storage_manager.storage_models.items():
                         storage_backends[backend_name] = {
                             "available": True,
                             "simulation": False,
@@ -326,8 +332,9 @@ def create_app():
             }
             
             # Check each storage backend
-            if hasattr(mcp_server, 'storage_manager'):
-                for backend_name, backend in mcp_server.storage_manager.storage_models.items():
+            if "storage_manager" in mcp_server.models:
+                storage_manager = mcp_server.models["storage_manager"]
+                for backend_name, backend in storage_manager.storage_models.items():
                     try:
                         # Call the backend's health check
                         if hasattr(backend, 'async_health_check'):

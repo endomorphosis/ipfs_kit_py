@@ -211,7 +211,7 @@ def main():
         endpoints=[
             "https://up.storacha.network/bridge",
             "https://api.web3.storage",
-            "https://api.storacha.io"
+            "https://api.storacha.network"
         ],
         max_retries=3,
         timeout=30,

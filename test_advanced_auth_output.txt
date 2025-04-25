@@ -42,8 +42,8 @@ collecting ...
 01:37:22 [    INFO] ipfs_kit_py.ipfs.ipfs_py: Initializing connection to IPFS node at 127.0.0.1:5001
 01:37:22 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://up.storacha.network/bridge (Status code: 404)
 01:37:23 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://api.web3.storage (Status code: 404)
-01:37:23 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.io: [Errno -2] Name or service not known
-01:37:23 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.io, skipping endpoint
+01:37:23 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.network: [Errno -2] Name or service not known
+01:37:23 [ WARNING] ipfs_kit_py.storacha_kit: DNS resolution failed for api.storacha.network, skipping endpoint
 01:37:23 [    INFO] ipfs_kit_py.storacha_kit: Found working Storacha endpoint: https://up.web3.storage/bridge (Status code: 404)
 01:37:23 [    INFO] ipfs_kit_py.storacha_kit: Storacha kit initialized with API endpoint: https://up.storacha.network/bridge
 01:37:23 [ WARNING] ipfs_kit_py.huggingface_kit: huggingface_hub package not available. Some functionality will be limited.
@@ -124,8 +124,8 @@ INFO:ipfs_kit_py.high_level_api:Loaded configuration from /home/barberb/.ipfs_ki
 INFO:ipfs_kit_py.ipfs.ipfs_py:Initializing connection to IPFS node at 127.0.0.1:5001
 INFO:ipfs_kit_py.storacha_kit:Found working Storacha endpoint: https://up.storacha.network/bridge (Status code: 404)
 INFO:ipfs_kit_py.storacha_kit:Found working Storacha endpoint: https://api.web3.storage (Status code: 404)
-WARNING:ipfs_kit_py.storacha_kit:DNS resolution failed for api.storacha.io: [Errno -2] Name or service not known
-WARNING:ipfs_kit_py.storacha_kit:DNS resolution failed for api.storacha.io, skipping endpoint
+WARNING:ipfs_kit_py.storacha_kit:DNS resolution failed for api.storacha.network: [Errno -2] Name or service not known
+WARNING:ipfs_kit_py.storacha_kit:DNS resolution failed for api.storacha.network, skipping endpoint
 INFO:ipfs_kit_py.storacha_kit:Found working Storacha endpoint: https://up.web3.storage/bridge (Status code: 404)
 INFO:ipfs_kit_py.storacha_kit:Storacha kit initialized with API endpoint: https://up.storacha.network/bridge
 WARNING:ipfs_kit_py.huggingface_kit:huggingface_hub package not available. Some functionality will be limited.

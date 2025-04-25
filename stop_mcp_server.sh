@@ -79,20 +79,20 @@ else
     echo "Checking for running MCP server processes..."
     
     # Try to find running processes that match the server pattern
-    PIDS=$(pgrep -f "python.*run_mcp_server.py" 2>/dev/null)
+    PIDS=$(pgrep -f "python.*(run_mcp_server|enhanced_mcp_server).*py" 2>/dev/null)
     if [ -n "$PIDS" ]; then
         echo "Found running MCP server processes: $PIDS"
         if [ "$FORCE" = "true" ]; then
             echo "Force killing all MCP server processes..."
-            pkill -9 -f "python.*run_mcp_server.py" 2>/dev/null
+            pkill -9 -f "python.*(run_mcp_server|enhanced_mcp_server).*py" 2>/dev/null
         else
             echo "Stopping all MCP server processes gracefully..."
-            pkill -f "python.*run_mcp_server.py" 2>/dev/null
+            pkill -f "python.*(run_mcp_server|enhanced_mcp_server).*py" 2>/dev/null
             
             # Wait for processes to stop
             MAX_WAIT=10
             for i in $(seq 1 $MAX_WAIT); do
-                if ! pgrep -f "python.*run_mcp_server.py" > /dev/null; then
+                if ! pgrep -f "python.*(run_mcp_server|enhanced_mcp_server).*py" > /dev/null; then
                     break
                 fi
                 echo "Waiting for servers to shut down... ($i/$MAX_WAIT)"
@@ -100,15 +100,15 @@ else
             done
             
             # Check if any are still running and force kill if necessary
-            if pgrep -f "python.*run_mcp_server.py" > /dev/null; then
+            if pgrep -f "python.*(run_mcp_server|enhanced_mcp_server).*py" > /dev/null; then
                 echo "Some servers didn't shut down gracefully. Force killing..."
-                pkill -9 -f "python.*run_mcp_server.py" 2>/dev/null
+                pkill -9 -f "python.*(run_mcp_server|enhanced_mcp_server).*py" 2>/dev/null
             fi
         fi
         
         # Wait for final confirmation
         sleep 1
-        if ! pgrep -f "python.*run_mcp_server.py" > /dev/null; then
+        if ! pgrep -f "python.*(run_mcp_server|enhanced_mcp_server).*py" > /dev/null; then
             echo "All MCP server processes have been stopped"
         else
             echo "Failed to stop some MCP server processes"
@@ -120,20 +120,20 @@ else
 fi
 
 # Check for any other mcp server processes
-if pgrep -f "uvicorn.*run_mcp_server.*:app" > /dev/null; then
+if pgrep -f "uvicorn.*(run_mcp_server|enhanced_mcp_server).*:app" > /dev/null; then
     echo "Found additional uvicorn processes for MCP server"
     if [ "$FORCE" = "true" ]; then
         echo "Force killing uvicorn processes..."
-        pkill -9 -f "uvicorn.*run_mcp_server.*:app" 2>/dev/null
+        pkill -9 -f "uvicorn.*(run_mcp_server|enhanced_mcp_server).*:app" 2>/dev/null
     else
         echo "Stopping uvicorn processes gracefully..."
-        pkill -f "uvicorn.*run_mcp_server.*:app" 2>/dev/null
+        pkill -f "uvicorn.*(run_mcp_server|enhanced_mcp_server).*:app" 2>/dev/null
         
         # Wait for final confirmation
         sleep 2
-        if pgrep -f "uvicorn.*run_mcp_server.*:app" > /dev/null; then
+        if pgrep -f "uvicorn.*(run_mcp_server|enhanced_mcp_server).*:app" > /dev/null; then
             echo "Some uvicorn processes didn't shut down gracefully. Force killing..."
-            pkill -9 -f "uvicorn.*run_mcp_server.*:app" 2>/dev/null
+            pkill -9 -f "uvicorn.*(run_mcp_server|enhanced_mcp_server).*:app" 2>/dev/null
         else
             echo "All uvicorn processes have been stopped"
         fi

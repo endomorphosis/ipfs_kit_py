@@ -47,7 +47,7 @@ class StorachaConnectionManager:
     DEFAULT_ENDPOINTS = [
         "https://up.storacha.network/bridge",  # Primary endpoint
         "https://api.web3.storage",  # Legacy endpoint
-        "https://api.storacha.io",  # Alternative endpoint
+        "https://api.storacha.network",  # Alternative endpoint
         "https://up.web3.storage/bridge",  # Alternative bridge endpoint
     ]
     
@@ -55,7 +55,7 @@ class StorachaConnectionManager:
     HEALTH_CHECK_PATHS = {
         "up.storacha.network": "health",
         "api.web3.storage": "status",
-        "api.storacha.io": "health",
+        "api.storacha.network": "health",
         "up.web3.storage": "health"
     }
     

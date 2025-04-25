@@ -45,7 +45,7 @@ def install_dependencies():
 def verify_api_key():
     """Verify the Storacha API key."""
     api_key = os.environ.get("STORACHA_API_KEY")
-    api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.io")
+    api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.network")
     
     if not api_key:
         logger.warning("No Storacha API key found in environment")
@@ -93,7 +93,7 @@ def setup_local_mock():
     mock_config = {
         "version": "1.0.0",
         "mock": True,
-        "api_url": os.environ.get("STORACHA_API_URL", "https://api.storacha.io"),
+        "api_url": os.environ.get("STORACHA_API_URL", "https://api.storacha.network"),
         "api_key": os.environ.get("STORACHA_API_KEY", "mock_key"),
         "storage_dir": mock_dir
     }
@@ -109,7 +109,7 @@ def setup_local_mock():
 def test_store_retrieve():
     """Test storing and retrieving data through Storacha."""
     api_key = os.environ.get("STORACHA_API_KEY")
-    api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.io")
+    api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.network")
     
     if not api_key:
         logger.warning("No Storacha API key, skipping store/retrieve test")
@@ -196,7 +196,7 @@ def main():
     
     # Check if API key is set
     api_key = os.environ.get("STORACHA_API_KEY")
-    api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.io")
+    api_url = os.environ.get("STORACHA_API_URL", "https://api.storacha.network")
     
     # Log current configuration
     logger.info(f"Storacha API URL: {api_url}")

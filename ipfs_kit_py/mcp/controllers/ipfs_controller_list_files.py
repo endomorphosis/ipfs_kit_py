@@ -1,3 +1,9 @@
+import logging
+import time
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
 async def list_files(self, path: str = "/", long: bool = False):
     """
     List files in the MFS (Mutable File System) directory.
