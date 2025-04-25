@@ -6,6 +6,7 @@ This document explains the fixes made to the MCP Server to ensure all tools and 
 
 The MCP server was experiencing issues with the following endpoints:
 - Missing IPFS controller endpoints (404 errors)
+- SSE (Server-Sent Events) endpoint was not accessible via the API prefix, causing 404 errors
 - Storage backend endpoints were functioning correctly but could be improved
 
 ## Solution Implemented
@@ -48,6 +49,10 @@ The following endpoints were tested and confirmed working:
 - `/api/v0/ipfs/version` - ✅ Working
 - `/api/v0/ipfs/pin/ls` - ✅ Working
 
+### Event Streaming
+- `/api/v0/sse` - ✅ Working (fixed SSE endpoint)
+- `/sse` - ✅ Working (original SSE endpoint)
+
 ## Running the Server
 
 To run the fixed MCP server:
@@ -71,6 +76,18 @@ The solution follows a modular architecture:
 1. **Core Server** (`enhanced_mcp_server_fixed.py`): Initializes FastAPI app, registers models and controllers
 2. **Storage Extensions** (`mcp_extensions.py`): Provides storage backend routes for various services
 3. **IPFS Extensions** (`ipfs_router_extensions.py`): Implements IPFS-specific functionality
-4. **Verification Tool** (`verify_mcp_tools_fixed.py`): Tests and validates endpoint functionality
+4. **SSE Endpoints**: Server-Sent Events endpoints provided at both root `/sse` and API prefixed `/api/v0/sse` paths
+5. **Verification Tool** (`verify_mcp_tools_fixed.py`): Tests and validates endpoint functionality
+
+## Fixed Issues
+
+### 1. Missing IPFS Endpoints
+Created an extension module to directly implement IPFS endpoints using the FastAPI router system, bypassing the original IPFS controller implementation issues.
+
+### 2. SSE 404 Error
+The SSE (Server-Sent Events) endpoint was only available at the root path `/sse`, causing 404 errors when clients tried to access it through the API prefix path `/api/v0/sse`. We fixed this by:
+- Refactoring the SSE handler into a reusable function
+- Registering the SSE handler at both the root path and the API prefix path
+- This ensures the SSE endpoint is accessible via both `/sse` and `/api/v0/sse`
 
 This approach ensures a clean separation of concerns and allows for easy maintenance and extension.

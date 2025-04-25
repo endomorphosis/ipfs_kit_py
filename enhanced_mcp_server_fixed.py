@@ -497,9 +497,8 @@ def create_app():
                 "server_id": str(uuid.uuid4())
             }
         
-        # Add SSE endpoint for server-sent events
-        @app.get("/sse")
-        async def sse(request: Request):
+        # Add SSE endpoint for server-sent events - both at root and with API prefix
+        async def sse_handler(request: Request):
             """Server-Sent Events (SSE) endpoint for real-time updates."""
             async def event_generator():
                 """Generate SSE events."""
@@ -535,6 +534,12 @@ def create_app():
                     "Access-Control-Allow-Origin": "*"
                 }
             )
+            
+        # Register SSE endpoint at root level
+        app.get("/sse")(sse_handler)
+        
+        # Register SSE endpoint at API prefix level
+        app.get(f"{api_prefix}/sse")(sse_handler)
         
         # Add a health check specifically for verifying model extensions
         @app.get(f"{api_prefix}/tools/health")
