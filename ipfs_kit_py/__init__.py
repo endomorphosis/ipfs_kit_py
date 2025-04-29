@@ -95,6 +95,46 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
             logger.info("Binaries will be downloaded when specific functions are called")
 
 # Use try/except for all imports to handle optional dependencies gracefully
+# Import the transformers integration
+try:
+    from .transformers_integration import TransformersIntegration
+
+    # Create alias for the integration
+    transformers = TransformersIntegration()
+    print(f"TransformersIntegration is instantiated successfully")
+except ImportError:
+    # Simple transformers integration
+    try:
+        import transformers as _hf_transformers
+        _TRANSFORMERS_AVAILABLE = True
+    except ImportError:
+        _TRANSFORMERS_AVAILABLE = False
+
+    class SimpleTransformers:
+        """Simplified transformers integration."""
+
+        def is_available(self):
+            """Check if transformers is available."""
+            return _TRANSFORMERS_AVAILABLE
+
+        def from_auto_download(self, model_name, **kwargs):
+            """Load a model using HuggingFace's from_pretrained."""
+            if not _TRANSFORMERS_AVAILABLE:
+                raise ImportError("transformers package not installed. Install with: pip install transformers")
+            return _hf_transformers.AutoModel.from_pretrained(model_name, **kwargs)
+
+        def from_ipfs(self, cid, **kwargs):
+            """Load a model from IPFS (stub implementation)."""
+            if not _TRANSFORMERS_AVAILABLE:
+                raise ImportError("transformers package not installed. Install with: pip install transformers")
+            print(f"Loading from IPFS CID: {cid}")
+            raise NotImplementedError("Direct IPFS loading not implemented in this simplified version")
+
+    # Export the simple transformers integration
+    transformers = SimpleTransformers()
+    print(f"SimpleTransformers is instantiated successfully")
+
+
 # High-level API import
 try:
     from .high_level_api import IPFSSimpleAPI, PluginBase
@@ -130,7 +170,7 @@ try:
     from .wal_api_extension import WALEnabledAPI
 except ImportError:
     WALEnabledAPI = None
-    
+
 # Import WAL API
 try:
     from .wal_api import register_wal_api

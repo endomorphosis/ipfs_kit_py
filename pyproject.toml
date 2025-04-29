@@ -42,6 +42,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+transformers = [
+    "transformers>=4.20.0",
+    "huggingface-hub>=0.10.0"
+]
 fsspec = [
     "fsspec>=2023.3.0",
     "requests-unixsocket>=0.3.0",
@@ -150,7 +154,11 @@ Changelog = "https://github.com/endomorphosis/ipfs_kit_py/blob/main/CHANGELOG.md
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["ipfs_kit_py*"]
+include = ["ipfs_kit_py*", "external*"]
+
+[tool.setuptools.package-data]
+"ipfs_kit_py" = ["**/*"]
+"external" = ["**/*"]
 
 [tool.black]
 line-length = 100
