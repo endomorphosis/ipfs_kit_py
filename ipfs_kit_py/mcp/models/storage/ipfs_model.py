@@ -29,6 +29,9 @@ class IPFSModel(BaseStorageModel):
         ipfs_backend=None,
         cache_manager=None,
         credential_manager=None,
+        debug_mode=False,
+        log_level="INFO",
+        config=None,
     ):
         """
         Initialize IPFS storage model.
@@ -37,6 +40,9 @@ class IPFSModel(BaseStorageModel):
             ipfs_backend: IPFSBackend instance or similar adapter
             cache_manager: Cache manager for content caching
             credential_manager: Credential manager for authentication
+            debug_mode: Enable debug mode
+            log_level: Logging level
+            config: Configuration dictionary
         """
         # Initialize the base class
         super().__init__(
@@ -51,6 +57,18 @@ class IPFSModel(BaseStorageModel):
         
         # Set the backend name specifically for IPFS
         self.backend_name = "IPFS"
+        
+        # Store debug and configuration settings
+        self.debug_mode = debug_mode
+        self.log_level = log_level
+        
+        # Extract configuration if provided
+        if config is not None:
+            self.debug_mode = config.get("debug", self.debug_mode)
+            self.log_level = config.get("log_level", self.log_level)
+            self.isolation_mode = config.get("isolation", True)
+        else:
+            self.isolation_mode = True
         
         logger.info("IPFS Model initialized")
 

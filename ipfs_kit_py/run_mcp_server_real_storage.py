@@ -72,7 +72,7 @@ def create_app():
     
     # Import MCP server
     try:
-        from ipfs_kit_py.mcp_server.server_bridge import MCPServer  # Using mcp_server path
+        from ipfs_kit_py.mcp.server_bridge import MCPServer
         
         # Create MCP server
         mcp_server = MCPServer(
@@ -209,12 +209,26 @@ def create_app():
             if "storage_manager" in mcp_server.models:
                 try:
                     storage_manager = mcp_server.models["storage_manager"]
-                    for backend_name, backend in storage_manager.storage_models.items():
-                        storage_backends[backend_name] = {
-                            "available": True,
-                            "simulation": False,
-                            "real_implementation": True
-                        }
+                    if hasattr(storage_manager, 'storage_models') and isinstance(storage_manager.storage_models, dict):
+                        # Access storage_models only if it exists and is a dictionary
+                        for backend_name, backend in storage_manager.storage_models.items():
+                            storage_backends[backend_name] = {
+                                "available": True,
+                                "simulation": False,
+                                "real_implementation": True
+                            }
+                    elif hasattr(storage_manager, 'get_available_backends'):
+                        # Alternative method using get_available_backends if it exists
+                        available_backends = storage_manager.get_available_backends()
+                        for backend_name, is_available in available_backends.items():
+                            storage_backends[backend_name] = {
+                                "available": is_available,
+                                "simulation": False,
+                                "real_implementation": True
+                            }
+                    else:
+                        # Fallback for when neither attribute is present
+                        storage_backends["info"] = "Storage backends information unavailable"
                 except Exception as e:
                     storage_backends["error"] = str(e)
             
@@ -334,31 +348,53 @@ def create_app():
             # Check each storage backend
             if "storage_manager" in mcp_server.models:
                 storage_manager = mcp_server.models["storage_manager"]
-                for backend_name, backend in storage_manager.storage_models.items():
-                    try:
-                        # Call the backend's health check
-                        if hasattr(backend, 'async_health_check'):
-                            status = await backend.async_health_check()
-                        else:
-                            status = backend.health_check()
-                            
+                
+                # Make sure storage_models exists and is a dictionary before iterating
+                if hasattr(storage_manager, 'storage_models') and isinstance(storage_manager.storage_models, dict):
+                    for backend_name, backend in storage_manager.storage_models.items():
+                        try:
+                            # Call the backend's health check
+                            if hasattr(backend, 'async_health_check'):
+                                status = await backend.async_health_check()
+                            else:
+                                status = backend.health_check()
+                                
+                            health_info["components"][backend_name] = {
+                                "status": "available" if status.get("success", False) else "error",
+                                "simulation": status.get("simulation", False),
+                                "details": status
+                            }
+                        except Exception as e:
+                            health_info["components"][backend_name] = {
+                                "status": "error",
+                                "error": str(e),
+                                "error_type": type(e).__name__
+                            }
+                # Alternative method using get_available_backends if it exists
+                elif hasattr(storage_manager, 'get_available_backends'):
+                    available_backends = storage_manager.get_available_backends()
+                    for backend_name, is_available in available_backends.items():
                         health_info["components"][backend_name] = {
-                            "status": "available" if status.get("success", False) else "error",
-                            "simulation": status.get("simulation", False),
-                            "details": status
+                            "status": "available" if is_available else "unavailable",
+                            "simulation": False
                         }
-                    except Exception as e:
-                        health_info["components"][backend_name] = {
-                            "status": "error",
-                            "error": str(e),
-                            "error_type": type(e).__name__
-                        }
+                else:
+                    health_info["components"]["info"] = {
+                        "status": "unknown",
+                        "message": "Storage backends information unavailable"
+                    }
             
             # Overall status
             errors = [c for c in health_info["components"].values() if c.get("status") == "error"]
             health_info["overall_status"] = "degraded" if errors else "healthy"
                 
             return health_info
+        
+        # Add /initialize endpoint for health/initialization check compatibility
+        @app.post("/initialize")
+        async def initialize():
+            """Initialization endpoint for MCP server tools/clients."""
+            return {"status": "success", "message": "MCP server initialized", "timestamp": time.time()}
         
         return app, mcp_server
         

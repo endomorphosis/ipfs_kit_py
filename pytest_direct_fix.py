@@ -47,6 +47,17 @@ class SimpleTerminalWriter:
         if hasattr(self.file, 'flush'):
             self.file.flush()
         return self
+    
+    def _write_source(self, source_lines, indents):
+        # no-op to satisfy pytest code terminal source printing
+        return
+    @property
+    def fullwidth(self):
+        """Return the full width for terminal printing."""
+        return getattr(self, '_width', 80)
+    def markup(self, text, **kwargs):
+        """No-op markup function required by pytest summary."""
+        return text
 
 def create_terminal_writer(config=None, file=None):
     """Direct implementation of create_terminal_writer function."""
@@ -121,7 +132,7 @@ def patch_terminal_reporter():
         self.isatty = getattr(file, 'isatty', lambda: False)
         self._main_color = None
         self._known_types = None
-        self._is_last_item = False
+        # self._is_last_item = False  # removed to avoid setting read-only property
         
         # Handle the startpath/startdir carefully
         cwd = os.getcwd()

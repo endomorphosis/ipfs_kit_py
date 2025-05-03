@@ -1,5 +1,5 @@
 {
-    "timestamp": 1745232281.8388262,
+    "timestamp": 1745651497.9133406,
     "message": "FilecoinModel correctly handles missing Lotus daemon",
     "needs_libhwloc": "libhwloc.so.15 is required to run the Lotus daemon"
 }

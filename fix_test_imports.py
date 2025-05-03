@@ -33,7 +33,6 @@ MOCK_MODULES = [
     'ipfs_kit_py.mcp.models.mcp_discovery_model',
     'ipfs_kit_py.mcp.controllers.mcp_discovery_controller',
     'ipfs_kit_py.mcp.models.libp2p_model',
-    'ipfs_kit_py.mcp.storage_manager.backend_base',
     'storacha_storage',
     'huggingface_storage',
     'enhanced_s3_storage',
@@ -89,6 +88,11 @@ def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
     """
     Patched import function that handles missing modules gracefully.
     """
+    # Bypass mocking and unmock storage_manager modules
+    if name.startswith('ipfs_kit_py.mcp.storage_manager'):
+        sys.modules.pop(name, None)
+        return original_import(name, globals, locals, fromlist, level)
+
     # Handle redirects
     original_name = name
     if name in PATH_REDIRECTS:

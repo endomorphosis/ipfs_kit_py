@@ -1,9 +1,12 @@
 {
-  "mcpServers": [
+"mcpServers": [
     {
       "name": "ipfs-kit-mcp",
       "description": "IPFS Kit MCP Server with storage backends (IPFS, Filecoin, Hugging Face, Storacha, Lassie, S3)",
-      "url": "http://localhost:9994/api/v0",
+      "url": "http://localhost:9996",
+      "transportType": "http",
+      "initializeEndpoint": "/api/v0/initialize",
+      "sseEndpoint": "/api/v0/sse",
       "enabled": true,
       "authentication": {
         "type": "none"

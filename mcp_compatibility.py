@@ -132,8 +132,14 @@ def patch_mcp_server(server_class: Any = None) -> None:
         if "debug_mode" in kwargs:
             debug_mode = kwargs.pop("debug_mode")
             # Map debug_mode to appropriate log level
-            if debug_mode and "loglevel" not in kwargs:
-                kwargs["loglevel"] = "debug"
+            if debug_mode and "log_level" not in kwargs:
+                kwargs["log_level"] = "DEBUG"
+        
+        # Remove loglevel parameter if it exists (use log_level instead)
+        if "loglevel" in kwargs:
+            log_level = kwargs.pop("loglevel")
+            if "log_level" not in kwargs:
+                kwargs["log_level"] = log_level.upper()
         
         if "api_port" in kwargs:
             kwargs["port"] = kwargs.pop("api_port")
