@@ -1,280 +1,21 @@
-"""IPFS MCP Tools Registry - Created from scratch"""
+#!/usr/bin/env python3
+"""
+Add additional IPFS tools to the registry to increase MCP tool coverage.
+"""
 
-IPFS_TOOLS = [
-    # Original IPFS MFS Tools
-    {
-        "name": "ipfs_files_ls",
-        "description": "List files and directories in the IPFS MFS (Mutable File System)",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path within MFS to list (default: /)",
-                    "default": "/"
-                },
-                "long": {
-                    "type": "boolean",
-                    "description": "Use long listing format (include size, type)",
-                    "default": False
-                }
-            }
-        }
-    },
-    {
-        "name": "ipfs_files_mkdir",
-        "description": "Create directories in the IPFS MFS (Mutable File System)",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to create within MFS"
-                },
-                "parents": {
-                    "type": "boolean",
-                    "description": "Create parent directories if they don't exist",
-                    "default": True
-                }
-            },
-            "required": ["path"]
-        }
-    },
-    {
-        "name": "ipfs_files_write",
-        "description": "Write data to a file in the IPFS MFS (Mutable File System)",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path within MFS to write to"
-                },
-                "content": {
-                    "type": "string",
-                    "description": "Content to write to the file"
-                },
-                "create": {
-                    "type": "boolean",
-                    "description": "Create the file if it doesn't exist",
-                    "default": True
-                },
-                "truncate": {
-                    "type": "boolean",
-                    "description": "Truncate the file if it already exists",
-                    "default": True
-                }
-            },
-            "required": ["path", "content"]
-        }
-    },
-    {
-        "name": "ipfs_files_read",
-        "description": "Read a file from the IPFS MFS (Mutable File System)",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path within MFS to read from"
-                },
-                "offset": {
-                    "type": "integer",
-                    "description": "Byte offset to start reading from",
-                    "default": 0
-                },
-                "count": {
-                    "type": "integer",
-                    "description": "Maximum number of bytes to read",
-                    "default": -1
-                }
-            },
-            "required": ["path"]
-        }
-    },
-    {
-        "name": "ipfs_files_rm",
-        "description": "Remove files or directories from the IPFS MFS",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path within MFS to remove"
-                },
-                "recursive": {
-                    "type": "boolean",
-                    "description": "Recursively remove directories",
-                    "default": False
-                },
-                "force": {
-                    "type": "boolean",
-                    "description": "Forcibly remove the file/directory",
-                    "default": False
-                }
-            },
-            "required": ["path"]
-        }
-    },
-    {
-        "name": "ipfs_files_stat",
-        "description": "Get information about a file or directory in the MFS",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path within MFS to get stats for"
-                },
-                "with_local": {
-                    "type": "boolean",
-                    "description": "Compute the amount of the dag that is local",
-                    "default": False
-                },
-                "size": {
-                    "type": "boolean",
-                    "description": "Compute the total size of the dag",
-                    "default": True
-                }
-            },
-            "required": ["path"]
-        }
-    },
-    {
-        "name": "ipfs_files_cp",
-        "description": "Copy files within the IPFS MFS",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "source": {
-                    "type": "string",
-                    "description": "Source path (can be an MFS or IPFS path)"
-                },
-                "dest": {
-                    "type": "string",
-                    "description": "Destination path within MFS"
-                }
-            },
-            "required": ["source", "dest"]
-        }
-    },
-    {
-        "name": "ipfs_files_mv",
-        "description": "Move files within the IPFS MFS",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "source": {
-                    "type": "string",
-                    "description": "Source path (must be an MFS path)"
-                },
-                "dest": {
-                    "type": "string",
-                    "description": "Destination path within MFS"
-                }
-            },
-            "required": ["source", "dest"]
-        }
-    },
-    {
-        "name": "ipfs_name_publish",
-        "description": "Publish an IPNS name",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "IPFS path to publish"
-                },
-                "resolve": {
-                    "type": "boolean",
-                    "description": "Resolve before publishing",
-                    "default": True
-                },
-                "lifetime": {
-                    "type": "string",
-                    "description": "Time duration that the record will be valid for",
-                    "default": "24h"
-                }
-            },
-            "required": ["path"]
-        }
-    },
-    {
-        "name": "ipfs_name_resolve",
-        "description": "Resolve an IPNS name",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "The IPNS name to resolve"
-                },
-                "recursive": {
-                    "type": "boolean",
-                    "description": "Resolve until the result is not an IPNS name",
-                    "default": True
-                },
-                "nocache": {
-                    "type": "boolean",
-                    "description": "Do not use cached entries",
-                    "default": False
-                }
-            },
-            "required": ["name"]
-        }
-    },
-    {
-        "name": "ipfs_dag_put",
-        "description": "Add a DAG node to IPFS",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "object",
-                    "description": "The data to store as a DAG node"
-                },
-                "format": {
-                    "type": "string",
-                    "description": "The format to use for the DAG node",
-                    "default": "cbor",
-                    "enum": ["cbor", "json", "raw"]
-                },
-                "input_codec": {
-                    "type": "string",
-                    "description": "The codec that the input data is encoded with",
-                    "default": "json"
-                },
-                "pin": {
-                    "type": "boolean",
-                    "description": "Pin this object when adding",
-                    "default": False
-                }
-            },
-            "required": ["data"]
-        }
-    },
-    {
-        "name": "ipfs_dag_get",
-        "description": "Get a DAG node from IPFS",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "cid": {
-                    "type": "string",
-                    "description": "The CID of the DAG node to get"
-                },
-                "path": {
-                    "type": "string",
-                    "description": "The path within the DAG structure to retrieve",
-                    "default": ""
-                }
-            },
-            "required": ["cid"]
-        }
-    },
-    
-    # New FS Journal Tools
+import os
+import re
+import json
+import logging
+from typing import Dict, List, Any
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# Define all the new tool schemas
+NEW_TOOLS = [
+    # FS Journal Tools
     {
         "name": "fs_journal_get_history",
         "description": "Get the operation history for a path in the virtual filesystem",
@@ -601,6 +342,71 @@ IPFS_TOOLS = [
     }
 ]
 
+def update_ipfs_tools_registry(tools, registry_path="ipfs_tools_registry.py"):
+    """Update the IPFS tools registry with new tools"""
+    try:
+        # Check if the registry file exists
+        if not os.path.exists(registry_path):
+            logger.info(f"Creating new registry file: {registry_path}")
+            # Create the registry file with the new tools
+            with open(registry_path, "w") as f:
+                f.write("""\"\"\"IPFS MCP Tools Registry - Generated by add_new_ipfs_tools.py\"\"\"
+
 def get_ipfs_tools():
-    """Get all IPFS tool definitions"""
+    \"\"\"Get all IPFS tool definitions\"\"\"
     return IPFS_TOOLS
+
+IPFS_TOOLS = [
+]
+""")
+        
+        # Read the current registry
+        with open(registry_path, 'r') as f:
+            content = f.read()
+        
+        # Find the end of the IPFS_TOOLS list
+        match = re.search(r'IPFS_TOOLS\s*=\s*\[(.*?)\]', content, re.DOTALL)
+        if not match:
+            logger.error(f"❌ Could not find IPFS_TOOLS list in {registry_path}")
+            return False
+        
+        # Get the current list content
+        current_list = match.group(1)
+        
+        # Format the new tools to add
+        new_tools_str = ""
+        for tool in tools:
+            new_tools_str += f"""
+    {{
+        "name": "{tool['name']}",
+        "description": "{tool['description']}",
+        "schema": {json.dumps(tool['schema'], indent=4).replace('"True"', 'True').replace('"False"', 'False')}
+    }},"""
+        
+        # Replace the list with the updated one
+        updated_list = current_list + new_tools_str
+        updated_content = content.replace(match.group(1), updated_list)
+        
+        # Write the updated content
+        with open(registry_path, 'w') as f:
+            f.write(updated_content)
+        
+        logger.info(f"✅ Added {len(tools)} new tools to {registry_path}")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Error updating IPFS tools registry: {e}")
+        return False
+
+def main():
+    """Main function"""
+    # Update the IPFS tools registry
+    update_ipfs_tools_registry(NEW_TOOLS)
+    
+    logger.info("✅ Tool coverage has been improved")
+    logger.info("ℹ️ Next steps:")
+    logger.info("   1. Create implementation handlers for the new tools")
+    logger.info("   2. Update the MCP server to use the new tools")
+    logger.info("   3. Test the new tools")
+
+if __name__ == "__main__":
+    main()

@@ -408,14 +408,22 @@ async def files_write(path: str, content: str, create: bool = True, truncate: bo
         }
     
     try:
-        # Create content as bytes
+        # Convert content to bytes if it's a string
         if isinstance(content, str):
             content_bytes = content.encode('utf-8')
         else:
             content_bytes = content
         
-        # Write to file
-        ipfs_model.ipfs_client.files.write(path, content_bytes, create=create, truncate=truncate)
+        # Create a temporary file with the content
+        with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as temp_file:
+            temp_file.write(content_bytes)
+            temp_path = temp_file.name
+        
+        # Write the file to MFS
+        ipfs_model.ipfs_client.files.write(path, temp_path, create=create, truncate=truncate)
+        
+        # Clean up the temporary file
+        os.unlink(temp_path)
         
         # Return the result
         return {
@@ -433,17 +441,17 @@ async def files_write(path: str, content: str, create: bool = True, truncate: bo
             "path": path
         }
 
-async def files_read(path: str, offset: int = 0, count: int = 0) -> Dict[str, Any]:
+async def files_read(path: str, offset: int = 0, count: int = -1) -> Dict[str, Any]:
     """
     Read content from a file in MFS.
     
     Args:
-        path: Path to read
+        path: Path to read from
         offset: Offset to start reading from
-        count: Number of bytes to read (0 means read all)
+        count: Number of bytes to read (-1 for all)
         
     Returns:
-        Dictionary with content and other information
+        Dictionary with content and result information
     """
     if not ensure_ipfs_model():
         return {
@@ -452,7 +460,7 @@ async def files_read(path: str, offset: int = 0, count: int = 0) -> Dict[str, An
         }
     
     try:
-        # Read from file
+        # Read the file from MFS
         content = ipfs_model.ipfs_client.files.read(path, offset=offset, count=count)
         
         # Try to decode as text if possible
@@ -471,11 +479,190 @@ async def files_read(path: str, offset: int = 0, count: int = 0) -> Dict[str, An
             "content": content_str,
             "content_encoding": content_encoding,
             "size": len(content),
-            "offset": offset,
-            "count": count
+            "offset": offset
         }
     except Exception as e:
-        logger.error(f"Error reading from file in MFS: {e}")
+        logger.error(f"Error reading file from MFS: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "path": path
+        }
+
+async def files_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
+    """
+    Remove a file or directory from MFS.
+    
+    Args:
+        path: Path to remove
+        recursive: Whether to recursively remove directories
+        
+    Returns:
+        Dictionary with result information
+    """
+    if not ensure_ipfs_model():
+        return {
+            "success": False,
+            "error": "IPFS model not available"
+        }
+    
+    try:
+        # Remove the file or directory
+        ipfs_model.ipfs_client.files.rm(path, recursive=recursive)
+        
+        # Return the result
+        return {
+            "success": True,
+            "path": path,
+            "recursive": recursive
+        }
+    except Exception as e:
+        logger.error(f"Error removing file from MFS: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "path": path
+        }
+
+async def files_stat(path: str) -> Dict[str, Any]:
+    """
+    Get information about a file or directory in MFS.
+    
+    Args:
+        path: Path to get information about
+        
+    Returns:
+        Dictionary with file information
+    """
+    if not ensure_ipfs_model():
+        return {
+            "success": False,
+            "error": "IPFS model not available"
+        }
+    
+    try:
+        # Get file information
+        stat = ipfs_model.ipfs_client.files.stat(path)
+        
+        # Return the result
+        return {
+            "success": True,
+            "path": path,
+            "hash": stat.get('Hash', ''),
+            "size": stat.get('Size', 0),
+            "cumulative_size": stat.get('CumulativeSize', 0),
+            "blocks": stat.get('Blocks', 0),
+            "type": stat.get('Type', ''),
+            "mode": stat.get('Mode', 0)
+        }
+    except Exception as e:
+        logger.error(f"Error getting file information from MFS: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "path": path
+        }
+
+async def files_cp(source: str, dest: str) -> Dict[str, Any]:
+    """
+    Copy a file or directory in MFS.
+    
+    Args:
+        source: Source path
+        dest: Destination path
+        
+    Returns:
+        Dictionary with result information
+    """
+    if not ensure_ipfs_model():
+        return {
+            "success": False,
+            "error": "IPFS model not available"
+        }
+    
+    try:
+        # Copy the file or directory
+        ipfs_model.ipfs_client.files.cp(source, dest)
+        
+        # Return the result
+        return {
+            "success": True,
+            "source": source,
+            "destination": dest
+        }
+    except Exception as e:
+        logger.error(f"Error copying file in MFS: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "source": source,
+            "destination": dest
+        }
+
+async def files_mv(source: str, dest: str) -> Dict[str, Any]:
+    """
+    Move a file or directory in MFS.
+    
+    Args:
+        source: Source path
+        dest: Destination path
+        
+    Returns:
+        Dictionary with result information
+    """
+    if not ensure_ipfs_model():
+        return {
+            "success": False,
+            "error": "IPFS model not available"
+        }
+    
+    try:
+        # Move the file or directory
+        ipfs_model.ipfs_client.files.mv(source, dest)
+        
+        # Return the result
+        return {
+            "success": True,
+            "source": source,
+            "destination": dest
+        }
+    except Exception as e:
+        logger.error(f"Error moving file in MFS: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "source": source,
+            "destination": dest
+        }
+
+async def files_flush(path: str = "/") -> Dict[str, Any]:
+    """
+    Flush changes in MFS to IPFS.
+    
+    Args:
+        path: Path to flush
+        
+    Returns:
+        Dictionary with CID of the flushed path
+    """
+    if not ensure_ipfs_model():
+        return {
+            "success": False,
+            "error": "IPFS model not available"
+        }
+    
+    try:
+        # Flush the path
+        result = ipfs_model.ipfs_client.files.flush(path)
+        
+        # Return the result
+        return {
+            "success": True,
+            "path": path,
+            "cid": result.get('Cid', '')
+        }
+    except Exception as e:
+        logger.error(f"Error flushing path in MFS: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -493,7 +680,12 @@ TOOL_MAP = {
     "ipfs_files_ls": files_ls,
     "ipfs_files_mkdir": files_mkdir,
     "ipfs_files_write": files_write,
-    "ipfs_files_read": files_read
+    "ipfs_files_read": files_read,
+    "ipfs_files_rm": files_rm,
+    "ipfs_files_stat": files_stat,
+    "ipfs_files_cp": files_cp,
+    "ipfs_files_mv": files_mv,
+    "ipfs_files_flush": files_flush
 }
 
 # Main function for testing
@@ -550,6 +742,26 @@ async def main():
     print("Reading file from MFS")
     read_result = await files_read("/test/hello.txt")
     print(f"Read result: {json.dumps(read_result, indent=2)}")
+    
+    print("Removing file from MFS")
+    rm_result = await files_rm("/test/hello.txt")
+    print(f"Rm result: {json.dumps(rm_result, indent=2)}")
+    
+    print("Getting file stats in MFS")
+    stat_result = await files_stat("/test")
+    print(f"Stat result: {json.dumps(stat_result, indent=2)}")
+    
+    print("Copying file in MFS")
+    cp_result = await files_cp("/test", "/test_copy")
+    print(f"Cp result: {json.dumps(cp_result, indent=2)}")
+    
+    print("Moving file in MFS")
+    mv_result = await files_mv("/test_copy", "/test_moved")
+    print(f"Mv result: {json.dumps(mv_result, indent=2)}")
+    
+    print("Flushing changes in MFS")
+    flush_result = await files_flush("/test_moved")
+    print(f"Flush result: {json.dumps(flush_result, indent=2)}")
     
     return 0
 
