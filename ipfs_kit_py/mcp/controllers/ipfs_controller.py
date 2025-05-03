@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 # Import error handling
 import ipfs_kit_py.mcp_error_handling as mcp_error_handling
 
+# Import IPFS extensions
+try:
+    from ipfs_kit_py.mcp.ipfs_extensions import (
+        add_content, cat, pin_add, pin_rm, pin_ls,
+        get_version, files_ls, files_mkdir, files_write, files_read
+    )
+    logger.info("Successfully imported IPFS extensions")
+except ImportError as e:
+    logger.warning(f"Failed to import IPFS extensions: {e}")
+
 
 # --- Swarm Operation Models ---
 class PeerAddressRequest(BaseModel):
@@ -1953,4 +1963,94 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid if 'cid' in locals() else None
+            }
+
+    async def cat(self, **kwargs):
+        """Proxy to extensions.cat."""
+        try:
+            if 'cat' in globals():
+                return await globals()['cat'](**kwargs)
+            else:
+                logger.error("Method cat not found in extensions")
+                return {
+                    "success": False,
+                    "error": "Method cat not found in extensions"
+                }
+        except Exception as e:
+            logger.error(f"Error in cat: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def pin_add(self, **kwargs):
+        """Proxy to extensions.pin_add."""
+        try:
+            if 'pin_add' in globals():
+                return await globals()['pin_add'](**kwargs)
+            else:
+                logger.error("Method pin_add not found in extensions")
+                return {
+                    "success": False,
+                    "error": "Method pin_add not found in extensions"
+                }
+        except Exception as e:
+            logger.error(f"Error in pin_add: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def pin_rm(self, **kwargs):
+        """Proxy to extensions.pin_rm."""
+        try:
+            if 'pin_rm' in globals():
+                return await globals()['pin_rm'](**kwargs)
+            else:
+                logger.error("Method pin_rm not found in extensions")
+                return {
+                    "success": False,
+                    "error": "Method pin_rm not found in extensions"
+                }
+        except Exception as e:
+            logger.error(f"Error in pin_rm: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def pin_ls(self, **kwargs):
+        """Proxy to extensions.pin_ls."""
+        try:
+            if 'pin_ls' in globals():
+                return await globals()['pin_ls'](**kwargs)
+            else:
+                logger.error("Method pin_ls not found in extensions")
+                return {
+                    "success": False,
+                    "error": "Method pin_ls not found in extensions"
+                }
+        except Exception as e:
+            logger.error(f"Error in pin_ls: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def storage_transfer(self, **kwargs):
+        """Proxy to extensions.storage_transfer."""
+        try:
+            if 'storage_transfer' in globals():
+                return await globals()['storage_transfer'](**kwargs)
+            else:
+                logger.error("Method storage_transfer not found in extensions")
+                return {
+                    "success": False,
+                    "error": "Method storage_transfer not found in extensions"
+                }
+        except Exception as e:
+            logger.error(f"Error in storage_transfer: {e}")
+            return {
+                "success": False,
+                "error": str(e)
             }

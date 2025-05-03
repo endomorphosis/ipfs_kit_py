@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 import fnmatch
+from ipfs_mcp_tools_integration import register_ipfs_tools
 # Store global port
 global PORT
 # --- Global Variables ---
@@ -130,9 +131,15 @@ except Exception as e:
 
 # Create FastMCP server 
 server = FastMCP(
-    name=f"direct-mcp-server-{server_color}", 
-    instructions="Server with blue/green deployment and live patching capabilities"
+name=f"direct-mcp-server-{server_color}", 
+instructions="Server with blue/green deployment and live patching capabilities"
 )
+# Register IPFS tools
+register_ipfs_tools(server)
+
+
+
+
 
 # Server initialization state 
 server_initialized = False

@@ -23,6 +23,7 @@ import json
 import asyncio
 import traceback
 import shutil
+import py_compile  # Added import for Python file syntax checking
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -715,7 +716,6 @@ async def edit_file_endpoint(request: Request):
             # For Python files, perform syntax check
             if absolute_path.endswith(".py"):
                 try:
-                    import py_compile
                     py_compile.compile(temp_path, doraise=True)
                     logger.info(f"Syntax check passed for {path}")
                 except py_compile.PyCompileError as e:
@@ -881,7 +881,6 @@ async def patch_file_endpoint(request: Request):
             # For Python files, perform syntax check
             if absolute_path.endswith(".py"):
                 try:
-                    import py_compile
                     py_compile.compile(temp_path, doraise=True)
                     logger.info(f"Syntax check passed for patched {path}")
                 except py_compile.PyCompileError as e:
@@ -1053,6 +1052,16 @@ def initialize_mcp_components():
         try:
             from ipfs_kit_py.mcp.server_bridge import MCPServer
             logger.info("Successfully imported MCPServer from server_bridge")
+            
+            # Import the IPFS model registration module to ensure methods are available
+            try:
+                from ipfs_kit_py.mcp.models.ipfs_model_register import register_ipfs_model_methods
+                logger.info("Successfully imported IPFS model registration module")
+                register_ipfs_model_methods()
+                logger.info("IPFS model methods registered successfully")
+            except ImportError as e:
+                logger.warning(f"Could not import IPFS model registration module: {e}")
+                logger.warning("Some IPFS methods may not be available")
             
             # Patch the MCPServer class with missing methods if needed
             patch_result = patch_mcp_server()

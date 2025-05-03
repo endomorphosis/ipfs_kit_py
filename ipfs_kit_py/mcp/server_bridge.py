@@ -438,3 +438,62 @@ class MCPServer:
         """
         logger.info(f"Registering controller: {name}")
         self.controllers[name] = controller
+
+# MCP Tool handling
+async def tool_handler(request: Request):
+    """Handle MCP tool requests."""
+    data = await request.json()
+    
+    tool_name = data.get("name")
+    server_name = data.get("server", "default")
+    args = data.get("args", {})
+    
+    if not tool_name:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Tool name is required"}
+        )
+    
+    # Find the tool implementation
+    try:
+        # Try to get the tool from controllers
+        for controller_name, controller in controllers.items():
+            if hasattr(controller, tool_name):
+                tool_impl = getattr(controller, tool_name)
+                if callable(tool_impl):
+                    # Call the tool with args
+                    result = await tool_impl(**args)
+                    return JSONResponse(content=result)
+        
+        # If not found in controllers, try model methods
+        for model_name, model in models.items():
+            if hasattr(model, tool_name):
+                tool_impl = getattr(model, tool_name)
+                if callable(tool_impl):
+                    # Call the tool with args
+                    result = await tool_impl(**args)
+                    return JSONResponse(content=result)
+        
+        # If still not found, check extensions
+        if hasattr(extensions, tool_name):
+            tool_impl = getattr(extensions, tool_name)
+            if callable(tool_impl):
+                # Call the tool with args
+                result = await tool_impl(**args)
+                return JSONResponse(content=result)
+        
+        # Tool not found
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Tool '{tool_name}' not found"}
+        )
+    except Exception as e:
+        # Log the error
+        logger.error(f"Error executing tool '{tool_name}': {e}")
+        logger.error(traceback.format_exc())
+        
+        # Return error response
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error executing tool: {str(e)}"}
+        )
