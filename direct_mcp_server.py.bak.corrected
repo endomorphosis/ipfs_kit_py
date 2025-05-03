@@ -77,8 +77,8 @@ try:
     from mcp import types as mcp_types
     import json
     # Import JSON-RPC libraries
-    # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.dispatcher import Dispatcher
-    # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.exceptions import JSONRPCDispatchException 
+    # Import removed: from jsonrpc.dispatcher import Dispatcher
+    # Import removed: from jsonrpc.exceptions import JSONRPCDispatchException 
     imports_succeeded = True
     logger.info("Successfully imported MCP and Starlette modules.")
 except ImportError as e:
@@ -969,14 +969,14 @@ async def homepage(request):
 
 # --- JSON-RPC Implementation ---
 # Initialize JSON-RPC dispatcher
-# Removed: # Removed: # Removed: # Removed: # Removed: jsonrpc_dispatcher = Dispatcher()
+# Removed: jsonrpc_dispatcher = Dispatcher()
 
-# Removed: # Removed: # Removed: # Removed: # Removed: @jsonrpc_dispatcher.add_method
+# Removed: @jsonrpc_dispatcher.add_method
 async def ping(**kwargs):
     """Simple ping method to test JSON-RPC connection."""
     return {"status": "ok", "server": f"direct-mcp-{server_color}", "timestamp": datetime.now().isoformat()}
 
-# Removed: # Removed: # Removed: # Removed: # Removed: @jsonrpc_dispatcher.add_method
+# Removed: @jsonrpc_dispatcher.add_method
 async def initialize(client_info=None, **kwargs):
     """Initialize the connection with VS Code."""
     logger.info("Received initialize request from client: %s", client_info)
@@ -992,7 +992,7 @@ async def initialize(client_info=None, **kwargs):
         }
     }
 
-# Removed: # Removed: # Removed: # Removed: # Removed: @jsonrpc_dispatcher.add_method
+# Removed: @jsonrpc_dispatcher.add_method
 async def shutdown(**kwargs):
     """Handle shutdown request from client."""
     logger.info("Received shutdown request, will continue running but client is disconnecting")
@@ -1020,33 +1020,12 @@ async def handle_jsonrpc(request):
         if method == 'get_tools':
             # Get all registered tools
             tools = []
-            for tool_name, tool in server._tool_manager._tools.items():
-                # Ensure all data is serializable
-                tool_info = {
+            for tool_name, tool in mcp_server.tool_manager.tools.items():
+                tools.append({
                     'name': tool_name,
-                    'description': str(tool.description) if hasattr(tool, 'description') else '',
-                    'schema': {}
-                }
-
-                # Handle schema serialization
-                if hasattr(tool, 'schema'):
-                    if callable(tool.schema):
-                        try:
-                            schema = tool.schema()
-                            if isinstance(schema, dict):
-                                tool_info['schema'] = schema
-                            else:
-                                tool_info['schema'] = {'properties': {}}
-                        except Exception as e:
-                            logger.error(f"Error getting schema for {tool_name}: {e}")
-                            tool_info['schema'] = {'properties': {}}
-                    elif isinstance(tool.schema, dict):
-                        tool_info['schema'] = tool.schema
-                    else:
-                        tool_info['schema'] = {'properties': {}}
-
-                tools.append(tool_info)
-
+                    'description': tool.description,
+                    'schema': tool.schema
+                })
             return JSONResponse({
                 'jsonrpc': '2.0',
                 'result': tools,
@@ -1064,7 +1043,7 @@ async def handle_jsonrpc(request):
                 })
 
             # Find the tool
-            tool = server._tool_manager.get_tool(tool_name)
+            tool = mcp_server.tool_manager.get_tool(tool_name)
             if not tool:
                 return JSONResponse({
                     'jsonrpc': '2.0',
@@ -1075,9 +1054,6 @@ async def handle_jsonrpc(request):
             # Use the tool
             try:
                 result = await tool.use(arguments)
-                # Ensure the result is serializable
-                if not isinstance(result, (dict, list, str, int, float, bool, type(None))):
-                    result = str(result)
                 return JSONResponse({
                     'jsonrpc': '2.0',
                     'result': result,

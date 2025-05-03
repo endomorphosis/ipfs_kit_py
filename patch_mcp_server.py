@@ -1,14 +1,3 @@
-#!/bin/bash
-# Start the MCP server with IPFS and FS Journal integration
-
-# Make the scripts executable
-chmod +x fs_journal_tools.py ipfs_mcp_fs_integration.py
-
-# Set up Python path
-export PYTHONPATH=$(pwd):$PYTHONPATH
-
-# Create a patch file for direct_mcp_server.py
-cat > patch_mcp_server.py << 'EOL'
 #!/usr/bin/env python3
 """Patch the MCP server to include FS Journal integration"""
 
@@ -57,51 +46,3 @@ def patch_mcp_server():
 
 if __name__ == "__main__":
     patch_mcp_server()
-EOL
-
-# Make the patch script executable
-chmod +x patch_mcp_server.py
-
-# Run the patch script
-python patch_mcp_server.py
-
-# Verify the integration files
-echo "Verifying IPFS integration files..."
-FILES_TO_CHECK="ipfs_tools_registry.py ipfs_mcp_tools_integration.py fs_journal_tools.py ipfs_mcp_fs_integration.py"
-MISSING=""
-for FILE in $FILES_TO_CHECK; do
-  if [ ! -f "$FILE" ]; then
-    MISSING="$MISSING $FILE"
-  fi
-done
-
-if [ -n "$MISSING" ]; then
-  echo "Error: Missing required files:$MISSING"
-  exit 1
-fi
-
-# Stop any running MCP servers
-ps aux | grep "direct_mcp_server.py" | grep -v grep | awk '{print $2}' | xargs -r kill -15
-
-# Start the MCP server with our integration
-echo "Starting MCP server with IPFS and FS Journal integration..."
-python direct_mcp_server.py --host=127.0.0.1 --port=3000 --log-level=DEBUG &
-
-# Wait for the server to start
-sleep 3
-
-# Check if the server is running
-if ps aux | grep -q "[d]irect_mcp_server.py"; then
-  echo "✅ MCP server started successfully with IPFS and FS Journal integration"
-  echo "ℹ️ Server is running at http://127.0.0.1:3000"
-else
-  echo "❌ Failed to start MCP server"
-  exit 1
-fi
-
-echo "
-To verify the integration, you can:
-- Test the FS Journal tools using: python verify_ipfs_tools.py 
-- Run a sample operation: python fs_journal_tools.py
-- Check the MCP server logs for registration messages
-"

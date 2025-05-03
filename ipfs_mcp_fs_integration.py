@@ -2,540 +2,346 @@
 """
 IPFS MCP FS Integration
 
-This module implements the integration between the IPFS components and the
-virtual filesystem for MCP protocol. It connects the FS journal, IPFS bridge,
-and ensures all tools are properly registered.
+This script integrates the FS Journal and IPFS Bridge tools with the MCP server,
+creating a seamless connection between the virtual filesystem and IPFS operations.
 """
 
 import os
 import sys
 import logging
+import json
 import asyncio
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, List, Any, Optional, Union
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='ipfs_mcp_fs.log'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Add console handler
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-console.setFormatter(formatter)
-logger.addHandler(console)
+# Global variables to hold our integration objects
+_fs_journal = None
+_ipfs_fs_bridge = None
 
-class IPFSFSIntegration:
-    """Integration class between IPFS and virtual filesystem components."""
+def init_integration(base_dir: Optional[str] = None) -> Dict[str, Any]:
+    """Initialize the filesystem journal and IPFS-FS bridge"""
+    global _fs_journal, _ipfs_fs_bridge
     
-    def __init__(self, ipfs_api_url: str = None, journal_path: str = "fs_journal.json"):
-        """Initialize the integration components.
+    # Import classes from fs_journal_tools
+    try:
+        from fs_journal_tools import FSJournal, IPFSFSBridge, FSOperation, FSOperationType, create_journal_and_bridge
         
-        Args:
-            ipfs_api_url: URL to IPFS API (default: http://localhost:5001/api/v0)
-            journal_path: Path to the filesystem journal file
-        """
-        self.ipfs_api_url = ipfs_api_url or "http://localhost:5001/api/v0"
-        self.journal_path = journal_path
-        self.fs_journal = None
-        self.fs_ipfs_bridge = None
-        self.virtual_fs = None
-        self.ipfs_model = None
+        # Initialize the journal and bridge
+        base_dir = os.path.abspath(base_dir or os.getcwd())
+        _fs_journal, _ipfs_fs_bridge = create_journal_and_bridge(base_dir)
         
-        # Keep track of available components
-        self.fs_available = False
-        self.ipfs_available = False
-        
-        # Register tool implementations
-        self.tools = {}
-    
-    async def initialize(self):
-        """Initialize all components."""
-        # Try to import IPFS components
-        try:
-            from ipfs_kit_py.mcp.models.storage.ipfs_model import IPFSModel
-            from ipfs_kit_py.mcp.fs.fs_journal import FSJournal
-            from ipfs_kit_py.mcp.fs.fs_ipfs_bridge import FSIPFSBridge
-            from ipfs_kit_py.mcp.fs.virtualfs import VirtualFS
-            
-            # Initialize IPFS model
-            self.ipfs_model = IPFSModel(api_url=self.ipfs_api_url)
-            await self.ipfs_model.initialize()
-            self.ipfs_available = True
-            logger.info(f"Successfully initialized IPFS model with API URL: {self.ipfs_api_url}")
-            
-            # Initialize filesystem components
-            self.fs_journal = FSJournal(journal_path=self.journal_path)
-            self.fs_ipfs_bridge = FSIPFSBridge(ipfs_model=self.ipfs_model)
-            self.virtual_fs = VirtualFS(
-                fs_journal=self.fs_journal,
-                fs_ipfs_bridge=self.fs_ipfs_bridge
-            )
-            self.fs_available = True
-            logger.info("Successfully initialized virtual filesystem components")
-            
-            # Register IPFS tools
-            self._register_ipfs_tools()
-            
-            # Register filesystem tools
-            self._register_fs_tools()
-            
-            return True
-            
-        except ImportError as e:
-            logger.error(f"Failed to import required components: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Error initializing components: {e}")
-            return False
-    
-    def _register_ipfs_tools(self):
-        """Register IPFS tool implementations."""
-        if not self.ipfs_available or not self.ipfs_model:
-            logger.warning("IPFS model not available, skipping IPFS tool registration")
-            return
-        
-        # Register core IPFS operations
-        self.tools["ipfs_add"] = self.ipfs_add
-        self.tools["ipfs_cat"] = self.ipfs_cat
-        self.tools["ipfs_pin"] = self.ipfs_pin
-        self.tools["ipfs_unpin"] = self.ipfs_unpin
-        self.tools["ipfs_list_pins"] = self.ipfs_list_pins
-        self.tools["ipfs_version"] = self.ipfs_version
-        
-        # Register MFS operations
-        self.tools["ipfs_files_ls"] = self.ipfs_files_ls
-        self.tools["ipfs_files_mkdir"] = self.ipfs_files_mkdir
-        self.tools["ipfs_files_write"] = self.ipfs_files_write
-        self.tools["ipfs_files_read"] = self.ipfs_files_read
-        
-        logger.info(f"Registered {len(self.tools)} IPFS tools")
-    
-    def _register_fs_tools(self):
-        """Register virtual filesystem tool implementations."""
-        if not self.fs_available or not self.virtual_fs:
-            logger.warning("Virtual filesystem not available, skipping FS tool registration")
-            return
-        
-        # Import tool implementations from fs_journal_tools if available
-        try:
-            from fs_journal_tools import (
-                fs_read_file_tool, fs_write_file_tool, fs_list_directory_tool,
-                fs_create_directory_tool, fs_remove_tool, fs_checkpoint_tool,
-                fs_copy_tool, fs_stats_tool
-            )
-            
-            # Register filesystem operations
-            self.tools["fs_read_file"] = fs_read_file_tool
-            self.tools["fs_write_file"] = fs_write_file_tool
-            self.tools["fs_list_directory"] = fs_list_directory_tool
-            self.tools["fs_create_directory"] = fs_create_directory_tool
-            self.tools["fs_remove"] = fs_remove_tool
-            self.tools["fs_checkpoint"] = fs_checkpoint_tool
-            self.tools["fs_copy"] = fs_copy_tool
-            self.tools["fs_stats"] = fs_stats_tool
-            
-            logger.info(f"Registered {8} filesystem tools")
-            
-        except ImportError as e:
-            logger.error(f"Failed to import filesystem tools: {e}")
-    
-    # IPFS Core Tool Implementations
-    
-    async def ipfs_add(self, content: str, filename: Optional[str] = None, pin: bool = True) -> Dict[str, Any]:
-        """Add content to IPFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Determine if content is potentially base64-encoded binary data
-            is_binary = False
-            if content.startswith("base64:"):
-                import base64
-                binary_content = base64.b64decode(content[7:])
-                is_binary = True
-            else:
-                binary_content = content.encode('utf-8')
-            
-            # Add to IPFS
-            result = await self.ipfs_model.add_content(
-                content=binary_content,
-                filename=filename,
-                pin=pin
-            )
-            
-            return {
-                "success": True,
-                "cid": result.get("Hash", ""),
-                "name": filename or result.get("Name", ""),
-                "size": result.get("Size", len(binary_content)),
-                "pinned": pin
-            }
-            
-        except Exception as e:
-            logger.error(f"Error adding content to IPFS: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    async def ipfs_cat(self, cid: str) -> Dict[str, Any]:
-        """Retrieve content from IPFS by CID."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Get from IPFS
-            content = await self.ipfs_model.cat(cid)
-            
-            # Try to decode as text
-            try:
-                text_content = content.decode('utf-8')
-                is_binary = False
-                content_to_return = text_content
-                content_encoding = "text"
-            except UnicodeDecodeError:
-                # It's binary data, return as base64
-                import base64
-                is_binary = True
-                content_to_return = "base64:" + base64.b64encode(content).decode('utf-8')
-                content_encoding = "base64"
-            
-            return {
-                "success": True,
-                "cid": cid,
-                "content": content_to_return,
-                "content_encoding": content_encoding,
-                "is_binary": is_binary,
-                "size": len(content)
-            }
-            
-        except Exception as e:
-            logger.error(f"Error retrieving content from IPFS: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "cid": cid
-            }
-    
-    async def ipfs_pin(self, cid: str, recursive: bool = True) -> Dict[str, Any]:
-        """Pin a CID in IPFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Pin CID
-            result = await self.ipfs_model.pin_add(cid, recursive=recursive)
-            pins = result.get("Pins", [])
-            
-            return {
-                "success": True,
-                "cid": cid,
-                "pins": pins,
-                "recursive": recursive
-            }
-            
-        except Exception as e:
-            logger.error(f"Error pinning CID {cid}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "cid": cid
-            }
-    
-    async def ipfs_unpin(self, cid: str, recursive: bool = True) -> Dict[str, Any]:
-        """Unpin a CID in IPFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Unpin CID
-            result = await self.ipfs_model.pin_rm(cid, recursive=recursive)
-            pins = result.get("Pins", [])
-            
-            return {
-                "success": True,
-                "cid": cid,
-                "pins": pins,
-                "recursive": recursive
-            }
-            
-        except Exception as e:
-            logger.error(f"Error unpinning CID {cid}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "cid": cid
-            }
-    
-    async def ipfs_list_pins(self, type: str = "all") -> Dict[str, Any]:
-        """List pinned items in IPFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Get pins
-            result = await self.ipfs_model.pin_ls(type=type)
-            pins = result.get("Keys", {})
-            
-            # Format pins for better readability
-            formatted_pins = []
-            for cid, pin_info in pins.items():
-                formatted_pins.append({
-                    "cid": cid,
-                    "type": pin_info.get("Type", ""),
-                    "recursive": pin_info.get("Type") == "recursive"
-                })
-            
-            return {
-                "success": True,
-                "pins": formatted_pins,
-                "type": type,
-                "count": len(formatted_pins)
-            }
-            
-        except Exception as e:
-            logger.error(f"Error listing pins: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    async def ipfs_version(self) -> Dict[str, Any]:
-        """Get IPFS version information."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Get version info
-            result = await self.ipfs_model.get_version()
-            
-            return {
-                "success": True,
-                "version": result.get("Version", ""),
-                "commit": result.get("Commit", ""),
-                "repo": result.get("Repo", ""),
-                "system": result.get("System", ""),
-                "golang": result.get("Golang", "")
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting IPFS version: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    # MFS Operations
-    
-    async def ipfs_files_ls(self, path: str = "/") -> Dict[str, Any]:
-        """List files in the MFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # List files
-            result = await self.ipfs_model.files_ls(path)
-            entries = result.get("Entries", [])
-            
-            # Format entries
-            formatted_entries = []
-            for entry in entries:
-                formatted_entries.append({
-                    "name": entry.get("Name", ""),
-                    "type": entry.get("Type", 0),
-                    "size": entry.get("Size", 0),
-                    "is_directory": entry.get("Type") == 1,
-                    "cid": entry.get("Hash", "")
-                })
-            
-            return {
-                "success": True,
-                "path": path,
-                "entries": formatted_entries,
-                "count": len(formatted_entries)
-            }
-            
-        except Exception as e:
-            logger.error(f"Error listing MFS files at {path}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "path": path
-            }
-    
-    async def ipfs_files_mkdir(self, path: str, parents: bool = False) -> Dict[str, Any]:
-        """Create a directory in the MFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Create directory
-            await self.ipfs_model.files_mkdir(path, parents=parents)
-            
-            return {
-                "success": True,
-                "path": path,
-                "parents": parents
-            }
-            
-        except Exception as e:
-            logger.error(f"Error creating MFS directory {path}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "path": path
-            }
-    
-    async def ipfs_files_write(self, path: str, content: str, create: bool = True, truncate: bool = True) -> Dict[str, Any]:
-        """Write content to a file in the MFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Determine if content is potentially base64-encoded binary data
-            is_binary = False
-            if content.startswith("base64:"):
-                import base64
-                binary_content = base64.b64decode(content[7:])
-                is_binary = True
-            else:
-                binary_content = content.encode('utf-8')
-            
-            # Write file
-            await self.ipfs_model.files_write(
-                path=path,
-                content=binary_content,
-                create=create,
-                truncate=truncate
-            )
-            
-            # Get stats to confirm
-            stat_result = await self.ipfs_model.files_stat(path)
-            
-            return {
-                "success": True,
-                "path": path,
-                "size": stat_result.get("Size", len(binary_content)),
-                "cid": stat_result.get("Hash", "")
-            }
-            
-        except Exception as e:
-            logger.error(f"Error writing to MFS file {path}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "path": path
-            }
-    
-    async def ipfs_files_read(self, path: str) -> Dict[str, Any]:
-        """Read content from a file in the MFS."""
-        try:
-            if not self.ipfs_model:
-                return {"success": False, "error": "IPFS model not initialized"}
-            
-            # Read file
-            content = await self.ipfs_model.files_read(path)
-            
-            # Try to decode as text
-            try:
-                text_content = content.decode('utf-8')
-                is_binary = False
-                content_to_return = text_content
-                content_encoding = "text"
-            except UnicodeDecodeError:
-                # It's binary data, return as base64
-                import base64
-                is_binary = True
-                content_to_return = "base64:" + base64.b64encode(content).decode('utf-8')
-                content_encoding = "base64"
-            
-            # Get stats
-            stat_result = await self.ipfs_model.files_stat(path)
-            
-            return {
-                "success": True,
-                "path": path,
-                "content": content_to_return,
-                "content_encoding": content_encoding,
-                "is_binary": is_binary,
-                "size": stat_result.get("Size", len(content)),
-                "cid": stat_result.get("Hash", "")
-            }
-            
-        except Exception as e:
-            logger.error(f"Error reading MFS file {path}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "path": path
-            }
+        logger.info(f"✅ Successfully initialized FS Journal and IPFS-FS Bridge with base directory: {base_dir}")
+        return {
+            "success": True,
+            "base_dir": base_dir,
+            "journal_initialized": _fs_journal is not None,
+            "bridge_initialized": _ipfs_fs_bridge is not None
+        }
+    except ImportError as e:
+        logger.error(f"Failed to import required classes from fs_journal_tools: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to import required classes: {e}"
+        }
+    except Exception as e:
+        logger.error(f"Failed to initialize FS Journal and IPFS-FS Bridge: {e}")
+        return {
+            "success": False,
+            "error": f"Initialization error: {e}"
+        }
 
-# CLI interface
-async def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="IPFS MCP FS Integration")
-    parser.add_argument("--ipfs-api", default="http://localhost:5001/api/v0", help="IPFS API URL")
-    parser.add_argument("--journal", default="fs_journal.json", help="Path to journal file")
-    parser.add_argument("--test", action="store_true", help="Run basic tests")
-    
-    args = parser.parse_args()
-    
-    integration = IPFSFSIntegration(ipfs_api_url=args.ipfs_api, journal_path=args.journal)
-    success = await integration.initialize()
-    
-    if not success:
-        logger.error("Failed to initialize integration")
-        return 1
-    
-    if args.test:
-        # Run basic tests
-        logger.info("Running basic tests...")
+def register_with_mcp_server(server) -> bool:
+    """Register the FS Journal tools with the MCP server"""
+    try:
+        from fs_journal_tools import register_fs_journal_tools
         
-        # Test IPFS add
-        if "ipfs_add" in integration.tools:
-            logger.info("Testing ipfs_add...")
-            result = await integration.ipfs_add("Test content from integration test")
-            logger.info(f"Result: {result}")
-            
-            if result.get("success"):
-                # Test IPFS cat with the created CID
-                cid = result.get("cid")
-                logger.info(f"Testing ipfs_cat with CID {cid}...")
-                cat_result = await integration.ipfs_cat(cid)
-                logger.info(f"Result: {cat_result}")
+        # Initialize if not already done
+        if not _fs_journal or not _ipfs_fs_bridge:
+            init_result = init_integration()
+            if not init_result["success"]:
+                logger.error(f"Failed to initialize before registration: {init_result.get('error')}")
+                return False
         
-        # Test MFS operations
-        if "ipfs_files_mkdir" in integration.tools:
-            logger.info("Testing MFS operations...")
-            
-            # Create test directory
-            mkdir_result = await integration.ipfs_files_mkdir("/mcp_test", parents=True)
-            logger.info(f"mkdir result: {mkdir_result}")
-            
-            # Write a test file
-            write_result = await integration.ipfs_files_write(
-                "/mcp_test/test.txt", 
-                "Test content in MFS"
-            )
-            logger.info(f"write result: {write_result}")
-            
-            # List files
-            ls_result = await integration.ipfs_files_ls("/mcp_test")
-            logger.info(f"ls result: {ls_result}")
-            
-            # Read file
-            read_result = await integration.ipfs_files_read("/mcp_test/test.txt")
-            logger.info(f"read result: {read_result}")
+        # Register the tools with the MCP server
+        register_fs_journal_tools(server)
+        logger.info("✅ Successfully registered FS Journal tools with MCP server")
+        
+        return True
+    except Exception as e:
+        logger.error(f"Failed to register with MCP server: {e}")
+        return False
+
+async def fs_journal_get_history(path: Optional[str] = None, limit: int = 100) -> Dict[str, Any]:
+    """Get operation history from the FS Journal"""
+    global _fs_journal
     
-    logger.info("Integration initialized successfully")
-    logger.info(f"Available tools: {', '.join(integration.tools.keys())}")
+    if not _fs_journal:
+        logger.error("FS Journal not initialized")
+        return {"success": False, "error": "FS Journal not initialized"}
     
-    return 0
+    try:
+        history = _fs_journal.get_history(path, limit)
+        logger.info(f"Got history for path: {path or 'all paths'}, {len(history)} entries")
+        return {
+            "success": True,
+            "path": path,
+            "count": len(history),
+            "operations": history
+        }
+    except Exception as e:
+        error_msg = f"Error getting history: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def fs_journal_sync(path: Optional[str] = None) -> Dict[str, Any]:
+    """Sync the FS Journal to disk"""
+    global _fs_journal
+    
+    if not _fs_journal:
+        logger.error("FS Journal not initialized")
+        return {"success": False, "error": "FS Journal not initialized"}
+    
+    try:
+        result = _fs_journal.sync_to_disk(path)
+        logger.info(f"Synced FS Journal to disk: {result['synced_files']} files")
+        return result
+    except Exception as e:
+        error_msg = f"Error syncing to disk: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def fs_journal_track(path: str) -> Dict[str, Any]:
+    """Start tracking a path in the FS Journal"""
+    global _fs_journal
+    
+    if not _fs_journal:
+        logger.error("FS Journal not initialized")
+        return {"success": False, "error": "FS Journal not initialized"}
+    
+    try:
+        success = _fs_journal.track_path(path)
+        if success:
+            logger.info(f"Started tracking path: {path}")
+            return {"success": True, "path": path, "tracked": True}
+        else:
+            logger.info(f"Path already being tracked: {path}")
+            return {"success": True, "path": path, "tracked": False, "reason": "already_tracked"}
+    except Exception as e:
+        error_msg = f"Error tracking path: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def fs_journal_untrack(path: str) -> Dict[str, Any]:
+    """Stop tracking a path in the FS Journal"""
+    global _fs_journal
+    
+    if not _fs_journal:
+        logger.error("FS Journal not initialized")
+        return {"success": False, "error": "FS Journal not initialized"}
+    
+    try:
+        success = _fs_journal.untrack_path(path)
+        if success:
+            logger.info(f"Stopped tracking path: {path}")
+            return {"success": True, "path": path, "untracked": True}
+        else:
+            logger.info(f"Path not being tracked: {path}")
+            return {"success": True, "path": path, "untracked": False, "reason": "not_tracked"}
+    except Exception as e:
+        error_msg = f"Error untracking path: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def ipfs_fs_bridge_status() -> Dict[str, Any]:
+    """Get the status of the IPFS-FS Bridge"""
+    global _ipfs_fs_bridge
+    
+    if not _ipfs_fs_bridge:
+        logger.error("IPFS-FS Bridge not initialized")
+        return {"success": False, "error": "IPFS-FS Bridge not initialized"}
+    
+    try:
+        status = _ipfs_fs_bridge.get_status()
+        logger.info(f"Got IPFS-FS Bridge status: {status['mappings_count']} mappings")
+        return status
+    except Exception as e:
+        error_msg = f"Error getting bridge status: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def ipfs_fs_bridge_map(ipfs_path: str, local_path: str) -> Dict[str, Any]:
+    """Map an IPFS path to a local filesystem path"""
+    global _ipfs_fs_bridge
+    
+    if not _ipfs_fs_bridge:
+        logger.error("IPFS-FS Bridge not initialized")
+        return {"success": False, "error": "IPFS-FS Bridge not initialized"}
+    
+    try:
+        result = _ipfs_fs_bridge.map_path(ipfs_path, local_path)
+        logger.info(f"Mapped IPFS path {ipfs_path} to local path {local_path}")
+        return result
+    except Exception as e:
+        error_msg = f"Error mapping path: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def ipfs_fs_bridge_unmap(ipfs_path: str) -> Dict[str, Any]:
+    """Remove a mapping between IPFS and local filesystem"""
+    global _ipfs_fs_bridge
+    
+    if not _ipfs_fs_bridge:
+        logger.error("IPFS-FS Bridge not initialized")
+        return {"success": False, "error": "IPFS-FS Bridge not initialized"}
+    
+    try:
+        result = _ipfs_fs_bridge.unmap_path(ipfs_path)
+        if result["success"]:
+            logger.info(f"Unmapped IPFS path {ipfs_path}")
+        else:
+            logger.warning(f"Failed to unmap IPFS path {ipfs_path}: {result.get('error')}")
+        return result
+    except Exception as e:
+        error_msg = f"Error unmapping path: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def ipfs_fs_bridge_list_mappings() -> Dict[str, Any]:
+    """List all mappings between IPFS and local filesystem"""
+    global _ipfs_fs_bridge
+    
+    if not _ipfs_fs_bridge:
+        logger.error("IPFS-FS Bridge not initialized")
+        return {"success": False, "error": "IPFS-FS Bridge not initialized"}
+    
+    try:
+        result = _ipfs_fs_bridge.list_mappings()
+        logger.info(f"Listed {result['count']} IPFS-FS mappings")
+        return result
+    except Exception as e:
+        error_msg = f"Error listing mappings: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def ipfs_fs_bridge_sync(direction: str = "both") -> Dict[str, Any]:
+    """Sync between IPFS and the filesystem"""
+    global _ipfs_fs_bridge, _fs_journal
+    
+    if not _ipfs_fs_bridge or not _fs_journal:
+        logger.error("IPFS-FS Bridge or FS Journal not initialized")
+        return {"success": False, "error": "IPFS-FS Bridge or FS Journal not initialized"}
+    
+    try:
+        result = {
+            "success": True,
+            "direction": direction,
+            "synced_to_ipfs": 0,
+            "synced_to_fs": 0,
+            "errors": []
+        }
+        
+        # Sync filesystem changes to disk
+        if direction in ["both", "to_disk"]:
+            disk_sync = _fs_journal.sync_to_disk()
+            result["synced_to_fs"] = disk_sync["synced_files"]
+            if not disk_sync["success"]:
+                result["errors"].extend(disk_sync["errors"])
+        
+        logger.info(f"Synced between IPFS and filesystem: {result['synced_to_ipfs']} to IPFS, {result['synced_to_fs']} to filesystem")
+        return result
+    except Exception as e:
+        error_msg = f"Error during sync: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+# MCP tool registration helpers
+def _register_tool(server, name, description, handler):
+    """Register a tool with the MCP server"""
+    @server.tool(name=name, description=description)
+    async def tool_wrapper(ctx, **kwargs):
+        try:
+            await ctx.info(f"Calling {name} with args: {kwargs}")
+            result = await handler(**kwargs)
+            if result.get("success", False):
+                await ctx.info(f"{name} succeeded")
+            else:
+                await ctx.error(f"{name} failed: {result.get('error', 'Unknown error')}")
+            return result
+        except Exception as e:
+            error_msg = f"Error in {name}: {str(e)}"
+            logger.error(error_msg)
+            await ctx.error(error_msg)
+            return {"success": False, "error": error_msg}
+
+def register_all_tools(server) -> bool:
+    """Register all FS Journal and IPFS-FS Bridge tools with the MCP server"""
+    try:
+        # Initialize if not already done
+        if not _fs_journal or not _ipfs_fs_bridge:
+            init_result = init_integration()
+            if not init_result["success"]:
+                logger.error(f"Failed to initialize before tool registration: {init_result.get('error')}")
+                return False
+        
+        # Register FS Journal tools
+        _register_tool(server, "fs_journal_get_history", 
+                      "Get the operation history for a path in the virtual filesystem",
+                      fs_journal_get_history)
+        
+        _register_tool(server, "fs_journal_sync",
+                      "Force synchronization between virtual filesystem and actual storage",
+                      fs_journal_sync)
+        
+        _register_tool(server, "fs_journal_track",
+                      "Start tracking operations on a path in the filesystem",
+                      fs_journal_track)
+        
+        _register_tool(server, "fs_journal_untrack",
+                      "Stop tracking operations on a path in the filesystem",
+                      fs_journal_untrack)
+        
+        # Register IPFS-FS Bridge tools
+        _register_tool(server, "ipfs_fs_bridge_status",
+                      "Get the status of the IPFS-FS bridge",
+                      ipfs_fs_bridge_status)
+        
+        _register_tool(server, "ipfs_fs_bridge_map",
+                      "Map an IPFS path to a filesystem path",
+                      ipfs_fs_bridge_map)
+        
+        _register_tool(server, "ipfs_fs_bridge_unmap",
+                      "Remove a mapping between IPFS and filesystem",
+                      ipfs_fs_bridge_unmap)
+        
+        _register_tool(server, "ipfs_fs_bridge_list_mappings",
+                      "List all mappings between IPFS and filesystem",
+                      ipfs_fs_bridge_list_mappings)
+        
+        _register_tool(server, "ipfs_fs_bridge_sync",
+                      "Sync between IPFS and filesystem",
+                      ipfs_fs_bridge_sync)
+        
+        logger.info("✅ Successfully registered all FS Journal and IPFS-FS Bridge tools")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to register tools: {e}")
+        return False
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Initialize for testing
+    init_result = init_integration()
+    print(json.dumps(init_result, indent=2))
+    
+    # Test some functions
+    async def test():
+        history = await fs_journal_get_history()
+        print(f"Got {len(history.get('operations', []))} history entries")
+        
+        status = await ipfs_fs_bridge_status()
+        print(f"Bridge status: {status}")
+    
+    # Run the test
+    asyncio.run(test())

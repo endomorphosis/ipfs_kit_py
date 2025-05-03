@@ -24,6 +24,67 @@ try:
 except ImportError as e:
     IPFS_EXTENSIONS_AVAILABLE = False
     logger.warning(f"Could not import IPFS extensions: {e}. Using mock implementations.")
+    
+    # Mock implementations for when the extensions aren't available
+    def add_content(content, **kwargs):
+        logger.warning("Using mock implementation of add_content")
+        return {"Hash": "QmMockHash", "Size": len(content) if isinstance(content, bytes) else len(content.encode())}
+        
+    def cat(ipfs_path, **kwargs):
+        logger.warning("Using mock implementation of cat")
+        return b"Mock content for " + ipfs_path.encode() if isinstance(ipfs_path, str) else ipfs_path
+        
+    def pin_add(ipfs_path, **kwargs):
+        logger.warning("Using mock implementation of pin_add")
+        return {"Pins": [ipfs_path]}
+        
+    def pin_rm(ipfs_path, **kwargs):
+        logger.warning("Using mock implementation of pin_rm")
+        return {"Pins": [ipfs_path]}
+        
+    def pin_ls(ipfs_path=None, **kwargs):
+        logger.warning("Using mock implementation of pin_ls")
+        return {"Keys": {"QmMockHash": {"Type": "recursive"}}}
+        
+    def get_version(**kwargs):
+        logger.warning("Using mock implementation of get_version")
+        return {"Version": "mock-0.11.0", "Commit": "mock"}
+        
+    def files_ls(path="/", **kwargs):
+        logger.warning("Using mock implementation of files_ls")
+        return {"Entries": [{"Name": "mock-file.txt", "Type": 0, "Size": 123}]}
+        
+    def files_mkdir(path, **kwargs):
+        logger.warning("Using mock implementation of files_mkdir")
+        return {}
+        
+    def files_write(path, content, **kwargs):
+        logger.warning("Using mock implementation of files_write")
+        return {}
+        
+    def files_read(path, **kwargs):
+        logger.warning("Using mock implementation of files_read")
+        return b"Mock content for " + path.encode() if isinstance(path, str) else path
+        
+    def files_rm(path, **kwargs):
+        logger.warning("Using mock implementation of files_rm")
+        return {}
+        
+    def files_stat(path, **kwargs):
+        logger.warning("Using mock implementation of files_stat")
+        return {"Hash": "QmMockHash", "Size": 123, "Type": "file"}
+        
+    def files_cp(source, dest, **kwargs):
+        logger.warning("Using mock implementation of files_cp")
+        return {}
+        
+    def files_mv(source, dest, **kwargs):
+        logger.warning("Using mock implementation of files_mv")
+        return {}
+        
+    def files_flush(path="/", **kwargs):
+        logger.warning("Using mock implementation of files_flush")
+        return {"Hash": "QmMockHash"}
 
 def register_ipfs_tools(mcp_server):
     """Register all IPFS tools with the MCP server with proper implementations"""
