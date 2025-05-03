@@ -37,3 +37,6 @@
 [submodule "py-ipld-unixfs"]
 	path = py-ipld-unixfs
 	url = https://github.com/storacha/py-ipld-unixfs.git
+[submodule "external/ipfs_transformers_py"]
+	path = external/ipfs_transformers_py
+	url = https://github.com/endomorphosis/ipfs_transformers_py.git

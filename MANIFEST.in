@@ -1,0 +1,23 @@
+# Include only essential files from the transformers submodule
+recursive-include external/ipfs_transformers_py/ipfs_transformers_py *.py
+include external/ipfs_transformers_py/collection.json
+
+# Exclude the bin directory and all its contents
+exclude ipfs_kit_py/bin/*
+recursive-exclude ipfs_kit_py/bin *
+
+# Exclude unnecessary files
+exclude ipfs_kit_py/ai_ml_integration.py.original
+exclude test/*
+exclude tests/*
+exclude ipfs_kit_py/tests/*
+exclude ipfs_kit_py/cache/*
+exclude ipfs_kit_py/__pycache__/*
+recursive-exclude test *
+recursive-exclude tests *
+recursive-exclude ipfs_kit_py/tests *
+recursive-exclude ipfs_kit_py/cache *
+recursive-exclude ipfs_kit_py/__pycache__ *
+recursive-exclude external/ipfs_transformers_py/.git *
+recursive-exclude external/ipfs_transformers_py/test *
+recursive-exclude external/ipfs_transformers_py/ipfs_transformers_py/bin *
