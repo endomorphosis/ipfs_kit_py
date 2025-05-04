@@ -1,322 +1,608 @@
-"""IPFS MCP Tools Integration - Enhanced with specific implementations"""
+#!/usr/bin/env python3
+"""
+IPFS MCP Tools Integration Module
+
+This module provides core IPFS operations for the MCP server,
+including add, cat, ls, and pin management.
+"""
 
 import os
 import sys
 import json
-import logging
-import tempfile
 import base64
-from datetime import datetime
-from ipfs_tools_registry import IPFS_TOOLS
+import logging
+import asyncio
+import tempfile
+from typing import Dict, List, Any, Optional, Union, BinaryIO
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try to import IPFS extensions
+# Try to import ipfshttpclient, fall back to using subprocess if not available
 try:
-    sys.path.append(os.path.join(os.getcwd(), 'ipfs_kit_py'))
-    from ipfs_kit_py.mcp.ipfs_extensions import (
-        add_content, cat, pin_add, pin_rm, pin_ls, get_version,
-        files_ls, files_mkdir, files_write, files_read,
-        files_rm, files_stat, files_cp, files_mv, files_flush
-    )
-    IPFS_EXTENSIONS_AVAILABLE = True
-    logger.info("Successfully imported IPFS extensions")
-except ImportError as e:
-    IPFS_EXTENSIONS_AVAILABLE = False
-    logger.warning(f"Could not import IPFS extensions: {e}. Using mock implementations.")
+    import ipfshttpclient
+    IPFS_CLIENT_AVAILABLE = True
+except ImportError:
+    logger.warning("ipfshttpclient not available, falling back to subprocess")
+    IPFS_CLIENT_AVAILABLE = False
+    import subprocess
+
+def register_ipfs_tools(mcp_server) -> bool:
+    """
+    Register IPFS tools with the MCP server.
     
-    # Mock implementations for when the extensions aren't available
-    def add_content(content, **kwargs):
-        logger.warning("Using mock implementation of add_content")
-        return {"Hash": "QmMockHash", "Size": len(content) if isinstance(content, bytes) else len(content.encode())}
+    Args:
+        mcp_server: The MCP server instance
         
-    def cat(ipfs_path, **kwargs):
-        logger.warning("Using mock implementation of cat")
-        return b"Mock content for " + ipfs_path.encode() if isinstance(ipfs_path, str) else ipfs_path
+    Returns:
+        bool: True if registration was successful, False otherwise
+    """
+    logger.info("Registering IPFS tools...")
+    
+    try:
+        # Check if server has register_tool method
+        if not hasattr(mcp_server, "register_tool"):
+            logger.error("MCP server does not have register_tool method")
+            return False
         
-    def pin_add(ipfs_path, **kwargs):
-        logger.warning("Using mock implementation of pin_add")
-        return {"Pins": [ipfs_path]}
+        # Register tools
+        tools_registered = 0
         
-    def pin_rm(ipfs_path, **kwargs):
-        logger.warning("Using mock implementation of pin_rm")
-        return {"Pins": [ipfs_path]}
+        # Add content to IPFS
+        async def ipfs_add(content=None, file_path=None, file_name=None, pin=True):
+            """Add content to IPFS"""
+            try:
+                # Validate input
+                if content is None and file_path is None:
+                    return {"success": False, "error": "Either content or file_path must be provided"}
+                
+                # Determine file_name if not provided
+                if file_name is None:
+                    if file_path:
+                        file_name = os.path.basename(file_path)
+                    else:
+                        file_name = "file"
+                
+                # Use ipfshttpclient if available
+                if IPFS_CLIENT_AVAILABLE:
+                    with ipfshttpclient.connect() as client:
+                        # Add content or file
+                        if content is not None:
+                            # Create a temporary file
+                            with tempfile.NamedTemporaryFile(delete=False) as temp:
+                                # Write content to the file
+                                if isinstance(content, str):
+                                    temp.write(content.encode('utf-8'))
+                                elif isinstance(content, bytes):
+                                    temp.write(content)
+                                else:
+                                    # Try to convert to string
+                                    temp.write(str(content).encode('utf-8'))
+                                
+                                temp_path = temp.name
+                            
+                            try:
+                                # Add the file to IPFS
+                                result = client.add(temp_path, pin=pin)
+                                
+                                # Cleanup the temporary file
+                                os.unlink(temp_path)
+                                
+                                if isinstance(result, list):
+                                    # If multiple entries (directory), use the last one (root)
+                                    result = result[-1]
+                                
+                                return {
+                                    "success": True,
+                                    "cid": result["Hash"],
+                                    "size": result["Size"],
+                                    "name": file_name
+                                }
+                            except Exception as e:
+                                # Cleanup the temporary file in case of error
+                                if os.path.exists(temp_path):
+                                    os.unlink(temp_path)
+                                raise e
+                        
+                        else:  # Use file_path
+                            if not os.path.exists(file_path):
+                                return {"success": False, "error": f"File does not exist: {file_path}"}
+                            
+                            # Add the file to IPFS
+                            result = client.add(file_path, pin=pin)
+                            
+                            if isinstance(result, list):
+                                # If multiple entries (directory), use the last one (root)
+                                result = result[-1]
+                            
+                            return {
+                                "success": True,
+                                "cid": result["Hash"],
+                                "size": result["Size"],
+                                "name": file_name
+                            }
+                
+                else:  # Use subprocess
+                    # Create a temporary file if content is provided
+                    if content is not None:
+                        with tempfile.NamedTemporaryFile(delete=False) as temp:
+                            # Write content to the file
+                            if isinstance(content, str):
+                                temp.write(content.encode('utf-8'))
+                            elif isinstance(content, bytes):
+                                temp.write(content)
+                            else:
+                                # Try to convert to string
+                                temp.write(str(content).encode('utf-8'))
+                            
+                            temp_path = temp.name
+                        
+                        file_to_add = temp_path
+                    else:
+                        file_to_add = file_path
+                        
+                        if not os.path.exists(file_to_add):
+                            return {"success": False, "error": f"File does not exist: {file_to_add}"}
+                    
+                    try:
+                        # Add the file to IPFS
+                        cmd = ["ipfs", "add", "--quiet", file_to_add]
+                        if not pin:
+                            cmd.append("--pin=false")
+                        
+                        process = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                        
+                        # Get the CID from the output
+                        cid = process.stdout.strip()
+                        
+                        # Cleanup the temporary file if created
+                        if content is not None and os.path.exists(temp_path):
+                            os.unlink(temp_path)
+                        
+                        # Get the file size
+                        cmd_stat = ["ipfs", "files", "stat", f"/ipfs/{cid}"]
+                        process_stat = subprocess.run(cmd_stat, capture_output=True, text=True, check=True)
+                        
+                        # Parse the output to get the size
+                        stat_output = process_stat.stdout.strip()
+                        size = 0
+                        for line in stat_output.split("\n"):
+                            if line.startswith("Size:"):
+                                size = int(line.split(":")[1].strip())
+                                break
+                        
+                        return {
+                            "success": True,
+                            "cid": cid,
+                            "size": size,
+                            "name": file_name
+                        }
+                    
+                    except subprocess.CalledProcessError as e:
+                        # Cleanup the temporary file if created
+                        if content is not None and os.path.exists(temp_path):
+                            os.unlink(temp_path)
+                        
+                        return {
+                            "success": False,
+                            "error": f"IPFS add failed: {e.stderr}"
+                        }
+                    
+                    except Exception as e:
+                        # Cleanup the temporary file if created
+                        if content is not None and os.path.exists(temp_path):
+                            os.unlink(temp_path)
+                        
+                        return {
+                            "success": False,
+                            "error": f"IPFS add failed: {str(e)}"
+                        }
+            
+            except Exception as e:
+                logger.error(f"Error in ipfs_add: {e}")
+                return {"success": False, "error": str(e)}
         
-    def pin_ls(ipfs_path=None, **kwargs):
-        logger.warning("Using mock implementation of pin_ls")
-        return {"Keys": {"QmMockHash": {"Type": "recursive"}}}
+        mcp_server.register_tool("ipfs_add", ipfs_add)
+        tools_registered += 1
         
-    def get_version(**kwargs):
-        logger.warning("Using mock implementation of get_version")
-        return {"Version": "mock-0.11.0", "Commit": "mock"}
+        # Cat (retrieve) content from IPFS
+        async def ipfs_cat(cid, offset=0, length=None, timeout=30):
+            """Retrieve content from IPFS"""
+            try:
+                # Validate CID
+                if not cid or not isinstance(cid, str):
+                    return {"success": False, "error": "Invalid CID"}
+                
+                # Use ipfshttpclient if available
+                if IPFS_CLIENT_AVAILABLE:
+                    with ipfshttpclient.connect() as client:
+                        try:
+                            # Get the content
+                            content = client.cat(cid, offset=offset, length=length, timeout=timeout)
+                            
+                            # Get the size
+                            stats = client.files.stat(f"/ipfs/{cid}")
+                            
+                            # Convert binary data to base64
+                            content_base64 = base64.b64encode(content).decode('utf-8')
+                            
+                            return {
+                                "success": True,
+                                "content_base64": content_base64,
+                                "size": stats["Size"] if "Size" in stats else len(content)
+                            }
+                        except Exception as e:
+                            return {"success": False, "error": f"IPFS cat failed: {str(e)}"}
+                
+                else:  # Use subprocess
+                    try:
+                        # Build the command
+                        cmd = ["ipfs", "cat"]
+                        
+                        # Add offset and length if provided
+                        if offset > 0:
+                            cmd.extend(["--offset", str(offset)])
+                        if length is not None:
+                            cmd.extend(["--length", str(length)])
+                        
+                        cmd.append(cid)
+                        
+                        # Run the command
+                        process = subprocess.run(cmd, capture_output=True, check=True, timeout=timeout)
+                        
+                        # Get the content from the output
+                        content = process.stdout
+                        
+                        # Get the size
+                        cmd_stat = ["ipfs", "files", "stat", f"/ipfs/{cid}"]
+                        process_stat = subprocess.run(cmd_stat, capture_output=True, text=True, check=True)
+                        
+                        # Parse the output to get the size
+                        stat_output = process_stat.stdout.strip()
+                        size = 0
+                        for line in stat_output.split("\n"):
+                            if line.startswith("Size:"):
+                                size = int(line.split(":")[1].strip())
+                                break
+                        
+                        # Convert binary data to base64
+                        content_base64 = base64.b64encode(content).decode('utf-8')
+                        
+                        return {
+                            "success": True,
+                            "content_base64": content_base64,
+                            "size": size
+                        }
+                    
+                    except subprocess.CalledProcessError as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS cat failed: {e.stderr.decode('utf-8')}"
+                        }
+                    
+                    except subprocess.TimeoutExpired:
+                        return {
+                            "success": False,
+                            "error": f"IPFS cat timed out after {timeout} seconds"
+                        }
+                    
+                    except Exception as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS cat failed: {str(e)}"
+                        }
+            
+            except Exception as e:
+                logger.error(f"Error in ipfs_cat: {e}")
+                return {"success": False, "error": str(e)}
         
-    def files_ls(path="/", **kwargs):
-        logger.warning("Using mock implementation of files_ls")
-        return {"Entries": [{"Name": "mock-file.txt", "Type": 0, "Size": 123}]}
+        mcp_server.register_tool("ipfs_cat", ipfs_cat)
+        tools_registered += 1
         
-    def files_mkdir(path, **kwargs):
-        logger.warning("Using mock implementation of files_mkdir")
-        return {}
+        # List directory contents in IPFS
+        async def ipfs_ls(cid, recursive=False, timeout=30):
+            """List directory contents in IPFS"""
+            try:
+                # Validate CID
+                if not cid or not isinstance(cid, str):
+                    return {"success": False, "error": "Invalid CID"}
+                
+                # Use ipfshttpclient if available
+                if IPFS_CLIENT_AVAILABLE:
+                    with ipfshttpclient.connect() as client:
+                        try:
+                            # List the directory contents
+                            result = client.ls(cid)
+                            
+                            # Process the result
+                            entries = []
+                            for entry in result.get("Objects", []):
+                                for link in entry.get("Links", []):
+                                    entries.append({
+                                        "name": link.get("Name", ""),
+                                        "cid": link.get("Hash", ""),
+                                        "size": link.get("Size", 0),
+                                        "type": link.get("Type", 0)
+                                    })
+                            
+                            # If recursive, handle the entries
+                            if recursive and entries:
+                                try:
+                                    # Process directories recursively
+                                    all_entries = entries.copy()
+                                    for entry in entries:
+                                        if entry.get("type") == 1:  # Directory
+                                            try:
+                                                sub_result = await ipfs_ls(entry["cid"], recursive=True)
+                                                if sub_result.get("success", False):
+                                                    for sub_entry in sub_result.get("entries", []):
+                                                        # Prefix the name with the parent directory
+                                                        sub_entry["name"] = f"{entry['name']}/{sub_entry['name']}"
+                                                        all_entries.append(sub_entry)
+                                            except Exception as sub_e:
+                                                logger.warning(f"Error in recursive ls for {entry['cid']}: {sub_e}")
+                                    
+                                    entries = all_entries
+                                except Exception as rec_e:
+                                    logger.warning(f"Error in recursive processing: {rec_e}")
+                            
+                            return {
+                                "success": True,
+                                "entries": entries,
+                                "count": len(entries)
+                            }
+                        except Exception as e:
+                            return {"success": False, "error": f"IPFS ls failed: {str(e)}"}
+                
+                else:  # Use subprocess
+                    try:
+                        # Build the command
+                        cmd = ["ipfs", "ls"]
+                        
+                        # Add recursive flag if requested
+                        if recursive:
+                            cmd.append("-r")
+                        
+                        cmd.append(cid)
+                        
+                        # Run the command
+                        process = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=timeout)
+                        
+                        # Parse the output
+                        entries = []
+                        for line in process.stdout.strip().split("\n"):
+                            if not line:
+                                continue
+                            
+                            # Parse the line
+                            parts = line.split()
+                            if len(parts) >= 3:
+                                entry_cid = parts[0]
+                                entry_size = parts[1]
+                                entry_name = " ".join(parts[2:])
+                                
+                                # Determine type
+                                entry_type = 0  # File
+                                if entry_size.endswith("/"):
+                                    entry_type = 1  # Directory
+                                    entry_size = entry_size[:-1]
+                                
+                                # Convert size to bytes
+                                try:
+                                    size = int(entry_size)
+                                except ValueError:
+                                    # Handle human-readable sizes (e.g., 5.2 KiB)
+                                    size_str = entry_size.lower()
+                                    multiplier = 1
+                                    if "kib" in size_str:
+                                        multiplier = 1024
+                                    elif "mib" in size_str:
+                                        multiplier = 1024 * 1024
+                                    elif "gib" in size_str:
+                                        multiplier = 1024 * 1024 * 1024
+                                    
+                                    try:
+                                        size_val = float(size_str.split()[0])
+                                        size = int(size_val * multiplier)
+                                    except:
+                                        size = 0
+                                
+                                entries.append({
+                                    "name": entry_name,
+                                    "cid": entry_cid,
+                                    "size": size,
+                                    "type": entry_type
+                                })
+                        
+                        return {
+                            "success": True,
+                            "entries": entries,
+                            "count": len(entries)
+                        }
+                    
+                    except subprocess.CalledProcessError as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS ls failed: {e.stderr}"
+                        }
+                    
+                    except subprocess.TimeoutExpired:
+                        return {
+                            "success": False,
+                            "error": f"IPFS ls timed out after {timeout} seconds"
+                        }
+                    
+                    except Exception as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS ls failed: {str(e)}"
+                        }
+            
+            except Exception as e:
+                logger.error(f"Error in ipfs_ls: {e}")
+                return {"success": False, "error": str(e)}
         
-    def files_write(path, content, **kwargs):
-        logger.warning("Using mock implementation of files_write")
-        return {}
+        mcp_server.register_tool("ipfs_ls", ipfs_ls)
+        tools_registered += 1
         
-    def files_read(path, **kwargs):
-        logger.warning("Using mock implementation of files_read")
-        return b"Mock content for " + path.encode() if isinstance(path, str) else path
+        # List pinned items
+        async def ipfs_pin_ls(type="all", timeout=30):
+            """List pinned items"""
+            try:
+                # Validate type
+                valid_types = ["all", "direct", "indirect", "recursive"]
+                if type not in valid_types:
+                    return {"success": False, "error": f"Invalid pin type. Must be one of: {', '.join(valid_types)}"}
+                
+                # Use ipfshttpclient if available
+                if IPFS_CLIENT_AVAILABLE:
+                    with ipfshttpclient.connect() as client:
+                        try:
+                            # List the pinned items
+                            result = client.pin.ls(type=type)
+                            
+                            # Process the result
+                            pins = result.get("Keys", {})
+                            
+                            return {
+                                "success": True,
+                                "pins": pins,
+                                "count": len(pins)
+                            }
+                        except Exception as e:
+                            return {"success": False, "error": f"IPFS pin ls failed: {str(e)}"}
+                
+                else:  # Use subprocess
+                    try:
+                        # Build the command
+                        cmd = ["ipfs", "pin", "ls"]
+                        
+                        # Add type if not "all"
+                        if type != "all":
+                            cmd.extend(["--type", type])
+                        
+                        # Run the command
+                        process = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=timeout)
+                        
+                        # Parse the output
+                        pins = {}
+                        for line in process.stdout.strip().split("\n"):
+                            if not line:
+                                continue
+                            
+                            # Parse the line
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                cid = parts[0]
+                                pin_type = parts[1].strip()
+                                
+                                # Remove the trailing colon
+                                if pin_type.endswith(":"):
+                                    pin_type = pin_type[:-1]
+                                
+                                pins[cid] = {"type": pin_type}
+                        
+                        return {
+                            "success": True,
+                            "pins": pins,
+                            "count": len(pins)
+                        }
+                    
+                    except subprocess.CalledProcessError as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS pin ls failed: {e.stderr}"
+                        }
+                    
+                    except subprocess.TimeoutExpired:
+                        return {
+                            "success": False,
+                            "error": f"IPFS pin ls timed out after {timeout} seconds"
+                        }
+                    
+                    except Exception as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS pin ls failed: {str(e)}"
+                        }
+            
+            except Exception as e:
+                logger.error(f"Error in ipfs_pin_ls: {e}")
+                return {"success": False, "error": str(e)}
         
-    def files_rm(path, **kwargs):
-        logger.warning("Using mock implementation of files_rm")
-        return {}
+        mcp_server.register_tool("ipfs_pin_ls", ipfs_pin_ls)
+        tools_registered += 1
         
-    def files_stat(path, **kwargs):
-        logger.warning("Using mock implementation of files_stat")
-        return {"Hash": "QmMockHash", "Size": 123, "Type": "file"}
+        # Get IPFS node info
+        async def ipfs_id(timeout=30):
+            """Get IPFS node information"""
+            try:
+                # Use ipfshttpclient if available
+                if IPFS_CLIENT_AVAILABLE:
+                    with ipfshttpclient.connect() as client:
+                        try:
+                            # Get the node ID
+                            result = client.id()
+                            
+                            return {
+                                "success": True,
+                                "id": result
+                            }
+                        except Exception as e:
+                            return {"success": False, "error": f"IPFS id failed: {str(e)}"}
+                
+                else:  # Use subprocess
+                    try:
+                        # Run the command
+                        process = subprocess.run(["ipfs", "id"], capture_output=True, text=True, check=True, timeout=timeout)
+                        
+                        # Parse the output
+                        try:
+                            result = json.loads(process.stdout)
+                            
+                            return {
+                                "success": True,
+                                "id": result
+                            }
+                        except json.JSONDecodeError:
+                            return {
+                                "success": False,
+                                "error": "Failed to parse IPFS id output as JSON"
+                            }
+                    
+                    except subprocess.CalledProcessError as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS id failed: {e.stderr}"
+                        }
+                    
+                    except subprocess.TimeoutExpired:
+                        return {
+                            "success": False,
+                            "error": f"IPFS id timed out after {timeout} seconds"
+                        }
+                    
+                    except Exception as e:
+                        return {
+                            "success": False,
+                            "error": f"IPFS id failed: {str(e)}"
+                        }
+            
+            except Exception as e:
+                logger.error(f"Error in ipfs_id: {e}")
+                return {"success": False, "error": str(e)}
         
-    def files_cp(source, dest, **kwargs):
-        logger.warning("Using mock implementation of files_cp")
-        return {}
+        mcp_server.register_tool("ipfs_id", ipfs_id)
+        tools_registered += 1
         
-    def files_mv(source, dest, **kwargs):
-        logger.warning("Using mock implementation of files_mv")
-        return {}
-        
-    def files_flush(path="/", **kwargs):
-        logger.warning("Using mock implementation of files_flush")
-        return {"Hash": "QmMockHash"}
+        logger.info(f"Successfully registered {tools_registered} IPFS tools")
+        return True
+    except Exception as e:
+        logger.error(f"Error registering IPFS tools: {e}")
+        return False
 
-def register_ipfs_tools(mcp_server):
-    """Register all IPFS tools with the MCP server with proper implementations"""
-    logger.info(f"Registering {len(IPFS_TOOLS)} IPFS tools with MCP server")
-
-    # Register each tool with specific implementations
-    for tool in IPFS_TOOLS:
-        tool_name = tool["name"]
-        tool_schema = tool.get("schema", {})
-        description = tool.get("description", f"IPFS tool: {tool_name}")
-        
-        # Determine the correct handler to use based on the tool name
-        if IPFS_EXTENSIONS_AVAILABLE:
-            # Use real implementation if available
-            if tool_name == "ipfs_add":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_add_handler(ctx, content, filename=None, pin=True):
-                    await ctx.info(f"Adding content to IPFS{' and pinning' if pin else ''}")
-                    result = await add_content(content, filename, pin)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully added content with CID: {result.get('cid')}")
-                    else:
-                        await ctx.error(f"Failed to add content: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_cat":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_cat_handler(ctx, cid):
-                    await ctx.info(f"Retrieving content for CID: {cid}")
-                    result = await cat(cid)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully retrieved content ({result.get('size', 0)} bytes)")
-                    else:
-                        await ctx.error(f"Failed to retrieve content: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_pin":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_pin_handler(ctx, cid, recursive=True):
-                    await ctx.info(f"Pinning CID: {cid} (recursive={recursive})")
-                    result = await pin_add(cid, recursive)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully pinned {cid}")
-                    else:
-                        await ctx.error(f"Failed to pin content: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_unpin":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_unpin_handler(ctx, cid, recursive=True):
-                    await ctx.info(f"Unpinning CID: {cid} (recursive={recursive})")
-                    result = await pin_rm(cid, recursive)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully unpinned {cid}")
-                    else:
-                        await ctx.error(f"Failed to unpin content: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_list_pins":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_list_pins_handler(ctx, type_filter="all"):
-                    await ctx.info(f"Listing pins (filter={type_filter})")
-                    result = await pin_ls(type_filter=type_filter)
-                    if result.get("success"):
-                        pin_count = len(result.get("pins", []))
-                        await ctx.info(f"Found {pin_count} pinned items")
-                    else:
-                        await ctx.error(f"Failed to list pins: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_version":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_version_handler(ctx):
-                    await ctx.info("Getting IPFS version information")
-                    result = await get_version()
-                    if result.get("success"):
-                        await ctx.info(f"IPFS version: {result.get('version')}")
-                    else:
-                        await ctx.error(f"Failed to get IPFS version: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_ls":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_ls_handler(ctx, path="/", long=False):
-                    await ctx.info(f"Listing files in MFS path: {path}")
-                    result = await files_ls(path, long)
-                    if result.get("success"):
-                        entry_count = len(result.get("entries", []))
-                        await ctx.info(f"Found {entry_count} entries in {path}")
-                    else:
-                        await ctx.error(f"Failed to list files: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_mkdir":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_mkdir_handler(ctx, path, parents=True):
-                    await ctx.info(f"Creating directory in MFS: {path}")
-                    result = await files_mkdir(path, parents)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully created directory {path}")
-                    else:
-                        await ctx.error(f"Failed to create directory: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_write":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_write_handler(ctx, path, content, create=True, truncate=True):
-                    await ctx.info(f"Writing to file in MFS: {path}")
-                    result = await files_write(path, content, create, truncate)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully wrote {result.get('size', len(content))} bytes to {path}")
-                    else:
-                        await ctx.error(f"Failed to write file: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_read":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_read_handler(ctx, path, offset=0, count=-1):
-                    await ctx.info(f"Reading file from MFS: {path}")
-                    result = await files_read(path, offset, count)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully read {result.get('size', 0)} bytes from {path}")
-                    else:
-                        await ctx.error(f"Failed to read file: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_rm":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_rm_handler(ctx, path, recursive=False, force=False):
-                    await ctx.info(f"Removing {path} from MFS")
-                    result = await files_rm(path, recursive, force)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully removed {path}")
-                    else:
-                        await ctx.error(f"Failed to remove {path}: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_stat":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_stat_handler(ctx, path):
-                    await ctx.info(f"Getting stats for MFS path: {path}")
-                    result = await files_stat(path)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully got stats for {path}")
-                    else:
-                        await ctx.error(f"Failed to get stats: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_cp":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_cp_handler(ctx, source, dest):
-                    await ctx.info(f"Copying {source} to {dest} in MFS")
-                    result = await files_cp(source, dest)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully copied {source} to {dest}")
-                    else:
-                        await ctx.error(f"Failed to copy: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_mv":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_mv_handler(ctx, source, dest):
-                    await ctx.info(f"Moving {source} to {dest} in MFS")
-                    result = await files_mv(source, dest)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully moved {source} to {dest}")
-                    else:
-                        await ctx.error(f"Failed to move: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            elif tool_name == "ipfs_files_flush":
-                @mcp_server.tool(name=tool_name, description=description)
-                async def ipfs_files_flush_handler(ctx, path="/"):
-                    await ctx.info(f"Flushing MFS path: {path}")
-                    result = await files_flush(path)
-                    if result.get("success"):
-                        await ctx.info(f"Successfully flushed {path} to {result.get('cid', 'IPFS')}")
-                    else:
-                        await ctx.error(f"Failed to flush: {result.get('error')}")
-                    return result
-                logger.info(f"Registered tool with real implementation: {tool_name}")
-                
-            else:
-                # Generic mock implementation for other tools
-                @mcp_server.tool(name=tool_name, description=description)
-                async def generic_tool_handler(ctx):
-                    # Extract parameters from context
-                    params = ctx.params
-                    await ctx.info(f"Called {tool_name} with params: {params}")
-                    await ctx.warning(f"Using mock implementation for {tool_name}")
-                    return {
-                        "success": True,
-                        "warning": "Mock implementation",
-                        "timestamp": datetime.now().isoformat(),
-                        "tool": tool_name,
-                        "params": params
-                    }
-                # Rename the function to avoid name collisions
-                generic_tool_handler.__name__ = f"ipfs_{tool_name}_handler"
-                logger.info(f"Registered tool with mock implementation: {tool_name}")
-        else:
-            # Use mock implementations for all tools
-            @mcp_server.tool(name=tool_name, description=description)
-            async def mock_tool_handler(ctx):
-                # Extract parameters from context
-                params = ctx.params
-                await ctx.info(f"Called {tool_name} with params: {params}")
-                await ctx.warning("Using mock implementation (IPFS extensions not available)")
-                return {
-                    "success": True,
-                    "warning": "Mock implementation (IPFS extensions not available)",
-                    "timestamp": datetime.now().isoformat(),
-                    "tool": tool_name,
-                    "params": params
-                }
-            # Rename the function to avoid name collisions
-            mock_tool_handler.__name__ = f"ipfs_{tool_name}_handler"
-            logger.info(f"Registered tool with mock implementation: {tool_name}")
-
-    logger.info("✅ Successfully registered all IPFS tools")
-    return True
+if __name__ == "__main__":
+    print("IPFS MCP Tools Integration Module")
+    print("This module provides MCP tools for IPFS operations.")
+    print("It should be imported and used with an MCP server, not run directly.")

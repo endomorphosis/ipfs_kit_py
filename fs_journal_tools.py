@@ -1,424 +1,637 @@
 #!/usr/bin/env python3
 """
-IPFS Kit - FS Journal Integration Tools
+Filesystem Journal Tools
 
-This module provides tools to integrate IPFS with a virtual filesystem journal.
-These tools allow:
-1. Tracking operations performed on files
-2. Synchronizing between IPFS and the local filesystem
-3. Bridging IPFS MFS with the virtual FS
-
-This is a core part of enhancing the IPFS Kit with virtual filesystem capabilities.
+This module provides filesystem journaling functionality for tracking changes to files
+and directories. It maintains a journal of operations (create, modify, delete, etc.)
+and can sync with the filesystem to identify changes.
 """
 
 import os
 import sys
 import json
-import logging
-import asyncio
 import time
-from typing import Dict, List, Any, Optional, Union
-from enum import Enum, auto
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+import logging
+import hashlib
+import sqlite3
+import datetime
 from pathlib import Path
+from typing import Dict, List, Any, Optional, Union, Tuple, Set
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-# Define FS Journal data structures
-class FSOperationType(Enum):
-    """Types of operations that can be performed on the filesystem"""
-    READ = auto()
-    WRITE = auto()
-    DELETE = auto()
-    CREATE = auto()
-    RENAME = auto()
-    MKDIR = auto()
-    RMDIR = auto()
-    STAT = auto()
-    SYNC = auto()
+# Database setup
+DB_PATH = os.path.expanduser("~/.ipfs_fs_journal.db")
 
-@dataclass
-class FSOperation:
-    """Represents a filesystem operation with metadata"""
-    operation_type: FSOperationType
-    path: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    user: Optional[str] = None
-    success: bool = True
-    error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization"""
-        result = asdict(self)
-        result["operation_type"] = self.operation_type.name
-        result["timestamp"] = self.timestamp.isoformat()
-        return result
+def _initialize_db():
+    """Initialize the journal database"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Create tables if they don't exist
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tracked_paths (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE,
+            recursive BOOLEAN,
+            added_at TIMESTAMP,
+            notes TEXT,
+            last_sync TIMESTAMP
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT,
+            operation TEXT,
+            timestamp TIMESTAMP,
+            details TEXT,
+            checksum TEXT,
+            size INTEGER,
+            ipfs_cid TEXT
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS file_state (
+            path TEXT PRIMARY KEY,
+            exists BOOLEAN,
+            is_dir BOOLEAN,
+            size INTEGER,
+            last_modified TIMESTAMP,
+            checksum TEXT,
+            last_operation TEXT,
+            last_operation_time TIMESTAMP
+        )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error initializing journal database: {e}")
+        return False
 
-class FSJournal:
-    """Virtual filesystem journal that tracks operations"""
-    
-    def __init__(self, base_dir: str):
-        """Initialize the filesystem journal"""
-        self.base_dir = os.path.abspath(base_dir)
-        self.operations: List[FSOperation] = []
-        self.path_history: Dict[str, List[FSOperation]] = {}
-        self.cache: Dict[str, bytes] = {}
-        self.tracked_paths: List[str] = []
-        logger.info(f"Initialized FS Journal with base directory: {self.base_dir}")
-    
-    def record_operation(self, operation: FSOperation) -> None:
-        """Record an operation in the journal"""
-        self.operations.append(operation)
+def _get_file_checksum(path: str) -> Optional[str]:
+    """Calculate the MD5 checksum of a file"""
+    try:
+        if not os.path.isfile(path):
+            return None
+            
+        hash_md5 = hashlib.md5()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+    except Exception as e:
+        logger.error(f"Error calculating checksum for {path}: {e}")
+        return None
+
+def _add_journal_entry(path: str, operation: str, details: str = "", 
+                      checksum: Optional[str] = None, size: Optional[int] = None,
+                      ipfs_cid: Optional[str] = None):
+    """Add an entry to the journal"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
         
-        # Add to path history
-        if operation.path not in self.path_history:
-            self.path_history[operation.path] = []
-        self.path_history[operation.path].append(operation)
+        timestamp = datetime.datetime.now().isoformat()
         
-        logger.debug(f"Recorded operation: {operation.operation_type.name} on {operation.path}")
-    
-    def get_history(self, path: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
-        """Get operation history for a path (or all paths)"""
-        if path:
-            # Normalize path
-            norm_path = os.path.normpath(path)
-            operations = self.path_history.get(norm_path, [])
+        cursor.execute('''
+        INSERT INTO journal_entries 
+        (path, operation, timestamp, details, checksum, size, ipfs_cid)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (path, operation, timestamp, details, checksum, size, ipfs_cid))
+        
+        # Update file state
+        if operation != "DELETE":
+            exists = os.path.exists(path)
+            is_dir = os.path.isdir(path) if exists else False
+            size = os.path.getsize(path) if exists and not is_dir else None
+            last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(path)).isoformat() if exists else None
+            
+            cursor.execute('''
+            INSERT OR REPLACE INTO file_state
+            (path, exists, is_dir, size, last_modified, checksum, last_operation, last_operation_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (path, exists, is_dir, size, last_modified, checksum, operation, timestamp))
         else:
-            operations = self.operations
+            # File was deleted
+            cursor.execute('''
+            UPDATE file_state
+            SET exists = 0, last_operation = ?, last_operation_time = ?
+            WHERE path = ?
+            ''', (operation, timestamp, path))
         
-        # Sort by timestamp (newest first) and limit
-        sorted_ops = sorted(operations, key=lambda op: op.timestamp, reverse=True)
-        limited_ops = sorted_ops[:limit]
-        
-        # Convert to dictionaries
-        return [op.to_dict() for op in limited_ops]
-    
-    def track_path(self, path: str) -> bool:
-        """Add a path to the tracked paths list"""
-        norm_path = os.path.normpath(path)
-        if norm_path not in self.tracked_paths:
-            self.tracked_paths.append(norm_path)
-            logger.info(f"Started tracking path: {norm_path}")
-            return True
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error adding journal entry for {path}: {e}")
         return False
-    
-    def untrack_path(self, path: str) -> bool:
-        """Remove a path from the tracked paths list"""
-        norm_path = os.path.normpath(path)
-        if norm_path in self.tracked_paths:
-            self.tracked_paths.remove(norm_path)
-            logger.info(f"Stopped tracking path: {norm_path}")
-            return True
-        return False
-    
-    def is_tracked(self, path: str) -> bool:
-        """Check if a path is being tracked"""
-        norm_path = os.path.normpath(path)
-        
-        # Check direct match
-        if norm_path in self.tracked_paths:
-            return True
-        
-        # Check parent directories
-        for tracked_path in self.tracked_paths:
-            if norm_path.startswith(tracked_path + os.sep):
-                return True
-        
-        return False
-    
-    def sync_to_disk(self, path: Optional[str] = None) -> Dict[str, Any]:
-        """Sync cached changes to disk"""
-        if path:
-            paths_to_sync = [os.path.normpath(path)]
-        else:
-            paths_to_sync = list(self.cache.keys())
-        
-        result = {
-            "success": True,
-            "synced_files": 0,
-            "errors": []
-        }
-        
-        for file_path in paths_to_sync:
-            if file_path in self.cache:
-                try:
-                    # Ensure parent directory exists
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                    
-                    # Write to disk
-                    with open(file_path, 'wb') as f:
-                        f.write(self.cache[file_path])
-                    
-                    result["synced_files"] += 1
-                    
-                    # Record operation
-                    self.record_operation(FSOperation(
-                        operation_type=FSOperationType.SYNC,
-                        path=file_path,
-                        metadata={"size": len(self.cache[file_path])}
-                    ))
-                    
-                except Exception as e:
-                    error_msg = f"Error syncing {file_path}: {str(e)}"
-                    logger.error(error_msg)
-                    result["errors"].append(error_msg)
-                    result["success"] = False
-                    
-                    # Record failed operation
-                    self.record_operation(FSOperation(
-                        operation_type=FSOperationType.SYNC,
-                        path=file_path,
-                        success=False,
-                        error_message=str(e)
-                    ))
-        
-        logger.info(f"Synced {result['synced_files']} files to disk")
-        return result
 
-class IPFSFSBridge:
-    """Bridge between IPFS and the local filesystem"""
+def register_tools(server) -> bool:
+    """Register filesystem journal tools with the MCP server"""
+    logger.info("Registering filesystem journal tools...")
     
-    def __init__(self, fs_journal: FSJournal):
-        """Initialize the IPFS-FS bridge"""
-        self.journal = fs_journal
-        self.ipfs_cids: Dict[str, str] = {}  # path -> CID mapping
-        self.ipfs_mfs_mappings: Dict[str, str] = {}  # MFS path -> local path mapping
-        logger.info("Initialized IPFS-FS Bridge")
+    # Initialize the database
+    if not _initialize_db():
+        logger.error("Failed to initialize journal database")
+        return False
     
-    def map_path(self, ipfs_path: str, local_path: str) -> Dict[str, Any]:
-        """Map an IPFS path to a local filesystem path"""
-        # Normalize paths
-        norm_ipfs_path = ipfs_path.rstrip('/')
-        norm_local_path = os.path.normpath(local_path)
-        
-        # Create mapping
-        self.ipfs_mfs_mappings[norm_ipfs_path] = norm_local_path
-        
-        # Ensure path is tracked
-        self.journal.track_path(norm_local_path)
-        
-        logger.info(f"Mapped IPFS path {norm_ipfs_path} to local path {norm_local_path}")
-        return {
-            "success": True,
-            "ipfs_path": norm_ipfs_path,
-            "local_path": norm_local_path
-        }
-    
-    def unmap_path(self, ipfs_path: str) -> Dict[str, Any]:
-        """Remove a mapping between IPFS and local filesystem"""
-        norm_ipfs_path = ipfs_path.rstrip('/')
-        
-        if norm_ipfs_path in self.ipfs_mfs_mappings:
-            local_path = self.ipfs_mfs_mappings[norm_ipfs_path]
-            del self.ipfs_mfs_mappings[norm_ipfs_path]
-            logger.info(f"Unmapped IPFS path {norm_ipfs_path} from local path {local_path}")
+    # Tool: Track a file or directory for changes
+    async def fs_journal_track(path: str, recursive: bool = True, notes: str = ""):
+        """Start tracking a file or directory for changes"""
+        try:
+            # Make sure the path exists
+            if not os.path.exists(path):
+                return {"success": False, "error": f"Path not found: {path}"}
+            
+            # Get absolute path
+            abs_path = os.path.abspath(path)
+            
+            # Add to tracked paths
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            timestamp = datetime.datetime.now().isoformat()
+            
+            try:
+                cursor.execute('''
+                INSERT INTO tracked_paths (path, recursive, added_at, notes, last_sync)
+                VALUES (?, ?, ?, ?, ?)
+                ''', (abs_path, recursive, timestamp, notes, timestamp))
+                conn.commit()
+            except sqlite3.IntegrityError:
+                # Already tracking this path, update instead
+                cursor.execute('''
+                UPDATE tracked_paths 
+                SET recursive = ?, notes = ?, last_sync = ?
+                WHERE path = ?
+                ''', (recursive, notes, timestamp, abs_path))
+                conn.commit()
+                conn.close()
+                return {
+                    "success": True,
+                    "path": abs_path,
+                    "recursive": recursive,
+                    "status": "updated",
+                    "message": f"Updated tracking for {abs_path}"
+                }
+            
+            # Initial scan to populate journal with current state
+            files_tracked = 0
+            dirs_tracked = 0
+            
+            if os.path.isdir(abs_path):
+                # Track the directory itself
+                _add_journal_entry(abs_path, "TRACK", "Directory tracking started", None, None)
+                dirs_tracked += 1
+                
+                # Track contents if recursive
+                if recursive:
+                    for root, dirs, files in os.walk(abs_path):
+                        for d in dirs:
+                            dir_path = os.path.join(root, d)
+                            _add_journal_entry(dir_path, "TRACK", "Directory tracking started", None, None)
+                            dirs_tracked += 1
+                        
+                        for f in files:
+                            file_path = os.path.join(root, f)
+                            checksum = _get_file_checksum(file_path)
+                            size = os.path.getsize(file_path)
+                            _add_journal_entry(file_path, "TRACK", "File tracking started", checksum, size)
+                            files_tracked += 1
+            else:
+                # Single file
+                checksum = _get_file_checksum(abs_path)
+                size = os.path.getsize(abs_path)
+                _add_journal_entry(abs_path, "TRACK", "File tracking started", checksum, size)
+                files_tracked += 1
+            
+            conn.close()
+            
             return {
                 "success": True,
-                "ipfs_path": norm_ipfs_path,
-                "local_path": local_path
+                "path": abs_path,
+                "recursive": recursive,
+                "status": "added",
+                "files_tracked": files_tracked,
+                "directories_tracked": dirs_tracked,
+                "total_tracked": files_tracked + dirs_tracked
             }
-        else:
-            logger.warning(f"IPFS path {norm_ipfs_path} not found in mappings")
+            
+        except Exception as e:
+            logger.error(f"Error tracking path {path}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: Stop tracking a file or directory
+    async def fs_journal_untrack(path: str):
+        """Stop tracking a file or directory for changes"""
+        try:
+            # Get absolute path
+            abs_path = os.path.abspath(path)
+            
+            # Remove from tracked paths
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # First check if we're tracking this path
+            cursor.execute("SELECT recursive FROM tracked_paths WHERE path = ?", (abs_path,))
+            result = cursor.fetchone()
+            
+            if not result:
+                conn.close()
+                return {
+                    "success": False,
+                    "error": f"Path not being tracked: {abs_path}"
+                }
+            
+            recursive = bool(result[0])
+            
+            # Remove from tracked paths
+            cursor.execute("DELETE FROM tracked_paths WHERE path = ?", (abs_path,))
+            conn.commit()
+            
+            # Add untrack journal entry
+            _add_journal_entry(abs_path, "UNTRACK", "Tracking stopped", None, None)
+            
+            # Remove from file_state if desired
+            if recursive and os.path.isdir(abs_path):
+                cursor.execute("DELETE FROM file_state WHERE path LIKE ?", (abs_path + "/%",))
+                
+            conn.commit()
+            conn.close()
+            
             return {
-                "success": False,
-                "error": f"IPFS path {norm_ipfs_path} not found in mappings"
+                "success": True,
+                "path": abs_path,
+                "status": "untracked",
+                "message": f"Stopped tracking {abs_path}"
             }
+            
+        except Exception as e:
+            logger.error(f"Error untracking path {path}: {e}")
+            return {"success": False, "error": str(e)}
     
-    def list_mappings(self) -> Dict[str, Any]:
-        """List all mappings between IPFS and local filesystem"""
-        mappings = []
-        for ipfs_path, local_path in self.ipfs_mfs_mappings.items():
-            mappings.append({
-                "ipfs_path": ipfs_path,
-                "local_path": local_path,
-                "has_cid": local_path in self.ipfs_cids
-            })
-        
-        return {
-            "success": True,
-            "count": len(mappings),
-            "mappings": mappings
-        }
+    # Tool: List all tracked files and directories
+    async def fs_journal_list_tracked():
+        """List all files and directories being tracked"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            SELECT path, recursive, added_at, notes, last_sync 
+            FROM tracked_paths
+            ORDER BY added_at
+            ''')
+            
+            rows = cursor.fetchall()
+            
+            tracked_paths = []
+            for row in rows:
+                # Get stats for this tracked path
+                path = row['path']
+                recursive = bool(row['recursive'])
+                
+                if recursive and os.path.isdir(path):
+                    cursor.execute('''
+                    SELECT COUNT(*) FROM file_state 
+                    WHERE path LIKE ? AND exists = 1 AND is_dir = 0
+                    ''', (path + "/%",))
+                    file_count = cursor.fetchone()[0]
+                    
+                    cursor.execute('''
+                    SELECT COUNT(*) FROM file_state 
+                    WHERE path LIKE ? AND exists = 1 AND is_dir = 1
+                    ''', (path + "/%",))
+                    dir_count = cursor.fetchone()[0]
+                else:
+                    file_count = 1 if os.path.isfile(path) else 0
+                    dir_count = 1 if os.path.isdir(path) else 0
+                
+                tracked_paths.append({
+                    "path": path,
+                    "recursive": recursive,
+                    "added_at": row['added_at'],
+                    "notes": row['notes'],
+                    "last_sync": row['last_sync'],
+                    "file_count": file_count,
+                    "directory_count": dir_count
+                })
+            
+            conn.close()
+            
+            return {
+                "success": True,
+                "tracked_paths": tracked_paths,
+                "count": len(tracked_paths)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing tracked paths: {e}")
+            return {"success": False, "error": str(e)}
     
-    def get_status(self) -> Dict[str, Any]:
-        """Get status of the IPFS-FS bridge"""
-        return {
-            "success": True,
-            "mappings_count": len(self.ipfs_mfs_mappings),
-            "cids_count": len(self.ipfs_cids),
-            "tracked_paths_count": len(self.journal.tracked_paths)
-        }
-
-def create_journal_and_bridge(base_dir: str) -> tuple:
-    """Create and initialize the FS Journal and IPFS-FS Bridge"""
-    journal = FSJournal(base_dir)
-    bridge = IPFSFSBridge(journal)
-    return journal, bridge
-
-# MCP integration functions
-async def fs_journal_get_history_handler(ctx, path: Optional[str] = None, limit: int = 100) -> Dict[str, Any]:
-    """Handle request to get operation history for a path"""
-    from mcp.server.fastmcp import Context
+    # Tool: Get history of operations for a path
+    async def fs_journal_get_history(path: str, limit: int = 50, operation_filter: Optional[str] = None):
+        """Get the history of operations for a specific path"""
+        try:
+            # Get absolute path
+            abs_path = os.path.abspath(path)
+            
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            if operation_filter:
+                cursor.execute('''
+                SELECT * FROM journal_entries 
+                WHERE path = ? AND operation = ?
+                ORDER BY timestamp DESC LIMIT ?
+                ''', (abs_path, operation_filter, limit))
+            else:
+                cursor.execute('''
+                SELECT * FROM journal_entries 
+                WHERE path = ?
+                ORDER BY timestamp DESC LIMIT ?
+                ''', (abs_path, limit))
+            
+            rows = cursor.fetchall()
+            
+            entries = []
+            for row in rows:
+                details = row['details']
+                if details and details.startswith('{'):
+                    try:
+                        details = json.loads(details)
+                    except:
+                        pass
+                
+                entries.append({
+                    "path": row['path'],
+                    "operation": row['operation'],
+                    "timestamp": row['timestamp'],
+                    "details": details,
+                    "checksum": row['checksum'],
+                    "size": row['size'],
+                    "ipfs_cid": row['ipfs_cid']
+                })
+            
+            # Get current state
+            cursor.execute("SELECT * FROM file_state WHERE path = ?", (abs_path,))
+            state_row = cursor.fetchone()
+            
+            current_state = None
+            if state_row:
+                current_state = {
+                    "exists": bool(state_row['exists']),
+                    "is_dir": bool(state_row['is_dir']),
+                    "size": state_row['size'],
+                    "last_modified": state_row['last_modified'],
+                    "checksum": state_row['checksum'],
+                    "last_operation": state_row['last_operation'],
+                    "last_operation_time": state_row['last_operation_time']
+                }
+            
+            conn.close()
+            
+            return {
+                "success": True,
+                "path": abs_path,
+                "entries": entries,
+                "count": len(entries),
+                "current_state": current_state
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting history for {path}: {e}")
+            return {"success": False, "error": str(e)}
     
-    if not isinstance(ctx, Context):
-        await ctx.error("Invalid context")
-        return {"error": "Invalid context"}
-        
-    if not hasattr(ctx.server, "fs_journal"):
-        await ctx.error("FS Journal not initialized")
-        return {"error": "FS Journal not initialized"}
+    # Tool: Sync the journal with the filesystem
+    async def fs_journal_sync(path: Optional[str] = None, report_only: bool = False):
+        """Sync the journal with the current state of the filesystem"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get tracked paths
+            if path:
+                abs_path = os.path.abspath(path)
+                cursor.execute("SELECT * FROM tracked_paths WHERE path = ?", (abs_path,))
+            else:
+                cursor.execute("SELECT * FROM tracked_paths")
+            
+            tracked_paths = cursor.fetchall()
+            
+            if not tracked_paths:
+                conn.close()
+                if path:
+                    return {
+                        "success": False,
+                        "error": f"Path not being tracked: {path}"
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "message": "No paths being tracked",
+                        "changes": []
+                    }
+            
+            all_changes = []
+            
+            for tracked in tracked_paths:
+                tracked_path = tracked['path']
+                recursive = bool(tracked['recursive'])
+                
+                # Get current file state records
+                if recursive and os.path.isdir(tracked_path):
+                    cursor.execute('''
+                    SELECT * FROM file_state 
+                    WHERE path = ? OR path LIKE ?
+                    ''', (tracked_path, tracked_path + "/%"))
+                else:
+                    cursor.execute("SELECT * FROM file_state WHERE path = ?", (tracked_path,))
+                
+                file_states = {row['path']: row for row in cursor.fetchall()}
+                
+                # Scan filesystem for current state
+                paths_checked = set()
+                
+                if os.path.exists(tracked_path):
+                    if os.path.isdir(tracked_path):
+                        # Directory
+                        paths_checked.add(tracked_path)
+                        
+                        if not tracked_path in file_states:
+                            # New directory
+                            change = {
+                                "path": tracked_path,
+                                "type": "directory",
+                                "change": "created"
+                            }
+                            all_changes.append(change)
+                            
+                            if not report_only:
+                                _add_journal_entry(tracked_path, "CREATE", "Directory created", None, None)
+                        
+                        if recursive:
+                            # Walk the directory
+                            for root, dirs, files in os.walk(tracked_path):
+                                for d in dirs:
+                                    dir_path = os.path.join(root, d)
+                                    paths_checked.add(dir_path)
+                                    
+                                    if not dir_path in file_states:
+                                        # New directory
+                                        change = {
+                                            "path": dir_path,
+                                            "type": "directory",
+                                            "change": "created"
+                                        }
+                                        all_changes.append(change)
+                                        
+                                        if not report_only:
+                                            _add_journal_entry(dir_path, "CREATE", "Directory created", None, None)
+                                
+                                for f in files:
+                                    file_path = os.path.join(root, f)
+                                    paths_checked.add(file_path)
+                                    
+                                    checksum = _get_file_checksum(file_path)
+                                    size = os.path.getsize(file_path)
+                                    
+                                    if not file_path in file_states:
+                                        # New file
+                                        change = {
+                                            "path": file_path,
+                                            "type": "file",
+                                            "change": "created",
+                                            "size": size,
+                                            "checksum": checksum
+                                        }
+                                        all_changes.append(change)
+                                        
+                                        if not report_only:
+                                            _add_journal_entry(file_path, "CREATE", "File created", checksum, size)
+                                    else:
+                                        # Existing file, check for changes
+                                        state = file_states[file_path]
+                                        if state['checksum'] != checksum:
+                                            # File modified
+                                            change = {
+                                                "path": file_path,
+                                                "type": "file",
+                                                "change": "modified",
+                                                "old_size": state['size'],
+                                                "new_size": size,
+                                                "old_checksum": state['checksum'],
+                                                "new_checksum": checksum
+                                            }
+                                            all_changes.append(change)
+                                            
+                                            if not report_only:
+                                                _add_journal_entry(file_path, "MODIFY", "File modified", checksum, size)
+                    else:
+                        # Single file
+                        paths_checked.add(tracked_path)
+                        
+                        checksum = _get_file_checksum(tracked_path)
+                        size = os.path.getsize(tracked_path)
+                        
+                        if not tracked_path in file_states:
+                            # New file
+                            change = {
+                                "path": tracked_path,
+                                "type": "file",
+                                "change": "created",
+                                "size": size,
+                                "checksum": checksum
+                            }
+                            all_changes.append(change)
+                            
+                            if not report_only:
+                                _add_journal_entry(tracked_path, "CREATE", "File created", checksum, size)
+                        else:
+                            # Existing file, check for changes
+                            state = file_states[tracked_path]
+                            if state['checksum'] != checksum:
+                                # File modified
+                                change = {
+                                    "path": tracked_path,
+                                    "type": "file",
+                                    "change": "modified",
+                                    "old_size": state['size'],
+                                    "new_size": size,
+                                    "old_checksum": state['checksum'],
+                                    "new_checksum": checksum
+                                }
+                                all_changes.append(change)
+                                
+                                if not report_only:
+                                    _add_journal_entry(tracked_path, "MODIFY", "File modified", checksum, size)
+                
+                # Check for deleted files
+                for path, state in file_states.items():
+                    if path not in paths_checked and bool(state['exists']):
+                        # File or directory no longer exists
+                        change = {
+                            "path": path,
+                            "type": "file" if not bool(state['is_dir']) else "directory",
+                            "change": "deleted"
+                        }
+                        all_changes.append(change)
+                        
+                        if not report_only:
+                            _add_journal_entry(path, "DELETE", "File or directory deleted", None, None)
+                
+                # Update last_sync
+                if not report_only:
+                    timestamp = datetime.datetime.now().isoformat()
+                    cursor.execute('''
+                    UPDATE tracked_paths SET last_sync = ? WHERE path = ?
+                    ''', (timestamp, tracked_path))
+            
+            if not report_only:
+                conn.commit()
+            
+            conn.close()
+            
+            return {
+                "success": True,
+                "paths_checked": len(tracked_paths),
+                "changes": all_changes,
+                "count": len(all_changes),
+                "report_only": report_only
+            }
+            
+        except Exception as e:
+            logger.error(f"Error syncing journal: {e}")
+            return {"success": False, "error": str(e)}
     
-    journal = ctx.server.fs_journal
-    await ctx.info(f"Getting history for path: {path or 'all paths'}")
-    
+    # Register all tools with the MCP server
     try:
-        history = journal.get_history(path, limit)
-        await ctx.info(f"Found {len(history)} operations")
-        return {
-            "success": True,
-            "path": path,
-            "limit": limit,
-            "count": len(history),
-            "operations": history
-        }
+        server.register_tool("fs_journal_track", fs_journal_track)
+        server.register_tool("fs_journal_untrack", fs_journal_untrack)
+        server.register_tool("fs_journal_list_tracked", fs_journal_list_tracked)
+        server.register_tool("fs_journal_get_history", fs_journal_get_history)
+        server.register_tool("fs_journal_sync", fs_journal_sync)
+        
+        logger.info("✅ Filesystem journal tools registered successfully")
+        return True
     except Exception as e:
-        error_msg = f"Error getting history: {str(e)}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"error": error_msg}
-
-async def fs_journal_sync_handler(ctx, path: Optional[str] = None) -> Dict[str, Any]:
-    """Handle request to sync the filesystem journal to disk"""
-    from mcp.server.fastmcp import Context
-    
-    if not isinstance(ctx, Context):
-        return {"error": "Invalid context"}
-        
-    if not hasattr(ctx.server, "fs_journal"):
-        await ctx.error("FS Journal not initialized")
-        return {"error": "FS Journal not initialized"}
-    
-    journal = ctx.server.fs_journal
-    await ctx.info(f"Syncing {'path: ' + path if path else 'all cached files'} to disk")
-    
-    try:
-        result = journal.sync_to_disk(path)
-        await ctx.info(f"Synced {result['synced_files']} files to disk")
-        return result
-    except Exception as e:
-        error_msg = f"Error syncing to disk: {str(e)}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"error": error_msg}
-
-async def ipfs_fs_bridge_status_handler(ctx) -> Dict[str, Any]:
-    """Handle request to get status of the IPFS-FS bridge"""
-    from mcp.server.fastmcp import Context
-    
-    if not isinstance(ctx, Context):
-        return {"error": "Invalid context"}
-        
-    if not hasattr(ctx.server, "ipfs_fs_bridge"):
-        await ctx.error("IPFS-FS Bridge not initialized")
-        return {"error": "IPFS-FS Bridge not initialized"}
-    
-    bridge = ctx.server.ipfs_fs_bridge
-    await ctx.info("Getting IPFS-FS bridge status")
-    
-    try:
-        status = bridge.get_status()
-        await ctx.info(f"IPFS-FS bridge has {status['mappings_count']} mappings and {status['cids_count']} CIDs")
-        return status
-    except Exception as e:
-        error_msg = f"Error getting bridge status: {str(e)}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"error": error_msg}
-
-async def ipfs_fs_bridge_sync_handler(ctx, direction: str = "both") -> Dict[str, Any]:
-    """Handle request to sync between IPFS and the filesystem"""
-    from mcp.server.fastmcp import Context
-    
-    if not isinstance(ctx, Context):
-        return {"error": "Invalid context"}
-        
-    if not hasattr(ctx.server, "ipfs_fs_bridge") or not hasattr(ctx.server, "fs_journal"):
-        await ctx.error("IPFS-FS Bridge or FS Journal not initialized")
-        return {"error": "IPFS-FS Bridge or FS Journal not initialized"}
-    
-    bridge = ctx.server.ipfs_fs_bridge
-    journal = ctx.server.fs_journal
-    
-    await ctx.info(f"Syncing between IPFS and filesystem (direction: {direction})")
-    
-    try:
-        result = {
-            "success": True,
-            "direction": direction,
-            "synced_to_ipfs": 0,
-            "synced_to_fs": 0,
-            "errors": []
-        }
-        
-        # Sync filesystem changes to disk first
-        if direction in ["both", "to_disk"]:
-            disk_sync = journal.sync_to_disk()
-            result["synced_to_fs"] = disk_sync["synced_files"]
-            if not disk_sync["success"]:
-                result["errors"].extend(disk_sync["errors"])
-        
-        await ctx.info(f"Sync completed: {result['synced_to_ipfs']} files to IPFS, {result['synced_to_fs']} files to filesystem")
-        return result
-    except Exception as e:
-        error_msg = f"Error during sync: {str(e)}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"error": error_msg}
-
-def register_fs_journal_tools(server) -> None:
-    """Register FS Journal and IPFS-FS Bridge tools with MCP server"""
-    from mcp.server.fastmcp import FastMCP
-    
-    if not isinstance(server, FastMCP):
-        logger.error(f"Invalid server type: {type(server)}")
-        return
-    
-    try:
-        # Create and attach journal and bridge to server
-        journal, bridge = create_journal_and_bridge(os.getcwd())
-        server.fs_journal = journal
-        server.ipfs_fs_bridge = bridge
-        
-        # Register tools
-        server.tool(name="fs_journal_get_history", description="Get the operation history for a path in the virtual filesystem")(fs_journal_get_history_handler)
-        server.tool(name="fs_journal_sync", description="Force synchronization between virtual filesystem and actual storage")(fs_journal_sync_handler)
-        server.tool(name="ipfs_fs_bridge_status", description="Get the status of the IPFS-FS bridge")(ipfs_fs_bridge_status_handler)
-        server.tool(name="ipfs_fs_bridge_sync", description="Sync between IPFS and virtual filesystem")(ipfs_fs_bridge_sync_handler)
-        
-        logger.info("✅ Successfully registered FS Journal and IPFS-FS Bridge tools with MCP server")
-    except Exception as e:
-        logger.error(f"Failed to register FS Journal tools: {e}")
+        logger.error(f"Error registering filesystem journal tools: {e}")
+        return False
 
 if __name__ == "__main__":
-    # For testing/demonstration
-    journal, bridge = create_journal_and_bridge(os.getcwd())
-    
-    # Record some sample operations
-    journal.record_operation(FSOperation(
-        operation_type=FSOperationType.READ,
-        path="/test/file1.txt"
-    ))
-    
-    journal.record_operation(FSOperation(
-        operation_type=FSOperationType.WRITE,
-        path="/test/file1.txt",
-        metadata={"size": 1024}
-    ))
-    
-    # Get and print history
-    history = journal.get_history()
-    print(json.dumps(history, indent=2))
+    logger.info("This module should be imported, not run directly.")
+    logger.info("To use these tools, import and register them with an MCP server.")

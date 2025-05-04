@@ -1,213 +1,220 @@
-# IPFS Tool Coverage Enhancement
+# IPFS MCP Tools Comprehensive Coverage
 
-This document explains the work done to enhance the IPFS tool coverage in the MCP server to include all features of ipfs_kit_py and integrate them with the virtual filesystem.
-
-## What Has Been Fixed and Enhanced
-
-1. **Fixed IPFS Tools Integration**
-   - Added proper mock implementations for IPFS functions when extensions aren't available
-   - Fixed "possibly unbound" errors in the ipfs_mcp_tools_integration.py file
-   - Ensured all required functions are properly defined regardless of import status
-
-2. **Unified Tool Registration**
-   - Created centralized tool registration through register_all_backend_tools.py
-   - Ensured consistent initialization of all components
-   - Simplified MCP server setup with single registration call
-
-3. **Multi-Backend Integration**
-   - Integrated virtual filesystem operations with IPFS functionality
-   - Added support for multiple storage backends (S3, HuggingFace, Filecoin, etc.)
-   - Connected filesystem journal tracking with IPFS operations
-
-4. **Improved Management Scripts**
-   - Enhanced startup script (start_enhanced_mcp_server.sh) with feature information
-   - Added clean shutdown script (stop_enhanced_mcp_server.sh)
-   - Created verification tool to check available functionality (verify_tools.py)
+This document provides an overview of the enhanced IPFS tool coverage implementation, which integrates IPFS functionality with the virtual filesystem through the MCP server.
 
 ## Architecture Overview
 
-The enhanced integration uses a layered approach:
+The IPFS MCP Tools architecture consists of several modular components that work together to provide comprehensive tool coverage for IPFS operations. The system is designed to be extensible, modular, and fault-tolerant.
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│                      MCP Server                           │
-└───────────────────┬───────────────────┬──────────────────┘
-                    │                   │                    
-┌───────────────────▼───┐  ┌────────────▼───────────┐  ┌───────────────────┐
-│  IPFS Core Operations │  │ Filesystem Operations  │  │  Multi-Backend    │
-│  - add_content        │  │ - fs_journal_track     │  │  Storage          │
-│  - cat                │  │ - fs_journal_get       │  │  - HuggingFace    │
-│  - pin_add/rm/ls      │  │ - fs_journal_sync      │  │  - S3             │
-│  - files_*            │  └──────────┬─────────────┘  │  - Filecoin       │
-└─────────┬─────────────┘             │                │  - Storacha       │
-          │                           │                └────────┬──────────┘
-          │             ┌─────────────▼─────────────┐          │
-          └─────────────►   IPFS-FS Bridge Layer    ◄──────────┘
-                        │ - ipfs_fs_bridge_map      │
-                        │ - ipfs_fs_bridge_sync     │
-                        │ - ipfs_fs_bridge_prefetch │
-                        └───────────────────────────┘
+                 ┌─────────────────────┐
+                 │   MCP Server        │
+                 └─────────┬───────────┘
+                           │
+                           ▼
+            ┌─────────────────────────────┐
+            │     ipfs_mcp_tools.py       │
+            │  (Main Integration Module)   │
+            └─┬─────────┬──────────┬──────┘
+              │         │          │
+┌─────────────▼─┐ ┌─────▼───────┐ ┌▼─────────────────┐ ┌─────────────────────┐
+│ipfs_mcp_tools_│ │fs_journal_  │ │ipfs_mcp_fs_      │ │multi_backend_fs_    │
+│_integration.py│ │tools.py     │ │integration.py    │ │integration.py       │
+│(Core IPFS     │ │(Filesystem  │ │(IPFS-FS Bridge)  │ │(Multiple Storage    │
+│Operations)    │ │Journal)     │ │                  │ │Backends)            │
+└───────────────┘ └─────────────┘ └──────────────────┘ └─────────────────────┘
 ```
 
-## Available Tool Categories
+## Components
 
-The enhanced integration provides tools in the following categories:
+### 1. ipfs_mcp_tools.py
 
-1. **IPFS Core Tools**
-   - Basic IPFS operations (add, cat, pin)
-   - Mutable File System operations (files_ls, files_mkdir, etc.)
-   - IPFS network and node management
+The main integration module that serves as the entry point for registering all IPFS Kit tools with an MCP server. It imports and coordinates the other modules, handling their registration with the MCP server.
 
-2. **FS Journal Tools**
-   - Track filesystem operations
-   - Query operation history
-   - Sync operations between memory and storage
+**Key Functions:**
+- `register_tools()`: Main entry point that registers all tools from all modules
+- `get_ipfs_controller()`: Helper function to obtain an IPFS controller instance
+- `get_ipfs_model()`: Helper function to obtain an IPFS model instance
 
-3. **IPFS-FS Bridge Tools**
-   - Map IPFS paths to local filesystem
-   - Synchronize content between IPFS and local filesystem
-   - Prefetch content from IPFS to local cache
+### 2. ipfs_mcp_tools_integration.py
 
-4. **Multi-Backend Storage Tools**
-   - Initialize various storage backends
-   - Map virtual paths across backends
-   - Convert data between formats
-   - Search across multiple storage backends
+Provides core IPFS operations as MCP tools, including basic IPFS commands and MFS (Mutable File System) operations.
 
-## Usage Guide
+**Tool Categories:**
+- **IPFS Core Tools**: 
+  - `ipfs_add`: Add content to IPFS
+  - `ipfs_cat`: Retrieve content from IPFS
+  - `ipfs_ls`: List links in an IPFS object
+  - `ipfs_pin_ls`: List pinned objects
+  - `ipfs_id`: Show IPFS node information
 
-### Starting the Enhanced MCP Server
+- **IPFS MFS Tools**: 
+  - `ipfs_files_ls`: List directories in MFS
+  - `ipfs_files_mkdir`: Create directories in MFS
+  - `ipfs_files_write`: Write to files in MFS
+  - `ipfs_files_read`: Read from files in MFS
+  - `ipfs_files_rm`: Remove files/directories
+  - `ipfs_files_stat`: Get file/directory status
+  - `ipfs_files_cp`: Copy files/directories
+  - `ipfs_files_mv`: Move files/directories
+  - `ipfs_files_flush`: Flush changes to IPFS
 
-```bash
-./start_enhanced_mcp_server.sh
-```
+### 3. fs_journal_tools.py
 
-This script will:
-1. Stop any running MCP server
-2. Start the enhanced server with all integrations
-3. Display available features
+Provides tools for tracking changes between IPFS and the local filesystem, creating a journal of operations performed on files/directories.
 
-### Viewing Available Tools
+**Tools:**
+- `fs_journal_get_history`: Get history of file operations
+- `fs_journal_sync`: Synchronize journal with current filesystem state
+- `fs_journal_track`: Start tracking a file or directory
+- `fs_journal_untrack`: Stop tracking a file or directory
 
-```bash
-python verify_tools.py
-```
+### 4. ipfs_mcp_fs_integration.py
 
-This script connects to the running MCP server and displays all available tools organized by category.
+Bridges IPFS and the local filesystem, enabling seamless operations across both systems.
 
-### Stopping the Server
+**Tools:**
+- `ipfs_fs_bridge_status`: Get status of the IPFS-FS bridge
+- `ipfs_fs_bridge_map`: Map a filesystem path to an IPFS path
+- `ipfs_fs_bridge_unmap`: Unmap a filesystem path
+- `ipfs_fs_bridge_list_mappings`: List all mapped paths
+- `ipfs_fs_bridge_sync`: Synchronize filesystem changes to IPFS
 
-```bash
-./stop_enhanced_mcp_server.sh
-```
+### 5. multi_backend_fs_integration.py
 
-### Using the Integration in Your Code
+Provides integration between various storage backends and the filesystem, allowing operations across different storage systems through a unified interface.
 
-To use the integration in your custom scripts:
+**Tools:**
+- `mbfs_register_backend`: Register a new storage backend
+- `mbfs_get_backend`: Get information about a backend
+- `mbfs_list_backends`: List all registered backends
+- `mbfs_store`: Store content using a backend
+- `mbfs_retrieve`: Retrieve content from a backend
+- `mbfs_delete`: Delete content from a backend
+- `mbfs_list`: List content in a backend
+
+## Virtual Filesystem Integration
+
+The components work together to integrate IPFS with the virtual filesystem:
+
+1. **Filesystem Journal** tracks changes between the local filesystem and IPFS, creating an audit trail of operations.
+
+2. **IPFS-FS Bridge** maps paths between the filesystem and IPFS, enabling bi-directional operations and synchronization.
+
+3. **Multi-Backend Filesystem** provides a unified interface for working with multiple storage backends (IPFS, Filecoin, S3, local filesystem, etc.) through a common API.
+
+Together, these components enable:
+
+- **Transparent Access**: Access IPFS content as if it were local files
+- **Background Synchronization**: Automatically sync changes between the filesystem and IPFS
+- **Content Addressing**: Leverage IPFS's content addressing while working with familiar file paths
+- **Multi-Backend Storage**: Store and retrieve data across multiple storage systems seamlessly
+
+## Verification
+
+The `verify_ipfs_tools.py` script can be used to verify the availability and functionality of all IPFS tools. It provides a comprehensive check of tool registration and basic functionality.
+
+## Usage Examples
+
+### Register All Tools with an MCP Server
 
 ```python
-import requests
+import ipfs_mcp_tools
+from my_mcp_server import server
 
-# MCP Server URL
-MCP_URL = "http://127.0.0.1:3000"
-
-# Example: Use IPFS file operations
-response = requests.post(f"{MCP_URL}/jsonrpc", json={
-    "jsonrpc": "2.0", 
-    "method": "use_tool",
-    "params": {
-        "tool_name": "ipfs_files_write",
-        "arguments": {
-            "ctx": "default",
-            "path": "/my-file.txt",
-            "content": "Hello, IPFS!"
-        }
-    },
-    "id": 1
-})
-result = response.json()
-
-# Example: Use FS Journal to track operations
-response = requests.post(f"{MCP_URL}/jsonrpc", json={
-    "jsonrpc": "2.0", 
-    "method": "use_tool",
-    "params": {
-        "tool_name": "fs_journal_track",
-        "arguments": {
-            "path": "./local/data",
-            "recursive": "true" 
-        }
-    },
-    "id": 2
-})
+# Register all tools with an MCP server
+success = ipfs_mcp_tools.register_tools(server)
+if success:
+    print("All IPFS tools registered successfully")
+else:
+    print("Some IPFS tools failed to register")
 ```
 
-## Advanced Integration Examples
-
-### Multi-Backend Storage with IPFS
+### Working with IPFS MFS
 
 ```python
-# Initialize HuggingFace backend
-response = requests.post(f"{MCP_URL}/jsonrpc", json={
-    "jsonrpc": "2.0", 
-    "method": "use_tool",
-    "params": {
-        "tool_name": "multi_backend_init_huggingface",
-        "arguments": {
-            "mount_point": "/hf",
-            "cache_dir": "./cache/huggingface"
-        }
-    },
-    "id": 1
+# Using the MCP tools to work with IPFS MFS
+await server.execute_tool("ipfs_files_mkdir", {
+    "path": "/my_directory",
+    "parents": True
 })
 
-# Map a model to IPFS storage
-response = requests.post(f"{MCP_URL}/jsonrpc", json={
-    "jsonrpc": "2.0", 
-    "method": "use_tool",
-    "params": {
-        "tool_name": "ipfs_fs_bridge_map",
-        "arguments": {
-            "ipfs_path": "/ipfs/QmModelHash",
-            "local_path": "/hf/models/bert-base"
-        }
-    },
-    "id": 2
+await server.execute_tool("ipfs_files_write", {
+    "path": "/my_directory/hello.txt",
+    "content": "Hello, IPFS!",
+    "create": True
 })
 
-# Use the model through the mapped path
-response = requests.post(f"{MCP_URL}/jsonrpc", json={
-    "jsonrpc": "2.0", 
-    "method": "use_tool",
-    "params": {
-        "tool_name": "huggingface_model_inference",
-        "arguments": {
-            "model_path": "/hf/models/bert-base",
-            "input": "Hello world"
-        }
-    },
-    "id": 3
+result = await server.execute_tool("ipfs_files_read", {
+    "path": "/my_directory/hello.txt"
+})
+print(result["content"])  # Output: Hello, IPFS!
+```
+
+### Mapping Filesystem to IPFS
+
+```python
+# Map a local directory to IPFS
+await server.execute_tool("ipfs_fs_bridge_map", {
+    "fs_path": "/path/to/local/dir",
+    "ipfs_path": "/ipfs-fs/my-data",
+    "recursive": True
+})
+
+# Synchronize changes to IPFS
+await server.execute_tool("ipfs_fs_bridge_sync")
+
+# Get bridge status
+status = await server.execute_tool("ipfs_fs_bridge_status")
+print(f"Mapped {status['mappings_count']} paths")
+```
+
+### Working with Multiple Storage Backends
+
+```python
+# Register IPFS and S3 backends
+await server.execute_tool("mbfs_register_backend", {
+    "backend_id": "my-ipfs",
+    "backend_type": "ipfs",
+    "make_default": True
+})
+
+await server.execute_tool("mbfs_register_backend", {
+    "backend_id": "my-s3",
+    "backend_type": "s3",
+    "config": {
+        "bucket": "my-data-bucket"
+    }
+})
+
+# Store content on S3
+s3_result = await server.execute_tool("mbfs_store", {
+    "content": "Hello from S3!",
+    "backend_id": "my-s3",
+    "path": "hello.txt"
+})
+
+# Store content on IPFS (using default backend)
+ipfs_result = await server.execute_tool("mbfs_store", {
+    "content": "Hello from IPFS!"
+})
+
+# Retrieve content from anywhere using URI
+s3_content = await server.execute_tool("mbfs_retrieve", {
+    "uri": s3_result["uri"]
+})
+
+ipfs_content = await server.execute_tool("mbfs_retrieve", {
+    "uri": ipfs_result["uri"]
 })
 ```
 
-## Contributing New Storage Backends
+## Using the Verification Script
 
-To add a new storage backend:
+The verification script helps ensure all tools are properly registered and functioning:
 
-1. Create a new Python module in `multi_backend_fs_integration.py` that implements:
-   - `init_backend` function to initialize the backend
-   - `map_path` function to map virtual paths to backend paths
-   - `sync` function to synchronize content
+```bash
+python verify_ipfs_tools.py
+```
 
-2. Add registration for your backend tools in the `register_multi_backend_tools` function.
-
-3. Test your integration using the verification script.
-
-## Troubleshooting
-
-If you encounter issues:
-
-1. Check the MCP server logs: `tail -f mcp_server.log`
-2. Verify all required modules are installed
-3. Check that the MCP server is running: `ps aux | grep direct_mcp_server.py`
-4. Restart the server with the provided script
+This will output a comprehensive report of tool availability and test results.

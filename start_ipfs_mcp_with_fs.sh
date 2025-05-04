@@ -1,107 +1,91 @@
 #!/bin/bash
-# Start the MCP server with IPFS and FS Journal integration
+# Start IPFS MCP Server with Comprehensive Filesystem Tools
+# This script sets up and starts an IPFS MCP server with all virtual filesystem tools enabled
 
-# Make the scripts executable
-chmod +x fs_journal_tools.py ipfs_mcp_fs_integration.py
+set -e  # Exit on error
 
-# Set up Python path
-export PYTHONPATH=$(pwd):$PYTHONPATH
+echo "==== Starting IPFS MCP Server with Virtual Filesystem Integration ===="
 
-# Create a patch file for direct_mcp_server.py
-cat > patch_mcp_server.py << 'EOL'
-#!/usr/bin/env python3
-"""Patch the MCP server to include FS Journal integration"""
+# Check if IPFS is running
+if ! pgrep -x "ipfs" > /dev/null; then
+    echo "Starting IPFS daemon..."
+    ipfs daemon --enable-pubsub-experiment &
+    IPFS_PID=$!
+    # Give IPFS time to start
+    sleep 5
+    echo "IPFS daemon started with PID $IPFS_PID"
+else
+    echo "IPFS daemon is already running"
+fi
 
+# Python environment check
+if ! command -v python3 &> /dev/null; then
+    echo "Python 3 is not installed. Please install Python 3 and try again."
+    exit 1
+fi
+
+echo "Python 3 found: $(python3 --version)"
+
+# Check for required Python modules
+echo "Checking for required Python modules..."
+python3 -c "import asyncio, aiohttp, fastapi, uvicorn" 2>/dev/null || {
+    echo "Installing required Python modules..."
+    pip install asyncio aiohttp fastapi uvicorn
+}
+
+# Verify all IPFS tools are available
+echo "Verifying IPFS tools..."
+python3 verify_ipfs_tools.py
+
+# Check if verification was successful
+if [ $? -ne 0 ]; then
+    echo "Tool verification failed. Please check the errors above."
+    exit 1
+fi
+
+# Create required directories
+mkdir -p logs data
+
+# Start the MCP server
+echo "Starting MCP server with IPFS integration..."
+python3 -c "
 import os
 import sys
-import re
+import asyncio
 
-def patch_mcp_server():
-    """Add FS Journal integration to the MCP server"""
-    file_path = "direct_mcp_server.py"
+# Add current directory to path
+sys.path.append(os.getcwd())
+
+# Import necessary modules
+import ipfs_mcp_tools
+from direct_mcp_server import DirectMCPServer
+
+# Create and initialize MCP server
+async def start_server():
+    print('Initializing MCP server...')
+    server = DirectMCPServer()
+    print('Registering IPFS tools with MCP server...')
+    success = ipfs_mcp_tools.register_tools(server)
     
-    if not os.path.exists(file_path):
-        print(f"Error: {file_path} not found!")
-        return False
+    if not success:
+        print('Failed to register IPFS tools. Exiting.')
+        return
     
-    with open(file_path, "r") as f:
-        content = f.read()
-    
-    # Check if already patched
-    if "ipfs_mcp_fs_integration" in content:
-        print("MCP server already patched with FS Journal integration")
-        return True
-    
-    # Add the import
-    import_line = "# FS Journal and IPFS Bridge integration\nimport ipfs_mcp_fs_integration"
-    last_import_match = list(re.finditer(r"^(?:import|from)\s+.*$", content, re.MULTILINE))[-1]
-    if last_import_match:
-        content = content[:last_import_match.end()] + "\n" + import_line + content[last_import_match.end():]
-    
-    # Find the server initialization line
-    server_init_match = re.search(r"server\s*=\s*FastMCP", content)
-    if server_init_match:
-        # Add the integration call after server initialization
-        next_line_match = re.search(r"\n\s*\S", content[server_init_match.end():])
-        if next_line_match:
-            pos = server_init_match.end() + next_line_match.start()
-            integration_call = "\n# Register FS Journal tools\nipfs_mcp_fs_integration.register_with_mcp_server(server)\n"
-            content = content[:pos] + integration_call + content[pos:]
-    
-    # Write the patched content back
-    with open(file_path, "w") as f:
-        f.write(content)
-    
-    print(f"Successfully patched {file_path} with FS Journal integration")
-    return True
+    print('Starting server...')
+    await server.start(host='0.0.0.0', port=8000)
+    print('Server started!')
 
-if __name__ == "__main__":
-    patch_mcp_server()
-EOL
+# Run the server
+asyncio.run(start_server())
+" > logs/mcp_server.log 2>&1 &
 
-# Make the patch script executable
-chmod +x patch_mcp_server.py
+MCP_PID=$!
+echo "MCP server started with PID $MCP_PID"
 
-# Run the patch script
-python patch_mcp_server.py
+# Save PIDs for cleanup
+echo "$IPFS_PID" > ./ipfs_pid.txt
+echo "$MCP_PID" > ./mcp_pid.txt
 
-# Verify the integration files
-echo "Verifying IPFS integration files..."
-FILES_TO_CHECK="ipfs_tools_registry.py ipfs_mcp_tools_integration.py fs_journal_tools.py ipfs_mcp_fs_integration.py"
-MISSING=""
-for FILE in $FILES_TO_CHECK; do
-  if [ ! -f "$FILE" ]; then
-    MISSING="$MISSING $FILE"
-  fi
-done
-
-if [ -n "$MISSING" ]; then
-  echo "Error: Missing required files:$MISSING"
-  exit 1
-fi
-
-# Stop any running MCP servers
-ps aux | grep "direct_mcp_server.py" | grep -v grep | awk '{print $2}' | xargs -r kill -15
-
-# Start the MCP server with our integration
-echo "Starting MCP server with IPFS and FS Journal integration..."
-python direct_mcp_server.py --host=127.0.0.1 --port=3000 --log-level=DEBUG &
-
-# Wait for the server to start
-sleep 3
-
-# Check if the server is running
-if ps aux | grep -q "[d]irect_mcp_server.py"; then
-  echo "✅ MCP server started successfully with IPFS and FS Journal integration"
-  echo "ℹ️ Server is running at http://127.0.0.1:3000"
-else
-  echo "❌ Failed to start MCP server"
-  exit 1
-fi
-
-echo "
-To verify the integration, you can:
-- Test the FS Journal tools using: python verify_ipfs_tools.py 
-- Run a sample operation: python fs_journal_tools.py
-- Check the MCP server logs for registration messages
-"
+echo "==== IPFS MCP Server with Filesystem Integration is now running ===="
+echo "The server is available at: http://localhost:8000"
+echo "To stop the server, run: ./stop_ipfs_mcp.sh"

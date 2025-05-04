@@ -1,138 +1,100 @@
 #!/usr/bin/env python3
 """
-Fix for Direct MCP Server SSE Handling
-
-This script fixes the "Request already responded to" assertion error
-that occurs in the direct MCP server's SSE implementation.
+Fix syntax error in direct_mcp_server_with_tools.py
 """
 
 import os
 import sys
-import argparse
 import logging
-import re
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-def check_session_fix(file_path):
-    """Check if the session.py file already has the fix."""
+def fix_syntax_error():
+    """Fix the syntax error in direct_mcp_server_with_tools.py"""
     try:
-        with open(file_path, 'r') as f:
+        # Check if the file exists
+        if not os.path.exists("direct_mcp_server_with_tools.py"):
+            logger.error("direct_mcp_server_with_tools.py not found")
+            return False
+        
+        # Read the file content
+        with open("direct_mcp_server_with_tools.py", "r") as f:
             content = f.read()
         
-        # Look for the guard line that's already in the file
-        guard_line = 'if self._completed:'
-        if guard_line in content:
-            logger.info(f"✅ Session.py already has the fix implemented")
+        # Find the problematic section
+        if "tools = [" in content and "])" in content:
+            # Fix the syntax error by replacing "])" with "]"
+            fixed_content = content.replace("])", "]")
+            
+            # Write the fixed content back to the file
+            with open("direct_mcp_server_with_tools.py", "w") as f:
+                f.write(fixed_content)
+            
+            logger.info("✅ Fixed syntax error in direct_mcp_server_with_tools.py")
             return True
         else:
-            logger.error(f"❌ Session.py doesn't have the fix, but we expected it to")
+            # If we can't find the exact issue, let's try a more general approach
+            # Find the last occurrence of the tools array
+            tools_start = content.rfind("tools = [")
+            if tools_start != -1:
+                # Find the matching closing bracket
+                bracket_count = 1
+                pos = tools_start + len("tools = [")
+                while pos < len(content) and bracket_count > 0:
+                    if content[pos] == '[':
+                        bracket_count += 1
+                    elif content[pos] == ']':
+                        bracket_count -= 1
+                    pos += 1
+                
+                if pos < len(content):
+                    # We found the closing bracket, now check if there's an extra parenthesis
+                    if pos < len(content) and content[pos] == ')':
+                        # Remove the extra parenthesis
+                        fixed_content = content[:pos] + content[pos+1:]
+                        
+                        # Write the fixed content back to the file
+                        with open("direct_mcp_server_with_tools.py", "w") as f:
+                            f.write(fixed_content)
+                        
+                        logger.info("✅ Fixed syntax error in direct_mcp_server_with_tools.py")
+                        return True
+            
+            # If we still can't fix it, let's try to find the unmatched parenthesis
+            lines = content.split('\n')
+            for i, line in enumerate(lines):
+                if line.strip() == ')':
+                    # This is likely the unmatched parenthesis
+                    lines[i] = '# Removed unmatched parenthesis'
+                    
+                    # Write the fixed content back to the file
+                    with open("direct_mcp_server_with_tools.py", "w") as f:
+                        f.write('\n'.join(lines))
+                    
+                    logger.info("✅ Fixed syntax error in direct_mcp_server_with_tools.py")
+                    return True
+            
+            logger.error("Could not identify the syntax error in direct_mcp_server_with_tools.py")
             return False
-    except Exception as e:
-        logger.error(f"❌ Error checking session.py: {e}")
-        return False
-
-def fix_sse_handler(file_path):
-    """Fix the SSE handler in the server.py file."""
-    try:
-        with open(file_path, 'r') as f:
-            content = f.read()
-        
-        # Look for the first respond line
-        respond_line1 = 'await message.respond(response)'
-        # Look for the second respond line (multiline)
-        respond_pattern2 = r'await message\.respond\(\s*types\.ErrorData\([^)]+\)[^)]+\)[^)]+\)'
-        
-        if respond_line1 not in content:
-            logger.error(f"Could not find the first message.respond pattern in {file_path}")
-            return False
-        
-        # Create a regex pattern to match the second respond call
-        import re
-        respond_match2 = re.search(respond_pattern2, content, re.DOTALL)
-        if not respond_match2:
-            logger.error(f"Could not find the second message.respond pattern in {file_path}")
-            logger.info("Continuing with fixing only the first pattern...")
-        
-        # Wrap the first respond call in a try-except block
-        modified_content = content.replace(
-            respond_line1,
-            'try:\n            await message.respond(response)\n        except Exception as e:\n            logger.warning(f"Error responding to message: {e}")'
-        )
-        
-        # If we found the second respond pattern, wrap it too
-        if respond_match2:
-            original_code = respond_match2.group(0)
-            indentation = '            '  # Preserve indentation
-            modified_code = f"try:\n{indentation}{original_code}\n{indentation}except Exception as e:\n{indentation}    logger.warning(f\"Error responding to error message: {{e}}\")"
-            modified_content = modified_content.replace(original_code, modified_code)
-        
-        # Write the updated content back to the file
-        with open(file_path, 'w') as f:
-            f.write(modified_content)
-        
-        logger.info(f"✅ Updated {file_path} to fix the SSE handler")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Error fixing server.py: {e}")
-        return False
-
-def find_sdk_path():
-    """Find the MCP SDK path."""
-    possible_paths = [
-        os.path.expanduser("~/ipfs_kit_py/docs/mcp-python-sdk/src"),
-        "./docs/mcp-python-sdk/src",
-        "../docs/mcp-python-sdk/src"
-    ]
     
-    for path in possible_paths:
-        if os.path.exists(path) and os.path.isdir(path):
-            return path
-    
-    return None
+    except Exception as e:
+        logger.error(f"Error fixing syntax error: {e}")
+        return False
 
 def main():
-    """Main function to apply fixes to the direct MCP server."""
-    parser = argparse.ArgumentParser(description="Fix Direct MCP Server SSE Handling")
-    parser.add_argument("--sdk-path", help="Path to the MCP SDK", default=None)
-    args = parser.parse_args()
+    """Main function"""
+    logger.info("Starting to fix syntax error in direct_mcp_server_with_tools.py...")
     
-    # Find the SDK path
-    sdk_path = args.sdk_path or find_sdk_path()
-    if not sdk_path:
-        logger.error("❌ Could not find the MCP SDK path")
-        logger.error("Please specify the path using --sdk-path")
-        sys.exit(1)
+    # Fix syntax error
+    if not fix_syntax_error():
+        logger.error("❌ Failed to fix syntax error")
+        return 1
     
-    logger.info(f"Using MCP SDK path: {sdk_path}")
-    
-    # Check the session.py file - it should already have the fix
-    session_path = os.path.join(sdk_path, "mcp", "shared", "session.py")
-    if not os.path.exists(session_path):
-        logger.error(f"❌ File not found: {session_path}")
-        sys.exit(1)
-    
-    if not check_session_fix(session_path):
-        logger.warning("⚠️ Session.py doesn't have the expected fix")
-        logger.info("Continuing anyway to fix the server.py file")
-    
-    # Fix the server.py file
-    server_path = os.path.join(sdk_path, "mcp", "server", "lowlevel", "server.py")
-    if not os.path.exists(server_path):
-        logger.error(f"❌ File not found: {server_path}")
-        sys.exit(1)
-    
-    if not fix_sse_handler(server_path):
-        logger.error("❌ Failed to fix the server.py file")
-        sys.exit(1)
-    
-    logger.info("✅ Successfully applied all fixes to the direct MCP server")
-    logger.info("Please restart the direct MCP server for the changes to take effect")
+    logger.info("\n✅ Successfully fixed syntax error in direct_mcp_server_with_tools.py")
+    logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,888 +1,922 @@
 #!/usr/bin/env python3
 """
-Multi-Backend Filesystem Integration for IPFS Kit
+Multi-Backend Filesystem Integration
 
-This module integrates various storage backends (HuggingFace, S3, Filecoin, Storacha, etc.)
-with the FS Journal virtual filesystem, providing a unified interface for working with
-content across different storage systems.
-
-Features:
-- Backend-specific virtual path mappings
-- Content prefetching
-- Cross-backend search
-- Data format conversions (Parquet, Arrow)
-- Transparent caching and synchronization
+This module provides a unified interface for storing and retrieving data across
+multiple storage backends, including IPFS, Filecoin, S3, and others. It integrates
+with the filesystem journal to track changes and maintain a consistent view across
+different storage systems.
 """
 
 import os
 import sys
 import json
+import time
+import base64
 import logging
-import asyncio
-import importlib
+import tempfile
+import hashlib
+import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union, Tuple, Callable
-from enum import Enum, auto
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from typing import Dict, List, Any, Optional, Union, Tuple, Set, BinaryIO
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-# Import FS Journal components
-try:
-    from fs_journal_tools import (
-        FSJournal, FSOperation, FSOperationType, IPFSFSBridge,
-        create_journal_and_bridge
-    )
-except ImportError as e:
-    logger.error(f"Failed to import FS Journal components: {e}")
-    raise
+# Storage config file
+CONFIG_PATH = os.path.expanduser("~/.ipfs_storage_backends.json")
 
-# Storage backend types
-class StorageBackendType(Enum):
-    """Types of storage backends supported by the multi-backend filesystem"""
-    IPFS = auto()
-    HUGGINGFACE = auto()
-    S3 = auto()
-    FILECOIN = auto()
-    STORACHA = auto()
-    LASSIE = auto()
-    IPFS_CLUSTER = auto()
-    LOCAL = auto()
-    CUSTOM = auto()
-
-@dataclass
-class BackendConfig:
-    """Configuration for a storage backend"""
-    backend_type: StorageBackendType
-    name: str
-    root_path: str  # Virtual root path for this backend
-    config: Dict[str, Any] = field(default_factory=dict)
-    enabled: bool = True
-    prefetch_enabled: bool = False
-    prefetch_depth: int = 1
-    controller: Any = None  # Reference to the controller instance
-
-@dataclass
-class DataFormat:
-    """Data format information"""
-    format_type: str  # e.g., 'parquet', 'arrow', 'json', 'csv', etc.
-    schema: Optional[Dict[str, Any]] = None
-    compression: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-class MultiBackendFS:
-    """
-    Multi-Backend Filesystem that integrates various storage backends
-    with the FS Journal virtual filesystem
-    """
+class StorageBackend:
+    """Base class for storage backends"""
     
-    def __init__(self, base_dir: str):
-        """Initialize the multi-backend filesystem"""
-        self.base_dir = os.path.abspath(base_dir)
-        
-        # Initialize FS Journal and IPFS-FS Bridge
-        self.journal, self.ipfs_bridge = create_journal_and_bridge(base_dir)
-        
-        # Backend configurations
-        self.backends: Dict[str, BackendConfig] = {}
-        
-        # Path mappings: backend_path -> local_path
-        self.path_mappings: Dict[str, str] = {}
-        
-        # Format handlers: format_type -> (encoder, decoder)
-        self.format_handlers: Dict[str, Tuple[Callable, Callable]] = {}
-        
-        # Search index
-        self.search_index: Dict[str, List[str]] = {}  # keyword -> [paths]
-        
-        # Initialize default format handlers
-        self._init_format_handlers()
-        
-        logger.info(f"Initialized Multi-Backend Filesystem with base directory: {base_dir}")
+    def __init__(self, backend_id: str, config: Dict[str, Any]):
+        self.backend_id = backend_id
+        self.config = config
+        self.backend_type = "base"
     
-    def _init_format_handlers(self):
-        """Initialize default format handlers"""
-        # JSON format handler
-        self.register_format_handler(
-            'json',
-            lambda data, **kwargs: json.dumps(data, **kwargs).encode('utf-8'),
-            lambda data, **kwargs: json.loads(data.decode('utf-8'), **kwargs)
-        )
-        
-        # Try to register Parquet and Arrow handlers if available
+    async def store(self, content: Union[str, bytes], path: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Store content and return storage identifier"""
+        raise NotImplementedError("Subclasses must implement store()")
+    
+    async def retrieve(self, identifier: str) -> Dict[str, Any]:
+        """Retrieve content by storage identifier"""
+        raise NotImplementedError("Subclasses must implement retrieve()")
+    
+    async def delete(self, identifier: str) -> Dict[str, Any]:
+        """Delete content by storage identifier"""
+        raise NotImplementedError("Subclasses must implement delete()")
+    
+    async def list(self, prefix: str = "") -> Dict[str, Any]:
+        """List content in the storage backend"""
+        raise NotImplementedError("Subclasses must implement list()")
+    
+    def get_uri(self, identifier: str) -> str:
+        """Get URI for content in this backend"""
+        return f"mbfs://{self.backend_id}/{identifier}"
+
+class IPFSBackend(StorageBackend):
+    """IPFS storage backend"""
+    
+    def __init__(self, backend_id: str, config: Dict[str, Any]):
+        super().__init__(backend_id, config)
+        self.backend_type = "ipfs"
+        self.api_url = config.get("api_url", "/ip4/127.0.0.1/tcp/5001")
+        self.gateway_url = config.get("gateway_url", "https://ipfs.io/ipfs/")
+    
+    async def store(self, content: Union[str, bytes], path: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Store content on IPFS"""
         try:
-            import pandas as pd
-            import pyarrow as pa
-            import pyarrow.parquet as pq
-            import io
+            # Handle string or bytes
+            if isinstance(content, str):
+                content_bytes = content.encode('utf-8')
+            else:
+                content_bytes = content
             
-            # Parquet format handler
-            self.register_format_handler(
-                'parquet',
-                lambda data, **kwargs: pq.write_table(
-                    pa.Table.from_pandas(pd.DataFrame(data)),
-                    io.BytesIO()
-                ).getvalue(),
-                lambda data, **kwargs: pq.read_table(
-                    io.BytesIO(data)
-                ).to_pandas().to_dict('records')
-            )
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(prefix="ipfs-", suffix=f"-{os.path.basename(path)}", delete=False) as temp_file:
+                temp_path = temp_file.name
+                temp_file.write(content_bytes)
             
-            # Arrow format handler
-            self.register_format_handler(
-                'arrow',
-                lambda data, **kwargs: pa.serialize_pandas(
-                    pd.DataFrame(data)
-                ).to_buffer().to_pybytes(),
-                lambda data, **kwargs: pa.deserialize_pandas(data).to_dict('records')
-            )
-            
-            logger.info("Registered Parquet and Arrow format handlers")
-        except ImportError:
-            logger.warning("Pandas or PyArrow not available, Parquet and Arrow formats not supported")
-    
-    def register_backend(self, config: BackendConfig) -> bool:
-        """Register a storage backend"""
-        if config.name in self.backends:
-            logger.warning(f"Backend '{config.name}' already registered")
-            return False
-        
-        self.backends[config.name] = config
-        logger.info(f"Registered backend: {config.name} ({config.backend_type.name}) at {config.root_path}")
-        return True
-    
-    def get_backend_for_path(self, path: str) -> Optional[BackendConfig]:
-        """Get the backend configuration for a path"""
-        for name, config in self.backends.items():
-            if path.startswith(config.root_path):
-                return config
-        return None
-    
-    def map_path(self, backend_path: str, local_path: str) -> Dict[str, Any]:
-        """Map a backend path to a local filesystem path"""
-        # Normalize paths
-        norm_backend_path = backend_path.rstrip('/')
-        norm_local_path = os.path.normpath(local_path)
-        
-        # Get the backend for this path
-        backend = self.get_backend_for_path(norm_backend_path)
-        if not backend:
-            error_msg = f"No backend registered for path: {norm_backend_path}"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        # Create mapping
-        self.path_mappings[norm_backend_path] = norm_local_path
-        
-        # Ensure path is tracked
-        self.journal.track_path(norm_local_path)
-        
-        # If this is an IPFS path, also map in the IPFS bridge
-        if backend.backend_type == StorageBackendType.IPFS:
-            # Extract the IPFS-specific part of the path
-            ipfs_path = norm_backend_path[len(backend.root_path):]
-            if not ipfs_path:
-                ipfs_path = '/'
-            
-            self.ipfs_bridge.map_path(ipfs_path, norm_local_path)
-        
-        # If prefetching is enabled for this backend, trigger it
-        if backend.prefetch_enabled:
-            asyncio.create_task(self._prefetch_content(
-                norm_backend_path, 
-                norm_local_path, 
-                backend,
-                depth=backend.prefetch_depth
-            ))
-        
-        logger.info(f"Mapped backend path {norm_backend_path} to local path {norm_local_path}")
-        return {
-            "success": True,
-            "backend_path": norm_backend_path,
-            "local_path": norm_local_path,
-            "backend": backend.name
-        }
-    
-    def unmap_path(self, backend_path: str) -> Dict[str, Any]:
-        """Remove a mapping between backend and local filesystem"""
-        norm_backend_path = backend_path.rstrip('/')
-        
-        if norm_backend_path in self.path_mappings:
-            local_path = self.path_mappings[norm_backend_path]
-            del self.path_mappings[norm_backend_path]
-            
-            # Get the backend for this path
-            backend = self.get_backend_for_path(norm_backend_path)
-            if backend and backend.backend_type == StorageBackendType.IPFS:
-                # Extract the IPFS-specific part of the path
-                ipfs_path = norm_backend_path[len(backend.root_path):]
-                if not ipfs_path:
-                    ipfs_path = '/'
+            try:
+                # Use ipfs add command
+                cmd = ["ipfs", "add", "--quieter", temp_path]
                 
-                self.ipfs_bridge.unmap_path(ipfs_path)
-            
-            logger.info(f"Unmapped backend path {norm_backend_path} from local path {local_path}")
-            return {
-                "success": True,
-                "backend_path": norm_backend_path,
-                "local_path": local_path
-            }
-        else:
-            logger.warning(f"Backend path {norm_backend_path} not found in mappings")
+                # Add pin option if specified
+                pin = metadata.get("pin", True) if metadata else True
+                if not pin:
+                    cmd.append("--pin=false")
+                
+                # Run command
+                import subprocess
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                
+                # Get CID
+                cid = result.stdout.strip()
+                
+                # Prepare metadata
+                stored_metadata = {
+                    "content_type": metadata.get("content_type", "application/octet-stream") if metadata else "application/octet-stream",
+                    "size": len(content_bytes),
+                    "original_path": path,
+                    "pinned": pin,
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+                
+                if metadata:
+                    # Add any additional metadata
+                    for k, v in metadata.items():
+                        if k not in stored_metadata and k != "pin":
+                            stored_metadata[k] = v
+                
+                # Create URI
+                uri = self.get_uri(cid)
+                
+                return {
+                    "success": True,
+                    "backend_id": self.backend_id,
+                    "backend_type": self.backend_type,
+                    "identifier": cid,
+                    "uri": uri,
+                    "http_url": f"{self.gateway_url}{cid}",
+                    "metadata": stored_metadata
+                }
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+        except Exception as e:
+            logger.error(f"Error storing content on IPFS: {e}")
             return {
                 "success": False,
-                "error": f"Backend path {norm_backend_path} not found in mappings"
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "error": str(e)
             }
     
-    def list_mappings(self) -> Dict[str, Any]:
-        """List all mappings between backends and local filesystem"""
-        mappings = []
-        for backend_path, local_path in self.path_mappings.items():
-            backend = self.get_backend_for_path(backend_path)
-            mappings.append({
-                "backend_path": backend_path,
-                "local_path": local_path,
-                "backend": backend.name if backend else "unknown"
-            })
-        
-        return {
-            "success": True,
-            "count": len(mappings),
-            "mappings": mappings
-        }
-    
-    def get_status(self) -> Dict[str, Any]:
-        """Get status of the multi-backend filesystem"""
-        return {
-            "success": True,
-            "backends_count": len(self.backends),
-            "mappings_count": len(self.path_mappings),
-            "tracked_paths_count": len(self.journal.tracked_paths),
-            "format_handlers_count": len(self.format_handlers),
-            "search_index_size": len(self.search_index)
-        }
-    
-    async def _prefetch_content(
-        self, 
-        backend_path: str, 
-        local_path: str, 
-        backend: BackendConfig,
-        depth: int = 1
-    ) -> None:
-        """Prefetch content from a backend path"""
-        if depth <= 0:
-            return
-        
-        logger.info(f"Prefetching content from {backend_path} (depth={depth})")
-        
+    async def retrieve(self, identifier: str) -> Dict[str, Any]:
+        """Retrieve content from IPFS"""
         try:
-            # The actual prefetching implementation would depend on the backend type
-            # Here we just create the directory structure
-            os.makedirs(local_path, exist_ok=True)
+            # Use ipfs cat command
+            cmd = ["ipfs", "cat", identifier]
             
-            # For demonstration, create a metadata file
-            metadata_path = os.path.join(local_path, '.metadata.json')
-            with open(metadata_path, 'w') as f:
-                json.dump({
-                    "backend": backend.name,
-                    "backend_path": backend_path,
-                    "prefetched_at": datetime.now(timezone.utc).isoformat(),
-                    "prefetch_depth": depth
-                }, f)
+            # Run command
+            import subprocess
+            result = subprocess.run(cmd, capture_output=True, check=True)
             
-            # Record operation
-            self.journal.record_operation(FSOperation(
-                operation_type=FSOperationType.WRITE,
-                path=metadata_path,
-                metadata={"prefetch": True}
-            ))
+            # Get content
+            content_bytes = result.stdout
             
-            logger.info(f"Prefetched content from {backend_path} to {local_path}")
-        except Exception as e:
-            logger.error(f"Error prefetching content from {backend_path}: {e}")
-    
-    def register_format_handler(
-        self, 
-        format_type: str, 
-        encoder: Callable, 
-        decoder: Callable
-    ) -> None:
-        """Register a format handler"""
-        self.format_handlers[format_type] = (encoder, decoder)
-        logger.info(f"Registered format handler for {format_type}")
-    
-    def convert_format(
-        self, 
-        data: Any, 
-        source_format: str, 
-        target_format: str,
-        **kwargs
-    ) -> Any:
-        """Convert data from one format to another"""
-        if source_format not in self.format_handlers:
-            raise ValueError(f"Source format {source_format} not supported")
-        
-        if target_format not in self.format_handlers:
-            raise ValueError(f"Target format {target_format} not supported")
-        
-        # If source and target are the same, do nothing
-        if source_format == target_format:
-            return data
-        
-        # Decode from source format
-        _, source_decoder = self.format_handlers[source_format]
-        decoded_data = source_decoder(data, **kwargs)
-        
-        # Encode to target format
-        target_encoder, _ = self.format_handlers[target_format]
-        encoded_data = target_encoder(decoded_data, **kwargs)
-        
-        return encoded_data
-    
-    def index_content(self, path: str, content: Union[str, bytes]) -> None:
-        """Index content for search"""
-        if isinstance(content, bytes):
-            try:
-                content = content.decode('utf-8')
-            except UnicodeDecodeError:
-                logger.warning(f"Cannot index binary content at {path}")
-                return
-        
-        # Simple tokenization for indexing
-        words = content.lower().split()
-        unique_words = set(words)
-        
-        # Add to index
-        for word in unique_words:
-            if word not in self.search_index:
-                self.search_index[word] = []
-            if path not in self.search_index[word]:
-                self.search_index[word].append(path)
-        
-        logger.debug(f"Indexed {len(unique_words)} unique words from {path}")
-    
-    def search(self, query: str, limit: int = 100) -> Dict[str, Any]:
-        """Search indexed content"""
-        query_words = query.lower().split()
-        results = {}
-        
-        for word in query_words:
-            if word in self.search_index:
-                for path in self.search_index[word]:
-                    if path not in results:
-                        results[path] = 0
-                    results[path] += 1
-        
-        # Sort by relevance (number of query words matched)
-        sorted_results = sorted(
-            results.items(), 
-            key=lambda item: item[1], 
-            reverse=True
-        )
-        
-        # Limit results
-        limited_results = sorted_results[:limit]
-        
-        return {
-            "success": True,
-            "query": query,
-            "total_results": len(sorted_results),
-            "results": [
-                {"path": path, "relevance": relevance}
-                for path, relevance in limited_results
-            ]
-        }
-    
-    def sync_all(self) -> Dict[str, Any]:
-        """Synchronize all mapped paths"""
-        result = {
-            "success": True,
-            "synced": 0,
-            "errors": []
-        }
-        
-        for backend_path, local_path in self.path_mappings.items():
-            try:
-                # Get the backend for this path
-                backend = self.get_backend_for_path(backend_path)
-                if not backend:
-                    error_msg = f"No backend registered for path: {backend_path}"
-                    logger.error(error_msg)
-                    result["errors"].append(error_msg)
-                    continue
-                
-                # Sync local path to disk
-                sync_result = self.journal.sync_to_disk(local_path)
-                result["synced"] += sync_result["synced_files"]
-                
-                if not sync_result["success"]:
-                    result["errors"].extend(sync_result["errors"])
-            except Exception as e:
-                error_msg = f"Error syncing {backend_path}: {e}"
-                logger.error(error_msg)
-                result["errors"].append(error_msg)
-        
-        result["success"] = len(result["errors"]) == 0
-        logger.info(f"Synced {result['synced']} files with {len(result['errors'])} errors")
-        return result
-
-# MCP integration functions
-
-async def init_huggingface_backend(ctx, name: str = "huggingface", root_path: str = "/hf") -> Dict[str, Any]:
-    """Initialize HuggingFace backend"""
-    try:
-        from ipfs_kit_py.mcp.controllers.storage.huggingface_controller import HuggingFaceController
-        
-        # Create Multi-Backend FS instance if not already created
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            ctx.server.multi_backend_fs = MultiBackendFS(os.getcwd())
-        
-        fs = ctx.server.multi_backend_fs
-        
-        # Create HuggingFace controller if not already available
-        if not hasattr(ctx.server, "huggingface_controller"):
-            # In a real implementation, this would properly initialize the controller
-            # For now, we'll just create a dummy instance
-            ctx.server.huggingface_controller = HuggingFaceController()
-        
-        # Register HuggingFace backend
-        config = BackendConfig(
-            backend_type=StorageBackendType.HUGGINGFACE,
-            name=name,
-            root_path=root_path,
-            controller=ctx.server.huggingface_controller,
-            prefetch_enabled=True,
-            prefetch_depth=1
-        )
-        
-        fs.register_backend(config)
-        
-        await ctx.info(f"Initialized HuggingFace backend: {name} at {root_path}")
-        return {
-            "success": True,
-            "backend": name,
-            "root_path": root_path
-        }
-    except Exception as e:
-        error_msg = f"Error initializing HuggingFace backend: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def init_filecoin_backend(ctx, name: str = "filecoin", root_path: str = "/fil") -> Dict[str, Any]:
-    """Initialize Filecoin backend"""
-    try:
-        from ipfs_kit_py.mcp.controllers.storage.filecoin_controller import FilecoinController
-        
-        # Create Multi-Backend FS instance if not already created
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            ctx.server.multi_backend_fs = MultiBackendFS(os.getcwd())
-        
-        fs = ctx.server.multi_backend_fs
-        
-        # Create Filecoin controller if not already available
-        if not hasattr(ctx.server, "filecoin_controller"):
-            # In a real implementation, this would properly initialize the controller
-            # For now, we'll just create a dummy instance
-            ctx.server.filecoin_controller = FilecoinController()
-        
-        # Register Filecoin backend
-        config = BackendConfig(
-            backend_type=StorageBackendType.FILECOIN,
-            name=name,
-            root_path=root_path,
-            controller=ctx.server.filecoin_controller,
-            prefetch_enabled=False  # Typically don't prefetch from Filecoin due to cost
-        )
-        
-        fs.register_backend(config)
-        
-        await ctx.info(f"Initialized Filecoin backend: {name} at {root_path}")
-        return {
-            "success": True,
-            "backend": name,
-            "root_path": root_path
-        }
-    except Exception as e:
-        error_msg = f"Error initializing Filecoin backend: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def init_s3_backend(ctx, name: str = "s3", root_path: str = "/s3", bucket: str = None) -> Dict[str, Any]:
-    """Initialize S3 backend"""
-    try:
-        from ipfs_kit_py.mcp.controllers.storage.s3_controller import S3Controller
-        
-        # Create Multi-Backend FS instance if not already created
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            ctx.server.multi_backend_fs = MultiBackendFS(os.getcwd())
-        
-        fs = ctx.server.multi_backend_fs
-        
-        # Create S3 controller if not already available
-        if not hasattr(ctx.server, "s3_controller"):
-            # In a real implementation, this would properly initialize the controller
-            # For now, we'll just create a dummy instance
-            ctx.server.s3_controller = S3Controller()
-        
-        # Register S3 backend
-        config = BackendConfig(
-            backend_type=StorageBackendType.S3,
-            name=name,
-            root_path=root_path,
-            controller=ctx.server.s3_controller,
-            config={"bucket": bucket} if bucket else {},
-            prefetch_enabled=True
-        )
-        
-        fs.register_backend(config)
-        
-        await ctx.info(f"Initialized S3 backend: {name} at {root_path}")
-        return {
-            "success": True,
-            "backend": name,
-            "root_path": root_path
-        }
-    except Exception as e:
-        error_msg = f"Error initializing S3 backend: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def init_storacha_backend(ctx, name: str = "storacha", root_path: str = "/storacha") -> Dict[str, Any]:
-    """Initialize Storacha backend"""
-    try:
-        from ipfs_kit_py.mcp.controllers.storage.storacha_controller import StorachaController
-        
-        # Create Multi-Backend FS instance if not already created
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            ctx.server.multi_backend_fs = MultiBackendFS(os.getcwd())
-        
-        fs = ctx.server.multi_backend_fs
-        
-        # Create Storacha controller if not already available
-        if not hasattr(ctx.server, "storacha_controller"):
-            # In a real implementation, this would properly initialize the controller
-            # For now, we'll just create a dummy instance
-            ctx.server.storacha_controller = StorachaController()
-        
-        # Register Storacha backend
-        config = BackendConfig(
-            backend_type=StorageBackendType.STORACHA,
-            name=name,
-            root_path=root_path,
-            controller=ctx.server.storacha_controller,
-            prefetch_enabled=True
-        )
-        
-        fs.register_backend(config)
-        
-        await ctx.info(f"Initialized Storacha backend: {name} at {root_path}")
-        return {
-            "success": True,
-            "backend": name,
-            "root_path": root_path
-        }
-    except Exception as e:
-        error_msg = f"Error initializing Storacha backend: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def init_ipfs_cluster_backend(ctx, name: str = "ipfs_cluster", root_path: str = "/ipfs_cluster") -> Dict[str, Any]:
-    """Initialize IPFS Cluster backend"""
-    # Note: This is a placeholder implementation since IPFS Cluster controller might not exist yet
-    try:
-        # Create Multi-Backend FS instance if not already created
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            ctx.server.multi_backend_fs = MultiBackendFS(os.getcwd())
-        
-        fs = ctx.server.multi_backend_fs
-        
-        # Register IPFS Cluster backend (using a mock controller for now)
-        config = BackendConfig(
-            backend_type=StorageBackendType.IPFS_CLUSTER,
-            name=name,
-            root_path=root_path,
-            controller=None,  # Would be replaced with actual controller
-            prefetch_enabled=True
-        )
-        
-        fs.register_backend(config)
-        
-        await ctx.info(f"Initialized IPFS Cluster backend: {name} at {root_path}")
-        return {
-            "success": True,
-            "backend": name,
-            "root_path": root_path
-        }
-    except Exception as e:
-        error_msg = f"Error initializing IPFS Cluster backend: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-# Generic handlers for MCP tools
-
-async def multi_backend_map_handler(
-    ctx, 
-    backend_path: str, 
-    local_path: str
-) -> Dict[str, Any]:
-    """Handle mapping backend path to local path"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        result = fs.map_path(backend_path, local_path)
-        
-        if result["success"]:
-            await ctx.info(f"Mapped {backend_path} to {local_path}")
-        else:
-            await ctx.error(f"Failed to map {backend_path}: {result.get('error', 'Unknown error')}")
-        
-        return result
-    except Exception as e:
-        error_msg = f"Error mapping path: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def multi_backend_unmap_handler(ctx, backend_path: str) -> Dict[str, Any]:
-    """Handle unmapping backend path"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        result = fs.unmap_path(backend_path)
-        
-        if result["success"]:
-            await ctx.info(f"Unmapped {backend_path}")
-        else:
-            await ctx.error(f"Failed to unmap {backend_path}: {result.get('error', 'Unknown error')}")
-        
-        return result
-    except Exception as e:
-        error_msg = f"Error unmapping path: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def multi_backend_list_mappings_handler(ctx) -> Dict[str, Any]:
-    """Handle listing mappings"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        result = fs.list_mappings()
-        
-        await ctx.info(f"Listed {result['count']} mappings")
-        return result
-    except Exception as e:
-        error_msg = f"Error listing mappings: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def multi_backend_status_handler(ctx) -> Dict[str, Any]:
-    """Handle getting status"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        result = fs.get_status()
-        
-        await ctx.info(f"Got status: {result['backends_count']} backends, {result['mappings_count']} mappings")
-        return result
-    except Exception as e:
-        error_msg = f"Error getting status: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def multi_backend_sync_handler(ctx) -> Dict[str, Any]:
-    """Handle syncing all backends"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        result = fs.sync_all()
-        
-        await ctx.info(f"Synced {result['synced']} files with {len(result['errors'])} errors")
-        return result
-    except Exception as e:
-        error_msg = f"Error syncing: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def multi_backend_search_handler(ctx, query: str, limit: int = 100) -> Dict[str, Any]:
-    """Handle search"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        result = fs.search(query, limit)
-        
-        await ctx.info(f"Search for '{query}' found {result['total_results']} results")
-        return result
-    except Exception as e:
-        error_msg = f"Error searching: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
-
-async def multi_backend_convert_format_handler(
-    ctx, 
-    path: str, 
-    source_format: str, 
-    target_format: str
-) -> Dict[str, Any]:
-    """Handle format conversion"""
-    try:
-        if not hasattr(ctx.server, "multi_backend_fs"):
-            error_msg = "Multi-Backend FS not initialized"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        fs = ctx.server.multi_backend_fs
-        
-        # Check if path exists
-        if not os.path.exists(path):
-            error_msg = f"Path does not exist: {path}"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        # Read the file
-        with open(path, 'rb') as f:
-            file_data = f.read()
-        
-        # Convert the format
-        try:
-            converted_data = fs.convert_format(file_data, source_format, target_format)
+            # Encode as base64
+            content_base64 = base64.b64encode(content_bytes).decode('utf-8')
             
-            # Create the output path (append the target format extension)
-            base_path, _ = os.path.splitext(path)
-            output_path = f"{base_path}.{target_format}"
-            
-            # Write the converted data
-            with open(output_path, 'wb') as f:
-                f.write(converted_data)
-            
-            await ctx.info(f"Converted {path} from {source_format} to {target_format} and saved to {output_path}")
             return {
                 "success": True,
-                "source_path": path,
-                "source_format": source_format,
-                "target_format": target_format,
-                "output_path": output_path
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "content_base64": content_base64,
+                "size": len(content_bytes)
             }
-        except ValueError as ve:
-            error_msg = f"Format conversion error: {str(ve)}"
-            await ctx.error(error_msg)
-            return {"success": False, "error": error_msg}
-    except Exception as e:
-        error_msg = f"Error converting format: {e}"
-        logger.error(error_msg)
-        await ctx.error(error_msg)
-        return {"success": False, "error": error_msg}
+        except Exception as e:
+            logger.error(f"Error retrieving content from IPFS: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "error": str(e)
+            }
+    
+    async def delete(self, identifier: str) -> Dict[str, Any]:
+        """Delete content from IPFS (unpin)"""
+        try:
+            # Use ipfs pin rm command
+            cmd = ["ipfs", "pin", "rm", identifier]
+            
+            # Run command
+            import subprocess
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            
+            return {
+                "success": True,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "message": f"Content unpinned: {identifier}"
+            }
+        except Exception as e:
+            logger.error(f"Error unpinning content from IPFS: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "error": str(e)
+            }
+    
+    async def list(self, prefix: str = "") -> Dict[str, Any]:
+        """List pinned content in IPFS"""
+        try:
+            # Use ipfs pin ls command
+            cmd = ["ipfs", "pin", "ls", "--quiet"]
+            
+            # Run command
+            import subprocess
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            
+            # Parse output
+            pins = [pin.strip() for pin in result.stdout.strip().split("\n") if pin.strip()]
+            
+            # Filter by prefix if specified
+            if prefix:
+                pins = [pin for pin in pins if pin.startswith(prefix)]
+            
+            return {
+                "success": True,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "items": pins,
+                "count": len(pins)
+            }
+        except Exception as e:
+            logger.error(f"Error listing content from IPFS: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "error": str(e)
+            }
 
-def register_multi_backend_tools(server) -> bool:
-    """Register Multi-Backend FS tools with MCP server"""
+class S3Backend(StorageBackend):
+    """S3 storage backend"""
+    
+    def __init__(self, backend_id: str, config: Dict[str, Any]):
+        super().__init__(backend_id, config)
+        self.backend_type = "s3"
+        self.bucket = config["bucket"]
+        self.region = config.get("region", "us-east-1")
+        self.access_key = config.get("access_key")
+        self.secret_key = config.get("secret_key")
+        self.endpoint_url = config.get("endpoint_url")
+    
+    async def _get_s3_client(self):
+        """Get boto3 S3 client"""
+        try:
+            import boto3
+            session = boto3.session.Session()
+            
+            kwargs = {
+                "region_name": self.region
+            }
+            
+            if self.access_key and self.secret_key:
+                kwargs["aws_access_key_id"] = self.access_key
+                kwargs["aws_secret_access_key"] = self.secret_key
+            
+            if self.endpoint_url:
+                kwargs["endpoint_url"] = self.endpoint_url
+            
+            return session.client("s3", **kwargs)
+        except ImportError:
+            logger.error("boto3 not installed. Install with: pip install boto3")
+            raise
+    
+    async def store(self, content: Union[str, bytes], path: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Store content on S3"""
+        try:
+            # Handle string or bytes
+            if isinstance(content, str):
+                content_bytes = content.encode('utf-8')
+            else:
+                content_bytes = content
+            
+            # Generate S3 key
+            key = path
+            if not key.startswith("/"):
+                key = f"/{key}"
+            
+            # Remove leading slash for S3
+            key = key.lstrip("/")
+            
+            # Get content type
+            content_type = metadata.get("content_type", "application/octet-stream") if metadata else "application/octet-stream"
+            
+            # Prepare S3 metadata
+            s3_metadata = {}
+            if metadata:
+                for k, v in metadata.items():
+                    if k != "content_type" and isinstance(v, str):
+                        s3_metadata[k] = v
+            
+            # Get S3 client
+            s3 = await self._get_s3_client()
+            
+            # Upload content
+            s3.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=content_bytes,
+                ContentType=content_type,
+                Metadata=s3_metadata
+            )
+            
+            # Create identifier and URI
+            identifier = key
+            uri = self.get_uri(identifier)
+            
+            # Generate HTTP URL
+            if self.endpoint_url:
+                http_url = f"{self.endpoint_url}/{self.bucket}/{key}"
+            else:
+                http_url = f"https://{self.bucket}.s3.{self.region}.amazonaws.com/{key}"
+            
+            # Prepare metadata
+            stored_metadata = {
+                "content_type": content_type,
+                "size": len(content_bytes),
+                "original_path": path,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+            if metadata:
+                # Add any additional metadata
+                for k, v in metadata.items():
+                    if k not in stored_metadata:
+                        stored_metadata[k] = v
+            
+            return {
+                "success": True,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "uri": uri,
+                "http_url": http_url,
+                "metadata": stored_metadata
+            }
+        except Exception as e:
+            logger.error(f"Error storing content on S3: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "error": str(e)
+            }
+    
+    async def retrieve(self, identifier: str) -> Dict[str, Any]:
+        """Retrieve content from S3"""
+        try:
+            # Get S3 client
+            s3 = await self._get_s3_client()
+            
+            # Get object
+            response = s3.get_object(
+                Bucket=self.bucket,
+                Key=identifier
+            )
+            
+            # Get content
+            content_bytes = response["Body"].read()
+            
+            # Encode as base64
+            content_base64 = base64.b64encode(content_bytes).decode('utf-8')
+            
+            # Get metadata
+            metadata = dict(response.get("Metadata", {}))
+            metadata["content_type"] = response.get("ContentType", "application/octet-stream")
+            metadata["size"] = len(content_bytes)
+            metadata["last_modified"] = response.get("LastModified").isoformat() if "LastModified" in response else None
+            
+            return {
+                "success": True,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "content_base64": content_base64,
+                "size": len(content_bytes),
+                "metadata": metadata
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving content from S3: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "error": str(e)
+            }
+    
+    async def delete(self, identifier: str) -> Dict[str, Any]:
+        """Delete content from S3"""
+        try:
+            # Get S3 client
+            s3 = await self._get_s3_client()
+            
+            # Delete object
+            s3.delete_object(
+                Bucket=self.bucket,
+                Key=identifier
+            )
+            
+            return {
+                "success": True,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "message": f"Content deleted: {identifier}"
+            }
+        except Exception as e:
+            logger.error(f"Error deleting content from S3: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "identifier": identifier,
+                "error": str(e)
+            }
+    
+    async def list(self, prefix: str = "") -> Dict[str, Any]:
+        """List content in S3"""
+        try:
+            # Get S3 client
+            s3 = await self._get_s3_client()
+            
+            # List objects
+            if prefix:
+                response = s3.list_objects_v2(
+                    Bucket=self.bucket,
+                    Prefix=prefix
+                )
+            else:
+                response = s3.list_objects_v2(
+                    Bucket=self.bucket
+                )
+            
+            # Extract keys
+            items = []
+            if "Contents" in response:
+                for obj in response["Contents"]:
+                    items.append({
+                        "key": obj["Key"],
+                        "size": obj["Size"],
+                        "last_modified": obj["LastModified"].isoformat() if "LastModified" in obj else None
+                    })
+            
+            return {
+                "success": True,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "items": items,
+                "count": len(items)
+            }
+        except Exception as e:
+            logger.error(f"Error listing content from S3: {e}")
+            return {
+                "success": False,
+                "backend_id": self.backend_id,
+                "backend_type": self.backend_type,
+                "error": str(e)
+            }
+
+class BackendManager:
+    """Manager for multiple storage backends"""
+    
+    def __init__(self):
+        self.backends = {}
+        self.default_backend_id = None
+        self._load_config()
+    
+    def _load_config(self):
+        """Load backend configuration from file"""
+        try:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r') as f:
+                    config = json.load(f)
+                
+                # Register backends
+                for backend_config in config.get("backends", []):
+                    backend_id = backend_config.get("id")
+                    backend_type = backend_config.get("type")
+                    
+                    if not backend_id or not backend_type:
+                        continue
+                    
+                    self.register_backend(backend_id, backend_type, backend_config.get("config", {}))
+                
+                # Set default backend
+                self.default_backend_id = config.get("default_backend")
+        except Exception as e:
+            logger.error(f"Error loading backend configuration: {e}")
+    
+    def _save_config(self):
+        """Save backend configuration to file"""
+        try:
+            config = {
+                "backends": [],
+                "default_backend": self.default_backend_id
+            }
+            
+            # Add backends
+            for backend_id, backend in self.backends.items():
+                backend_config = {
+                    "id": backend_id,
+                    "type": backend.backend_type,
+                    "config": backend.config
+                }
+                config["backends"].append(backend_config)
+            
+            # Create directory if needed
+            os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+            
+            # Save config
+            with open(CONFIG_PATH, 'w') as f:
+                json.dump(config, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving backend configuration: {e}")
+    
+    def register_backend(self, backend_id: str, backend_type: str, config: Dict[str, Any]) -> bool:
+        """Register a storage backend"""
+        try:
+            if backend_id in self.backends:
+                return False
+            
+            # Create backend instance
+            if backend_type == "ipfs":
+                backend = IPFSBackend(backend_id, config)
+            elif backend_type == "s3":
+                backend = S3Backend(backend_id, config)
+            else:
+                logger.error(f"Unknown backend type: {backend_type}")
+                return False
+            
+            # Add to backends
+            self.backends[backend_id] = backend
+            
+            # Set as default if we don't have one
+            if not self.default_backend_id:
+                self.default_backend_id = backend_id
+            
+            # Save config
+            self._save_config()
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error registering backend {backend_id}: {e}")
+            return False
+    
+    def set_default_backend(self, backend_id: str) -> bool:
+        """Set the default backend"""
+        if backend_id not in self.backends:
+            return False
+        
+        self.default_backend_id = backend_id
+        self._save_config()
+        return True
+    
+    def get_backend(self, backend_id: Optional[str] = None) -> Optional[StorageBackend]:
+        """Get a storage backend"""
+        if backend_id:
+            return self.backends.get(backend_id)
+        elif self.default_backend_id:
+            return self.backends.get(self.default_backend_id)
+        else:
+            return None
+    
+    def get_backend_from_uri(self, uri: str) -> Tuple[Optional[StorageBackend], Optional[str]]:
+        """Parse a URI and return the backend and identifier"""
+        if not uri.startswith("mbfs://"):
+            return None, None
+        
+        # Parse URI
+        try:
+            # Format: mbfs://backend_id/identifier
+            parts = uri[7:].split("/", 1)
+            
+            if len(parts) != 2:
+                return None, None
+            
+            backend_id, identifier = parts
+            
+            # Get backend
+            backend = self.get_backend(backend_id)
+            if not backend:
+                return None, None
+            
+            return backend, identifier
+        except:
+            return None, None
+    
+    def get_backends(self) -> Dict[str, Dict[str, Any]]:
+        """Get information about all backends"""
+        result = {}
+        
+        for backend_id, backend in self.backends.items():
+            result[backend_id] = {
+                "id": backend_id,
+                "type": backend.backend_type,
+                "is_default": backend_id == self.default_backend_id,
+                "config": {k: v for k, v in backend.config.items() if k not in ["access_key", "secret_key"]}
+            }
+        
+        return result
+    
+    def remove_backend(self, backend_id: str) -> bool:
+        """Remove a storage backend"""
+        if backend_id not in self.backends:
+            return False
+        
+        # Remove from backends
+        del self.backends[backend_id]
+        
+        # Update default backend if needed
+        if self.default_backend_id == backend_id:
+            if self.backends:
+                self.default_backend_id = next(iter(self.backends.keys()))
+            else:
+                self.default_backend_id = None
+        
+        # Save config
+        self._save_config()
+        
+        return True
+
+# Global backend manager instance
+backend_manager = BackendManager()
+
+def register_tools(server) -> bool:
+    """Register multi-backend filesystem integration tools with MCP server"""
+    logger.info("Registering multi-backend filesystem integration tools...")
+    
+    # Tool: Register a storage backend
+    async def mbfs_register_backend(backend_id: str, backend_type: str,
+                                  config: Dict[str, Any], make_default: bool = False):
+        """Register a storage backend"""
+        try:
+            # Register backend
+            success = backend_manager.register_backend(backend_id, backend_type, config)
+            
+            if not success:
+                return {
+                    "success": False,
+                    "error": f"Failed to register backend: {backend_id}"
+                }
+            
+            # Set as default if requested
+            if make_default:
+                backend_manager.set_default_backend(backend_id)
+            
+            return {
+                "success": True,
+                "backend_id": backend_id,
+                "backend_type": backend_type,
+                "is_default": backend_id == backend_manager.default_backend_id
+            }
+        except Exception as e:
+            logger.error(f"Error registering backend: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: Get information about a backend
+    async def mbfs_get_backend(backend_id: Optional[str] = None):
+        """Get information about a backend"""
+        try:
+            if backend_id:
+                # Get specific backend
+                backend = backend_manager.get_backend(backend_id)
+                
+                if not backend:
+                    return {
+                        "success": False,
+                        "error": f"Backend not found: {backend_id}"
+                    }
+                
+                return {
+                    "success": True,
+                    "backend": {
+                        "id": backend_id,
+                        "type": backend.backend_type,
+                        "is_default": backend_id == backend_manager.default_backend_id,
+                        "config": {k: v for k, v in backend.config.items() if k not in ["access_key", "secret_key"]}
+                    }
+                }
+            else:
+                # Get default backend
+                backend = backend_manager.get_backend()
+                
+                if not backend:
+                    return {
+                        "success": False,
+                        "error": "No default backend configured"
+                    }
+                
+                return {
+                    "success": True,
+                    "backend": {
+                        "id": backend.backend_id,
+                        "type": backend.backend_type,
+                        "is_default": True,
+                        "config": {k: v for k, v in backend.config.items() if k not in ["access_key", "secret_key"]}
+                    }
+                }
+        except Exception as e:
+            logger.error(f"Error getting backend information: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: List all backends
+    async def mbfs_list_backends():
+        """List all registered backends"""
+        try:
+            backends = backend_manager.get_backends()
+            
+            return {
+                "success": True,
+                "backends": backends,
+                "count": len(backends),
+                "default_backend": backend_manager.default_backend_id
+            }
+        except Exception as e:
+            logger.error(f"Error listing backends: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: Store content using a backend
+    async def mbfs_store(content: Union[str, bytes], path: str, 
+                       backend_id: Optional[str] = None, 
+                       metadata: Optional[Dict[str, Any]] = None):
+        """Store content using a storage backend"""
+        try:
+            # Get backend
+            backend = backend_manager.get_backend(backend_id)
+            
+            if not backend:
+                return {
+                    "success": False,
+                    "error": f"Backend not found: {backend_id or '<default>'}"
+                }
+            
+            # Store content
+            result = await backend.store(content, path, metadata)
+            
+            # Update filesystem journal if available
+            try:
+                import fs_journal_tools
+                
+                # Add journal entry
+                details = {
+                    "backend_id": backend.backend_id,
+                    "backend_type": backend.backend_type,
+                    "uri": result.get("uri", ""),
+                    "identifier": result.get("identifier", "")
+                }
+                
+                fs_journal_tools._add_journal_entry(
+                    path=path,
+                    operation="MBFS_STORE",
+                    details=json.dumps(details),
+                    ipfs_cid=result.get("identifier") if backend.backend_type == "ipfs" else None
+                )
+            except ImportError:
+                # Filesystem journal not available
+                pass
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error storing content: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: Retrieve content from a backend
+    async def mbfs_retrieve(uri: str = None, backend_id: Optional[str] = None, 
+                          identifier: Optional[str] = None):
+        """Retrieve content from a storage backend"""
+        try:
+            # Get backend and identifier
+            if uri:
+                backend, id_from_uri = backend_manager.get_backend_from_uri(uri)
+                
+                if not backend:
+                    return {
+                        "success": False,
+                        "error": f"Invalid URI or backend not found: {uri}"
+                    }
+                
+                identifier = id_from_uri
+            else:
+                if not identifier:
+                    return {
+                        "success": False,
+                        "error": "Either uri or identifier must be provided"
+                    }
+                
+                backend = backend_manager.get_backend(backend_id)
+                
+                if not backend:
+                    return {
+                        "success": False,
+                        "error": f"Backend not found: {backend_id or '<default>'}"
+                    }
+            
+            # Retrieve content
+            result = await backend.retrieve(identifier)
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error retrieving content: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: Delete content from a backend
+    async def mbfs_delete(uri: str = None, backend_id: Optional[str] = None, 
+                        identifier: Optional[str] = None):
+        """Delete content from a storage backend"""
+        try:
+            # Get backend and identifier
+            if uri:
+                backend, id_from_uri = backend_manager.get_backend_from_uri(uri)
+                
+                if not backend:
+                    return {
+                        "success": False,
+                        "error": f"Invalid URI or backend not found: {uri}"
+                    }
+                
+                identifier = id_from_uri
+            else:
+                if not identifier:
+                    return {
+                        "success": False,
+                        "error": "Either uri or identifier must be provided"
+                    }
+                
+                backend = backend_manager.get_backend(backend_id)
+                
+                if not backend:
+                    return {
+                        "success": False,
+                        "error": f"Backend not found: {backend_id or '<default>'}"
+                    }
+            
+            # Delete content
+            result = await backend.delete(identifier)
+            
+            # Update filesystem journal if available
+            try:
+                import fs_journal_tools
+                
+                # Add journal entry if we have a path
+                if "path" in result:
+                    details = {
+                        "backend_id": backend.backend_id,
+                        "backend_type": backend.backend_type,
+                        "uri": f"mbfs://{backend.backend_id}/{identifier}",
+                        "identifier": identifier
+                    }
+                    
+                    fs_journal_tools._add_journal_entry(
+                        path=result["path"],
+                        operation="MBFS_DELETE",
+                        details=json.dumps(details)
+                    )
+            except ImportError:
+                # Filesystem journal not available
+                pass
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error deleting content: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Tool: List content in a backend
+    async def mbfs_list(backend_id: Optional[str] = None, prefix: str = ""):
+        """List content in a storage backend"""
+        try:
+            # Get backend
+            backend = backend_manager.get_backend(backend_id)
+            
+            if not backend:
+                return {
+                    "success": False,
+                    "error": f"Backend not found: {backend_id or '<default>'}"
+                }
+            
+            # List content
+            result = await backend.list(prefix)
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error listing content: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # Register all tools with the MCP server
     try:
-        # Create Multi-Backend FS instance if not already created
-        if not hasattr(server, "multi_backend_fs"):
-            server.multi_backend_fs = MultiBackendFS(os.getcwd())
+        server.register_tool("mbfs_register_backend", mbfs_register_backend)
+        server.register_tool("mbfs_get_backend", mbfs_get_backend)
+        server.register_tool("mbfs_list_backends", mbfs_list_backends)
+        server.register_tool("mbfs_store", mbfs_store)
+        server.register_tool("mbfs_retrieve", mbfs_retrieve)
+        server.register_tool("mbfs_delete", mbfs_delete)
+        server.register_tool("mbfs_list", mbfs_list)
         
-        # Register backend initialization tools
-        server.tool(name="init_huggingface_backend", 
-                   description="Initialize HuggingFace backend for the virtual filesystem")(init_huggingface_backend)
+        # Register default IPFS backend if none exists
+        if not backend_manager.backends:
+            backend_manager.register_backend(
+                "ipfs-default",
+                "ipfs",
+                {
+                    "api_url": "/ip4/127.0.0.1/tcp/5001",
+                    "gateway_url": "https://ipfs.io/ipfs/"
+                }
+            )
+            backend_manager.set_default_backend("ipfs-default")
+            logger.info("Registered default IPFS backend")
         
-        server.tool(name="init_filecoin_backend",
-                   description="Initialize Filecoin backend for the virtual filesystem")(init_filecoin_backend)
-        
-        server.tool(name="init_s3_backend",
-                   description="Initialize S3 backend for the virtual filesystem")(init_s3_backend)
-        
-        server.tool(name="init_storacha_backend",
-                   description="Initialize Storacha backend for the virtual filesystem")(init_storacha_backend)
-        
-        server.tool(name="init_ipfs_cluster_backend",
-                   description="Initialize IPFS Cluster backend for the virtual filesystem")(init_ipfs_cluster_backend)
-        
-        # Register generic tools
-        server.tool(name="multi_backend_map",
-                   description="Map a backend path to a local filesystem path")(multi_backend_map_handler)
-        
-        server.tool(name="multi_backend_unmap",
-                   description="Remove a mapping between backend and local filesystem")(multi_backend_unmap_handler)
-        
-        server.tool(name="multi_backend_list_mappings",
-                   description="List all mappings between backends and local filesystem")(multi_backend_list_mappings_handler)
-        
-        server.tool(name="multi_backend_status",
-                   description="Get status of the multi-backend filesystem")(multi_backend_status_handler)
-        
-        server.tool(name="multi_backend_sync",
-                   description="Synchronize all mapped paths")(multi_backend_sync_handler)
-        
-        server.tool(name="multi_backend_search",
-                   description="Search indexed content")(multi_backend_search_handler)
-        
-        server.tool(name="multi_backend_convert_format",
-                   description="Convert a file from one format to another")(multi_backend_convert_format_handler)
-        
-        logger.info("✅ Successfully registered Multi-Backend FS tools with MCP server")
+        logger.info("✅ Multi-backend filesystem integration tools registered successfully")
         return True
     except Exception as e:
-        logger.error(f"Failed to register Multi-Backend FS tools: {e}")
+        logger.error(f"Error registering multi-backend filesystem tools: {e}")
         return False
 
 if __name__ == "__main__":
-    # For testing/demonstration
-    fs = MultiBackendFS(os.getcwd())
-    
-    # Register some backends
-    fs.register_backend(BackendConfig(
-        backend_type=StorageBackendType.IPFS,
-        name="ipfs_main",
-        root_path="/ipfs"
-    ))
-    
-    fs.register_backend(BackendConfig(
-        backend_type=StorageBackendType.HUGGINGFACE,
-        name="huggingface_models",
-        root_path="/hf"
-    ))
-    
-    fs.register_backend(BackendConfig(
-        backend_type=StorageBackendType.S3,
-        name="s3_storage",
-        root_path="/s3",
-        config={"bucket": "test-bucket"}
-    ))
-    
-    # Print status
-    print(json.dumps(fs.get_status(), indent=2))
+    logger.info("This module should be imported, not run directly.")
+    logger.info("To use these tools, import and register them with an MCP server.")
