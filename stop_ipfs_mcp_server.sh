@@ -1,71 +1,83 @@
 #!/bin/bash
-# Stop IPFS MCP Server
-# This script stops the MCP server and optionally the IPFS daemon
+# Stop the IPFS MCP server
 
-# Set up logging
-LOG_FILE="ipfs_mcp_shutdown.log"
-echo "Stopping IPFS MCP Server" > $LOG_FILE
-echo "$(date)" >> $LOG_FILE
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Check if MCP server is running
-if [ -f "direct_mcp_server.pid" ]; then
-    PID=$(cat direct_mcp_server.pid)
+echo -e "${BLUE}Stopping IPFS MCP Server${NC}"
+
+# Check if the PID file exists
+if [ -f "direct_mcp_server_active.txt" ]; then
+    # Read the PID from the file
+    SERVER_PID=$(cat direct_mcp_server_active.txt)
     
-    if kill -0 $PID 2>/dev/null; then
-        echo "Stopping MCP server with PID: $PID" | tee -a $LOG_FILE
-        kill $PID
+    # Check if the process is still running
+    if ps -p $SERVER_PID > /dev/null; then
+        echo -e "${YELLOW}Stopping MCP server with PID $SERVER_PID...${NC}"
+        
+        # Try to stop the server gracefully first
+        kill -15 $SERVER_PID
+        
+        # Give it a moment to stop
         sleep 2
         
-        # Check if server was stopped
-        if ! kill -0 $PID 2>/dev/null; then
-            echo "MCP server stopped successfully" | tee -a $LOG_FILE
-            rm direct_mcp_server.pid
-        else
-            echo "MCP server did not stop gracefully, forcing..." | tee -a $LOG_FILE
-            kill -9 $PID
+        # Check if it's still running
+        if ps -p $SERVER_PID > /dev/null; then
+            echo -e "${YELLOW}Server didn't stop gracefully, forcing termination...${NC}"
+            kill -9 $SERVER_PID
             sleep 1
-            rm direct_mcp_server.pid
+        fi
+        
+        # Check one more time
+        if ps -p $SERVER_PID > /dev/null; then
+            echo -e "${RED}Failed to stop server with PID $SERVER_PID${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}Server stopped successfully${NC}"
+            rm direct_mcp_server_active.txt
         fi
     else
-        echo "MCP server is not running (stale PID file)" | tee -a $LOG_FILE
-        rm direct_mcp_server.pid
+        echo -e "${YELLOW}Server with PID $SERVER_PID is not running${NC}"
+        rm direct_mcp_server_active.txt
     fi
 else
-    echo "MCP server is not running (no PID file found)" | tee -a $LOG_FILE
-fi
-
-# Ask if IPFS daemon should also be stopped
-read -p "Do you want to stop the IPFS daemon as well? (y/n): " STOP_IPFS
-
-if [ "$STOP_IPFS" = "y" ] || [ "$STOP_IPFS" = "Y" ]; then
-    echo "Stopping IPFS daemon..." | tee -a $LOG_FILE
+    echo -e "${YELLOW}No active server PID file found${NC}"
     
-    # Check if IPFS daemon is running
-    if pgrep -x "ipfs" > /dev/null; then
-        # Get the PID of IPFS daemon
-        IPFS_PID=$(pgrep -x "ipfs")
+    # Check if there are any direct_mcp_server.py processes running
+    SERVER_PID=$(ps aux | grep "python3 direct_mcp_server.py" | grep -v grep | awk '{print $2}')
+    
+    if [ ! -z "$SERVER_PID" ]; then
+        echo -e "${YELLOW}Found running server process with PID $SERVER_PID${NC}"
         
-        # Stop IPFS daemon
-        ipfs shutdown
+        # Try to stop the server
+        echo -e "${YELLOW}Stopping MCP server with PID $SERVER_PID...${NC}"
+        kill -15 $SERVER_PID
+        
+        # Give it a moment to stop
         sleep 2
         
-        # Check if IPFS daemon was stopped
-        if ! kill -0 $IPFS_PID 2>/dev/null; then
-            echo "IPFS daemon stopped successfully" | tee -a $LOG_FILE
-        else
-            echo "IPFS daemon did not stop gracefully, forcing..." | tee -a $LOG_FILE
-            kill -9 $IPFS_PID
+        # Check if it's still running
+        if ps -p $SERVER_PID > /dev/null; then
+            echo -e "${YELLOW}Server didn't stop gracefully, forcing termination...${NC}"
+            kill -9 $SERVER_PID
             sleep 1
         fi
+        
+        # Check one more time
+        if ps -p $SERVER_PID > /dev/null; then
+            echo -e "${RED}Failed to stop server with PID $SERVER_PID${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}Server stopped successfully${NC}"
+        fi
     else
-        echo "IPFS daemon is not running" | tee -a $LOG_FILE
+        echo -e "${YELLOW}No running MCP server process found${NC}"
     fi
-else
-    echo "IPFS daemon will continue running" | tee -a $LOG_FILE
 fi
 
-echo "=================================================" | tee -a $LOG_FILE
-echo "Shutdown complete" | tee -a $LOG_FILE
-echo "=================================================" | tee -a $LOG_FILE
-
+echo -e "${GREEN}IPFS MCP server has been stopped${NC}"
 exit 0

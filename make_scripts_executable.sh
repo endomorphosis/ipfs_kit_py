@@ -1,21 +1,36 @@
 #!/bin/bash
-# Set executable permissions on all scripts
-# This script sets the executable bit on all the necessary scripts
+# Make all scripts executable
 
-# Set up logging
-echo "Setting executable permissions on scripts"
-echo "$(date)"
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Make start and stop scripts executable
-chmod +x start_ipfs_mcp_server.sh
-chmod +x stop_ipfs_mcp_server.sh
-chmod +x register_ipfs_tools_with_mcp.py
-chmod +x add_comprehensive_ipfs_tools.py
+echo -e "${BLUE}Making IPFS MCP scripts executable...${NC}"
 
-echo "Made the following scripts executable:"
-echo "- start_ipfs_mcp_server.sh"
-echo "- stop_ipfs_mcp_server.sh" 
-echo "- register_ipfs_tools_with_mcp.py"
-echo "- add_comprehensive_ipfs_tools.py"
+# Main scripts
+SCRIPTS=(
+    "add_comprehensive_ipfs_tools.py"
+    "register_ipfs_tools_with_mcp.py"
+    "verify_ipfs_tools.py"
+    "start_ipfs_mcp_server.sh"
+    "stop_ipfs_mcp_server.sh"
+)
 
-echo "Done!"
+# Make each script executable
+for script in "${SCRIPTS[@]}"; do
+    if [ -f "$script" ]; then
+        echo -e "${YELLOW}Making $script executable...${NC}"
+        chmod +x "$script"
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ $script is now executable${NC}"
+        else
+            echo -e "${RED}✗ Failed to make $script executable${NC}"
+        fi
+    else
+        echo -e "${YELLOW}! Script $script not found${NC}"
+    fi
+done
+
+echo -e "${GREEN}Done!${NC}"

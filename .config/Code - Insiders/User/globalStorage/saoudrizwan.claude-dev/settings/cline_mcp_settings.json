@@ -1,13 +1,14 @@
 {
-"mcpServers": [
+  "mcpServers": [
     {
-      "name": "ipfs-kit-mcp",
-      "description": "IPFS Kit MCP Server with storage backends (IPFS, Filecoin, Hugging Face, Storacha, Lassie, S3)",
-      "url": "http://localhost:9996",
-      "transportType": "http",
-      "initializeEndpoint": "/api/v0/initialize",
-      "sseEndpoint": "/api/v0/sse",
+      "name": "localhost",
+      "description": "Local IPFS MCP Server",
+      "url": "http://localhost:9994",
       "enabled": true,
+      "transportType": "http",
+      "timeout": 60,
+      "initializeEndpoint": "/api/v0/initialize",
+      "sseEndpoint": "/api/v0/sse", 
       "authentication": {
         "type": "none"
       },
@@ -27,6 +28,7 @@
         {
           "name": "ipfs_add",
           "description": "Add content to IPFS",
+          "endpoint": "/api/v0/ipfs/add",
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -40,7 +42,9 @@
                 "default": true
               }
             },
-            "required": ["content"]
+            "required": [
+              "content"
+            ]
           },
           "outputSchema": {
             "type": "object",
@@ -59,6 +63,7 @@
         {
           "name": "ipfs_cat",
           "description": "Retrieve content from IPFS",
+          "endpoint": "/api/v0/ipfs/cat",
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -67,7 +72,9 @@
                 "description": "Content identifier (CID) to retrieve"
               }
             },
-            "required": ["cid"]
+            "required": [
+              "cid"
+            ]
           },
           "outputSchema": {
             "type": "object",
@@ -82,6 +89,7 @@
         {
           "name": "ipfs_pin",
           "description": "Pin content in IPFS",
+          "endpoint": "/api/v0/ipfs/pin/add",
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -90,7 +98,9 @@
                 "description": "Content identifier (CID) to pin"
               }
             },
-            "required": ["cid"]
+            "required": [
+              "cid"
+            ]
           },
           "outputSchema": {
             "type": "object",
@@ -98,41 +108,6 @@
               "success": {
                 "type": "boolean",
                 "description": "Whether the pinning was successful"
-              }
-            }
-          }
-        },
-        {
-          "name": "storage_transfer",
-          "description": "Transfer content between storage backends",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "source": {
-                "type": "string",
-                "description": "Source storage backend (ipfs, filecoin, huggingface, storacha, lassie, s3)"
-              },
-              "destination": {
-                "type": "string",
-                "description": "Destination storage backend (ipfs, filecoin, huggingface, storacha, lassie, s3)"
-              },
-              "identifier": {
-                "type": "string",
-                "description": "Content identifier in the source backend"
-              }
-            },
-            "required": ["source", "destination", "identifier"]
-          },
-          "outputSchema": {
-            "type": "object",
-            "properties": {
-              "success": {
-                "type": "boolean",
-                "description": "Whether the transfer was successful"
-              },
-              "destinationId": {
-                "type": "string",
-                "description": "Identifier of the content in the destination backend"
               }
             }
           }

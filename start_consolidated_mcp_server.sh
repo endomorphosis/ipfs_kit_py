@@ -1,0 +1,1 @@
+scripts/start_consolidated_mcp_server.sh

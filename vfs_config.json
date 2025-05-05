@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "vfs": {
+    "root_dir": "~/.ipfs_kit/vfs",
+    "journal_file": "~/.ipfs_kit/fs_journal.json",
+    "auto_sync": true,
+    "track_all_operations": true,
+    "default_backend": "ipfs"
+  },
+  "ipfs": {
+    "api_url": "http://localhost:5001/api/v0",
+    "gateway_url": "http://localhost:8080/ipfs",
+    "auto_pin": true
+  },
+  "backends": {
+    "ipfs": {
+      "enabled": true,
+      "type": "ipfs",
+      "api_url": "http://localhost:5001/api/v0"
+    },
+    "filecoin": {
+      "enabled": false,
+      "type": "filecoin",
+      "api_url": "http://localhost:1234/rpc/v0"
+    },
+    "s3": {
+      "enabled": false,
+      "type": "s3",
+      "bucket_name": "ipfs-kit-vfs",
+      "region": "us-east-1"
+    },
+    "local": {
+      "enabled": true,
+      "type": "local",
+      "path": "~/.ipfs_kit/local_storage"
+    }
+  },
+  "bridges": {
+    "ipfs_fs": {
+      "enabled": true,
+      "auto_sync": true,
+      "mapped_paths": []
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "~/.ipfs_kit/vfs.log",
+    "console": true
+  },
+  "mcp": {
+    "server_url": "http://localhost:3000",
+    "tools_enabled": [
+      "fs_journal_get_history",
+      "fs_journal_sync",
+      "fs_journal_track",
+      "fs_journal_untrack",
+      "fs_journal_status",
+      "ipfs_fs_bridge_status",
+      "ipfs_fs_bridge_sync",
+      "ipfs_fs_bridge_map",
+      "ipfs_fs_bridge_unmap",
+      "ipfs_fs_bridge_list_mappings",
+      "ipfs_fs_export_to_ipfs",
+      "ipfs_fs_import_from_ipfs",
+      "init_ipfs_backend",
+      "init_filecoin_backend",
+      "init_s3_backend",
+      "storage_status",
+      "storage_transfer",
+      "vfs_list",
+      "vfs_read",
+      "vfs_write",
+      "vfs_mkdir",
+      "vfs_rm",
+      "vfs_copy",
+      "vfs_move",
+      "vfs_stat"
+    ]
+  }
+}

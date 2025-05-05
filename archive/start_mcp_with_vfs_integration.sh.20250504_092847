@@ -1,0 +1,29 @@
+#!/bin/bash
+# Start the final MCP server with integrated VFS support
+
+echo "Starting the final MCP server with VFS integration..."
+
+# Kill any running instances
+pkill -f "final_mcp_server.py" || echo "No running instances found"
+
+# Wait for ports to be released
+sleep 1
+
+# Set Python paths
+export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/ipfs_kit_py
+
+# Create backup of the current final_mcp_server.py if it doesn't exist
+if [ ! -f "final_mcp_server.py.bak.vfs" ]; then
+    cp final_mcp_server.py final_mcp_server.py.bak.vfs
+    echo "Created backup of final_mcp_server.py as final_mcp_server.py.bak.vfs"
+fi
+
+# Run the final integration script to ensure everything is set up
+chmod +x final_integration.py
+./final_integration.py
+
+# Start the server with debugging enabled
+python3 final_mcp_server.py --debug --port 3000
+
+# Exit with the same status as the server
+exit $?

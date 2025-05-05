@@ -85,6 +85,36 @@ def check_final_server():
         logger.error(f"❌ Final MCP server module is not available: {e}")
         return False
 
+def check_vfs_components():
+    """Check if the VFS components are available."""
+    logger.info("Checking VFS components...")
+    
+    components = [
+        "fs_journal_tools",
+        "ipfs_mcp_fs_integration",
+        "multi_backend_fs_integration",
+        "integrate_vfs_to_final_mcp",
+        "enhance_vfs_mcp_integration"
+    ]
+    
+    available_components = []
+    
+    for component in components:
+        try:
+            # Try to import the module
+            spec = importlib.util.find_spec(component)
+            if spec is None:
+                logger.warning(f"⚠️ VFS component {component} is not available")
+                continue
+            
+            importlib.import_module(component)
+            available_components.append(component)
+            logger.info(f"✅ VFS component {component} is available")
+        except ImportError as e:
+            logger.warning(f"⚠️ VFS component {component} could not be imported: {e}")
+    
+    return len(available_components) > 0
+
 def check_dependencies():
     """Check if all required dependencies are available."""
     logger.info("Checking required dependencies...")
@@ -393,6 +423,12 @@ def main():
     # Check dependencies
     if not check_dependencies():
         logger.warning("⚠️ Some dependencies are missing. Integration may not be successful.")
+    
+    # Check VFS components
+    if check_vfs_components():
+        logger.info("✅ VFS components are available")
+    else:
+        logger.warning("⚠️ VFS components are not available. Some functionality may be limited.")
     
     # Check unified tools
     if not check_unified_tools():

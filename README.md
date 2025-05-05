@@ -1,6 +1,8 @@
-# IPFS Kit Python
+# # IPFS Kit Python
 
 IPFS Kit is a comprehensive Python toolkit for working with IPFS (InterPlanetary File System) technologies. It provides a unified interface for IPFS operations, cluster management, tiered storage, and AI/ML integration.
+
+> **NEW**: Check out our [Consolidated IPFS-VFS MCP Server](README_CONSOLIDATED_MCP_SERVER.md) - The final, consolidated MCP server implementation that integrates all IPFS and Virtual Filesystem tools.
 
 This library installs and configures IPFS services through Kubo and IPFS Cluster based on the contents in the config file. It supports different node roles (master, worker, or leecher) and allows IPFS content to be accessed through multiple backends, including local IPFS node, IPFS Cluster, Storacha (previously Web3.Storage), and S3-compatible storage.
 
@@ -8,7 +10,7 @@ Key components include:
 - **Core IPFS operations**: Content addition, retrieval, and pinning through different storage backends
 - **Tiered Storage System**: Intelligent caching with adaptive replacement policies
 - **MCP Server Architecture**: Structured Model-Controller-Persistence design with clean separation of concerns
-  - Server architecture has been fully consolidated in Q2 2025 (see [MCP Roadmap](/mcp_roadmap.md))
+  - Server architecture has been fully consolidated in Q2 2025 (see [README_CONSOLIDATED_MCP_SERVER.md](README_CONSOLIDATED_MCP_SERVER.md))
   - Complete implementation with verified backend integrations
   - Extensive test coverage for all components
 - **FSSpec Integration**: Seamless integration with data science tools via fsspec interface
@@ -1851,3 +1853,73 @@ We particularly welcome contributions in these areas:
 Author - Benjamin Barber
 QA - Kevin De Haan
 Testing & Documentation - Claude
+## MCP Server Architecture (Q2 2025 Update)
+
+As of Q2 2025, the MCP Server architecture has been fully consolidated into a single, comprehensive solution that integrates all IPFS and Virtual Filesystem (VFS) tools. This consolidation resolves previous code debt issues and provides a clean, organized codebase.
+
+### Key Components
+
+- **Consolidated MCP Server**: A unified server implementation that provides all functionality through a consistent JSON-RPC interface.
+- **Virtual Filesystem**: In-memory filesystem implementation with standard operations.
+- **IPFS-VFS Bridge**: Seamless integration between IPFS and the Virtual Filesystem.
+- **Filesystem Journal**: Records operations for auditing and recovery.
+
+### Directory Structure
+
+- `src/mcp/` - Core MCP server implementation
+- `scripts/` - Utility scripts for running and managing the server
+- `tests/` - Test scripts to verify server functionality
+- `docs/` - Documentation files
+- `archive/` - Archived old implementations and fix scripts
+
+### Using the Consolidated MCP Server
+
+To start the server:
+
+```bash
+./start_consolidated_mcp_server.sh
+```
+
+To test the server:
+
+```bash
+./test_consolidated_mcp_server.py
+```
+
+For detailed documentation, see [Consolidated MCP Server Documentation](docs/README_CONSOLIDATED_MCP_SERVER.md).
+
+
+## MCP Server Architecture (Q2 2025 Update)
+
+As of Q2 2025, the MCP Server architecture has been fully consolidated into a single, comprehensive solution that integrates all IPFS and Virtual Filesystem (VFS) tools. This consolidation resolves previous code debt issues and provides a clean, organized codebase.
+
+### Key Components
+
+- **Consolidated MCP Server**: A unified server implementation that provides all functionality through a consistent JSON-RPC interface.
+- **Virtual Filesystem**: In-memory filesystem implementation with standard operations.
+- **IPFS-VFS Bridge**: Seamless integration between IPFS and the Virtual Filesystem.
+- **Filesystem Journal**: Records operations for auditing and recovery.
+
+### Directory Structure
+
+- `src/mcp/` - Core MCP server implementation
+- `scripts/` - Utility scripts for running and managing the server
+- `tests/` - Test scripts to verify server functionality
+- `docs/` - Documentation files
+- `archive/` - Archived old implementations and fix scripts
+
+### Using the Consolidated MCP Server
+
+To start the server:
+
+```bash
+./start_consolidated_mcp_server.sh
+```
+
+To test the server:
+
+```bash
+./test_consolidated_mcp_server.py
+```
+
+For detailed documentation, see [Consolidated MCP Server Documentation](docs/README_CONSOLIDATED_MCP_SERVER.md).
