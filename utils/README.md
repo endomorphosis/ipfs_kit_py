@@ -4,8 +4,11 @@ This directory contains various utility scripts for the ipfs_kit_py project. The
 
 ## Directory Structure
 
-- **check/**: Scripts for checking and validating various components
+- **check/**: Scripts for checking and validating various components  
 - **debug/**: Scripts for debugging and troubleshooting
+- **add_tools/**: Tools for adding new functionality and components
+- **maintenance/**: Maintenance scripts and cleanup utilities
+- **verify/**: Verification and validation scripts
 
 ## Purpose
 

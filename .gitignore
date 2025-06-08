@@ -155,3 +155,6 @@ bin/lotus-worker
 **/nvidia/cudnn/lib/libcudnn_*.so*
 **/nvidia/cublas/lib/libcublas*.so*
 **/triton/_C/libtriton.so*
+# Backup directories
+backup_*/
+backups/
