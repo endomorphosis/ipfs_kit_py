@@ -62,7 +62,7 @@ def _initialize_db():
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS file_state (
             path TEXT PRIMARY KEY,
-            exists BOOLEAN,
+            file_exists BOOLEAN,
             is_dir BOOLEAN,
             size INTEGER,
             last_modified TIMESTAMP,
@@ -119,14 +119,14 @@ def _add_journal_entry(path: str, operation: str, details: str = "",
             
             cursor.execute('''
             INSERT OR REPLACE INTO file_state
-            (path, exists, is_dir, size, last_modified, checksum, last_operation, last_operation_time)
+            (path, file_exists, is_dir, size, last_modified, checksum, last_operation, last_operation_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (path, exists, is_dir, size, last_modified, checksum, operation, timestamp))
         else:
             # File was deleted
             cursor.execute('''
             UPDATE file_state
-            SET exists = 0, last_operation = ?, last_operation_time = ?
+            SET file_exists = 0, last_operation = ?, last_operation_time = ?
             WHERE path = ?
             ''', (operation, timestamp, path))
         
@@ -306,13 +306,13 @@ def register_tools(server) -> bool:
                 if recursive and os.path.isdir(path):
                     cursor.execute('''
                     SELECT COUNT(*) FROM file_state 
-                    WHERE path LIKE ? AND exists = 1 AND is_dir = 0
+                    WHERE path LIKE ? AND file_exists = 1 AND is_dir = 0
                     ''', (path + "/%",))
                     file_count = cursor.fetchone()[0]
                     
                     cursor.execute('''
                     SELECT COUNT(*) FROM file_state 
-                    WHERE path LIKE ? AND exists = 1 AND is_dir = 1
+                    WHERE path LIKE ? AND file_exists = 1 AND is_dir = 1
                     ''', (path + "/%",))
                     dir_count = cursor.fetchone()[0]
                 else:
@@ -393,7 +393,7 @@ def register_tools(server) -> bool:
             current_state = None
             if state_row:
                 current_state = {
-                    "exists": bool(state_row['exists']),
+                    "exists": bool(state_row['file_exists']),
                     "is_dir": bool(state_row['is_dir']),
                     "size": state_row['size'],
                     "last_modified": state_row['last_modified'],
@@ -620,17 +620,31 @@ def register_tools(server) -> bool:
     
     # Register all tools with the MCP server
     try:
-        server.register_tool("fs_journal_track", fs_journal_track)
-        server.register_tool("fs_journal_untrack", fs_journal_untrack)
-        server.register_tool("fs_journal_list_tracked", fs_journal_list_tracked)
-        server.register_tool("fs_journal_get_history", fs_journal_get_history)
-        server.register_tool("fs_journal_sync", fs_journal_sync)
+        server.add_tool(fs_journal_track, name="fs_journal_track")
+        server.add_tool(fs_journal_untrack, name="fs_journal_untrack")
+        server.add_tool(fs_journal_list_tracked, name="fs_journal_list_tracked")
+        server.add_tool(fs_journal_get_history, name="fs_journal_get_history")
+        server.add_tool(fs_journal_sync, name="fs_journal_sync")
         
         logger.info("✅ Filesystem journal tools registered successfully")
         return True
     except Exception as e:
         logger.error(f"Error registering filesystem journal tools: {e}")
         return False
+
+# Alias function for compatibility with the MCP server
+def register_fs_journal_tools(server):
+    """
+    Register filesystem journal tools with the MCP server.
+    This is an alias for register_tools() to match server expectations.
+    
+    Args:
+        server: The MCP server instance to register tools with
+        
+    Returns:
+        bool: True if registration successful, False otherwise
+    """
+    return register_tools(server)
 
 if __name__ == "__main__":
     logger.info("This module should be imported, not run directly.")

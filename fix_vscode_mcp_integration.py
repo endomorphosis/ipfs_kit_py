@@ -35,11 +35,11 @@ console.setFormatter(formatter)
 logger.addHandler(console)
 
 # Define constants
-MCP_PORT = 9994
-JSONRPC_PORT = 9995
-API_PREFIX = "/api/v0"
-MCP_SERVER_SCRIPT = "./enhanced_mcp_server_fixed.py"
-JSONRPC_SERVER_SCRIPT = "./simple_jsonrpc_server.py"
+MCP_PORT = 8765
+JSONRPC_PORT = 8765
+API_PREFIX = "" # No API prefix based on check_server.py output
+MCP_SERVER_SCRIPT = "./final_mcp_server.py" # Use the script that was successfully started
+JSONRPC_SERVER_SCRIPT = "./final_mcp_server.py" # JSON-RPC is on the same server
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -110,16 +110,18 @@ def update_vscode_settings(settings_path, check_only=False):
             logger.info("Adding missing 'mcp.servers' settings")
             settings["mcp"]["servers"] = {
                 "my-mcp-server": {
-                    "url": f"http://localhost:{MCP_PORT}{API_PREFIX}/sse"
+                    "url": f"http://localhost:{MCP_PORT}/sse"
                 }
             }
             needs_update = True
         else:
             # Check all server URLs
             for server_id, server_config in settings["mcp"]["servers"].items():
-                if "url" not in server_config or not server_config["url"].endswith("/sse"):
+                # Only update if the URL is not already correct
+                expected_url = f"http://localhost:{MCP_PORT}/sse"
+                if "url" not in server_config or server_config["url"] != expected_url:
                     logger.info(f"Fixing MCP server URL for {server_id}")
-                    server_config["url"] = f"http://localhost:{MCP_PORT}{API_PREFIX}/sse"
+                    server_config["url"] = expected_url
                     needs_update = True
         
         # Check JSON-RPC endpoint settings
@@ -164,63 +166,30 @@ def restart_servers():
     logger.info("Stopping existing MCP and JSON-RPC servers...")
     
     try:
+        # Stop existing servers using check_server.py
+        logger.info("Stopping existing MCP server using check_server.py...")
         subprocess.run(
-            "pkill -f 'python.*enhanced_mcp_server' || true",
+            f"python check_server.py --stop --port {MCP_PORT}",
             shell=True, check=False
         )
-        subprocess.run(
-            "pkill -f 'python.*simple_jsonrpc_server' || true",
-            shell=True, check=False
-        )
-        time.sleep(2)
+        time.sleep(2) # Give time for processes to terminate
         
         logger.info(f"Starting MCP server: {MCP_SERVER_SCRIPT}")
-        mcp_process = subprocess.Popen(
-            f"python {MCP_SERVER_SCRIPT} --port {MCP_PORT} --api-prefix {API_PREFIX}",
+        # Use check_server.py to start the server
+        start_success = subprocess.run(
+            f"python check_server.py --start --port {MCP_PORT}",
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
         
-        logger.info(f"Starting JSON-RPC server: {JSONRPC_SERVER_SCRIPT}")
-        jsonrpc_process = subprocess.Popen(
-            f"python {JSONRPC_SERVER_SCRIPT}",
-            shell=True, 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        # Wait for servers to start
-        time.sleep(3)
-        
-        # Check if servers are running
-        mcp_running = subprocess.run(
-            f"curl -s http://localhost:{MCP_PORT}/",
-            shell=True, 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        jsonrpc_running = subprocess.run(
-            f"curl -s http://localhost:{JSONRPC_PORT}/",
-            shell=True, 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        if mcp_running.returncode == 0 and jsonrpc_running.returncode == 0:
-            logger.info("Both servers started successfully")
+        if start_success.returncode == 0:
+            logger.info("MCP server started successfully using check_server.py")
             return True
         else:
-            logger.error("Failed to start one or both servers")
-            if mcp_running.returncode != 0:
-                logger.error("MCP server failed to start")
-            if jsonrpc_running.returncode != 0:
-                logger.error("JSON-RPC server failed to start")
+            logger.error("Failed to start MCP server using check_server.py")
+            logger.error(start_success.stderr)
             return False
     except Exception as e:
         logger.error(f"Error restarting servers: {e}")

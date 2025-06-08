@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-05-14 21:09:34",
+  "server_info": {
+    "version": "1.0.0",
+    "uptime_seconds": 2552.01269,
+    "port": 9998,
+    "registered_tools": 53,
+    "registered_tool_categories": [
+      "multi_backend_tools",
+      "fs_journal_tools",
+      "vfs_tools",
+      "ipfs_tools"
+    ]
+  },
+  "health_check": {
+    "status": "ok",
+    "version": "1.0.0",
+    "uptime_seconds": 2551.996117,
+    "tools_count": 53,
+    "registered_tool_categories": [
+      "multi_backend_tools",
+      "fs_journal_tools",
+      "vfs_tools",
+      "ipfs_tools"
+    ]
+  },
+  "tests": [
+    {
+      "name": "Health Check",
+      "passed": true,
+      "details": {
+        "status": "ok",
+        "version": "1.0.0",
+        "uptime_seconds": 2551.996117,
+        "tools_count": 53,
+        "registered_tool_categories": [
+          "multi_backend_tools",
+          "fs_journal_tools",
+          "vfs_tools",
+          "ipfs_tools"
+        ]
+      }
+    },
+    {
+      "name": "Ping Method",
+      "passed": true,
+      "details": {
+        "jsonrpc": "2.0",
+        "result": "pong",
+        "id": 1747282174032
+      }
+    },
+    {
+      "name": "Server Info Method",
+      "passed": true,
+      "details": {
+        "jsonrpc": "2.0",
+        "result": {
+          "version": "1.0.0",
+          "uptime_seconds": 2552.01269,
+          "port": 9998,
+          "registered_tools": 53,
+          "registered_tool_categories": [
+            "multi_backend_tools",
+            "fs_journal_tools",
+            "vfs_tools",
+            "ipfs_tools"
+          ]
+        },
+        "id": 1747282174040
+      }
+    },
+    {
+      "name": "get_tools Method",
+      "passed": true,
+      "details": {
+        "count": 53,
+        "sample": [
+          {
+            "name": "ipfs_files_ls",
+            "description": "List files and directories in the IPFS MFS (Mutable File System)",
+            "parameters": {}
+          },
+          {
+            "name": "ipfs_files_mkdir",
+            "description": "Create directories in the IPFS MFS (Mutable File System)",
+            "parameters": {}
+          },
+          {
+            "name": "ipfs_files_write",
+            "description": "Write data to a file in the IPFS MFS (Mutable File System)",
+            "parameters": {}
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -26,41 +26,18 @@ except ImportError:
 
 # Import the search module
 try:
-    # First try to import directly if in path
-    from mcp_search import (
+    from ipfs_kit_py.mcp.search.search import (
         create_search_router,
         ContentSearchService,
         SENTENCE_TRANSFORMERS_AVAILABLE,
         FAISS_AVAILABLE
     )
     SEARCH_AVAILABLE = True
-    logger.info("Search module successfully imported directly")
-except ImportError:
-    # Try with various path manipulations to find mcp_search.py
-    search_paths = [
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),  # Project root
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),  # Parent directory
-        os.getcwd()  # Current working directory
-    ]
-    
-    for path in search_paths:
-        if path not in sys.path:
-            sys.path.append(path)
-            logger.debug(f"Added potential search module path: {path}")
-    
-    try:
-        from mcp_search import (
-            create_search_router,
-            ContentSearchService,
-            SENTENCE_TRANSFORMERS_AVAILABLE,
-            FAISS_AVAILABLE
-        )
-        SEARCH_AVAILABLE = True
-        logger.info("Search module successfully imported with path manipulation")
-    except ImportError as e:
-        SEARCH_AVAILABLE = False
-        logger.error(f"Error importing search module: {e}")
-        logger.error(f"Tried paths: {search_paths}")
+    logger.info("Search module successfully imported from ipfs_kit_py.mcp.search.search")
+except ImportError as e:
+    SEARCH_AVAILABLE = False
+    logger.error(f"Error importing search module from ipfs_kit_py.mcp.search.search: {e}")
+    logger.info("Please ensure ipfs_kit_py is installed correctly and search dependencies are met.")
 
 # Initialize search service
 _search_service = None

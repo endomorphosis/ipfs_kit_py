@@ -15,7 +15,7 @@ import tempfile
 import traceback
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Callable
 
 # Configure logging
 logging.basicConfig(
@@ -28,50 +28,51 @@ logger = logging.getLogger("unified-ipfs-tools")
 TOOL_STATUS = {
     "ipfs_extensions_available": False,
     "ipfs_model_available": False,
-    "ipfs_fs_bridge_available": False
+    "ipfs_fs_bridge_available": False,
+    "fixed_ipfs_model_available": False # Always set to False to avoid issues
 }
 
 # Import IPFS extensions if available
 try:
-    # Add possible paths to import from
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path.append(script_dir)
-    sys.path.append(os.path.join(script_dir, "ipfs_kit_py"))
-    
-    # Try to import IPFS extensions
-    from ipfs_kit_py.mcp.ipfs_extensions import (
-        add_content, cat, pin_add, pin_rm, pin_ls, get_version,
-        files_ls, files_mkdir, files_write, files_read,
-        files_rm, files_stat, files_cp, files_mv, files_flush
-    )
+    from ipfs_kit_py.mcp import ipfs_extensions
     TOOL_STATUS["ipfs_extensions_available"] = True
-    logger.info("✅ Successfully imported IPFS extensions")
+    logger.info(" IPFS extensions module available")
 except ImportError as e:
-    logger.warning(f"⚠️ Could not import IPFS extensions: {e}")
-    logger.warning("⚠️ Will use mock implementations for IPFS extensions")
+    logger.warning(f" Could not import IPFS extensions: {e}")
+    logger.warning(" Will use mock implementations for IPFS extensions")
+except Exception as e:
+    logger.error(f" Unexpected error importing IPFS extensions: {e}")
+    logger.error(traceback.format_exc())
 
 # Try to import IPFS model if available
 try:
     from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
     TOOL_STATUS["ipfs_model_available"] = True
-    logger.info("✅ Successfully imported IPFS Model")
+    logger.info(" IPFS model available")
 except ImportError as e:
-    logger.warning(f"⚠️ Could not import IPFS Model: {e}")
+    logger.warning(f" Could not import IPFS model: {e}")
+except Exception as e:
+    logger.error(f" Unexpected error importing IPFS model: {e}")
+    logger.error(traceback.format_exc())
+
 
 # Try to import IPFS-FS bridge if available
 try:
     from ipfs_kit_py.fs_journal import IPFSFSBridge
     TOOL_STATUS["ipfs_fs_bridge_available"] = True
-    logger.info("✅ Successfully imported IPFS-FS Bridge")
+    logger.info(" IPFS-FS bridge available")
 except ImportError as e:
-    logger.warning(f"⚠️ Could not import IPFS-FS Bridge: {e}")
+    logger.warning(f" Could not import IPFS-FS Bridge: {e}")
+except Exception as e:
+    logger.error(f" Unexpected error importing IPFS-FS Bridge: {e}")
+    logger.error(traceback.format_exc())
 
 # Import the tools registry
 try:
     from ipfs_tools_registry import IPFS_TOOLS
-    logger.info(f"✅ Found {len(IPFS_TOOLS)} tools in registry")
+    logger.info(f" Found {len(IPFS_TOOLS)} tools in registry")
 except ImportError as e:
-    logger.warning(f"⚠️ Could not import IPFS tools registry: {e}")
+    logger.warning(f" Could not import IPFS tools registry: {e}")
     # Define a minimal set of tools if registry not available
     IPFS_TOOLS = [
         {
@@ -116,24 +117,31 @@ except ImportError as e:
 # Initialize global instances
 ipfs_model = None
 fs_bridge = None
+fixed_ipfs_model_instance = None # This will always be None now.
 
 # Initialize needed components
 def initialize_components():
     """Initialize IPFS components if available."""
-    global ipfs_model, fs_bridge
-    
+    global ipfs_model, fs_bridge, fixed_ipfs_model_instance
+
     try:
         if TOOL_STATUS["ipfs_model_available"] and ipfs_model is None:
             ipfs_model = IPFSModel()
-            logger.info("✅ Initialized IPFS Model")
-        
+            logger.info(" IPFS Model initialized")
+
+        # fixed_ipfs_model_instance will always be None as its import is removed
+        # if TOOL_STATUS["fixed_ipfs_model_available"] and fixed_ipfs_model_instance is None:
+        #      fixed_ipfs_model_instance = FixedIPFSModel()
+        #      logger.info(" Fixed IPFS Model initialized")
+
+
         if TOOL_STATUS["ipfs_fs_bridge_available"] and fs_bridge is None:
             fs_bridge = IPFSFSBridge()
-            logger.info("✅ Initialized IPFS-FS Bridge")
-        
+            logger.info(" IPFS-FS Bridge initialized")
+
         return True
     except Exception as e:
-        logger.error(f"❌ Error initializing IPFS components: {e}")
+        logger.error(f" Error initializing IPFS components: {e}")
         logger.error(traceback.format_exc())
         return False
 
@@ -141,12 +149,12 @@ def initialize_components():
 async def mock_add_content(content, filename=None, pin=True):
     """Mock implementation of add_content."""
     logger.info(f"[MOCK] Adding content to IPFS (length: {len(content) if isinstance(content, str) else 'binary'})")
-    
+
     # Generate a mock CID based on content
     import hashlib
     content_hash = hashlib.sha256(content.encode() if isinstance(content, str) else content).hexdigest()
     mock_cid = f"Qm{content_hash[:38]}"
-    
+
     return {
         "success": True,
         "cid": mock_cid,
@@ -159,9 +167,9 @@ async def mock_add_content(content, filename=None, pin=True):
 async def mock_cat(cid):
     """Mock implementation of cat."""
     logger.info(f"[MOCK] Retrieving content for CID: {cid}")
-    
+
     mock_content = f"This is mock content for CID: {cid}\nGenerated at {datetime.now().isoformat()}"
-    
+
     return {
         "success": True,
         "cid": cid,
@@ -174,7 +182,7 @@ async def mock_cat(cid):
 async def mock_pin_add(cid, recursive=True):
     """Mock implementation of pin_add."""
     logger.info(f"[MOCK] Pinning CID: {cid} (recursive={recursive})")
-    
+
     return {
         "success": True,
         "cid": cid,
@@ -186,7 +194,7 @@ async def mock_pin_add(cid, recursive=True):
 async def mock_pin_rm(cid, recursive=True):
     """Mock implementation of pin_rm."""
     logger.info(f"[MOCK] Unpinning CID: {cid} (recursive={recursive})")
-    
+
     return {
         "success": True,
         "cid": cid,
@@ -198,7 +206,7 @@ async def mock_pin_rm(cid, recursive=True):
 async def mock_pin_ls(cid=None, type_filter="all"):
     """Mock implementation of pin_ls."""
     logger.info(f"[MOCK] Listing pins (cid={cid}, filter={type_filter})")
-    
+
     # Generate some mock pins
     mock_pins = []
     if cid:
@@ -209,7 +217,7 @@ async def mock_pin_ls(cid=None, type_filter="all"):
                 "cid": f"Qm{''.join(str(i) for _ in range(38))}",
                 "type": "recursive" if i % 2 == 0 else "direct"
             })
-    
+
     return {
         "success": True,
         "pins": mock_pins,
@@ -221,7 +229,7 @@ async def mock_pin_ls(cid=None, type_filter="all"):
 async def mock_get_version():
     """Mock implementation of get_version."""
     logger.info("[MOCK] Getting IPFS version")
-    
+
     return {
         "success": True,
         "version": "0.12.0-mock",
@@ -236,7 +244,7 @@ async def mock_get_version():
 async def mock_files_ls(path="/", long=False):
     """Mock implementation of files_ls."""
     logger.info(f"[MOCK] Listing files in MFS path: {path}")
-    
+
     # Generate mock entries
     mock_entries = []
     if path == "/":
@@ -250,7 +258,7 @@ async def mock_files_ls(path="/", long=False):
             {"name": "notes.txt", "type": 1, "size": 512, "hash": "QmY7Yh4UquoXHLPFo2XbhXkhBvFoPwmQUSa92pxnxjQuPU"},
             {"name": "report.pdf", "type": 1, "size": 2048, "hash": "QmY7Yh4UquoXHLPFo2XbhXkhBvFoPwmQUSa92pxnxjQuPU"}
         ]
-    
+
     return {
         "success": True,
         "path": path,
@@ -262,7 +270,7 @@ async def mock_files_ls(path="/", long=False):
 async def mock_files_mkdir(path, parents=True):
     """Mock implementation of files_mkdir."""
     logger.info(f"[MOCK] Creating directory in MFS: {path}")
-    
+
     return {
         "success": True,
         "path": path,
@@ -273,9 +281,9 @@ async def mock_files_mkdir(path, parents=True):
 async def mock_files_write(path, content, create=True, truncate=True):
     """Mock implementation of files_write."""
     logger.info(f"[MOCK] Writing to file in MFS: {path}")
-    
+
     content_size = len(content) if isinstance(content, str) else len(content)
-    
+
     return {
         "success": True,
         "path": path,
@@ -288,10 +296,10 @@ async def mock_files_write(path, content, create=True, truncate=True):
 async def mock_files_read(path, offset=0, count=-1):
     """Mock implementation of files_read."""
     logger.info(f"[MOCK] Reading file from MFS: {path}")
-    
+
     # Generate mock content based on path
     mock_content = f"This is mock content for MFS file: {path}\nGenerated at {datetime.now().isoformat()}"
-    
+
     return {
         "success": True,
         "path": path,
@@ -305,7 +313,7 @@ async def mock_files_read(path, offset=0, count=-1):
 async def mock_files_rm(path, recursive=False, force=False):
     """Mock implementation of files_rm."""
     logger.info(f"[MOCK] Removing {path} from MFS")
-    
+
     return {
         "success": True,
         "path": path,
@@ -317,7 +325,7 @@ async def mock_files_rm(path, recursive=False, force=False):
 async def mock_files_stat(path):
     """Mock implementation of files_stat."""
     logger.info(f"[MOCK] Getting stats for MFS path: {path}")
-    
+
     return {
         "success": True,
         "path": path,
@@ -332,7 +340,7 @@ async def mock_files_stat(path):
 async def mock_files_cp(source, dest):
     """Mock implementation of files_cp."""
     logger.info(f"[MOCK] Copying {source} to {dest} in MFS")
-    
+
     return {
         "success": True,
         "source": source,
@@ -343,7 +351,7 @@ async def mock_files_cp(source, dest):
 async def mock_files_mv(source, dest):
     """Mock implementation of files_mv."""
     logger.info(f"[MOCK] Moving {source} to {dest} in MFS")
-    
+
     return {
         "success": True,
         "source": source,
@@ -354,7 +362,7 @@ async def mock_files_mv(source, dest):
 async def mock_files_flush(path="/"):
     """Mock implementation of files_flush."""
     logger.info(f"[MOCK] Flushing MFS path: {path}")
-    
+
     return {
         "success": True,
         "path": path,
@@ -366,134 +374,145 @@ async def mock_files_flush(path="/"):
 def get_implementation(tool_name):
     """
     Get the appropriate implementation for a tool.
-    Uses real implementation if available, otherwise falls back to mock.
+    Prioritize real implementations from fixed_ipfs_model,
+    then ipfs_extensions, otherwise use mocks.
     """
-    # Core IPFS operations
-    if tool_name == "ipfs_add":
-        return add_content if TOOL_STATUS["ipfs_extensions_available"] else mock_add_content
-    elif tool_name == "ipfs_cat":
-        return cat if TOOL_STATUS["ipfs_extensions_available"] else mock_cat
-    elif tool_name == "ipfs_pin":
-        return pin_add if TOOL_STATUS["ipfs_extensions_available"] else mock_pin_add
-    elif tool_name == "ipfs_unpin":
-        return pin_rm if TOOL_STATUS["ipfs_extensions_available"] else mock_pin_rm
-    elif tool_name == "ipfs_list_pins":
-        return pin_ls if TOOL_STATUS["ipfs_extensions_available"] else mock_pin_ls
-    elif tool_name == "ipfs_version":
-        return get_version if TOOL_STATUS["ipfs_extensions_available"] else mock_get_version
-    
-    # MFS operations
-    elif tool_name == "ipfs_files_ls":
-        return files_ls if TOOL_STATUS["ipfs_extensions_available"] else mock_files_ls
-    elif tool_name == "ipfs_files_mkdir":
-        return files_mkdir if TOOL_STATUS["ipfs_extensions_available"] else mock_files_mkdir
-    elif tool_name == "ipfs_files_write":
-        return files_write if TOOL_STATUS["ipfs_extensions_available"] else mock_files_write
-    elif tool_name == "ipfs_files_read":
-        return files_read if TOOL_STATUS["ipfs_extensions_available"] else mock_files_read
-    elif tool_name == "ipfs_files_rm":
-        return files_rm if TOOL_STATUS["ipfs_extensions_available"] else mock_files_rm
-    elif tool_name == "ipfs_files_stat":
-        return files_stat if TOOL_STATUS["ipfs_extensions_available"] else mock_files_stat
-    elif tool_name == "ipfs_files_cp":
-        return files_cp if TOOL_STATUS["ipfs_extensions_available"] else mock_files_cp
-    elif tool_name == "ipfs_files_mv":
-        return files_mv if TOOL_STATUS["ipfs_extensions_available"] else mock_files_mv
-    elif tool_name == "ipfs_files_flush":
-        return files_flush if TOOL_STATUS["ipfs_extensions_available"] else mock_files_flush
-    
+    # fixed_ipfs_model implementations are no longer considered here.
+
+    # Fallback to ipfs_extensions if available
+    if TOOL_STATUS["ipfs_extensions_available"]:
+        # Map tool names to ipfs_extensions functions (adjust if names differ)
+        extensions_map = {
+            "ipfs_add": ipfs_extensions.add_content,
+            "ipfs_add_file": ipfs_extensions.add_file,
+            "ipfs_cat": ipfs_extensions.cat,
+            "ipfs_pin": ipfs_extensions.pin_add,
+            "ipfs_unpin": ipfs_extensions.pin_rm,
+            "ipfs_list_pins": ipfs_extensions.pin_ls,
+            "ipfs_version": ipfs_extensions.get_version,
+            # Add other mappings for ipfs_extensions if they exist
+        }
+        # Temporarily skip ipfs_add and ipfs_add_file from ipfs_extensions to test mocks
+        if tool_name in extensions_map and tool_name not in ["ipfs_add", "ipfs_add_file"]:
+            impl = extensions_map[tool_name]
+            logger.info(f"For {tool_name}, using ipfs_extensions implementation.")
+            return impl
+        elif tool_name in ["ipfs_add", "ipfs_add_file"]:
+             logger.warning(f"For {tool_name}, skipping ipfs_extensions and falling back to mock.")
+
+    # Fallback to mocks
+    mock_map = {
+        "ipfs_add": mock_add_content,
+        "ipfs_add_file": mock_add_content, # Using add_content mock for add_file
+        "ipfs_cat": mock_cat,
+        "ipfs_pin": mock_pin_add,
+        "ipfs_unpin": mock_pin_rm,
+        "ipfs_list_pins": mock_pin_ls,
+        "ipfs_version": mock_get_version,
+        "ipfs_files_ls": mock_files_ls,
+        "ipfs_files_mkdir": mock_files_mkdir,
+        "ipfs_files_write": mock_files_write,
+        "ipfs_files_read": mock_files_read,
+        "ipfs_files_rm": mock_files_rm,
+        "ipfs_files_stat": mock_files_stat,
+        "ipfs_files_cp": mock_files_cp,
+        "ipfs_files_mv": mock_files_mv,
+        "ipfs_files_flush": mock_files_flush,
+        # Add other mock mappings
+    }
+    if tool_name in mock_map:
+        impl = mock_map[tool_name]
+        logger.warning(f"For {tool_name}, using mock implementation.")
+        return impl
+
+
     # Default fallback for unknown tools
+    logger.warning(f" No implementation found for tool: {tool_name}")
     return None
 
 # Main registration function
 def register_all_ipfs_tools(mcp_server):
     """Register all IPFS tools with the MCP server."""
     logger.info(f"Registering all IPFS tools with MCP server...")
-    
+
+    # Enhanced logging for debugging
+    logger.info(f"Current TOOL_STATUS: {TOOL_STATUS}")
+    logger.info(f"Number of tools to register: {len(IPFS_TOOLS)}")
+
     # Initialize components
     initialize_components()
-    
+
     # Keep track of registered tools
     registered_tools = []
-    
-    # Register each tool
+
+    # Explicitly register mock implementations for ipfs_add and ipfs_add_file
+    logger.warning("Explicitly registering mock implementations for ipfs_add and ipfs_add_file.")
+    mcp_server.tool(name="ipfs_add", description="Add content to IPFS (Mock)")(mock_add_content)
+    mcp_server.tool(name="ipfs_add_file", description="Add a file or directory to IPFS (Mock)")(mock_add_content) # Use add_content mock for add_file
+    registered_tools.extend(["ipfs_add", "ipfs_add_file"])
+
+
+    # Create and register remaining tools using get_implementation
     for tool in IPFS_TOOLS:
         tool_name = tool["name"]
+        if tool_name in registered_tools:
+            logger.info(f"Tool {tool_name} already explicitly registered, skipping get_implementation.")
+            continue # Skip if already registered
+
         description = tool.get("description", f"IPFS tool: {tool_name}")
-        
+        schema = tool.get("schema", {})
+
         # Get the appropriate implementation
         impl = get_implementation(tool_name)
-        
-        if impl is None:
-            # Create a generic implementation if no specific one is available
-            async def generic_tool_handler(ctx):
-                params = ctx.params
-                await ctx.info(f"Called {tool_name} with params: {params}")
-                await ctx.warning(f"Using generic implementation for {tool_name}")
-                return {
-                    "success": True,
-                    "warning": "Generic implementation",
-                    "timestamp": datetime.now().isoformat(),
-                    "tool": tool_name,
-                    "params": params
-                }
-            
-            # Register the generic handler
-            try:
-                # The registration approach depends on the server implementation
-                mcp_server.tool(name=tool_name, description=description)(generic_tool_handler)
-                registered_tools.append(tool_name)
-                logger.info(f"✅ Registered tool with generic implementation: {tool_name}")
-            except Exception as e:
-                logger.error(f"❌ Error registering tool {tool_name}: {e}")
-        else:
-            # Create a wrapper function that uses the implementation
-            def create_wrapper_for_impl(impl_func, tool_name):
-                async def wrapper(ctx):
+
+        if impl:
+            def create_wrapper(implementation, t_name):
+                async def wrapper(**kwargs): # Accept arguments directly as keyword arguments
+                    # Arguments are already in kwargs, no need to extract from ctx
+                    arguments = kwargs
+
+                    logger.info(f"Called {t_name} with arguments: {arguments}")
+
                     try:
-                        # Extract parameters from context
-                        params = ctx.params
-                        
-                        # Log the call
-                        await ctx.info(f"Called {tool_name} with params: {params}")
-                        
                         # Call the implementation
-                        result = await impl_func(**params)
-                        
-                        # Check if it's a mock implementation
-                        if "warning" in result and "mock" in result["warning"].lower():
-                            await ctx.warning("Using mock implementation")
-                        
-                        # Return the result
+                        # Call the implementation with arguments unpacked
+                        # Assuming implementations (mocks or ipfs_extensions) accept arguments via **kwargs
+                        result = await implementation(**arguments)
+
                         return result
                     except Exception as e:
-                        logger.error(f"Error in {tool_name}: {e}")
+                        logger.error(f"Error in {t_name}: {e}")
                         logger.error(traceback.format_exc())
-                        await ctx.error(f"Error executing {tool_name}: {e}")
                         return {
                             "success": False,
                             "error": str(e),
-                            "tool": tool_name
+                            "tool": t_name
                         }
                 return wrapper
-            
+
             # Register the wrapped handler
             try:
-                # Create the wrapper without await
-                wrapped_handler = create_wrapper_for_impl(impl, tool_name)
-                
-                # Register it with the MCP server
+                wrapped_handler = create_wrapper(impl, tool_name)
                 mcp_server.tool(name=tool_name, description=description)(wrapped_handler)
                 registered_tools.append(tool_name)
-                logger.info(f"✅ Registered tool with implementation: {tool_name}")
+                logger.info(f" Registered tool: {tool_name}")
             except Exception as e:
-                logger.error(f"❌ Error registering tool {tool_name}: {e}")
-    
-    logger.info(f"✅ Successfully registered {len(registered_tools)}/{len(IPFS_TOOLS)} IPFS tools")
-    return registered_tools
+                logger.error(f" Error registering tool {tool_name}: {e}")
+                logger.error(traceback.format_exc())
+
+
+    logger.info(f" Successfully registered {len(registered_tools)}/{len(IPFS_TOOLS)} IPFS tools")
+
+    # Return success only if we actually registered tools
+    if len(registered_tools) > 0:
+        return registered_tools
+    else:
+        logger.warning(" No IPFS tools were actually registered!")
+        return False
 
 if __name__ == "__main__":
     logger.info("This module should be imported and used with an MCP server, not run directly.")
     logger.info(f"IPFS extensions available: {TOOL_STATUS['ipfs_extensions_available']}")
     logger.info(f"IPFS model available: {TOOL_STATUS['ipfs_model_available']}")
+    logger.info(f"Fixed IPFS model available: {TOOL_STATUS['fixed_ipfs_model_available']}")
     logger.info(f"IPFS-FS bridge available: {TOOL_STATUS['ipfs_fs_bridge_available']}")

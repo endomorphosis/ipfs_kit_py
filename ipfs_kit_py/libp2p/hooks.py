@@ -25,32 +25,7 @@ def apply_hooks():
     logger.debug("Applying libp2p import hooks...")
     
     # Get the original import function
-    original_import = __import__
-    
-    def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
-        '''Patched import function that applies protocol extensions.'''
-        module = original_import(name, globals, locals, fromlist, level)
-        
-        # Check if this is the libp2p_peer module
-        if name == 'ipfs_kit_py.libp2p_peer' or (fromlist and 'IPFSLibp2pPeer' in fromlist):
-            try:
-                # Import the protocol extension functions
-                from ipfs_kit_py.libp2p.protocol_integration import apply_protocol_extensions
-                
-                # Check if IPFSLibp2pPeer is in the module
-                if hasattr(module, 'IPFSLibp2pPeer'):
-                    # Apply the extensions
-                    module.IPFSLibp2pPeer = apply_protocol_extensions(module.IPFSLibp2pPeer)
-                    logger.debug("Applied protocol extensions to IPFSLibp2pPeer")
-            except Exception as e:
-                logger.error(f"Error applying protocol extensions during import: {e}")
-                
-        return module
-        
-    # Replace the built-in import function
-    sys.modules['builtins'].__import__ = patched_import
-    _hooks_applied = True
-    logger.debug("Import hooks applied successfully")
+    logger.debug("Import hooks are no longer applied.")
 
 # Apply hooks when this module is imported
 apply_hooks()

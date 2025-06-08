@@ -26,6 +26,9 @@ import subprocess
 from importlib.util import find_spec
 from typing import Any, Callable, Dict, List, Optional, Union, Type, Tuple
 
+# Configure logger with proper name
+logger = logging.getLogger(__name__)
+
 # Apply protobuf compatibility patches early and more aggressively
 try:
     # Check if protobuf is already loaded
@@ -82,9 +85,6 @@ try:
 except ImportError:
     # This is fine if hooks aren't yet available
     pass
-
-# Configure logger with proper name
-logger = logging.getLogger(__name__)
 
 # Define required dependencies
 REQUIRED_DEPENDENCIES = [
@@ -807,7 +807,7 @@ def register_libp2p_with_ipfs_kit(ipfs_kit_instance: Any, libp2p_peer: Any, exte
         logger.error(f"Error importing register_libp2p_with_ipfs_kit: {e}")
         return None
     except Exception as e:
-        logger.error(f"Error registering libp2p with IPFSKit: {str(e)}", exc_info=True)
+        logger.error(f"Error registering libp2p with ipfs_kit: {e}")
         return None
 
 def apply_ipfs_kit_integration(ipfs_kit_class: Type) -> Type:
@@ -843,7 +843,7 @@ def apply_ipfs_kit_integration(ipfs_kit_class: Type) -> Type:
         return ipfs_kit_class
     except Exception as e:
         logger.error(f"Error applying libp2p integration to IPFSKit: {str(e)}", exc_info=True)
-        return ipfs_kit_class
+        return api_class
 
 def apply_high_level_api_integration(api_class: Type) -> Type:
     """

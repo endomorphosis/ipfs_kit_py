@@ -62,6 +62,7 @@ def ensure_ipfs_model():
     return True
 
 async def add_content(content: str, filename: Optional[str] = None, pin: bool = True) -> Dict[str, Any]:
+    logger.info(f"add_content called with content type: {type(content)}, filename: {filename}, pin: {pin}")
     """
     Add content to IPFS.
     
@@ -108,6 +109,62 @@ async def add_content(content: str, filename: Optional[str] = None, pin: bool = 
         }
     except Exception as e:
         logger.error(f"Error adding content to IPFS: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+async def add_file(file_path: str, wrap_with_directory: bool = False, pin: bool = True) -> Dict[str, Any]:
+    logger.info(f"add_file called with file_path: {file_path}, wrap_with_directory: {wrap_with_directory}, pin: {pin}")
+    """
+    Add a file or directory to IPFS.
+
+    Args:
+        file_path: Path to the local file or directory to add
+        wrap_with_directory: Wrap the content with a directory
+        pin: Whether to pin the content
+
+    Returns:
+        Dictionary with CID and other information
+    """
+    if not ensure_ipfs_model():
+        return {
+            "success": False,
+            "error": "IPFS model not available"
+        }
+
+    try:
+        # Add the file/directory to IPFS
+        # The ipfs_client.add method handles both files and directories
+        # It returns a list of dictionaries, one for each added item.
+        # For a single file (wrap_with_directory=False), the list has one item.
+        # For a directory (wrap_with_directory=True), the last item is the directory itself.
+        results = ipfs_model.ipfs_client.add(file_path, wrap_with_directory=wrap_with_directory, pin=pin)
+
+        if not results:
+             return {
+                "success": False,
+                "error": "IPFS client returned no results for add operation"
+            }
+
+        # Get the result for the main item (the file or the wrapping directory)
+        # This is typically the last item in the results list
+        main_result = results[-1]
+
+        # Pin the content if requested (pin=True is handled by ipfs_client.add)
+        # No need to call pin.add separately if pin=True is passed to ipfs_client.add
+
+        # Return the result
+        return {
+            "success": True,
+            "cid": main_result.get('Hash'),
+            "name": main_result.get('Name', os.path.basename(file_path)),
+            "size": main_result.get('Size', 0),
+            "pinned": pin,
+            "added_items": results # Include all added items for completeness
+        }
+    except Exception as e:
+        logger.error(f"Error adding file to IPFS: {e}")
         return {
             "success": False,
             "error": str(e)

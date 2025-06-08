@@ -1,0 +1,350 @@
+name: Final MCP Server CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'final_mcp_server_enhanced.py'
+      - 'final_mcp_server.py'
+      - 'requirements.txt'
+      - 'Dockerfile*'
+      - '.github/workflows/final-mcp-server.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'final_mcp_server_enhanced.py'
+      - 'final_mcp_server.py'
+      - 'requirements.txt'
+      - 'Dockerfile*'
+  workflow_dispatch:
+
+env:
+  SERVER_PORT: 9998
+  SERVER_HOST: 0.0.0.0
+
+jobs:
+  test-server:
+    name: Test Final MCP Server
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Create virtual environment
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+
+    - name: Install dependencies
+      run: |
+        source .venv/bin/activate
+        pip install -r requirements.txt
+        pip install -e .
+
+    - name: Test server syntax and imports
+      run: |
+        source .venv/bin/activate
+        python -m py_compile final_mcp_server_enhanced.py
+        python -c "import final_mcp_server_enhanced; print(f'✅ Server version: {final_mcp_server_enhanced.__version__}')"
+
+    - name: Test server CLI
+      run: |
+        source .venv/bin/activate
+        timeout 10s python final_mcp_server_enhanced.py --help || test $? = 124
+        timeout 10s python final_mcp_server_enhanced.py --version || test $? = 124
+
+    - name: Start server and run API tests
+      run: |
+        source .venv/bin/activate
+        
+        # Start server in background
+        python final_mcp_server_enhanced.py --host $SERVER_HOST --port $SERVER_PORT &
+        SERVER_PID=$!
+        echo "Started server with PID: $SERVER_PID"
+        
+        # Wait for server to start
+        for i in {1..30}; do
+          if curl -s http://localhost:$SERVER_PORT/health > /dev/null; then
+            echo "✅ Server is responding"
+            break
+          fi
+          sleep 1
+          if [ $i -eq 30 ]; then
+            echo "❌ Server failed to start"
+            exit 1
+          fi
+        done
+        
+        # Test API endpoints
+        echo "🧪 Testing API endpoints..."
+        
+        # Health check
+        curl -f http://localhost:$SERVER_PORT/health
+        echo "✅ Health endpoint works"
+        
+        # Tools endpoint
+        curl -f http://localhost:$SERVER_PORT/mcp/tools
+        echo "✅ Tools endpoint works"
+        
+        # IPFS add endpoint
+        ADD_RESPONSE=$(curl -s -X POST http://localhost:$SERVER_PORT/ipfs/add \
+          -H "Content-Type: application/json" \
+          -d '{"content": "Hello CI/CD!"}')
+        echo "IPFS add response: $ADD_RESPONSE"
+        
+        # Extract CID and test cat endpoint
+        CID=$(echo "$ADD_RESPONSE" | grep -o '"cid":"[^"]*"' | cut -d'"' -f4)
+        if [ -n "$CID" ]; then
+          curl -f http://localhost:$SERVER_PORT/ipfs/cat/$CID
+          echo "✅ IPFS cat endpoint works with CID: $CID"
+        fi
+        
+        # Version endpoint
+        curl -f http://localhost:$SERVER_PORT/ipfs/version
+        echo "✅ Version endpoint works"
+        
+        # Stop server
+        kill $SERVER_PID
+        echo "✅ All API tests passed!"
+
+    - name: Run comprehensive test script
+      run: |
+        if [ -f "./run_final_mcp.sh" ]; then
+          chmod +x ./run_final_mcp.sh
+          ./run_final_mcp.sh test
+        fi
+
+  docker-test:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    needs: test-server
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image (Dockerfile.final)
+      run: |
+        docker build -f Dockerfile.final -t final-mcp-server:test .
+
+    - name: Test Docker image
+      run: |
+        # Start container
+        docker run -d --name test-server -p 9998:9998 final-mcp-server:test
+        
+        # Wait for container to start
+        sleep 10
+        
+        # Test health endpoint
+        for i in {1..30}; do
+          if curl -s http://localhost:9998/health > /dev/null; then
+            echo "✅ Docker container is responding"
+            break
+          fi
+          sleep 2
+          if [ $i -eq 30 ]; then
+            echo "❌ Docker container failed to respond"
+            docker logs test-server
+            exit 1
+          fi
+        done
+        
+        # Test API
+        curl -f http://localhost:9998/health
+        curl -f http://localhost:9998/mcp/tools
+        
+        # Cleanup
+        docker stop test-server
+        docker rm test-server
+        
+        echo "✅ Docker tests passed!"
+
+    - name: Build main Docker image
+      run: |
+        docker build -t final-mcp-server:main .
+
+    - name: Test main Docker image
+      run: |
+        # Test that the image starts correctly
+        timeout 30s docker run --rm final-mcp-server:main --help || test $? = 124
+        echo "✅ Main Docker image builds and runs correctly"
+
+  docker-compose-test:
+    name: Test Docker Compose
+    runs-on: ubuntu-latest
+    needs: docker-test
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Test Docker Compose
+      run: |
+        # Start services
+        docker-compose -f docker-compose.final.yml up -d
+        
+        # Wait for service to be ready
+        sleep 15
+        
+        # Test health endpoint
+        for i in {1..20}; do
+          if curl -s http://localhost:9998/health > /dev/null; then
+            echo "✅ Docker Compose service is responding"
+            break
+          fi
+          sleep 3
+          if [ $i -eq 20 ]; then
+            echo "❌ Docker Compose service failed to respond"
+            docker-compose -f docker-compose.final.yml logs
+            exit 1
+          fi
+        done
+        
+        # Test API endpoints
+        curl -f http://localhost:9998/health
+        curl -f http://localhost:9998/mcp/tools
+        
+        # Cleanup
+        docker-compose -f docker-compose.final.yml down
+        
+        echo "✅ Docker Compose tests passed!"
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test-server
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+        pip install requests pytest
+
+    - name: Run integration tests
+      run: |
+        # Start server
+        python final_mcp_server_enhanced.py --port 9998 &
+        SERVER_PID=$!
+        
+        # Wait for server
+        sleep 5
+        
+        # Run integration test
+        python -c "
+import requests
+import json
+import time
+
+# Test comprehensive workflow
+print('🧪 Running integration tests...')
+
+base_url = 'http://localhost:9998'
+
+# 1. Health check
+response = requests.get(f'{base_url}/health')
+assert response.status_code == 200
+health_data = response.json()
+assert health_data['status'] == 'healthy'
+print('✅ Health check passed')
+
+# 2. Add content
+add_data = {'content': 'Integration test content'}
+response = requests.post(f'{base_url}/ipfs/add', json=add_data)
+assert response.status_code == 200
+add_result = response.json()
+assert 'cid' in add_result
+cid = add_result['cid']
+print(f'✅ Content added with CID: {cid}')
+
+# 3. Retrieve content
+response = requests.get(f'{base_url}/ipfs/cat/{cid}')
+assert response.status_code == 200
+cat_result = response.json()
+assert 'Integration test content' in cat_result['content']
+print('✅ Content retrieved successfully')
+
+# 4. Pin content
+response = requests.post(f'{base_url}/ipfs/pin/add/{cid}')
+assert response.status_code == 200
+print('✅ Content pinned successfully')
+
+# 5. Check tools
+response = requests.get(f'{base_url}/mcp/tools')
+assert response.status_code == 200
+tools_data = response.json()
+assert len(tools_data['tools']) >= 5
+print('✅ Tools endpoint working')
+
+print('🎉 All integration tests passed!')
+        "
+        
+        # Cleanup
+        kill $SERVER_PID
+        
+        echo "✅ Integration tests completed!"
+
+  publish-docker:
+    name: Publish Docker Images
+    runs-on: ubuntu-latest
+    needs: [docker-test, docker-compose-test, integration-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push final MCP server image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile.final
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}/final-mcp-server:latest
+          ghcr.io/${{ github.repository }}/final-mcp-server:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push main image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

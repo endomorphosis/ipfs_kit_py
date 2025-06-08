@@ -1,0 +1,104 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Install package in development mode
+        pip install -e ".[dev,full]"
+    
+    - name: Test with pytest
+      run: |
+        python -m pytest test/ --junitxml=test-results-${{ matrix.python-version }}.xml -v
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: test-results-${{ matrix.python-version }}.xml
+      # Always run this step even if previous steps fail
+      if: ${{ always() }}
+
+  report:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Download all test results
+      uses: actions/download-artifact@v3
+      
+    - name: Generate combined report
+      run: |
+        pip install pytest pytest-html
+        
+        # Combine JUnit XML reports
+        python -c "
+import glob
+import xml.etree.ElementTree as ET
+        
+# Find all XML files
+xml_files = glob.glob('test-results-*/*.xml')
+print(f'Found {len(xml_files)} XML files')
+        
+# Create a new root element
+combined = ET.Element('testsuites')
+        
+# Add all testsuites to the combined root
+for xml_file in xml_files:
+    try:
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        
+        # If this is a testsuite, add it directly
+        if root.tag == 'testsuite':
+            combined.append(root)
+        # If this is testsuites, add all its children
+        elif root.tag == 'testsuites':
+            for testsuite in root:
+                combined.append(testsuite)
+    except Exception as e:
+        print(f'Error processing {xml_file}: {e}')
+        
+# Write the combined XML
+tree = ET.ElementTree(combined)
+tree.write('combined-test-results.xml')
+        "
+        
+        # Generate HTML report from combined XML
+        pytest --junitxml=combined-test-results.xml --html=test-report.html
+    
+    - name: Upload combined report
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-report
+        path: test-report.html

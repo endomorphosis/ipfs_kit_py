@@ -1,0 +1,67 @@
+{
+  "timestamp": "2025-05-06 22:22:13",
+  "server_url": "http://localhost:9996",
+  "total_tools": 22,
+  "categories": {
+    "core": {
+      "count": 5,
+      "tools": [
+        "ping",
+        "health",
+        "list_tools",
+        "server_info",
+        "initialize"
+      ]
+    },
+    "ipfs": {
+      "count": 6,
+      "expected": 6,
+      "coverage": "100.0%",
+      "covered": [
+        "ipfs_version",
+        "ipfs_add",
+        "ipfs_cat",
+        "ipfs_pin_add",
+        "ipfs_pin_rm",
+        "ipfs_pin_ls"
+      ],
+      "missing": []
+    },
+    "vfs": {
+      "count": 6,
+      "expected": 6,
+      "coverage": "100.0%",
+      "covered": [
+        "vfs_ls",
+        "vfs_mkdir",
+        "vfs_rmdir",
+        "vfs_read",
+        "vfs_write",
+        "vfs_rm"
+      ],
+      "missing": []
+    },
+    "mfs": {
+      "count": 5,
+      "expected": 5,
+      "coverage": "100.0%",
+      "covered": [
+        "ipfs_files_mkdir",
+        "ipfs_files_write",
+        "ipfs_files_read",
+        "ipfs_files_ls",
+        "ipfs_files_rm"
+      ],
+      "missing": []
+    },
+    "other": {
+      "count": 0,
+      "tools": []
+    }
+  },
+  "summary": {
+    "total_expected_tools": 17,
+    "total_covered_tools": 17,
+    "total_coverage": "100.0%"
+  }
+}

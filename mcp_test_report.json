@@ -1,0 +1,155 @@
+{
+  "timestamp": "2025-05-06T19:07:08.549367",
+  "server_url": "http://localhost:9996",
+  "total": 17,
+  "passed": 1,
+  "failed": 2,
+  "skipped": 14,
+  "results": [
+    {
+      "name": "server_health",
+      "category": "server",
+      "status": "PASS",
+      "message": "Server is healthy",
+      "details": {
+        "version": "unknown",
+        "uptime": 1.496268
+      },
+      "duration_seconds": 0.108
+    },
+    {
+      "name": "server_initialize",
+      "category": "server",
+      "status": "FAIL",
+      "message": "Initialize request failed with status code 404",
+      "details": {
+        "status_code": 404,
+        "response": "Not Found"
+      },
+      "duration_seconds": 0.021
+    },
+    {
+      "name": "jsonrpc_ping",
+      "category": "jsonrpc",
+      "status": "SKIP",
+      "message": "No ping tool found in server capabilities",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "ipfs_version",
+      "category": "ipfs",
+      "status": "FAIL",
+      "message": "Exception occurred: 'ipfs'",
+      "details": {
+        "exception": "'ipfs'",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/barberb/ipfs_kit_py/comprehensive_mcp_test.py\", line 198, in run_test\n    func(result, *args, **kwargs)\n  File \"/home/barberb/ipfs_kit_py/comprehensive_mcp_test.py\", line 440, in test_ipfs_version\n    has_version_tool = any(tool.get(\"name\") == \"ipfs_version\" for tool in self.discovered_tools[\"ipfs\"])\n                                                                          ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^\nKeyError: 'ipfs'\n"
+      },
+      "duration_seconds": 0.002
+    },
+    {
+      "name": "ipfs_add",
+      "category": "ipfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "ipfs_cat",
+      "category": "ipfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "mfs_mkdir",
+      "category": "mfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "mfs_write",
+      "category": "mfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "mfs_ls",
+      "category": "mfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "mfs_read",
+      "category": "mfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "mfs_rm",
+      "category": "mfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "vfs_availability",
+      "category": "vfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "vfs_mount",
+      "category": "vfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "vfs_write",
+      "category": "vfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "vfs_read",
+      "category": "vfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "vfs_delete",
+      "category": "vfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    },
+    {
+      "name": "ipfs_vfs_integration",
+      "category": "vfs",
+      "status": "SKIP",
+      "message": "Implementation incomplete - will be fixed by test_mcp_server_fix.py",
+      "details": {},
+      "duration_seconds": 0.0
+    }
+  ]
+}

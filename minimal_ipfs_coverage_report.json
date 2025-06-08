@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-05-06 22:39:37",
+  "total_ipfs_tools": 11,
+  "found_tools": 11,
+  "missing_tools": 0,
+  "coverage_percentage": 100.0,
+  "found_tools_list": [
+    "ipfs_add",
+    "ipfs_cat",
+    "ipfs_version",
+    "ipfs_pin_add",
+    "ipfs_pin_rm",
+    "ipfs_pin_ls",
+    "ipfs_files_mkdir",
+    "ipfs_files_write",
+    "ipfs_files_read",
+    "ipfs_files_ls",
+    "ipfs_files_rm"
+  ],
+  "missing_tools_list": []
+}

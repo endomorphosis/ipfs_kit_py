@@ -5,22 +5,14 @@ import sys
 import os
 from typing import Any, Dict, Optional, Union
 
-
-# Add the submodule root to Python's path
-_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_submodule_path = os.path.join(_repo_root, "external", "ipfs_transformers_py")
-if _submodule_path not in sys.path:
-    sys.path.insert(0, _submodule_path)
-
-
 # Check if transformers is available
 _transformers_available = False
 try:
-    # Try importing from our wrapper
-    from external.ipfs_transformers_py.ipfs_transformers_py.ipfs_transformers import AutoModel
+    # Try importing directly from the installed transformers package
+    from transformers import AutoModel
     _transformers_available = True
 except ImportError:
-    print("Could not import AutoModel module !!!")
+    print("Could not import AutoModel from transformers package!!!")
 
 
 class TransformersIntegration:

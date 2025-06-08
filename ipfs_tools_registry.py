@@ -1,6 +1,123 @@
 """IPFS MCP Tools Registry - Created from scratch"""
 
 IPFS_TOOLS = [
+    {
+        "name": "ipfs_add",
+        "description": "Add content to IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "Content to add to IPFS"
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Optional filename"
+                },
+                "pin": {
+                    "type": "boolean",
+                    "description": "Whether to pin the content",
+                    "default": True
+                }
+            },
+            "required": ["content"]
+        }
+    },
+    {
+        "name": "ipfs_add_file",
+        "description": "Add a file or directory to IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to the local file or directory to add"
+                },
+                "wrap_with_directory": {
+                    "type": "boolean",
+                    "description": "Wrap the content with a directory",
+                    "default": False
+                },
+                "pin": {
+                    "type": "boolean",
+                    "description": "Pin the added content",
+                    "default": True
+                }
+            },
+            "required": ["file_path"]
+        }
+    },
+    {
+        "name": "ipfs_cat",
+        "description": "Retrieve content from IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to retrieve"
+                }
+            },
+            "required": ["cid"]
+        }
+    },
+    {
+        "name": "ipfs_pin_add",
+        "description": "Pin content in IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "CID to pin"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Pin recursively",
+                    "default": True
+                }
+            },
+            "required": ["cid"]
+        }
+    },
+    {
+        "name": "ipfs_pin_ls",
+        "description": "List pinned CIDs in IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "Optional CID to filter by"
+                },
+                "type_filter": {
+                    "type": "string",
+                    "description": "Type of pins to list (all, direct, indirect, recursive)",
+                    "default": "all"
+                }
+            }
+        }
+    },
+    {
+        "name": "ipfs_pin_rm",
+        "description": "Remove a pin from IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "CID to unpin"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Unpin recursively",
+                    "default": True
+                }
+            },
+            "required": ["cid"]
+        }
+    },
     # Original IPFS MFS Tools
     {
         "name": "ipfs_files_ls",

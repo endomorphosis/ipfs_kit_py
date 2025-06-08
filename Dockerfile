@@ -38,13 +38,10 @@ ENV DEPLOYMENT_VARIANT=blue \
     LOG_LEVEL=INFO
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD python -c "import requests; exit(0) if requests.get('http://localhost:8080/health').status_code == 200 else exit(1)"
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD python -c "import requests; exit(0) if requests.get('http://localhost:9998/health').status_code == 200 else exit(1)"
 
-# Expose ports for server, dashboard, and metrics
-EXPOSE 8080 8090 9100
+# Expose ports for the final MCP server
+EXPOSE 9998
 
-# Command to run the server with blue/green capabilities
-CMD ["python", "run_mcp_blue_green_server.py", \
-     "--config", "${CONFIG_PATH}", \
-     "--mode", "${DEPLOYMENT_VARIANT}", \
-     "${EXTRA_ARGS}"]
+# Command to run the enhanced final MCP server
+CMD ["python", "final_mcp_server_enhanced.py", "--host", "0.0.0.0", "--port", "9998"]

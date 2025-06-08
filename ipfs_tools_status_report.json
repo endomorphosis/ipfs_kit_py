@@ -1,0 +1,65 @@
+{
+  "timestamp": "2025-05-24T01:25:32.317808",
+  "ipfs_tools_registry": {
+    "status": "AVAILABLE",
+    "total_tools": 52,
+    "tools_list": [
+      "ipfs_add",
+      "ipfs_add_file",
+      "ipfs_cat",
+      "ipfs_pin_add",
+      "ipfs_pin_ls",
+      "ipfs_pin_rm",
+      "ipfs_files_ls",
+      "ipfs_files_mkdir",
+      "ipfs_files_write",
+      "ipfs_files_read"
+    ]
+  },
+  "tool_categories": {
+    "add": 2,
+    "cat": 1,
+    "pin": 3,
+    "files": 8,
+    "name": 2,
+    "dag": 2,
+    "journal": 2,
+    "fs": 2,
+    "store": 4,
+    "retrieve": 4,
+    "model": 3,
+    "peer": 1,
+    "send": 1,
+    "pubsub": 2,
+    "dht": 2,
+    "cluster": 3,
+    "fetch": 2,
+    "dataset": 1,
+    "content": 1,
+    "backend": 2,
+    "create": 2,
+    "publish": 1,
+    "get": 1
+  },
+  "registration_status": "VERIFIED",
+  "issues_found": [
+    "unified_ipfs_tools import error: module 'multihash' has no attribute 'FuncReg'"
+  ],
+  "recommendations": [
+    "Fix identified issues before deployment"
+  ],
+  "essential_tools": {
+    "available": [
+      "ipfs_add",
+      "ipfs_cat",
+      "ipfs_pin_add",
+      "ipfs_pin_rm",
+      "ipfs_files_ls"
+    ],
+    "missing": []
+  },
+  "unified_ipfs_tools": {
+    "status": "ERROR",
+    "error": "module 'multihash' has no attribute 'FuncReg'"
+  }
+}

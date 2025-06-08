@@ -16,10 +16,17 @@ logger = logging.getLogger(__name__)
 # Check protobuf version
 try:
     from google.protobuf import __version__ as PROTOBUF_VERSION
-    logger.debug(f"Detected protobuf version: {PROTOBUF_VERSION}")
+    logger.info(f"Detected protobuf version: {PROTOBUF_VERSION}")
 except ImportError:
     PROTOBUF_VERSION = "unknown"
     logger.warning("Could not determine protobuf version")
+
+# Define compatibility flags
+HAS_OLD_MESSAGE_FACTORY = False
+HAS_NEW_MESSAGE_FACTORY = False
+
+logger.info(f"HAS_OLD_MESSAGE_FACTORY: {HAS_OLD_MESSAGE_FACTORY}")
+logger.info(f"HAS_NEW_MESSAGE_FACTORY: {HAS_NEW_MESSAGE_FACTORY}")
 
 # Normalized version components
 PROTOBUF_MAJOR_VERSION = 0
@@ -39,10 +46,6 @@ if PROTOBUF_VERSION != "unknown":
             PROTOBUF_PATCH_VERSION = int(patch_str) if patch_str else 0
     except (ValueError, IndexError) as e:
         logger.warning(f"Error parsing protobuf version: {e}")
-
-# Define compatibility flags
-HAS_OLD_MESSAGE_FACTORY = False
-HAS_NEW_MESSAGE_FACTORY = False
 
 # Check for message factory compatibility
 try:
@@ -211,8 +214,8 @@ def monkey_patch_message_factory():
         return False
 
 
-# Apply monkey patch if using newer protobuf without GetPrototype
-if HAS_NEW_MESSAGE_FACTORY and not HAS_OLD_MESSAGE_FACTORY:
+# Apply monkey patch if the old GetPrototype method is not available
+if not HAS_OLD_MESSAGE_FACTORY:
     success = monkey_patch_message_factory()
     if success:
         logger.info("Successfully applied MessageFactory compatibility patch")

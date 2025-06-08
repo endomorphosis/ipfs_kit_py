@@ -32,7 +32,6 @@ def register_integration_tools(mcp_server) -> bool:
     """
     logger.info("Registering IPFS-FS Bridge tools with MCP server...")
     
-    @mcp_server.tool("ipfs_fs_bridge_status")
     async def ipfs_fs_bridge_status() -> Dict[str, Any]:
         """Get status of the IPFS-FS bridge"""
         logger.info("MCP Tool call: ipfs_fs_bridge_status()")
@@ -64,7 +63,6 @@ def register_integration_tools(mcp_server) -> bool:
                 "error": str(e)
             }
     
-    @mcp_server.tool("ipfs_fs_bridge_map")
     async def ipfs_fs_bridge_map(fs_path: str, ipfs_path: Optional[str] = None, 
                                recursive: bool = False) -> Dict[str, Any]:
         """Map a filesystem path to an IPFS path"""
@@ -160,7 +158,6 @@ def register_integration_tools(mcp_server) -> bool:
                 "error": str(e)
             }
     
-    @mcp_server.tool("ipfs_fs_bridge_unmap")
     async def ipfs_fs_bridge_unmap(fs_path: str, recursive: bool = True) -> Dict[str, Any]:
         """Unmap a filesystem path from IPFS"""
         logger.info(f"MCP Tool call: ipfs_fs_bridge_unmap(fs_path={fs_path}, recursive={recursive})")
@@ -209,7 +206,6 @@ def register_integration_tools(mcp_server) -> bool:
                 "error": str(e)
             }
     
-    @mcp_server.tool("ipfs_fs_bridge_list_mappings")
     async def ipfs_fs_bridge_list_mappings(include_children: bool = False) -> Dict[str, Any]:
         """List all mapped paths"""
         logger.info(f"MCP Tool call: ipfs_fs_bridge_list_mappings(include_children={include_children})")
@@ -248,7 +244,6 @@ def register_integration_tools(mcp_server) -> bool:
                 "error": str(e)
             }
     
-    @mcp_server.tool("ipfs_fs_bridge_sync")
     async def ipfs_fs_bridge_sync(fs_path: Optional[str] = None) -> Dict[str, Any]:
         """Synchronize filesystem changes to IPFS"""
         if fs_path:
@@ -311,8 +306,33 @@ def register_integration_tools(mcp_server) -> bool:
                 "error": str(e)
             }
     
-    logger.info("✅ Successfully registered IPFS-FS Bridge tools")
-    return True
+    # Register all tools with the MCP server
+    try:
+        mcp_server.add_tool(ipfs_fs_bridge_status, name="ipfs_fs_bridge_status")
+        mcp_server.add_tool(ipfs_fs_bridge_map, name="ipfs_fs_bridge_map")
+        mcp_server.add_tool(ipfs_fs_bridge_unmap, name="ipfs_fs_bridge_unmap")
+        mcp_server.add_tool(ipfs_fs_bridge_list_mappings, name="ipfs_fs_bridge_list_mappings")
+        mcp_server.add_tool(ipfs_fs_bridge_sync, name="ipfs_fs_bridge_sync")
+        
+        logger.info("✅ Successfully registered IPFS-FS Bridge tools")
+        return True
+    except Exception as e:
+        logger.error(f"Error registering IPFS-FS Bridge tools: {e}")
+        return False
+
+# Alias function for compatibility with the MCP server
+def register_with_mcp_server(mcp_server) -> bool:
+    """
+    Register IPFS-FS Bridge tools with the MCP server.
+    This is an alias for register_integration_tools() to match server expectations.
+    
+    Args:
+        mcp_server: The MCP server instance to register tools with
+        
+    Returns:
+        bool: True if registration successful, False otherwise
+    """
+    return register_integration_tools(mcp_server)
 
 def _get_last_sync_time() -> Optional[float]:
     """Get the timestamp of the last sync across all mappings"""

@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 import fnmatch
-from ipfs_mcp_tools_integration import register_ipfs_tools
+from ipfs_fastmcp_tools import register_ipfs_tools_fastmcp
 # FS Journal and IPFS Bridge integration
 import ipfs_mcp_fs_integration
 from register_all_backend_tools import register_all_tools
@@ -75,7 +75,7 @@ except ImportError:
 
 # Import Multi-Backend FS
 try:
-    from multi_backend_fs_integration import register_multi_backend_tools
+    from multi_backend_fs_integration import register_tools as register_multi_backend_tools
     MULTI_BACKEND_FS_AVAILABLE = True
 except ImportError:
     logger.warning("Multi-Backend FS not available")
@@ -196,6 +196,14 @@ server = FastMCP(
     name=f"direct-mcp-server-{server_color}",
     instructions="Server with blue/green deployment and live patching capabilities"
 )
+
+# Register IPFS tools with FastMCP decorators
+logger.info("Registering IPFS tools with FastMCP...")
+try:
+    register_ipfs_tools_fastmcp(server)
+    logger.info("✅ IPFS tools registered with FastMCP")
+except Exception as e:
+    logger.error(f"Failed to register IPFS tools with FastMCP: {e}")
 
 # Register all IPFS tools and backend integrations
 logger.info("Registering all IPFS, FS Journal, and Multi-Backend tools...")
@@ -1415,10 +1423,10 @@ async def health_endpoint(request):
         "services": {}
     }
 
-    # Check IPFS service if available
-    if hasattr(request.app.ctx, 'ipfs_service'):
+    # Check IPFS service if available (using state instead of ctx)
+    if hasattr(request.app, 'state') and hasattr(request.app.state, 'ipfs_service'):
         try:
-            ipfs_status = await request.app.ctx.ipfs_service.check_health()
+            ipfs_status = await request.app.state.ipfs_service.check_health()
             health_status["services"]["ipfs"] = {
                 "status": "ok" if ipfs_status else "error",
                 "details": ipfs_status
@@ -1493,6 +1501,15 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Error shutting down IPFS connections: {e}")
 
+    # Clean up IPFS connections
+    if "HAS_IPFS_TOOLS" in globals() and HAS_IPFS_TOOLS:
+        logger.info("Shutting down IPFS connections...")
+        try:
+            # Any cleanup needed for IPFS connections
+            pass
+        except Exception as e:
+            logger.error(f"Error shutting down IPFS connections: {e}")
+
     parser = argparse.ArgumentParser(description="IPFS MCP Server with Blue/Green Deployment Support")
     parser.add_argument("--port", type=int, default=3000, help="Port to run the server on")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind the server to")
@@ -1532,12 +1549,163 @@ if __name__ == "__main__":
         allow_headers=["*"],
     )
     
+    # Define FastMCP HTTP Bridge endpoints before route setup
+    async def fastmcp_health_endpoint(request: Request) -> JSONResponse:
+        """Health check endpoint specifically for FastMCP functionality."""
+        try:
+            # Get tools count
+            tools = await server.list_tools()
+            tool_count = len(tools)
+            
+            # Check if server is responsive
+            server_status = "healthy" if hasattr(server, 'list_tools') else "unhealthy"
+            
+            return JSONResponse({
+                "success": True,
+                "status": server_status,
+                "protocol": "FastMCP",
+                "tools_count": tool_count,
+                "tools_available": [tool.get("name", "unknown") for tool in tools],
+                "timestamp": time.time(),
+                "server_type": type(server).__name__
+            })
+            
+        except Exception as e:
+            logger.error(f"FastMCP health check failed: {e}")
+            return JSONResponse({
+                "success": False,
+                "status": "unhealthy",
+                "error": str(e),
+                "protocol": "FastMCP"
+            }, status_code=500)
+
+    async def list_tools_endpoint(request: Request) -> JSONResponse:
+        """List all available FastMCP tools via HTTP endpoint."""
+        try:
+            # Get tools from FastMCP server
+            tools = await server.list_tools()
+            
+            return JSONResponse({
+                "success": True,
+                "tools": tools,
+                "count": len(tools),
+                "protocol": "FastMCP",
+                "timestamp": time.time()
+            })
+        except Exception as e:
+            logger.error(f"Error listing tools: {e}")
+            return JSONResponse({
+                "success": False,
+                "error": str(e),
+                "protocol": "FastMCP"
+            }, status_code=500)
+
+    async def call_tool_endpoint(request: Request) -> JSONResponse:
+        """Call a FastMCP tool via HTTP endpoint."""
+        try:
+            # Parse request body
+            body = await request.body()
+            if body:
+                data = json.loads(body)
+            else:
+                data = {}
+            
+            # Extract tool name and arguments
+            tool_name = data.get("tool_name") or data.get("name")
+            arguments = data.get("arguments") or data.get("args", {})
+            
+            if not tool_name:
+                return JSONResponse({
+                    "success": False,
+                    "error": "Missing tool_name parameter",
+                    "protocol": "FastMCP"
+                }, status_code=400)
+            
+            # Call the tool using FastMCP
+            result = await server.call_tool(tool_name, arguments)
+            
+            return JSONResponse({
+                "success": True,
+                "tool_name": tool_name,
+                "arguments": arguments,
+                "result": result,
+                "protocol": "FastMCP",
+                "timestamp": time.time()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error calling tool {tool_name}: {e}")
+            return JSONResponse({
+                "success": False,
+                "error": str(e),
+                "tool_name": tool_name if 'tool_name' in locals() else "unknown",
+                "protocol": "FastMCP"
+            }, status_code=500)
+
+    async def tool_info_endpoint(request: Request) -> JSONResponse:
+        """Get information about a specific FastMCP tool."""
+        try:
+            # Get tool name from path parameter or query parameter
+            tool_name = request.path_params.get("tool_name")
+            if not tool_name:
+                tool_name = request.query_params.get("name")
+            
+            if not tool_name:
+                return JSONResponse({
+                    "success": False,
+                    "error": "Missing tool_name parameter",
+                    "protocol": "FastMCP"
+                }, status_code=400)
+            
+            # Get all tools and find the specific one
+            tools = await server.list_tools()
+            tool_info = None
+            
+            for tool in tools:
+                if tool.get("name") == tool_name:
+                    tool_info = tool
+                    break
+            
+            if not tool_info:
+                return JSONResponse({
+                    "success": False,
+                    "error": f"Tool '{tool_name}' not found",
+                    "protocol": "FastMCP"
+                }, status_code=404)
+            
+            return JSONResponse({
+                "success": True,
+                "tool": tool_info,
+                "protocol": "FastMCP",
+                "timestamp": time.time()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting tool info: {e}")
+            return JSONResponse({
+                "success": False,
+                "error": str(e),
+                "protocol": "FastMCP"
+            }, status_code=500)
+    
     # Setup routes - Core API endpoints
     app.routes.append(Route("/", endpoint=homepage))
     app.routes.append(Route("/api/v0/health", endpoint=health_check))
     app.routes.append(Route("/api/v0/initialize", endpoint=vs_code_initialize, methods=["POST"]))
     app.routes.append(Route("/health", endpoint=health_endpoint))
     app.routes.append(Route("/initialize", endpoint=initialize_endpoint, methods=["POST"]))
+    
+    # FastMCP HTTP Bridge endpoints
+    app.routes.append(Route("/fastmcp/health", endpoint=fastmcp_health_endpoint))
+    app.routes.append(Route("/fastmcp/tools", endpoint=list_tools_endpoint))
+    app.routes.append(Route("/fastmcp/tools/call", endpoint=call_tool_endpoint, methods=["POST"]))
+    app.routes.append(Route("/fastmcp/tools/{tool_name}", endpoint=tool_info_endpoint))
+    
+    # API versioned FastMCP endpoints
+    app.routes.append(Route("/api/v0/fastmcp/health", endpoint=fastmcp_health_endpoint))
+    app.routes.append(Route("/api/v0/fastmcp/tools", endpoint=list_tools_endpoint))
+    app.routes.append(Route("/api/v0/fastmcp/tools/call", endpoint=call_tool_endpoint, methods=["POST"]))
+    app.routes.append(Route("/api/v0/fastmcp/tools/{tool_name}", endpoint=tool_info_endpoint))
     
     # JSON-RPC endpoints
     app.routes.append(Route("/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]))
@@ -1593,17 +1761,18 @@ def register_all_tools(mcp_server):
     # Register IPFS tools if available
     if IPFS_AVAILABLE:
         try:
-            # Initialize IPFS model
-            ipfs = ipfs_model.IPFSModel()
-            
-            # Initialize IPFS controller
-            controller = IPFSController(ipfs)
-            
-            # Register IPFS tools
-            register_ipfs_tools(mcp_server, controller, ipfs)
-            logger.info("✅ Successfully registered IPFS tools")
+            # Use the FastMCP-compatible registration function
+            result = register_ipfs_tools_fastmcp(mcp_server)
+            if result:
+                logger.info("✅ Successfully registered IPFS tools")
+            else:
+                logger.warning("⚠️ IPFS tools registration returned False")
         except Exception as e:
             logger.error(f"Failed to register IPFS tools: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+    else:
+        logger.warning("IPFS tools not available - missing dependencies")
     
     # Register FS Journal tools if available
     if FS_JOURNAL_AVAILABLE:
@@ -1612,6 +1781,8 @@ def register_all_tools(mcp_server):
             logger.info("✅ Successfully registered FS Journal tools")
         except Exception as e:
             logger.error(f"Failed to register FS Journal tools: {e}")
+    else:
+        logger.info("FS Journal tools not available")
     
     # Register IPFS-FS Bridge tools if available
     if IPFS_FS_BRIDGE_AVAILABLE:
@@ -1620,6 +1791,8 @@ def register_all_tools(mcp_server):
             logger.info("✅ Successfully registered IPFS-FS Bridge tools")
         except Exception as e:
             logger.error(f"Failed to register IPFS-FS Bridge tools: {e}")
+    else:
+        logger.info("IPFS-FS Bridge tools not available")
     
     # Register Multi-Backend FS tools if available
     if MULTI_BACKEND_FS_AVAILABLE:
@@ -1628,5 +1801,7 @@ def register_all_tools(mcp_server):
             logger.info("✅ Successfully registered Multi-Backend FS tools")
         except Exception as e:
             logger.error(f"Failed to register Multi-Backend FS tools: {e}")
+    else:
+        logger.info("Multi-Backend FS tools not available")
     
     logger.info("Tool registration complete")

@@ -122,11 +122,19 @@ except Exception:
     pass
 
 def pytest_collection_modifyitems(config, items):
-    for item in items:
-        item.add_marker(pytest.mark.skip(reason="Auto-skipping all tests until comprehensive fixes are applied"))
+    # No longer auto-skipping all tests
+    pass
 
 def pytest_ignore_collect(path, config):
     """
-    Ignore all files for collection to bypass import and syntax errors.
+    Selectively ignore problematic test files.
+    Returns True for files that should be ignored, False otherwise.
     """
-    return True
+    # Add specific problematic files here if needed
+    problematic_files = []
+    
+    for problematic_file in problematic_files:
+        if problematic_file in str(path):
+            return True
+    
+    return False
