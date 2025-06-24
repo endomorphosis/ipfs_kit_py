@@ -1,42 +1,19 @@
 """
-MCP Standardized Error Handling
+Standardized error handling module for MCP components.
 
-This module provides standardized error handling functionality for the MCP server,
-ensuring consistent error responses across all endpoints.
+This module provides a standard way to raise and handle errors in the MCP architecture.
 """
 
-import time
 import logging
-import traceback
-from typing import Dict, Any, Optional, Type, List, Union
+from typing import Dict, Any, Optional, Union
 from fastapi import HTTPException, status
-from pydantic import BaseModel, Field
 
-# Configure logging
+# Configure logger
 logger = logging.getLogger(__name__)
 
-# Error response models
-class ErrorDetails(BaseModel):
-    """Detailed error information for debugging."""
-    code: str = Field(..., description="Error code")
-    message: str = Field(..., description="Human-readable error message")
-    details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
-    suggestion: Optional[str] = Field(None, description="Suggested action to resolve the error")
-    documentation_url: Optional[str] = Field(None, description="URL to documentation for this error")
-    category: Optional[str] = Field(None, description="Error category for monitoring")
-    severity: Optional[str] = Field(None, description="Error severity: low, medium, high, critical")
-
-class ErrorResponse(BaseModel):
-    """Standardized error response structure."""
-    success: bool = Field(False, description="Always false for error responses")
-    error: ErrorDetails = Field(..., description="Error details")
-    timestamp: float = Field(..., description="Unix timestamp when the error occurred")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
-    endpoint: Optional[str] = Field(None, description="Endpoint that generated the error")
-    retryable: Optional[bool] = Field(None, description="Whether the request can be retried")
-
-# Error codes with descriptions and HTTP status codes
+# Define standard error codes and their HTTP status codes
 ERROR_CODES = {
+<<<<<<< HEAD
     # 400-level errors (client errors)
     "INVALID_REQUEST": {
         "status_code": status.HTTP_400_BAD_REQUEST,
@@ -270,9 +247,54 @@ def create_error_response(
         endpoint: Endpoint that generated the error
         doc_category: Documentation category for URL
 
-    Returns:
-        Standardized error response dictionary
+=======
+    # Storage errors
+    "STORAGE_ERROR": status.HTTP_500_INTERNAL_SERVER_ERROR,
+    "STORAGE_NOT_AVAILABLE": status.HTTP_503_SERVICE_UNAVAILABLE,
+    "STORAGE_ACCESS_DENIED": status.HTTP_403_FORBIDDEN,
+    "STORAGE_QUOTA_EXCEEDED": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    
+    # Content errors
+    "CONTENT_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+    "CONTENT_ALREADY_EXISTS": status.HTTP_409_CONFLICT,
+    "CONTENT_TOO_LARGE": status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    "CONTENT_INVALID": status.HTTP_400_BAD_REQUEST,
+    
+    # Authentication/authorization errors
+    "AUTH_REQUIRED": status.HTTP_401_UNAUTHORIZED,
+    "PERMISSION_DENIED": status.HTTP_403_FORBIDDEN,
+    "TOKEN_EXPIRED": status.HTTP_401_UNAUTHORIZED,
+    "TOKEN_INVALID": status.HTTP_401_UNAUTHORIZED,
+    
+    # Resource errors
+    "RESOURCE_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+    "RESOURCE_EXHAUSTED": status.HTTP_429_TOO_MANY_REQUESTS,
+    "QUOTA_EXCEEDED": status.HTTP_429_TOO_MANY_REQUESTS,
+    
+    # General errors
+    "INVALID_REQUEST": status.HTTP_400_BAD_REQUEST,
+    "INTERNAL_ERROR": status.HTTP_500_INTERNAL_SERVER_ERROR,
+    "NOT_IMPLEMENTED": status.HTTP_501_NOT_IMPLEMENTED,
+    "SERVICE_UNAVAILABLE": status.HTTP_503_SERVICE_UNAVAILABLE,
+    "EXTENSION_NOT_AVAILABLE": status.HTTP_501_NOT_IMPLEMENTED,
+    "REQUEST_TIMEOUT": status.HTTP_408_REQUEST_TIMEOUT,
+    
+    # Default
+    "UNKNOWN_ERROR": status.HTTP_500_INTERNAL_SERVER_ERROR
+}
+
+def get_error_status_code(error_code: str) -> int:
     """
+    Get the HTTP status code for a given error code.
+    
+    Args:
+        error_code: The error code to look up
+        
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
+    Returns:
+        HTTP status code
+    """
+<<<<<<< HEAD
     # Get error info from code
     if code not in ERROR_CODES:
         logger.warning(f"Unknown error code: {code}, falling back to INTERNAL_ERROR")
@@ -308,17 +330,20 @@ def create_error_response(
 
     # Convert to dict for JSON serialization
     return error_response.dict(exclude_none=True)
+=======
+    return ERROR_CODES.get(error_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
 
 def raise_http_exception(
     code: str,
-    details: Optional[Dict[str, Any]] = None,
     message_override: Optional[str] = None,
-    suggestion_override: Optional[str] = None,
-    request_id: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
     endpoint: Optional[str] = None,
-    doc_category: Optional[str] = "api"
+    doc_category: Optional[str] = None,
+    log_level: str = "error"
 ) -> None:
     """
+<<<<<<< HEAD
     Create and raise an HTTPException with standardized error response.
 
     Args:
@@ -330,9 +355,22 @@ def raise_http_exception(
         endpoint: Endpoint that generated the error
         doc_category: Documentation category for URL
 
+=======
+    Raise a standardized HTTPException with the given error details.
+    
+    Args:
+        code: The error code (must be one of the defined ERROR_CODES)
+        message_override: Optional override for the default error message
+        details: Optional dictionary with additional error details
+        endpoint: Optional endpoint where the error occurred
+        doc_category: Optional documentation category for the error
+        log_level: Log level to use when logging this error
+        
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
     Raises:
-        HTTPException with standardized error response
+        HTTPException: The formatted HTTP exception
     """
+<<<<<<< HEAD
     # Get error info for status code
     if code not in ERROR_CODES:
         logger.warning(f"Unknown error code: {code}, falling back to INTERNAL_ERROR")
@@ -352,26 +390,63 @@ def raise_http_exception(
         doc_category=doc_category
     )
 
+=======
+    # Get the HTTP status code for the error
+    status_code = get_error_status_code(code)
+    
+    # Default message based on error code
+    default_message = code.replace("_", " ").title()
+    message = message_override or default_message
+    
+    # Prepare error payload
+    error_payload = {
+        "code": code,
+        "message": message,
+    }
+    
+    # Add optional details
+    if details:
+        error_payload["details"] = details
+    
+    if endpoint:
+        error_payload["endpoint"] = endpoint
+        
+    if doc_category:
+        error_payload["doc_category"] = doc_category
+    
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
     # Log the error
-    logger.error(f"HTTP Exception ({status_code}): {error_response['error']['message']}")
+    log_message = f"Error {code}: {message}"
+    if endpoint:
+        log_message += f" (endpoint: {endpoint})"
+    
+    # Select the appropriate log method based on log_level
+    log_method = getattr(logger, log_level.lower(), logger.error)
+    log_method(log_message)
+    
     if details:
         logger.debug(f"Error details: {details}")
+<<<<<<< HEAD
 
     # Raise HTTPException
+=======
+    
+    # Raise the HTTP exception
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
     raise HTTPException(
         status_code=status_code,
-        detail=error_response
+        detail=error_payload
     )
 
-def handle_exception(
-    exception: Exception,
-    code: str = "INTERNAL_ERROR",
-    request_id: Optional[str] = None,
+def format_error_response(
+    code: str,
+    message: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
     endpoint: Optional[str] = None,
-    doc_category: Optional[str] = "api",
-    log_traceback: bool = True
+    success: bool = False
 ) -> Dict[str, Any]:
     """
+<<<<<<< HEAD
     Handle exceptions and return standardized error response.
 
     Args:
@@ -382,9 +457,21 @@ def handle_exception(
         doc_category: Documentation category for URL
         log_traceback: Whether to log the full traceback
 
+=======
+    Format a standardized error response without raising an exception.
+    
+    Args:
+        code: The error code
+        message: Optional error message
+        details: Optional dictionary with additional error details
+        endpoint: Optional endpoint where the error occurred
+        success: Whether the operation should be marked as successful
+        
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1
     Returns:
-        Standardized error response dictionary
+        Formatted error response dictionary
     """
+<<<<<<< HEAD
     # Log the exception
     if log_traceback:
         logger.error(f"Exception in endpoint {endpoint}: {str(exception)}")
@@ -653,3 +740,25 @@ def standardize_legacy_error(response: Dict[str, Any]) -> Dict[str, Any]:
         message_override=error_message,
         details={"original_response": response}
     )
+=======
+    # Default message based on error code
+    default_message = code.replace("_", " ").title()
+    
+    # Prepare error response
+    response = {
+        "success": success,
+        "error": {
+            "code": code,
+            "message": message or default_message
+        }
+    }
+    
+    # Add optional details
+    if details:
+        response["error"]["details"] = details
+    
+    if endpoint:
+        response["error"]["endpoint"] = endpoint
+        
+    return response
+>>>>>>> 459e531a76cdfd42b9dc744871e757b690db81c1

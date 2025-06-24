@@ -1,0 +1,1 @@
+test/functional/verification/all_in_one_verify.py
