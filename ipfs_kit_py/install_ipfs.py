@@ -443,34 +443,20 @@ class install_ipfs:
         return results
 
     def install_ipfs_daemon(self):
+        # First check if IPFS is already installed using the corrected detection logic
+        if self.ipfs_test_install():
+            print("IPFS daemon already installed, skipping download")
+            # Return CID of existing binary if possible
+            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs.exe")):
+                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs.exe"))
+            elif os.path.exists(os.path.join(self.bin_path, "ipfs")):
+                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs"))
+            else:
+                return True  # Binary exists in PATH but not in our bin directory
+                
+        # Binary not found, proceed with download and installation
         dist = self.dist_select()
         dist_tar = self.ipfs_dists[dist]
-        detect = False
-        if platform.system() == "Linux":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs")
-        elif platform.system() == "Windows":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs.exe")
-            ipfs_detect_cmd = ipfs_detect_cmd.replace("\\", "/")
-            ipfs_detect_cmd = ipfs_detect_cmd.split("/")
-            ipfs_detect_cmd = "/".join(ipfs_detect_cmd)
-        elif platform.system() == "Darwin":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs")
-        try:
-            ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd, shell=True)
-            ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
-            if len(ipfs_detect_cmd_results) > 0:
-                if os.path.exists(os.path.join(self.bin_path, "ipfs.exe")):
-                    return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs.exe"))
-                else:
-                    return False
-            else:
-                return False
-        except Exception as e:
-            detect = False
-            print(e)
-        finally:
-            pass
-        if detect == False:
             url = self.ipfs_dists[self.dist_select()]
             if ".tar.gz" in url:
                 url_suffix = ".tar.gz"
@@ -613,44 +599,28 @@ class install_ipfs:
             return True
 
     def install_ipfs_cluster_follow(self):
+        # First check if ipfs-cluster-follow is already installed using the corrected detection logic
+        if self.ipfs_cluster_follow_test_install():
+            print("IPFS cluster follow already installed, skipping download")
+            # Return CID of existing binary if possible
+            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-follow.exe")):
+                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-follow.exe"))
+            elif os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-follow")):
+                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-follow"))
+            else:
+                return True  # Binary exists in PATH but not in our bin directory
+                
+        # Binary not found, proceed with download and installation
         dist = self.dist_select()
         dist_tar = self.ipfs_cluster_follow_dists[dist]
-        detect = False
-        if platform.system() == "Linux":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow")
-        elif platform.system() == "Windows":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow.exe")
-            ipfs_detect_cmd = ipfs_detect_cmd.replace("\\", "/")
-            ipfs_detect_cmd = ipfs_detect_cmd.split("/")
-            ipfs_detect_cmd = "/".join(ipfs_detect_cmd)
-        elif platform.system() == "Darwin":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-follow")
-        try:
-            ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd, shell=True)
-            ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
-            if len(ipfs_detect_cmd_results) > 0:
-                if os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-follow.exe")):
-                    return self.ipfs_multiformats.get_cid(
-                        os.path.join(self.bin_path, "ipfs-cluster-follow.exe")
-                    )
-                else:
-                    return False
-            else:
-                return False
-        except Exception as e:
-            detect = False
-            print(e)
-        finally:
-            pass
-        if detect == False:
-            url = self.ipfs_cluster_follow_dists[self.dist_select()]
-            if ".tar.gz" in url:
-                url_suffix = ".tar.gz"
-            else:
-                url_suffix = "." + url.split(".")[-1]
-            with tempfile.NamedTemporaryFile(
-                suffix=url_suffix, dir=self.tmp_path, delete=False
-            ) as this_tempfile:
+        url = self.ipfs_cluster_follow_dists[self.dist_select()]
+        if ".tar.gz" in url:
+            url_suffix = ".tar.gz"
+        else:
+            url_suffix = "." + url.split(".")[-1]
+        with tempfile.NamedTemporaryFile(
+            suffix=url_suffix, dir=self.tmp_path, delete=False
+        ) as this_tempfile:
                 if platform.system() == "Linux":
                     command = "wget " + url + " -O " + this_tempfile.name
                 elif platform.system() == "Windows":
@@ -800,24 +770,22 @@ class install_ipfs:
             return True
 
     def install_ipfs_cluster_ctl(self):
+        # First check if ipfs-cluster-ctl is already installed using the corrected detection logic
+        if self.ipfs_cluster_ctl_test_install():
+            print("IPFS cluster ctl already installed, skipping download")
+            # Return CID of existing binary if possible
+            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")):
+                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe"))
+            elif os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl")):
+                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-ctl"))
+            else:
+                return True  # Binary exists in PATH but not in our bin directory
+                
+        # Binary not found, proceed with download and installation
         detect = False
         results = {}
         dist = self.dist_select()
         dist_tar = self.ipfs_cluster_ctl_dists[dist]
-        detect = False
-        if platform.system() == "Linux":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl")
-        elif platform.system() == "Windows":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")
-            ipfs_detect_cmd = ipfs_detect_cmd.replace("\\", "/")
-            ipfs_detect_cmd = ipfs_detect_cmd.split("/")
-            ipfs_detect_cmd = "/".join(ipfs_detect_cmd)
-        elif platform.system() == "Darwin":
-            ipfs_detect_cmd = os.path.join(self.bin_path, "ipfs-cluster-ctl")
-        try:
-            ipfs_detect_cmd_results = subprocess.check_output(ipfs_detect_cmd, shell=True)
-            ipfs_detect_cmd_results = ipfs_detect_cmd_results.decode()
-            if len(ipfs_detect_cmd_results) > 0:
                 if os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")):
                     return self.ipfs_multiformats.get_cid(
                         os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")
@@ -3072,65 +3040,80 @@ class install_ipfs:
         return results
 
     def ipfs_test_install(self):
+        detect = 1  # Default to "not found"
         if platform.system() == "Darwin":
             detect = os.system("which ipfs")
         elif platform.system() == "Linux":
             detect = os.system("which ipfs")
         elif platform.system() == "Windows":
             detect = os.system("where ipfs")
-        if len(detect) > 0:
+        # os.system() returns 0 on success, non-zero on failure
+        # 0 means binary was found, non-zero means not found
+        if detect == 0:
             return True
         else:
             return False
         pass
 
     def ipfs_cluster_service_test_install(self):
+        detect = 1  # Default to "not found"
         if platform.system() == "Darwin":
             detect = os.system("which ipfs-cluster-service")
         elif platform.system() == "Linux":
             detect = os.system("which ipfs-cluster-service")
         elif platform.system() == "Windows":
             detect = os.system("where ipfs-cluster-service")
-        if len(detect) > 0:
+        # os.system() returns 0 on success, non-zero on failure
+        # 0 means binary was found, non-zero means not found
+        if detect == 0:
             return True
         else:
             return False
         pass
 
     def ipfs_cluster_follow_test_install(self):
+        detect = 1  # Default to "not found"
         if platform.system() == "Darwin":
             detect = os.system("which ipfs-cluster-follow")
         elif platform.system() == "Linux":
             detect = os.system("which ipfs-cluster-follow")
         elif platform.system() == "Windows":
             detect = os.system("where ipfs-cluster-follow")
-        if len(detect) > 0:
+        # os.system() returns 0 on success, non-zero on failure
+        # 0 means binary was found, non-zero means not found
+        if detect == 0:
             return True
         else:
             return False
         pass
 
     def ipfs_cluster_ctl_test_install(self):
+        detect = 1  # Default to "not found"
         if platform.system() == "Darwin":
             detect = os.system("which ipfs-cluster-ctl")
         elif platform.system() == "Linux":
             detect = os.system("which ipfs-cluster-ctl")
         elif platform.system() == "Windows":
             detect = os.system("where ipfs-cluster-ctl")
-        if len(detect) > 0:
+        # os.system() returns 0 on success, non-zero on failure
+        # 0 means binary was found, non-zero means not found
+        if detect == 0:
             return True
         else:
             return False
         pass
 
     def ipget_test_install(self):
+        detect = 1  # Default to "not found"
         if platform.system() == "Darwin":
             detect = os.system("which ipget")
         elif platform.system() == "Linux":
             detect = os.system("which ipget")
         elif platform.system() == "Windows":
             detect = os.system("where ipget")
-        if len(detect) > 0:
+        # os.system() returns 0 on success, non-zero on failure
+        # 0 means binary was found, non-zero means not found
+        if detect == 0:
             return True
         else:
             return False
