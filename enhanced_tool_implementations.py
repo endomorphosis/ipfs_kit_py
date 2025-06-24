@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 try:
     # Add IPFS Kit to path
     sys.path.append(os.path.join(os.getcwd(), 'ipfs_kit_py'))
-    
+
     # Try to import advanced modules
     HAS_CLUSTER = False
     HAS_LASSIE = False
@@ -33,7 +33,7 @@ try:
     HAS_AI = False
     HAS_STREAMING = False
     HAS_MULTI_BACKEND = False
-    
+
     # Import IPFS Cluster
     try:
         from ipfs_kit_py.cluster import cluster_pin, cluster_status, cluster_peers
@@ -41,7 +41,7 @@ try:
         logger.info("Successfully imported IPFS Cluster extensions")
     except ImportError as e:
         logger.warning(f"Could not import IPFS Cluster extensions: {e}")
-    
+
     # Import Lassie for content retrieval
     try:
         from ipfs_kit_py.mcp.controllers.storage.lassie_controller import fetch_content, fetch_with_providers
@@ -49,7 +49,7 @@ try:
         logger.info("Successfully imported Lassie content retrieval")
     except ImportError as e:
         logger.warning(f"Could not import Lassie controller: {e}")
-    
+
     # Import Storacha
     try:
         from ipfs_kit_py.mcp.controllers.storage.storacha_controller import store_content, retrieve_content
@@ -57,7 +57,7 @@ try:
         logger.info("Successfully imported Storacha controller")
     except ImportError as e:
         logger.warning(f"Could not import Storacha controller: {e}")
-    
+
     # Import AI/ML modules
     try:
         from ipfs_kit_py.mcp.ai.model_registry import register_model, register_dataset
@@ -65,7 +65,7 @@ try:
         logger.info("Successfully imported AI/ML modules")
     except ImportError as e:
         logger.warning(f"Could not import AI/ML modules: {e}")
-    
+
     # Import streaming modules
     try:
         from ipfs_kit_py.mcp.streaming import create_stream, publish_to_stream
@@ -73,7 +73,7 @@ try:
         logger.info("Successfully imported Streaming modules")
     except ImportError as e:
         logger.warning(f"Could not import Streaming modules: {e}")
-    
+
     # Import multi-backend storage
     try:
         from ipfs_kit_py.mcp.storage_manager import add_backend, list_backends
@@ -81,7 +81,7 @@ try:
         logger.info("Successfully imported Multi-Backend Storage Manager")
     except ImportError as e:
         logger.warning(f"Could not import Multi-Backend Storage Manager: {e}")
-    
+
 except ImportError as e:
     logger.warning(f"Could not import IPFS Kit modules: {e}. Using mock implementations.")
 

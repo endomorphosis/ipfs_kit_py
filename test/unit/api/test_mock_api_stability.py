@@ -27,62 +27,62 @@ experimental_api = api_stability.experimental_api
 # Mock High-Level API with our stability decorators
 class MockHighLevelAPI:
     """Mock version of IPFSSimpleAPI with stability decorators."""
-    
+
     @stable_api(since="0.1.0")
     def add(self, content, **kwargs) -> Dict[str, Any]:
         """Add content to IPFS."""
         return {"success": True}
-    
+
     @stable_api(since="0.1.0")
     def get(self, cid, **kwargs) -> bytes:
         """Get content from IPFS."""
         return b"mock data"
-    
+
     @stable_api(since="0.1.0")
     def pin(self, cid, **kwargs) -> Dict[str, Any]:
         """Pin content to IPFS."""
         return {"success": True}
-    
+
     @stable_api(since="0.1.0")
     def unpin(self, cid, **kwargs) -> Dict[str, Any]:
         """Unpin content from IPFS."""
         return {"success": True}
-    
-    @stable_api(since="0.1.0") 
+
+    @stable_api(since="0.1.0")
     def list_pins(self, **kwargs) -> Dict[str, Any]:
         """List pinned content."""
         return {"success": True, "pins": {}}
-    
+
     @stable_api(since="0.1.0")
     def add_json(self, data, **kwargs) -> Dict[str, Any]:
         """Add JSON data to IPFS."""
         return {"success": True}
-    
+
     @beta_api(since="0.1.0")
     def get_filesystem(self, **kwargs) -> Any:
         """Get FSSpec filesystem interface."""
         return None
-    
+
     @beta_api(since="0.1.0")
     def stream_media(self, path, **kwargs) -> Any:
         """Stream media content."""
         return None
-    
+
     @beta_api(since="0.1.0")
     def publish(self, cid, **kwargs) -> Dict[str, Any]:
         """Publish to IPNS."""
         return {"success": True}
-    
+
     @beta_api(since="0.1.0")
     def cluster_status(self, cid=None, **kwargs) -> Dict[str, Any]:
         """Get cluster status."""
         return {"success": True}
-    
+
     @experimental_api(since="0.1.0")
     def ai_model_add(self, model, **kwargs) -> Dict[str, Any]:
         """Add AI model to IPFS."""
         return {"success": True}
-    
+
     @experimental_api(since="0.1.0")
     def ai_model_get(self, model_id, **kwargs) -> Dict[str, Any]:
         """Get AI model from IPFS."""
@@ -94,10 +94,10 @@ mock_api = MockHighLevelAPI()
 def print_stability_summary():
     """Print a summary of API stability decorators."""
     print("\n=== API Stability Summary ===\n")
-    
+
     total_apis = sum(len(apis) for apis in api_stability.API_REGISTRY.values())
     print(f"Total decorated APIs: {total_apis}")
-    
+
     for stability_level, apis in api_stability.API_REGISTRY.items():
         if apis:
             print(f"\n{stability_level.upper()} APIs ({len(apis)}):")

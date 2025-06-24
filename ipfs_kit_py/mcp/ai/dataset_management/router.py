@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 # Import the Dataset Management components
 from ipfs_kit_py.mcp.ai.dataset_management.manager import (
     DatasetManager, Dataset, DatasetVersion, DataQualityMetrics, DataLineage,
-    DatasetFormat, DatasetType, DatasetStatus, DataLicense, 
+    DatasetFormat, DatasetType, DatasetStatus, DataLicense,
     DataSource, PreprocessingStep, Schema, DatasetMetadata
 )
 
@@ -41,13 +41,13 @@ except ImportError:
     class User:
         id: str
         username: str
-        
+
     async def get_current_user():
         return User(id="mock_user", username="mock_user")
-    
+
     async def get_admin_user():
         return User(id="mock_admin", username="mock_admin")
-    
+
     AUTH_AVAILABLE = False
 
 # Create router
@@ -159,7 +159,7 @@ async def create_dataset(
 ):
     """
     Create a new dataset in the registry.
-    
+
     Returns the created dataset information.
     """
     # Convert dataset_type string to enum if provided
@@ -172,7 +172,7 @@ async def create_dataset(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid dataset type: {dataset.dataset_type}"
             )
-    
+
     # Convert source dict to DataSource if provided
     source = None
     if dataset.source:
@@ -183,7 +183,7 @@ async def create_dataset(
             contact=dataset.source.contact,
             citation=dataset.source.citation
         )
-    
+
     # Create dataset
     created_dataset = await manager.create_dataset(
         name=dataset.name,
@@ -197,13 +197,13 @@ async def create_dataset(
         tags=dataset.tags,
         access_control=dataset.access_control
     )
-    
+
     if not created_dataset:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create dataset"
         )
-    
+
     # Return dataset details
     return {
         "success": True,
@@ -226,14 +226,14 @@ async def list_datasets(
 ):
     """
     List datasets in the registry with optional filtering.
-    
+
     Returns a list of datasets matching the filter criteria.
     """
     # Parse tags if provided
     tags_list = None
     if tags:
         tags_list = [tag.strip() for tag in tags.split(",")]
-    
+
     # Convert dataset_type string to enum if provided
     dataset_type_enum = None
     if dataset_type:
@@ -244,7 +244,7 @@ async def list_datasets(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid dataset type: {dataset_type}"
             )
-    
+
     # Get datasets
     datasets = await manager.list_datasets(
         name_filter=name,
@@ -256,7 +256,7 @@ async def list_datasets(
         created_after=created_after,
         created_before=created_before
     )
-    
+
     # Return dataset list
     return {
         "success": True,
@@ -274,17 +274,17 @@ async def get_dataset(
 ):
     """
     Get a dataset by ID.
-    
+
     Returns the dataset information.
     """
     dataset = await manager.get_dataset(dataset_id)
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset {dataset_id} not found"
         )
-    
+
     # Return dataset details
     return {
         "success": True,
@@ -301,18 +301,18 @@ async def update_dataset(
 ):
     """
     Update a dataset's metadata.
-    
+
     Returns the updated dataset information.
     """
     # Check if dataset exists
     dataset = await manager.get_dataset(dataset_id)
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset {dataset_id} not found"
         )
-    
+
     # Check owner or admin permission
     if dataset.owner != current_user.id:
         # In a real implementation, check if user is admin or has permission
@@ -322,7 +322,7 @@ async def update_dataset(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update this dataset"
             )
-    
+
     # Convert dataset_type string to enum if provided
     dataset_type = None
     if dataset_update.dataset_type:
@@ -333,7 +333,7 @@ async def update_dataset(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid dataset type: {dataset_update.dataset_type}"
             )
-    
+
     # Convert source dict to DataSource if provided
     source = None
     if dataset_update.source:
@@ -344,7 +344,7 @@ async def update_dataset(
             contact=dataset_update.source.contact,
             citation=dataset_update.source.citation
         )
-    
+
     # Update dataset
     updated_dataset = await manager.update_dataset(
         dataset_id=dataset_id,
@@ -358,13 +358,13 @@ async def update_dataset(
         tags=dataset_update.tags,
         access_control=dataset_update.access_control
     )
-    
+
     if not updated_dataset:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update dataset"
         )
-    
+
     # Return updated dataset
     return {
         "success": True,
@@ -380,18 +380,18 @@ async def delete_dataset(
 ):
     """
     Delete a dataset and all its versions.
-    
+
     Returns success status.
     """
     # Check if dataset exists
     dataset = await manager.get_dataset(dataset_id)
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset {dataset_id} not found"
         )
-    
+
     # Check owner or admin permission
     if dataset.owner != current_user.id:
         # In a real implementation, check if user is admin or has permission
@@ -400,16 +400,16 @@ async def delete_dataset(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this dataset"
             )
-    
+
     # Delete dataset
     success = await manager.delete_dataset(dataset_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete dataset"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -437,18 +437,18 @@ async def create_dataset_version(
 ):
     """
     Create a new version of a dataset.
-    
+
     Uploads dataset files and creates a new version in the registry.
     """
     # Check if dataset exists
     dataset = await manager.get_dataset(dataset_id)
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset {dataset_id} not found"
         )
-    
+
     # Check owner or admin permission
     if dataset.owner != current_user.id:
         # In a real implementation, check if user is admin or has write permission
@@ -457,7 +457,7 @@ async def create_dataset_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to create versions for this dataset"
             )
-    
+
     # Parse format
     try:
         dataset_format = DatasetFormat(format)
@@ -466,7 +466,7 @@ async def create_dataset_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid dataset format: {format}"
         )
-    
+
     # Parse license if provided
     dataset_license = None
     if license:
@@ -477,7 +477,7 @@ async def create_dataset_version(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid license: {license}"
             )
-    
+
     # Parse status
     try:
         dataset_status = DatasetStatus(status)
@@ -486,7 +486,7 @@ async def create_dataset_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid status: {status}"
         )
-    
+
     # Parse tags
     try:
         tags_list = json.loads(tags)
@@ -495,13 +495,13 @@ async def create_dataset_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid tags JSON"
         )
-    
+
     # Read and process all files
     data_files = {}
     for file in files:
         file_content = await file.read()
         data_files[file.filename] = file_content
-    
+
     # Create dataset version
     dataset_version = await manager.create_dataset_version(
         dataset_id=dataset_id,
@@ -517,13 +517,13 @@ async def create_dataset_version(
         parent_version=parent_version,
         status=dataset_status
     )
-    
+
     if not dataset_version:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create dataset version"
         )
-    
+
     # Return dataset version details
     return {
         "success": True,
@@ -546,18 +546,18 @@ async def list_dataset_versions(
 ):
     """
     List versions of a dataset with optional filtering.
-    
+
     Returns a list of versions matching the filter criteria.
     """
     # Check if dataset exists
     dataset = await manager.get_dataset(dataset_id)
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset {dataset_id} not found"
         )
-    
+
     # Parse status if provided
     status_filter = None
     if status:
@@ -568,7 +568,7 @@ async def list_dataset_versions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid version status: {status}"
             )
-    
+
     # Parse format if provided
     format_filter = None
     if format:
@@ -579,7 +579,7 @@ async def list_dataset_versions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid dataset format: {format}"
             )
-    
+
     # Parse license if provided
     license_filter = None
     if license:
@@ -590,12 +590,12 @@ async def list_dataset_versions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid license: {license}"
             )
-    
+
     # Parse tags if provided
     tags_list = None
     if tags:
         tags_list = [tag.strip() for tag in tags.split(",")]
-    
+
     # Get versions
     versions = await manager.list_versions(
         dataset_id=dataset_id,
@@ -606,7 +606,7 @@ async def list_dataset_versions(
         created_before=created_before,
         tags_filter=tags_list
     )
-    
+
     # Return version list
     return {
         "success": True,
@@ -624,25 +624,25 @@ async def get_dataset_version(
 ):
     """
     Get a specific version of a dataset.
-    
+
     Returns the version information.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Return version details
     return {
         "success": True,
@@ -660,25 +660,25 @@ async def update_dataset_version(
 ):
     """
     Update a dataset version's metadata.
-    
+
     Returns the updated version information.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -688,7 +688,7 @@ async def update_dataset_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update this dataset version"
             )
-    
+
     # Parse status if provided
     update_status = None
     if version_update.status:
@@ -699,7 +699,7 @@ async def update_dataset_version(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid version status: {version_update.status}"
             )
-    
+
     # Parse license if provided
     update_license = None
     if version_update.license:
@@ -710,7 +710,7 @@ async def update_dataset_version(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid license: {version_update.license}"
             )
-    
+
     # Update version
     updated_version = await manager.update_version(
         version_id=version_id,
@@ -719,13 +719,13 @@ async def update_dataset_version(
         license=update_license,
         tags=version_update.tags
     )
-    
+
     if not updated_version:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update dataset version"
         )
-    
+
     # Return updated version
     return {
         "success": True,
@@ -742,25 +742,25 @@ async def delete_dataset_version(
 ):
     """
     Delete a dataset version.
-    
+
     Returns success status.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -770,16 +770,16 @@ async def delete_dataset_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this dataset version"
             )
-    
+
     # Delete version
     success = await manager.delete_version(version_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete dataset version"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -796,34 +796,34 @@ async def list_dataset_files(
 ):
     """
     List files in a dataset version.
-    
+
     Returns a list of filenames.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Get files
     files = await manager.get_dataset_files(version_id)
-    
+
     if not files:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Failed to retrieve dataset files or no files found"
         )
-    
+
     # Return file list
     return {
         "success": True,
@@ -842,36 +842,36 @@ async def download_dataset_file(
 ):
     """
     Download a specific file from a dataset version.
-    
+
     Returns the file content as a streaming response.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Get file
     files = await manager.get_dataset_files(version_id, file_patterns=[file_name])
-    
+
     if not files or file_name not in files:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"File {file_name} not found in dataset version"
         )
-    
+
     file_content = files[file_name]
-    
+
     # Determine content type (simplified version)
     content_type = "application/octet-stream"
     if file_name.endswith(".csv"):
@@ -884,7 +884,7 @@ async def download_dataset_file(
         content_type = "image/jpeg"
     elif file_name.endswith(".png"):
         content_type = "image/png"
-    
+
     # Return file as streaming response
     return StreamingResponse(
         io.BytesIO(file_content),
@@ -904,25 +904,25 @@ async def set_version_ready(
 ):
     """
     Set a version as the ready version for a dataset.
-    
+
     Returns success status.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -932,16 +932,16 @@ async def set_version_ready(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to set the ready version for this dataset"
             )
-    
+
     # Set ready version
     success = await manager.set_ready_version(dataset_id, version_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to set ready version"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -957,18 +957,18 @@ async def get_ready_version(
 ):
     """
     Get the ready version for a dataset.
-    
+
     Returns the ready version information.
     """
     # Get ready version
     version = await manager.get_ready_version(dataset_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No ready version found for dataset {dataset_id}"
         )
-    
+
     # Return version details
     return {
         "success": True,
@@ -984,18 +984,18 @@ async def get_latest_version(
 ):
     """
     Get the latest version for a dataset.
-    
+
     Returns the latest version information.
     """
     # Get latest version
     version = await manager.get_latest_version(dataset_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No versions found for dataset {dataset_id}"
         )
-    
+
     # Return version details
     return {
         "success": True,
@@ -1015,25 +1015,25 @@ async def update_quality_metrics(
 ):
     """
     Update quality metrics for a dataset version.
-    
+
     Returns success status.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -1043,7 +1043,7 @@ async def update_quality_metrics(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update metrics for this dataset version"
             )
-    
+
     # Create DataQualityMetrics from the provided data
     quality_metrics = DataQualityMetrics(
         completeness=metrics.completeness,
@@ -1060,16 +1060,16 @@ async def update_quality_metrics(
         class_distribution=metrics.class_distribution,
         custom_metrics=metrics.custom_metrics
     )
-    
+
     # Update metrics
     success = await manager.record_quality_metrics(version_id, quality_metrics)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update quality metrics"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -1087,25 +1087,25 @@ async def update_schema(
 ):
     """
     Update schema for a dataset version.
-    
+
     Returns success status.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -1115,22 +1115,22 @@ async def update_schema(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update schema for this dataset version"
             )
-    
+
     # Create Schema from the provided data
     schema_obj = Schema(
         fields=schema.fields,
         description=schema.description
     )
-    
+
     # Update schema
     success = await manager.update_schema(version_id, schema_obj)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update schema"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -1148,25 +1148,25 @@ async def update_lineage(
 ):
     """
     Update lineage for a dataset version.
-    
+
     Returns success status.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -1176,7 +1176,7 @@ async def update_lineage(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update lineage for this dataset version"
             )
-    
+
     # Create DataLineage from the provided data
     lineage_obj = DataLineage(
         parent_datasets=lineage.parent_datasets,
@@ -1188,16 +1188,16 @@ async def update_lineage(
         creation_timestamp=lineage.creation_timestamp,
         creator_id=lineage.creator_id or current_user.id
     )
-    
+
     # Update lineage
     success = await manager.update_lineage(version_id, lineage_obj)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update lineage"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -1215,25 +1215,25 @@ async def add_preprocessing_step(
 ):
     """
     Add a preprocessing step to a dataset version.
-    
+
     Returns success status.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -1243,7 +1243,7 @@ async def add_preprocessing_step(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to add preprocessing steps for this dataset version"
             )
-    
+
     # Create PreprocessingStep from the provided data
     preprocessing_step = PreprocessingStep(
         name=step.name,
@@ -1251,16 +1251,16 @@ async def add_preprocessing_step(
         parameters=step.parameters,
         order=step.order
     )
-    
+
     # Add preprocessing step
     success = await manager.add_preprocessing_step(version_id, preprocessing_step)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to add preprocessing step"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -1278,25 +1278,25 @@ async def calculate_dataset_quality(
 ):
     """
     Calculate quality metrics for a dataset version.
-    
+
     Returns the calculated metrics.
     """
     # Get version
     version = await manager.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify dataset ID matches
     if version.dataset_id != dataset_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to dataset {dataset_id}"
         )
-    
+
     # Check owner or admin permission
     dataset = await manager.get_dataset(dataset_id)
     if dataset and dataset.owner != current_user.id:
@@ -1306,16 +1306,16 @@ async def calculate_dataset_quality(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to calculate metrics for this dataset version"
             )
-    
+
     # Calculate metrics
     metrics = await manager.calculate_quality_metrics(version_id, custom_metrics)
-    
+
     if not metrics:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to calculate quality metrics"
         )
-    
+
     # Return metrics
     return {
         "success": True,
@@ -1331,21 +1331,21 @@ async def get_derived_datasets(
 ):
     """
     Get datasets derived from a dataset.
-    
+
     Returns a list of derived datasets.
     """
     # Check if dataset exists
     dataset = await manager.get_dataset(dataset_id)
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Dataset {dataset_id} not found"
         )
-    
+
     # Get derived datasets
     derived_datasets = await manager.get_derived_datasets(dataset_id)
-    
+
     # Return derived datasets
     return {
         "success": True,
@@ -1357,20 +1357,20 @@ async def get_derived_datasets(
 def initialize_dataset_manager(backend_manager: Any) -> DatasetManager:
     """
     Initialize the dataset manager.
-    
+
     Args:
         backend_manager: Backend manager instance
-        
+
     Returns:
         Initialized dataset manager
     """
     global _dataset_manager
-    
+
     # Create data directory
     data_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "dataset_management")
     os.makedirs(data_dir, exist_ok=True)
-    
+
     # Create manager
     _dataset_manager = DatasetManager(data_dir, backend_manager)
-    
+
     return _dataset_manager

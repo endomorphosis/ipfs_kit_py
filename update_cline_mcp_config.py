@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 def get_server_info(base_url):
     """
     Get server information from the MCP server.
-    
+
     Args:
         base_url: Base URL of the MCP server
-        
+
     Returns:
         Dictionary with server information
     """
@@ -45,11 +45,11 @@ def get_server_info(base_url):
 def create_mcp_configuration(base_url, settings_path):
     """
     Create MCP configuration with tools and resources based on server information.
-    
+
     Args:
         base_url: Base URL of the MCP server
         settings_path: Path to the Claude MCP settings file
-        
+
     Returns:
         Boolean indicating success
     """
@@ -61,16 +61,16 @@ def create_mcp_configuration(base_url, settings_path):
     if not os.path.exists(settings_path):
         logger.error(f"Settings file not found: {settings_path}")
         return False
-    
+
     try:
         # Read existing settings
         with open(settings_path, 'r') as f:
             settings = json.load(f)
-        
+
         # Create or update the localhost server entry
         if 'mcpServers' not in settings:
             settings['mcpServers'] = {}
-            
+
         # Define the server
         settings['mcpServers']['localhost'] = {
             "autoApprove": [],
@@ -79,11 +79,11 @@ def create_mcp_configuration(base_url, settings_path):
             "url": f"{base_url}/api/v0/sse",
             "transportType": "sse"
         }
-        
+
         # Define additional MCP resources and tools based on server endpoints
         tools = []
         resources = []
-        
+
         # Add IPFS tools
         if 'ipfs' in server_info.get('controllers', []):
             tools.append({
@@ -104,7 +104,7 @@ def create_mcp_configuration(base_url, settings_path):
                     "required": ["content"]
                 }
             })
-            
+
             tools.append({
                 "name": "ipfs_cat",
                 "description": "Get content from IPFS by CID",
@@ -119,7 +119,7 @@ def create_mcp_configuration(base_url, settings_path):
                     "required": ["cid"]
                 }
             })
-            
+
             tools.append({
                 "name": "ipfs_pin",
                 "description": "Pin content in IPFS by CID",
@@ -134,7 +134,7 @@ def create_mcp_configuration(base_url, settings_path):
                     "required": ["cid"]
                 }
             })
-        
+
         # Add storage backend tools
         storage_backends = server_info.get('storage_backends', {})
         for backend_name, backend_info in storage_backends.items():
@@ -147,7 +147,7 @@ def create_mcp_configuration(base_url, settings_path):
                         "properties": {}
                     }
                 })
-                
+
                 if backend_name != "ipfs":
                     tools.append({
                         "name": f"{backend_name}_to_ipfs",
@@ -163,7 +163,7 @@ def create_mcp_configuration(base_url, settings_path):
                             "required": ["file_path"]
                         }
                     })
-                    
+
                     tools.append({
                         "name": f"{backend_name}_from_ipfs",
                         "description": f"Transfer content from IPFS to {backend_name}",
@@ -182,19 +182,19 @@ def create_mcp_configuration(base_url, settings_path):
                             "required": ["cid"]
                         }
                     })
-        
+
         # Add server information for documentation
         settings['mcpServers']['localhost']['serverInfo'] = server_info
         settings['mcpServers']['localhost']['tools'] = tools
         settings['mcpServers']['localhost']['resources'] = resources
-        
+
         # Save the updated settings
         with open(settings_path, 'w') as f:
             json.dump(settings, f, indent=2)
-        
+
         logger.info(f"Updated MCP configuration with {len(tools)} tools and {len(resources)} resources")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error creating MCP configuration: {e}")
         return False
@@ -204,11 +204,11 @@ def main():
     parser = argparse.ArgumentParser(description="Update Claude MCP configuration")
     parser.add_argument("--url", type=str, default="http://localhost:9997", help="Base URL of the MCP server")
     parser.add_argument("--settings", type=str, default=os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"), help="Path to Claude MCP settings file")
-    
+
     args = parser.parse_args()
-    
+
     logger.info(f"Updating MCP configuration for server at {args.url}...")
-    
+
     # Make sure the server is running
     try:
         response = requests.get(f"{args.url}/")
@@ -218,7 +218,7 @@ def main():
     except Exception as e:
         logger.error(f"Error connecting to server at {args.url}: {e}")
         sys.exit(1)
-    
+
     # Create the MCP configuration
     if create_mcp_configuration(args.url, args.settings):
         logger.info("MCP configuration updated successfully")

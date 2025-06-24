@@ -16,13 +16,13 @@ def main():
     parser.add_argument("--port", type=int, default=9995,
                       help="Port number to use (default: 9995)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    
+
     args = parser.parse_args()
-    
+
     # Write PID file for easier management
     with open('/tmp/simple_jsonrpc_server.pid', 'w') as f:
         f.write(str(os.getpid()))
-    
+
     run_server(args.port, args.debug)
 
 if __name__ == "__main__":

@@ -25,30 +25,30 @@ def update_mcp_config(config_path):
         if not os.path.exists(config_path):
             logger.error(f"❌ Config file not found: {config_path}")
             return False
-        
+
         with open(config_path, 'r') as f:
             config = json.load(f)
-        
+
         # Check if the configuration has a mcpServers section
         if 'mcpServers' not in config:
             logger.error("❌ Invalid configuration: 'mcpServers' section not found")
             return False
-        
+
         # The configuration structure is different than expected
         # We need to create a new configuration file specifically for tools
         tools_config_path = os.path.join(os.path.dirname(config_path), 'mcp_tools_config.json')
-        
+
         # Create a new configuration structure for the tools
         ipfs_server = {
             "name": "direct-ipfs-kit-mcp",
             "url": config['mcpServers'].get('direct-ipfs-kit-mcp', {}).get('url', 'http://localhost:3000/sse'),
             "tools": []
         }
-        
+
         if not ipfs_server:
             logger.error("❌ IPFS server configuration not found")
             return False
-        
+
         # Add or update IPFS tools
         ipfs_tools = [
             {
@@ -58,12 +58,12 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Path within MFS to list (default: /)",
                             "default": "/"
                         },
                         "long": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Use long listing format (include size, type)",
                             "default": False
                         }
@@ -77,11 +77,11 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Path to create within MFS"
                         },
                         "parents": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Create parent directories if they don't exist",
                             "default": True
                         }
@@ -96,20 +96,20 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Path within MFS to write to"
                         },
                         "content": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Content to write to the file"
                         },
                         "create": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Create the file if it doesn't exist",
                             "default": True
                         },
                         "truncate": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Truncate the file if it already exists",
                             "default": True
                         }
@@ -124,16 +124,16 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Path within MFS to read from"
                         },
                         "offset": {
-                            "type": "integer", 
+                            "type": "integer",
                             "description": "Byte offset to start reading from",
                             "default": 0
                         },
                         "count": {
-                            "type": "integer", 
+                            "type": "integer",
                             "description": "Maximum number of bytes to read",
                             "default": -1
                         }
@@ -148,16 +148,16 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Path within MFS to remove"
                         },
                         "recursive": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Recursively remove directories",
                             "default": False
                         },
                         "force": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Forcibly remove the file/directory",
                             "default": False
                         }
@@ -172,16 +172,16 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Path within MFS to get stats for"
                         },
                         "with_local": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Compute the amount of the dag that is local",
                             "default": False
                         },
                         "size": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Compute the total size of the dag",
                             "default": True
                         }
@@ -196,11 +196,11 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "source": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Source path (can be an MFS or IPFS path)"
                         },
                         "dest": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Destination path within MFS"
                         }
                     },
@@ -214,11 +214,11 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "source": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Source path (must be an MFS path)"
                         },
                         "dest": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Destination path within MFS"
                         }
                     },
@@ -232,16 +232,16 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "IPFS path to publish"
                         },
                         "resolve": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Resolve before publishing",
                             "default": True
                         },
                         "lifetime": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Time duration that the record will be valid for",
                             "default": "24h"
                         }
@@ -253,19 +253,19 @@ def update_mcp_config(config_path):
                 "name": "ipfs_name_resolve",
                 "description": "Resolve an IPNS name",
                 "schema": {
-                    "type": "object", 
+                    "type": "object",
                     "properties": {
                         "name": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "The IPNS name to resolve"
                         },
                         "recursive": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Resolve until the result is not an IPNS name",
                             "default": True
                         },
                         "nocache": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Do not use cached entries",
                             "default": False
                         }
@@ -280,22 +280,22 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "data": {
-                            "type": "object", 
+                            "type": "object",
                             "description": "The data to store as a DAG node"
                         },
                         "format": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "The format to use for the DAG node",
                             "default": "cbor",
                             "enum": ["cbor", "json", "raw"]
                         },
                         "input_codec": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "The codec that the input data is encoded with",
                             "default": "json"
                         },
                         "pin": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Pin this object when adding",
                             "default": False
                         }
@@ -310,11 +310,11 @@ def update_mcp_config(config_path):
                     "type": "object",
                     "properties": {
                         "cid": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "The CID of the DAG node to get"
                         },
                         "path": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "The path within the DAG structure to retrieve",
                             "default": ""
                         }
@@ -323,14 +323,14 @@ def update_mcp_config(config_path):
                 }
             }
         ]
-        
+
         # Update tools in the configuration
         if 'tools' not in ipfs_server:
             ipfs_server['tools'] = []
-        
+
         # Check which tools are already in the configuration
         existing_tool_names = {tool['name'] for tool in ipfs_server['tools']}
-        
+
         # Add new tools, update existing ones
         for tool in ipfs_tools:
             if tool['name'] in existing_tool_names:
@@ -344,18 +344,18 @@ def update_mcp_config(config_path):
                 # Add new tool
                 ipfs_server['tools'].append(tool)
                 logger.info(f"➕ Added new tool: {tool['name']}")
-        
+
         # Create the tools configuration file
         tools_config = {
             "servers": [ipfs_server]
         }
-        
+
         # Write the tools configuration to the file
         with open(tools_config_path, 'w') as f:
             json.dump(tools_config, f, indent=2)
-        
+
         logger.info(f"✅ Successfully created IPFS tools configuration at {tools_config_path}")
-        
+
         # Update the local MCP server configuration to point to this file
         logger.info(f"📝 To use these tools, you will need to configure the IPFS MCP server to use this configuration")
         logger.info(f"📋 The tool definition file has been saved at: {tools_config_path}")
@@ -367,12 +367,12 @@ def update_mcp_config(config_path):
 def main():
     """Main function to enhance IPFS MCP tools."""
     parser = argparse.ArgumentParser(description='Enhance IPFS MCP Tools')
-    parser.add_argument('--config', help='Path to the MCP config file', 
+    parser.add_argument('--config', help='Path to the MCP config file',
                         default=os.path.expanduser('~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json'))
     args = parser.parse_args()
-    
+
     logger.info("🔧 Enhancing IPFS MCP Tools...")
-    
+
     if update_mcp_config(args.config):
         logger.info("✅ Successfully enhanced IPFS MCP Tools")
         logger.info("🔄 Please restart the MCP server for changes to take effect")

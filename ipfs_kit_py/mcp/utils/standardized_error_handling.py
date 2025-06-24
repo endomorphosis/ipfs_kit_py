@@ -143,7 +143,7 @@ ERROR_PATTERN_MAPPING = {
     "dns resolution": "CONNECTION",
     "could not connect": "CONNECTION",
     "no such host": "CONNECTION",
-    
+
     # Authentication errors
     "unauthorized": "AUTHENTICATION",
     "forbidden": "AUTHENTICATION",
@@ -152,7 +152,7 @@ ERROR_PATTERN_MAPPING = {
     "invalid token": "AUTHENTICATION",
     "authentication failed": "AUTHENTICATION",
     "permission denied": "AUTHENTICATION",
-    
+
     # Content errors
     "not found": "CONTENT",
     "invalid cid": "CONTENT",
@@ -160,26 +160,26 @@ ERROR_PATTERN_MAPPING = {
     "invalid content": "CONTENT",
     "hash mismatch": "CONTENT",
     "invalid format": "CONTENT",
-    
+
     # Rate limit errors
     "rate limit": "RATE_LIMIT",
     "too many requests": "RATE_LIMIT",
     "throttled": "RATE_LIMIT",
     "quota exceeded": "RATE_LIMIT",
-    
+
     # Configuration errors
     "missing configuration": "CONFIGURATION",
     "invalid configuration": "CONFIGURATION",
     "not initialized": "CONFIGURATION",
     "configuration error": "CONFIGURATION",
-    
+
     # Resource errors
     "out of space": "RESOURCES",
     "insufficient storage": "RESOURCES",
     "memory error": "RESOURCES",
     "disk full": "RESOURCES",
     "bandwidth exceeded": "RESOURCES",
-    
+
     # Compatibility errors
     "unsupported version": "COMPATIBILITY",
     "api version": "COMPATIBILITY",
@@ -190,37 +190,37 @@ ERROR_PATTERN_MAPPING = {
 def get_error_category(error_msg: str) -> str:
     """
     Determine the error category based on error message patterns.
-    
+
     Args:
         error_msg: Error message to categorize
-        
+
     Returns:
         Error category
     """
     if not error_msg:
         return "INTERNAL"
-        
+
     error_lower = error_msg.lower()
-    
+
     for pattern, category in ERROR_PATTERN_MAPPING.items():
         if pattern in error_lower:
             return category
-            
+
     return "INTERNAL"
 
 def get_context_from_exception(
-    exception: Exception, 
-    operation: Optional[str] = None, 
+    exception: Exception,
+    operation: Optional[str] = None,
     backend_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Extract context information from an exception.
-    
+
     Args:
         exception: Exception to analyze
         operation: Operation being performed when exception occurred
         backend_name: Name of the backend where exception occurred
-        
+
     Returns:
         Dict with context information
     """
@@ -229,17 +229,17 @@ def get_context_from_exception(
         "exception_message": str(exception),
         "timestamp": time.time()
     }
-    
+
     if operation:
         context["operation"] = operation
-        
+
     if backend_name:
         context["backend"] = backend_name
-        
+
     # Extract status code if available
     if hasattr(exception, "response") and hasattr(exception.response, "status_code"):
         context["status_code"] = exception.response.status_code
-        
+
     # Extract response details if available
     if hasattr(exception, "response") and hasattr(exception.response, "text"):
         try:
@@ -248,19 +248,19 @@ def get_context_from_exception(
             context["response_details"] = response_json
         except (json.JSONDecodeError, Exception):
             context["response_text"] = exception.response.text
-            
+
     # Check for timeout
     if "timeout" in str(exception).lower():
         context["is_timeout"] = True
-        
+
     # Get the error category
     context["error_category"] = get_error_category(str(exception))
-    
+
     # Add category description and troubleshooting
     category_info = ERROR_CATEGORIES.get(context["error_category"], {})
     context["category_description"] = category_info.get("description", "")
     context["troubleshooting"] = category_info.get("troubleshooting", [])
-        
+
     return context
 
 def create_enhanced_error_response(
@@ -270,12 +270,12 @@ def create_enhanced_error_response(
 ) -> Dict[str, Any]:
     """
     Create an enhanced error response with troubleshooting information.
-    
+
     Args:
         context: Error context information
         success: Whether the operation was technically successful
         include_traceback: Whether to include traceback in the response
-        
+
     Returns:
         Enhanced error response dict
     """
@@ -287,18 +287,18 @@ def create_enhanced_error_response(
         "category_description": context.get("category_description", ""),
         "timestamp": context.get("timestamp", time.time()),
     }
-    
+
     # Add operation and backend if available
     if "operation" in context:
         response["operation"] = context["operation"]
-        
+
     if "backend" in context:
         response["backend"] = context["backend"]
-        
+
     # Add troubleshooting suggestions
     if "troubleshooting" in context and context["troubleshooting"]:
         response["troubleshooting_suggestions"] = context["troubleshooting"]
-        
+
     # Add specific details based on error category
     if context.get("error_category") == "CONNECTION":
         response["connection_details"] = {
@@ -316,21 +316,21 @@ def create_enhanced_error_response(
             "implement_backoff": True,
             "reduce_frequency": True
         }
-        
+
     # Add status code if available
     if "status_code" in context:
         response["status_code"] = context["status_code"]
-        
+
     # Add response details if available
     if "response_details" in context:
         response["response_details"] = context["response_details"]
     elif "response_text" in context:
         response["response_text"] = context["response_text"]
-        
+
     # Add traceback if requested
     if include_traceback:
         response["traceback"] = traceback.format_exc()
-        
+
     return response
 
 def handle_backend_errors(
@@ -341,13 +341,13 @@ def handle_backend_errors(
 ):
     """
     Decorator for handling backend operation errors consistently.
-    
+
     Args:
         operation: Name of the operation being performed
         backend_name: Name of the backend
         log_level: Logging level for errors
         include_traceback: Whether to include traceback in responses
-        
+
     Returns:
         Decorator function
     """
@@ -359,10 +359,10 @@ def handle_backend_errors(
             except Exception as e:
                 # Get logger instance
                 logger_instance = logger
-                
+
                 # Get context from exception
                 context = get_context_from_exception(e, operation, backend_name)
-                
+
                 # Log the error
                 log_msg = f"Error in {backend_name} {operation}: {e}"
                 if log_level == "error":
@@ -375,16 +375,16 @@ def handle_backend_errors(
                     logger_instance.info(log_msg)
                 else:
                     logger_instance.error(log_msg)
-                
+
                 # Create enhanced error response
                 error_response = create_enhanced_error_response(
-                    context, 
+                    context,
                     success=False,
                     include_traceback=include_traceback
                 )
-                
+
                 return error_response
-                
+
         return wrapper
     return decorator
 
@@ -396,13 +396,13 @@ def handle_backend_errors_async(
 ):
     """
     Decorator for handling async backend operation errors consistently.
-    
+
     Args:
         operation: Name of the operation being performed
         backend_name: Name of the backend
         log_level: Logging level for errors
         include_traceback: Whether to include traceback in responses
-        
+
     Returns:
         Async decorator function
     """
@@ -414,10 +414,10 @@ def handle_backend_errors_async(
             except Exception as e:
                 # Get logger instance
                 logger_instance = logger
-                
+
                 # Get context from exception
                 context = get_context_from_exception(e, operation, backend_name)
-                
+
                 # Log the error
                 log_msg = f"Error in {backend_name} {operation}: {e}"
                 if log_level == "error":
@@ -430,16 +430,16 @@ def handle_backend_errors_async(
                     logger_instance.info(log_msg)
                 else:
                     logger_instance.error(log_msg)
-                
+
                 # Create enhanced error response
                 error_response = create_enhanced_error_response(
-                    context, 
+                    context,
                     success=False,
                     include_traceback=include_traceback
                 )
-                
+
                 return error_response
-                
+
         return wrapper
     return decorator
 
@@ -449,11 +449,11 @@ def graceful_degradation(
 ):
     """
     Decorator for implementing graceful degradation when services are unavailable.
-    
+
     Args:
         fallback_function: Function to call as fallback if main function fails
         error_types: List of exception types to catch (defaults to all exceptions)
-        
+
     Returns:
         Decorator function
     """
@@ -466,13 +466,13 @@ def graceful_degradation(
                 # Check if we should handle this exception type
                 if error_types and not any(isinstance(e, t) for t in error_types):
                     raise
-                    
+
                 # Log the error
                 logger.warning(f"Function {func.__name__} failed, using fallback: {e}")
-                
+
                 # Call fallback function with original arguments and the exception
                 return fallback_function(*args, exception=e, **kwargs)
-                
+
         return wrapper
     return decorator
 
@@ -482,11 +482,11 @@ def graceful_degradation_async(
 ):
     """
     Decorator for implementing graceful degradation for async functions when services are unavailable.
-    
+
     Args:
         fallback_function: Async function to call as fallback if main function fails
         error_types: List of exception types to catch (defaults to all exceptions)
-        
+
     Returns:
         Async decorator function
     """
@@ -499,12 +499,12 @@ def graceful_degradation_async(
                 # Check if we should handle this exception type
                 if error_types and not any(isinstance(e, t) for t in error_types):
                     raise
-                    
+
                 # Log the error
                 logger.warning(f"Async function {func.__name__} failed, using fallback: {e}")
-                
+
                 # Call fallback function with original arguments and the exception
                 return await fallback_function(*args, exception=e, **kwargs)
-                
+
         return wrapper
     return decorator

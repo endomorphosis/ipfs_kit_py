@@ -598,7 +598,7 @@ class RoleStore(BaseStore):
 
 class PermissionStore(BaseStore):
     """Store for permission data."""
-    
+
     def __init__(self, data_dir: str = None):
         """Initialize the permission store."""
         super().__init__(data_dir, "permissions")
@@ -978,7 +978,7 @@ class ApiKeyStore(BaseStore):
 
 class SessionStore(BaseStore):
     """Store for session data."""
-    
+
     def __init__(self, data_dir: str = None):
         """Initialize the session store."""
         super().__init__(data_dir, "sessions")

@@ -20,11 +20,11 @@ def fix_missing_except():
         if not os.path.exists(filename):
             logger.error(f"{filename} not found")
             return False
-        
+
         # Read the file content
         with open(filename, "r") as f:
             lines = f.readlines()
-        
+
         # The comment '# Removed unmatched parenthesis' is right before PORT = args.port
         # We need to add except block before this point
         for i, line in enumerate(lines):
@@ -37,14 +37,14 @@ def fix_missing_except():
         else:
             logger.error("Could not find insertion point for except block")
             return False
-        
+
         # Write the fixed content back to the file
         with open(filename, "w") as f:
             f.writelines(lines)
-        
+
         logger.info("Successfully added missing except block")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error fixing missing except block: {e}")
         return False
@@ -52,12 +52,12 @@ def fix_missing_except():
 def main():
     """Main function"""
     logger.info("Starting to fix missing except block...")
-    
+
     # Fix the missing except block
     if not fix_missing_except():
         logger.error("❌ Failed to fix missing except block")
         return 1
-    
+
     logger.info("\n✅ Successfully fixed missing except block")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0

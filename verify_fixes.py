@@ -36,18 +36,18 @@ def verify_all_fixes():
         "lotus_kit_available": test_lotus_kit_available(),
         "backend_storage": test_backend_storage()
     }
-    
+
     # Print summary
     logger.info("\n=== VERIFICATION RESULTS ===")
     for test_name, result in results.items():
         status = "PASSED" if result else "FAILED"
         logger.info(f"{test_name}: {status}")
-    
+
     # Calculate overall success
     success_count = sum(1 for result in results.values() if result)
     total_count = len(results)
     logger.info(f"\nPassed {success_count}/{total_count} tests")
-    
+
     return success_count == total_count
 
 if __name__ == "__main__":

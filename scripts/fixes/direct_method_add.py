@@ -38,7 +38,7 @@ required_methods = [
     "ai_register_model",
     "ai_register_dataset",
     "ai_list_models",
-    "ai_test_inference", 
+    "ai_test_inference",
     "ai_update_deployment",
     "ai_create_embeddings",
     "ai_create_vector_index",
@@ -92,7 +92,7 @@ for method in missing_methods:
         params = "self, job_id: str, *, force: bool = False, allow_simulation: bool = True, **kwargs"
     else:
         params = "self, **kwargs"
-    
+
     # Use single quotes for method docstring to avoid issues with string formatting
     method_impl = f'''
     def {method}({params}):
@@ -102,18 +102,18 @@ for method in missing_methods:
             "operation": "{method}",
             "timestamp": time.time()
         }}
-        
+
         # Add operation-specific parameters to result
         for key, value in locals().items():
             if key not in ["self", "kwargs", "result"]:
                 result[key] = value
-        
+
         # Simulation mode when AI/ML integration is not available
         if allow_simulation:
             # Simulated success response
             result["success"] = True
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             # Add operation-specific simulated data
             if "{method}" == "ai_register_model":
                 result["model_id"] = "model_123456"
@@ -128,14 +128,14 @@ for method in missing_methods:
                 ]
                 result["count"] = 2
             # Add more simulation logic based on method
-                
+
             return result
-        
+
         result["error"] = "AI/ML integration not available and simulation not allowed"
         result["error_type"] = "IntegrationError"
         return result
     '''
-    
+
     method_implementations[method] = method_impl
 
 # Now let's add an import for time at the top of the file if not there
@@ -151,7 +151,7 @@ indent = indent_match.group(1) if indent_match else "    "
 for method in missing_methods:
     # Add indentation to the implementation
     indented_impl = method_implementations[method].replace('\n', f'\n{indent}')
-    
+
     # Use a basic approach - simply append to the end of the class
     # Find the class end by looking for the next class/function definition at the same level
     # or use the end of the file
@@ -159,7 +159,7 @@ for method in missing_methods:
     next_class_match = re.search(r'^class|^def', content[class_start+1:], re.MULTILINE)
     if next_class_match:
         class_end = class_start + 1 + next_class_match.start()
-    
+
     # Insert the method implementation
     content = content[:class_end] + indented_impl + content[class_end:]
 

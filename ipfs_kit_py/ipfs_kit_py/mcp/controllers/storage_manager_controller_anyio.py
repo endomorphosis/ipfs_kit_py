@@ -30,26 +30,26 @@ logger = logging.getLogger(__name__)
 class StorageManagerControllerAnyIO(StorageManagerController):
     """
     AnyIO-compatible implementation of the Storage Manager Controller.
-    
+
     This class extends the base StorageManagerController with AnyIO-specific
     asynchronous functionality for better compatibility with different async backends.
     """
-    
+
     async def shutdown(self):
         """
         Safely shut down the Storage Manager Controller using AnyIO.
-        
+
         This method ensures proper cleanup of all storage-related resources,
         including closing active transfers and connections to storage backends.
         """
         logger.info("Storage Manager Controller AnyIO shutdown initiated")
-        
+
         # Signal that we're shutting down to prevent new operations
         self.is_shutting_down = True
-        
+
         # Track any errors during shutdown
         errors = []
-        
+
         # 1. Clean up any active transfers
         if hasattr(self, "active_transfers") and self.active_transfers:
             logger.info(f"Cleaning up {len(self.active_transfers)} active transfers")
@@ -63,7 +63,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                     error_msg = f"Error cancelling transfer {transfer_id}: {str(e)}"
                     logger.error(error_msg)
                     errors.append(error_msg)
-        
+
         # 2. Reset all models in the storage manager
         if hasattr(self.storage_manager, "reset"):
             try:
@@ -77,7 +77,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 error_msg = f"Error resetting storage models: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
-        
+
         # 3. Clean up each storage model individually
         if hasattr(self.storage_manager, "get_all_models"):
             try:
@@ -87,7 +87,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 except AttributeError:
                     models = await anyio.run_sync_in_worker_thread(self.storage_manager.get_all_models)
                 logger.info(f"Shutting down {len(models)} storage models")
-                
+
                 for model_name, model in models.items():
                     try:
                         # Try to call shutdown method if it exists
@@ -117,7 +117,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 error_msg = f"Error accessing storage models: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
-        
+
         # 4. Clean up storage bridge if it exists
         if (
             hasattr(self.storage_manager, "storage_bridge")
@@ -147,7 +147,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 error_msg = f"Error shutting down storage bridge: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
-        
+
         # 5. Final cleanup of any remaining resources
         try:
             # Clear any dictionaries or references that might hold resources
@@ -157,7 +157,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
             error_msg = f"Error in final cleanup: {str(e)}"
             logger.error(error_msg)
             errors.append(error_msg)
-        
+
         # Log shutdown status
         if errors:
             logger.warning(
@@ -165,18 +165,18 @@ class StorageManagerControllerAnyIO(StorageManagerController):
             )
         else:
             logger.info("Storage Manager Controller AnyIO shutdown completed successfully")
-    
+
     # Override methods from the base class to use AnyIO's async functionality
-    
+
     async def handle_status_request(self):
         """
         Handle request for status of all storage backends (AnyIO version).
-        
+
         Returns:
             Dictionary with status of all storage backends
         """
         start_time = time.time()
-        
+
         try:
             # Create default response structure first
             response = {
@@ -187,7 +187,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 "total_count": 0,
                 "duration_ms": 0,
             }
-            
+
             try:
                 # Get available backends
                 # Use appropriate anyio method based on version
@@ -207,7 +207,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 response["success"] = False
                 response["duration_ms"] = (time.time() - start_time) * 1000
                 return response
-            
+
             try:
                 # Get all models - protect against None
                 try:
@@ -218,23 +218,23 @@ class StorageManagerControllerAnyIO(StorageManagerController):
             except Exception as e:
                 logger.error(f"Error getting backend models: {str(e)}")
                 models = {}
-            
+
             # Prepare response
             backends_status = {}
             available_count = 0
-            
+
             # Process each backend
             for backend_name, is_available in available_backends.items():
                 try:
                     if is_available:
                         available_count += 1
-                    
+
                     backend_model = None
                     try:
                         backend_model = models.get(backend_name)
                     except Exception as e:
                         logger.error(f"Error accessing model for {backend_name}: {str(e)}")
-                    
+
                     # Get stats
                     stats = None
                     try:
@@ -249,7 +249,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                     except Exception as e:
                         logger.error(f"Error getting stats for {backend_name}: {str(e)}")
                         stats = {"error": str(e), "error_type": type(e).__name__}
-                    
+
                     # Get capabilities
                     capabilities = []
                     try:
@@ -264,7 +264,7 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                                 )
                     except Exception as e:
                         logger.error(f"Error getting capabilities for {backend_name}: {str(e)}")
-                    
+
                     backends_status[backend_name] = {
                         "backend_name": backend_name,
                         "is_available": is_available,
@@ -281,12 +281,12 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                         "error": str(e),
                         "error_type": type(e).__name__,
                     }
-            
+
             # Update response
             response["backends"] = backends_status
             response["available_count"] = available_count
             response["duration_ms"] = (time.time() - start_time) * 1000
-            
+
             return response
         except Exception as e:
             logger.error(f"Error handling storage status request: {str(e)}")
@@ -300,30 +300,30 @@ class StorageManagerControllerAnyIO(StorageManagerController):
                 "total_count": 0,
                 "duration_ms": (time.time() - start_time) * 1000,
             }
-    
+
     async def handle_backend_status_request(self, backend_name: str):
         """
         Handle request for status of a specific storage backend (AnyIO version).
-        
+
         Args:
             backend_name: Name of the storage backend
-            
+
         Returns:
             Dictionary with status of the specified backend
         """
         # AnyIO implementation of backend status request
-        # This would be similar to the base class but using anyio.run_sync_in_worker_thread 
+        # This would be similar to the base class but using anyio.run_sync_in_worker_thread
         # for blocking operations
         result = await super().handle_backend_status_request(backend_name)
         return result
-    
+
     async def handle_transfer_request(self, request: StorageTransferRequest):
         """
         Handle request to transfer content between storage backends (AnyIO version).
-        
+
         Args:
             request: Transfer request parameters
-            
+
         Returns:
             Dictionary with transfer operation result
         """
@@ -332,15 +332,15 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         # for blocking operations
         result = await super().handle_transfer_request(request)
         return result
-    
+
     async def handle_verify_request(self, content_id: str, backends: Optional[List[str]] = None):
         """
         Handle request to verify content across storage backends (AnyIO version).
-        
+
         Args:
             content_id: Content identifier to verify
             backends: Optional list of backends to check (defaults to all)
-            
+
         Returns:
             Dictionary with verification results
         """
@@ -349,14 +349,14 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         # for blocking operations
         result = await super().handle_verify_request(content_id, backends)
         return result
-    
+
     async def handle_migration_request(self, request: ContentMigrationRequest):
         """
         Handle request to migrate content between storage backends (AnyIO version).
-        
+
         Args:
             request: Migration request parameters
-            
+
         Returns:
             Dictionary with migration operation results
         """
@@ -365,14 +365,14 @@ class StorageManagerControllerAnyIO(StorageManagerController):
         # for blocking operations
         result = await super().handle_migration_request(request)
         return result
-    
+
     async def handle_replication_policy_request(self, request: ReplicationPolicyRequest):
         """
         Handle request to apply a replication policy to content (AnyIO version).
-        
+
         Args:
             request: Replication policy request parameters
-            
+
         Returns:
             Dictionary with replication policy application result
         """

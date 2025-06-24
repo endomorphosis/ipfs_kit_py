@@ -28,7 +28,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-    
+
     def ai_test_inference(self, model_cid, test_data_cid, *, batch_size=32, max_samples=None, metrics=None, output_format="json", compute_metrics=True, save_predictions=True, device=None, precision="float32", timeout=300, allow_simulation=True, **kwargs):
         '''Run inference on a test dataset.'''
         result = {
@@ -39,7 +39,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_update_deployment(self, deployment_id, *, model_cid=None, config=None, allow_simulation=True, **kwargs):
         '''Update a model deployment.'''
         result = {
@@ -49,7 +49,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_list_models(self, *, framework=None, model_type=None, limit=100, offset=0, order_by="created_at", order_dir="desc", allow_simulation=True, **kwargs):
         '''List available models.'''
         result = {
@@ -60,7 +60,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_create_embeddings(self, docs_cid, *, embedding_model="default", recursive=True, filter_pattern=None, chunk_size=1000, chunk_overlap=0, max_docs=None, save_index=True, allow_simulation=True, **kwargs):
         '''Create vector embeddings.'''
         result = {
@@ -70,7 +70,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_create_vector_index(self, embedding_cid, *, index_type="hnsw", params=None, save_index=True, allow_simulation=True, **kwargs):
         '''Create a vector index.'''
         result = {
@@ -80,7 +80,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_hybrid_search(self, query, *, vector_index_cid, keyword_index_cid=None, vector_weight=0.7, keyword_weight=0.3, top_k=10, rerank=False, allow_simulation=True, **kwargs):
         '''Perform hybrid search.'''
         result = {
@@ -91,7 +91,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_langchain_query(self, *, vectorstore_cid, query, top_k=5, allow_simulation=True, **kwargs):
         '''Query a Langchain vectorstore.'''
         result = {
@@ -102,7 +102,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_llama_index_query(self, *, index_cid, query, response_mode="default", allow_simulation=True, **kwargs):
         '''Query a LlamaIndex.'''
         result = {
@@ -112,7 +112,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_create_knowledge_graph(self, source_data_cid, *, graph_name="knowledge_graph", entity_types=None, relationship_types=None, max_entities=None, include_text_context=True, extract_metadata=True, save_intermediate_results=False, allow_simulation=True, **kwargs):
         '''Create a knowledge graph.'''
         result = {
@@ -122,7 +122,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_query_knowledge_graph(self, *, graph_cid, query, query_type="cypher", parameters=None, allow_simulation=True, **kwargs):
         '''Query a knowledge graph.'''
         result = {
@@ -133,7 +133,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_calculate_graph_metrics(self, *, graph_cid, metrics=None, entity_types=None, relationship_types=None, allow_simulation=True, **kwargs):
         '''Calculate graph metrics.'''
         result = {
@@ -143,7 +143,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_expand_knowledge_graph(self, *, graph_cid, seed_entity=None, data_source="external", expansion_type=None, max_entities=10, max_depth=2, allow_simulation=True, **kwargs):
         '''Expand a knowledge graph.'''
         result = {
@@ -153,7 +153,7 @@ methods_to_add = """
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_distributed_training_cancel_job(self, job_id, *, force=False, allow_simulation=True, **kwargs):
         '''Cancel a distributed training job.'''
         result = {
@@ -181,7 +181,7 @@ init_match = re.search(r'def\s+__init__', content[class_start:])
 if init_match:
     init_pos = class_start + init_match.start()
     print(f"Found __init__ method at offset {init_match.start()} from class start")
-    
+
     # Find a method after __init__ to insert our methods after
     # Either search for the next method definition
     next_method_match = re.search(r'def\s+\w+', content[init_pos + 20:])

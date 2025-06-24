@@ -1075,7 +1075,7 @@ class AuthenticationService:
             },
             "Login successful",
         )
-        
+
     async def process_oauth_callback(
         self,
         provider_id: str,
@@ -1086,31 +1086,31 @@ class AuthenticationService:
     ) -> Tuple[bool, Dict[str, Any], str]:
         """
         Process an OAuth callback and authenticate the user.
-        
+
         This implements OAuth integration as specified in the MCP roadmap
         for Advanced Authentication & Authorization.
-        
+
         Args:
             provider_id: OAuth provider ID
             code: Authorization code from provider
             redirect_uri: Redirect URI used in the authorization request
             ip_address: Client IP address
             user_agent: Client user agent
-            
+
         Returns:
             Tuple of (success, tokens, message)
         """
         import aiohttp
         import json
-        
+
         try:
             # Get provider configuration
             provider_configs = await self._load_oauth_providers()
             provider_config = provider_configs.get(provider_id)
-            
+
             if not provider_config:
                 return False, {}, f"Unknown OAuth provider: {provider_id}"
-                
+
             # Exchange code for token
             token_params = {
                 "client_id": provider_config["client_id"],
@@ -1119,7 +1119,7 @@ class AuthenticationService:
                 "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             }
-            
+
             async with aiohttp.ClientSession() as session:
                 # Get access token
                 async with session.post(provider_config["token_url"], data=token_params) as response:
@@ -1127,12 +1127,12 @@ class AuthenticationService:
                         error_text = await response.text()
                         logger.error(f"OAuth token error: {error_text}")
                         return False, {}, f"Failed to get OAuth token: {response.status}"
-                    
+
                     token_data = await response.json()
                     access_token = token_data.get("access_token")
                     if not access_token:
                         return False, {}, "No access token in OAuth response"
-                    
+
                     # Get user info
                     headers = {"Authorization": f"Bearer {access_token}"}
                     async with session.get(provider_config["userinfo_url"], headers=headers) as user_response:
@@ -1140,33 +1140,33 @@ class AuthenticationService:
                             error_text = await user_response.text()
                             logger.error(f"OAuth userinfo error: {error_text}")
                             return False, {}, f"Failed to get user info: {user_response.status}"
-                        
+
                         userinfo = await user_response.json()
-                        
+
             # Extract user information from provider-specific response
             email = userinfo.get("email")
             if not email:
                 return False, {}, "Email not provided by OAuth provider"
-                
+
             # Check domain restrictions if configured
             if provider_config.get("domain_restrictions"):
                 domain = email.split("@")[1] if "@" in email else ""
                 if domain not in provider_config["domain_restrictions"]:
                     return False, {}, f"Email domain not allowed: {domain}"
-            
+
             # Get or create user
             user_dict = await self.user_store.get_by_email(email)
-            
+
             if user_dict:
                 # Existing user, update information if needed
                 user = User(**user_dict)
-                
+
                 # Update OAuth-related metadata
                 metadata = user.metadata.copy() if user.metadata else {}
                 metadata["oauth_provider"] = provider_id
                 metadata["oauth_id"] = userinfo.get("id") or userinfo.get("sub")
                 metadata["last_oauth_login"] = time.time()
-                
+
                 # Update user
                 user_dict.update({
                     "metadata": metadata,
@@ -1176,14 +1176,14 @@ class AuthenticationService:
             else:
                 # Create new user from OAuth data
                 username = email.split("@")[0]
-                
+
                 # Ensure username is unique by appending numbers if needed
                 base_username = username
                 counter = 1
                 while await self.user_store.get_by_username(username):
                     username = f"{base_username}{counter}"
                     counter += 1
-                
+
                 # Create user with OAuth metadata
                 user = User(
                     username=username,
@@ -1197,21 +1197,21 @@ class AuthenticationService:
                         "last_oauth_login": time.time(),
                     }
                 )
-                
+
                 # Save user
                 success = await self.user_store.create(user.id, user.dict())
                 if not success:
                     return False, {}, "Failed to create user from OAuth data"
-                
+
                 logger.info(f"Created new user from OAuth: {user.username} ({user.id})")
-            
+
             # Create session
             session = await self.create_session(user, ip_address, user_agent)
-            
+
             # Create tokens
             access_token = await self.create_access_token(user, session)
             refresh_token = await self.create_refresh_token(user, session)
-            
+
             return (
                 True,
                 {
@@ -1234,11 +1234,11 @@ class AuthenticationService:
         except Exception as e:
             logger.error(f"OAuth error: {str(e)}")
             return False, {}, f"OAuth processing error: {str(e)}"
-    
+
     async def _load_oauth_providers(self) -> Dict[str, Dict]:
         """
         Load all OAuth provider configurations.
-        
+
         Returns:
             Dictionary of provider ID to provider config
         """
@@ -1248,7 +1248,7 @@ class AuthenticationService:
             # In a real implementation, you would load from the database
             # For this example, we'll return any providers stored in a class variable
             providers = getattr(self, "_oauth_providers_cache", {})
-            
+
             # If no providers in cache, try to load from persistence
             if not providers:
                 # Create a fake GitHub provider for testing
@@ -1269,10 +1269,10 @@ class AuthenticationService:
                         "domain_restrictions": None,
                     }
                 }
-                
+
                 # Store in cache for future use
                 self._oauth_providers_cache = providers
-                
+
             return providers
         except Exception as e:
             logger.error(f"Error loading OAuth providers: {e}")

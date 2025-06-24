@@ -29,19 +29,19 @@ AWS_CONFIG_FILE = os.path.join(AWS_CONFIG_DIR, "config")
 def setup_aws_configuration():
     """Set up AWS configuration directory if it doesn't exist"""
     os.makedirs(AWS_CONFIG_DIR, exist_ok=True)
-    
+
     if not os.path.exists(AWS_CONFIG_FILE):
         config = configparser.ConfigParser()
         config['default'] = {
             'region': 'us-east-1',
             'output': 'json'
         }
-        
+
         with open(AWS_CONFIG_FILE, 'w') as f:
             config.write(f)
-        
+
         logger.info(f"Created AWS config file at {AWS_CONFIG_FILE}")
-    
+
     return True
 
 def check_existing_aws_credentials():
@@ -50,16 +50,16 @@ def check_existing_aws_credentials():
     if os.environ.get('AWS_ACCESS_KEY_ID') and os.environ.get('AWS_SECRET_ACCESS_KEY'):
         logger.info("Found AWS credentials in environment variables")
         return True
-    
+
     # Check credentials file
     if os.path.exists(AWS_CREDS_FILE):
         config = configparser.ConfigParser()
         config.read(AWS_CREDS_FILE)
-        
+
         if 'default' in config and 'aws_access_key_id' in config['default'] and 'aws_secret_access_key' in config['default']:
             logger.info("Found AWS credentials in credentials file")
             return True
-    
+
     return False
 
 def create_local_aws_credentials():
@@ -72,21 +72,21 @@ def create_local_aws_credentials():
             'aws_secret_access_key': f'mcp-test-secret-{uuid.uuid4().hex}',
             'region': 'us-east-1'
         }
-        
+
         # Create the credentials file
         with open(AWS_CREDS_FILE, 'w') as f:
             config.write(f)
-        
+
         # Set permissions
         os.chmod(AWS_CREDS_FILE, 0o600)
-        
+
         logger.info(f"Created temporary AWS credentials in {AWS_CREDS_FILE}")
-        
+
         # Also set environment variables
         os.environ['AWS_ACCESS_KEY_ID'] = config['default']['aws_access_key_id']
         os.environ['AWS_SECRET_ACCESS_KEY'] = config['default']['aws_secret_access_key']
         os.environ['AWS_DEFAULT_REGION'] = config['default']['region']
-        
+
         return True
     except Exception as e:
         logger.error(f"Error creating AWS credentials: {e}")
@@ -95,7 +95,7 @@ def create_local_aws_credentials():
 def setup_local_s3_server():
     """Set up a local S3-compatible server like MinIO or configure endpoint for localstack"""
     from subprocess import Popen, PIPE, STDOUT
-    
+
     # Check if Docker is installed
     try:
         import subprocess
@@ -106,7 +106,7 @@ def setup_local_s3_server():
     except:
         logger.warning("Docker not available. Cannot start local S3 server.")
         return False
-    
+
     # Check if MinIO is running
     try:
         result = subprocess.run(['docker', 'ps', '--filter', 'name=minio-server'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -115,18 +115,18 @@ def setup_local_s3_server():
             return True
     except:
         pass
-    
+
     # Start MinIO in Docker
     logger.info("Starting MinIO server in Docker...")
-    
+
     try:
         # Create directories for MinIO data
         minio_data_dir = os.path.expanduser("~/.minio/data")
         os.makedirs(minio_data_dir, exist_ok=True)
-        
+
         # Pull MinIO image
         subprocess.run(['docker', 'pull', 'minio/minio'], check=True)
-        
+
         # Start MinIO server
         cmd = [
             'docker', 'run', '-d',
@@ -138,27 +138,27 @@ def setup_local_s3_server():
             '-v', f'{minio_data_dir}:/data',
             'minio/minio', 'server', '/data', '--console-address', ':9001'
         ]
-        
+
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
+
         if result.returncode == 0:
             logger.info(f"Started MinIO server: {result.stdout.strip()}")
-            
+
             # Set environment variable to point to local MinIO
             os.environ['S3_ENDPOINT_URL'] = 'http://localhost:9000'
-            
+
             # Wait for MinIO to start
             import time
             time.sleep(3)
-            
+
             # Create the bucket
             create_s3_bucket()
-            
+
             return True
         else:
             logger.error(f"Failed to start MinIO: {result.stderr}")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error starting MinIO: {e}")
         return False
@@ -166,7 +166,7 @@ def setup_local_s3_server():
 def create_s3_bucket():
     """Create S3 bucket for testing"""
     bucket_name = 'ipfs-storage-demo'
-    
+
     try:
         # Create S3 client
         endpoint_url = os.environ.get('S3_ENDPOINT_URL')
@@ -177,7 +177,7 @@ def create_s3_bucket():
             aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
             region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
         )
-        
+
         # Check if bucket exists
         try:
             s3_client.head_bucket(Bucket=bucket_name)
@@ -185,7 +185,7 @@ def create_s3_bucket():
         except:
             # Create bucket
             logger.info(f"Creating bucket {bucket_name}")
-            
+
             if endpoint_url:  # For local S3 servers
                 s3_client.create_bucket(Bucket=bucket_name)
             else:  # For AWS S3
@@ -198,17 +198,17 @@ def create_s3_bucket():
                             'LocationConstraint': os.environ.get('AWS_DEFAULT_REGION')
                         }
                     )
-            
+
             logger.info(f"Successfully created bucket {bucket_name}")
-        
+
         # Upload a test file
         test_file = os.path.join(os.getcwd(), "s3_test_file.txt")
         with open(test_file, 'w') as f:
             f.write(f"S3 Test file for MCP Server - {uuid.uuid4()}")
-        
+
         s3_client.upload_file(test_file, bucket_name, 'test/s3_test_file.txt')
         logger.info(f"Uploaded test file to s3://{bucket_name}/test/s3_test_file.txt")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error creating S3 bucket: {e}")
@@ -217,22 +217,22 @@ def create_s3_bucket():
 def update_mcp_config():
     """Update MCP configuration with the S3 settings"""
     config_file = os.path.join(os.getcwd(), "mcp_config.sh")
-    
+
     try:
         # Read existing file
         with open(config_file, 'r') as f:
             lines = f.readlines()
-        
+
         # Find S3 section and update it
         s3_section_start = -1
         s3_section_end = -1
-        
+
         for i, line in enumerate(lines):
             if "# AWS S3 configuration" in line:
                 s3_section_start = i
             elif s3_section_start > -1 and "fi" in line and s3_section_end == -1:
                 s3_section_end = i
-        
+
         if s3_section_start > -1 and s3_section_end > -1:
             # Create new S3 configuration
             new_s3_config = [
@@ -243,24 +243,24 @@ def update_mcp_config():
                 "export AWS_DEFAULT_REGION=\"{}\"\n".format(os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')),
                 "export S3_BUCKET_NAME=\"ipfs-storage-demo\"\n"
             ]
-            
+
             # Add endpoint URL if using local S3
             if os.environ.get('S3_ENDPOINT_URL'):
                 new_s3_config.append("export S3_ENDPOINT_URL=\"{}\"\n".format(os.environ.get('S3_ENDPOINT_URL')))
-            
+
             # Replace the section
             lines[s3_section_start:s3_section_end+1] = new_s3_config
-            
+
             # Write updated file
             with open(config_file, 'w') as f:
                 f.writelines(lines)
-            
+
             logger.info(f"Updated MCP configuration file with S3 settings")
             return True
         else:
             logger.error("Could not find S3 section in MCP configuration file")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error updating MCP configuration: {e}")
         return False
@@ -268,22 +268,22 @@ def update_mcp_config():
 def main():
     """Main function"""
     logger.info("Setting up AWS S3 implementation for MCP Server")
-    
+
     # Set up AWS configuration directory
     setup_aws_configuration()
-    
+
     # Check for existing credentials
     if not check_existing_aws_credentials():
         logger.info("No existing AWS credentials found. Creating temporary credentials...")
         create_local_aws_credentials()
-    
+
     # Set up local S3 server (MinIO)
     if not setup_local_s3_server():
         logger.warning("Failed to set up local S3 server. S3 backend may not be fully functional.")
-    
+
     # Update MCP configuration
     update_mcp_config()
-    
+
     logger.info("AWS S3 implementation setup complete.")
     logger.info("Restart the MCP server to apply changes.")
 

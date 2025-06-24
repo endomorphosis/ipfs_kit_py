@@ -29,7 +29,7 @@ from ipfs_kit_py.ipfs_backend import get_instance as get_ipfs_backend
 
 class MockIPFSResponse:
     """Mock response for IPFS operations."""
-    
+
     @staticmethod
     def success(data=None, **kwargs):
         """Create a successful response."""
@@ -37,7 +37,7 @@ class MockIPFSResponse:
         if data is not None:
             response["data"] = data
         return {**response, **kwargs}
-    
+
     @staticmethod
     def error(error="Mock error", error_type="MockError"):
         """Create an error response."""
@@ -56,7 +56,7 @@ def mock_ipfs():
         # Set up mock responses
         instance = mock_backend.return_value
         instance.ipfs = mock.MagicMock()
-        
+
         # Mock DAG operations
         instance.ipfs.ipfs_dag_get = mock.MagicMock(
             return_value=MockIPFSResponse.success(
@@ -81,7 +81,7 @@ def mock_ipfs():
                 num_blocks=1
             )
         )
-        
+
         # Mock Object operations
         instance.ipfs.ipfs_object_new = mock.MagicMock(
             return_value=MockIPFSResponse.success(
@@ -135,7 +135,7 @@ def mock_ipfs():
                 cid="QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n"
             )
         )
-        
+
         # Mock IPNS/Key operations
         instance.ipfs.ipfs_name_publish = mock.MagicMock(
             return_value=MockIPFSResponse.success(
@@ -175,7 +175,7 @@ def mock_ipfs():
                 id="k51qzi5uqu5djdczd6zprfvsg8ix52u1w32ylgr716q7rewumwhnz6bpmdunxx"
             )
         )
-        
+
         # Mock Swarm/Network operations
         instance.ipfs.ipfs_swarm_peers = mock.MagicMock(
             return_value=MockIPFSResponse.success(
@@ -205,15 +205,15 @@ def mock_ipfs():
         instance.ipfs.ipfs_bootstrap_rm = mock.MagicMock(
             return_value=MockIPFSResponse.success()
         )
-        
+
         # Test helper method - allows changing mock responses during tests
         def set_mock_response(method_name, response):
             method = getattr(instance.ipfs, method_name, None)
             if method:
                 method.return_value = response
-        
+
         instance.set_mock_response = set_mock_response
-        
+
         yield instance
 
 
@@ -238,14 +238,14 @@ def test_dag_get(ipfs_advanced):
     assert result["success"] is True
     assert "data" in result
     assert result["data"]["value"] == "test data"
-    
+
     # Test with path
     result = ipfs_advanced.dag_get(
         "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
         path="/value"
     )
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_dag_get",
@@ -264,15 +264,15 @@ def test_dag_put(ipfs_advanced):
     result = ipfs_advanced.dag_put(data)
     assert result["success"] is True
     assert "cid" in result
-    
+
     # Test with string data
     result = ipfs_advanced.dag_put(json.dumps(data))
     assert result["success"] is True
-    
+
     # Test with different codec
     result = ipfs_advanced.dag_put(data, store_codec="dag-json")
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_dag_put",
@@ -290,7 +290,7 @@ def test_dag_resolve(ipfs_advanced):
     assert result["success"] is True
     assert "cid" in result
     assert "remainder_path" in result
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_dag_resolve",
@@ -308,7 +308,7 @@ def test_dag_stat(ipfs_advanced):
     assert result["success"] is True
     assert "size" in result
     assert "num_blocks" in result
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_dag_stat",
@@ -327,11 +327,11 @@ def test_object_new(ipfs_advanced):
     result = ipfs_advanced.object_new()
     assert result["success"] is True
     assert "cid" in result
-    
+
     # Test with specific template
     result = ipfs_advanced.object_new("unixfs-dir")
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_object_new",
@@ -349,7 +349,7 @@ def test_object_get(ipfs_advanced):
     assert result["success"] is True
     assert "data" in result
     assert "links" in result
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_object_get",
@@ -367,11 +367,11 @@ def test_object_put(ipfs_advanced):
     result = ipfs_advanced.object_put(data)
     assert result["success"] is True
     assert "cid" in result
-    
+
     # Test with string data
     result = ipfs_advanced.object_put(json.dumps(data))
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_object_put",
@@ -392,21 +392,21 @@ def test_object_patch_operations(ipfs_advanced):
     )
     assert result["success"] is True
     assert "cid" in result
-    
+
     # Test remove link
     result = ipfs_advanced.object_patch_rm_link(
         "QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n",
         "test-link"
     )
     assert result["success"] is True
-    
+
     # Test set data
     result = ipfs_advanced.object_patch_set_data(
         "QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n",
         "new data"
     )
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_object_patch_add_link",
@@ -434,14 +434,14 @@ def test_name_publish(ipfs_advanced):
     assert result["success"] is True
     assert "name" in result
     assert "value" in result
-    
+
     # Test with custom key
     result = ipfs_advanced.name_publish(
         "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
         key="test-key"
     )
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_name_publish",
@@ -463,14 +463,14 @@ def test_name_resolve(ipfs_advanced):
     )
     assert result["success"] is True
     assert "path" in result
-    
+
     # Test with recursive option
     result = ipfs_advanced.name_resolve(
         "/ipns/k51qzi5uqu5djdczd6zprfvsg8ix52u1w32ylgr716q7rewumwhnz6bpmdunxx",
         recursive=True
     )
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_name_resolve",
@@ -488,23 +488,23 @@ def test_key_operations(ipfs_advanced):
     assert result["success"] is True
     assert "name" in result
     assert "id" in result
-    
+
     # Test key list
     result = ipfs_advanced.key_list()
     assert result["success"] is True
     assert "keys" in result
     assert len(result["keys"]) == 2
-    
+
     # Test key rename
     result = ipfs_advanced.key_rename("test-key", "new-key-name")
     assert result["success"] is True
     assert result["was"] == "test-key"
     assert result["now"] == "new-key-name"
-    
+
     # Test key removal
     result = ipfs_advanced.key_rm("test-key")
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_key_rm",
@@ -524,19 +524,19 @@ def test_swarm_operations(ipfs_advanced):
     assert result["success"] is True
     assert "peers" in result
     assert len(result["peers"]) == 2
-    
+
     # Test swarm connect
     result = ipfs_advanced.swarm_connect(
         "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
     )
     assert result["success"] is True
-    
+
     # Test swarm disconnect
     result = ipfs_advanced.swarm_disconnect(
         "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
     )
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_swarm_connect",
@@ -554,19 +554,19 @@ def test_bootstrap_operations(ipfs_advanced):
     assert result["success"] is True
     assert "peers" in result
     assert len(result["peers"]) == 2
-    
+
     # Test bootstrap add
     result = ipfs_advanced.bootstrap_add(
         "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
     )
     assert result["success"] is True
-    
+
     # Test bootstrap remove
     result = ipfs_advanced.bootstrap_rm(
         "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
     )
     assert result["success"] is True
-    
+
     # Test error scenario
     ipfs_advanced.backend.set_mock_response(
         "ipfs_bootstrap_add",
@@ -585,12 +585,12 @@ def test_get_stats(ipfs_advanced):
     ipfs_advanced.dag_get("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")
     ipfs_advanced.object_new()
     ipfs_advanced.swarm_peers()
-    
+
     # Get statistics
     result = ipfs_advanced.get_stats()
     assert result["success"] is True
     assert "stats" in result
-    
+
     # Check that our operations are recorded
     stats = result["stats"]
     assert "dag_get" in stats

@@ -55,18 +55,18 @@ logger = logging.getLogger(__name__)
 class AuthSystem:
     """
     Comprehensive authentication and authorization system for MCP.
-    
+
     This class manages all aspects of the auth system and provides
     a central point for configuration and operations.
     """
-    
-    def __init__(self, 
-                app: FastAPI, 
+
+    def __init__(self,
+                app: FastAPI,
                 storage_backend_manager=None,
                 config_path: Optional[str] = None):
         """
         Initialize the auth system.
-        
+
         Args:
             app: FastAPI application
             storage_backend_manager: Storage backend manager instance
@@ -75,63 +75,63 @@ class AuthSystem:
         self.app = app
         self.backend_manager = storage_backend_manager
         self.config_path = config_path or os.environ.get(
-            "MCP_AUTH_CONFIG_PATH", 
+            "MCP_AUTH_CONFIG_PATH",
             str(Path.home() / ".ipfs_kit" / "auth")
         )
-        
+
         # Create config directory if it doesn't exist
         os.makedirs(self.config_path, exist_ok=True)
-        
+
         # Core components
         self.auth_service = None
         self.api_key_cache = None
         self.audit_logger = None
-        
+
         # Initialization state
         self.initialized = False
-    
+
     async def initialize(self):
         """Initialize all auth system components."""
         if self.initialized:
             return
-        
+
         logger.info("Initializing advanced authentication & authorization system")
-        
+
         # Initialize audit logger
         self.audit_logger = get_audit_logger()
         extend_audit_logger()
         await self.audit_logger.start()
         logger.info("Audit logging initialized")
-        
-        # Get auth service instance 
+
+        # Get auth service instance
         self.auth_service = get_auth_service()
-        
+
         # Patch authentication service with OAuth integration
         patch_authentication_service()
         logger.info("Authentication service patched with OAuth integration")
-        
+
         # Initialize API key cache
         self.api_key_cache = await setup_api_key_cache()
         logger.info("API key cache initialized")
-        
+
         # Set up middlewares
         self._setup_middlewares()
-        
+
         # Set up routes
         self._setup_routes()
-        
+
         # Set up backend authorization if backend manager is available
         if self.backend_manager:
             await setup_backend_authorization(self.backend_manager)
             logger.info("Backend authorization initialized")
-        
+
         # Set up OAuth
         setup_oauth(self.app)
         logger.info("OAuth integration initialized")
-        
+
         self.initialized = True
         logger.info("Advanced Authentication & Authorization system initialized")
-    
+
     def _setup_middlewares(self):
         """Set up all auth-related middlewares."""
         # API Key middleware (handled first for API client access)
@@ -140,7 +140,7 @@ class AuthSystem:
             api_key_cache=self.api_key_cache,
             exclude_paths=["/api/v0/auth/login", "/health", "/api/v0/status"]
         )
-        
+
         # Backend authorization middleware (for storage operations)
         if self.backend_manager:
             self.app.add_middleware(
@@ -148,39 +148,39 @@ class AuthSystem:
                 backend_manager=self.backend_manager,
                 exclude_paths=["/api/v0/auth/", "/health", "/api/v0/status"]
             )
-        
+
         logger.info("Auth middlewares configured")
-    
+
     def _setup_routes(self):
         """Set up all auth-related API routes."""
         # Core authentication routes
         self.app.include_router(auth_router)
-        
+
         # RBAC management routes
         self.app.include_router(rbac_router)
-        
+
         # API key management routes
         self.app.include_router(apikey_router)
-        
+
         # OAuth routes
         self.app.include_router(oauth_router)
-        
+
         # Security dashboard routes
         self.app.include_router(security_dashboard_router)
-        
+
         logger.info("Auth routes configured")
-    
+
     async def configure_roles(self, custom_roles: Optional[List[Dict[str, Any]]] = None):
         """
         Configure RBAC roles with custom roles if provided.
-        
+
         Args:
             custom_roles: Optional list of custom role configurations
         """
         # Make sure the system is initialized
         if not self.initialized:
             await self.initialize()
-        
+
         # Add custom roles if provided
         if custom_roles:
             for role_config in custom_roles:
@@ -188,7 +188,7 @@ class AuthSystem:
                 name = role_config.get("name")
                 permissions = role_config.get("permissions", [])
                 parent_role = role_config.get("parent_role")
-                
+
                 logger.info(f"Creating custom role: {name} ({role_id})")
                 rbac_manager.create_custom_role(
                     role_id=role_id,
@@ -196,17 +196,17 @@ class AuthSystem:
                     permissions=permissions,
                     parent_role=parent_role
                 )
-        
+
         logger.info("RBAC roles configured")
-    
+
     def get_user_dependency(self, require_auth: bool = True, admin_only: bool = False):
         """
         Get a dependency for FastAPI that provides the current user.
-        
+
         Args:
             require_auth: Whether authentication is required (returns 401 if not authenticated)
             admin_only: Whether admin access is required (returns 403 if not admin)
-            
+
         Returns:
             Dependency function for FastAPI
         """
@@ -220,13 +220,13 @@ class AuthSystem:
         else:
             from ipfs_kit_py.mcp.auth.router import get_optional_user
             return get_optional_user
-    
+
     async def close(self):
         """Close and clean up auth system components."""
         if self.audit_logger:
             await self.audit_logger.stop()
             logger.info("Audit logger stopped")
-        
+
         logger.info("Authentication system shutdown complete")
 
 
@@ -237,7 +237,7 @@ _auth_system = None
 def get_auth_system() -> AuthSystem:
     """
     Get the singleton auth system instance.
-    
+
     Returns:
         AuthSystem instance
     """
@@ -248,28 +248,28 @@ def get_auth_system() -> AuthSystem:
 async def initialize_auth_system(app: FastAPI, backend_manager=None, config_path: Optional[str] = None) -> AuthSystem:
     """
     Initialize the authentication and authorization system.
-    
+
     This function creates and initializes the auth system and all its components.
     It should be called during server startup.
-    
+
     Args:
         app: FastAPI application
         backend_manager: Optional storage backend manager
         config_path: Optional auth config path
-        
+
     Returns:
         Initialized AuthSystem instance
     """
     global _auth_system
-    
+
     if _auth_system is None:
         _auth_system = AuthSystem(
             app=app,
             storage_backend_manager=backend_manager,
             config_path=config_path
         )
-    
+
     # Initialize the system
     await _auth_system.initialize()
-    
+
     return _auth_system

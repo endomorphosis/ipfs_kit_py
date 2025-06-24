@@ -2,7 +2,7 @@
 """
 Comprehensive MCP Tools Enhancement
 
-This script enhances the MCP tools coverage to include all features available 
+This script enhances the MCP tools coverage to include all features available
 in the ipfs_kit_py module, ensuring seamless integration with the virtual filesystem.
 """
 
@@ -28,7 +28,7 @@ TOOL_CATEGORIES = {
         "key_gen", "key_list", "key_rm", "key_import", "key_export",
     ],
     "mfs": [
-        "files_ls", "files_mkdir", "files_write", "files_read", "files_rm", 
+        "files_ls", "files_mkdir", "files_write", "files_read", "files_rm",
         "files_stat", "files_cp", "files_mv", "files_flush",
     ],
     "fs_journal": [
@@ -40,7 +40,7 @@ TOOL_CATEGORIES = {
         "bridge_import", "bridge_export", "bridge_watch", "bridge_unwatch",
     ],
     "storage_backends": [
-        "s3_store", "s3_retrieve", "s3_list", "s3_delete", 
+        "s3_store", "s3_retrieve", "s3_list", "s3_delete",
         "filecoin_store", "filecoin_retrieve", "filecoin_status", "filecoin_deals",
         "storacha_store", "storacha_retrieve", "storacha_list", "storacha_delete",
         "lassie_fetch", "lassie_fetch_all", "lassie_status",
@@ -48,7 +48,7 @@ TOOL_CATEGORIES = {
     "ai_ml": [
         "huggingface_model_load", "huggingface_model_inference", "huggingface_model_list",
         "model_registry_add", "model_registry_get", "model_registry_list", "model_registry_delete",
-        "dataset_upload", "dataset_download", "dataset_transform", 
+        "dataset_upload", "dataset_download", "dataset_transform",
         "training_start", "training_status", "training_stop", "inference_run",
     ],
     "cluster": [
@@ -75,7 +75,7 @@ TOOL_CATEGORIES = {
     "security": [
         "credential_store", "credential_retrieve", "credential_list", "credential_delete",
         "rbac_assign", "rbac_check", "rbac_roles", "rbac_permissions",
-        "auth_token", "auth_verify", "auth_revoke", 
+        "auth_token", "auth_verify", "auth_revoke",
     ],
     "monitoring": [
         "monitor_health", "monitor_metrics", "monitor_alerts", "monitor_dashboard",
@@ -83,7 +83,7 @@ TOOL_CATEGORIES = {
     ],
     "migration": [
         "migrate_ipfs_to_s3", "migrate_s3_to_ipfs", "migrate_ipfs_to_filecoin",
-        "migrate_storacha_to_s3", "migrate_status", "migrate_cancel", 
+        "migrate_storacha_to_s3", "migrate_status", "migrate_cancel",
     ],
     "streaming": [
         "stream_file", "stream_directory", "stream_status", "stream_cancel",
@@ -100,7 +100,7 @@ for category, tools in TOOL_CATEGORIES.items():
 def generate_tool_registry() -> List[Dict[str, Any]]:
     """Generate a comprehensive list of all tools with descriptions"""
     tools = []
-    
+
     # Add all tools with detailed descriptions
     for category, tool_names in TOOL_CATEGORIES.items():
         for tool_name in tool_names:
@@ -113,10 +113,10 @@ def generate_tool_registry() -> List[Dict[str, Any]]:
                 full_name = f"ipfs_fs_{tool_name[7:]}" if tool_name.startswith("bridge_") else f"ipfs_fs_{tool_name}"
             else:
                 full_name = tool_name
-            
+
             # Generate description based on the tool name and category
             description = generate_tool_description(tool_name, category)
-            
+
             # Create the tool entry
             tools.append({
                 "name": full_name,
@@ -124,7 +124,7 @@ def generate_tool_registry() -> List[Dict[str, Any]]:
                 "category": category,
                 "parameters": generate_tool_parameters(tool_name, category)
             })
-    
+
     logger.info(f"Generated {len(tools)} comprehensive tools")
     return tools
 
@@ -178,7 +178,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Import an IPNS key"
         elif tool_name == "key_export":
             return "Export an IPNS key"
-    
+
     # MFS operations
     elif category == "mfs":
         if tool_name == "files_ls":
@@ -199,7 +199,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Move files within the IPFS MFS"
         elif tool_name == "files_flush":
             return "Flush changes in the MFS to IPFS"
-    
+
     # FS Journal operations
     elif category == "fs_journal":
         if tool_name == "journal_get_history":
@@ -216,7 +216,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Force synchronization of journal replication"
         elif tool_name == "journal_monitor_status":
             return "Get the status of the journal monitoring system"
-    
+
     # IPFS-FS Bridge operations
     elif category == "ipfs_fs_bridge":
         if tool_name == "bridge_status":
@@ -237,7 +237,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Watch a filesystem path for changes and sync to IPFS"
         elif tool_name == "bridge_unwatch":
             return "Stop watching a filesystem path"
-    
+
     # Storage backend operations
     elif category == "storage_backends":
         if tool_name == "s3_store":
@@ -270,7 +270,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Fetch all content from a directory using Lassie"
         elif tool_name == "lassie_status":
             return "Get status of a Lassie fetch operation"
-    
+
     # AI/ML operations
     elif category == "ai_ml":
         if tool_name == "huggingface_model_load":
@@ -301,7 +301,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Stop a running training job"
         elif tool_name == "inference_run":
             return "Run inference on a trained model"
-    
+
     # Cluster operations
     elif category == "cluster":
         if tool_name == "cluster_peers":
@@ -318,7 +318,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Recover pins in error state"
         elif tool_name == "cluster_metrics":
             return "Get metrics for the IPFS cluster"
-    
+
     # Libp2p operations
     elif category == "libp2p":
         if tool_name == "peer_connect":
@@ -345,7 +345,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Put a value in the DHT"
         elif tool_name == "dht_get":
             return "Get a value from the DHT"
-    
+
     # WebRTC operations
     elif category == "webrtc":
         if tool_name == "webrtc_connect":
@@ -362,7 +362,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Stop streaming data via WebRTC"
         elif tool_name == "webrtc_peers":
             return "List all connected WebRTC peers"
-    
+
     # Caching operations
     elif category == "caching":
         if tool_name == "cache_status":
@@ -379,7 +379,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Optimize the cache layout"
         elif tool_name == "cache_stats":
             return "Get cache statistics"
-    
+
     # Routing operations
     elif category == "routing":
         if tool_name == "route_status":
@@ -396,7 +396,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Configure content-based routing"
         elif tool_name == "route_performance":
             return "Configure performance-based routing"
-    
+
     # Security operations
     elif category == "security":
         if tool_name == "credential_store":
@@ -421,7 +421,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Verify an authentication token"
         elif tool_name == "auth_revoke":
             return "Revoke an authentication token"
-    
+
     # Monitoring operations
     elif category == "monitoring":
         if tool_name == "monitor_health":
@@ -438,7 +438,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Get historical performance data"
         elif tool_name == "trace_request":
             return "Trace a request through the system"
-    
+
     # Migration operations
     elif category == "migration":
         if tool_name == "migrate_ipfs_to_s3":
@@ -453,7 +453,7 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Check status of a migration job"
         elif tool_name == "migrate_cancel":
             return "Cancel a migration job"
-    
+
     # Streaming operations
     elif category == "streaming":
         if tool_name == "stream_file":
@@ -470,14 +470,14 @@ def generate_tool_description(tool_name: str, category: str) -> str:
             return "Publish a notification"
         elif tool_name == "notification_status":
             return "Check status of notification subscriptions"
-    
+
     # Default if not found
     return f"Perform the {tool_name.replace('_', ' ')} operation in the {category} category"
 
 def generate_tool_parameters(tool_name: str, category: str) -> List[Dict[str, Any]]:
     """Generate parameters for a tool based on its name and category"""
     params = []
-    
+
     # Add ctx parameter to all tools
     params.append({
         "name": "ctx",
@@ -485,7 +485,7 @@ def generate_tool_parameters(tool_name: str, category: str) -> List[Dict[str, An
         "required": True,
         "schema": {"type": "string"}
     })
-    
+
     # Core IPFS operations
     if category == "core_ipfs":
         if tool_name == "add":

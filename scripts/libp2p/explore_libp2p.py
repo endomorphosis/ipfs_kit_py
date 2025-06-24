@@ -18,15 +18,15 @@ def explore_module(module_name):
     try:
         # Import the module
         module = __import__(module_name)
-        
+
         logger.info(f"Successfully imported {module_name}")
         logger.info(f"Module path: {module.__file__}")
-        
+
         if hasattr(module, "__version__"):
             logger.info(f"Version: {module.__version__}")
         else:
             logger.info("No version information available")
-        
+
         # Get all attributes
         logger.info(f"\nAttributes of {module_name}:")
         for name in dir(module):
@@ -37,7 +37,7 @@ def explore_module(module_name):
                     logger.info(f"  {name}: {attr_type}")
                 except Exception as e:
                     logger.info(f"  {name}: Error accessing - {e}")
-        
+
         return module
     except ImportError:
         logger.error(f"Could not import {module_name}")
@@ -48,10 +48,10 @@ def explore_class(module, class_name):
     try:
         # Get the class
         cls = getattr(module, class_name)
-        
+
         logger.info(f"\nExploring class: {cls.__name__}")
         logger.info(f"Module: {cls.__module__}")
-        
+
         # Get methods
         logger.info("\nMethods:")
         for name, method in inspect.getmembers(cls, inspect.isfunction):
@@ -61,7 +61,7 @@ def explore_class(module, class_name):
                     logger.info(f"  {name}{signature}")
                 except Exception as e:
                     logger.info(f"  {name}: Error getting signature - {e}")
-        
+
         # Get class methods and static methods
         logger.info("\nClass/Static Methods:")
         for name, method in inspect.getmembers(cls, lambda x: inspect.ismethod(x) or inspect.ismethoddescriptor(x)):
@@ -71,7 +71,7 @@ def explore_class(module, class_name):
                     logger.info(f"  {name}{signature}")
                 except Exception as e:
                     logger.info(f"  {name}: Error getting signature - {e}")
-        
+
         # Get attributes
         logger.info("\nAttributes:")
         for name in dir(cls):
@@ -82,7 +82,7 @@ def explore_class(module, class_name):
                     logger.info(f"  {name}: {attr_type}")
                 except Exception as e:
                     logger.info(f"  {name}: Error accessing - {e}")
-        
+
         return cls
     except AttributeError:
         logger.error(f"Class {class_name} not found in module")
@@ -94,17 +94,17 @@ def main():
     libp2p = explore_module("libp2p")
     if not libp2p:
         return 1
-    
+
     # Explore crypto submodule
     crypto = explore_module("libp2p.crypto")
     if not crypto:
         return 1
-    
+
     # Explore keys submodule
     keys = explore_module("libp2p.crypto.keys")
     if not keys:
         return 1
-    
+
     # Explore KeyPair class
     if hasattr(keys, "KeyPair"):
         explore_class(keys, "KeyPair")
@@ -114,7 +114,7 @@ def main():
         logger.info("Available classes in libp2p.crypto.keys:")
         for name, obj in inspect.getmembers(keys, inspect.isclass):
             logger.info(f"  {name}")
-    
+
     return 0
 
 if __name__ == "__main__":

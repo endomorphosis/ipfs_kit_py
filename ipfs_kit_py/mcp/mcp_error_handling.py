@@ -18,7 +18,7 @@ logger = logging.getLogger("mcp.error")
 
 class ErrorSeverity(str, Enum):
     """Severity levels for MCP errors."""
-    
+
     CRITICAL = "critical"  # System cannot function, immediate attention required
     ERROR = "error"        # Operation failed, requires attention
     WARNING = "warning"    # Operation succeeded but with issues, attention recommended
@@ -27,7 +27,7 @@ class ErrorSeverity(str, Enum):
 
 class ErrorCategory(str, Enum):
     """Categories of MCP errors."""
-    
+
     AUTHENTICATION = "authentication"  # Authentication-related errors
     AUTHORIZATION = "authorization"    # Authorization-related errors
     VALIDATION = "validation"          # Input validation errors
@@ -45,10 +45,10 @@ class ErrorCategory(str, Enum):
 
 class MCPError(Exception):
     """Base exception class for MCP server errors."""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         error_code: str = "MCP_UNKNOWN_ERROR",
         status_code: int = 500,
         category: Union[str, ErrorCategory] = ErrorCategory.UNKNOWN,
@@ -59,7 +59,7 @@ class MCPError(Exception):
         original_exception: Optional[Exception] = None
     ):
         """Initialize the MCP error.
-        
+
         Args:
             message: Human-readable error message
             error_code: Unique error code identifier
@@ -74,7 +74,7 @@ class MCPError(Exception):
         self.message = message
         self.error_code = error_code
         self.status_code = status_code
-        
+
         # Convert string values to enums if needed
         if isinstance(category, str):
             try:
@@ -83,7 +83,7 @@ class MCPError(Exception):
                 self.category = ErrorCategory.UNKNOWN
         else:
             self.category = category
-            
+
         if isinstance(severity, str):
             try:
                 self.severity = ErrorSeverity(severity)
@@ -91,23 +91,23 @@ class MCPError(Exception):
                 self.severity = ErrorSeverity.ERROR
         else:
             self.severity = severity
-            
+
         self.details = details or {}
         self.suggestion = suggestion
         self.error_id = error_id
         self.original_exception = original_exception
         self.timestamp = datetime.utcnow().isoformat()
-        
+
         # Call the base class constructor
         super().__init__(message)
-        
+
         # Log the error
         self._log_error()
-    
+
     def _log_error(self) -> None:
         """Log the error with appropriate severity."""
         log_message = f"{self.error_code}: {self.message}"
-        
+
         if self.severity == ErrorSeverity.CRITICAL:
             logger.critical(log_message, exc_info=self.original_exception)
         elif self.severity == ErrorSeverity.ERROR:
@@ -116,10 +116,10 @@ class MCPError(Exception):
             logger.warning(log_message)
         else:
             logger.info(log_message)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert error to dictionary representation.
-        
+
         Returns:
             Dictionary representation of the error
         """
@@ -131,29 +131,29 @@ class MCPError(Exception):
             "severity": self.severity.value,
             "timestamp": self.timestamp
         }
-        
+
         if self.suggestion:
             error_dict["suggestion"] = self.suggestion
-            
+
         if self.error_id:
             error_dict["error_id"] = self.error_id
-            
+
         if self.details:
             error_dict["details"] = self.details
-            
+
         return error_dict
-    
+
     def to_json(self) -> str:
         """Convert error to JSON string.
-        
+
         Returns:
             JSON string representation of the error
         """
         return json.dumps(self.to_dict())
-    
+
     def to_response(self) -> Tuple[Dict[str, Any], int]:
         """Convert error to API response.
-        
+
         Returns:
             Tuple of (response_dict, status_code)
         """
@@ -163,10 +163,10 @@ class MCPError(Exception):
 # Authentication errors
 class AuthenticationError(MCPError):
     """Error raised when authentication fails."""
-    
+
     def __init__(
-        self, 
-        message: str = "Authentication failed", 
+        self,
+        message: str = "Authentication failed",
         error_code: str = "MCP_AUTH_FAILED",
         status_code: int = 401,
         **kwargs
@@ -182,7 +182,7 @@ class AuthenticationError(MCPError):
 
 class InvalidCredentialsError(AuthenticationError):
     """Error raised when credentials are invalid."""
-    
+
     def __init__(
         self,
         message: str = "Invalid credentials provided",
@@ -199,7 +199,7 @@ class InvalidCredentialsError(AuthenticationError):
 
 class TokenExpiredError(AuthenticationError):
     """Error raised when an authentication token has expired."""
-    
+
     def __init__(
         self,
         message: str = "Authentication token has expired",
@@ -217,7 +217,7 @@ class TokenExpiredError(AuthenticationError):
 # Authorization errors
 class AuthorizationError(MCPError):
     """Error raised when a user is not authorized to perform an action."""
-    
+
     def __init__(
         self,
         message: str = "Not authorized to perform this action",
@@ -236,7 +236,7 @@ class AuthorizationError(MCPError):
 
 class InsufficientPermissionsError(AuthorizationError):
     """Error raised when a user has insufficient permissions."""
-    
+
     def __init__(
         self,
         message: str = "Insufficient permissions",
@@ -253,7 +253,7 @@ class InsufficientPermissionsError(AuthorizationError):
 # Validation errors
 class ValidationError(MCPError):
     """Error raised when input validation fails."""
-    
+
     def __init__(
         self,
         message: str = "Input validation failed",
@@ -266,7 +266,7 @@ class ValidationError(MCPError):
         if field_errors:
             details["field_errors"] = field_errors
             kwargs["details"] = details
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -278,7 +278,7 @@ class ValidationError(MCPError):
 
 class MissingParameterError(ValidationError):
     """Error raised when a required parameter is missing."""
-    
+
     def __init__(
         self,
         parameter: str,
@@ -288,7 +288,7 @@ class MissingParameterError(ValidationError):
     ):
         if message is None:
             message = f"Required parameter '{parameter}' is missing"
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -300,7 +300,7 @@ class MissingParameterError(ValidationError):
 
 class InvalidParameterError(ValidationError):
     """Error raised when a parameter is invalid."""
-    
+
     def __init__(
         self,
         parameter: str,
@@ -313,13 +313,13 @@ class InvalidParameterError(ValidationError):
             message = f"Parameter '{parameter}' is invalid"
             if reason:
                 message += f": {reason}"
-                
+
         details = {"parameter": parameter}
         if reason:
             details["reason"] = reason
-            
+
         details = {**details, **kwargs.get("details", {})}
-        
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -331,7 +331,7 @@ class InvalidParameterError(ValidationError):
 # Resource errors
 class ResourceError(MCPError):
     """Error raised when a resource operation fails."""
-    
+
     def __init__(
         self,
         message: str = "Resource operation failed",
@@ -350,7 +350,7 @@ class ResourceError(MCPError):
 
 class ResourceNotFoundError(ResourceError):
     """Error raised when a resource is not found."""
-    
+
     def __init__(
         self,
         resource_type: str,
@@ -364,13 +364,13 @@ class ResourceNotFoundError(ResourceError):
             message = f"{resource_type} not found"
             if resource_id:
                 message += f": {resource_id}"
-                
+
         details = {"resource_type": resource_type}
         if resource_id:
             details["resource_id"] = resource_id
-            
+
         details = {**details, **kwargs.get("details", {})}
-        
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -382,7 +382,7 @@ class ResourceNotFoundError(ResourceError):
 
 class ResourceAlreadyExistsError(ResourceError):
     """Error raised when a resource already exists."""
-    
+
     def __init__(
         self,
         resource_type: str,
@@ -396,13 +396,13 @@ class ResourceAlreadyExistsError(ResourceError):
             message = f"{resource_type} already exists"
             if resource_id:
                 message += f": {resource_id}"
-                
+
         details = {"resource_type": resource_type}
         if resource_id:
             details["resource_id"] = resource_id
-            
+
         details = {**details, **kwargs.get("details", {})}
-        
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -415,7 +415,7 @@ class ResourceAlreadyExistsError(ResourceError):
 # Storage errors
 class StorageError(MCPError):
     """Error raised when a storage operation fails."""
-    
+
     def __init__(
         self,
         message: str = "Storage operation failed",
@@ -428,7 +428,7 @@ class StorageError(MCPError):
         if backend:
             details["backend"] = backend
             kwargs["details"] = details
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -440,7 +440,7 @@ class StorageError(MCPError):
 
 class StorageBackendUnavailableError(StorageError):
     """Error raised when a storage backend is unavailable."""
-    
+
     def __init__(
         self,
         backend: str,
@@ -450,7 +450,7 @@ class StorageBackendUnavailableError(StorageError):
     ):
         if message is None:
             message = f"Storage backend '{backend}' is unavailable"
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -461,7 +461,7 @@ class StorageBackendUnavailableError(StorageError):
 
 class ContentNotFoundError(StorageError):
     """Error raised when content is not found in storage."""
-    
+
     def __init__(
         self,
         content_id: str,
@@ -475,13 +475,13 @@ class ContentNotFoundError(StorageError):
             message = f"Content not found: {content_id}"
             if backend:
                 message += f" (backend: {backend})"
-                
+
         details = {"content_id": content_id}
         if backend:
             details["backend"] = backend
-            
+
         details = {**details, **kwargs.get("details", {})}
-        
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -494,7 +494,7 @@ class ContentNotFoundError(StorageError):
 # Network errors
 class NetworkError(MCPError):
     """Error raised when a network operation fails."""
-    
+
     def __init__(
         self,
         message: str = "Network operation failed",
@@ -513,7 +513,7 @@ class NetworkError(MCPError):
 
 class ConnectionError(NetworkError):
     """Error raised when a connection fails."""
-    
+
     def __init__(
         self,
         endpoint: Optional[str] = None,
@@ -525,12 +525,12 @@ class ConnectionError(NetworkError):
             message = "Connection failed"
             if endpoint:
                 message += f": {endpoint}"
-                
+
         details = kwargs.get("details", {})
         if endpoint:
             details["endpoint"] = endpoint
             kwargs["details"] = details
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -540,7 +540,7 @@ class ConnectionError(NetworkError):
 
 class TimeoutError(NetworkError):
     """Error raised when a network operation times out."""
-    
+
     def __init__(
         self,
         operation: Optional[str] = None,
@@ -552,12 +552,12 @@ class TimeoutError(NetworkError):
             message = "Operation timed out"
             if operation:
                 message += f": {operation}"
-                
+
         details = kwargs.get("details", {})
         if operation:
             details["operation"] = operation
             kwargs["details"] = details
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -568,7 +568,7 @@ class TimeoutError(NetworkError):
 # Migration errors
 class MigrationError(MCPError):
     """Error raised when a migration operation fails."""
-    
+
     def __init__(
         self,
         message: str = "Migration operation failed",
@@ -586,9 +586,9 @@ class MigrationError(MCPError):
             details["source_backend"] = source_backend
         if target_backend:
             details["target_backend"] = target_backend
-            
+
         kwargs["details"] = details
-            
+
         super().__init__(
             message=message,
             error_code=error_code,
@@ -601,7 +601,7 @@ class MigrationError(MCPError):
 # System errors
 class SystemError(MCPError):
     """Error raised when a system operation fails."""
-    
+
     def __init__(
         self,
         message: str = "System error occurred",
@@ -621,7 +621,7 @@ class SystemError(MCPError):
 
 class ConfigurationError(SystemError):
     """Error raised when there is a configuration issue."""
-    
+
     def __init__(
         self,
         message: str = "Configuration error",
@@ -644,13 +644,13 @@ def handle_exception(
     include_traceback: bool = False
 ) -> Tuple[Dict[str, Any], int]:
     """Convert an exception to a standardized error response.
-    
+
     Args:
         exception: The exception to handle
         default_message: Default message to use if the exception is not an MCPError
         default_status_code: Default HTTP status code to use
         include_traceback: Whether to include the traceback in the response
-        
+
     Returns:
         Tuple of (response_dict, status_code)
     """
@@ -667,12 +667,12 @@ def handle_exception(
             original_exception=exception
         )
         response_dict, status_code = error.to_response()
-    
+
     # Add traceback if requested
     if include_traceback:
         tb = traceback.format_exception(type(exception), exception, exception.__traceback__)
         response_dict["traceback"] = tb
-    
+
     return response_dict, status_code
 
 
@@ -681,11 +681,11 @@ def convert_legacy_error(
     default_code: str = "MCP_LEGACY_ERROR"
 ) -> Dict[str, Any]:
     """Convert a legacy error format to the standardized format.
-    
+
     Args:
         error_dict: Legacy error dictionary
         default_code: Default error code to use
-        
+
     Returns:
         Standardized error dictionary
     """
@@ -694,7 +694,7 @@ def convert_legacy_error(
     error_code = error_dict.get("code") or default_code
     status_code = error_dict.get("status") or 500
     details = {k: v for k, v in error_dict.items() if k not in ["message", "code", "status", "error"]}
-    
+
     # Create standardized error
     error = MCPError(
         message=message,
@@ -702,5 +702,5 @@ def convert_legacy_error(
         status_code=status_code,
         details=details if details else None
     )
-    
+
     return error.to_dict()

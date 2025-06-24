@@ -7,7 +7,7 @@ retrieval, and management across multiple storage backends.
 Core features:
 - Content-aware backend selection
 - Cost-based routing algorithms
-- Geographic optimization 
+- Geographic optimization
 - Bandwidth and latency analysis
 - Metrics collection and analysis
 - Dashboard for monitoring and managing routing
@@ -22,7 +22,7 @@ from .optimized_router import OptimizedRouter, RoutingStrategy, ContentCategory
 
 __all__ = [
     'Router',
-    'RoutingManager', 
+    'RoutingManager',
     'RoutingManagerSettings',
     'DataRouter',
     'RoutingPriority',

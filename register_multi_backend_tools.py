@@ -47,58 +47,58 @@ def register_multi_backend_tools():
     try:
         # Import multi-backend integration
         from multi_backend_fs_integration import (
-            register_multi_backend_tools, MultiBackendFS, 
+            register_multi_backend_tools, MultiBackendFS,
             StorageBackendType, BackendConfig
         )
-        
+
         # Import FS Journal integration
         from fs_journal_tools import register_fs_journal_tools
         from ipfs_mcp_fs_integration import register_all_tools
-        
+
         # Check if server is running
         if not check_server_health():
             logger.error("Server is not running or not healthy")
             return False
-        
+
         # Get a reference to the MCP server
         # For real integration, we would need to have the actual server instance
         # Here we're simulating the integration by showing the steps that would be needed
         logger.info("Would connect to MCP server and get server instance")
-        
+
         # Initialize basic FS Journal tools
         logger.info("Registering basic FS Journal tools...")
         # register_fs_journal_tools(server)  # This would register basic FS Journal tools
-        
+
         # Register extended FS Journal tools
         logger.info("Registering extended FS Journal and IPFS-FS Bridge tools...")
         # register_all_tools(server)  # This would register extended FS Journal tools
-        
+
         # Register multi-backend tools
         logger.info("Registering multi-backend filesystem tools...")
         # register_multi_backend_tools(server)  # This would register multi-backend tools
-        
+
         # For demonstration, show which tools would be registered
         tools = [
             # FS Journal tools
-            "fs_journal_get_history", 
+            "fs_journal_get_history",
             "fs_journal_sync",
             "fs_journal_track",
             "fs_journal_untrack",
-            
+
             # IPFS-FS Bridge tools
             "ipfs_fs_bridge_status",
             "ipfs_fs_bridge_map",
-            "ipfs_fs_bridge_unmap", 
+            "ipfs_fs_bridge_unmap",
             "ipfs_fs_bridge_list_mappings",
             "ipfs_fs_bridge_sync",
-            
+
             # Backend initialization tools
             "init_huggingface_backend",
             "init_filecoin_backend",
             "init_s3_backend",
             "init_storacha_backend",
             "init_ipfs_cluster_backend",
-            
+
             # Multi-backend tools
             "multi_backend_map",
             "multi_backend_unmap",
@@ -108,55 +108,55 @@ def register_multi_backend_tools():
             "multi_backend_search",
             "multi_backend_convert_format"
         ]
-        
+
         logger.info(f"Would register {len(tools)} tools:")
         for tool in tools:
             logger.info(f"  - {tool}")
-        
+
         # Create a sample multi-backend filesystem for demonstration
         logger.info("Creating sample multi-backend filesystem for demonstration...")
         fs = MultiBackendFS(os.getcwd())
-        
+
         # Register some backends
         fs.register_backend(BackendConfig(
             backend_type=StorageBackendType.IPFS,
             name="ipfs_main",
             root_path="/ipfs"
         ))
-        
+
         fs.register_backend(BackendConfig(
             backend_type=StorageBackendType.HUGGINGFACE,
             name="huggingface_models",
             root_path="/hf"
         ))
-        
+
         fs.register_backend(BackendConfig(
             backend_type=StorageBackendType.S3,
             name="s3_storage",
             root_path="/s3",
             config={"bucket": "test-bucket"}
         ))
-        
+
         fs.register_backend(BackendConfig(
             backend_type=StorageBackendType.FILECOIN,
             name="filecoin_storage",
             root_path="/fil"
         ))
-        
+
         fs.register_backend(BackendConfig(
             backend_type=StorageBackendType.STORACHA,
             name="storacha_cache",
             root_path="/storacha"
         ))
-        
+
         # Print status
         status = fs.get_status()
         logger.info(f"Multi-backend filesystem status: {status}")
         logger.info(f"Registered {status['backends_count']} backends")
-        
+
         # In a real implementation, we would attach this filesystem to the server:
         # server.multi_backend_fs = fs
-        
+
         logger.info("✅ Multi-backend tools would be registered with the MCP server")
         return True
     except ImportError as e:
@@ -192,14 +192,14 @@ def register_tools_with_direct_mcp():
                 }
             }
         ]
-        
+
         logger.info(f"Would register {len(tool_specs)} tools with direct MCP server via JSON-RPC")
-        
+
         # In a real implementation, we would make JSON-RPC calls to register these tools
         # For now, just simulate this process
         for tool in tool_specs:
             logger.info(f"Would register tool: {tool['name']}")
-            
+
         return True
     except Exception as e:
         logger.error(f"Error registering tools with direct MCP: {e}")
@@ -208,13 +208,13 @@ def register_tools_with_direct_mcp():
 def main():
     """Main function to run the tool registration"""
     logger.info("Starting multi-backend tool registration...")
-    
+
     # Register tools
     success = register_multi_backend_tools()
-    
+
     # Attempt to register with direct MCP for demonstration purposes
     direct_success = register_tools_with_direct_mcp()
-    
+
     if success:
         logger.info("✅ Multi-backend tool registration simulated successfully")
         logger.info("Note: In a real deployment, these tools would be registered with the MCP server at startup")

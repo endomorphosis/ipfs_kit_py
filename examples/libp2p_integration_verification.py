@@ -46,28 +46,28 @@ def verify_libp2p_integration():
     print("\nLIBP2P INTEGRATION VERIFICATION")
     print("===============================")
     print(f"Started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
+
     all_tests_passed = True
-    
+
     # Step 1: Initialize components
     print_step(1, "Initializing components")
     try:
         # Initialize ipfs_kit with worker role
         kit = ipfs_kit(metadata={"role": "worker"})
         print_result("Initialize ipfs_kit", True)
-        
+
         # Apply libp2p mocks
         apply_libp2p_mocks()
         print_result("Apply libp2p mocks", True)
-        
+
         # Patch MCP command handlers
         patch_mcp_command_handlers()
         print_result("Patch MCP command handlers", True)
-        
+
         # Apply protocol extensions
         apply_protocol_extensions(IPFSModel)
         print_result("Apply protocol extensions", True)
-        
+
         # Create IPFSModel
         ipfs_model = IPFSModel()
         print_result("Create IPFSModel", True)
@@ -75,14 +75,14 @@ def verify_libp2p_integration():
         print_result("Initialization", False, f"Error: {str(e)}")
         all_tests_passed = False
         return False
-    
+
     # Step 2: Verify execute_command method
     print_step(2, "Verifying execute_command method")
     try:
         # Verify the method exists
         if hasattr(ipfs_model, 'execute_command'):
             print_result("Method exists", True)
-            
+
             # Test with a libp2p command
             result = ipfs_model.execute_command('libp2p_get_node_id')
             if result.get('success', False):
@@ -96,7 +96,7 @@ def verify_libp2p_integration():
     except Exception as e:
         print_result("execute_command test", False, f"Error: {str(e)}")
         all_tests_passed = False
-    
+
     # Step 3: Verify libp2p peer object access through execute_command
     print_step(3, "Verifying libp2p functionality through commands")
     try:
@@ -110,7 +110,7 @@ def verify_libp2p_integration():
     except Exception as e:
         print_result("Command test", False, f"Error: {str(e)}")
         all_tests_passed = False
-    
+
     # Step 4: Verify protocol extensions
     print_step(4, "Verifying protocol extensions")
     try:
@@ -121,7 +121,7 @@ def verify_libp2p_integration():
         else:
             print_result("Protocol extensions - GossipSub", False, f"Failed: {json.dumps(result)}")
             all_tests_passed = False
-            
+
         # Test publish capabilities (GossipSub)
         result = ipfs_model.execute_command('libp2p_publish', topic="test-topic", message="Test message")
         if result.get('success', False):
@@ -129,7 +129,7 @@ def verify_libp2p_integration():
         else:
             print_result("Protocol extensions - Publish", False, f"Failed: {json.dumps(result)}")
             all_tests_passed = False
-            
+
         # Test content announcement
         result = ipfs_model.execute_command('libp2p_announce_content', cid="QmTestCID")
         if result.get('success', False):
@@ -140,7 +140,7 @@ def verify_libp2p_integration():
     except Exception as e:
         print_result("Protocol extensions test", False, f"Error: {str(e)}")
         all_tests_passed = False
-    
+
     # Step 5: Verify connection operations
     print_step(5, "Verifying connection operations")
     try:
@@ -152,7 +152,7 @@ def verify_libp2p_integration():
         else:
             print_result("Connect peer", False, f"Failed: {json.dumps(result)}")
             all_tests_passed = False
-            
+
         # List connected peers
         result = ipfs_model.execute_command('libp2p_get_peers')
         if result.get('success', False):
@@ -163,7 +163,7 @@ def verify_libp2p_integration():
     except Exception as e:
         print_result("Connection test", False, f"Error: {str(e)}")
         all_tests_passed = False
-    
+
     # Final summary
     print("\nVERIFICATION SUMMARY")
     print("===================")
@@ -171,9 +171,9 @@ def verify_libp2p_integration():
         print("✅ ALL TESTS PASSED - LibP2P integration is complete and working correctly!")
     else:
         print("❌ SOME TESTS FAILED - Please check the specific errors above.")
-    
+
     print(f"\nCompleted at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
+
     return all_tests_passed
 
 

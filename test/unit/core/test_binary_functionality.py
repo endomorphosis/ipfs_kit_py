@@ -116,16 +116,16 @@ class TestBinaryFunctionality:
         """Test that ipfs_kit uses the downloaded binary."""
         # Test with a proper mock that correctly simulates the ipfs_kit object
         bin_dir = ensure_binaries
-        
+
         # Get the appropriate binary path
         binary_name = "ipfs.exe" if platform.system() == "Windows" else "ipfs"
         binary_path = os.path.join(bin_dir, binary_name)
-        
+
         # Create a temporary test file
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(b"Test content")
             test_file_path = tmp.name
-        
+
         try:
             # Create a mock for subprocess.run to avoid calling the actual binary
             with patch('subprocess.run') as mock_run:
@@ -134,24 +134,24 @@ class TestBinaryFunctionality:
                 mock_process.returncode = 0
                 mock_process.stdout = b'{"Hash": "QmTest123", "Size": "12"}'
                 mock_run.return_value = mock_process
-                
+
                 # Create a real ipfs_py instance with the mocked subprocess
                 # Note: ipfs_py doesn't accept binary_path as a parameter
                 # We must modify PATH environment instead
                 ipfs = ipfs_py()
-                
+
                 # Call the add method with our test file
                 result = ipfs.add(test_file_path)
-                
+
                 # Verify the mock was called with the expected arguments
                 assert mock_run.called, "subprocess.run was not called"
-                
+
                 # Verify the result matches what we expect
                 assert result is not None, "Add operation returned None"
                 assert isinstance(result, dict), "Result is not a dictionary"
                 assert "cid" in result, "cid not found in result"
                 assert result["cid"] == "QmTest123", f"CID mismatch: {result['cid']} != QmTest123"
-                
+
         finally:
             # Clean up the temporary file
             if os.path.exists(test_file_path):
@@ -167,7 +167,7 @@ class TestBinaryFunctionality:
 
         # We'll implement a simpler test that just verifies the run_ipfs_command method works
         # without actually testing the Unix socket functionality directly
-        
+
         # Mock subprocess.run to return a successful result
         with patch('subprocess.run') as mock_run:
             # Configure subprocess mock
@@ -175,17 +175,17 @@ class TestBinaryFunctionality:
             mock_process.returncode = 0
             mock_process.stdout = b'{"ID": "TestID", "Addresses": ["/ip4/127.0.0.1/tcp/4001"]}'
             mock_run.return_value = mock_process
-            
+
             # Create an ipfs_py instance
             ipfs = ipfs_py()
-            
+
             # Call ipfs_id to run the "ipfs id" command
             result = ipfs.ipfs_id()
-            
+
             # Verify the result is successful
             assert result is not None, "IPFS ID returned None"
             assert result["success"] is True, "IPFS ID command failed"
-            
+
             # Verify subprocess.run was called with the expected command
             mock_run.assert_called_once()
             args, kwargs = mock_run.call_args

@@ -272,7 +272,7 @@ class MCPCacheManager:
             disk_cache_path = local_os.path.join(base_path, "disk_cache")
             memory_limit = 100 * 1024 * 1024  # 100 MB
             disk_limit = 1024 * 1024 * 1024  # 1 GB
-            
+
 
             lock = threading.RLock()
 

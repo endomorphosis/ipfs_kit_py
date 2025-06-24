@@ -72,15 +72,15 @@ def call_tool(tool_name, args=None):
     """Call a tool on the MCP server."""
     if args is None:
         args = {}
-    
+
     try:
         data = {
             "name": tool_name,
             "args": args
         }
-        
+
         response = requests.post(MCP_TOOLS_ENDPOINT, json=data)
-        
+
         if response.status_code == 200:
             result = response.json()
             return True, result
@@ -91,10 +91,10 @@ def call_tool(tool_name, args=None):
                 error += f": {error_data.get('error', '')}"
             except:
                 pass
-            
+
             logger.error(error)
             return False, {"error": error}
-    
+
     except Exception as e:
         error = f"Error calling tool {tool_name}: {e}"
         logger.error(error)
@@ -103,9 +103,9 @@ def call_tool(tool_name, args=None):
 def test_list_files():
     """Test the list_files tool."""
     logger.info("Testing list_files tool...")
-    
+
     success, result = call_tool("list_files", {"directory": "."})
-    
+
     if success:
         logger.info(f"list_files succeeded with {len(result.get('items', []))} items")
         return True
@@ -116,15 +116,15 @@ def test_list_files():
 def test_write_file():
     """Test the write_file tool."""
     logger.info("Testing write_file tool...")
-    
+
     # Ensure the test directory exists
     os.makedirs(TEST_DIR, exist_ok=True)
-    
+
     success, result = call_tool("write_file", {
         "path": TEST_FILE,
         "content": TEST_CONTENT
     })
-    
+
     if success:
         logger.info(f"write_file succeeded: {result}")
         return True
@@ -135,11 +135,11 @@ def test_write_file():
 def test_read_file():
     """Test the read_file tool."""
     logger.info("Testing read_file tool...")
-    
+
     success, result = call_tool("read_file", {
         "path": TEST_FILE
     })
-    
+
     if success:
         content = result.get("content", "")
         if content == TEST_CONTENT:
@@ -155,13 +155,13 @@ def test_read_file():
 def test_ipfs_add():
     """Test the ipfs_add tool."""
     logger.info("Testing ipfs_add tool...")
-    
+
     success, result = call_tool("ipfs_add", {
         "content": "Hello IPFS from test script",
         "filename": "test.txt",
         "pin": True
     })
-    
+
     if success:
         logger.info(f"ipfs_add succeeded: {result}")
         return True, result.get("cid")
@@ -172,11 +172,11 @@ def test_ipfs_add():
 def test_ipfs_cat(cid):
     """Test the ipfs_cat tool."""
     logger.info(f"Testing ipfs_cat tool with CID {cid}...")
-    
+
     success, result = call_tool("ipfs_cat", {
         "cid": cid
     })
-    
+
     if success:
         logger.info(f"ipfs_cat succeeded: {result}")
         return True
@@ -187,12 +187,12 @@ def test_ipfs_cat(cid):
 def test_ipfs_pin(cid):
     """Test the ipfs_pin tool."""
     logger.info(f"Testing ipfs_pin tool with CID {cid}...")
-    
+
     success, result = call_tool("ipfs_pin", {
         "cid": cid,
         "recursive": True
     })
-    
+
     if success:
         logger.info(f"ipfs_pin succeeded: {result}")
         return True
@@ -203,43 +203,43 @@ def test_ipfs_pin(cid):
 def run_tests():
     """Run all tests."""
     logger.info("Starting MCP tool tests...")
-    
+
     # First check if the server is running
     health = health_check()
     if not health:
         logger.error("MCP server is not running or health check failed")
         return
-    
+
     # Get available tools
     tools = get_available_tools()
     if not tools:
         logger.error("Failed to get available tools")
         return
-    
+
     # Track test results
     results = {}
-    
+
     # Test basic file tools
     if "list_files" in tools:
         results["list_files"] = test_list_files()
-    
+
     if "write_file" in tools:
         results["write_file"] = test_write_file()
-    
+
     if "read_file" in tools:
         results["read_file"] = test_read_file()
-    
+
     # Test IPFS tools
     if "ipfs_add" in tools:
         success, cid = test_ipfs_add()
         results["ipfs_add"] = success
-        
+
         if success and cid and "ipfs_cat" in tools:
             results["ipfs_cat"] = test_ipfs_cat(cid)
-        
+
         if success and cid and "ipfs_pin" in tools:
             results["ipfs_pin"] = test_ipfs_pin(cid)
-    
+
     # Clean up
     try:
         if os.path.exists(TEST_FILE):
@@ -248,13 +248,13 @@ def run_tests():
             os.rmdir(TEST_DIR)
     except Exception as e:
         logger.warning(f"Cleanup error: {e}")
-    
+
     # Print summary
     logger.info("\n=== Test Results ===")
     for tool, success in results.items():
         status = "PASSED" if success else "FAILED"
         logger.info(f"{tool}: {status}")
-    
+
     # Overall result
     if all(results.values()):
         logger.info("All tests passed!")

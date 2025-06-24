@@ -49,11 +49,11 @@ AUTH_CONFIG = """
         "token_secret": os.environ.get("MCP_JWT_SECRET", "change-me-in-production"),
         "token_algorithm": "HS256",
         "token_expire_minutes": int(os.environ.get("JWT_EXPIRE_MINUTES", "1440")),
-        
+
         # Admin account
         "admin_username": os.environ.get("MCP_ADMIN_USERNAME", "admin"),
         "admin_password": os.environ.get("MCP_ADMIN_PASSWORD", "change-me-in-production"),
-        
+
         # OAuth providers (configure as needed)
         "oauth_providers": {
             "github": {
@@ -67,7 +67,7 @@ AUTH_CONFIG = """
                 "redirect_uri": os.environ.get("GOOGLE_REDIRECT_URI", "")
             }
         },
-        
+
         # Custom roles
         "custom_roles": [
             {
@@ -75,7 +75,7 @@ AUTH_CONFIG = """
                 "name": "Data Scientist",
                 "parent_role": "user",
                 "permissions": [
-                    "read:ipfs", "write:ipfs", 
+                    "read:ipfs", "write:ipfs",
                     "read:huggingface", "write:huggingface",
                     "read:search", "write:search"
                 ]
@@ -95,7 +95,7 @@ AUTH_CONFIG = """
                 "name": "Content Manager",
                 "parent_role": "user",
                 "permissions": [
-                    "read:ipfs", "write:ipfs", 
+                    "read:ipfs", "write:ipfs",
                     "read:s3", "write:s3",
                     "read:storacha", "write:storacha",
                     "read:migration", "write:migration"
@@ -103,16 +103,16 @@ AUTH_CONFIG = """
             }
         ]
     }
-    
+
     auth_system = await setup_mcp_auth(
         app=app,
         backend_manager=backend_manager,
         config=auth_config
     )
-    
+
     if auth_system and auth_system.initialized:
         logger.info("Advanced Authentication & Authorization system initialized")
-        
+
         # Configure backend permissions
         await auth_system.configure_backend_permissions({
             "ipfs": ["read", "write", "pin", "admin"],
@@ -153,28 +153,28 @@ ADMIN_ENDPOINT_MODIFICATIONS = [
 def create_backup(file_path: str) -> str:
     """
     Create a backup of the original server file.
-    
+
     Args:
         file_path: Path to the server file
-        
+
     Returns:
         Path to the backup file
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = f"{file_path}.bak_{timestamp}"
-    
+
     shutil.copy2(file_path, backup_path)
     logger.info(f"Created backup at: {backup_path}")
-    
+
     return backup_path
 
 def modify_server_file(file_path: str) -> bool:
     """
     Modify the server file to integrate the auth system.
-    
+
     Args:
         file_path: Path to the server file
-        
+
     Returns:
         Success flag
     """
@@ -182,64 +182,64 @@ def modify_server_file(file_path: str) -> bool:
         # Read the original file
         with open(file_path, 'r') as f:
             content = f.read()
-        
+
         # Add auth imports
         if "# Advanced Authentication & Authorization" not in content:
             # Find import section
             import_pattern = r"# Import MCP components\s+try:"
             import_match = re.search(import_pattern, content)
-            
+
             if import_match:
                 # Add auth imports before the closing "try:"
                 position = import_match.end()
                 modified_content = (
-                    content[:position] + 
-                    AUTH_IMPORTS + 
+                    content[:position] +
+                    AUTH_IMPORTS +
                     content[position:]
                 )
                 content = modified_content
                 logger.info("Added auth imports")
             else:
                 logger.warning("Could not find import section")
-        
+
         # Add auth initialization
         if "auth_system = await setup_mcp_auth" not in content:
             # Find initialization section in startup_event
             init_pattern = r"async def initialize_components\(\):.+?logger\.info\(\"All MCP components initialized"
             init_match = re.search(init_pattern, content, re.DOTALL)
-            
+
             if init_match:
                 # Find the position before "All MCP components initialized"
                 init_text = init_match.group(0)
                 position = init_match.start() + init_text.rfind("logger.info")
-                
+
                 # Add auth initialization before this line
                 modified_content = (
-                    content[:position] + 
-                    AUTH_CONFIG + 
+                    content[:position] +
+                    AUTH_CONFIG +
                     "    " + content[position:]
                 )
                 content = modified_content
                 logger.info("Added auth initialization code")
             else:
                 logger.warning("Could not find initialization section")
-        
+
         # Modify endpoint dependencies
         for mod in ENDPOINT_MODIFICATIONS + ADMIN_ENDPOINT_MODIFICATIONS:
             pattern = mod["pattern"]
             replacement = mod["replacement"]
-            
+
             if re.search(pattern, content):
                 content = re.sub(pattern, replacement, content)
                 logger.info(f"Modified endpoint: {pattern}")
-        
+
         # Write the modified content back to the file
         with open(file_path, 'w') as f:
             f.write(content)
-        
+
         logger.info(f"Successfully modified server file: {file_path}")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error modifying server file: {e}")
         return False
@@ -251,21 +251,21 @@ def main():
     parser.add_argument("--backup", action="store_true", help="Create backup before modifying")
     parser.add_argument("--server-path", default=DEFAULT_SERVER_PATH, help="Path to MCP server file")
     args = parser.parse_args()
-    
+
     # Resolve server path
     server_path = os.path.abspath(args.server_path)
     if not os.path.exists(server_path):
         logger.error(f"Server file not found: {server_path}")
         return 1
-    
+
     # Create backup if requested
     if args.backup:
         backup_path = create_backup(server_path)
         logger.info(f"Backup created at: {backup_path}")
-    
+
     # Modify server file
     success = modify_server_file(server_path)
-    
+
     if success:
         logger.info("Auth system integration completed successfully")
         return 0

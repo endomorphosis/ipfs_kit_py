@@ -33,7 +33,7 @@ def save_config(config):
     create_config_dir()
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=2)
-    
+
     # Set secure permissions on the file
     os.chmod(CONFIG_FILE, 0o600)
     print(f"Configuration saved to {CONFIG_FILE} with secure permissions")
@@ -42,19 +42,19 @@ def add_s3_credentials(access_key, secret_key, server=None, bucket=None):
     """Add S3 credentials to the configuration."""
     config = load_config()
     config.setdefault("credentials", {}).setdefault("s3", {})
-    
+
     # Add credentials
     config["credentials"]["s3"]["access_key"] = access_key
     config["credentials"]["s3"]["secret_key"] = secret_key
-    
+
     # Add server if provided
     if server:
         config["credentials"]["s3"]["server"] = server
-        
-    # Add test bucket if provided  
+
+    # Add test bucket if provided
     if bucket:
         config["credentials"]["s3"]["test_bucket"] = bucket
-        
+
     save_config(config)
     print("S3 credentials securely stored.")
 
@@ -64,7 +64,7 @@ def main():
     secret_key = "cwoebccrLl2sCY0nG0u49IbxdVHNJb1zPJ25cQwOVeC"
     server = "object.lga1.coreweave.com"
     bucket = "ipfs-kit-test"
-    
+
     # Store credentials securely
     add_s3_credentials(access_key, secret_key, server, bucket)
     print(f"S3 credentials securely stored for server: {server}")

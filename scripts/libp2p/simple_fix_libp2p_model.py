@@ -16,19 +16,19 @@ def apply_fixes():
     try:
         # Target file path
         file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/libp2p_model.py'
-        
+
         # Read the file
         with open(file_path, 'r') as file:
             lines = file.readlines()
-        
+
         # Fixed content
         fixed_lines = []
         i = 0
-        
+
         # Add class logger at class definition
         while i < len(lines):
             line = lines[i]
-            
+
             # Add class logger after class definition
             if line.strip() == 'class LibP2PModel:':
                 fixed_lines.append(line)
@@ -42,7 +42,7 @@ def apply_fixes():
                 while j < len(lines) and (lines[j].startswith(' ' * 8) or not lines[j].strip()):
                     method_lines.append(lines[j])
                     j += 1
-                
+
                 # Check if this is the problematic method
                 if any('await anyio.to_thread.run_sync(LibP2PModel._is_available_sync, self)' in l for l in method_lines):
                     # Replace with fixed version
@@ -56,7 +56,7 @@ def apply_fixes():
                     fixed_lines.append('        # Use anyio to run the synchronous version in a thread\n')
                     fixed_lines.append('        import anyio\n')
                     fixed_lines.append('        return await anyio.to_thread.run_sync(lambda: self._is_available_sync())\n')
-                    
+
                     # Skip the original method lines
                     i = j - 1
                 else:
@@ -71,7 +71,7 @@ def apply_fixes():
                 while j < len(lines) and (lines[j].startswith(' ' * 8) or not lines[j].strip()):
                     method_lines.append(lines[j])
                     j += 1
-                
+
                 # Check if this is the problematic method
                 if any('await anyio.to_thread.run_sync(LibP2PModel.get_health, self)' in l for l in method_lines):
                     # Replace with fixed version
@@ -85,7 +85,7 @@ def apply_fixes():
                     fixed_lines.append('        # Use anyio to run the synchronous version in a thread\n')
                     fixed_lines.append('        import anyio\n')
                     fixed_lines.append('        return await anyio.to_thread.run_sync(lambda: self.get_health())\n')
-                    
+
                     # Skip the original method lines
                     i = j - 1
                 else:
@@ -114,20 +114,20 @@ def apply_fixes():
                 fixed_lines.append('        # Use anyio to run the synchronous version in a thread\n')
                 fixed_lines.append('        import anyio\n')
                 fixed_lines.append('        return await anyio.to_thread.run_sync(lambda: self.register_message_handler(protocol_id, dummy_handler, handler_id))\n')
-                
+
                 # Skip the rest of the original method
                 while i < len(lines) and (lines[i].startswith(' ' * 8) or not lines[i].strip()):
                     i += 1
                 i -= 1
             else:
                 fixed_lines.append(line)
-            
+
             i += 1
-        
+
         # Write the fixed content back to the file
         with open(file_path, 'w') as file:
             file.writelines(fixed_lines)
-        
+
         logger.info(f"Successfully applied fixes to {file_path}")
         return True
     except Exception as e:

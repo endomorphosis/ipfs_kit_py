@@ -54,7 +54,7 @@ class TestHighLevelAPILibP2PAnyIO:
         # With proper mocking, we'd need to mock the libp2p_peer instance
         # Here we'll just verify the method doesn't throw an error
         result = api_instance.get_libp2p_peer_id()
-        
+
         # Since we may not have a real libp2p peer, we'll just check the structure
         assert "success" in result
         assert "operation" in result
@@ -66,7 +66,7 @@ class TestHighLevelAPILibP2PAnyIO:
         # With proper mocking, we'd need to mock libp2p discovery
         # Here we'll just verify the method handles errors gracefully
         result = api_instance.discover_peers(timeout=1)  # Short timeout to avoid long waits
-        
+
         # Check the basic structure
         assert "success" in result
         assert "operation" in result
@@ -85,13 +85,13 @@ class TestHighLevelAPILibP2PAnyIO:
             cid="QmNonExistentCID",
             timeout=0.1  # Very short timeout
         )
-        
+
         # Check that the operation failed gracefully
         assert "success" in result
         assert result["success"] is False
         assert "error" in result
         # The error message should contain "timeout" or "timed out"
-        assert ("timeout" in result["error"].lower() or 
+        assert ("timeout" in result["error"].lower() or
                 "timed out" in result["error"].lower())
 
     @pytest.mark.anyio
@@ -99,7 +99,7 @@ class TestHighLevelAPILibP2PAnyIO:
         """Test that the AnyIO integration works with both asyncio and trio backends."""
         # Create a simple API instance
         api = IPFSSimpleAPI(role="leecher")
-        
+
         # Apply the libp2p integration using the AnyIO version
         apply_high_level_api_integration(api)
 
@@ -111,7 +111,7 @@ class TestHighLevelAPILibP2PAnyIO:
             assert "operation" in result
             assert result["operation"] == "discover_peers"
             return result
-        
+
         # Run the test
         result = await test_discovery()
         assert result["operation"] == "discover_peers"

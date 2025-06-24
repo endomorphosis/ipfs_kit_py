@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class WebSocket:
     """Mock WebSocket implementation for testing."""
-    
+
     def __init__(self):
         self.accepted = False
         self.closed = False
@@ -24,40 +24,40 @@ class WebSocket:
         self.query_params = {}
         self.path_params = {}
         self.cookies = {}
-        
+
     async def accept(self):
         """Accept the WebSocket connection."""
         self.accepted = True
         self.client_state = "CONNECTED"
         logger.info("WebSocket connection accepted")
         return True
-        
+
     async def close(self, code: int = 1000):
         """Close the WebSocket connection."""
         self.closed = True
         self.client_state = "DISCONNECTED"
         logger.info(f"WebSocket connection closed with code {code}")
         return True
-        
+
     async def send_text(self, data: str):
         """Send text data to the client."""
         self.sent_messages.append({"type": "text", "data": data})
         logger.info(f"Sent text message: {data}")
         return True
-        
+
     async def send_json(self, data: Dict[str, Any]):
         """Send JSON data to the client."""
         text_data = json.dumps(data)
         self.sent_messages.append({"type": "json", "data": data})
         logger.info(f"Sent JSON message: {data}")
         return True
-        
+
     async def send_bytes(self, data: bytes):
         """Send binary data to the client."""
         self.sent_messages.append({"type": "bytes", "data": data})
         logger.info(f"Sent binary message: {len(data)} bytes")
         return True
-        
+
     async def receive_text(self):
         """Receive text data from the client."""
         if not self.received_messages:
@@ -70,7 +70,7 @@ class WebSocket:
         elif isinstance(msg, bytes):
             return msg.decode("utf-8")
         return str(msg)
-        
+
     async def receive_json(self):
         """Receive JSON data from the client."""
         if not self.received_messages:
@@ -83,7 +83,7 @@ class WebSocket:
         elif isinstance(msg, bytes):
             return json.loads(msg.decode("utf-8"))
         return {}
-        
+
     async def receive_bytes(self):
         """Receive binary data from the client."""
         if not self.received_messages:
@@ -99,7 +99,7 @@ class WebSocket:
 
 class WebSocketDisconnect(Exception):
     """Exception raised when WebSocket connection is closed."""
-    
+
     def __init__(self, code: int = 1000):
         self.code = code
         super().__init__(f"WebSocket disconnected with code {code}")

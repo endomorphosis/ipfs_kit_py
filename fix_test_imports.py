@@ -26,7 +26,7 @@ original_import = builtins.__import__
 MOCK_MODULES = [
     'libp2p.tools.pubsub',
     'libp2p.kademlia',
-    'libp2p.network.stream.net_stream_interface', 
+    'libp2p.network.stream.net_stream_interface',
     'libp2p.typing',
     'fastapi',
     'libp2p.tools.constants',
@@ -69,16 +69,16 @@ def create_mock_module(name, attributes=None):
     """Create a mock module with optional attributes."""
     if name in mock_cache:
         return mock_cache[name]
-    
+
     logger.info(f"Creating mock module for {name}")
     mock_module = types.ModuleType(name)
     mock_module.__path__ = []
-    
+
     # Add special attributes if needed
     if attributes:
         for attr_name in attributes:
             setattr(mock_module, attr_name, MagicMock())
-    
+
     # Cache the mock module
     mock_cache[name] = mock_module
     sys.modules[name] = mock_module
@@ -98,19 +98,19 @@ def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
     if name in PATH_REDIRECTS:
         name = PATH_REDIRECTS[name]
         logger.info(f"Redirected import from {original_name} to {name}")
-    
+
     # Check if already in sys.modules
     if name in sys.modules:
         return sys.modules[name]
-    
+
     # Check if it's in our mock list
     if name in MOCK_MODULES:
         return create_mock_module(name)
-    
+
     # Check if it needs special handling
     if name in SPECIAL_MOCK_MODULES:
         return create_mock_module(name, SPECIAL_MOCK_MODULES[name])
-    
+
     # Try the original import
     try:
         return original_import(name, globals, locals, fromlist, level)
@@ -125,16 +125,16 @@ def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
                 if current not in sys.modules:
                     create_mock_module(current)
                 parent = current
-            
+
             # Create the requested module
             module = create_mock_module(name)
-            
+
             # Add fromlist attributes if needed
             if fromlist:
                 for attr in fromlist:
                     if attr != '':
                         setattr(module, attr, MagicMock())
-            
+
             return module
         else:
             # For direct imports, create a basic mock
@@ -146,13 +146,13 @@ def patch_sys_exit():
     Patch sys.exit to avoid pytest termination during collection.
     """
     original_exit = sys.exit
-    
+
     def patched_exit(code=0):
         if 'pytest' in sys.modules:
             logger.warning(f"Ignoring sys.exit({code}) call in test")
             return None
         return original_exit(code)
-    
+
     sys.exit = patched_exit
     logger.info("Patched sys.exit to prevent pytest termination")
 

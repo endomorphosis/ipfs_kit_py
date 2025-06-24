@@ -12,10 +12,10 @@ import glob
 def fix_undefined_names(file_path):
     """Fix undefined name issues by adding imports."""
     print(f"Fixing undefined names in {file_path}")
-    
+
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Common undefined names and their imports
     common_imports = {
         'logging': 'import logging',
@@ -41,7 +41,7 @@ def fix_undefined_names(file_path):
         'asyncio': 'import asyncio',
         'traceback': 'import traceback',
     }
-    
+
     # Add missing imports
     for name, import_stmt in common_imports.items():
         # Check if name is used but not imported
@@ -49,20 +49,20 @@ def fix_undefined_names(file_path):
             # Add import at the top of the file
             content = import_stmt + '\n' + content
             print(f"  Added import: {import_stmt}")
-    
+
     with open(file_path, 'w') as f:
         f.write(content)
 
 def fix_bare_excepts(file_path):
     """Replace bare excepts with specific exception types."""
     print(f"Fixing bare excepts in {file_path}")
-    
+
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Replace bare 'except:' with 'except Exception:'
     fixed_content = re.sub(r'except\s*:', 'except Exception:', content)
-    
+
     if fixed_content != content:
         with open(file_path, 'w') as f:
             f.write(fixed_content)
@@ -73,9 +73,9 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python targeted_fixes.py <file_or_directory>")
         return
-    
+
     target = sys.argv[1]
-    
+
     if os.path.isfile(target):
         files = [target]
     elif os.path.isdir(target):
@@ -83,7 +83,7 @@ def main():
     else:
         print(f"Error: {target} is not a valid file or directory")
         return
-    
+
     for file_path in files:
         print(f"\nProcessing {file_path}")
         fix_undefined_names(file_path)

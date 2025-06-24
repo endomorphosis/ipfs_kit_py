@@ -64,8 +64,8 @@ def mock_ipfs_api():
         mock_instance = MagicMock()
         mock_api_class.return_value = mock_instance
         yield mock_instance
-        
-        
+
+
 @pytest.fixture
 def mock_version():
     """Mock the version retrieval function."""
@@ -126,7 +126,7 @@ def mock_version():
         "exists"
     ),
 ])
-def test_cli_commands(mock_ipfs_api, cli_main, capsys, test_file_path, 
+def test_cli_commands(mock_ipfs_api, cli_main, capsys, test_file_path,
                      command, args, expected_method, expected_args, expected_kwargs, expected_output):
     """Test various CLI commands with parameterization."""
     # Set the command line arguments
@@ -134,10 +134,10 @@ def test_cli_commands(mock_ipfs_api, cli_main, capsys, test_file_path,
     if command == "add":
         # Replace test_file.txt with actual path
         full_args[2] = test_file_path
-    
+
     # Mock the API response
     method = getattr(mock_ipfs_api, expected_method)
-    
+
     if command == "add":
         method.return_value = {
             "success": True,
@@ -182,14 +182,14 @@ def test_cli_commands(mock_ipfs_api, cli_main, capsys, test_file_path,
         }
     elif command == "exists":
         method.return_value = True
-    
+
     # Run the CLI with mocked args
     with patch("sys.argv", full_args):
         exit_code = cli_main()
-    
+
     # Check the results
     assert exit_code == 0
-    
+
     # Verify method was called with expected parameters
     if command == "add":
         # For add command, we need to check that it was called with the file path
@@ -205,19 +205,19 @@ def test_cli_commands(mock_ipfs_api, cli_main, capsys, test_file_path,
         # Get the actual call arguments
         method.assert_called_once()
         call_args, call_kwargs = method.call_args
-        
+
         # Check that expected positional args are present
         for i, arg in enumerate(expected_args):
             assert call_args[i] == arg
-            
+
         # Check that expected kwargs are present (more flexible check)
         for key, value in expected_kwargs.items():
             assert key in call_kwargs, f"Expected kwarg '{key}' not found in actual kwargs"
             assert call_kwargs[key] == value, f"Expected {key}={value}, got {key}={call_kwargs[key]}"
-    
+
     # Use pytest's capsys fixture to get captured output
     captured = capsys.readouterr()
-    
+
     # Check the output contains the expected string
     assert expected_output in captured.out
 
@@ -228,10 +228,10 @@ def test_version_command(cli_main, capsys, mock_version):
     with patch("sys.argv", ["ipfs_kit", "version"]):
         # Run the CLI
         exit_code = cli_main()
-    
+
     # Check the results
     assert exit_code == 0
-    
+
     # Use pytest's capsys fixture to get captured output
     captured = capsys.readouterr()
     # Check that output contains version information, but don't check specific version
@@ -253,7 +253,7 @@ def test_output_format_options(mock_ipfs_api, cli_main, capsys, test_file_path, 
         "size": "30",
         "name": "test_file.txt"
     }
-    
+
     # Run with format option - format must come before the command
     with patch("sys.argv", ["ipfs_kit", "--format", output_format, "add", test_file_path]):
         try:
@@ -261,17 +261,17 @@ def test_output_format_options(mock_ipfs_api, cli_main, capsys, test_file_path, 
         except SystemExit as e:
             # Handle any SystemExit, which might happen if the CLI arg parsing fails
             pytest.fail(f"CLI exited with code {e.code}: Check arguments order in command")
-    
+
     # Check the results
     assert exit_code == 0
-    
+
     # Get captured output using pytest's capsys fixture
     captured = capsys.readouterr()
     output = captured.out.lower()
-    
+
     # Check that the output contains the expected pattern
     assert expected_pattern.lower() in output
-    
+
     # Also check for key content markers
     if output_format == "text":
         assert "success" in output  # Make sure 'success' is in the output
@@ -286,7 +286,7 @@ def test_error_handling(mock_ipfs_api, cli_main, capsys):
     """Test CLI error handling with invalid input."""
     # Make the get method raise an exception
     mock_ipfs_api.get.side_effect = Exception("Invalid CID format")
-    
+
     # Run with invalid CID - we need to mock args to include timeout
     with patch("sys.argv", ["ipfs_kit", "get", "InvalidCID"]):
         # We also need to patch parse_args to return a namespace with the
@@ -305,13 +305,13 @@ def test_error_handling(mock_ipfs_api, cli_main, capsys):
                 no_color=False
             )
             mock_parse_args.return_value = mock_args
-            
+
             # Now run the CLI
             exit_code = cli_main()
-    
+
     # Check the results
     assert exit_code == 1
-    
+
     # Use pytest's capsys fixture to get captured output
     captured = capsys.readouterr()
     # Check for any error indication in the error output
@@ -326,14 +326,14 @@ def test_cli_with_colorized_output(mock_ipfs_api, cli_main, capsys, mock_version
         with patch("ipfs_kit_py.cli.colorize") as mock_colorize:
             # Make colorize function add markers instead of real colors for testing
             mock_colorize.side_effect = lambda text, color: f"[{color}]{text}[/{color}]"
-            
+
             # Run CLI
             exit_code = cli_main()
-    
+
     # Check that colorize was called and CLI worked properly
     captured = capsys.readouterr()
     assert exit_code == 0
-    
+
     # Check if the CLI output contains expected strings
     assert "version" in captured.out.lower()
     assert "0.1.1" in captured.out
@@ -366,13 +366,13 @@ def test_cli_with_colorized_output(mock_ipfs_api, cli_main, capsys, mock_version
         None
     ),
 ])
-def test_cli_command_options(mock_ipfs_api, cli_main, capsys, test_file_path, 
-                            command_args, expected_method, expected_kwargs, 
+def test_cli_command_options(mock_ipfs_api, cli_main, capsys, test_file_path,
+                            command_args, expected_method, expected_kwargs,
                             mock_return_value, position_arg):
     """Test CLI command options with various parameter combinations."""
     # Prepare full args with file path if needed
     full_args = ["ipfs_kit"] + command_args
-    
+
     # Add positional argument if needed (CID, file path, etc.)
     if position_arg and command_args[0] in ["get", "pin", "unpin"]:
         full_args.insert(2, position_arg)
@@ -380,22 +380,22 @@ def test_cli_command_options(mock_ipfs_api, cli_main, capsys, test_file_path,
         # Special case for add command - use real file path
         full_args.insert(2, test_file_path)
         position_arg = test_file_path
-    
+
     # Mock appropriate method
     method = getattr(mock_ipfs_api, expected_method)
     method.return_value = mock_return_value
-    
+
     # Run CLI with args
     with patch("sys.argv", full_args):
         exit_code = cli_main()
-    
+
     # Verify correct exit code
     assert exit_code == 0
-    
+
     # Verify method was called with expected arguments
     method.assert_called_once()
     call_args, call_kwargs = method.call_args
-    
+
     if position_arg and command_args[0] in ["get", "pin", "unpin"]:
         # Check positional arg is passed as kwarg with appropriate name
         command_to_arg_name = {
@@ -404,7 +404,7 @@ def test_cli_command_options(mock_ipfs_api, cli_main, capsys, test_file_path,
             "unpin": "cid"
         }
         arg_name = command_to_arg_name.get(command_args[0])
-        
+
         if arg_name:
             assert call_kwargs.get(arg_name) == position_arg
         else:
@@ -414,10 +414,10 @@ def test_cli_command_options(mock_ipfs_api, cli_main, capsys, test_file_path,
         # Check kwargs - should include all expected_kwargs
         for key, value in expected_kwargs.items():
             assert call_kwargs.get(key) == value
-            
+
     elif position_arg and command_args[0] == "add":
         # For add command, the file path might be passed differently
-        # based on the CLI implementation 
+        # based on the CLI implementation
         if len(call_args) > 0:
             # As positional arg
             assert position_arg in call_args
@@ -429,20 +429,20 @@ def test_cli_command_options(mock_ipfs_api, cli_main, capsys, test_file_path,
                     found = True
                     break
             assert found, f"File path '{position_arg}' not found in call args or kwargs"
-            
+
         # Check other kwargs
         for key, value in expected_kwargs.items():
             assert call_kwargs.get(key) == value
-            
+
     elif not position_arg:
         # Commands without positional arguments (like list-pins)
         # Check kwargs directly
         for key, value in expected_kwargs.items():
             assert call_kwargs.get(key) == value
-        
+
     # Verify output based on return value
     captured = capsys.readouterr()
-    
+
     # Check for expected output content based on command type
     if command_args[0] == "get" and isinstance(mock_return_value, bytes):
         # For get command, the content should be in stdout
@@ -459,7 +459,7 @@ def test_cli_param_parsing(mock_ipfs_api, cli_main, capsys, test_file_path):
         "success": True,
         "cid": "QmTest123",
     }
-    
+
     # The --param option needs to be specified correctly according to argparse definition
     # CLI format is: ipfs_kit command arg --param param_value
     # Note: In this test we mock the API call, so we just check that the CLI parses params correctly
@@ -468,19 +468,19 @@ def test_cli_param_parsing(mock_ipfs_api, cli_main, capsys, test_file_path):
             exit_code = cli_main()
             # Check results if we get here
             assert exit_code == 0
-            
+
             # Verify that add was called
             mock_ipfs_api.add.assert_called_once()
-            
+
             # Extract the call arguments - we just check the positional arg (file path)
             # The parameter parsing has been verified to work in the CLI code
             call_args, call_kwargs = mock_ipfs_api.add.call_args
             assert test_file_path in call_args[0]
-            
+
             # Check output for success message
             captured = capsys.readouterr()
             assert "QmTest123" in captured.out
-            
+
         except SystemExit as e:
             # If --param isn't supported in exactly this way in cli.py,
             # we'll skip this assertion rather than failing
@@ -499,20 +499,20 @@ def test_cli_with_config_file(cli_main, capsys, temp_test_dir, mock_version):
         storage:
           max_cache_size: 1073741824
         """)
-    
+
     # Create a specific mock for this test with a direct patch of IPFSSimpleAPI
     with patch("ipfs_kit_py.cli.IPFSSimpleAPI") as mock_api_class:
         # Configure the mock
         mock_instance = MagicMock()
         mock_api_class.return_value = mock_instance
-        
+
         # Run with config option
         with patch("sys.argv", ["ipfs_kit", "--config", config_path, "version"]):
             exit_code = cli_main()
-        
+
         # Check that the CLI executed successfully
         assert exit_code == 0
-        
+
         # Verify IPFSSimpleAPI was instantiated with the config path
         mock_api_class.assert_called_once()
         call_args, call_kwargs = mock_api_class.call_args
@@ -575,10 +575,10 @@ class TestCLIInterface(unittest.TestCase):
             # Verify add was called and extract call arguments
             mock_instance.add.assert_called_once()
             call_args, call_kwargs = mock_instance.add.call_args
-            
+
             # Check that first arg is the file path
             self.assertEqual(call_args[0], self.test_file_path)
-            
+
             # Check for expected kwargs
             self.assertEqual(call_kwargs.get('pin'), True)
             self.assertEqual(call_kwargs.get('wrap_with_directory'), False)
@@ -630,16 +630,16 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify pin was called
             mock_instance.pin.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.pin.call_args
-            
+
             # Verify cid is passed correctly (may be positional or keyword)
             if 'cid' in call_kwargs:
                 self.assertEqual(call_kwargs.get('cid'), "QmTest123")
             elif len(call_args) > 0:
                 self.assertEqual(call_args[0], "QmTest123")
-            
+
             # Check recursive flag is passed correctly
             self.assertEqual(call_kwargs.get('recursive'), True)
 
@@ -681,16 +681,16 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify unpin was called
             mock_instance.unpin.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.unpin.call_args
-            
+
             # Verify cid is passed correctly (may be positional or keyword)
             if 'cid' in call_kwargs:
                 self.assertEqual(call_kwargs.get('cid'), "QmTest123")
             elif len(call_args) > 0:
                 self.assertEqual(call_args[0], "QmTest123")
-            
+
             # Check recursive flag is passed correctly
             self.assertEqual(call_kwargs.get('recursive'), True)
 
@@ -828,16 +828,16 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify connect was called
             mock_instance.connect.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.connect.call_args
-            
+
             # Verify peer is passed correctly (may be positional or keyword)
             if 'peer' in call_kwargs:
                 self.assertEqual(call_kwargs.get('peer'), "/ip4/10.0.0.1/tcp/4001/p2p/QmPeer1")
             elif len(call_args) > 0:
                 self.assertEqual(call_args[0], "/ip4/10.0.0.1/tcp/4001/p2p/QmPeer1")
-            
+
             # The timeout should come from the default in the command definition
             self.assertEqual(call_kwargs.get('timeout'), 30)
 
@@ -906,10 +906,10 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify exists was called
             mock_instance.exists.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.exists.call_args
-            
+
             # We expect path as kwarg, not positional arg
             self.assertEqual(call_kwargs.get('path'), "/ipfs/QmTest123")
 
@@ -946,10 +946,10 @@ class TestCLIInterface(unittest.TestCase):
 
             # Instead of checking output, just assert that the error handling worked
             # and the exit code was correct
-            
+
         except Exception as e:
             self.fail(f"CLI error handling test failed: {e}")
-            
+
         # No need to reset stderr since we're not capturing it
 
     @patch("sys.argv")
@@ -1060,7 +1060,7 @@ class TestCLIInterface(unittest.TestCase):
                 output = captured_output.getvalue()
                 self.assertIn("version", output.lower())
                 self.assertIn("0.1.1", output)
-                
+
                 # Skip color marker checking since it's environment-dependent
                 # Just assume command execution was successful
 
@@ -1105,10 +1105,10 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify resolve was called
             mock_instance.resolve.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.resolve.call_args
-            
+
             # Verify name is passed correctly (may be positional or keyword)
             if 'name' in call_kwargs:
                 self.assertEqual(call_kwargs.get('name'), "/ipns/k51qzi5uqu5dkkciu33khkzbgmn75b7g5")
@@ -1158,16 +1158,16 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify ls was called
             mock_instance.ls.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.ls.call_args
-            
+
             # Verify path is passed correctly (may be positional or keyword)
             if 'path' in call_kwargs:
                 self.assertEqual(call_kwargs.get('path'), "/ipfs/QmTest123")
             elif len(call_args) > 0:
                 self.assertEqual(call_args[0], "/ipfs/QmTest123")
-            
+
             # Check detail flag is passed correctly
             self.assertEqual(call_kwargs.get('detail'), True)
 
@@ -1251,10 +1251,10 @@ class TestCLIInterface(unittest.TestCase):
 
             # Verify exists was called
             mock_instance.exists.assert_called_once()
-            
+
             # Check the actual arguments passed
             call_args, call_kwargs = mock_instance.exists.call_args
-            
+
             # Verify path is passed correctly (may be positional or keyword)
             if 'path' in call_kwargs:
                 self.assertEqual(call_kwargs.get('path'), "/ipfs/QmTest123")
@@ -1276,14 +1276,14 @@ class TestCLIInterface(unittest.TestCase):
         # The test requires extensive mocking and is not essential
         # for our immediate needs
         self.assertEqual(1, 1)  # Always true, so test will pass
-                
+
     def test_cli_with_yaml_format(self):
         """Test CLI with YAML format output."""
         # Skip this test for now and mark as passed
         # The test requires extensive mocking and is not essential
         # for our immediate needs
         self.assertEqual(1, 1)  # Always true, so test will pass
-                
+
     @patch("sys.argv")
     @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
     def test_cli_with_config_file(self, mock_api_class, mock_argv_patch):
@@ -1318,7 +1318,7 @@ peers:
 
             # Verify IPFSSimpleAPI was initialized with the config path
             mock_api_class.assert_called_once_with(config_path=config_file)
-            
+
     @patch("sys.argv")
     @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
     def test_cli_with_additional_params(self, mock_api_class, mock_argv_patch):
@@ -1349,26 +1349,26 @@ peers:
 
             # Verify connect was called
             mock_instance.connect.assert_called_once()
-            
+
             # Get actual call arguments
             call_args, call_kwargs = mock_instance.connect.call_args
-            
+
             # Check each expected value separately
             # The current implementation passes both positional and named args
             if len(call_args) > 0:
                 # Check the positional arg is the peer address
                 self.assertEqual(call_args[0], "/ip4/127.0.0.1/tcp/4001/p2p/QmTest")
-                
+
             # Check kwargs contain expected values
             if 'peer' in call_kwargs:
                 self.assertEqual(call_kwargs['peer'], "/ip4/127.0.0.1/tcp/4001/p2p/QmTest")
-                
+
             # These kwargs should be from the --param options
             # Check that the CLI properly parses and applies the timeout=60 parameter
             self.assertTrue('timeout' in call_kwargs, "Timeout parameter not found in function call")
             self.assertEqual(call_kwargs['timeout'], 60, "Timeout should be 60 from --param timeout=60")
             self.assertTrue('retry' in call_kwargs, "Retry parameter not found in function call")
-            
+
             # Retry from --param should be properly parsed
             self.assertTrue(call_kwargs['retry'], "Retry should be True from --param retry=true")
 

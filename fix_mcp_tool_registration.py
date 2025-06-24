@@ -50,7 +50,7 @@ def parse_args():
 def patch_mcp_initialize_endpoint(host="localhost", port=9994):
     """
     Patch the MCP initialize endpoint response by adding enhanced capabilities.
-    
+
     This approach works by modifying a running server's response rather than
     trying to register tools directly, which is more reliable with different
     MCP server implementations.
@@ -64,25 +64,25 @@ def patch_mcp_initialize_endpoint(host="localhost", port=9994):
         if response.status_code != 200:
             logger.error(f"Failed to get initialize response: {response.status_code}")
             return False
-        
+
         data = response.json()
         logger.info(f"Current MCP server capabilities: {json.dumps(data.get('capabilities', {}), indent=2)}")
-        
+
         # Define enhanced capabilities
         enhanced_capabilities = {
             "tools": [
                 # Filesystem operations
                 "list_files", "file_exists", "get_file_stats", "copy_file", "move_file",
-                
+
                 # Core IPFS operations
                 "ipfs_add", "ipfs_cat", "ipfs_pin", "ipfs_unpin", "ipfs_list_pins",
                 "ipfs_get", "ipfs_version", "ipfs_id", "ipfs_stat",
-                
+
                 # Virtual filesystem (MFS) operations
-                "ipfs_files_ls", "ipfs_files_stat", "ipfs_files_mkdir", 
+                "ipfs_files_ls", "ipfs_files_stat", "ipfs_files_mkdir",
                 "ipfs_files_read", "ipfs_files_write", "ipfs_files_rm",
                 "ipfs_files_cp", "ipfs_files_mv", "ipfs_files_flush",
-                
+
                 # IPNS operations
                 "ipfs_name_publish", "ipfs_name_resolve", "ipfs_name_list"
             ],
@@ -93,14 +93,14 @@ def patch_mcp_initialize_endpoint(host="localhost", port=9994):
                 "mfs://info", "mfs://root", "mfs://stats"
             ]
         }
-        
+
         logger.info(f"Enhanced capabilities: {json.dumps(enhanced_capabilities, indent=2)}")
-        
+
         # We successfully examined the existing configuration
         # The real implementation would need to modify the server internals
         # to actually add these capabilities
         return True
-        
+
     except Exception as e:
         logger.error(f"Error patching initialize endpoint: {e}")
         logger.error(traceback.format_exc())
@@ -110,20 +110,20 @@ def patch_mcp_server_runtime():
     """Try to find and patch a running MCP server in-memory."""
     # Attempt to access the MCP server via various methods
     logger.info("Attempting to patch MCP server runtime")
-    
+
     try:
         # Method 1: Try importing from ipfs_kit_py
         try:
             from ipfs_kit_py.mcp.server import get_initialized_app
             logger.info("Found MCP server via ipfs_kit_py.mcp.server module")
-            
+
             app = get_initialized_app()
             if app:
                 logger.info("Got initialized FastAPI app")
                 return True
         except ImportError:
             logger.info("Could not import MCP server via ipfs_kit_py.mcp.server")
-        
+
         # Method 2: Try to locate a running server with psutil
         try:
             import psutil
@@ -135,30 +135,30 @@ def patch_mcp_server_runtime():
                     return True
         except ImportError:
             logger.info("psutil not available, skipping process search")
-        
+
         # Method 3: Update tools.json configuration if it exists
         mcp_config_paths = [
             os.path.expanduser('~/.config/mcp/tools.json'),
             os.path.expanduser('~/.mcp/tools.json'),
             os.path.expanduser('~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json')
         ]
-        
+
         for config_path in mcp_config_paths:
             if os.path.exists(config_path):
                 logger.info(f"Found MCP configuration at {config_path}")
                 try:
                     with open(config_path, 'r') as f:
                         config_data = json.load(f)
-                    
+
                     # Just log what we found for now
                     logger.info(f"MCP configuration: {json.dumps(config_data, indent=2)}")
                     return True
                 except Exception as config_error:
                     logger.error(f"Error reading config: {config_error}")
-        
+
         logger.warning("Could not locate or patch running MCP server")
         return False
-        
+
     except Exception as e:
         logger.error(f"Error patching MCP server runtime: {e}")
         logger.error(traceback.format_exc())
@@ -168,7 +168,7 @@ def check_mcp_server_health(host="localhost", port=9994):
     """Check if the MCP server is healthy and running."""
     url = f"http://{host}:{port}/health"
     logger.info(f"Checking MCP server health at {url}")
-    
+
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -184,28 +184,28 @@ def check_mcp_server_health(host="localhost", port=9994):
 def main():
     """Main function to run the script."""
     args = parse_args()
-    
+
     # Configure logging based on args
     if args.debug:
         logger.setLevel(logging.DEBUG)
         console.setLevel(logging.DEBUG)
-    
+
     logger.info("Starting MCP tool registration fix")
-    
+
     # Check if MCP server is running
     server_running = check_mcp_server_health(host=args.host, port=args.port)
-    
+
     if not server_running:
         logger.error("MCP server is not running or not healthy. Please start the server first.")
         return 1
-    
+
     # Patch initialize endpoint
     endpoint_patched = patch_mcp_initialize_endpoint(host=args.host, port=args.port)
-    
+
     if not endpoint_patched:
         logger.error("Failed to patch initialize endpoint")
         return 1
-    
+
     # Try to patch runtime if requested
     if args.apply:
         runtime_patched = patch_mcp_server_runtime()
@@ -213,7 +213,7 @@ def main():
             logger.info("Successfully patched MCP server runtime")
         else:
             logger.warning("Could not patch MCP server runtime")
-    
+
     logger.info("MCP tool registration fix completed")
     logger.info("You can now confirm the enhanced tools are available in the MCP server")
     return 0

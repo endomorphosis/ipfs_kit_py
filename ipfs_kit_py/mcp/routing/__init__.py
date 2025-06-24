@@ -9,7 +9,7 @@ from ipfs_kit_py.mcp.routing.optimized_router import (
     ContentType,
     RoutingStrategy,
     StorageClass,
-    GeographicRegion, 
+    GeographicRegion,
     ComplianceType,
     RoutingPolicy,
     RoutingDecision,

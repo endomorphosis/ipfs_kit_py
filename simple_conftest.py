@@ -24,10 +24,10 @@ from unittest.mock import MagicMock
 class MockLotusKit:
     def __init__(self, *args, **kwargs):
         pass
-    
+
     def check_connection(self):
         return {"success": True, "available": True}
-    
+
     # Add other methods as needed...
 
 # Create mock modules in sys.modules
@@ -48,10 +48,10 @@ def temp_dir(tmp_path_factory):
 def mock_ipfs_client():
     """Provide a mock IPFS client for tests."""
     from unittest.mock import MagicMock
-    
+
     client = MagicMock()
     client.add = MagicMock(return_value={"Hash": "QmTestHash"})
     client.cat = MagicMock(return_value=b"test content")
     client.id = MagicMock(return_value={"ID": "QmTestNodeId"})
-    
+
     return client

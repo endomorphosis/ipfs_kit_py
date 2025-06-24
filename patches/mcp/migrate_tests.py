@@ -37,7 +37,7 @@ INTEGRATION_TEST_DIR = TEST_ROOT / "integration" / "mcp"
 DIRS_TO_CREATE = [
     MCP_TEST_DIR,
     CONTROLLER_TEST_DIR,
-    MODEL_TEST_DIR, 
+    MODEL_TEST_DIR,
     SERVER_TEST_DIR,
     UNIT_TEST_DIR,
     INTEGRATION_TEST_DIR
@@ -54,8 +54,8 @@ for dir_path in DIRS_TO_CREATE:
 def is_controller_test(filename):
     """Determine if a file is a controller test."""
     controller_patterns = [
-        r'controller', 
-        r'test_mcp_aria2', 
+        r'controller',
+        r'test_mcp_aria2',
         r'test_mcp_ipfs',
         r'test_mcp_libp2p',
         r'test_mcp_storage',
@@ -68,7 +68,7 @@ def is_controller_test(filename):
         r'test_mcp_huggingface',
         r'test_mcp_webrtc'
     ]
-    
+
     for pattern in controller_patterns:
         if re.search(pattern, filename):
             return True
@@ -77,15 +77,15 @@ def is_controller_test(filename):
 def is_model_test(filename):
     """Determine if a file is a model test."""
     model_patterns = [
-        r'model', 
-        r'test_mcp_metadata', 
+        r'model',
+        r'test_mcp_metadata',
         r'test_mcp_dht_operations',
         r'test_mcp_ipns_operations',
         r'test_mcp_block_operations',
         r'test_mcp_dag_operations',
         r'test_mcp_files_operations',
     ]
-    
+
     for pattern in model_patterns:
         if re.search(pattern, filename):
             return True
@@ -104,7 +104,7 @@ def is_server_test(filename):
         r'test_mcp_unified',
         r'test_mcp_endpoint',
     ]
-    
+
     for pattern in server_patterns:
         if re.search(pattern, filename):
             return True
@@ -120,7 +120,7 @@ def is_integration_test(filename):
         r'test_mcp_unified',
         r'test_mcp_features'
     ]
-    
+
     for pattern in integration_patterns:
         if re.search(pattern, filename):
             return True
@@ -130,35 +130,35 @@ def update_imports(file_path):
     """Update imports in the file to reflect the new structure."""
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Update imports for the new structure
     content = content.replace('from ipfs_kit_py.mcp.', 'from ipfs_kit_py.mcp_server.')
-    
+
     # Update imports for test fixtures
     content = content.replace('from test.mcp.', 'from test.mcp.')
-    
+
     with open(file_path, 'w') as f:
         f.write(content)
 
 def migrate_test_files():
     """Migrate test files to their appropriate directories."""
     print("Starting MCP test migration...")
-    
+
     # Keep track of files moved
     moved_files = []
-    
+
     # Process each source directory
     for source_dir in SOURCE_DIRS:
         if not source_dir.exists():
             print(f"Source directory {source_dir} does not exist, skipping...")
             continue
-            
+
         # Find all Python test files
         test_files = list(source_dir.glob("test_mcp*.py"))
-        
+
         for test_file in test_files:
             filename = test_file.name
-            
+
             # Determine destination directory
             if is_controller_test(filename):
                 dest_dir = CONTROLLER_TEST_DIR
@@ -170,22 +170,22 @@ def migrate_test_files():
                 dest_dir = INTEGRATION_TEST_DIR
             else:
                 dest_dir = UNIT_TEST_DIR
-            
+
             # Copy the file to destination
             dest_file = dest_dir / filename
-            
+
             # Don't overwrite newer files
             if dest_file.exists() and dest_file.stat().st_mtime > test_file.stat().st_mtime:
                 print(f"Skipping {filename} as destination file is newer")
                 continue
-                
+
             shutil.copy2(test_file, dest_file)
             print(f"Copied {filename} to {dest_dir}")
             moved_files.append((test_file, dest_file))
-            
+
             # Update imports in the copied file
             update_imports(dest_file)
-    
+
     print(f"Migration complete. Moved {len(moved_files)} test files.")
     return moved_files
 
@@ -194,14 +194,14 @@ if __name__ == "__main__":
     try:
         moved_files = migrate_test_files()
         print("Test migration successful!")
-        
+
         # Ask if original files should be removed
         if moved_files and input("Do you want to remove the original test files? (y/n): ").lower() == 'y':
             for original, _ in moved_files:
                 if original.exists():
                     original.unlink()
                     print(f"Removed original file: {original}")
-        
+
     except Exception as e:
         print(f"Error during migration: {e}")
         sys.exit(1)

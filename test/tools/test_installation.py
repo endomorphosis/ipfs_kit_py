@@ -36,37 +36,37 @@ def test_optional_components():
         "networkx": "Knowledge graph capabilities",
         "matplotlib": "Visualization for performance metrics"
     }
-    
+
     results = {}
     for module, description in optional_modules.items():
         results[description] = check_optional_import(module)
-    
+
     return results
 
 def test_ipfs_kit():
     """Test core IPFS Kit functionality."""
     try:
         from ipfs_kit_py import ipfs_kit, __version__
-        
+
         print(f"IPFS Kit version: {__version__}")
-        
+
         # Initialize the kit (without starting daemon)
         kit = ipfs_kit(start_daemon=False)
-        
+
         # Check version compatibility
         version_info = kit.get_version_info()
         print(f"Compatible with IPFS version: {version_info.get('version', 'Unknown')}")
-        
+
         # Check available methods
         methods = [m for m in dir(kit) if not m.startswith('_') and callable(getattr(kit, m))]
         print(f"Available methods: {len(methods)}")
-        
+
         # Test high-level API
         from ipfs_kit_py import IPFSSimpleAPI
         api = IPFSSimpleAPI(start_daemon=False)
-        
+
         print("High-Level API initialized successfully")
-        
+
         return True
     except Exception as e:
         print(f"Error testing IPFS Kit: {e}")
@@ -76,7 +76,7 @@ def test_ipfs_kit():
 def main():
     """Main test function."""
     print("=== IPFS Kit Installation Test ===\n")
-    
+
     # Check core imports
     core_modules = [
         "ipfs_kit_py",
@@ -85,32 +85,32 @@ def main():
         "ipfs_kit_py.high_level_api",
         "ipfs_kit_py.error"
     ]
-    
+
     all_imports_successful = True
     print("Core modules:")
     for module in core_modules:
         result = check_import(module)
         print(f"  {module}: {'✅' if result else '❌'}")
         all_imports_successful = all_imports_successful and result
-    
+
     if not all_imports_successful:
         print("\n❌ Some core modules could not be imported. Installation may be incomplete.")
         sys.exit(1)
-    
+
     # Test core functionality
     print("\nTesting core functionality:")
     if not test_ipfs_kit():
         print("\n❌ Core functionality tests failed.")
         sys.exit(1)
-    
+
     # Check optional components
     print("\nOptional components:")
     optional_results = test_optional_components()
     for component, status in optional_results.items():
         print(f"  {component}: {status}")
-    
+
     print("\n✅ Installation test completed successfully!")
-    
+
     # Print installation tips
     print("\nInstallation tips:")
     print("  - To add optional components, install with extras: pip install ipfs_kit_py[fsspec,arrow]")

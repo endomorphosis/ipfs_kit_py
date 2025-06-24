@@ -27,24 +27,24 @@ logger = logging.getLogger(__name__)
 class ArrowRoutingInterface:
     """
     Apache Arrow interface for optimized data routing.
-    
+
     This class provides methods for encoding and decoding routing requests
     and responses using Apache Arrow, enabling efficient interprocess communication.
     """
-    
+
     def __init__(self):
         """Initialize the Arrow routing interface."""
         if not ARROW_AVAILABLE:
             logger.warning("pyarrow not available. Install with 'pip install pyarrow'.")
-        
+
         # Define schemas for different message types
         self._define_schemas()
-    
+
     def _define_schemas(self):
         """Define Apache Arrow schemas for routing messages."""
         if not ARROW_AVAILABLE:
             return
-        
+
         # Schema for routing request
         self.routing_request_schema = pa.schema([
             pa.field('request_id', pa.string()),
@@ -58,7 +58,7 @@ class ArrowRoutingInterface:
             pa.field('client_location', pa.string()),  # JSON encoded
             pa.field('timestamp', pa.int64())
         ])
-        
+
         # Schema for routing response
         self.routing_response_schema = pa.schema([
             pa.field('request_id', pa.string()),
@@ -73,7 +73,7 @@ class ArrowRoutingInterface:
             )),
             pa.field('timestamp', pa.int64())
         ])
-        
+
         # Schema for routing outcome
         self.routing_outcome_schema = pa.schema([
             pa.field('backend_id', pa.string()),
@@ -85,7 +85,7 @@ class ArrowRoutingInterface:
             pa.field('error', pa.string()),
             pa.field('timestamp', pa.int64())
         ])
-    
+
     def encode_routing_request(
         self,
         request_id: str,
@@ -101,7 +101,7 @@ class ArrowRoutingInterface:
     ) -> bytes:
         """
         Encode a routing request as Arrow IPC message.
-        
+
         Args:
             request_id: Unique request identifier
             content_hash: Content hash (if available)
@@ -113,21 +113,21 @@ class ArrowRoutingInterface:
             available_backends: Optional list of available backends
             client_location: Optional client geographic location
             timestamp: Optional timestamp (default: current time)
-            
+
         Returns:
             Arrow IPC message as bytes
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available")
-        
+
         # Use current time if timestamp not provided
         if timestamp is None:
             timestamp = int(asyncio.get_event_loop().time() * 1000)
-        
+
         # Convert dictionaries to JSON strings
         metadata_json = json.dumps(metadata or {})
         client_location_json = json.dumps(client_location or {})
-        
+
         # Create record batch
         batch_data = [
             [request_id],
@@ -141,35 +141,35 @@ class ArrowRoutingInterface:
             [client_location_json],
             [timestamp]
         ]
-        
+
         arrays = [pa.array(data) for data in batch_data]
         batch = pa.RecordBatch.from_arrays(arrays, schema=self.routing_request_schema)
-        
+
         # Serialize to IPC message
         sink = pa.BufferOutputStream()
         writer = ipc.new_stream(sink, self.routing_request_schema)
         writer.write_batch(batch)
         writer.close()
-        
+
         return sink.getvalue().to_pybytes()
-    
+
     def decode_routing_request(self, data: bytes) -> Dict[str, Any]:
         """
         Decode an Arrow IPC routing request.
-        
+
         Args:
             data: Arrow IPC message bytes
-            
+
         Returns:
             Dictionary with request fields
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available")
-        
+
         # Read the record batch
         reader = ipc.open_stream(pa.BufferReader(data))
         batch = reader.read_next_batch()
-        
+
         # Convert to Python dictionary
         result = {
             "request_id": batch["request_id"][0].as_py(),
@@ -183,9 +183,9 @@ class ArrowRoutingInterface:
             "client_location": json.loads(batch["client_location"][0].as_py()),
             "timestamp": batch["timestamp"][0].as_py()
         }
-        
+
         return result
-    
+
     def encode_routing_response(
         self,
         request_id: str,
@@ -197,7 +197,7 @@ class ArrowRoutingInterface:
     ) -> bytes:
         """
         Encode a routing response as Arrow IPC message.
-        
+
         Args:
             request_id: Original request identifier
             selected_backend: Selected backend ID
@@ -205,20 +205,20 @@ class ArrowRoutingInterface:
             factors: Optional dictionary of factor scores
             alternatives: Optional list of alternative backends and scores
             timestamp: Optional timestamp (default: current time)
-            
+
         Returns:
             Arrow IPC message as bytes
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available")
-        
+
         # Use current time if timestamp not provided
         if timestamp is None:
             timestamp = int(asyncio.get_event_loop().time() * 1000)
-        
+
         # Convert dictionaries to JSON strings
         factors_json = json.dumps(factors or {})
-        
+
         # Prepare alternatives
         if alternatives:
             alt_backends = [a["backend"] for a in alternatives]
@@ -226,7 +226,7 @@ class ArrowRoutingInterface:
             alt_structs = [{"backend": b, "score": s} for b, s in zip(alt_backends, alt_scores)]
         else:
             alt_structs = []
-        
+
         # Create record batch
         batch_data = [
             [request_id],
@@ -236,35 +236,35 @@ class ArrowRoutingInterface:
             [alt_structs],
             [timestamp]
         ]
-        
+
         arrays = [pa.array(data) for data in batch_data]
         batch = pa.RecordBatch.from_arrays(arrays, schema=self.routing_response_schema)
-        
+
         # Serialize to IPC message
         sink = pa.BufferOutputStream()
         writer = ipc.new_stream(sink, self.routing_response_schema)
         writer.write_batch(batch)
         writer.close()
-        
+
         return sink.getvalue().to_pybytes()
-    
+
     def decode_routing_response(self, data: bytes) -> Dict[str, Any]:
         """
         Decode an Arrow IPC routing response.
-        
+
         Args:
             data: Arrow IPC message bytes
-            
+
         Returns:
             Dictionary with response fields
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available")
-        
+
         # Read the record batch
         reader = ipc.open_stream(pa.BufferReader(data))
         batch = reader.read_next_batch()
-        
+
         # Convert to Python dictionary
         result = {
             "request_id": batch["request_id"][0].as_py(),
@@ -277,9 +277,9 @@ class ArrowRoutingInterface:
             ],
             "timestamp": batch["timestamp"][0].as_py()
         }
-        
+
         return result
-    
+
     def encode_routing_outcome(
         self,
         backend_id: str,
@@ -293,7 +293,7 @@ class ArrowRoutingInterface:
     ) -> bytes:
         """
         Encode a routing outcome as Arrow IPC message.
-        
+
         Args:
             backend_id: Backend that was used
             content_hash: Content hash
@@ -303,17 +303,17 @@ class ArrowRoutingInterface:
             duration_ms: Optional operation duration in milliseconds
             error: Optional error message
             timestamp: Optional timestamp (default: current time)
-            
+
         Returns:
             Arrow IPC message as bytes
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available")
-        
+
         # Use current time if timestamp not provided
         if timestamp is None:
             timestamp = int(asyncio.get_event_loop().time() * 1000)
-        
+
         # Create record batch
         batch_data = [
             [backend_id],
@@ -325,35 +325,35 @@ class ArrowRoutingInterface:
             [error or ""],
             [timestamp]
         ]
-        
+
         arrays = [pa.array(data) for data in batch_data]
         batch = pa.RecordBatch.from_arrays(arrays, schema=self.routing_outcome_schema)
-        
+
         # Serialize to IPC message
         sink = pa.BufferOutputStream()
         writer = ipc.new_stream(sink, self.routing_outcome_schema)
         writer.write_batch(batch)
         writer.close()
-        
+
         return sink.getvalue().to_pybytes()
-    
+
     def decode_routing_outcome(self, data: bytes) -> Dict[str, Any]:
         """
         Decode an Arrow IPC routing outcome.
-        
+
         Args:
             data: Arrow IPC message bytes
-            
+
         Returns:
             Dictionary with outcome fields
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available")
-        
+
         # Read the record batch
         reader = ipc.open_stream(pa.BufferReader(data))
         batch = reader.read_next_batch()
-        
+
         # Convert to Python dictionary
         result = {
             "backend_id": batch["backend_id"][0].as_py(),
@@ -365,18 +365,18 @@ class ArrowRoutingInterface:
             "error": batch["error"][0].as_py() or None,
             "timestamp": batch["timestamp"][0].as_py()
         }
-        
+
         return result
 
 
 class ArrowIPCServer:
     """
     Apache Arrow IPC server for routing functionality.
-    
+
     This server allows other processes to make routing decisions through
     a high-performance IPC channel.
     """
-    
+
     def __init__(
         self,
         socket_path: Optional[str] = None,
@@ -384,22 +384,22 @@ class ArrowIPCServer:
     ):
         """
         Initialize the Arrow IPC server.
-        
+
         Args:
             socket_path: Path to Unix domain socket or named pipe
             routing_manager: Optional routing manager instance
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available. Install with 'pip install pyarrow'.")
-        
+
         self.socket_path = socket_path or self._default_socket_path()
         self.routing_manager = routing_manager
         self.arrow_interface = ArrowRoutingInterface()
         self.server = None
         self.running = False
-        
+
         logger.info(f"Arrow IPC server initialized with socket path: {self.socket_path}")
-    
+
     def _default_socket_path(self) -> str:
         """Get the default socket path."""
         if os.name == "posix":
@@ -409,57 +409,57 @@ class ArrowIPCServer:
         else:
             # Named pipe on Windows
             return r"\\.\pipe\ipfs_kit_routing"
-    
+
     async def start(self) -> None:
         """Start the Arrow IPC server."""
         if self.running:
             return
-        
+
         # Get routing manager if not provided
         if self.routing_manager is None:
             from .routing_manager import get_routing_manager
             self.routing_manager = get_routing_manager()
-            
+
             if self.routing_manager is None:
                 raise RuntimeError("No routing manager available")
-        
+
         # Create socket dir if needed
         socket_dir = os.path.dirname(self.socket_path)
         os.makedirs(socket_dir, exist_ok=True)
-        
+
         # Remove socket file if it exists
         if os.path.exists(self.socket_path):
             os.unlink(self.socket_path)
-        
+
         # Start server
         self.server = await asyncio.start_unix_server(
             self._handle_client,
             path=self.socket_path
         )
         self.running = True
-        
+
         # Set socket permissions
         if os.name == "posix":
             os.chmod(self.socket_path, 0o770)
-        
+
         logger.info(f"Arrow IPC server started on {self.socket_path}")
-    
+
     async def stop(self) -> None:
         """Stop the Arrow IPC server."""
         if not self.running:
             return
-        
+
         # Close server
         self.server.close()
         await self.server.wait_closed()
-        
+
         # Remove socket file
         if os.path.exists(self.socket_path):
             os.unlink(self.socket_path)
-        
+
         self.running = False
         logger.info("Arrow IPC server stopped")
-    
+
     async def _handle_client(
         self,
         reader: asyncio.StreamReader,
@@ -467,26 +467,26 @@ class ArrowIPCServer:
     ) -> None:
         """
         Handle a client connection.
-        
+
         Args:
             reader: Stream reader
             writer: Stream writer
         """
         client_info = writer.get_extra_info("peername")
         logger.debug(f"New client connection from {client_info}")
-        
+
         try:
             # Read message length (4 bytes)
             length_bytes = await reader.readexactly(4)
             message_length = int.from_bytes(length_bytes, byteorder="little")
-            
+
             # Read message data
             message_data = await reader.readexactly(message_length)
-            
+
             # Parse message type (first byte)
             message_type = message_data[0]
             message_content = message_data[1:]
-            
+
             # Process message
             if message_type == 1:  # Routing request
                 response = await self._handle_routing_request(message_content)
@@ -495,12 +495,12 @@ class ArrowIPCServer:
             else:
                 logger.warning(f"Unknown message type: {message_type}")
                 response = b"ERROR: Unknown message type"
-            
+
             # Send response
             writer.write(len(response).to_bytes(4, byteorder="little"))
             writer.write(response)
             await writer.drain()
-            
+
         except asyncio.IncompleteReadError:
             logger.debug("Client disconnected")
         except Exception as e:
@@ -508,25 +508,25 @@ class ArrowIPCServer:
         finally:
             writer.close()
             await writer.wait_closed()
-    
+
     async def _handle_routing_request(self, data: bytes) -> bytes:
         """
         Handle a routing request.
-        
+
         Args:
             data: Arrow IPC message data
-            
+
         Returns:
             Response as Arrow IPC message
         """
         try:
             # Decode request
             request = self.arrow_interface.decode_routing_request(data)
-            
+
             # Select backend
             metadata = request.get("metadata", {})
             metadata["content_hash"] = request.get("content_hash")
-            
+
             selected_backend = await self.routing_manager.select_backend(
                 content_type=request.get("content_type"),
                 content_size=request.get("content_size"),
@@ -536,12 +536,12 @@ class ArrowIPCServer:
                 priority=request.get("priority"),
                 client_location=request.get("client_location")
             )
-            
+
             # Get additional information
             insights = await self.routing_manager.get_routing_insights()
             factors = insights.get("factor_weights", {})
             score = 1.0  # Default score
-            
+
             # Build alternatives list
             alternatives = []
             backend_scores = insights.get("backend_scores", {})
@@ -551,7 +551,7 @@ class ArrowIPCServer:
                         "backend": backend,
                         "score": backend_score
                     })
-            
+
             # Encode response
             response_data = self.arrow_interface.encode_routing_response(
                 request_id=request.get("request_id"),
@@ -560,28 +560,28 @@ class ArrowIPCServer:
                 factors=factors,
                 alternatives=alternatives
             )
-            
+
             # Add message type (2 = response)
             return b"\x02" + response_data
-            
+
         except Exception as e:
             logger.error(f"Error handling routing request: {e}", exc_info=True)
             return b"\x00Error: " + str(e).encode()
-    
+
     async def _handle_routing_outcome(self, data: bytes) -> bytes:
         """
         Handle a routing outcome.
-        
+
         Args:
             data: Arrow IPC message data
-            
+
         Returns:
             Response as bytes
         """
         try:
             # Decode outcome
             outcome = self.arrow_interface.decode_routing_outcome(data)
-            
+
             # Record outcome
             await self.routing_manager.record_routing_outcome(
                 backend_id=outcome.get("backend_id"),
@@ -592,10 +592,10 @@ class ArrowIPCServer:
                 },
                 success=outcome.get("success")
             )
-            
+
             # Return success response
             return b"\x04OK"
-            
+
         except Exception as e:
             logger.error(f"Error handling routing outcome: {e}", exc_info=True)
             return b"\x00Error: " + str(e).encode()
@@ -604,31 +604,31 @@ class ArrowIPCServer:
 class ArrowIPCClient:
     """
     Apache Arrow IPC client for routing functionality.
-    
+
     This client allows processes to make routing decisions through
     a high-performance IPC channel to the routing server.
     """
-    
+
     def __init__(
         self,
         socket_path: Optional[str] = None
     ):
         """
         Initialize the Arrow IPC client.
-        
+
         Args:
             socket_path: Path to Unix domain socket or named pipe
         """
         if not ARROW_AVAILABLE:
             raise ImportError("pyarrow not available. Install with 'pip install pyarrow'.")
-        
+
         self.socket_path = socket_path or self._default_socket_path()
         self.arrow_interface = ArrowRoutingInterface()
         self.reader = None
         self.writer = None
-        
+
         logger.debug(f"Arrow IPC client initialized with socket path: {self.socket_path}")
-    
+
     def _default_socket_path(self) -> str:
         """Get the default socket path."""
         if os.name == "posix":
@@ -638,24 +638,24 @@ class ArrowIPCClient:
         else:
             # Named pipe on Windows
             return r"\\.\pipe\ipfs_kit_routing"
-    
+
     async def connect(self) -> None:
         """Connect to the Arrow IPC server."""
         if self.reader is not None:
             return
-        
+
         try:
             self.reader, self.writer = await asyncio.open_unix_connection(self.socket_path)
             logger.debug(f"Connected to Arrow IPC server at {self.socket_path}")
         except Exception as e:
             logger.error(f"Error connecting to Arrow IPC server: {e}", exc_info=True)
             raise
-    
+
     async def disconnect(self) -> None:
         """Disconnect from the Arrow IPC server."""
         if self.writer is None:
             return
-        
+
         try:
             self.writer.close()
             await self.writer.wait_closed()
@@ -664,7 +664,7 @@ class ArrowIPCClient:
             logger.debug("Disconnected from Arrow IPC server")
         except Exception as e:
             logger.warning(f"Error disconnecting from Arrow IPC server: {e}")
-    
+
     async def select_backend(
         self,
         content_type: str,
@@ -679,7 +679,7 @@ class ArrowIPCClient:
     ) -> str:
         """
         Select the optimal backend for content through IPC.
-        
+
         Args:
             content_type: Content MIME type
             content_size: Content size in bytes
@@ -690,19 +690,19 @@ class ArrowIPCClient:
             priority: Optional routing priority
             client_location: Optional client geographic location
             request_id: Optional request ID (default: generated UUID)
-            
+
         Returns:
             ID of the selected backend
         """
         # Ensure connected
         if self.reader is None:
             await self.connect()
-        
+
         # Generate request ID if not provided
         if request_id is None:
             import uuid
             request_id = str(uuid.uuid4())
-        
+
         # Encode request
         request_data = self.arrow_interface.encode_routing_request(
             request_id=request_id,
@@ -715,26 +715,26 @@ class ArrowIPCClient:
             available_backends=available_backends,
             client_location=client_location
         )
-        
+
         # Add message type (1 = request)
         message = b"\x01" + request_data
-        
+
         # Send request
         self.writer.write(len(message).to_bytes(4, byteorder="little"))
         self.writer.write(message)
         await self.writer.drain()
-        
+
         # Read response length
         length_bytes = await self.reader.readexactly(4)
         response_length = int.from_bytes(length_bytes, byteorder="little")
-        
+
         # Read response
         response_data = await self.reader.readexactly(response_length)
-        
+
         # Check response type
         response_type = response_data[0]
         response_content = response_data[1:]
-        
+
         if response_type == 0:  # Error
             error_message = response_content.decode()
             raise RuntimeError(f"IPC error: {error_message}")
@@ -743,7 +743,7 @@ class ArrowIPCClient:
             return response["selected_backend"]
         else:
             raise RuntimeError(f"Unexpected response type: {response_type}")
-    
+
     async def record_outcome(
         self,
         backend_id: str,
@@ -756,7 +756,7 @@ class ArrowIPCClient:
     ) -> None:
         """
         Record a routing outcome through IPC.
-        
+
         Args:
             backend_id: Backend that was used
             content_type: Content MIME type
@@ -769,7 +769,7 @@ class ArrowIPCClient:
         # Ensure connected
         if self.reader is None:
             await self.connect()
-        
+
         # Encode outcome
         outcome_data = self.arrow_interface.encode_routing_outcome(
             backend_id=backend_id,
@@ -780,26 +780,26 @@ class ArrowIPCClient:
             duration_ms=duration_ms,
             error=error
         )
-        
+
         # Add message type (3 = outcome)
         message = b"\x03" + outcome_data
-        
+
         # Send outcome
         self.writer.write(len(message).to_bytes(4, byteorder="little"))
         self.writer.write(message)
         await self.writer.drain()
-        
+
         # Read response length
         length_bytes = await self.reader.readexactly(4)
         response_length = int.from_bytes(length_bytes, byteorder="little")
-        
+
         # Read response
         response_data = await self.reader.readexactly(response_length)
-        
+
         # Check response type
         response_type = response_data[0]
         response_content = response_data[1:]
-        
+
         if response_type == 0:  # Error
             error_message = response_content.decode()
             raise RuntimeError(f"IPC error: {error_message}")
@@ -813,11 +813,11 @@ async def start_ipc_server(
 ) -> ArrowIPCServer:
     """
     Start the Arrow IPC server.
-    
+
     Args:
         socket_path: Optional socket path
         routing_manager: Optional routing manager instance
-        
+
     Returns:
         ArrowIPCServer instance
     """

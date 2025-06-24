@@ -42,12 +42,12 @@ except ImportError:
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),  # Parent directory
         os.getcwd()  # Current working directory
     ]
-    
+
     for path in search_paths:
         if path not in sys.path:
             sys.path.append(path)
             logger.debug(f"Added potential search module path: {path}")
-    
+
     try:
         from mcp_search import (
             create_search_router,
@@ -106,13 +106,13 @@ def create_search_router_wrapper(api_prefix: str) -> APIRouter:
     try:
         # Initialize search service
         get_search_service()
-        
+
         # Create the search router
         router = create_search_router(api_prefix)
         logger.info(f"Successfully created search router with prefix: {router.prefix}")
-        
+
         # Add enhanced endpoints to the router
-        
+
         @router.get("/tags", summary="Get Popular Tags")
         async def get_popular_tags(
             limit: int = Query(50, description="Maximum number of tags to return"),
@@ -121,7 +121,7 @@ def create_search_router_wrapper(api_prefix: str) -> APIRouter:
         ):
             """
             Get the most popular tags from indexed content.
-            
+
             Returns a list of tags sorted by frequency.
             """
             if not search_service:
@@ -133,25 +133,25 @@ def create_search_router_wrapper(api_prefix: str) -> APIRouter:
                         doc_category="search"
                     )
                 return {"success": False, "error": error_message}
-            
+
             try:
                 stats = await search_service.get_stats()
                 if not stats["success"]:
                     return stats
-                
+
                 tags = stats["stats"].get("tags", {})
-                
+
                 # Filter by min_count and sort by count
                 filtered_tags = [
-                    {"tag": tag, "count": count} 
-                    for tag, count in tags.items() 
+                    {"tag": tag, "count": count}
+                    for tag, count in tags.items()
                     if count >= min_count
                 ]
                 filtered_tags.sort(key=lambda x: x["count"], reverse=True)
-                
+
                 # Limit the number of results
                 filtered_tags = filtered_tags[:limit]
-                
+
                 return {
                     "success": True,
                     "count": len(filtered_tags),
@@ -164,14 +164,14 @@ def create_search_router_wrapper(api_prefix: str) -> APIRouter:
                         e, code="INTERNAL_ERROR", endpoint="/search/tags", doc_category="search"
                     )
                 return {"success": False, "error": str(e)}
-        
+
         @router.get("/content-types", summary="Get Content Types")
         async def get_content_types(
             search_service=Depends(get_search_service)
         ):
             """
             Get the content types from indexed content.
-            
+
             Returns a list of content types sorted by frequency.
             """
             if not search_service:
@@ -183,21 +183,21 @@ def create_search_router_wrapper(api_prefix: str) -> APIRouter:
                         doc_category="search"
                     )
                 return {"success": False, "error": error_message}
-            
+
             try:
                 stats = await search_service.get_stats()
                 if not stats["success"]:
                     return stats
-                
+
                 content_types = stats["stats"].get("content_types", {})
-                
+
                 # Format as list sorted by count
                 content_type_list = [
-                    {"type": content_type, "count": count} 
+                    {"type": content_type, "count": count}
                     for content_type, count in content_types.items()
                 ]
                 content_type_list.sort(key=lambda x: x["count"], reverse=True)
-                
+
                 return {
                     "success": True,
                     "count": len(content_type_list),
@@ -210,7 +210,7 @@ def create_search_router_wrapper(api_prefix: str) -> APIRouter:
                         e, code="INTERNAL_ERROR", endpoint="/search/content-types", doc_category="search"
                     )
                 return {"success": False, "error": str(e)}
-                
+
         return router
     except Exception as e:
         logger.error(f"Error creating search router: {e}")
@@ -268,12 +268,12 @@ def update_search_status(storage_backends: Dict[str, Any]) -> None:
 def on_startup(app: Any = None) -> None:
     """
     Initialize the search extension on server startup.
-    
+
     Args:
         app: The FastAPI application instance
     """
     logger.info("Initializing search extension")
-    
+
     # Initialize search service in background
     get_search_service()
 
@@ -281,12 +281,12 @@ def on_startup(app: Any = None) -> None:
 def on_shutdown(app: Any = None) -> None:
     """
     Clean up the search extension on server shutdown.
-    
+
     Args:
         app: The FastAPI application instance
     """
     logger.info("Shutting down search extension")
-    
+
     # Save any pending changes
     global _search_service
     if _search_service is not None and hasattr(_search_service, "_save_vector_index"):

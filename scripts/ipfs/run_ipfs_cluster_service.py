@@ -24,22 +24,22 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--fake-daemon', action='store_true', help='Run in fake daemon mode for testing')
     args = parser.parse_args()
-    
+
     # Set up logging if debug mode is enabled
     if args.debug:
         import logging
         logging.basicConfig(level=logging.DEBUG)
         print("Debug logging enabled")
-    
+
     # Import the module properly
     from ipfs_kit_py import ipfs_cluster_service
-    
+
     # Check for fake daemon mode
     if args.fake_daemon:
         print("Running in fake daemon mode")
         # Just import and return success
         sys.exit(0)
-    
+
     # Look for run_service or similar function
     if hasattr(ipfs_cluster_service, 'run_service'):
         result = ipfs_cluster_service.run_service()

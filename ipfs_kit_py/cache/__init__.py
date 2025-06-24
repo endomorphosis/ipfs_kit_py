@@ -26,9 +26,9 @@ from .batch_operations import BatchOperationManager
 from .zero_copy_interface import ZeroCopyManager, ZeroCopyTable
 from .async_operations import AsyncOperationManager, AsyncParquetCIDCache, async_cache_get_or_create
 from .intelligent_cache import (
-    AccessPattern, 
-    PredictiveModel, 
-    IntelligentCacheManager, 
+    AccessPattern,
+    PredictiveModel,
+    IntelligentCacheManager,
     IntelligentCacheStrategyProvider
 )
 from .read_ahead_prefetching import (
@@ -154,9 +154,9 @@ except ImportError:
     HashFunction = None
 
 __all__ = [
-    'CacheEntry', 
-    'QueryVector', 
-    'SemanticCache', 
+    'CacheEntry',
+    'QueryVector',
+    'SemanticCache',
     'BatchOperationManager',
     'ZeroCopyManager',
     'ZeroCopyTable',

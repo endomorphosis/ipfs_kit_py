@@ -66,7 +66,7 @@ elif "test_repo" in hf_creds:
     os.environ["HF_TEST_REPO"] = hf_creds["test_repo"]
 else:
     os.environ["HF_TEST_REPO"] = "endomorphosis/test-repo"
-    
+
 print(f"Using test repository: {os.environ['HF_TEST_REPO']}")
 print("You can specify a different repository by running:")
 print(f"  python {sys.argv[0]} your-username/your-repo-name")

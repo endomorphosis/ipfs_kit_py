@@ -26,11 +26,11 @@ for file_path in test_files:
         # Read file content
         with open(file_path, 'r') as f:
             content = f.read()
-        
+
         # Skip if file already has conditional arg parsing
         if conditional_pattern.search(content):
             continue
-        
+
         # Check if the file has unconditional arg parsing
         if pattern.search(content):
             # Replace with conditional arg parsing
@@ -40,11 +40,11 @@ for file_path in test_files:
 \1else:
 \1    # When run under pytest, use default values
 \1    args = parser.parse_args([])\2''', content)
-            
+
             # Write back the modified content
             with open(file_path, 'w') as f:
                 f.write(modified_content)
-            
+
             modified_files += 1
             print(f"Fixed arg parsing in: {file_path}")
     except Exception as e:

@@ -109,7 +109,7 @@ def create_storacha_router(api_prefix: str) -> APIRouter:
     # Add documentation to indicate that this is an enhanced implementation
     router.description = """
     Enhanced Storacha integration with robust endpoint management and fallback mechanisms.
-    
+
     This module provides improved connection handling, automatic endpoint discovery,
     and graceful degradation to mock mode when real connections fail.
     """

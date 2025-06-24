@@ -66,7 +66,7 @@ try:
         HAS_TIERED_STORAGE = True
 except ImportError:
     HAS_TIERED_STORAGE = False
-# 
+#
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestTieredCacheManager(unittest.TestCase):
@@ -281,7 +281,7 @@ class TestTieredCacheManager(unittest.TestCase):
             os.path.normpath(custom_manager.disk_cache.directory),
             os.path.normpath(custom_config["local_cache_path"]),
         )
-# 
+#
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestAdaptiveReplacementCache(unittest.TestCase):
@@ -344,7 +344,7 @@ class TestAdaptiveReplacementCache(unittest.TestCase):
                     evicted_count += 1
 
         self.assertGreater(evicted_count, 0)
-# 
+#
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestDiskCache(unittest.TestCase):
@@ -453,7 +453,7 @@ class TestDiskCache(unittest.TestCase):
         retrieved_metadata = new_cache.get_metadata(self.test_cid)
         for key, value in self.test_metadata.items():
             self.assertEqual(retrieved_metadata[key], value)
-# 
+#
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestHierarchicalStorageManagement(unittest.TestCase):
@@ -522,32 +522,32 @@ class TestHierarchicalStorageManagement(unittest.TestCase):
         if not hasattr(self.fs, 'cache_config') or not isinstance(self.fs.cache_config, dict):
             self.fs.cache_config = {}
         self.fs.cache_config["promotion_threshold"] = 3
-        
+
         # Set up mock to always return "disk" as the current tier
         mock_get_content_tier.return_value = "disk"
-        
+
         # Custom cat implementation that tracks access and triggers promotion
         access_count = 0
         def custom_cat(path):
             nonlocal access_count
             cid = self.fs._path_to_cid(path)
-            
+
             if cid == self.test_cid:
                 access_count += 1
                 # Check if we should trigger promotion
                 if access_count > self.fs.cache_config["promotion_threshold"]:
                     # Content should be moved from disk to memory
                     mock_migrate(self.test_cid, "disk", "memory")
-            
+
             # Return test data (actual content doesn't matter for this test)
             return self.test_data
-        
+
         # Patch the cat method
         with patch.object(self.fs, 'cat', side_effect=custom_cat):
             # Call the cat method enough times to trigger promotion
             for _ in range(self.fs.cache_config["promotion_threshold"] + 1):
                 self.fs.cat(self.test_cid)
-            
+
             # Verify the migration was called correctly
             mock_migrate.assert_called_with(self.test_cid, "disk", "memory")
 
@@ -571,7 +571,7 @@ class TestHierarchicalStorageManagement(unittest.TestCase):
         """Test failover to alternative tiers when primary tier fails."""
         # Configure mocks
         mock_check_health.return_value = False
-        
+
         # Set up mock to fail for first tier, succeed for second tier
         mock_get_from_tier.side_effect = [
             IPFSConnectionError("Failed to connect to local IPFS"),
@@ -591,15 +591,15 @@ class TestHierarchicalStorageManagement(unittest.TestCase):
                     content = mock_get_from_tier(cid, "ipfs_cluster")
                     return content
             return self.test_data  # Default case for testing
-        
+
         # Patch the cat method
         with patch.object(self.fs, 'cat', side_effect=custom_cat):
             # Try to get content
             content = self.fs.cat(self.test_cid)
-            
+
             # Verify content was retrieved despite first tier failure
             self.assertEqual(content, self.test_data)
-            
+
             # Verify get_from_tier was called twice (both tiers)
             self.assertEqual(mock_get_from_tier.call_count, 2)
 
@@ -648,7 +648,7 @@ class TestHierarchicalStorageManagement(unittest.TestCase):
         self.assertFalse(integrity_result["success"])
         self.assertIn("corrupted_tiers", integrity_result)
         self.assertEqual(len(integrity_result["corrupted_tiers"]), 1)
-# 
+#
 
 # @pytest.mark.skipif(...) - removed by fix_all_tests.py
 class TestPerformanceMetrics(unittest.TestCase):
@@ -690,11 +690,11 @@ class TestPerformanceMetrics(unittest.TestCase):
         try:
             # Add a delay to ensure filesystem operations complete
             time.sleep(0.1)
-            
+
             # Force stop metrics collection to ensure threads are cleaned up
             if hasattr(self.fs, 'stop_metrics_collection'):
                 self.fs.stop_metrics_collection()
-            
+
             # Try to cleanup files that might cause issues
             metrics_dir = os.path.join(self.temp_dir.name, "metrics")
             if os.path.exists(metrics_dir):
@@ -707,7 +707,7 @@ class TestPerformanceMetrics(unittest.TestCase):
                 except Exception as e:
                     # If cleanup fails, log and continue
                     print(f"Cleanup error: {e}")
-                    
+
             # Clean up the temp directory with ignore_errors
             self.temp_dir.cleanup()
         except Exception as e:
@@ -733,13 +733,13 @@ class TestPerformanceMetrics(unittest.TestCase):
         # Mock the cat method to avoid FileNotFoundError
         with patch.object(self.fs, "cat") as mock_cat:
             mock_cat.return_value = self.test_data
-            
+
             # Call a method that uses _record_operation_time directly
             self.fs._record_operation_time("slow_op", "test", 1.5)
-            
+
             # Verify latency was recorded for this operation
             self.assertIn("slow_op", self.fs.metrics["latency"])
-            
+
             # The structure of metrics["latency"] depends on the implementation
             # It could be a list or a dictionary with stats
             slow_op_metrics = self.fs.metrics["latency"]["slow_op"]
@@ -751,7 +751,7 @@ class TestPerformanceMetrics(unittest.TestCase):
                 # Dictionary implementation with stats
                 self.assertGreater(slow_op_metrics["count"], 0)
                 self.assertGreater(slow_op_metrics["sum"], 0)
-        
+
         # Reset time function
         time_patch.stop()
 

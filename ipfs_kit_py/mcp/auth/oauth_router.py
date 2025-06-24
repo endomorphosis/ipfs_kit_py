@@ -89,14 +89,14 @@ class OAuthCallbackResponse(TokenResponse):
 async def list_providers(current_user: User = Depends(get_current_user)):
     """
     List all available OAuth providers.
-    
+
     Returns public information about the providers, excluding secrets.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Load all providers
     providers = await oauth_manager.load_providers()
-    
+
     # Convert to public info model
     provider_info = [
         OAuthProviderInfo(
@@ -111,7 +111,7 @@ async def list_providers(current_user: User = Depends(get_current_user)):
         for provider in providers.values()
         if provider.active
     ]
-    
+
     return {"providers": provider_info}
 
 
@@ -122,11 +122,11 @@ async def get_provider_details(
 ):
     """
     Get details for a specific OAuth provider.
-    
+
     This includes sensitive information and requires admin privileges.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Get the provider
     provider = await oauth_manager.get_provider(provider_id)
     if not provider:
@@ -134,7 +134,7 @@ async def get_provider_details(
             status_code=404,
             detail=f"Provider {provider_id} not found"
         )
-    
+
     # Return complete provider config
     return provider
 
@@ -146,20 +146,20 @@ async def add_provider(
 ):
     """
     Add or update an OAuth provider configuration.
-    
+
     Requires admin privileges.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Add or update the provider
     success, message = await oauth_manager.add_provider(provider_config.dict())
-    
+
     if not success:
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     # Log the action
     audit_logger = get_audit_logger()
     await audit_logger.log_admin_action(
@@ -169,7 +169,7 @@ async def add_provider(
         resource_type="oauth_provider",
         details={"provider_type": provider_config.provider_type}
     )
-    
+
     return {"message": message, "provider_id": provider_config.id}
 
 
@@ -180,20 +180,20 @@ async def delete_provider(
 ):
     """
     Delete an OAuth provider configuration.
-    
+
     Requires admin privileges.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Delete the provider
     success, message = await oauth_manager.delete_provider(provider_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=404 if "not found" in message else 400,
             detail=message
         )
-    
+
     # Log the action
     audit_logger = get_audit_logger()
     await audit_logger.log_admin_action(
@@ -202,7 +202,7 @@ async def delete_provider(
         resource_id=provider_id,
         resource_type="oauth_provider"
     )
-    
+
     return {"message": message}
 
 
@@ -216,25 +216,25 @@ async def get_oauth_login_url(
 ):
     """
     Get an authorization URL for an OAuth provider.
-    
+
     This is the first step in the OAuth flow.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Generate state if not provided
     state_value = state or secrets.token_urlsafe(32)
-    
+
     # Create authorization URL
     success, result, message = await oauth_manager.create_authorization_url(
         provider_id, redirect_uri, state_value
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     # Save state for validation
     from ipfs_kit_py.mcp.auth.persistence import get_persistence_manager
     persistence = get_persistence_manager()
@@ -242,7 +242,7 @@ async def get_oauth_login_url(
         state_value,
         {"provider_id": provider_id, "redirect_uri": redirect_uri}
     )
-    
+
     return result
 
 
@@ -256,21 +256,21 @@ async def oauth_callback(
 ):
     """
     Handle the OAuth callback from the provider.
-    
+
     This is the second step in the OAuth flow, after the user has authorized the application.
     """
     from ipfs_kit_py.mcp.auth.service import get_instance as get_auth_service
-    
+
     # Get client info for audit
     client_host = request.client.host if request.client else None
     user_agent = request.headers.get("User-Agent")
-    
+
     # Process the OAuth callback
     auth_service = get_auth_service()
     success, result, message = await auth_service.process_oauth_callback(
         provider_id, code, redirect_uri, client_host, user_agent
     )
-    
+
     if not success:
         # Log failed OAuth attempt
         audit_logger = get_audit_logger()
@@ -280,12 +280,12 @@ async def oauth_callback(
             ip_address=client_host,
             user_agent=user_agent
         )
-        
+
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     return result
 
 
@@ -295,23 +295,23 @@ async def oauth_callback(
 async def list_user_connections(current_user: User = Depends(get_current_user)):
     """
     List all OAuth connections for the current user.
-    
+
     Shows which OAuth providers the user has connected to their account.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Get connections for the current user
     connections = await oauth_manager.get_user_oauth_connections(current_user.id)
-    
+
     # Load provider info to get names
     providers = await oauth_manager.load_providers()
-    
+
     # Format connection info
     connection_info = []
     for conn in connections:
         provider = providers.get(conn.get("provider_id", ""))
         provider_name = provider.name if provider else conn.get("provider_id", "Unknown")
-        
+
         connection_info.append(
             OAuthConnectionInfo(
                 provider_id=conn.get("provider_id", ""),
@@ -325,7 +325,7 @@ async def list_user_connections(current_user: User = Depends(get_current_user)):
                 last_used=conn.get("last_used")
             )
         )
-    
+
     return {"connections": connection_info}
 
 
@@ -338,18 +338,18 @@ async def unlink_connection(
     Unlink an OAuth provider from the current user's account.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Unlink the connection
     success, message = await oauth_manager.unlink_user_account(
         current_user.id, provider_id
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=404 if "not found" in message else 400,
             detail=message
         )
-    
+
     # Log the action
     audit_logger = get_audit_logger()
     await audit_logger.log_user_action(
@@ -358,7 +358,7 @@ async def unlink_connection(
         resource_id=provider_id,
         resource_type="oauth_connection"
     )
-    
+
     return {"message": message}
 
 
@@ -370,25 +370,25 @@ async def connect_provider(
 ):
     """
     Start the flow to connect an OAuth provider to the current user's account.
-    
+
     Returns an authorization URL to redirect the user to.
     """
     oauth_manager = get_oauth_manager()
-    
+
     # Generate state with user ID for the callback
     state_value = secrets.token_urlsafe(32)
-    
+
     # Create authorization URL
     success, result, message = await oauth_manager.create_authorization_url(
         provider_id, redirect_uri, state_value
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     # Save state with user ID for connection
     from ipfs_kit_py.mcp.auth.persistence import get_persistence_manager
     persistence = get_persistence_manager()
@@ -401,7 +401,7 @@ async def connect_provider(
             "mode": "connect"
         }
     )
-    
+
     return result
 
 
@@ -417,36 +417,36 @@ async def connect_callback(
     Handle the callback when connecting an OAuth provider to an existing account.
     """
     from ipfs_kit_py.mcp.auth.persistence import get_persistence_manager
-    
+
     # Get client info for audit
     client_host = request.client.host if request.client else None
     user_agent = request.headers.get("User-Agent")
-    
+
     # Verify state and get associated data
     persistence = get_persistence_manager()
     state_data = await persistence.verify_oauth_state(state)
-    
+
     if not state_data or state_data.get("mode") != "connect":
         raise HTTPException(
             status_code=400,
             detail="Invalid or expired state parameter"
         )
-    
+
     user_id = state_data.get("user_id")
     if not user_id:
         raise HTTPException(
             status_code=400,
             detail="No user ID in state data"
         )
-    
+
     # Process the OAuth connection
     oauth_manager = get_oauth_manager()
-    
+
     # Exchange code for token
     success, token_data, message = await oauth_manager.exchange_code_for_token(
         provider_id, code, redirect_uri
     )
-    
+
     if not success:
         # Log failure
         audit_logger = get_audit_logger()
@@ -456,47 +456,47 @@ async def connect_callback(
             ip_address=client_host,
             user_agent=user_agent
         )
-        
+
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     # Get user info
     access_token = token_data.get("access_token")
     success, user_info, message = await oauth_manager.get_user_info(
         provider_id, access_token
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     # Check if this OAuth identity is already linked to another account
     existing_user = await oauth_manager.find_linked_user(
         provider_id, user_info.get("provider_user_id")
     )
-    
+
     if existing_user and existing_user.get("id") != user_id:
         raise HTTPException(
             status_code=400,
             detail="This OAuth account is already linked to another user"
         )
-    
+
     # Link the OAuth account to the user
     provider_user_id = user_info.get("provider_user_id")
     success, message = await oauth_manager.link_user_account(
         user_id, provider_id, provider_user_id, user_info
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=400,
             detail=message
         )
-    
+
     # Log successful connection
     audit_logger = get_audit_logger()
     await audit_logger.log_oauth_link(
@@ -506,7 +506,7 @@ async def connect_callback(
         ip_address=client_host,
         user_agent=user_agent
     )
-    
+
     # Return success
     return {
         "message": "OAuth account connected successfully",

@@ -25,7 +25,7 @@ try:
     logger.info("Successfully loaded test patching module")
 except ImportError as e:
     logger.error(f"Error importing test patching module: {e}")
-    
+
 # Basic fixtures
 
 @pytest.fixture(scope="session")

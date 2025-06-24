@@ -96,7 +96,7 @@ def ipfs_fs():
         # Ensure we have a mock-safe TieredCacheManager
         if hasattr(fs, "cache"):
             fs.cache.test_mode = True
-            
+
         # Mock the metrics to support testing
         fs.metrics = MagicMock()
         fs.metrics.record_operation = MagicMock()
@@ -253,14 +253,14 @@ def test_ipfs_fs_ls(ipfs_fs):
         {"name": "file1.txt", "hash": "QmTest123", "size": 12, "type": "file", "path": "QmTest123/file1.txt"},
         {"name": "dir1", "hash": "QmTest456", "size": 0, "type": "directory", "path": "QmTest123/dir1"}
     ]
-    
+
     # Patch the ls method to return expected entries
     with patch.object(ipfs_fs.__class__, 'ls', autospec=True) as mock_ls:
         mock_ls.return_value = expected_entries
-        
+
         # Call the mocked method
         entries = mock_ls(ipfs_fs, "QmTest123", detail=True)
-        
+
         # Check the entries
         assert len(entries) == 2
         assert entries[0]["name"] == "file1.txt"
@@ -270,7 +270,7 @@ def test_ipfs_fs_ls(ipfs_fs):
         assert entries[1]["name"] == "dir1"
         assert entries[1]["hash"] == "QmTest456"
         assert entries[1]["type"] == "directory"
-        
+
         # Verify the mock was called properly
         mock_ls.assert_called_once_with(ipfs_fs, "QmTest123", detail=True)
 
@@ -349,17 +349,17 @@ def test_ipfs_fs_cached_access(ipfs_fs):
     with patch.object(ipfs_fs, '_record_operation_time'):  # Patch this to avoid errors
         data1 = ipfs_fs.cat("QmTest123")
         assert data1 == b"Test content"
-        
+
         # Should have called API
         assert ipfs_fs.session.post.call_count > 0
-        
+
         # Reset mocks
         ipfs_fs.session.post.reset_mock()
-        
+
         # Second access - should use cache
         data2 = ipfs_fs.cat("QmTest123")
         assert data2 == b"Test content"
-        
+
         # Should not have called API again
         assert ipfs_fs.session.post.call_count == 0
 
@@ -368,7 +368,7 @@ def test_ipfs_fs_put(ipfs_fs):
     """Test uploading content to IPFS."""
     # Reset mock before the test
     ipfs_fs.session.post.reset_mock()
-    
+
     # Configure the mock API response
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -384,13 +384,13 @@ def test_ipfs_fs_put(ipfs_fs):
         # Create a patched version of the put method to avoid test conflicts
         with patch.object(ipfs_fs.__class__, 'put', autospec=True) as mock_put:
             mock_put.return_value = "QmNewCid"
-            
+
             # Call the mocked method
             cid = mock_put(ipfs_fs, file_path, "test_path")
-            
+
             # Check the result
             assert cid == "QmNewCid"
-            
+
             # Verify the method was called
             mock_put.assert_called_once_with(ipfs_fs, file_path, "test_path")
 

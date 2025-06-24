@@ -24,15 +24,15 @@ logger = logging.getLogger("mcp_model_registry_router")
 def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
     """
     Create a FastAPI router for the model registry.
-    
+
     Args:
         model_registry: ModelRegistry instance
-        
+
     Returns:
         FastAPI router
     """
     router = APIRouter()
-    
+
     @router.get("/models", response_model=Dict[str, Any])
     async def list_models(
         limit: Optional[int] = Query(50, description="Maximum number of models to return"),
@@ -49,7 +49,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         try:
             # Convert tags to list if provided
             filter_tags = tags.split(",") if tags else None
-            
+
             # Get models with correct parameter names
             models = model_registry.list_models(
                 limit=limit,
@@ -60,10 +60,10 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
                 filter_framework=framework,
                 search_term=search
             )
-            
+
             # Convert to dict representation
             model_dicts = [m.to_dict() for m in models]
-            
+
             return {
                 "models": model_dicts,
                 "count": len(model_dicts),
@@ -73,7 +73,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         except Exception as e:
             logger.error(f"Error listing models: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to list models: {str(e)}")
-    
+
     @router.post("/models", response_model=Dict[str, Any])
     async def create_model(
         name: str = Form(..., description="Model name"),
@@ -89,10 +89,10 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         try:
             # Parse tags
             tag_list = tags.split(",") if tags else None
-            
+
             # Parse metadata
             metadata_dict = json.loads(metadata) if metadata else None
-            
+
             # Create model
             model = model_registry.create_model(
                 name=name,
@@ -102,14 +102,14 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
                 user_id=user_id,
                 metadata=metadata_dict
             )
-            
+
             return model.to_dict()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             logger.error(f"Error creating model: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to create model: {str(e)}")
-    
+
     @router.get("/models/{model_id}", response_model=Dict[str, Any])
     async def get_model(
         model_id: str = Path(..., description="Model ID"),
@@ -122,14 +122,14 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             model = model_registry.get_model(model_id)
             if not model:
                 raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
-            
+
             return model.to_dict(include_versions=include_versions)
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error getting model: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to get model: {str(e)}")
-    
+
     @router.post("/models/{model_id}/versions", response_model=Dict[str, Any])
     async def create_model_version(
         model_id: str = Path(..., description="Model ID"),
@@ -149,13 +149,13 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         try:
             # Parse tags
             tag_list = tags.split(",") if tags else None
-            
+
             # Parse metadata
             metadata_dict = json.loads(metadata) if metadata else None
-            
+
             # Parse metrics
             metrics_dict = json.loads(metrics) if metrics else None
-            
+
             # Handle file upload
             temp_file = None
             if file:
@@ -164,7 +164,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
                 extension = os.path.splitext(filename)[1] if filename else ""
                 temp_file = os.path.join(model_registry.storage_path, "temp", f"{uuid.uuid4()}{extension}")
                 os.makedirs(os.path.dirname(temp_file), exist_ok=True)
-                
+
                 try:
                     with open(temp_file, "wb") as f:
                         content = await file.read()
@@ -172,7 +172,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
                 except Exception as e:
                     logger.error(f"Error saving uploaded file: {e}")
                     raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
-            
+
             # Create version with parameters that match the expected signature
             version = model_registry.create_model_version(
                 model_id=model_id,
@@ -186,14 +186,14 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
                 storage_backend=storage_backend,
                 storage_uri=storage_uri
             )
-            
+
             # Remove temporary file if created
             if temp_file and os.path.exists(temp_file):
                 os.unlink(temp_file)
-            
+
             if not version:
                 raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
-            
+
             return version.to_dict()
         except HTTPException:
             raise
@@ -202,7 +202,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         except Exception as e:
             logger.error(f"Error creating model version: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to create model version: {str(e)}")
-    
+
     @router.get("/models/{model_id}/versions", response_model=Dict[str, Any])
     async def list_model_versions(
         model_id: str = Path(..., description="Model ID"),
@@ -216,10 +216,10 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             model = model_registry.get_model(model_id)
             if not model:
                 raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
-            
+
             versions = model.get_versions(limit=limit, offset=offset)
             version_dicts = [v.to_dict() for v in versions]
-            
+
             return {
                 "model_id": model_id,
                 "versions": version_dicts,
@@ -233,7 +233,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         except Exception as e:
             logger.error(f"Error listing model versions: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to list model versions: {str(e)}")
-    
+
     @router.get("/models/{model_id}/versions/{version_id}", response_model=Dict[str, Any])
     async def get_model_version(
         model_id: str = Path(..., description="Model ID"),
@@ -246,14 +246,14 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             version = model_registry.get_model_version(model_id, version_id)
             if not version:
                 raise HTTPException(status_code=404, detail=f"Version {version_id} not found for model {model_id}")
-            
+
             return version.to_dict()
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error getting model version: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to get model version: {str(e)}")
-    
+
     @router.post("/models/{model_id}/versions/{version_id}/metrics", response_model=Dict[str, Any])
     async def update_metrics(
         model_id: str = Path(..., description="Model ID"),
@@ -267,24 +267,24 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             version = model_registry.get_model_version(model_id, version_id)
             if not version:
                 raise HTTPException(status_code=404, detail=f"Version {version_id} not found for model {model_id}")
-            
+
             # Update metrics
             version.update_metrics(metrics)
-            
+
             # Save changes
             model = model_registry.get_model(model_id)
             if model:
                 model_registry._save_model_metadata(model)
             else:
                 logger.error(f"Model {model_id} not found when saving metrics")
-            
+
             return version.to_dict()
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error updating metrics: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to update metrics: {str(e)}")
-    
+
     @router.post("/models/upload", response_model=Dict[str, Any])
     async def upload_model(
         name: str = Form(..., description="Model name"),
@@ -303,19 +303,19 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         try:
             # Parse tags
             tag_list = tags.split(",") if tags else None
-            
+
             # Parse metadata
             metadata_dict = json.loads(metadata) if metadata else None
-            
+
             # Parse metrics
             metrics_dict = json.loads(metrics) if metrics else None
-            
+
             # Save uploaded file to a temporary location
             filename = file.filename or "uploaded_model"
             extension = os.path.splitext(filename)[1] if filename else ""
             temp_file = os.path.join(model_registry.storage_path, "temp", f"{uuid.uuid4()}{extension}")
             os.makedirs(os.path.dirname(temp_file), exist_ok=True)
-            
+
             try:
                 with open(temp_file, "wb") as f:
                     content = await file.read()
@@ -323,7 +323,7 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
             except Exception as e:
                 logger.error(f"Error saving uploaded file: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
-            
+
             # Upload model with parameters that match the expected signature
             model, version = model_registry.upload_model(
                 name=name,
@@ -336,14 +336,14 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
                 metrics=metrics_dict,
                 version_description=version_description
             )
-            
+
             # Remove temporary file
             if os.path.exists(temp_file):
                 os.unlink(temp_file)
-            
+
             if not model or not version:
                 raise HTTPException(status_code=500, detail="Failed to upload model")
-            
+
             return {
                 "model": model.to_dict(),
                 "version": version.to_dict()
@@ -353,5 +353,5 @@ def create_model_registry_router(model_registry: ModelRegistry) -> APIRouter:
         except Exception as e:
             logger.error(f"Error uploading model: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to upload model: {str(e)}")
-    
+
     return router

@@ -51,23 +51,23 @@ class FilecoinBackend(BackendStorage):
         self.verify_deals = metadata.get("verify_deals", True)
         self.max_price = metadata.get("max_price")
         self.deal_duration = metadata.get("deal_duration", 518400)  # Default: 180 days
-        
+
     def get_name(self) -> str:
         """Get the name of this backend implementation."""
         return "filecoin"
-        
+
     # Implement required abstract method
     def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Add content to Filecoin storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the store() method with appropriate parameter mapping.
-        
+
         Args:
             content: Content to add (can be a path, bytes, or file-like object)
             metadata: Optional metadata to associate with the content
-            
+
         Returns:
             Dict with operation result including content ID
         """
@@ -76,7 +76,7 @@ class FilecoinBackend(BackendStorage):
         if metadata:
             options["add_metadata"] = True
             # Will be used by store() to add metadata to the content
-            
+
         # Call the existing store method with mapped parameters
         return self.store(content, options=options)
 
@@ -84,30 +84,30 @@ class FilecoinBackend(BackendStorage):
     def get_content(self, content_id: str) -> Dict[str, Any]:
         """
         Retrieve content from Filecoin storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the retrieve() method.
-        
+
         Args:
             content_id: ID of the content to retrieve
-            
+
         Returns:
             Dict with operation result including content data
         """
         # Call the existing retrieve method
         return self.retrieve(content_id)
-        
+
     # Implement required abstract method
     def remove_content(self, content_id: str) -> Dict[str, Any]:
         """
         Remove content from Filecoin storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the delete() method.
-        
+
         Args:
             content_id: ID of the content to remove
-            
+
         Returns:
             Dict with operation result
         """

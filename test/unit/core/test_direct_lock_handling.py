@@ -26,33 +26,33 @@ logger = logging.getLogger("lock_test")
 class TestLockFileHandling(unittest.TestCase):
     """
     Basic test of lock file handling logic.
-    
+
     This tests the core functionality of detecting stale lock files
     and handling active lock files without relying on the ipfs module.
     """
-    
+
     def setUp(self):
         """Set up temporary test directory."""
         self.temp_dir = tempfile.mkdtemp(prefix="lock_test_")
         self.lock_file_path = os.path.join(self.temp_dir, "repo.lock")
         logger.info(f"Test setup with lock file: {self.lock_file_path}")
-    
+
     def tearDown(self):
         """Clean up after test."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
         logger.info("Test environment cleaned up")
-    
+
     def test_stale_lock_detection(self):
         """Test stale lock file detection logic."""
         # Create a stale lock file with a non-existent PID
         with open(self.lock_file_path, 'w') as f:
             f.write("999999")  # This PID should not exist
-            
+
         logger.info("Created stale lock file with PID 999999")
-        
+
         # Verify lock file exists
         self.assertTrue(os.path.exists(self.lock_file_path), "Lock file should exist")
-        
+
         # Now test our stale lock detection logic
         lock_is_stale = True
         try:
@@ -75,14 +75,14 @@ class TestLockFileHandling(unittest.TestCase):
                     logger.debug(f"Lock file doesn't contain a valid PID: {lock_content}")
         except Exception as e:
             logger.warning(f"Error reading lock file: {str(e)}")
-        
+
         # Lock should be detected as stale
         self.assertTrue(lock_is_stale, "Lock should be detected as stale")
-        
+
         # Remove stale lock file
         os.remove(self.lock_file_path)
         self.assertFalse(os.path.exists(self.lock_file_path), "Lock file should be removed")
-    
+
     def test_active_lock_detection(self):
         """Test detection of active lock files."""
         # Start a process we'll use for the active lock
@@ -92,17 +92,17 @@ class TestLockFileHandling(unittest.TestCase):
             stderr=subprocess.PIPE
         )
         pid = process.pid
-        
+
         try:
             # Create lock file with real PID
             with open(self.lock_file_path, 'w') as f:
                 f.write(str(pid))
-                
+
             logger.info(f"Created active lock file with real PID {pid}")
-            
+
             # Verify lock file exists
             self.assertTrue(os.path.exists(self.lock_file_path), "Lock file should exist")
-            
+
             # Test active lock detection logic
             lock_is_stale = True
             try:
@@ -125,10 +125,10 @@ class TestLockFileHandling(unittest.TestCase):
                         logger.debug(f"Lock file doesn't contain a valid PID: {lock_content}")
             except Exception as e:
                 logger.warning(f"Error reading lock file: {str(e)}")
-            
+
             # Lock should NOT be detected as stale
             self.assertFalse(lock_is_stale, "Lock should NOT be detected as stale")
-            
+
             # Verify process exists and is the expected python process
             try:
                 proc = psutil.Process(pid)
@@ -137,21 +137,21 @@ class TestLockFileHandling(unittest.TestCase):
                 self.assertEqual(proc_name, "python", "Process should be python")
             except psutil.NoSuchProcess:
                 self.fail(f"Process with PID {pid} should exist")
-                
+
         finally:
             # Clean up process
             if process:
                 process.terminate()
                 process.wait()
-                
+
     def test_lock_file_contents(self):
         """Test validation of lock file contents."""
         # Test with empty lock file
         with open(self.lock_file_path, 'w') as f:
             f.write("")
-            
+
         logger.info("Created empty lock file")
-        
+
         # Logic to detect empty lock file
         lock_is_stale = True
         try:
@@ -163,16 +163,16 @@ class TestLockFileHandling(unittest.TestCase):
                     lock_is_stale = True
         except Exception as e:
             logger.warning(f"Error reading lock file: {str(e)}")
-        
+
         # Lock should be detected as stale
         self.assertTrue(lock_is_stale, "Empty lock file should be considered stale")
-        
+
         # Test with non-numeric content
         with open(self.lock_file_path, 'w') as f:
             f.write("not-a-pid")
-            
+
         logger.info("Created lock file with non-numeric content")
-        
+
         # Logic to detect invalid lock file content
         lock_is_stale = True
         try:
@@ -184,7 +184,7 @@ class TestLockFileHandling(unittest.TestCase):
                     lock_is_stale = True
         except Exception as e:
             logger.warning(f"Error reading lock file: {str(e)}")
-        
+
         # Lock should be detected as stale
         self.assertTrue(lock_is_stale, "Lock file with non-numeric content should be considered stale")
 

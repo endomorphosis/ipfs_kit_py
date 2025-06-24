@@ -410,7 +410,7 @@ class ContentSearchService:
                     # Import the ipfs_py client
                     from ipfs_kit_py.ipfs import ipfs_py
                     ipfs_client = ipfs_py()
-                    
+
                     # Use the ipfs_cat method to retrieve content - run in thread to avoid blocking
                     def fetch_ipfs_content():
                         result = ipfs_client.ipfs_cat(cid)
@@ -418,13 +418,13 @@ class ContentSearchService:
                             logger.warning(f"Error fetching content for CID {cid}: {result.get('error', 'Unknown error')}")
                             return None
                         return result.get("data", None)
-                    
+
                     content_data = await anyio.to_thread.run_sync(fetch_ipfs_content)
-                    
+
                     if not content_data:
                         logger.warning(f"No content retrieved for CID {cid}")
                         return None, False
-                        
+
                     # Process the retrieved data
                     def decode_data_fetched():
                         # Handle bytes or string content
@@ -432,7 +432,7 @@ class ContentSearchService:
                             decoded_text = content_data.decode('utf-8', errors='replace')
                         else:
                             decoded_text = str(content_data)
-                            
+
                         if content_type in JSON_CONTENT_TYPES:
                             try:
                                 json_data = json.loads(decoded_text)
@@ -440,9 +440,9 @@ class ContentSearchService:
                             except:
                                 return decoded_text  # Fallback
                         return decoded_text
-                    
+
                     text = await anyio.to_thread.run_sync(decode_data_fetched)
-                    
+
                 except ImportError as e:
                     logger.warning(f"Could not import ipfs_py, falling back to subprocess: {e}")
                     # Fallback to subprocess if ipfs_py import fails
@@ -554,9 +554,9 @@ class ContentSearchService:
                 return embedding
             embedding = await anyio.to_thread.run_sync(encode_text)
 
-            # Note: We don't acquire the lock here because the caller (index_content) 
+            # Note: We don't acquire the lock here because the caller (index_content)
             # already holds it. This prevents the "Attempted to acquire an already held Lock" error
-            
+
             cursor = await anyio.to_thread.run_sync(conn.cursor)
             cursor = await anyio.to_thread.run_sync(_db_execute, conn, 'SELECT vector_id FROM vector_mapping WHERE cid = ?', (cid,))
             existing = await anyio.to_thread.run_sync(_db_fetchone, cursor)
@@ -710,24 +710,24 @@ class ContentSearchService:
     ) -> List[Dict[str, Any]]:
         """Perform text search (using AnyIO)."""
         clean_query = self._clean_fts_query(query_text)
-        
+
         # Fix SQL error: use the table name in the WHERE clause correctly for FTS5
         sql = f'''
-            SELECT 
-                m.cid, m.name, m.description, m.tags, m.content_type, 
-                m.size, m.created, m.author, m.license, m.extra, 
+            SELECT
+                m.cid, m.name, m.description, m.tags, m.content_type,
+                m.size, m.created, m.author, m.license, m.extra,
                 m.indexed_at, fts.rank
-            FROM 
-                content_fts AS fts 
-            JOIN 
+            FROM
+                content_fts AS fts
+            JOIN
                 content_metadata AS m ON fts.cid = m.cid
-            WHERE 
-                content_fts MATCH ? 
-            ORDER BY 
-                rank 
+            WHERE
+                content_fts MATCH ?
+            ORDER BY
+                rank
             LIMIT ?
         '''
-        
+
         cursor = await anyio.to_thread.run_sync(_db_execute, conn, sql, (clean_query, max_results))
         rows = await anyio.to_thread.run_sync(_db_fetchall, cursor)
 

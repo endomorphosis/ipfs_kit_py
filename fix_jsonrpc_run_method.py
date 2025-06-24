@@ -24,40 +24,40 @@ def backup_file(filepath):
 def fix_use_tool_method():
     """Fix the use_tool method in direct_mcp_server.py"""
     filepath = Path("direct_mcp_server.py")
-    
+
     # Create backup
     backup_file(filepath)
-    
+
     with open(filepath, 'r') as f:
         content = f.read()
-    
+
     # Find and replace the specific line that calls tool.use()
     use_tool_pattern = r'(result = await )tool\.use\((arguments)\)'
-    
+
     if not re.search(use_tool_pattern, content):
         logger.error("Could not find 'tool.use(arguments)' in the file. The pattern might be different.")
         return False
-    
+
     # Replace tool.use with tool.run
     modified_content = re.sub(use_tool_pattern, r'\1tool.run(\2)', content)
-    
+
     # Write the modified content back
     with open(filepath, 'w') as f:
         f.write(modified_content)
-    
+
     logger.info("✅ Successfully replaced tool.use() with tool.run()")
     return True
 
 def find_get_tools_function():
     """Find and report the get_tools function to help diagnose schema issues"""
     filepath = Path("direct_mcp_server.py")
-    
+
     with open(filepath, 'r') as f:
         content = f.read()
-    
+
     # Look for the get_tools function or related code
     get_tools_pattern = r'(tools = \[\{.*?schema.*?for tool in.*?\])'
-    
+
     match = re.search(get_tools_pattern, content, re.DOTALL)
     if match:
         logger.info(f"Found get_tools implementation: {match.group(1)[:100]}...")
@@ -69,10 +69,10 @@ def find_get_tools_function():
 def main():
     """Main function"""
     logger.info("Starting focused fix for JSON-RPC handler (tool.use -> tool.run)...")
-    
+
     success = fix_use_tool_method()
     find_get_tools_function()
-    
+
     if success:
         logger.info("\n✅ Fix successfully applied")
         logger.info("The server should now be able to use tools through JSON-RPC")

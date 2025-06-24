@@ -22,20 +22,20 @@ logger = logging.getLogger("force_libp2p")
 def install_libp2p_dependencies():
     """Install all LibP2P dependencies necessary for MCP server integration."""
     logger.info("Installing LibP2P dependencies...")
-    
+
     # Set environment variable to enable auto-installation
     os.environ["IPFS_KIT_AUTO_INSTALL_DEPS"] = "1"
-    
+
     try:
         # Import our dependency manager and force installation
         from install_libp2p import install_dependencies_auto
-        
+
         result = install_dependencies_auto(
             force=True,
             verbose=True,
             mcp_integration=True
         )
-        
+
         if result:
             logger.info("LibP2P dependencies installed successfully")
             return True
@@ -52,7 +52,7 @@ def install_libp2p_dependencies():
 def install_with_pip():
     """Install dependencies directly with pip as a fallback."""
     logger.info("Installing LibP2P dependencies with pip directly...")
-    
+
     dependencies = [
         "libp2p>=0.1.5",
         "multiaddr>=0.0.9",
@@ -66,7 +66,7 @@ def install_with_pip():
         "eth-hash",
         "eth-keys"
     ]
-    
+
     try:
         cmd = [sys.executable, "-m", "pip", "install", "--upgrade"] + dependencies
         logger.info(f"Running: {' '.join(cmd)}")
@@ -81,13 +81,13 @@ def verify_installations():
     """Verify that all necessary dependencies are installed and working."""
     logger.info("Verifying installations...")
     missing = []
-    
+
     # Check required packages
     packages = [
         "libp2p", "multiaddr", "base58", "cryptography",
         "fastapi", "uvicorn", "anyio", "pydantic"
     ]
-    
+
     for package in packages:
         try:
             module = __import__(package)
@@ -95,7 +95,7 @@ def verify_installations():
         except ImportError:
             missing.append(package)
             logger.error(f"✗ {package} is NOT installed")
-    
+
     # Verify libp2p functionality specifically
     try:
         import libp2p
@@ -104,7 +104,7 @@ def verify_installations():
     except (ImportError, AttributeError) as e:
         logger.error(f"✗ libp2p.crypto.keys verification failed: {e}")
         missing.append("libp2p.crypto.keys")
-    
+
     if missing:
         logger.error(f"Missing dependencies: {', '.join(missing)}")
         return False
@@ -115,15 +115,15 @@ def verify_installations():
 def main():
     """Main function."""
     logger.info("Starting forced LibP2P dependency installation")
-    
+
     # Try our automated installer first
     success = install_libp2p_dependencies()
-    
+
     # If that fails, try direct pip installation
     if not success:
         logger.info("Automated installation failed, trying direct pip installation")
         success = install_with_pip()
-    
+
     # Verify the installations
     if success:
         verified = verify_installations()

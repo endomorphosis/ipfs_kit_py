@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Import required components
 try:
     from .network import KademliaNetwork, KademliaServer
-    
+
     # Import Provider from the main kademlia network module
     try:
         # Try to get the Provider class from the parent module
@@ -28,37 +28,37 @@ try:
     except ImportError as e:
         logger.warning(f"Could not import Provider class: {e}")
         Provider = None
-        
+
 except ImportError:
     logger.warning("Could not import Kademlia components")
-    
+
     # Placeholder KademliaNetwork implementation
     class KademliaNetwork:
         """Placeholder KademliaNetwork class for compatibility."""
-        
+
         def __init__(self, *args, **kwargs):
             """Initialize with placeholder functionality."""
             logger.warning("Using placeholder KademliaNetwork implementation")
             self.initialized = False
-    
+
     # Placeholder KademliaServer implementation
     class KademliaServer:
         """Placeholder KademliaServer class for compatibility."""
-        
+
         def __init__(self, *args, **kwargs):
             """Initialize with placeholder functionality."""
             logger.warning("Using placeholder KademliaServer implementation")
             self.started = False
             self.network = KademliaNetwork()
-        
+
         async def start(self):
             """Start the placeholder server."""
             logger.warning("Using placeholder KademliaServer.start implementation")
             return True
-            
+
     # Placeholder Provider implementation
     Provider = None
-        
+
     async def stop(self):
         """Stop the placeholder server."""
         logger.warning("Using placeholder KademliaServer.stop implementation")

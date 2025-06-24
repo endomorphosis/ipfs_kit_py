@@ -33,13 +33,13 @@ def run_test(test_path, port):
     """Run the specified test with the debug server URL set"""
     env = os.environ.copy()
     env["MCP_DEBUG_URL"] = f"http://localhost:{port}"
-    
+
     # Add some display so we know what's happening
     print(f"\n\n{'='*80}")
     print(f"Running test: {test_path}")
     print(f"MCP Debug Server: http://localhost:{port}/debug/dashboard")
     print(f"{'='*80}\n")
-    
+
     # Run the test with pytest
     cmd = ["pytest", test_path, "-v"]
     return subprocess.run(cmd, env=env)
@@ -49,46 +49,46 @@ def open_dashboard(port, delay=2):
     def _open_browser():
         time.sleep(delay)  # Give server time to start
         webbrowser.open(f"http://localhost:{port}/debug/dashboard")
-    
+
     thread = threading.Thread(target=_open_browser)
     thread.daemon = True
     thread.start()
 
 def main():
     parser = argparse.ArgumentParser(description="Run tests with MCP debug server")
-    parser.add_argument("--test", default="test/test_ipfs_dataloader.py::TestIPFSDataLoader::test_advanced_prefetch_thread_management", 
+    parser.add_argument("--test", default="test/test_ipfs_dataloader.py::TestIPFSDataLoader::test_advanced_prefetch_thread_management",
                         help="Test path to run")
     parser.add_argument("--port", type=int, default=8765, help="Port for the debug server")
     parser.add_argument("--no-browser", action="store_true", help="Don't open browser automatically")
-    
+
     args = parser.parse_args()
-    
+
     # Start the debug server
     server_process = start_debug_server(args.port)
-    
+
     try:
         # Open dashboard in browser
         if not args.no_browser:
             open_dashboard(args.port)
-        
+
         # Wait a bit for server to start
         time.sleep(2)
-        
+
         # Run the test
         result = run_test(args.test, args.port)
-        
+
         # Keep server running if the test failed
         if result.returncode != 0:
             print(f"\n\nTest failed with exit code {result.returncode}")
             print("Debug server is still running at http://localhost:{args.port}/debug/dashboard")
             print("Press Ctrl+C to stop the server and exit")
-            
+
             # Keep the script running until user interrupts
             while True:
                 time.sleep(1)
-        
+
         return result.returncode
-    
+
     except KeyboardInterrupt:
         print("\nInterrupted by user. Shutting down...")
     finally:

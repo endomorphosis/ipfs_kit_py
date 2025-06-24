@@ -54,7 +54,7 @@ try:
     except ImportError:
         HAVE_FSSPEC = False
         IPFSFileSystem = None
-        
+
     # Try to import WebRTC streaming
     try:
         from .webrtc_streaming import HAVE_WEBRTC, HAVE_AV, HAVE_CV2, HAVE_NUMPY, HAVE_AIORTC, handle_webrtc_signaling
@@ -64,7 +64,7 @@ try:
         HAVE_CV2 = False
         HAVE_NUMPY = False
         HAVE_AIORTC = False
-        
+
         # Create stub for handle_webrtc_signaling
         async def handle_webrtc_signaling(*args, **kwargs):
             logger.error("WebRTC signaling unavailable. Install with 'pip install ipfs_kit_py[webrtc]'")
@@ -136,7 +136,7 @@ class IPFSSimpleAPI:
 
         self.kit = ipfs_kit(resources=resources, metadata=metadata)
 
-        
+
         # Initialize metrics tracking
         self.enable_metrics = kwargs.get('enable_metrics', True)
         if self.enable_metrics:
@@ -169,7 +169,7 @@ class IPFSSimpleAPI:
         self.extensions = {}
 
         logger.info(f"IPFSSimpleAPI initialized with role: {self.config.get('role', 'leecher')}")
-        
+
 
     def ai_register_model(self, model_cid, metadata, *, allow_simulation=True, **kwargs):
         '''Register a model.'''
@@ -181,7 +181,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-    
+
     def ai_test_inference(self, model_cid, test_data_cid, *, batch_size=32, max_samples=None, metrics=None, output_format="json", compute_metrics=True, save_predictions=True, device=None, precision="float32", timeout=300, allow_simulation=True, **kwargs):
         '''Run inference on a test dataset.'''
         result = {
@@ -192,7 +192,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_update_deployment(self, deployment_id, *, model_cid=None, config=None, allow_simulation=True, **kwargs):
         '''Update a model deployment.'''
         result = {
@@ -202,7 +202,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_list_models(self, *, framework=None, model_type=None, limit=100, offset=0, order_by="created_at", order_dir="desc", allow_simulation=True, **kwargs):
         '''List available models.'''
         result = {
@@ -213,7 +213,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_create_embeddings(self, docs_cid, *, embedding_model="default", recursive=True, filter_pattern=None, chunk_size=1000, chunk_overlap=0, max_docs=None, save_index=True, allow_simulation=True, **kwargs):
         '''Create vector embeddings.'''
         result = {
@@ -223,7 +223,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_create_vector_index(self, embedding_cid, *, index_type="hnsw", params=None, save_index=True, allow_simulation=True, **kwargs):
         '''Create a vector index.'''
         result = {
@@ -233,7 +233,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_hybrid_search(self, query, *, vector_index_cid, keyword_index_cid=None, vector_weight=0.7, keyword_weight=0.3, top_k=10, rerank=False, allow_simulation=True, **kwargs):
         '''Perform hybrid search.'''
         result = {
@@ -244,7 +244,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_langchain_query(self, *, vectorstore_cid, query, top_k=5, allow_simulation=True, **kwargs):
         '''Query a Langchain vectorstore.'''
         result = {
@@ -255,7 +255,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_llama_index_query(self, *, index_cid, query, response_mode="default", allow_simulation=True, **kwargs):
         '''Query a LlamaIndex.'''
         result = {
@@ -265,7 +265,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_create_knowledge_graph(self, source_data_cid, *, graph_name="knowledge_graph", entity_types=None, relationship_types=None, max_entities=None, include_text_context=True, extract_metadata=True, save_intermediate_results=False, allow_simulation=True, **kwargs):
         '''Create a knowledge graph.'''
         result = {
@@ -275,7 +275,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_query_knowledge_graph(self, *, graph_cid, query, query_type="cypher", parameters=None, allow_simulation=True, **kwargs):
         '''Query a knowledge graph.'''
         result = {
@@ -286,7 +286,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_calculate_graph_metrics(self, *, graph_cid, metrics=None, entity_types=None, relationship_types=None, allow_simulation=True, **kwargs):
         '''Calculate graph metrics.'''
         result = {
@@ -296,7 +296,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_expand_knowledge_graph(self, *, graph_cid, seed_entity=None, data_source="external", expansion_type=None, max_entities=10, max_depth=2, allow_simulation=True, **kwargs):
         '''Expand a knowledge graph.'''
         result = {
@@ -306,7 +306,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_distributed_training_cancel_job(self, job_id, *, force=False, allow_simulation=True, **kwargs):
         '''Cancel a distributed training job.'''
         result = {
@@ -316,7 +316,7 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def ai_get_endpoint_status(self, endpoint_id, *, allow_simulation=True, **kwargs):
         '''Get status of a model endpoint.'''
         result = {
@@ -327,28 +327,28 @@ class IPFSSimpleAPI:
             "simulation_note": "AI/ML integration not available, using simulated response"
         }
         return result
-        
+
     def cat(self, cid):
         """Retrieve the content identified by the given CID.
-        
+
         Args:
             cid: Content identifier to retrieve
-            
+
         Returns:
             bytes: Content data
         """
         result = self('cat', cid)
-        
+
         # Handle both raw data and result objects
         if isinstance(result, dict) and 'data' in result:
             return result['data']
         return result
-    def track_streaming_operation(self, stream_type, direction, size_bytes, duration_seconds, path=None, 
+    def track_streaming_operation(self, stream_type, direction, size_bytes, duration_seconds, path=None,
                                chunk_count=None, chunk_size=None, correlation_id=None):
         '''Track streaming operation metrics if metrics are enabled.'''
         if not self.enable_metrics or not hasattr(self, 'metrics') or not self.metrics:
             return None
-            
+
         return self.metrics.track_streaming_operation(
             stream_type=stream_type,
             direction=direction,
@@ -360,14 +360,14 @@ class IPFSSimpleAPI:
             correlation_id=correlation_id
         )
 
-        
+
     def save_config(self, config_path: str) -> Dict[str, Any]:
         """
         Save current configuration to a file.
-        
+
         Args:
             config_path: Path where the configuration will be saved
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -375,7 +375,7 @@ class IPFSSimpleAPI:
         """
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(os.path.abspath(config_path)), exist_ok=True)
-        
+
         try:
             # Determine the format based on file extension
             if config_path.endswith((".yaml", ".yml")):
@@ -384,7 +384,7 @@ class IPFSSimpleAPI:
             else:
                 with open(config_path, "w") as f:
                     json.dump(self.config, f, indent=2)
-                    
+
             logger.info(f"Configuration saved to {config_path}")
             return {
                 "success": True,
@@ -397,19 +397,19 @@ class IPFSSimpleAPI:
                 "path": config_path,
                 "error": str(e)
             }
-    
+
     def generate_sdk(self, language: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """
         Generate SDK for a specific language.
-        
+
         This method generates client libraries for different programming languages
         based on the current API configuration.
-        
+
         Args:
             language: Target programming language (python, javascript, rust, go/golang, typescript)
             output_dir: Directory where the SDK will be generated
             **kwargs: Additional language-specific options
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -419,7 +419,7 @@ class IPFSSimpleAPI:
         """
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
-        
+
         # Initialize result
         result = {
             "success": False,
@@ -427,7 +427,7 @@ class IPFSSimpleAPI:
             "output_directory": output_dir,
             "files_generated": []
         }
-        
+
         try:
             if language.lower() == "python":
                 # Generate Python SDK
@@ -435,38 +435,38 @@ class IPFSSimpleAPI:
                 with open(client_file, "w") as f:
                     f.write(self._generate_python_client())
                 result["files_generated"].append(client_file)
-                
+
                 setup_file = os.path.join(output_dir, "setup.py")
                 with open(setup_file, "w") as f:
                     f.write(self._generate_python_setup())
                 result["files_generated"].append(setup_file)
-                
+
                 readme_file = os.path.join(output_dir, "README.md")
                 with open(readme_file, "w") as f:
                     f.write(self._generate_readme("python"))
                 result["files_generated"].append(readme_file)
-                
+
                 result["success"] = True
-                
+
             elif language.lower() == "javascript":
                 # Generate JavaScript SDK
                 client_file = os.path.join(output_dir, "ipfs-client.js")
                 with open(client_file, "w") as f:
                     f.write(self._generate_javascript_client())
                 result["files_generated"].append(client_file)
-                
+
                 package_file = os.path.join(output_dir, "package.json")
                 with open(package_file, "w") as f:
                     f.write(self._generate_javascript_package())
                 result["files_generated"].append(package_file)
-                
+
                 readme_file = os.path.join(output_dir, "README.md")
                 with open(readme_file, "w") as f:
                     f.write(self._generate_readme("javascript"))
                 result["files_generated"].append(readme_file)
-                
+
                 result["success"] = True
-                
+
             elif language.lower() == "rust":
                 # Generate Rust SDK
                 client_file = os.path.join(output_dir, "src", "lib.rs")
@@ -474,72 +474,72 @@ class IPFSSimpleAPI:
                 with open(client_file, "w") as f:
                     f.write(self._generate_rust_client())
                 result["files_generated"].append(client_file)
-                
+
                 cargo_file = os.path.join(output_dir, "Cargo.toml")
                 with open(cargo_file, "w") as f:
                     f.write(self._generate_rust_cargo())
                 result["files_generated"].append(cargo_file)
-                
+
                 readme_file = os.path.join(output_dir, "README.md")
                 with open(readme_file, "w") as f:
                     f.write(self._generate_readme("rust"))
                 result["files_generated"].append(readme_file)
-                
+
                 result["success"] = True
-                
+
             elif language.lower() == "go" or language.lower() == "golang":
                 # Generate Go SDK
                 client_file = os.path.join(output_dir, "ipfs_client.go")
                 with open(client_file, "w") as f:
                     f.write(self._generate_go_client())
                 result["files_generated"].append(client_file)
-                
+
                 go_mod_file = os.path.join(output_dir, "go.mod")
                 with open(go_mod_file, "w") as f:
                     f.write(self._generate_go_mod())
                 result["files_generated"].append(go_mod_file)
-                
+
                 readme_file = os.path.join(output_dir, "README.md")
                 with open(readme_file, "w") as f:
                     f.write(self._generate_readme("go"))
                 result["files_generated"].append(readme_file)
-                
+
                 result["success"] = True
-                
+
             elif language.lower() == "typescript":
                 # Generate TypeScript SDK
                 client_file = os.path.join(output_dir, "ipfs-client.ts")
                 with open(client_file, "w") as f:
                     f.write(self._generate_typescript_client())
                 result["files_generated"].append(client_file)
-                
+
                 package_file = os.path.join(output_dir, "package.json")
                 with open(package_file, "w") as f:
                     f.write(self._generate_typescript_package())
                 result["files_generated"].append(package_file)
-                
+
                 tsconfig_file = os.path.join(output_dir, "tsconfig.json")
                 with open(tsconfig_file, "w") as f:
                     f.write(self._generate_typescript_config())
                 result["files_generated"].append(tsconfig_file)
-                
+
                 readme_file = os.path.join(output_dir, "README.md")
                 with open(readme_file, "w") as f:
                     f.write(self._generate_readme("typescript"))
                 result["files_generated"].append(readme_file)
-                
+
                 result["success"] = True
-                
+
             else:
                 result["error"] = f"Unsupported language: {language}"
                 logger.error(f"Unsupported SDK language: {language}")
-                
+
         except Exception as e:
             result["error"] = str(e)
             logger.error(f"Failed to generate {language} SDK: {e}")
-            
+
         return result
-        
+
     def _generate_python_client(self) -> str:
         """Generate Python client code."""
         return """import requests
@@ -554,18 +554,18 @@ class IPFSClient:
         self.session = requests.Session()
         if api_key:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
-    
+
     def add(self, content, **kwargs):
         # Implementation for adding content
         pass
-        
+
     def get(self, cid, **kwargs):
         # Implementation for getting content
         pass
-        
+
     # Other methods
 """
-        
+
     def _generate_python_setup(self) -> str:
         """Generate Python setup.py file."""
         return """from setuptools import setup, find_packages
@@ -584,7 +584,7 @@ setup(
     url="https://github.com/example/ipfs-client-py",
 )
 """
-        
+
     def _generate_javascript_client(self) -> str:
         """Generate JavaScript client code."""
         return """class IPFSClient {
@@ -592,21 +592,21 @@ setup(
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
     }
-    
+
     async add(content, options = {}) {
         // Implementation for adding content
     }
-    
+
     async get(cid, options = {}) {
         // Implementation for getting content
     }
-    
+
     // Other methods
 }
 
 module.exports = IPFSClient;
 """
-        
+
     def _generate_javascript_package(self) -> str:
         """Generate JavaScript package.json file."""
         return """{
@@ -629,7 +629,7 @@ module.exports = IPFSClient;
   }
 }
 """
-        
+
     def _generate_rust_client(self) -> str:
         """Generate Rust client code."""
         return """use reqwest::Client;
@@ -652,11 +652,11 @@ impl IPFSClient {
             client,
         }
     }
-    
+
     // Method implementations
 }
 """
-        
+
     def _generate_rust_cargo(self) -> str:
         """Generate Rust Cargo.toml file."""
         return """[package]
@@ -673,7 +673,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 """
-        
+
     def _generate_go_client(self) -> str:
         """Generate Go client code."""
         return """package ipfsclient
@@ -799,19 +799,19 @@ export class IPFSClient {
    */
   async add(content: string | Buffer | Blob, options?: AddOptions): Promise<AddResponse> {
     const formData = new FormData();
-    
+
     if (typeof content === 'string') {
       formData.append('file', new Blob([content]));
     } else {
       formData.append('file', content);
     }
-    
+
     if (options) {
       Object.entries(options).forEach(([key, value]) => {
         formData.append(key, String(value));
       });
     }
-    
+
     const response = await this.client.post('/api/v0/add', formData);
     return response.data;
   }
@@ -900,7 +900,7 @@ export class IPFSClient {
   "exclude": ["node_modules", "dist"]
 }
 """
-        
+
     def _generate_readme(self, language: str) -> str:
         """Generate README.md file."""
         return f"""# IPFS Client for {language.capitalize()}
@@ -1066,8 +1066,8 @@ MIT
                 logger.error(f"Unexpected error loading plugin {plugin_name} from {plugin_path}: {e}")
 
     def register_extension(
-        self, 
-        name: str, 
+        self,
+        name: str,
         func: Callable,
         *,
         overwrite: bool = True
@@ -1096,24 +1096,24 @@ MIT
             "exists": name in self.extensions,
             "overwritten": False
         }
-        
+
         if name in self.extensions and not overwrite:
             raise IPFSValidationError(f"Extension {name} already exists and overwrite=False")
-            
+
         if name in self.extensions:
             result["overwritten"] = True
-            
+
         self.extensions[name] = func
         logger.info(f"Extension {name} registered")
-        
+
         result["success"] = True
         return result
 
     def get_filesystem(
-        self, 
+        self,
         *,
         gateway_urls: Optional[List[str]] = None,
-        use_gateway_fallback: Optional[bool] = None, 
+        use_gateway_fallback: Optional[bool] = None,
         gateway_only: Optional[bool] = None,
         cache_config: Optional[Dict[str, Any]] = None,
         enable_metrics: Optional[bool] = None,
@@ -1145,11 +1145,11 @@ MIT
                 "FSSpec is not available. Please install fsspec to use the filesystem interface."
             )
             return None
-            
+
         # Return cached filesystem instance if available
         if hasattr(self, "_filesystem") and self._filesystem is not None:
             return self._filesystem
-        
+
         # Try to import IPFSFileSystem
         try:
             # Import IPFSFileSystem inside the method to handle import errors gracefully
@@ -1162,7 +1162,7 @@ MIT
 
         # Prepare configuration
         fs_kwargs = {}
-        
+
         # Add gateway configuration if provided
         if gateway_urls is not None:
             fs_kwargs["gateway_urls"] = gateway_urls
@@ -1170,7 +1170,7 @@ MIT
             fs_kwargs["gateway_urls"] = kwargs["gateway_urls"]
         elif "gateway_urls" in self.config:
             fs_kwargs["gateway_urls"] = self.config["gateway_urls"]
-            
+
         # Add gateway fallback configuration if provided
         if use_gateway_fallback is not None:
             fs_kwargs["use_gateway_fallback"] = use_gateway_fallback
@@ -1178,7 +1178,7 @@ MIT
             fs_kwargs["use_gateway_fallback"] = kwargs["use_gateway_fallback"]
         elif "use_gateway_fallback" in self.config:
             fs_kwargs["use_gateway_fallback"] = self.config["use_gateway_fallback"]
-            
+
         # Add gateway-only mode configuration if provided
         if gateway_only is not None:
             fs_kwargs["gateway_only"] = gateway_only
@@ -1238,24 +1238,24 @@ MIT
             return self._filesystem
         except IPFSConfigurationError as e: # Catch specific config errors first
             logger.error(f"Configuration error initializing IPFSFileSystem: {e}")
-            return None 
+            return None
         except Exception as e: # Catch other potential errors during initialization
             logger.error(f"Failed to initialize IPFSFileSystem: {e}")
             return None
 
     def add(
-        self, 
+        self,
         content: Union[bytes, str, Path, 'BinaryIO'],
         *,
         pin: bool = True,
-        wrap_with_directory: bool = False, 
+        wrap_with_directory: bool = False,
         chunker: str = "size-262144",
         hash: str = "sha2-256",
         **kwargs
     ) -> Dict[str, Any]:
         """
         Add content to IPFS.
-        
+
         This method adds content to IPFS and returns the content identifier (CID)
         along with additional metadata about the operation.
 
@@ -1281,7 +1281,7 @@ MIT
                 - "name": Original filename if a file was added
                 - "hash": The full multihash of the content
                 - "timestamp": When the content was added
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -1346,15 +1346,15 @@ MIT
         return result
 
     def get(
-        self, 
-        cid: str, 
-        *, 
+        self,
+        cid: str,
+        *,
         timeout: Optional[int] = None,
         **kwargs
     ) -> bytes:
         """
         Get content from IPFS by CID.
-        
+
         This method retrieves content from IPFS using its content identifier (CID).
         It attempts to fetch the content from the local node first, and if not available,
         it will fetch from the IPFS network.
@@ -1364,7 +1364,7 @@ MIT
             timeout: Maximum time in seconds to wait for content retrieval
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             bytes: The raw content data
 
@@ -1380,11 +1380,11 @@ MIT
             "timeout": timeout if timeout is not None else self.config.get("timeouts", {}).get("api", 30),
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         try:
             # Assume ipfs_cat returns bytes directly or raises an error
             content = self.kit.ipfs_cat(cid=cid, **kwargs_with_defaults)
-            
+
             if not isinstance(content, bytes):
                  # Log a warning if the return type is unexpected, but try to convert
                  logger.warning(f"ipfs_cat returned unexpected type {type(content)} for CID {cid}. Attempting conversion.")
@@ -1403,21 +1403,21 @@ MIT
                      logger.error(f"Failed to convert result of type {type(content)} to bytes: {conversion_error}")
                      # Raise a specific error indicating unexpected content type
                      raise IPFSError(f"Received unexpected content type {type(content)} and failed to convert to bytes.") from conversion_error
-            
+
             # Return the bytes content
             return content
-            
+
         except IPFSError as e: # Catch specific IPFS errors from the kit
             logger.error(f"IPFS error getting CID {cid}: {e}")
             raise # Re-raise IPFS errors
         except Exception as e: # Catch unexpected errors during retrieval
             logger.error(f"Unexpected error getting CID {cid}: {e}")
             raise IPFSError(f"An unexpected error occurred while retrieving CID {cid}") from e
-            
+
     def stream_media(
-        self, 
-        path: str, 
-        *, 
+        self,
+        path: str,
+        *,
         chunk_size: int = 1024 * 1024,  # 1MB chunks by default
         mime_type: Optional[str] = None,
         start_byte: Optional[int] = None,
@@ -1428,7 +1428,7 @@ MIT
     ) -> Iterator[bytes]:
         """
         Stream media content from IPFS path with chunked access.
-        
+
         This method provides efficient streaming access to media content,
         allowing progressive loading of audio and video files without
         requiring the entire file to be downloaded first.
@@ -1452,10 +1452,10 @@ MIT
             timeout: Maximum time in seconds to wait for the streaming operation
                 If None, the default timeout from config will be used
             **kwargs: Additional parameters passed to the underlying filesystem
-                
+
         Returns:
             Iterator[bytes]: An iterator yielding chunks of the media content
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -1465,7 +1465,7 @@ MIT
         # Handle CID or path format
         if not isinstance(path, str):
             raise IPFSValidationError("Path must be a string")
-            
+
         # Normalize path/CID format
         if not path.startswith(("ipfs://", "ipns://", "/ipfs/", "/ipns/")):
             # Assume it's a raw CID
@@ -1474,22 +1474,22 @@ MIT
             # Convert IPFS path to URL format
             protocol = "ipfs://" if path.startswith("/ipfs/") else "ipns://"
             path = protocol + path[6:]  # Remove /ipfs/ or /ipns/
-            
+
         # Get the filesystem interface
         fs = self.get_filesystem()
         if fs is None:
             raise IPFSError("Failed to initialize filesystem interface")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "cache": cache,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-        
+
         # Detect MIME type if not provided
         if mime_type is None:
             if isinstance(path, str):
@@ -1497,12 +1497,12 @@ MIT
             if mime_type is None:
                 # Default to octet-stream if detection fails
                 mime_type = "application/octet-stream"
-                
+
         try:
             # Check if the content exists and get its size for range handling
             file_info = fs.info(path)
             content_size = file_info.get("size", 0)
-            
+
             # Initialize tiered cache prefetching if available
             if hasattr(fs, "cache") and hasattr(fs.cache, "prefetch_content_stream"):
                 # Set up streaming prefetch in background
@@ -1511,19 +1511,19 @@ MIT
                     content_size,
                     chunk_size
                 )
-                
+
             # Open file for streaming
             with fs.open(path, "rb", **kwargs_with_defaults) as f:
                 # Handle range requests if specified
                 if start_byte is not None:
                     f.seek(start_byte)
-                    
+
                 # Set end position for range requests
                 if end_byte is not None:
                     total_bytes = end_byte - (start_byte or 0) + 1
                 else:
                     total_bytes = None
-                    
+
                 # Stream content in chunks
                 bytes_read = 0
                 while True:
@@ -1533,26 +1533,26 @@ MIT
                         current_chunk_size = min(chunk_size, total_bytes - bytes_read)
                         if current_chunk_size <= 0:
                             break
-                            
+
                     # Read chunk
                     chunk = f.read(current_chunk_size)
                     if not chunk:
                         break
-                        
+
                     # Update bytes read counter
                     bytes_read += len(chunk)
-                    
+
                     # Yield chunk for streaming
                     yield chunk
-                    
+
         except Exception as e:
             logger.error(f"Error streaming content from {path}: {e}")
             raise IPFSError(f"Failed to stream content: {str(e)}") from e
-            
+
     async def stream_media_async(
-        self, 
-        path: str, 
-        *, 
+        self,
+        path: str,
+        *,
         chunk_size: int = 1024 * 1024,  # 1MB chunks by default
         mime_type: Optional[str] = None,
         start_byte: Optional[int] = None,
@@ -1563,7 +1563,7 @@ MIT
     ) -> AsyncIterator[bytes]:
         """
         Asynchronously stream media content from IPFS path with chunked access.
-        
+
         This is the async version of stream_media that yields chunks asynchronously,
         allowing non-blocking usage in async contexts like web servers.
 
@@ -1578,10 +1578,10 @@ MIT
             cache: Whether to cache the content for faster repeated access
             timeout: Maximum time in seconds to wait for the streaming operation
             **kwargs: Additional parameters passed to the underlying filesystem
-                
+
         Returns:
             AsyncIterator[bytes]: An async iterator yielding chunks of the media content
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
         """
@@ -1596,13 +1596,13 @@ MIT
             timeout=timeout,
             **kwargs
         )
-        
+
         # Convert to async iterator
         for chunk in sync_iterator:
             # Allow other async tasks to run between chunks
             await anyio.sleep(0)
             yield chunk
-            
+
     @beta_api
     def stream_to_ipfs(
         self,
@@ -1618,7 +1618,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Stream content to IPFS from an iterator, without loading entire content into memory.
-        
+
         This method enables efficient uploading of large files to IPFS, such as videos
         or datasets, by processing the content in chunks.
 
@@ -1639,7 +1639,7 @@ MIT
             metadata: Optional metadata to associate with the content
                 Will be stored alongside the content in IPFS
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: A result dictionary containing:
                 - "success": Whether the operation succeeded
@@ -1648,7 +1648,7 @@ MIT
                 - "operation": The name of the operation ("stream_to_ipfs")
                 - "timestamp": When the operation completed
                 - Other implementation-specific fields
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -1661,53 +1661,53 @@ MIT
             "operation": "stream_to_ipfs",
             "timestamp": time.time()
         }
-        
+
         # Validate input
         if not content_iterator:
             raise IPFSValidationError("Content iterator cannot be None")
-            
+
         # Initialize temporary file to collect streamed data
         try:
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                 temp_path = temp_file.name
-                
+
                 # Track metrics
                 bytes_uploaded = 0
                 chunk_count = 0
-                
+
                 # Process content iterator
                 for chunk in content_iterator:
                     if not chunk:
                         continue
-                        
+
                     # Write chunk to temp file
                     temp_file.write(chunk)
-                    
+
                     # Update metrics
                     bytes_uploaded += len(chunk)
                     chunk_count += 1
-                    
+
                     # Report progress if callback provided
                     if progress_callback:
                         progress_callback(bytes_uploaded, None)  # Total size unknown
-                        
+
             # Now add the complete file to IPFS
             add_kwargs = {
                 "timeout": timeout,
                 **kwargs
             }
-            
+
             # Add metadata if provided
             if metadata:
                 add_kwargs["metadata"] = metadata
-                
+
             # Add filename if provided
             if filename:
                 add_kwargs["filename"] = filename
-                
+
             # Add to IPFS
             add_result = self.add(temp_path, **add_kwargs)
-            
+
             # Copy relevant fields to result
             result.update({
                 "success": add_result.get("success", False),
@@ -1715,29 +1715,29 @@ MIT
                 "size": bytes_uploaded,
                 "chunks": chunk_count
             })
-            
+
             # Clean up
             try:
                 os.unlink(temp_path)
             except Exception as e:
                 logger.warning(f"Failed to remove temporary file {temp_path}: {e}")
-                
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error streaming to IPFS: {e}")
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Clean up if temp file was created
             if "temp_path" in locals():
                 try:
                     os.unlink(temp_path)
                 except Exception:
                     pass
-                    
+
             raise IPFSError(f"Failed to stream content to IPFS: {str(e)}") from e
-            
+
     async def stream_to_ipfs_async(
         self,
         content_iterator: AsyncIterator[bytes],
@@ -1752,7 +1752,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Asynchronously stream content to IPFS from an async iterator.
-        
+
         This is the async version of stream_to_ipfs that accepts an async iterator,
         allowing non-blocking uploads in async contexts like web servers.
 
@@ -1765,10 +1765,10 @@ MIT
             timeout: Maximum time in seconds to wait for each chunk upload
             metadata: Optional metadata to associate with the content
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: A result dictionary containing operation information
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
         """
@@ -1778,53 +1778,53 @@ MIT
             "operation": "stream_to_ipfs_async",
             "timestamp": time.time()
         }
-        
+
         # Validate input
         if not content_iterator:
             raise IPFSValidationError("Content iterator cannot be None")
-            
+
         # Initialize temporary file to collect streamed data
         try:
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                 temp_path = temp_file.name
-                
+
                 # Track metrics
                 bytes_uploaded = 0
                 chunk_count = 0
-                
+
                 # Process content iterator asynchronously
                 async for chunk in content_iterator:
                     if not chunk:
                         continue
-                        
+
                     # Write chunk to temp file
                     temp_file.write(chunk)
-                    
+
                     # Update metrics
                     bytes_uploaded += len(chunk)
                     chunk_count += 1
-                    
+
                     # Report progress if callback provided
                     if progress_callback:
                         progress_callback(bytes_uploaded, None)  # Total size unknown
-                        
+
             # Now add the complete file to IPFS
             add_kwargs = {
                 "timeout": timeout,
                 **kwargs
             }
-            
+
             # Add metadata if provided
             if metadata:
                 add_kwargs["metadata"] = metadata
-                
+
             # Add filename if provided
             if filename:
                 add_kwargs["filename"] = filename
-                
+
             # Add to IPFS
             add_result = self.add(temp_path, **add_kwargs)
-            
+
             # Copy relevant fields to result
             result.update({
                 "success": add_result.get("success", False),
@@ -1832,29 +1832,29 @@ MIT
                 "size": bytes_uploaded,
                 "chunks": chunk_count
             })
-            
+
             # Clean up
             try:
                 os.unlink(temp_path)
             except Exception as e:
                 logger.warning(f"Failed to remove temporary file {temp_path}: {e}")
-                
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error streaming to IPFS: {e}")
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Clean up if temp file was created
             if "temp_path" in locals():
                 try:
                     os.unlink(temp_path)
                 except Exception:
                     pass
-                    
+
             raise IPFSError(f"Failed to stream content to IPFS: {str(e)}") from e
-            
+
     async def handle_websocket_media_stream(
         self,
         websocket,
@@ -1868,7 +1868,7 @@ MIT
     ) -> None:
         """
         Stream media content through a WebSocket connection.
-        
+
         This method enables real-time bidirectional streaming of content through
         WebSockets, providing a more interactive experience than HTTP streaming.
         It first sends content metadata as JSON, then streams the actual content.
@@ -1881,10 +1881,10 @@ MIT
             cache: Whether to cache content for faster repeated access
             timeout: Maximum time in seconds to wait for the operation
             **kwargs: Additional parameters for the streaming operation
-                
+
         Returns:
             None
-                
+
         Note:
             This method handles its own exceptions and sends error messages
             through the WebSocket connection rather than raising exceptions.
@@ -1894,7 +1894,7 @@ MIT
             fs = self.get_filesystem()
             content_length = None
             content_metadata = {}
-            
+
             if fs is not None:
                 try:
                     file_info = fs.info(path)
@@ -1903,7 +1903,7 @@ MIT
                 except Exception as e:
                     # Just log the error, don't fail the entire operation
                     logger.warning(f"Could not get file info for WebSocket streaming: {e}")
-            
+
             # Detect mime type if not provided
             if mime_type is None:
                 if isinstance(path, str):
@@ -1911,7 +1911,7 @@ MIT
                 if mime_type is None:
                     # Default to octet-stream if detection fails
                     mime_type = "application/octet-stream"
-            
+
             # Send metadata first as JSON
             metadata_message = {
                 "type": "metadata",
@@ -1921,10 +1921,10 @@ MIT
                 "timestamp": time.time(),
                 "metadata": content_metadata
             }
-            
+
             # Send metadata
             await websocket.send_json(metadata_message)
-            
+
             # Stream the content
             try:
                 async for chunk in self.stream_media_async(
@@ -1937,14 +1937,14 @@ MIT
                 ):
                     # Send each chunk as binary message
                     await websocket.send_bytes(chunk)
-                    
+
                 # Send completion message
                 await websocket.send_json({
                     "type": "complete",
                     "timestamp": time.time(),
                     "bytes_sent": content_length or 0
                 })
-                
+
             except Exception as e:
                 # Send error through WebSocket
                 await websocket.send_json({
@@ -1954,12 +1954,12 @@ MIT
                     "timestamp": time.time()
                 })
                 logger.error(f"Error during WebSocket content streaming: {e}")
-                
+
         except Exception as e:
             # This catches errors in the WebSocket connection itself
             logger.error(f"WebSocket media streaming error: {e}")
             # We can't send error message if the WebSocket itself failed
-            
+
     async def handle_websocket_upload_stream(
         self,
         websocket,
@@ -1970,7 +1970,7 @@ MIT
     ) -> None:
         """
         Receive content upload through a WebSocket connection and add to IPFS.
-        
+
         This method enables real-time bidirectional uploading of content through
         WebSockets. It expects a metadata message first with file details,
         followed by binary content chunks.
@@ -1980,14 +1980,14 @@ MIT
             chunk_size: Size of internal processing chunks in bytes
             timeout: Maximum time in seconds to wait for each chunk upload
             **kwargs: Additional parameters for the IPFS add operation
-                
+
         Returns:
             None
-                
+
         Note:
             This method handles its own exceptions and sends error messages
             through the WebSocket connection rather than raising exceptions.
-            
+
         Protocol:
             1. Client sends metadata as JSON: {"type": "metadata", "filename": "...", ...}
             2. Client sends content chunks as binary messages
@@ -1998,12 +1998,12 @@ MIT
             # Accept the connection if it has an accept method (some test mocks might not)
             if hasattr(websocket, 'accept'):
                 await websocket.accept()
-                
+
             # Special handling for testing mode
             if hasattr(self, '_testing_mode') and self._testing_mode:
                 # Get test CID from kwargs
                 test_cid = kwargs.get('test_cid', 'QmTestCID123456789')
-                
+
                 # In testing mode, we'll simulate success without actual upload
                 await websocket.send_json({
                     "type": "success",
@@ -2014,11 +2014,11 @@ MIT
                     "content_type": "text/plain"
                 })
                 return
-                
+
             # Regular implementation (non-testing mode)
             # Wait for metadata message
             metadata = await websocket.receive_json()
-            
+
             if metadata.get("type") != "metadata":
                 await websocket.send_json({
                     "type": "error",
@@ -2026,19 +2026,19 @@ MIT
                     "timestamp": time.time()
                 })
                 return
-                
+
             # Extract metadata
             filename = metadata.get("filename")
             mime_type = metadata.get("content_type")
             file_metadata = metadata.get("metadata", {})
-            
+
             # Create async generator from WebSocket messages
             async def websocket_content_iterator():
                 while True:
                     try:
                         # Wait for message (binary or text)
                         message = await websocket.receive()
-                        
+
                         # Check message type
                         if "bytes" in message:
                             # Binary content chunk
@@ -2058,7 +2058,7 @@ MIT
                     except Exception as e:
                         logger.error(f"Error receiving WebSocket message: {e}")
                         break
-            
+
             # Stream to IPFS
             try:
                 result = await self.stream_to_ipfs_async(
@@ -2070,7 +2070,7 @@ MIT
                     metadata=file_metadata,
                     **kwargs
                 )
-                
+
                 # Send success result
                 await websocket.send_json({
                     "type": "result",
@@ -2079,7 +2079,7 @@ MIT
                     "size": result.get("size"),
                     "timestamp": time.time()
                 })
-                
+
             except Exception as e:
                 # Send error through WebSocket
                 await websocket.send_json({
@@ -2089,12 +2089,12 @@ MIT
                     "timestamp": time.time()
                 })
                 logger.error(f"Error during WebSocket content upload: {e}")
-                
+
         except Exception as e:
             # This catches errors in the WebSocket connection itself
             logger.error(f"WebSocket upload streaming error: {e}")
             # We can't send error message if the WebSocket itself failed
-            
+
     async def handle_websocket_bidirectional_stream(
         self,
         websocket,
@@ -2105,7 +2105,7 @@ MIT
     ) -> None:
         """
         Handle bidirectional content streaming through a WebSocket connection.
-        
+
         This method enables both uploading to and downloading from IPFS in a single
         WebSocket connection, allowing for interactive content exchange and processing.
 
@@ -2114,49 +2114,49 @@ MIT
             chunk_size: Size of internal processing chunks in bytes
             timeout: Maximum time in seconds to wait for operations
             **kwargs: Additional parameters for the streaming operations
-                
+
         Returns:
             None
-                
+
         Note:
             This method handles its own exceptions and sends error messages
             through the WebSocket connection rather than raising exceptions.
-            
+
         Protocol:
             The client sends command messages to request operations:
             - {"command": "get", "path": "ipfs://..."}
             - {"command": "add", "filename": "...", "content_type": "..."}
             - {"command": "pin", "cid": "..."}
-            
+
             For uploads, the client then sends binary data chunks followed by:
             - {"command": "complete"}
-            
+
             The server responds with appropriate messages for each command.
         """
         try:
             # Accept the connection if it has an accept method (some test mocks might not)
             if hasattr(websocket, 'accept'):
                 await websocket.accept()
-                
+
             # Special handling for testing mode
             if hasattr(self, '_testing_mode') and self._testing_mode:
                 # Get test CID from kwargs
                 test_cid = kwargs.get('test_cid', 'QmTestCID123456789')
-                
+
                 # Send a ready status
                 await websocket.send_json({
                     "type": "status",
                     "status": "ready",
                     "timestamp": time.time()
                 })
-                
+
                 # Process a few test commands to validate behavior
                 try:
                     # Process commands until exit or timeout
                     while True:
                         command_msg = await websocket.receive_json()
                         command = command_msg.get("command", "").lower()
-                        
+
                         if command == "exit":
                             # Exit command received
                             await websocket.send_json({
@@ -2165,7 +2165,7 @@ MIT
                                 "timestamp": time.time()
                             })
                             break
-                            
+
                         elif command == "get":
                             # Simulate a successful get operation
                             await websocket.send_json({
@@ -2176,13 +2176,13 @@ MIT
                             })
                             # Send some dummy content
                             await websocket.send_bytes(b"Test content for websocket streaming")
-                            
+
                         elif command == "add":
                             # Handle content chunk messages
                             if command == "content_chunk":
                                 # Just receive the chunk in testing mode
                                 chunk = await websocket.receive_bytes()
-                            
+
                             # Simulate successful upload
                             await websocket.send_json({
                                 "type": "success",
@@ -2191,7 +2191,7 @@ MIT
                                 "size": 1024,
                                 "timestamp": time.time()
                             })
-                            
+
                         elif command == "pin":
                             # Simulate successful pin operation
                             await websocket.send_json({
@@ -2200,7 +2200,7 @@ MIT
                                 "cid": command_msg.get("cid", test_cid),
                                 "timestamp": time.time()
                             })
-                        
+
                         elif command == "complete":
                             # Acknowledge completion
                             await websocket.send_json({
@@ -2215,19 +2215,19 @@ MIT
                         "error": f"Error in testing mode: {str(e)}",
                         "timestamp": time.time()
                     })
-                
+
                 # Return early from testing mode
                 return
-                
+
             # Regular implementation (non-testing mode)
             # Keep connection open until client disconnects
             while True:
                 # Wait for command message
                 command_msg = await websocket.receive_json()
-                
+
                 # Process command
                 command = command_msg.get("command", "").lower()
-                
+
                 if command == "get":
                     # Stream content from IPFS to client
                     path = command_msg.get("path")
@@ -2238,7 +2238,7 @@ MIT
                             "timestamp": time.time()
                         })
                         continue
-                        
+
                     # Use the media streaming method
                     await self.handle_websocket_media_stream(
                         websocket,
@@ -2249,7 +2249,7 @@ MIT
                         timeout=timeout,
                         **kwargs
                     )
-                    
+
                 elif command == "add":
                     # Prepare for content upload
                     await websocket.send_json({
@@ -2257,7 +2257,7 @@ MIT
                         "message": "Ready to receive content",
                         "timestamp": time.time()
                     })
-                    
+
                     # Create a new metadata message from the command
                     metadata = {
                         "type": "metadata",
@@ -2265,7 +2265,7 @@ MIT
                         "content_type": command_msg.get("content_type"),
                         "metadata": command_msg.get("metadata", {})
                     }
-                    
+
                     # Use the upload handler with the prepared metadata
                     # We're bypassing the initial metadata receive by providing it
                     async def websocket_content_iterator():
@@ -2273,7 +2273,7 @@ MIT
                             try:
                                 # Wait for message (binary or text)
                                 message = await websocket.receive()
-                                
+
                                 # Check message type
                                 if "bytes" in message:
                                     # Binary content chunk
@@ -2293,7 +2293,7 @@ MIT
                             except Exception as e:
                                 logger.error(f"Error receiving WebSocket message: {e}")
                                 break
-                    
+
                     # Stream to IPFS
                     try:
                         result = await self.stream_to_ipfs_async(
@@ -2305,7 +2305,7 @@ MIT
                             metadata=metadata["metadata"],
                             **kwargs
                         )
-                        
+
                         # Send success result
                         await websocket.send_json({
                             "type": "result",
@@ -2314,7 +2314,7 @@ MIT
                             "size": result.get("size"),
                             "timestamp": time.time()
                         })
-                        
+
                     except Exception as e:
                         # Send error through WebSocket
                         await websocket.send_json({
@@ -2324,7 +2324,7 @@ MIT
                             "timestamp": time.time()
                         })
                         logger.error(f"Error during WebSocket content upload: {e}")
-                    
+
                 elif command == "pin":
                     # Pin content
                     cid = command_msg.get("cid")
@@ -2335,7 +2335,7 @@ MIT
                             "timestamp": time.time()
                         })
                         continue
-                        
+
                     try:
                         pin_result = self.pin(cid)
                         await websocket.send_json({
@@ -2350,7 +2350,7 @@ MIT
                             "error": f"Error pinning content: {str(e)}",
                             "timestamp": time.time()
                         })
-                        
+
                 elif command == "close":
                     # Client requested to close the connection
                     await websocket.send_json({
@@ -2359,7 +2359,7 @@ MIT
                         "timestamp": time.time()
                     })
                     break
-                    
+
                 else:
                     # Unknown command
                     await websocket.send_json({
@@ -2367,28 +2367,28 @@ MIT
                         "error": f"Unknown command: {command}",
                         "timestamp": time.time()
                     })
-                    
+
         except Exception as e:
             # This catches errors in the WebSocket connection itself
             logger.error(f"WebSocket bidirectional streaming error: {e}")
             # We can't send error message if the WebSocket itself failed
-            
+
     async def handle_webrtc_streaming(self, websocket, **kwargs) -> None:
         """
         Handle WebRTC streaming through a WebSocket signaling connection.
-        
+
         This method provides WebRTC-based streaming for IPFS content, enabling
         real-time media streaming with low latency for applications like video
-        conferencing, live streaming, and interactive media playback. 
-        
+        conferencing, live streaming, and interactive media playback.
+
         The WebSocket connection is used for WebRTC signaling only. The actual
         media data transfers directly via WebRTC data channels once the connection
         is established.
-        
+
         Args:
             websocket: WebSocket connection for signaling
             **kwargs: Additional parameters to pass to the WebRTC handler
-            
+
         Returns:
             None
         """
@@ -2402,7 +2402,7 @@ MIT
         try:
             # Pass the WebSocket to the WebRTC signaling handler
             await handle_webrtc_signaling(websocket, self)
-            
+
         except Exception as e:
             logger.error(f"Error in WebRTC streaming: {e}")
             try:
@@ -2415,16 +2415,16 @@ MIT
                 pass
 
     def pin(
-        self, 
-        cid: str, 
-        *, 
+        self,
+        cid: str,
+        *,
         recursive: bool = True,
         timeout: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Pin content to the local IPFS node.
-        
+
         Pinning prevents content from being garbage-collected and ensures
         it persists in the local IPFS repository even if not recently used.
 
@@ -2436,14 +2436,14 @@ MIT
             timeout: Maximum time in seconds to wait for the pin operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "cid": The content identifier that was pinned
                 - "pins": List of CIDs that were pinned (when recursive=True)
                 - "timestamp": When the content was pinned
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2461,16 +2461,16 @@ MIT
         return self.kit.ipfs_pin_add(cid, **kwargs_with_defaults)
 
     def unpin(
-        self, 
-        cid: str, 
-        *, 
+        self,
+        cid: str,
+        *,
         recursive: bool = True,
         timeout: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Unpin content from the local IPFS node.
-        
+
         Unpinning allows content to be garbage-collected if not otherwise referenced,
         freeing up space in the repository.
 
@@ -2482,13 +2482,13 @@ MIT
             timeout: Maximum time in seconds to wait for the unpin operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "cid": The content identifier that was unpinned
                 - "timestamp": When the content was unpinned
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2507,8 +2507,8 @@ MIT
         return self.kit.ipfs_pin_rm(cid, **kwargs_with_defaults)
 
     def list_pins(
-        self, 
-        *, 
+        self,
+        *,
         type: str = "all",
         quiet: bool = False,
         timeout: Optional[int] = None,
@@ -2516,12 +2516,12 @@ MIT
     ) -> Dict[str, Any]:
         """
         List pinned content in the local IPFS node.
-        
+
         This method retrieves information about content that is currently pinned
         in the IPFS repository.
 
         Args:
-            type: Type of pins to list 
+            type: Type of pins to list
                 Options are:
                 - "direct": Only direct pins
                 - "recursive": Only recursive pins
@@ -2531,14 +2531,14 @@ MIT
             timeout: Maximum time in seconds to wait for the operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "pins": Dictionary mapping CIDs to pin types
                 - "count": Total number of pins found
                 - "timestamp": When the list was generated
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2547,7 +2547,7 @@ MIT
         # Validate pin type
         if type not in ["all", "direct", "indirect", "recursive"]:
             raise IPFSValidationError(f"Invalid pin type: {type}. Must be one of: all, direct, indirect, recursive")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "type": type,
@@ -2559,10 +2559,10 @@ MIT
         return self.kit.ipfs_pin_ls(**kwargs_with_defaults)
 
     def publish(
-        self, 
-        cid: str, 
-        key: str = "self", 
-        *, 
+        self,
+        cid: str,
+        key: str = "self",
+        *,
         lifetime: str = "24h",
         ttl: str = "1h",
         timeout: Optional[int] = None,
@@ -2570,13 +2570,13 @@ MIT
     ) -> Dict[str, Any]:
         """
         Publish content to IPNS (InterPlanetary Name System).
-        
+
         IPNS allows you to create mutable pointers to IPFS content, providing
         a way to maintain the same address while updating the content it points to.
 
         Args:
             cid: Content identifier to publish
-            key: Name of the key to use 
+            key: Name of the key to use
                 - "self": Uses the node's own peer ID (default)
                 - Any other named key previously generated with `ipfs key gen`
             lifetime: Time duration the record will be valid for
@@ -2586,14 +2586,14 @@ MIT
             timeout: Maximum time in seconds to wait for the publish operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "name": The IPNS name (a peer ID hash)
                 - "value": The CID that the name points to
                 - "validity": Time duration for which the record is valid
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2612,16 +2612,16 @@ MIT
         return self.kit.ipfs_name_publish(cid, key=key, **kwargs_with_defaults)
 
     def resolve(
-        self, 
-        name: str, 
-        *, 
+        self,
+        name: str,
+        *,
         recursive: bool = True,
         timeout: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Resolve IPNS name to CID.
-        
+
         This method resolves an IPNS name (PeerID hash or domain with dnslink)
         to its current content identifier (CID).
 
@@ -2636,13 +2636,13 @@ MIT
             timeout: Maximum time in seconds to wait for the resolve operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "path": The resolved path (typically an /ipfs/ path)
                 - "value": The resolved CID or content path
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2660,17 +2660,17 @@ MIT
         return self.kit.ipfs_name_resolve(name, **kwargs_with_defaults)
 
     def connect(
-        self, 
-        peer: str, 
-        *, 
+        self,
+        peer: str,
+        *,
         timeout: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Connect to a peer on the IPFS network.
-        
+
         This method establishes a direct connection to a peer using its multiaddress.
-        
+
         Args:
             peer: Peer multiaddress in the format:
                 - "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
@@ -2678,13 +2678,13 @@ MIT
             timeout: Maximum time in seconds to wait for the connection operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "peer": The peer ID that was connected to
                 - "addresses": List of addresses that were connected to
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to the peer fails
@@ -2700,8 +2700,8 @@ MIT
         return self.kit.ipfs_swarm_connect(peer, **kwargs_with_defaults)
 
     def peers(
-        self, 
-        *, 
+        self,
+        *,
         verbose: bool = False,
         latency: bool = False,
         direction: bool = False,
@@ -2710,7 +2710,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         List peers currently connected to the local IPFS node.
-        
+
         This method retrieves information about peers the local node is connected to,
         including their peer IDs and connection details.
 
@@ -2727,13 +2727,13 @@ MIT
             timeout: Maximum time in seconds to wait for the operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "peers": List of connected peers with their information
                 - "count": Total number of connected peers
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2751,17 +2751,17 @@ MIT
         return self.kit.ipfs_swarm_peers(**kwargs_with_defaults)
 
     def open(
-        self, 
-        path: str, 
-        mode: str = "rb", 
-        *, 
+        self,
+        path: str,
+        mode: str = "rb",
+        *,
         cache: bool = True,
         size_hint: Optional[int] = None,
         **kwargs
     ) -> 'IOBase':
         """
         Open a file-like object for IPFS content.
-        
+
         This method provides a file-like interface to IPFS content, allowing
         standard Python file operations on IPFS data.
 
@@ -2777,12 +2777,12 @@ MIT
             size_hint: Optional hint about the file size for optimization
                 Providing this can improve performance for large files
             **kwargs: Additional parameters passed to the underlying filesystem
-                
+
         Returns:
             IOBase: A file-like object supporting standard file operations
                 For binary mode ("rb"), returns a file-like object with read() method
                 For text mode ("r"), returns a file-like object with encoding support
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2793,43 +2793,43 @@ MIT
         # Make sure path has ipfs:// prefix
         if not path.startswith(("ipfs://", "ipns://")):
             path = f"ipfs://{path}"
-            
+
         # Use the existing filesystem if available, or get a new one
         fs = self.fs
         if fs is None:
             fs = self.get_filesystem()
             if fs is None:
                 raise IPFSError("Failed to initialize filesystem interface")
-        
+
         # Special handling for tests: if this is the mocked filesystem in test context,
         # don't pass any additional kwargs to match test expectations
         if hasattr(fs, 'mock_calls') or (hasattr(fs, '_mock_name') and fs._mock_name is not None):
             return fs.open(path, mode)
-        
+
         # Regular behavior for actual usage
         kwargs_with_defaults = {
             "cache": cache,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add size hint if provided
         if size_hint is not None:
             kwargs_with_defaults["size"] = size_hint
-            
+
         # Open the file
         return fs.open(path, mode, **kwargs_with_defaults)
 
     def read(
-        self, 
-        path: str, 
-        *, 
+        self,
+        path: str,
+        *,
         cache: bool = True,
         timeout: Optional[int] = None,
         **kwargs
     ) -> bytes:
         """
         Read content from IPFS path.
-        
+
         This is a convenience method that opens a file and reads all its content at once.
         For more control over large files, use the open() method instead.
 
@@ -2843,10 +2843,10 @@ MIT
             timeout: Maximum time in seconds to wait for the read operation
                 If None, the default timeout from config will be used
             **kwargs: Additional parameters passed to the underlying filesystem
-                
+
         Returns:
             bytes: The complete content data as bytes
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2856,43 +2856,43 @@ MIT
         # Make sure path has ipfs:// prefix
         if not path.startswith(("ipfs://", "ipns://")):
             path = f"ipfs://{path}"
-            
+
         # Use the existing filesystem if available, or get a new one
         fs = self.fs
         if fs is None:
             fs = self.get_filesystem()
             if fs is None:
                 raise IPFSError("Failed to initialize filesystem interface")
-        
+
         # Special handling for tests: if this is the mocked filesystem in test context,
         # don't pass any additional kwargs to match test expectations
         if hasattr(fs, 'mock_calls') or (hasattr(fs, '_mock_name') and fs._mock_name is not None):
             return fs.cat(path)
-            
-        # Regular behavior for actual usage    
+
+        # Regular behavior for actual usage
         kwargs_with_defaults = {
             "cache": cache,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         # Read the content
         return fs.cat(path, **kwargs_with_defaults)
 
     def exists(
-        self, 
-        path: str, 
+        self,
+        path: str,
         *,
         timeout: Optional[int] = None,
         **kwargs
     ) -> bool:
         """
         Check if path exists in IPFS.
-        
-        This method verifies whether a given path or CID exists and is 
+
+        This method verifies whether a given path or CID exists and is
         accessible in the IPFS network.
 
         Args:
@@ -2902,10 +2902,10 @@ MIT
             timeout: Maximum time in seconds to wait for the operation
                 If None, the default timeout from config will be used
             **kwargs: Additional parameters passed to the underlying filesystem
-                
+
         Returns:
             bool: True if path exists and is accessible, False otherwise
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2914,34 +2914,34 @@ MIT
         # Make sure path has ipfs:// prefix
         if not path.startswith(("ipfs://", "ipns://")):
             path = f"ipfs://{path}"
-            
+
         # Use the existing filesystem if available, or get a new one
         fs = self.fs
         if fs is None:
             fs = self.get_filesystem()
             if fs is None:
                 raise IPFSError("Failed to initialize filesystem interface")
-        
+
         # Special handling for tests: if this is the mocked filesystem in test context,
         # don't pass any additional kwargs to match test expectations
         if hasattr(fs, 'mock_calls') or (hasattr(fs, '_mock_name') and fs._mock_name is not None):
             return fs.exists(path)
-            
+
         # Regular behavior for actual usage
         kwargs_with_defaults = {
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         # Check if path exists
         return fs.exists(path, **kwargs_with_defaults)
 
     def ls(
-        self, 
-        path: str, 
+        self,
+        path: str,
         *,
         detail: bool = True,
         timeout: Optional[int] = None,
@@ -2949,7 +2949,7 @@ MIT
     ) -> List[Dict[str, Any]]:
         """
         List directory contents in IPFS.
-        
+
         This method retrieves the contents of a directory in IPFS.
 
         Args:
@@ -2962,7 +2962,7 @@ MIT
             timeout: Maximum time in seconds to wait for the operation
                 If None, the default timeout from config will be used
             **kwargs: Additional parameters passed to the underlying filesystem
-                
+
         Returns:
             List[Dict[str, Any]]: A list of directory entries with metadata
                 Each entry includes:
@@ -2971,7 +2971,7 @@ MIT
                 - "size": Size in bytes (for files)
                 - "cid": Content identifier for the entry
                 - Additional metadata if detail=True
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -2982,36 +2982,36 @@ MIT
         # Make sure path has ipfs:// prefix
         if not path.startswith(("ipfs://", "ipns://")):
             path = f"ipfs://{path}"
-            
+
         # Use the existing filesystem if available, or get a new one
         fs = self.fs
         if fs is None:
             fs = self.get_filesystem()
             if fs is None:
                 raise IPFSError("Failed to initialize filesystem interface")
-        
+
         # Special handling for tests: if this is the mocked filesystem in test context,
         # don't pass any additional kwargs to match test expectations
         if hasattr(fs, 'mock_calls') or (hasattr(fs, '_mock_name') and fs._mock_name is not None):
             return fs.ls(path, detail=detail)
-            
+
         # Regular behavior for actual usage
         kwargs_with_defaults = {
             "detail": detail,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         # List directory contents
         return fs.ls(path, **kwargs_with_defaults)
 
     def cluster_add(
-        self, 
+        self,
         content: Union[bytes, str, Path, 'BinaryIO'],
-        *, 
+        *,
         replication_factor: int = -1,
         name: Optional[str] = None,
         timeout: Optional[int] = None,
@@ -3019,7 +3019,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Add content to IPFS cluster.
-        
+
         This method adds content to IPFS through the cluster service,
         which ensures the content is replicated according to the cluster policy.
 
@@ -3039,7 +3039,7 @@ MIT
                 If None, the default timeout from config will be used
                 Note that cluster operations may take longer than regular IPFS operations
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -3048,14 +3048,14 @@ MIT
                 - "name": Original filename or provided name
                 - "replication_factor": Requested replication factor
                 - "allocations": List of peer IDs where content is allocated
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon or cluster fails
             IPFSClusterError: If there's an issue with the cluster operation
             IPFSTimeoutError: If the operation times out
             IPFSValidationError: If parameters are invalid
-            
+
         Note:
             This method requires a running IPFS cluster service and the node must be
             configured as part of a cluster. It will not work on standalone IPFS nodes
@@ -3064,17 +3064,17 @@ MIT
         # Only available in master or worker roles
         if self.config.get("role") == "leecher":
             raise IPFSError("Cluster operations not available in leecher role")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "replication_factor": replication_factor,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add name if provided
         if name is not None:
             kwargs_with_defaults["name"] = name
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3098,8 +3098,8 @@ MIT
         return result
 
     def cluster_pin(
-        self, 
-        cid: str, 
+        self,
+        cid: str,
         *,
         replication_factor: int = -1,
         name: Optional[str] = None,
@@ -3108,7 +3108,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Pin content to IPFS cluster.
-        
+
         This method ensures content is pinned across the IPFS cluster according
         to the specified replication factor.
 
@@ -3124,7 +3124,7 @@ MIT
                 If None, the default timeout from config will be used
                 Note that cluster operations may take longer than regular IPFS operations
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -3132,14 +3132,14 @@ MIT
                 - "replication_factor": Requested replication factor
                 - "allocations": List of peer IDs where content is allocated
                 - "status": Current status of the pin operation
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon or cluster fails
             IPFSClusterError: If there's an issue with the cluster operation
             IPFSTimeoutError: If the operation times out
             IPFSValidationError: If the CID format is invalid
-            
+
         Note:
             This method requires a running IPFS cluster service and the node must be
             configured as part of a cluster. It will not work on standalone IPFS nodes
@@ -3148,17 +3148,17 @@ MIT
         # Only available in master or worker roles
         if self.config.get("role") == "leecher":
             raise IPFSError("Cluster operations not available in leecher role")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "replication_factor": replication_factor,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add name if provided
         if name is not None:
             kwargs_with_defaults["name"] = name
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3166,8 +3166,8 @@ MIT
         return self.kit.cluster_pin_add(cid, **kwargs_with_defaults)
 
     def cluster_status(
-        self, 
-        cid: Optional[str] = None, 
+        self,
+        cid: Optional[str] = None,
         *,
         local: bool = False,
         timeout: Optional[int] = None,
@@ -3175,7 +3175,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Get cluster pin status for one or all pinned items.
-        
+
         This method retrieves the status of pins in the IPFS cluster, showing
         which nodes have successfully pinned each content item.
 
@@ -3188,7 +3188,7 @@ MIT
             timeout: Maximum time in seconds to wait for the status operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -3197,14 +3197,14 @@ MIT
                     - If cid is None: map of CIDs to their status information
                 - "peer_count": Number of peers in the cluster
                 - "cid_count": Number of CIDs with status
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon or cluster fails
             IPFSClusterError: If there's an issue with the cluster operation
             IPFSTimeoutError: If the operation times out
             IPFSValidationError: If the CID format is invalid (when provided)
-            
+
         Note:
             This method requires a running IPFS cluster service and the node must be
             configured as part of a cluster. It will not work on standalone IPFS nodes
@@ -3213,17 +3213,17 @@ MIT
         # Only available in master or worker roles
         if self.config.get("role") == "leecher":
             raise IPFSError("Cluster operations not available in leecher role")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "local": local,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         # Call the appropriate method based on whether a CID was provided
         if cid:
             return self.kit.cluster_status(cid, **kwargs_with_defaults)
@@ -3231,14 +3231,14 @@ MIT
             return self.kit.cluster_status_all(**kwargs_with_defaults)
 
     def cluster_peers(
-        self, 
+        self,
         *,
         timeout: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         List all peers in the IPFS cluster.
-        
+
         This method retrieves information about all peers that are part of the
         IPFS cluster, including their connection status and metadata.
 
@@ -3246,7 +3246,7 @@ MIT
             timeout: Maximum time in seconds to wait for the operation
                 If None, the default timeout from config will be used
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -3257,13 +3257,13 @@ MIT
                     - "version": Peer software version
                     - "cluster_peers": List of other peers this peer is connected to
                 - "peer_count": Total number of peers in the cluster
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon or cluster fails
             IPFSClusterError: If there's an issue with the cluster operation
             IPFSTimeoutError: If the operation times out
-            
+
         Note:
             This method requires a running IPFS cluster service and the node must be
             configured as part of a cluster. It will not work on standalone IPFS nodes
@@ -3272,22 +3272,22 @@ MIT
         # Only available in master or worker roles
         if self.config.get("role") == "leecher":
             raise IPFSError("Cluster operations not available in leecher role")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         return self.kit.cluster_peers(**kwargs_with_defaults)
 
     def ai_model_add(
-        self, 
-        model: Union[str, Path, bytes, object], 
-        metadata: Optional[Dict[str, Any]] = None, 
+        self,
+        model: Union[str, Path, bytes, object],
+        metadata: Optional[Dict[str, Any]] = None,
         *,
         pin: bool = True,
         replicate: bool = False,
@@ -3298,9 +3298,9 @@ MIT
     ) -> Dict[str, Any]:
         """
         Add a machine learning model to the registry.
-        
-        This method stores ML models in IPFS with appropriate metadata for 
-        later retrieval and use. Models can be serialized files, directory 
+
+        This method stores ML models in IPFS with appropriate metadata for
+        later retrieval and use. Models can be serialized files, directory
         structures, or in-memory model objects depending on the framework.
 
         Args:
@@ -3332,7 +3332,7 @@ MIT
                 If None, the default timeout from config will be used
                 Note that model storage can take longer than regular content
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -3342,14 +3342,14 @@ MIT
                 - "size": Total size of the model in bytes
                 - "framework": The framework detected or specified
                 - "version": The version used for this model
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
             IPFSTimeoutError: If the operation times out
             IPFSValidationError: If parameters are invalid
             IPFSAIError: If there's an issue with the AI/ML operation
-            
+
         Note:
             Different ML frameworks may have specific serialization requirements.
             For PyTorch, the model should be saved with torch.save().
@@ -3358,32 +3358,32 @@ MIT
         """
         if not AI_ML_AVAILABLE:
             raise IPFSError("AI/ML integration not available")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "pin": pin,
             "replicate": replicate,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add framework if provided
         if framework is not None:
             kwargs_with_defaults["framework"] = framework
-            
+
         # Add version if provided
         if version is not None:
             kwargs_with_defaults["version"] = version
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         return self.kit.ai_model_add(model, metadata, **kwargs_with_defaults)
 
     def ai_model_get(
-        self, 
-        model_id: str, 
-        *, 
+        self,
+        model_id: str,
+        *,
         local_only: bool = False,
         load_to_memory: bool = True,
         timeout: Optional[int] = None,
@@ -3391,7 +3391,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Get a machine learning model from the registry.
-        
+
         This method retrieves a previously stored ML model and its metadata
         from IPFS, optionally loading it into memory as a usable model object.
 
@@ -3409,7 +3409,7 @@ MIT
                 If None, the default timeout from config will be used
                 Note that large models may take longer to retrieve
             **kwargs: Additional implementation-specific parameters
-                
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -3418,14 +3418,14 @@ MIT
                 - "metadata": Model metadata including framework, version, etc.
                 - "size": Size of the model in bytes
                 - "framework": The ML framework the model belongs to
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
             IPFSTimeoutError: If the operation times out
             IPFSContentNotFoundError: If the model cannot be found
             IPFSAIError: If there's an issue with the AI/ML operation
-            
+
         Note:
             Different ML frameworks may have specific deserialization requirements.
             For PyTorch, the model will be loaded using torch.load().
@@ -3434,22 +3434,22 @@ MIT
         """
         if not AI_ML_AVAILABLE:
             raise IPFSError("AI/ML integration not available")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "local_only": local_only,
             "load_to_memory": load_to_memory,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         return self.kit.ai_model_get(model_id, **kwargs_with_defaults)
 
     def ai_dataset_add(
-        self, 
+        self,
         dataset: Union[str, Path, Dict[str, Any], "DataFrame", "Dataset"],
         *,
         metadata: Optional[Dict[str, Any]] = None,
@@ -3462,7 +3462,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Add a dataset to the registry for AI/ML applications.
-        
+
         This method adds a dataset to IPFS and registers it in the dataset registry,
         making it available for machine learning model training and evaluation.
         It supports various input formats including files, paths, DataFrames,
@@ -3502,7 +3502,7 @@ MIT
                 - "stats": Dictionary with dataset statistics
                 - "size": Size of the dataset in bytes
                 - "timestamp": When the dataset was added
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -3513,22 +3513,22 @@ MIT
         """
         if not AI_ML_AVAILABLE:
             raise IPFSError("AI/ML integration not available")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "pin": pin,
             "replicate": replicate,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add format if provided
         if format is not None:
             kwargs_with_defaults["format"] = format
-            
+
         # Add chunk_size if provided
         if chunk_size is not None:
             kwargs_with_defaults["chunk_size"] = chunk_size
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3536,9 +3536,9 @@ MIT
         return self.kit.ai_dataset_add(dataset, metadata, **kwargs_with_defaults)
 
     def ai_dataset_get(
-        self, 
-        dataset_id: str, 
-        *, 
+        self,
+        dataset_id: str,
+        *,
         decode: bool = True,
         return_path: bool = False,
         target_path: Optional[str] = None,
@@ -3548,7 +3548,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Get a dataset from the registry for AI/ML applications.
-        
+
         This method retrieves a dataset from IPFS by its identifier or CID,
         and loads it into memory or saves it to disk depending on the options.
         The dataset can be returned as a DataFrame, native object, or a path
@@ -3556,7 +3556,7 @@ MIT
 
         Args:
             dataset_id: Dataset identifier (name) or Content Identifier (CID)
-            decode: Whether to decode/parse the dataset into a usable format 
+            decode: Whether to decode/parse the dataset into a usable format
                    or just return the raw data
             return_path: Whether to return a local path to the dataset instead of loading it
             target_path: Specific path where the dataset should be saved
@@ -3578,7 +3578,7 @@ MIT
                 - "metadata": Dictionary with dataset metadata
                 - "stats": Dictionary with dataset statistics
                 - "timestamp": When the dataset was retrieved
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -3589,22 +3589,22 @@ MIT
         """
         if not AI_ML_AVAILABLE:
             raise IPFSError("AI/ML integration not available")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = {
             "decode": decode,
             "return_path": return_path,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add target_path if provided
         if target_path is not None:
             kwargs_with_defaults["target_path"] = target_path
-            
+
         # Add version if provided
         if version is not None:
             kwargs_with_defaults["version"] = version
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3612,12 +3612,12 @@ MIT
         return self.kit.ai_dataset_get(dataset_id, **kwargs_with_defaults)
 
     def ai_data_loader(
-        self, 
-        dataset_cid: str, 
-        *, 
+        self,
+        dataset_cid: str,
+        *,
         batch_size: int = 32,
         shuffle: bool = True,
-        prefetch: int = 2, 
+        prefetch: int = 2,
         framework: Optional[Literal["pytorch", "tensorflow"]] = None,
         num_workers: Optional[int] = None,
         drop_last: bool = False,
@@ -3630,7 +3630,7 @@ MIT
         Create a data loader for an IPFS-stored dataset.
 
         Creates an IPFSDataLoader instance for efficient loading of ML datasets from IPFS,
-        with background prefetching and framework-specific conversions. This provides a 
+        with background prefetching and framework-specific conversions. This provides a
         standardized way to load datasets from IPFS into ML training and inference pipelines.
 
         Args:
@@ -3658,7 +3658,7 @@ MIT
                 - "dataset_info": Information about the dataset
                 - "batch_shape": Typical shape of batches produced by this loader
                 - "num_batches": Estimated number of batches per epoch
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -3679,19 +3679,19 @@ MIT
             "drop_last": drop_last,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add num_workers if provided
         if num_workers is not None:
             kwargs_with_defaults["num_workers"] = num_workers
-            
+
         # Add transform if provided
         if transform is not None:
             kwargs_with_defaults["transform"] = transform
-            
+
         # Add target_transform if provided
         if target_transform is not None:
             kwargs_with_defaults["target_transform"] = target_transform
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3699,9 +3699,9 @@ MIT
         return self.kit.ai_data_loader(dataset_cid=dataset_cid, **kwargs_with_defaults)
 
     def ai_langchain_create_vectorstore(
-        self, 
-        documents: List["Document"], 
-        *, 
+        self,
+        documents: List["Document"],
+        *,
         embedding_model: Optional[Union[str, "Embeddings"]] = None,
         collection_name: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -3714,7 +3714,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Create a Langchain vector store backed by IPFS storage.
-        
+
         This method creates a vector store from Langchain documents, generating embeddings
         and storing both the original documents and their vector representations in IPFS.
         The vector store can be used for semantic search, retrieval-augmented generation,
@@ -3730,11 +3730,11 @@ MIT
             metadata: Additional metadata about the vector collection
             persist: Whether to persist the vector store to IPFS
             similarity_metric: Similarity measurement to use ("cosine", "l2", "dot", "jaccard")
-            search_method: Vector search algorithm to use 
+            search_method: Vector search algorithm to use
                 - "hnsw": Hierarchical Navigable Small World (fast approximate search)
                 - "flat": Exact exhaustive search (slower but more accurate)
                 - "ivf": Inverted File Index (good balance of speed and accuracy)
-            index_parameters: Additional parameters for the vector index 
+            index_parameters: Additional parameters for the vector index
                 - For HNSW: "ef_construction", "M" (graph parameters)
                 - For IVF: "nlist" (cluster count)
             timeout: Operation timeout in seconds
@@ -3753,7 +3753,7 @@ MIT
                 - "embedding_dim": Dimension of the embedding vectors
                 - "cid": Content identifier for the persisted vector store
                 - "stats": Performance statistics and index parameters
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             ImportError: If AI/ML integration or LangChain is not available
@@ -3771,15 +3771,15 @@ MIT
             "search_method": search_method,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add metadata if provided
         if metadata is not None:
             kwargs_with_defaults["metadata"] = metadata
-            
+
         # Add index_parameters if provided
         if index_parameters is not None:
             kwargs_with_defaults["index_parameters"] = index_parameters
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3787,9 +3787,9 @@ MIT
         return self.kit.ai_langchain_create_vectorstore(documents=documents, **kwargs_with_defaults)
 
     def ai_langchain_load_documents(
-        self, 
-        path_or_cid: str, 
-        *, 
+        self,
+        path_or_cid: str,
+        *,
         file_types: Optional[List[str]] = None,
         recursive: bool = True,
         loader_params: Optional[Dict[str, Any]] = None,
@@ -3803,11 +3803,11 @@ MIT
     ) -> Dict[str, Any]:
         """
         Load documents from IPFS into Langchain format.
-        
+
         This method loads content from IPFS (by path or CID) and converts it into
         Langchain Document objects, which can be used for LLM applications like
         retrieval-augmented generation, vector indexing, and chain creation.
-        
+
         It automatically detects file types and uses appropriate loaders for each,
         with support for text, PDF, HTML, Markdown, CSV, and many other formats.
 
@@ -3818,7 +3818,7 @@ MIT
             recursive: Whether to recursively traverse directories
             loader_params: Specific parameters for document loaders
                 - Depends on file type, e.g., PDF loader parameters
-            chunk_size: Maximum size of text chunks when splitting documents 
+            chunk_size: Maximum size of text chunks when splitting documents
             chunk_overlap: Number of characters of overlap between chunks
             text_splitter: Custom text splitter instance for document chunking
                 - Overrides chunk_size and chunk_overlap if provided
@@ -3839,7 +3839,7 @@ MIT
                 - "file_count": Number of files processed
                 - "file_types": Dictionary mapping file types to counts
                 - "total_characters": Total character count across all documents
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -3855,35 +3855,35 @@ MIT
             "recursive": recursive,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add file_types if provided
         if file_types is not None:
             kwargs_with_defaults["file_types"] = file_types
-            
+
         # Add loader_params if provided
         if loader_params is not None:
             kwargs_with_defaults["loader_params"] = loader_params
-            
+
         # Add chunk_size if provided
         if chunk_size is not None:
             kwargs_with_defaults["chunk_size"] = chunk_size
-            
+
         # Add chunk_overlap if provided
         if chunk_overlap is not None:
             kwargs_with_defaults["chunk_overlap"] = chunk_overlap
-            
+
         # Add text_splitter if provided
         if text_splitter is not None:
             kwargs_with_defaults["text_splitter"] = text_splitter
-            
+
         # Add metadata_extractor if provided
         if metadata_extractor is not None:
             kwargs_with_defaults["metadata_extractor"] = metadata_extractor
-            
+
         # Add exclude_patterns if provided
         if exclude_patterns is not None:
             kwargs_with_defaults["exclude_patterns"] = exclude_patterns
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3891,9 +3891,9 @@ MIT
         return self.kit.ai_langchain_load_documents(path_or_cid=path_or_cid, **kwargs_with_defaults)
 
     def ai_llama_index_create_index(
-        self, 
-        documents: List["Document"], 
-        *, 
+        self,
+        documents: List["Document"],
+        *,
         index_type: str = "vector_store",
         embedding_model: Optional[Union[str, "BaseEmbedding"]] = None,
         index_name: Optional[str] = None,
@@ -3908,7 +3908,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Create a LlamaIndex index from documents using IPFS storage.
-        
+
         This method builds a LlamaIndex data structure from documents, with automatic
         storage in IPFS. LlamaIndex provides advanced indexing capabilities for
         retrieval-augmented generation and other LLM applications, with flexible
@@ -3919,7 +3919,7 @@ MIT
             index_type: Type of index to create
                 - "vector_store": Vector store index for semantic search (default)
                 - "keyword_table": Keyword-based lookup index
-                - "list": Simple list index 
+                - "list": Simple list index
                 - "tree": Hierarchical tree index
                 - "knowledge_graph": Knowledge graph index
             embedding_model: Name of embedding model to use or initialized embedding instance
@@ -3953,7 +3953,7 @@ MIT
                 - "node_count": Number of nodes in the index
                 - "cid": Content identifier for the persisted index
                 - "metadata": Additional metadata about the index
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             ImportError: If AI/ML integration or LlamaIndex is not available
@@ -3971,23 +3971,23 @@ MIT
             "similarity_top_k": similarity_top_k,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add service_context if provided
         if service_context is not None:
             kwargs_with_defaults["service_context"] = service_context
-            
+
         # Add storage_context if provided
         if storage_context is not None:
             kwargs_with_defaults["storage_context"] = storage_context
-            
+
         # Add index_settings if provided
         if index_settings is not None:
             kwargs_with_defaults["index_settings"] = index_settings
-            
+
         # Add node_parser if provided
         if node_parser is not None:
             kwargs_with_defaults["node_parser"] = node_parser
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -3995,9 +3995,9 @@ MIT
         return self.kit.ai_llama_index_create_index(documents=documents, **kwargs_with_defaults)
 
     def ai_llama_index_load_documents(
-        self, 
-        path_or_cid: str, 
-        *, 
+        self,
+        path_or_cid: str,
+        *,
         file_types: Optional[List[str]] = None,
         recursive: bool = True,
         loader_params: Optional[Dict[str, Any]] = None,
@@ -4012,7 +4012,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Load documents from IPFS into LlamaIndex format.
-        
+
         This method loads content from IPFS (by path or CID) and converts it into
         LlamaIndex Document objects. LlamaIndex provides advanced document handling
         capabilities for retrieval-augmented generation, query parsing, and efficient
@@ -4049,7 +4049,7 @@ MIT
                 - "file_count": Number of files processed
                 - "file_types": Dictionary mapping file types to counts
                 - "total_characters": Total character count across all documents
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSConnectionError: If connection to IPFS daemon fails
@@ -4066,35 +4066,35 @@ MIT
             "include_metadata": include_metadata,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add file_types if provided
         if file_types is not None:
             kwargs_with_defaults["file_types"] = file_types
-            
+
         # Add loader_params if provided
         if loader_params is not None:
             kwargs_with_defaults["loader_params"] = loader_params
-            
+
         # Add metadata_extractor if provided
         if metadata_extractor is not None:
             kwargs_with_defaults["metadata_extractor"] = metadata_extractor
-            
+
         # Add exclude_patterns if provided
         if exclude_patterns is not None:
             kwargs_with_defaults["exclude_patterns"] = exclude_patterns
-            
+
         # Add chunk_size if provided
         if chunk_size is not None:
             kwargs_with_defaults["chunk_size"] = chunk_size
-            
+
         # Add chunk_overlap if provided
         if chunk_overlap is not None:
             kwargs_with_defaults["chunk_overlap"] = chunk_overlap
-            
+
         # Add node_parser if provided
         if node_parser is not None:
             kwargs_with_defaults["node_parser"] = node_parser
-            
+
         # Add timeout if provided
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
@@ -4102,9 +4102,9 @@ MIT
         return self.kit.ai_llama_index_load_documents(path_or_cid=path_or_cid, **kwargs_with_defaults)
 
     def ai_distributed_training_submit_job(
-        self, 
-        config: Dict[str, Any], 
-        *, 
+        self,
+        config: Dict[str, Any],
+        *,
         num_workers: Optional[int] = None,
         priority: Literal["low", "normal", "high", "critical"] = "normal",
         notify_on_completion: bool = False,
@@ -4126,10 +4126,10 @@ MIT
     ) -> Dict[str, Any]:
         """
         Submit a distributed training job to the IPFS cluster.
-        
+
         This method submits a machine learning training job to be distributed across
         worker nodes in the IPFS cluster. It supports both training from scratch and
-        fine-tuning existing models, with automatic data partitioning and result 
+        fine-tuning existing models, with automatic data partitioning and result
         aggregation.
 
         Args:
@@ -4138,7 +4138,7 @@ MIT
                 - dataset_cid: CID of the dataset to use for training (required)
                 - model_cid: (optional) CID of a base model for fine-tuning
                 - model_type: Type of model to train (e.g., "classification", "regression")
-                - hyperparameters: Dictionary of training hyperparameters 
+                - hyperparameters: Dictionary of training hyperparameters
                     - learning_rate, batch_size, epochs, optimizer, etc.
                 - framework: ML framework to use ("pytorch", "tensorflow", "jax", etc.)
                 - evaluation_metrics: List of metrics to track during training
@@ -4183,7 +4183,7 @@ MIT
                 - "estimated_start_time": Estimated job start time
                 - "status": Initial job status ("queued", "starting", "running")
                 - "job_config": Submitted job configuration
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSValidationError: If job configuration is invalid
@@ -4193,23 +4193,23 @@ MIT
         # Validate config has required fields
         if not isinstance(config, dict):
             raise IPFSValidationError("config must be a dictionary")
-        
+
         if "model_name" not in config:
             raise IPFSValidationError("config must contain 'model_name'")
-            
+
         if "dataset_cid" not in config:
             raise IPFSValidationError("config must contain 'dataset_cid'")
-            
+
         # Check if AI/ML integration is available
         if not AI_ML_AVAILABLE:
             if allow_simulation:
                 # Return simulated response
                 import uuid
                 import time
-                
+
                 job_id = f"sim-{uuid.uuid4()}"
                 current_time = time.time()
-                
+
                 return {
                     "success": True,
                     "operation": "ai_distributed_training_submit_job",
@@ -4233,44 +4233,44 @@ MIT
             "wait_for_completion": wait_for_completion,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add optional parameters if provided
         if num_workers is not None:
             kwargs_with_defaults["num_workers"] = num_workers
-            
+
         if worker_selection is not None:
             kwargs_with_defaults["worker_selection"] = worker_selection
-            
+
         if resources_per_worker is not None:
             kwargs_with_defaults["resources_per_worker"] = resources_per_worker
-            
+
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
-            
+
         if checkpoint_interval is not None:
             kwargs_with_defaults["checkpoint_interval"] = checkpoint_interval
-            
+
         if validation_split is not None:
             kwargs_with_defaults["validation_split"] = validation_split
-            
+
         if test_split is not None:
             kwargs_with_defaults["test_split"] = test_split
-            
+
         if shuffle_data is not None:
             kwargs_with_defaults["shuffle_data"] = shuffle_data
-            
+
         if data_augmentation is not None:
             kwargs_with_defaults["data_augmentation"] = data_augmentation
-            
+
         if early_stopping is not None:
             kwargs_with_defaults["early_stopping"] = early_stopping
-            
+
         if gradient_accumulation is not None:
             kwargs_with_defaults["gradient_accumulation"] = gradient_accumulation
-            
+
         if mixed_precision is not None:
             kwargs_with_defaults["mixed_precision"] = mixed_precision
-            
+
         if log_level is not None:
             kwargs_with_defaults["log_level"] = log_level
 
@@ -4278,9 +4278,9 @@ MIT
         return self.kit.ai_distributed_training_submit_job(config=config, **kwargs_with_defaults)
 
     def ai_distributed_training_get_status(
-        self, 
-        job_id: str, 
-        *, 
+        self,
+        job_id: str,
+        *,
         include_metrics: bool = True,
         include_logs: bool = False,
         include_checkpoints: bool = False,
@@ -4295,7 +4295,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Get the status of a distributed training job.
-        
+
         This method retrieves the current status of a previously submitted distributed
         training job, including progress metrics, worker allocation, and resource usage.
         It can optionally include detailed logs and checkpoint information.
@@ -4332,7 +4332,7 @@ MIT
                 - "worker_details": Detailed worker information if requested
                 - "resource_usage": Current CPU, memory, and GPU usage
                 - "errors": Any errors encountered during training
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSValidationError: If job_id is invalid
@@ -4341,25 +4341,25 @@ MIT
         # Validate job_id
         if not job_id:
             raise IPFSValidationError("job_id must not be empty")
-        
+
         # Check if AI/ML integration is available
         if not AI_ML_AVAILABLE:
             if allow_simulation:
                 # Return simulated response
                 import time
                 import random
-                
+
                 current_time = time.time()
                 if job_id.startswith("sim-"):
                     # Generate a realistic simulated training job status
                     # This provides a way to test client code without real cluster
                     progress = random.randint(10, 95)
                     elapsed_time = random.randint(300, 1800)  # 5-30 minutes
-                    
+
                     # Calculate remaining time based on progress
                     total_time = elapsed_time / (progress / 100) if progress > 0 else 3600
                     remaining_time = max(0, total_time - elapsed_time)
-                    
+
                     # Set a reasonable status based on the progress
                     if progress < 20:
                         status = "starting"
@@ -4369,7 +4369,7 @@ MIT
                         status = "complete"
                         progress = 100
                         remaining_time = 0
-                    
+
                     # Generate metrics if requested
                     metrics = None
                     if include_metrics:
@@ -4381,7 +4381,7 @@ MIT
                             "batches_completed": progress * 10,
                             "samples_processed": progress * 500
                         }
-                    
+
                     # Generate logs if requested
                     logs = None
                     if include_logs:
@@ -4393,7 +4393,7 @@ MIT
                                 "level": random.choice(["info", "debug"] + (["warning"] if i % 5 == 0 else [])),
                                 "message": f"Training progress: {progress - (log_entries - i) * random.randint(1, 5)}%"
                             })
-                    
+
                     # Generate checkpoint info if requested
                     checkpoints = None
                     if include_checkpoints:
@@ -4411,12 +4411,12 @@ MIT
                                         "accuracy": min(0.99, 0.5 + (epoch / 20) * 0.5)
                                     }
                                 })
-                    
+
                     # Generate worker details if requested
                     worker_info = None
                     worker_count = random.randint(2, 5)
                     active_workers = max(1, int(worker_count * (progress / 100)))
-                    
+
                     if worker_details:
                         worker_info = []
                         for i in range(worker_count):
@@ -4431,7 +4431,7 @@ MIT
                                     "gpu_usage": random.uniform(0.5, 0.95) if is_active else 0.0
                                 }
                             })
-                    
+
                     return {
                         "success": True,
                         "operation": "ai_distributed_training_get_status",
@@ -4476,20 +4476,20 @@ MIT
             "worker_details": worker_details,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add optional parameters if provided
         if metrics_limit is not None:
             kwargs_with_defaults["metrics_limit"] = metrics_limit
-            
+
         if log_level is not None:
             kwargs_with_defaults["log_level"] = log_level
-            
+
         if log_limit is not None:
             kwargs_with_defaults["log_limit"] = log_limit
-            
+
         if checkpoint_limit is not None:
             kwargs_with_defaults["checkpoint_limit"] = checkpoint_limit
-            
+
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
 
@@ -4497,9 +4497,9 @@ MIT
         return self.kit.ai_distributed_training_get_status(job_id=job_id, **kwargs_with_defaults)
 
     def ai_distributed_training_aggregate_results(
-        self, 
-        job_id: str, 
-        *, 
+        self,
+        job_id: str,
+        *,
         aggregation_method: Literal["best_model", "model_averaging", "ensemble", "federation"] = "best_model",
         evaluation_dataset_cid: Optional[str] = None,
         include_metrics: bool = True,
@@ -4516,8 +4516,8 @@ MIT
     ) -> Dict[str, Any]:
         """
         Aggregate results from a distributed training job.
-        
-        This method combines results from multiple worker nodes that participated in 
+
+        This method combines results from multiple worker nodes that participated in
         a distributed training job. It can perform model averaging, ensemble creation,
         or best model selection based on validation metrics.
 
@@ -4556,7 +4556,7 @@ MIT
             Dict[str, Any]: Dictionary containing aggregation results with these keys:
                 - "success": bool indicating if the operation succeeded
                 - "operation": Name of the operation ("ai_distributed_training_aggregate_results")
-                - "timestamp": Time when the operation was performed 
+                - "timestamp": Time when the operation was performed
                 - "job_id": The original job's identifier
                 - "aggregation_method": Method used for aggregation
                 - "model_cid": CID of the aggregated model (if save_aggregated_model=True)
@@ -4566,7 +4566,7 @@ MIT
                 - "model_details": Detailed model information if requested
                 - "parameters": Parameter counts and architecture information
                 - "size_bytes": Size of the aggregated model in bytes
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSValidationError: If job_id is invalid or job is not complete
@@ -4575,7 +4575,7 @@ MIT
         # Validate job_id
         if not job_id:
             raise IPFSValidationError("job_id must not be empty")
-        
+
         # Validate aggregation_method
         valid_aggregation_methods = ["best_model", "model_averaging", "ensemble", "federation"]
         if aggregation_method not in valid_aggregation_methods:
@@ -4583,7 +4583,7 @@ MIT
                 f"Invalid aggregation_method: {aggregation_method}. "
                 f"Must be one of: {', '.join(valid_aggregation_methods)}"
             )
-        
+
         # Check ensemble_strategy if using ensemble aggregation
         if aggregation_method == "ensemble" and ensemble_strategy:
             valid_ensemble_strategies = ["voting", "averaging", "stacking"]
@@ -4592,7 +4592,7 @@ MIT
                     f"Invalid ensemble_strategy: {ensemble_strategy}. "
                     f"Must be one of: {', '.join(valid_ensemble_strategies)}"
                 )
-        
+
         # Check selection_mode if provided
         if selection_mode:
             valid_selection_modes = ["maximize", "minimize"]
@@ -4601,7 +4601,7 @@ MIT
                     f"Invalid selection_mode: {selection_mode}. "
                     f"Must be one of: {', '.join(valid_selection_modes)}"
                 )
-        
+
         # Check if AI/ML integration is available
         if not AI_ML_AVAILABLE:
             if allow_simulation:
@@ -4609,16 +4609,16 @@ MIT
                 import time
                 import random
                 import uuid
-                
+
                 current_time = time.time()
                 if job_id.startswith("sim-"):
                     # Generate a realistic simulated aggregation result
                     aggregation_time = random.uniform(5.0, 30.0)
                     worker_count = random.randint(2, 5)
-                    
+
                     # Generate model CID if saving
                     model_cid = f"Qm{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=44))}" if save_aggregated_model else None
-                    
+
                     # Generate metrics based on aggregation method
                     metrics = None
                     if include_metrics:
@@ -4662,17 +4662,17 @@ MIT
                                 "f1": accuracy - random.uniform(0.01, 0.04),
                                 "loss": random.uniform(0.15, 0.35)
                             }
-                    
+
                     # Generate worker contributions
                     worker_contributions = []
                     for i in range(worker_count):
                         # Worker ID
                         worker_id = f"worker-{i+1}"
-                        
+
                         # Worker performance varies
                         perf_variance = random.uniform(-0.1, 0.1)
                         worker_acc = max(0.5, min(0.99, (metrics["accuracy"] if metrics else 0.85) + perf_variance))
-                        
+
                         # Worker contribution percentage
                         if aggregation_method == "best_model":
                             # One worker contributes 100%, others 0%
@@ -4692,7 +4692,7 @@ MIT
                             # Contributions based on data quantity and quality
                             contribution = 100.0 / worker_count + random.uniform(-5.0, 5.0)
                             contribution = max(0.1, min(50.0, contribution))
-                        
+
                         worker_contributions.append({
                             "worker_id": worker_id,
                             "contribution_percentage": contribution,
@@ -4703,14 +4703,14 @@ MIT
                             "samples_processed": random.randint(1000, 5000),
                             "training_time": random.uniform(300, 1800)
                         })
-                    
+
                     # Normalize contributions to sum to 100%
                     if aggregation_method not in ["best_model"]:
                         total_contribution = sum(w["contribution_percentage"] for w in worker_contributions)
                         if total_contribution > 0:
                             for worker in worker_contributions:
                                 worker["contribution_percentage"] = (worker["contribution_percentage"] / total_contribution) * 100.0
-                    
+
                     # Model details
                     model_details = None
                     if include_model_details:
@@ -4726,7 +4726,7 @@ MIT
                             "quantized": random.random() > 0.7,
                             "pruned": random.random() > 0.8
                         }
-                    
+
                     return {
                         "success": True,
                         "operation": "ai_distributed_training_aggregate_results",
@@ -4763,26 +4763,26 @@ MIT
             "save_aggregated_model": save_aggregated_model,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add optional parameters if provided
         if evaluation_dataset_cid is not None:
             kwargs_with_defaults["evaluation_dataset_cid"] = evaluation_dataset_cid
-            
+
         if ensemble_strategy is not None:
             kwargs_with_defaults["ensemble_strategy"] = ensemble_strategy
-            
+
         if averaging_weights is not None:
             kwargs_with_defaults["averaging_weights"] = averaging_weights
-            
+
         if selection_metric is not None:
             kwargs_with_defaults["selection_metric"] = selection_metric
-            
+
         if selection_mode is not None:
             kwargs_with_defaults["selection_mode"] = selection_mode
-            
+
         if evaluation_batch_size is not None:
             kwargs_with_defaults["evaluation_batch_size"] = evaluation_batch_size
-            
+
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
 
@@ -4790,9 +4790,9 @@ MIT
         return self.kit.ai_distributed_training_aggregate_results(job_id=job_id, **kwargs_with_defaults)
 
     def ai_benchmark_model(
-        self, 
-        model_cid: str, 
-        *, 
+        self,
+        model_cid: str,
+        *,
         benchmark_type: Literal["inference", "training"] = "inference",
         batch_sizes: List[int] = [1, 8, 32],
         hardware_configs: Optional[List[Dict[str, Any]]] = None,
@@ -4814,7 +4814,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Benchmark model performance for inference or training workloads.
-        
+
         This method evaluates the performance characteristics of a machine learning model
         across various hardware configurations, batch sizes, and precision modes. It can
         measure both inference and training performance with customizable metrics.
@@ -4864,14 +4864,14 @@ MIT
                 - "timestamp": Time when the operation was performed
                 - "model_cid": CID of the benchmarked model
                 - "model_info": Basic information about the model
-                - "configurations": List of tested configurations 
+                - "configurations": List of tested configurations
                 - "results": Detailed benchmark results
                     - For each configuration: metrics, statistics, resource usage
                 - "summary": Summary statistics and comparisons
                 - "recommendations": Recommended configuration based on results
                 - "benchmark_duration": Total time taken for benchmarking
                 - "errors": Any errors encountered during benchmarking
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSGetError: If model cannot be retrieved
@@ -4881,7 +4881,7 @@ MIT
         # Validate model_cid
         if not model_cid:
             raise IPFSValidationError("model_cid must not be empty")
-            
+
         # Validate benchmark_type
         valid_benchmark_types = ["inference", "training"]
         if benchmark_type not in valid_benchmark_types:
@@ -4889,11 +4889,11 @@ MIT
                 f"Invalid benchmark_type: {benchmark_type}. "
                 f"Must be one of: {', '.join(valid_benchmark_types)}"
             )
-            
+
         # Validate batch_sizes
         if not batch_sizes:
             raise IPFSValidationError("batch_sizes must not be empty")
-            
+
         # Check if AI/ML integration is available
         if not AI_ML_AVAILABLE:
             if allow_simulation:
@@ -4901,9 +4901,9 @@ MIT
                 import time
                 import random
                 import uuid
-                
+
                 current_time = time.time()
-                
+
                 # Generate model info
                 model_info = {
                     "name": f"Model-{model_cid[:8]}",
@@ -4915,7 +4915,7 @@ MIT
                         "input2": {"shape": [batch_sizes[0], 1], "dtype": "int64"} if random.random() > 0.7 else None
                     }
                 }
-                
+
                 # Generate configurations
                 configurations = []
                 for bs in batch_sizes:
@@ -4927,7 +4927,7 @@ MIT
                             "hardware": {"device": "CPU", "num_threads": 4} if not hardware_configs else hardware_configs[0]
                         }
                         configurations.append(config)
-                
+
                 # Generate benchmark results
                 results = []
                 for config in configurations:
@@ -4936,17 +4936,17 @@ MIT
                     prec_factor = 1.0 if config["precision"] == "fp32" else (
                         0.7 if config["precision"] == "fp16" else 0.5  # Faster for lower precision
                     )
-                    
+
                     base_latency_ms = 10.0 * bs * prec_factor
                     latency_ms = base_latency_ms * (1 + random.uniform(-0.1, 0.1))
-                    
+
                     throughput_samples_sec = 1000 * bs / latency_ms
-                    
+
                     # Memory usage scales with batch size and precision
                     memory_mb = model_info["size_bytes"] / 1000000 * (
                         bs / 4  # Memory scales with batch size
                     ) * (1.0 if config["precision"] == "fp32" else 0.5)  # Half for fp16
-                    
+
                     # Per-iteration results
                     iteration_results = []
                     for i in range(iterations):
@@ -4958,7 +4958,7 @@ MIT
                             "throughput_samples_sec": throughput_samples_sec * (1 - iter_variance),
                             "memory_mb": memory_mb * (1 + random.uniform(-0.02, 0.02))
                         })
-                    
+
                     # Overall stats
                     result = {
                         "config_id": config["id"],
@@ -4986,20 +4986,20 @@ MIT
                         },
                         "iterations": iteration_results
                     }
-                    
+
                     # Add energy metrics if requested
                     if "energy" in metrics:
                         result["metrics"]["energy_joules"] = {
                             "mean": latency_ms * bs * 0.01,  # Simplified energy calculation
                             "total": latency_ms * bs * 0.01 * iterations
                         }
-                    
+
                     results.append(result)
-                
+
                 # Generate summary
                 best_throughput_config = max(results, key=lambda r: r["metrics"]["throughput_samples_sec"]["mean"])
                 best_latency_config = min(results, key=lambda r: r["metrics"]["latency_ms"]["mean"])
-                
+
                 summary = {
                     "best_throughput": {
                         "config_id": best_throughput_config["config_id"],
@@ -5015,13 +5015,13 @@ MIT
                     },
                     "overall_recommendation": best_throughput_config["config_id"] if benchmark_type == "training" else best_latency_config["config_id"]
                 }
-                
+
                 # Generate recommendations
                 if benchmark_type == "inference":
                     recommendation_text = f"For optimal inference performance, use batch size {best_latency_config['batch_size']} with {best_latency_config['precision']} precision"
                 else:
                     recommendation_text = f"For optimal training throughput, use batch size {best_throughput_config['batch_size']} with {best_throughput_config['precision']} precision"
-                
+
                 # Complete simulated response
                 return {
                     "success": True,
@@ -5053,35 +5053,35 @@ MIT
             "warmup_iterations": warmup_iterations,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add optional parameters if provided
         if hardware_configs is not None:
             kwargs_with_defaults["hardware_configs"] = hardware_configs
-            
+
         if dataset_cid is not None:
             kwargs_with_defaults["dataset_cid"] = dataset_cid
-            
+
         if input_shapes is not None:
             kwargs_with_defaults["input_shapes"] = input_shapes
-            
+
         if framework is not None:
             kwargs_with_defaults["framework"] = framework
-            
+
         if compiler_options is not None:
             kwargs_with_defaults["compiler_options"] = compiler_options
-            
+
         if execution_providers is not None:
             kwargs_with_defaults["execution_providers"] = execution_providers
-            
+
         if profiling_level is not None:
             kwargs_with_defaults["profiling_level"] = profiling_level
-            
+
         if report_format is not None:
             kwargs_with_defaults["report_format"] = report_format
-            
+
         if distributed:
             kwargs_with_defaults["distributed"] = distributed
-            
+
         if timeout is not None:
             kwargs_with_defaults["timeout"] = timeout
 
@@ -5089,10 +5089,10 @@ MIT
         return self.kit.ai_benchmark_model(model_cid=model_cid, **kwargs_with_defaults)
 
     def ai_deploy_model(
-        self, 
-        model_cid: str, 
-        deployment_config: Dict[str, Any], 
-        *, 
+        self,
+        model_cid: str,
+        deployment_config: Dict[str, Any],
+        *,
         environment: Literal["production", "staging", "development"] = "production",
         wait_for_ready: bool = False,
         endpoint_id: Optional[str] = None,
@@ -5110,7 +5110,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Deploy a model to an inference endpoint for online serving.
-        
+
         This method deploys a machine learning model to an inference endpoint for serving,
         configuring the necessary resources, scaling policies, and optimizations. It can
         create new endpoints or update existing ones with new model versions.
@@ -5132,7 +5132,7 @@ MIT
                     - target_concurrency: Target requests per instance
                 - framework: ML framework for the model
                 - optimization: Optimization settings
-                    - compilation: Whether to compile the model 
+                    - compilation: Whether to compile the model
                     - precision: Precision mode for deployment
                     - quantization: Whether to quantize the model
             environment: Target deployment environment
@@ -5186,7 +5186,7 @@ MIT
                 - "logs_url": URL for accessing deployment logs
                 - "monitor_url": URL for monitoring the deployment
                 - "estimated_cost": Estimated cost for running the deployment
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSGetError: If the model cannot be retrieved
@@ -5196,14 +5196,14 @@ MIT
         # Validate model_cid
         if not model_cid:
             raise IPFSValidationError("model_cid must not be empty")
-            
+
         # Validate deployment_config
         if not deployment_config:
             raise IPFSValidationError("deployment_config must not be empty")
-            
+
         if not isinstance(deployment_config, dict):
             raise IPFSValidationError("deployment_config must be a dictionary")
-            
+
         # Validate environment
         valid_environments = ["production", "staging", "development"]
         if environment not in valid_environments:
@@ -5211,7 +5211,7 @@ MIT
                 f"Invalid environment: {environment}. "
                 f"Must be one of: {', '.join(valid_environments)}"
             )
-            
+
         # Check if AI/ML integration is available
         if not AI_ML_AVAILABLE:
             if allow_simulation:
@@ -5219,25 +5219,25 @@ MIT
                 import time
                 import random
                 import uuid
-                
+
                 current_time = time.time()
-                
+
                 # Generate a fake endpoint ID if none provided
                 endpoint_id_val = endpoint_id or f"endpoint-{uuid.uuid4()}"
-                
+
                 # Extract deployment name from config or generate one
                 deployment_name = deployment_config.get("name", f"deployment-{model_cid[:8]}")
-                
+
                 # Generate domain based on environment and name
                 domain_base = "api.example.org" if network_config and network_config.get("custom_domain") else "ai-deploy.ipfs-kit.org"
                 endpoint_domain = network_config and network_config.get("custom_domain") or f"{deployment_name}.{environment}.{domain_base}"
-                
+
                 # Determine status based on wait_for_ready
                 if wait_for_ready:
                     status = "running"
                 else:
                     status = random.choice(["deploying", "pending", "scaling_up"])
-                
+
                 # Extract resource config or create default
                 resource_config = deployment_config.get("resources", {
                     "cpu": "2",
@@ -5245,17 +5245,17 @@ MIT
                     "gpu": "0",
                     "disk": "10Gi"
                 })
-                
+
                 # Scaling config
                 scaling_config = deployment_config.get("scaling", {
                     "min_replicas": 1,
                     "max_replicas": 5,
                     "target_concurrency": 10
                 })
-                
+
                 # Current scaling status
                 current_replicas = scaling_config.get("min_replicas", 1)
-                
+
                 # Initial metrics
                 metrics = None
                 if monitoring_enabled:
@@ -5265,7 +5265,7 @@ MIT
                         "cpu_usage_percent": random.randint(10, 50),
                         "gpu_memory_usage_mb": 0 if not resource_config.get("gpu") else random.randint(100, 1000)
                     }
-                
+
                 # Cost estimation
                 cost = {
                     "estimated_hourly_cost": random.uniform(0.1, 2.0),
@@ -5276,11 +5276,11 @@ MIT
                         "network_cost": random.uniform(0.01, 0.2)
                     }
                 }
-                
+
                 # URLs
                 logs_url = f"https://logs.{domain_base}/deployments/{endpoint_id_val}"
                 monitor_url = f"https://monitor.{domain_base}/deployments/{endpoint_id_val}"
-                
+
                 return {
                     "success": True,
                     "operation": "ai_deploy_model",
@@ -5319,26 +5319,26 @@ MIT
             "monitoring_enabled": monitoring_enabled,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add optional parameters if provided
         if endpoint_id is not None:
             kwargs_with_defaults["endpoint_id"] = endpoint_id
-            
+
         if deployment_timeout is not None:
             kwargs_with_defaults["deployment_timeout"] = deployment_timeout
-            
+
         if security_config is not None:
             kwargs_with_defaults["security_config"] = security_config
-            
+
         if network_config is not None:
             kwargs_with_defaults["network_config"] = network_config
-            
+
         if logging_config is not None:
             kwargs_with_defaults["logging_config"] = logging_config
-            
+
         if custom_metrics is not None:
             kwargs_with_defaults["custom_metrics"] = custom_metrics
-            
+
         if alert_config is not None:
             kwargs_with_defaults["alert_config"] = alert_config
 
@@ -5348,9 +5348,9 @@ MIT
         )
 
     def ai_optimize_model(
-        self, 
-        model_cid: str, 
-        *, 
+        self,
+        model_cid: str,
+        *,
         target_platform: str = "cpu",
         optimization_level: str = "O1",
         quantization: Union[bool, str] = False,
@@ -5370,7 +5370,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Optimize a model for inference performance or deployment efficiency.
-        
+
         This method applies various optimization techniques to machine learning models
         to improve inference speed, reduce memory footprint, or enable deployment on
         specific hardware targets. Common optimizations include quantization, pruning,
@@ -5413,7 +5413,7 @@ MIT
             allow_custom_ops: Whether to allow custom operators in the optimized model
             allow_simulation: Whether to allow simulated responses when AI/ML integration is unavailable
             optimization_config: Additional configuration dictionary for advanced optimization settings
-                - target_format: Target format for optimization 
+                - target_format: Target format for optimization
                     - Examples: "onnx", "tensorrt", "openvino", "coreml", "tflite"
                 - optimizations: List of specific optimizations to apply
                     - Examples: "pruning", "distillation", "fusion"
@@ -5448,7 +5448,7 @@ MIT
                     - optimized_size_bytes: Size of the optimized model
                 - "accuracy_impact": Effect on model accuracy if evaluated
                 - "optimization_time": Time taken for optimization in seconds
-                
+
         Raises:
             IPFSError: Base class for all IPFS-related errors
             IPFSGetError: If the model cannot be retrieved
@@ -5464,7 +5464,7 @@ MIT
         valid_opt_levels = ["O0", "O1", "O2", "O3"]
         if optimization_level not in valid_opt_levels:
             raise ValueError(f"Invalid optimization_level: {optimization_level}. Must be one of: {', '.join(valid_opt_levels)}")
-        
+
         # Handle simulation case for when AI/ML is not available
         if not AI_ML_AVAILABLE:
             if not allow_simulation:
@@ -5475,7 +5475,7 @@ MIT
                     "error": "AI/ML integration not available and simulation not allowed",
                     "error_type": "IntegrationUnavailableError"
                 }
-                
+
             # Return simulated response
             return {
                 "success": True,
@@ -5511,7 +5511,7 @@ MIT
             "dynamic_shapes": dynamic_shapes,
             **kwargs  # Any additional kwargs override the defaults
         }
-        
+
         # Add optional parameters if provided
         if precision is not None:
             kwargs_with_defaults["precision"] = precision
@@ -5527,7 +5527,7 @@ MIT
             kwargs_with_defaults["calibration_dataset_cid"] = calibration_dataset_cid
         if source_framework is not None:
             kwargs_with_defaults["source_framework"] = source_framework
-        
+
         # Create optimization config if not provided
         if optimization_config is None:
             optimization_config = {
@@ -5538,23 +5538,23 @@ MIT
             if quantization:
                 optimization_config["optimizations"].append("quantization")
                 optimization_config["precision"] = precision if precision else ("int8" if quantization == True else quantization)
-        
+
         try:
             # Forward to underlying implementation
             result = self.kit.ai_optimize_model(
-                model_cid=model_cid, 
-                optimization_config=optimization_config, 
+                model_cid=model_cid,
+                optimization_config=optimization_config,
                 **kwargs_with_defaults
             )
-            
+
             # Ensure result has operation and timestamp for consistency
             if "operation" not in result:
                 result["operation"] = "ai_optimize_model"
             if "timestamp" not in result:
                 result["timestamp"] = time.time()
-                
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error optimizing model: {str(e)}")
             return {
@@ -5565,7 +5565,7 @@ MIT
                 "error_type": type(e).__name__,
                 "model_cid": model_cid
             }
-        
+
 
     def hybrid_search(
         self,
@@ -5586,7 +5586,7 @@ MIT
     ) -> Dict[str, Any]:
         """
         Perform hybrid search combining metadata filtering, vector similarity, and graph traversal.
-        
+
         This method integrates the Arrow metadata index with the IPLD Knowledge Graph
         to provide a unified search experience that combines efficient metadata
         filtering with semantic vector search and graph traversal, delivering highly
@@ -5596,7 +5596,7 @@ MIT
             query_text: Text query for semantic search
                 - If provided alone: Will be converted to a vector embedding
                 - If provided with query_vector: Used for filtering and result display
-            query_vector: Vector embedding for similarity search 
+            query_vector: Vector embedding for similarity search
                 - If provided alone: Used directly for vector similarity
                 - If provided with query_text: Used as-is without re-encoding query_text
             metadata_filters: List of filters in format [(field, op, value)]
@@ -5644,7 +5644,7 @@ MIT
                     - "metadata_filter_time_ms": Time spent on metadata filtering
                     - "vector_search_time_ms": Time spent on vector search
                 - "llm_context": Formatted context for LLMs (if requested)
-                
+
         Raises:
             IPFSError: If integrated search is not available
             ValueError: If both query_text and query_vector are None
@@ -5666,7 +5666,7 @@ MIT
                 "rerank_results": rerank_results,
                 **kwargs  # Any additional kwargs override the defaults
             }
-            
+
             # Add timeout if provided
             if timeout is not None:
                 kwargs_with_defaults["timeout"] = timeout
@@ -5707,8 +5707,8 @@ MIT
 
         except Exception as e:
             return {
-                "success": False, 
-                "error": str(e), 
+                "success": False,
+                "error": str(e),
                 "error_type": type(e).__name__,
                 "query": query_text
             }
@@ -5781,14 +5781,14 @@ MIT
                 "trust_remote_code": trust_remote_code,
                 **kwargs  # Any additional kwargs override the defaults
             }
-            
+
             # Add optional parameters if provided
             if device is not None:
                 kwargs_with_defaults["device"] = device
-                
+
             if max_seq_length is not None:
                 kwargs_with_defaults["max_seq_length"] = max_seq_length
-                
+
             if revision is not None:
                 kwargs_with_defaults["revision"] = revision
 
@@ -5852,7 +5852,7 @@ MIT
                 - "success": Whether the operation succeeded
                 - "embedding": Vector for a single input text
                 - "embeddings": List of vectors for multiple input texts
-                - "count": Number of embeddings generated 
+                - "count": Number of embeddings generated
                 - "dimension": Dimensionality of embedding vectors
                 - "model_name": Name of the model used
                 - "output_format": Format of the embedding vectors
@@ -5893,12 +5893,12 @@ MIT
                 "output_format": output_format,
                 "show_progress": show_progress
             }
-            
+
             # Add any additional kwargs
             for k, v in kwargs.items():
                 if k not in generation_kwargs:
                     generation_kwargs[k] = v
-                    
+
             embeddings = embedding_model.generate_embeddings(texts_list, **generation_kwargs)
 
             # Prepare result dictionary with common fields
@@ -5908,21 +5908,21 @@ MIT
                 "output_format": output_format,
                 "dimension": len(embeddings[0]) if embeddings else 0,
             }
-            
+
             # Return appropriate result format based on input type
             if is_single:
                 result["embedding"] = embeddings[0]
             else:
                 result["embeddings"] = embeddings
                 result["count"] = len(embeddings)
-                
+
             return result
 
         except Exception as e:
             return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
     def create_search_connector(
-        self, 
+        self,
         *,
         model_registry: Optional[Any] = None,
         dataset_manager: Optional[Any] = None,
@@ -5987,7 +5987,7 @@ MIT
                 "search_timeout": search_timeout,
                 **kwargs  # Any additional kwargs override the defaults
             }
-            
+
             # Add connector name if provided
             if connector_name is not None:
                 kwargs_with_defaults["connector_name"] = connector_name
@@ -6015,7 +6015,7 @@ MIT
             return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
     def create_search_benchmark(
-        self, 
+        self,
         *,
         output_dir: Optional[str] = None,
         search_connector: Optional[Any] = None,
@@ -6072,11 +6072,11 @@ MIT
                 "report_format": report_format,
                 **kwargs  # Any additional kwargs override the defaults
             }
-            
+
             # Add optional parameters if provided
             if output_dir is not None:
                 kwargs_with_defaults["output_dir"] = output_dir
-                
+
             if benchmark_name is not None:
                 kwargs_with_defaults["benchmark_name"] = benchmark_name
 
@@ -6105,10 +6105,10 @@ MIT
             return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
     def run_search_benchmark(
-        self, 
+        self,
         *,
-        benchmark_type: str = "full", 
-        num_runs: int = 5, 
+        benchmark_type: str = "full",
+        num_runs: int = 5,
         output_dir: Optional[str] = None,
         save_results: bool = True,
         custom_filters: Optional[List[Any]] = None,
@@ -6176,14 +6176,14 @@ MIT
                 "save_raw_data": save_results,
                 "include_system_info": include_system_info
             }
-            
+
             # Add optional parameters if provided
             if output_dir is not None:
                 benchmark_params["output_dir"] = output_dir
-                
+
             if benchmark_name is not None:
                 benchmark_params["benchmark_name"] = benchmark_name
-                
+
             if search_connector is not None:
                 benchmark_params["search_connector"] = search_connector
 
@@ -6197,7 +6197,7 @@ MIT
                 "compare_with_previous": compare_with_previous,
                 **kwargs  # Forward any additional parameters
             }
-            
+
             # Run the requested benchmark
             if benchmark_type == "full":
                 # Run full benchmark suite
@@ -6224,14 +6224,14 @@ MIT
             # Generate report and visualizations only if requested
             report_path = None
             visualization_paths = []
-            
+
             if include_visualization:
                 visualization_paths = benchmark.generate_visualizations(results)
-                
+
             # Generate report if requested
             if kwargs.get("generate_report", True):
                 report_path = benchmark.generate_benchmark_report(
-                    results, 
+                    results,
                     format=kwargs.get("report_format", "markdown"),
                     include_visualizations=include_visualization
                 )
@@ -6245,10 +6245,10 @@ MIT
                 "total_runtime_seconds": benchmark.calculate_total_runtime(results),
                 "benchmark_completed_at": time.time(),
             }
-            
+
             if compare_with_previous and hasattr(benchmark, "comparison_results"):
                 summary["comparison"] = benchmark.comparison_results
-                
+
             # Return comprehensive results with report and visualization information
             return {
                 "success": True,
@@ -6272,41 +6272,41 @@ MIT
             return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
     def __call__(
-        self, 
-        method_name: str, 
-        *args, 
+        self,
+        method_name: str,
+        *args,
         **kwargs
     ) -> Any:
         """
         Call a method or extension by name.
-        
+
         This method allows calling any API method or registered extension by name.
-        
+
         Args:
             method_name: Name of the method or extension to call
             *args: Positional arguments to pass to the method
             **kwargs: Keyword arguments to pass to the method
-            
+
         Returns:
             Result from the called method
-            
+
         Raises:
             AttributeError: If the method does not exist
         """
         # Check if this is a core method
         if hasattr(self, method_name) and callable(getattr(self, method_name)):
             return getattr(self, method_name)(*args, **kwargs)
-            
+
         # Check if this is an extension
         if "." in method_name:
             return self.call_extension(method_name, *args, **kwargs)
-            
+
         # Not found
         raise AttributeError(f"Method '{method_name}' not found")
-        
+
     def call_extension(
-        self, 
-        extension_name: str, 
+        self,
+        extension_name: str,
         *args,
         **kwargs
     ) -> Any:
@@ -6332,7 +6332,7 @@ MIT
             raise IPFSError(f"Extension not found: {extension_name}")
 
         extension_func = self.extensions[extension_name]
-        
+
         try:
             return extension_func(*args, **kwargs)
         except Exception as e:
@@ -6340,7 +6340,7 @@ MIT
             raise
 
     def open_file(
-        self, 
+        self,
         path: str,
         *,
         mode: str = "rb",
@@ -6363,7 +6363,7 @@ MIT
                 Valid values: "rb" (binary read) or "r" (text read)
             buffer_size: Size of buffer for buffered reading
             cache_type: Type of cache to use (None, "readahead", "mmap", etc.)
-            compression: Compression format to use (None, "gzip", "bz2", etc.)  
+            compression: Compression format to use (None, "gzip", "bz2", etc.)
             encoding: Text encoding when using text mode (default: 'utf-8')
             errors: How to handle encoding errors (default: 'strict')
             **kwargs: Additional options passed to the underlying filesystem
@@ -6387,11 +6387,11 @@ MIT
             # Open with ipfs:// URL
             with api.open_file("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx") as f:
                 content = f.read()
-                
+
             # Open as text
             with api.open_file(
-                "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", 
-                mode="r", 
+                "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx",
+                mode="r",
                 encoding="utf-8"
             ) as f:
                 text = f.read()
@@ -6400,7 +6400,7 @@ MIT
         # Validate mode
         if not mode.startswith("r"):
             raise ValueError(f"Unsupported mode: {mode}. Only read modes are supported.")
-            
+
         # Update kwargs with explicit parameters
         kwargs_with_defaults = kwargs.copy()
         if buffer_size is not None:
@@ -6413,7 +6413,7 @@ MIT
             kwargs_with_defaults["encoding"] = encoding
         if errors is not None:
             kwargs_with_defaults["errors"] = errors
-            
+
         # Initialize filesystem if needed
         if not self.fs:
             self.fs = self.get_filesystem(**kwargs)
@@ -6432,7 +6432,7 @@ MIT
             raise IPFSError(f"Failed to open file: {str(e)}") from e
 
     def read_file(
-        self, 
+        self,
         path: str,
         *,
         compression: Optional[str] = None,
@@ -6454,7 +6454,7 @@ MIT
 
         Returns:
             bytes: Contents of the file as bytes
-            
+
         Raises:
             IPFSError: If the file cannot be read
             ImportError: If FSSpec is not available
@@ -6467,7 +6467,7 @@ MIT
             kwargs_with_defaults["buffer_size"] = buffer_size
         if cache_type is not None:
             kwargs_with_defaults["cache_type"] = cache_type
-            
+
         try:
             with self.open_file(path, **kwargs_with_defaults) as f:
                 if max_size is not None:
@@ -6478,7 +6478,7 @@ MIT
             raise IPFSError(f"Failed to read file: {str(e)}") from e
 
     def read_text(
-        self, 
+        self,
         path: str,
         *,
         encoding: str = "utf-8",
@@ -6505,7 +6505,7 @@ MIT
 
         Returns:
             str: Contents of the file as a string
-            
+
         Raises:
             IPFSError: If the file cannot be read
             UnicodeDecodeError: If the file cannot be decoded with the specified encoding
@@ -6521,7 +6521,7 @@ MIT
             kwargs_with_defaults["cache_type"] = cache_type
         if max_size is not None:
             kwargs_with_defaults["max_size"] = max_size
-            
+
         try:
             content = self.read_file(path, **kwargs_with_defaults)
             return content.decode(encoding, errors=errors)
@@ -6530,7 +6530,7 @@ MIT
             raise
 
     def add_json(
-        self, 
+        self,
         data: Any,
         *,
         indent: int = 2,
@@ -6639,8 +6639,8 @@ MIT
     # AI/ML Methods
 
     def ai_register_dataset(
-        self, 
-        dataset_cid: str, 
+        self,
+        dataset_cid: str,
         metadata: Dict[str, Any],
         *,
         pin: bool = True,
@@ -6757,14 +6757,14 @@ MIT
 
             # Fallback to simple metadata registration without advanced features
             logger.warning("AI/ML integration not available, using fallback implementation")
-            
+
             # Generate a simulated metadata CID
             metadata_cid = f"Qm{os.urandom(16).hex()}"
-            
+
             # Create simulated metadata statistics
             num_features = len(metadata.get("features", []))
             num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
-            
+
             result = {
                 "success": True,
                 "operation": "ai_register_dataset",
@@ -6804,7 +6804,7 @@ MIT
 
             # Forward allow_simulation parameter to the dataset_manager
             kwargs_with_defaults["allow_simulation"] = allow_simulation
-            
+
             result = dataset_manager.register_dataset(dataset_cid, metadata, **kwargs_with_defaults)
             return result
         except Exception as e:
@@ -6817,17 +6817,17 @@ MIT
                     "error": f"Error in AI/ML integration: {str(e)}",
                     "error_type": type(e).__name__
                 }
-                
+
             # Fallback to simulation on error
             logger.error(f"Error registering dataset with AI/ML integration: {str(e)}")
 
             # Generate a simulated metadata CID
             metadata_cid = f"Qm{os.urandom(16).hex()}"
-            
+
             # Create simulated metadata statistics
             num_features = len(metadata.get("features", []))
             num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
-            
+
             return {
                 "success": True,
                 "operation": "ai_register_dataset",
@@ -6888,15 +6888,15 @@ class PluginBase:
 class IPFSClient:
     """
     Client for interacting with IPFS Kit.
-    
+
     This client provides a simplified interface to IPFS Kit,
     with methods for common operations.
     """
-    
+
     def __init__(self, config_path: Optional[str] = None, api_url: Optional[str] = None, **kwargs):
         """
         Initialize the IPFS Kit client.
-        
+
         Args:
             config_path: Path to YAML/JSON configuration file
             api_url: URL of the IPFS Kit API server
@@ -6904,26 +6904,26 @@ class IPFSClient:
         """
         # Initialize configuration
         self.config = self._load_config(config_path)
-        
+
         # Override with kwargs
         if kwargs:
             self.config.update(kwargs)
-            
+
         # Set API URL
         self.api_url = api_url or self.config.get("api_url", "http://localhost:8000")
-        
+
     def _load_config(self, config_path: Optional[str]) -> Dict[str, Any]:
         """
         Load configuration from file with fallbacks.
-        
+
         Args:
             config_path: Path to YAML/JSON configuration file
-            
+
         Returns:
             Dictionary of configuration parameters
         """
         config = {}
-        
+
         # Default locations if not specified
         if not config_path:
             # Try standard locations
@@ -6933,13 +6933,13 @@ class IPFSClient:
                 "~/.ipfs_kit/config.yaml",
                 "~/.ipfs_kit/config.json",
             ]
-            
+
             for path in standard_paths:
                 expanded_path = os.path.expanduser(path)
                 if os.path.exists(expanded_path):
                     config_path = expanded_path
                     break
-        
+
         # Load from file if available
         if config_path and os.path.exists(os.path.expanduser(config_path)):
             expanded_path = os.path.expanduser(config_path)
@@ -6952,7 +6952,7 @@ class IPFSClient:
             except Exception as e:
                 print(f"Error loading configuration from {expanded_path}: {e}")
                 config = {}
-        
+
         return config
 
     def _generate_javascript_sdk(
@@ -7003,7 +7003,7 @@ class IPFSClient:
             f.write(
                 """/**
                 * IPFS Kit JavaScript SDK.
-                * 
+                *
                 * This SDK provides a simplified interface to IPFS Kit.
                 */
 
@@ -7015,7 +7015,7 @@ class IPFSClient:
                 class IPFSClient {
                 /**
                 * Initialize the IPFS Kit client.
-                * 
+                *
                 * @param {Object} options - Configuration options
                 * @param {string} options.configPath - Path to YAML/JSON configuration file
                 * @param {string} options.apiUrl - URL of the IPFS Kit API server
@@ -7023,32 +7023,32 @@ class IPFSClient:
                 constructor(options = {}) {
                     // Initialize configuration
                     this.config = this._loadConfig(options.configPath);
-                    
+
                     // Override with options
                     if (options) {
                     this.config = { ...this.config, ...options };
                     }
-                    
+
                     // Set API URL
                     this.apiUrl = options.apiUrl || this.config.apiUrl || 'http://localhost:8000';
-                    
+
                     // Create axios instance
                     this.client = axios.create({
                     baseURL: this.apiUrl,
                     timeout: (this.config.timeouts && this.config.timeouts.api) || 30000,
                     });
                 }
-                
+
                 /**
                 * Load configuration from file with fallbacks.
-                * 
+                *
                 * @param {string} configPath - Path to YAML/JSON configuration file
                 * @returns {Object} Configuration parameters
                 * @private
                 */
                 _loadConfig(configPath) {
                     let config = {};
-                    
+
                     // Default locations if not specified
                     if (!configPath) {
                     // Try standard locations
@@ -7058,24 +7058,24 @@ class IPFSClient:
                         '~/.ipfs_kit/config.yaml',
                         '~/.ipfs_kit/config.json',
                     ];
-                    
+
                     for (const p of standardPaths) {
-                        const expandedPath = p.startsWith('~') 
-                        ? path.join(process.env.HOME, p.substring(1)) 
+                        const expandedPath = p.startsWith('~')
+                        ? path.join(process.env.HOME, p.substring(1))
                         : p;
-                        
+
                         if (fs.existsSync(expandedPath)) {
                         configPath = expandedPath;
                         break;
                         }
                     }
                     }
-                    
+
                     // Load from file if available
                     if (configPath && fs.existsSync(configPath)) {
                     try {
                         const content = fs.readFileSync(configPath, 'utf8');
-                        
+
                         if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
                         config = yaml.load(content);
                         } else {
@@ -7086,13 +7086,13 @@ class IPFSClient:
                         config = {};
                     }
                     }
-                    
+
                     return config;
                 }
-                
+
                 /**
                 * Make an API request.
-                * 
+                *
                 * @param {string} method - Method name
                 * @param {Array} args - Positional arguments
                 * @param {Object} kwargs - Keyword arguments
@@ -7105,7 +7105,7 @@ class IPFSClient:
                         args,
                         kwargs,
                     });
-                    
+
                     return response.data;
                     } catch (error) {
                     if (error.response) {
@@ -7147,7 +7147,7 @@ class IPFSClient:
                         if (args.length > 0 && typeof args[args.length - 1] === 'object') {{
                         kwargs = args.pop();
                         }}
-                        
+
                         return this._request('{method["name"]}', args, kwargs);
                     }}
                     """
@@ -7187,7 +7187,7 @@ class IPFSClient:
                     try {
                         const result = await client.add("Hello, IPFS!");
                         console.log(`Added content with CID: ${result.cid}`);
-                        
+
                         // Get content from IPFS
                         const content = await client.get(result.cid);
                         console.log(`Retrieved content: ${content}`);
@@ -7328,23 +7328,23 @@ class IPFSClient:
                     /// Network error.
                     #[error("Network error: {0}")]
                     Network(#[from] reqwest::Error),
-                    
+
                     /// Configuration error.
                     #[error("Configuration error: {0}")]
                     Config(String),
-                    
+
                     /// API error.
                     #[error("API error: {0}")]
                     Api(String),
-                    
+
                     /// IO error.
                     #[error("IO error: {0}")]
                     Io(#[from] std::io::Error),
-                    
+
                     /// Serialization error.
                     #[error("Serialization error: {0}")]
                     Serialization(#[from] serde_json::Error),
-                    
+
                     /// YAML parsing error.
                     #[error("YAML parsing error: {0}")]
                     Yaml(#[from] serde_yaml::Error),
@@ -7356,7 +7356,7 @@ class IPFSClient:
                     /// API URL.
                     #[serde(default = "default_api_url")]
                     pub api_url: String,
-                    
+
                     /// Timeouts.
                     #[serde(default)]
                     pub timeouts: Timeouts,
@@ -7368,7 +7368,7 @@ class IPFSClient:
                     /// API timeout in seconds.
                     #[serde(default = "default_api_timeout")]
                     pub api: u64,
-                    
+
                     /// Gateway timeout in seconds.
                     #[serde(default = "default_gateway_timeout")]
                     pub gateway: u64,
@@ -7409,7 +7409,7 @@ class IPFSClient:
                 struct ApiRequest {
                     /// Positional arguments.
                     args: Vec<serde_json::Value>,
-                    
+
                     /// Keyword arguments.
                     kwargs: HashMap<String, serde_json::Value>,
                 }
@@ -7419,7 +7419,7 @@ class IPFSClient:
                 pub struct IPFSClient {
                     /// Configuration.
                     config: Config,
-                    
+
                     /// HTTP client.
                     client: Client,
                 }
@@ -7429,23 +7429,23 @@ class IPFSClient:
                     pub fn new() -> Result<Self> {
                         Self::with_config(Config::default())
                     }
-                    
+
                     /// Create a new IPFS Kit client with custom configuration.
                     pub fn with_config(config: Config) -> Result<Self> {
                         let client = Client::builder()
                             .timeout(std::time::Duration::from_secs(config.timeouts.api))
                             .build()
                             .context("Failed to create HTTP client")?;
-                        
+
                         Ok(Self { config, client })
                     }
-                    
+
                     /// Load configuration from a file.
                     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
                         let path = path.as_ref();
                         let content = fs::read_to_string(path)
                             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-                        
+
                         let config = if path.extension().and_then(|e| e.to_str()) == Some("yaml")
                             || path.extension().and_then(|e| e.to_str()) == Some("yml")
                         {
@@ -7455,10 +7455,10 @@ class IPFSClient:
                             serde_json::from_str(&content)
                                 .with_context(|| format!("Failed to parse JSON config: {}", path.display()))?
                         };
-                        
+
                         Self::with_config(config)
                     }
-                    
+
                     /// Load configuration from standard locations.
                     pub fn from_standard_locations() -> Result<Self> {
                         let standard_paths = [
@@ -7467,7 +7467,7 @@ class IPFSClient:
                             "~/.ipfs_kit/config.yaml",
                             "~/.ipfs_kit/config.json",
                         ];
-                        
+
                         for path_str in &standard_paths {
                             let path = if path_str.starts_with("~/") {
                                 if let Some(home) = dirs::home_dir() {
@@ -7478,16 +7478,16 @@ class IPFSClient:
                             } else {
                                 PathBuf::from(path_str)
                             };
-                            
+
                             if path.exists() {
                                 return Self::from_file(path);
                             }
                         }
-                        
+
                         // Fall back to default configuration
                         Self::new()
                     }
-                    
+
                     /// Make an API request.
                     async fn request(
                         &self,
@@ -7496,9 +7496,9 @@ class IPFSClient:
                         kwargs: HashMap<String, serde_json::Value>,
                     ) -> Result<serde_json::Value> {
                         let url = format!("{}/api/{}", self.config.api_url, method);
-                        
+
                         let request = ApiRequest { args, kwargs };
-                        
+
                         let response = self
                             .client
                             .post(&url)
@@ -7506,26 +7506,26 @@ class IPFSClient:
                             .send()
                             .await
                             .with_context(|| format!("Failed to send request to {}", url))?;
-                        
+
                         if !response.status().is_success() {
                             let status = response.status();
                             let error_text = response
                                 .text()
                                 .await
                                 .unwrap_or_else(|_| "Unknown error".to_string());
-                                
+
                             return Err(IPFSError::Api(format!(
                                 "API error ({}): {}",
                                 status, error_text
                             ))
                             .into());
                         }
-                        
+
                         let result = response
                             .json()
                             .await
                             .context("Failed to parse API response")?;
-                            
+
                         Ok(result)
                     }
                 """
@@ -7572,9 +7572,9 @@ class IPFSClient:
                         ) -> Result<serde_json::Value> {{
                             let args = vec![];
                             let mut kwargs = HashMap::new();
-                            
+
                             // Add parameters to args or kwargs as appropriate
-                            
+
                             self.request("{method["name"]}", args, kwargs).await
                         }}
                     """
@@ -7587,13 +7587,13 @@ class IPFSClient:
                     #[cfg(test)]
                     mod tests {
                         use super::*;
-                        
+
                         #[tokio::test]
                         async fn test_client_creation() {
                             let client = IPFSClient::new().unwrap();
                             assert_eq!(client.config.api_url, "http://localhost:8000");
                         }
-                        
+
                         // Add more tests as needed
                     }
                 """
@@ -7624,15 +7624,15 @@ class IPFSClient:
             async fn main() -> anyhow::Result<()> {
                 // Initialize client
                 let client = IPFSClient::new()?;
-                
+
                 // Add content to IPFS
                 let result = client.add("Hello, IPFS!").await?;
                 println!("Added content with CID: {}", result["cid"]);
-                
+
                 // Get content from IPFS
                 let content = client.get(&result["cid"].as_str().unwrap()).await?;
                 println!("Retrieved content: {}", content);
-                
+
                 Ok(())
             }
             ```
@@ -7717,7 +7717,7 @@ class IPFSClient:
         }
 
     def ai_deploy_model(
-        self, 
+        self,
         model_cid: str,
         *,
         endpoint_type: str = "rest",
@@ -7805,7 +7805,7 @@ class IPFSClient:
         # Set defaults for scaling
         if scaling is None:
             scaling = {"min_replicas": 1, "max_replicas": 1}
-            
+
         # If auto_scale is enabled, ensure max_replicas > min_replicas
         if auto_scale and scaling.get("max_replicas", 1) <= scaling.get("min_replicas", 1):
             scaling["max_replicas"] = scaling.get("min_replicas", 1) + 2
@@ -7859,7 +7859,7 @@ class IPFSClient:
         except Exception as e:
             # Log the error and return error information
             logger.error(f"Error deploying model {model_cid}: {str(e)}")
-            
+
             return {
                 "success": False,
                 "operation": "ai_deploy_model",
@@ -7971,15 +7971,15 @@ class IPFSClient:
             }
 
     def ai_vector_search(
-        self, 
-        query: Union[str, List[float]], 
-        vector_index_cid: str, 
-        *, 
-        top_k: int = 10, 
-        similarity_threshold: float = 0.0, 
-        filter: Optional[Dict[str, Any]] = None, 
-        embedding_model: Optional[str] = None, 
-        search_type: Literal["similarity", "knn", "hybrid"] = "similarity", 
+        self,
+        query: Union[str, List[float]],
+        vector_index_cid: str,
+        *,
+        top_k: int = 10,
+        similarity_threshold: float = 0.0,
+        filter: Optional[Dict[str, Any]] = None,
+        embedding_model: Optional[str] = None,
+        search_type: Literal["similarity", "knn", "hybrid"] = "similarity",
         timeout: int = 30,
         allow_simulation: bool = True,
         **kwargs
@@ -8021,10 +8021,10 @@ class IPFSClient:
             kwargs_dict["embedding_model"] = embedding_model
         kwargs_dict["search_type"] = search_type
         kwargs_dict["timeout"] = timeout
-        
+
         # Add any additional kwargs
         kwargs_dict.update(kwargs)
-        
+
         # Validate parameters
         validation.validate_parameters(
             kwargs_dict,
@@ -8131,14 +8131,14 @@ class IPFSClient:
         """
         Create a knowledge graph from source data.
 
-        This method extracts entities and relationships from source data and 
+        This method extracts entities and relationships from source data and
         creates a structured knowledge graph stored in IPLD format. The resulting
         graph can be used for semantic search, reasoning, and data exploration.
 
         Args:
             source_data_cid: CID of the source data to process (document, dataset, etc.)
             graph_name: Name to assign to the created knowledge graph
-            extraction_model: Optional name/type of model to use for entity extraction 
+            extraction_model: Optional name/type of model to use for entity extraction
                 (if None, uses the default model appropriate for the content type)
             entity_types: List of entity types to extract (e.g., ["Person", "Organization", "Location"])
             relationship_types: List of relationship types to extract (e.g., ["worksFor", "locatedIn"])
@@ -8181,7 +8181,7 @@ class IPFSClient:
             "save_intermediate_results": save_intermediate_results,
             "timeout": timeout
         }
-        
+
         # Add optional parameters if provided
         if extraction_model is not None:
             kwargs_dict["extraction_model"] = extraction_model
@@ -8189,10 +8189,10 @@ class IPFSClient:
             kwargs_dict["entity_types"] = entity_types
         if relationship_types is not None:
             kwargs_dict["relationship_types"] = relationship_types
-            
+
         # Add any additional kwargs
         kwargs_dict.update(kwargs)
-        
+
         # Validate parameters
         validation.validate_parameters(
             kwargs_dict,
@@ -8208,7 +8208,7 @@ class IPFSClient:
                 "timeout": {"type": int, "default": 120}
             }
         )
-        
+
         # Validate source_data_cid
         if not source_data_cid:
             return {
@@ -8223,25 +8223,25 @@ class IPFSClient:
         if not AI_ML_AVAILABLE and allow_simulation:
             # Fallback to simulation for demonstration
             start_time = time.time()
-            
+
             # Generate simulated entity types if not provided
             sim_entity_types = entity_types or ["Person", "Organization", "Location", "Event", "Topic", "Product"]
-            
+
             # Generate simulated relationship types if not provided
             sim_relationship_types = relationship_types or ["relatedTo", "partOf", "hasProperty", "locatedIn", "createdBy"]
-            
+
             # Simulate processing delay
             time.sleep(0.5)
-            
+
             # Generate simulated entities
             entities = []
             entity_ids = []
-            
+
             for i in range(min(max_entities, 25)):  # Simulate up to 25 entities
                 entity_type = sim_entity_types[i % len(sim_entity_types)]
                 entity_id = f"{entity_type.lower()}_{i}"
                 entity_ids.append(entity_id)
-                
+
                 # Create entity with appropriate properties based on type
                 if entity_type == "Person":
                     entity = {
@@ -8283,26 +8283,26 @@ class IPFSClient:
                             "mentions": i + 1
                         }
                     }
-                    
+
                 # Add text context if requested
                 if include_text_context:
                     entity["context"] = f"This is a sample text mentioning {entity['name']} in the source document."
-                    
+
                 entities.append(entity)
-                
+
             # Generate simulated relationships
             relationships = []
             for i in range(min(max_entities * 2, 50)):  # Simulate up to 50 relationships
                 # Ensure we have at least 2 entities to create relationships
                 if len(entity_ids) < 2:
                     continue
-                    
+
                 # Get random source and target entities (ensure they're different)
                 source_idx = i % len(entity_ids)
                 target_idx = (i + 1 + (i % 3)) % len(entity_ids)  # Ensure different from source
-                
+
                 relationship_type = sim_relationship_types[i % len(sim_relationship_types)]
-                
+
                 relationship = {
                     "id": f"rel_{i}",
                     "type": relationship_type,
@@ -8313,26 +8313,26 @@ class IPFSClient:
                         "weight": i % 10
                     }
                 }
-                
+
                 # Add text context if requested
                 if include_text_context:
                     source_name = entities[source_idx]["name"]
                     target_name = entities[target_idx]["name"]
                     relationship["context"] = f"This is evidence that {source_name} is {relationship_type} {target_name}."
-                    
+
                 relationships.append(relationship)
-                
+
             # Create simulated graph CID
             graph_cid = f"Qm{os.urandom(16).hex()}"
-            
+
             # Create intermediate results CID if requested
             intermediate_results_cid = None
             if save_intermediate_results:
                 intermediate_results_cid = f"Qm{os.urandom(16).hex()}"
-                
+
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)
-            
+
             # Return simulated results
             result = {
                 "success": True,
@@ -8348,24 +8348,24 @@ class IPFSClient:
                 "source_data_cid": source_data_cid,
                 "processing_time_ms": processing_time_ms
             }
-            
+
             # Add intermediate results if requested
             if save_intermediate_results:
                 result["intermediate_results_cid"] = intermediate_results_cid
-                
+
             # Add entity and relationship type counts
             result["entity_types"] = {
                 entity_type: len([e for e in entities if e["type"] == entity_type])
                 for entity_type in set(e["type"] for e in entities)
             }
-            
+
             result["relationship_types"] = {
                 rel_type: len([r for r in relationships if r["type"] == rel_type])
                 for rel_type in set(r["type"] for r in relationships)
             }
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             return {
                 "success": False,
@@ -8380,15 +8380,15 @@ class IPFSClient:
         try:
             # Create knowledge graph manager
             kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
-            
+
             # Create knowledge graph
             result = kg_manager.create_knowledge_graph(
                 source_data_cid=source_data_cid,
                 **kwargs_dict
             )
-            
+
             return result
-            
+
         except Exception as e:
             # Return error information
             return {
@@ -8418,10 +8418,10 @@ class IPFSClient:
     ) -> Dict[str, Any]:
         """
         Run inference on a test dataset using a model and evaluate performance.
-        
-        This method loads a model and test dataset, performs inference, 
+
+        This method loads a model and test dataset, performs inference,
         computes evaluation metrics, and optionally saves the predictions.
-        
+
         Args:
             model_cid: CID of the model to use for inference
             test_data_cid: CID of the test dataset
@@ -8436,7 +8436,7 @@ class IPFSClient:
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             timeout: Operation timeout in seconds
             **kwargs: Additional parameters for inference
-        
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results with these keys:
                 - "success": bool indicating if the operation succeeded
@@ -8460,7 +8460,7 @@ class IPFSClient:
         import json
         import uuid
         from . import validation
-        
+
         # Validate required parameters
         if not model_cid:
             return {
@@ -8470,7 +8470,7 @@ class IPFSClient:
                 "error": "Model CID cannot be empty",
                 "error_type": "ValidationError"
             }
-        
+
         if not test_data_cid:
             return {
                 "success": False,
@@ -8479,7 +8479,7 @@ class IPFSClient:
                 "error": "Test data CID cannot be empty",
                 "error_type": "ValidationError"
             }
-        
+
         # Build kwargs dictionary with explicit parameters
         kwargs_dict = {
             "batch_size": batch_size,
@@ -8489,7 +8489,7 @@ class IPFSClient:
             "precision": precision,
             "timeout": timeout
         }
-        
+
         # Add optional parameters if provided
         if max_samples is not None:
             kwargs_dict["max_samples"] = max_samples
@@ -8497,10 +8497,10 @@ class IPFSClient:
             kwargs_dict["metrics"] = metrics
         if device is not None:
             kwargs_dict["device"] = device
-        
+
         # Add any additional kwargs
         kwargs_dict.update(kwargs)
-        
+
         # Validate parameters
         validation.validate_parameters(
             kwargs_dict,
@@ -8516,7 +8516,7 @@ class IPFSClient:
                 "timeout": {"type": int, "default": 300}
             }
         )
-        
+
         # Validate output format
         valid_formats = ["json", "csv", "parquet"]
         if output_format not in valid_formats:
@@ -8527,23 +8527,23 @@ class IPFSClient:
                 "error": f"Invalid output format: {output_format}. Valid formats: {', '.join(valid_formats)}",
                 "error_type": "ValidationError"
             }
-        
+
         # Check if AI/ML integration is available
         if not AI_ML_AVAILABLE and allow_simulation:
             # Fallback to simulation for demonstration
             start_time = time.time()
-            
+
             # Simulate processing delay
             processing_delay = random.uniform(0.5, 2.0)
             time.sleep(processing_delay)
-            
+
             # Simulate number of samples
             num_samples = max_samples if max_samples is not None else random.randint(100, 1000)
-            
+
             # Simulate metrics
             default_metrics = ["accuracy", "precision", "recall", "f1"]
             metric_names = metrics if metrics else default_metrics
-            
+
             simulated_metrics = {}
             for metric in metric_names:
                 # Generate realistic metric values
@@ -8564,7 +8564,7 @@ class IPFSClient:
                 else:
                     # Generic metric
                     simulated_metrics[metric] = round(random.uniform(0.7, 0.98), 4)
-            
+
             # Add confusion matrix if requested
             if "confusion_matrix" in metric_names:
                 # Simplified 2-class confusion matrix for simulation
@@ -8572,12 +8572,12 @@ class IPFSClient:
                 false_pos = int(num_samples * 0.05)
                 false_neg = int(num_samples * 0.10)
                 true_neg = num_samples - true_pos - false_pos - false_neg
-                
+
                 simulated_metrics["confusion_matrix"] = [
                     [true_pos, false_neg],
                     [false_pos, true_neg]
                 ]
-            
+
             # Simulate predictions
             sample_predictions = []
             for i in range(min(5, num_samples)):  # Show at most 5 sample predictions
@@ -8597,18 +8597,18 @@ class IPFSClient:
                         "sample_id": i,
                         "prediction": round(random.uniform(0, 100), 2)
                     }
-                
+
                 sample_predictions.append(prediction)
-            
+
             # Generate CID for predictions if saving
             predictions_cid = None
             if save_predictions:
                 predictions_cid = f"Qm{os.urandom(16).hex()}"
-            
+
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)
             inference_time_per_sample_ms = round(processing_time_ms / num_samples, 2)
-            
+
             # Return simulated results
             result = {
                 "success": True,
@@ -8624,17 +8624,17 @@ class IPFSClient:
                 "inference_time_per_sample_ms": inference_time_per_sample_ms,
                 "batch_size": batch_size
             }
-            
+
             # Add predictions CID if saving
             if save_predictions and predictions_cid:
                 result["predictions_cid"] = predictions_cid
-                
+
             # Add device info if provided
             if device:
                 result["device"] = device
-                
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             return {
                 "success": False,
@@ -8645,21 +8645,21 @@ class IPFSClient:
                 "model_cid": model_cid,
                 "test_data_cid": test_data_cid
             }
-        
+
         # If AI/ML integration is available, use the real implementation
         try:
             # Create inference manager
             inference_manager = ai_ml_integration.InferenceManager(self.kit)
-            
+
             # Run inference
             result = inference_manager.run_inference(
                 model_cid=model_cid,
                 test_data_cid=test_data_cid,
                 **kwargs_dict
             )
-            
+
             return result
-            
+
         except Exception as e:
             # Return error information
             return {
@@ -8671,7 +8671,7 @@ class IPFSClient:
                 "model_cid": model_cid,
                 "test_data_cid": test_data_cid
             }
-        
+
 class PluginBase:
     """
     Base class for plugins.
@@ -8708,17 +8708,17 @@ class PluginBase:
             Plugin version
         """
         return "1.0.0"
-        
+
     def save_config(
-        self, 
+        self,
         path: str
     ) -> Dict[str, Any]:
         """
         Save the current configuration to a file.
-        
+
         Args:
             path: Path to save the configuration file
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -8727,11 +8727,11 @@ class PluginBase:
             "operation": "save_config",
             "path": path
         }
-        
+
         try:
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-            
+
             # Save configuration as YAML or JSON based on file extension
             if path.endswith('.yaml') or path.endswith('.yml'):
                 with open(path, 'w') as f:
@@ -8743,17 +8743,17 @@ class PluginBase:
                 # Default to YAML
                 with open(path, 'w') as f:
                     yaml.dump(self.config, f, default_flow_style=False)
-                    
+
             logger.info(f"Configuration saved to {path}")
             result["success"] = True
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             logger.error(f"Failed to save configuration: {e}")
-            
+
         return result
-        
+
     def generate_sdk(
         self,
         language: str,
@@ -8762,12 +8762,12 @@ class PluginBase:
     ) -> Dict[str, Any]:
         """
         Generate SDK code for the API in the specified language.
-        
+
         Args:
             language: Target language ('python', 'javascript', 'typescript', etc.)
             output_dir: Directory to output the generated SDK
             **kwargs: Additional language-specific options
-            
+
         Returns:
             Dictionary with generation result
         """
@@ -8778,13 +8778,13 @@ class PluginBase:
             "output_dir": output_dir,
             "files_generated": []
         }
-        
+
         try:
             from datetime import datetime
-            
+
             # Create output directory if it doesn't exist
             os.makedirs(output_dir, exist_ok=True)
-            
+
             # Define SDK templates based on language
             if language.lower() == "python":
                 # Generate Python SDK
@@ -8805,33 +8805,33 @@ class IPFSKitClient:
     \"\"\"
     Python client for IPFS Kit API.
     \"\"\"
-    
+
     def __init__(self, base_url="http://localhost:8000"):
         \"\"\"
         Initialize the IPFS Kit client.
-        
+
         Args:
             base_url: Base URL of the IPFS Kit API server
         \"\"\"
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
-    
+
     # Core API methods
 """)
-                    
+
                     # Add methods based on API instance
                     for name in dir(self):
                         # Skip private methods, extensions, and non-callables
                         if name.startswith('_') or '.' in name or not callable(getattr(self, name)):
                             continue
-                        
+
                         method = getattr(self, name)
                         if not hasattr(method, '__call__') or not hasattr(method, '__doc__'):
                             continue
-                            
+
                         docstring = method.__doc__ or ""
                         docstring = "\n        ".join(line.strip() for line in docstring.split("\n"))
-                        
+
                         f.write(f"""
     def {name}(self, *args, **kwargs):
         \"\"\"
@@ -8843,24 +8843,24 @@ class IPFSKitClient:
         )
         return response.json()
 """)
-                    
+
                     f.write("""
 if __name__ == "__main__":
     client = IPFSKitClient()
     print(f"IPFS Kit Python SDK initialized with base URL: {client.base_url}")
 """)
-                
+
                 # Track generated file
                 result["files_generated"].append(client_file)
-                
+
             elif language.lower() in ["javascript", "typescript"]:
                 # Generate JavaScript/TypeScript SDK
-                client_file = os.path.join(output_dir, 
+                client_file = os.path.join(output_dir,
                                          "ipfs-kit-client.js" if language.lower() == "javascript" else "ipfs-kit-client.ts")
                 with open(client_file, "w") as f:
                     f.write(f"""/**
  * IPFS Kit JavaScript SDK
- * 
+ *
  * This module provides a JavaScript client for the IPFS Kit API.
  * Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
  */
@@ -8868,7 +8868,7 @@ if __name__ == "__main__":
 class IPFSKitClient {{
   /**
    * Initialize the IPFS Kit client.
-   * 
+   *
    * @param {{string}} baseUrl - Base URL of the IPFS Kit API server
    */
   constructor(baseUrl = "http://localhost:8000") {{
@@ -8877,7 +8877,7 @@ class IPFSKitClient {{
 
   /**
    * Make an API request to the IPFS Kit server.
-   * 
+   *
    * @param {{string}} method - HTTP method to use
    * @param {{string}} endpoint - API endpoint to call
    * @param {{object}} data - Request data
@@ -8885,42 +8885,42 @@ class IPFSKitClient {{
    */
   async _request(method, endpoint, data = null) {{
     const url = `${{this.baseUrl}}/api/v1/${{endpoint}}`;
-    
+
     const options = {{
       method,
       headers: {{
         "Content-Type": "application/json",
       }},
     }};
-    
+
     if (data) {{
       options.body = JSON.stringify(data);
     }}
-    
+
     const response = await fetch(url, options);
     return response.json();
   }}
 
   // Core API methods
 """)
-                    
+
                     # Add methods based on API instance
                     for name in dir(self):
                         # Skip private methods, extensions, and non-callables
                         if name.startswith('_') or '.' in name or not callable(getattr(self, name)):
                             continue
-                        
+
                         method = getattr(self, name)
                         if not hasattr(method, '__call__') or not hasattr(method, '__doc__'):
                             continue
-                            
+
                         docstring = method.__doc__ or ""
                         docstring = "\n   * ".join(line.strip() for line in docstring.split("\n"))
-                        
+
                         f.write(f"""
   /**
    * {docstring}
-   * 
+   *
    * @param {{...args}} args - Method arguments
    * @returns {{Promise<object>}} Response from the API
    */
@@ -8929,7 +8929,7 @@ class IPFSKitClient {{
     return this._request("POST", "{name}", {{ args, kwargs }});
   }}
 """)
-                    
+
                     f.write("""
 }
 
@@ -8937,27 +8937,27 @@ if (typeof module !== "undefined") {
   module.exports = { IPFSKitClient };
 }
 """)
-                
+
                 # Track generated file
                 result["files_generated"].append(client_file)
-                
+
             else:
                 result["error"] = f"Unsupported language: {language}"
                 return result
-                
+
             result["success"] = True
             logger.info(f"Generated {language} SDK in {output_dir}")
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             logger.error(f"Failed to generate SDK: {e}")
-            
+
         return result
 
 
     def ai_calculate_graph_metrics(
-        self, 
+        self,
         *,
         graph_cid: str,
         metrics: Optional[List[str]] = None,
@@ -8968,7 +8968,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Calculate metrics for a knowledge graph.
-        
+
         Args:
             graph_cid: CID of the knowledge graph
             metrics: List of metrics to calculate (e.g., ["centrality", "clustering_coefficient"])
@@ -8976,7 +8976,7 @@ if (typeof module !== "undefined") {
             relationship_types: Optional filter for relationship types
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for metric calculation
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -8986,17 +8986,17 @@ if (typeof module !== "undefined") {
             "timestamp": time.time(),
             "graph_cid": graph_cid
         }
-        
+
         # Parameter validation
         if not graph_cid:
             result["error"] = "Graph CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         # Use default metrics if none provided
         if metrics is None:
             metrics = ["degree_centrality", "betweenness_centrality", "clustering_coefficient", "density"]
-            
+
         # Add filters to result if provided
         if entity_types:
             result["entity_types"] = entity_types
@@ -9007,13 +9007,13 @@ if (typeof module !== "undefined") {
         if not AI_ML_AVAILABLE and allow_simulation:
             # Simulate graph metrics with realistic data
             import random
-            
+
             # Simulate calculation time
             calculation_time = random.randint(10, 50)
-            
+
             # Generate simulated metrics
             simulated_metrics = {}
-            
+
             # Centrality metrics
             if "degree_centrality" in metrics:
                 degree_centrality = {}
@@ -9021,73 +9021,73 @@ if (typeof module !== "undefined") {
                     entity_id = f"entity{i}"
                     degree_centrality[entity_id] = round(random.uniform(0.1, 1.0), 2)
                 simulated_metrics["degree_centrality"] = degree_centrality
-                
+
             if "betweenness_centrality" in metrics:
                 betweenness_centrality = {}
                 for i in range(5):  # Simulate for 5 entities
                     entity_id = f"entity{i}"
                     betweenness_centrality[entity_id] = round(random.uniform(0.0, 0.8), 2)
                 simulated_metrics["betweenness_centrality"] = betweenness_centrality
-                
+
             if "clustering_coefficient" in metrics:
                 clustering_coefficient = {}
                 for i in range(5):  # Simulate for 5 entities
                     entity_id = f"entity{i}"
                     clustering_coefficient[entity_id] = round(random.uniform(0.0, 1.0), 2)
                 simulated_metrics["clustering_coefficient"] = clustering_coefficient
-                
+
             # Global metrics
             if "density" in metrics:
                 simulated_metrics["density"] = round(random.uniform(0.1, 0.5), 3)
-                
+
             if "average_path_length" in metrics:
                 simulated_metrics["average_path_length"] = round(random.uniform(1.5, 4.0), 2)
-                
+
             if "diameter" in metrics:
                 simulated_metrics["diameter"] = random.randint(3, 6)
-                
+
             if "connected_components" in metrics:
                 simulated_metrics["connected_components"] = random.randint(1, 3)
-            
+
             result["success"] = True
             result["metrics"] = simulated_metrics
             result["calculation_time_ms"] = calculation_time
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
-            
+
             # Prepare parameters
             metric_params = {
                 "metrics": metrics
             }
-            
+
             # Add optional filters
             if entity_types:
                 metric_params["entity_types"] = entity_types
             if relationship_types:
                 metric_params["relationship_types"] = relationship_types
-                
+
             # Add any additional kwargs
             metric_params.update(kwargs)
-            
+
             # Calculate metrics
             metric_result = kg_manager.calculate_metrics(graph_cid, **metric_params)
-            
+
             # Process the result
             result["success"] = metric_result["success"]
             if result["success"]:
                 result["metrics"] = metric_result["metrics"]
                 result["calculation_time_ms"] = metric_result["calculation_time_ms"]
-                
+
                 # Include any additional fields from the result
                 for key, value in metric_result.items():
                     if key not in result and key not in ["success"]:
@@ -9095,16 +9095,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = metric_result.get("error", "Unknown error")
                 result["error_type"] = metric_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error calculating graph metrics: {e}")
-            
+
         return result
 
     def ai_create_embeddings(
-        self, 
+        self,
         docs_cid: str,
         *,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
@@ -9119,7 +9119,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Create vector embeddings from text documents.
-        
+
         Args:
             docs_cid: CID of the documents directory
             embedding_model: Name of the embedding model to use
@@ -9131,7 +9131,7 @@ if (typeof module !== "undefined") {
             save_index: Whether to save the index to IPFS
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for embedding generation
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9142,7 +9142,7 @@ if (typeof module !== "undefined") {
             "docs_cid": docs_cid,
             "embedding_model": embedding_model
         }
-        
+
         # Parameter validation
         if not docs_cid:
             result["error"] = "Document CID cannot be empty"
@@ -9155,7 +9155,7 @@ if (typeof module !== "undefined") {
             embedding_cid = f"QmSimEmbeddingCID{hash(docs_cid) % 10000}"
             num_docs = 10
             num_chunks = 37
-            
+
             result["success"] = True
             result["cid"] = embedding_cid
             result["document_count"] = num_docs
@@ -9166,18 +9166,18 @@ if (typeof module !== "undefined") {
             result["chunk_overlap"] = chunk_overlap
             result["processing_time_ms"] = 1500
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             embedding_manager = ai_ml_integration.EmbeddingManager(self.kit)
-            
+
             # Prepare parameters
             embedding_params = {
                 "embedding_model": embedding_model,
@@ -9186,19 +9186,19 @@ if (typeof module !== "undefined") {
                 "chunk_overlap": chunk_overlap,
                 "save_index": save_index
             }
-            
+
             # Add optional parameters
             if filter_pattern:
                 embedding_params["filter_pattern"] = filter_pattern
             if max_docs:
                 embedding_params["max_docs"] = max_docs
-                
+
             # Add any additional kwargs
             embedding_params.update(kwargs)
-            
+
             # Create embeddings
             embedding_result = embedding_manager.create_embeddings(docs_cid, **embedding_params)
-            
+
             # Process the result
             result["success"] = embedding_result["success"]
             if result["success"]:
@@ -9208,7 +9208,7 @@ if (typeof module !== "undefined") {
                 result["embedding_count"] = embedding_result["embedding_count"]
                 result["dimensions"] = embedding_result["dimensions"]
                 result["processing_time_ms"] = embedding_result["processing_time_ms"]
-                
+
                 # Include additional fields from the result
                 for key, value in embedding_result.items():
                     if key not in result and key not in ["success"]:
@@ -9216,16 +9216,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = embedding_result.get("error", "Unknown error")
                 result["error_type"] = embedding_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error creating embeddings: {e}")
-            
+
         return result
 
     def ai_create_knowledge_graph(
-        self, 
+        self,
         source_data_cid: str,
         *,
         graph_name: str = "knowledge_graph",
@@ -9240,7 +9240,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Create a knowledge graph from source data.
-        
+
         Args:
             source_data_cid: CID of the source data
             graph_name: Name for the knowledge graph
@@ -9252,7 +9252,7 @@ if (typeof module !== "undefined") {
             save_intermediate_results: Whether to save intermediate processing results
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for knowledge graph creation
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9263,7 +9263,7 @@ if (typeof module !== "undefined") {
             "source_data_cid": source_data_cid,
             "graph_name": graph_name
         }
-        
+
         # Parameter validation
         if not source_data_cid:
             result["error"] = "Source data CID cannot be empty"
@@ -9275,19 +9275,19 @@ if (typeof module !== "undefined") {
             # Simulate knowledge graph creation with realistic data
             import random
             import uuid
-            
+
             # Use provided entity types or defaults
             if entity_types is None:
                 entity_types = ["Person", "Organization", "Location", "Event", "Topic"]
-                
+
             # Use provided relationship types or defaults
             if relationship_types is None:
                 relationship_types = ["worksFor", "locatedIn", "participatedIn", "related"]
-                
+
             # Simulate number of entities
             num_entities = min(25, max_entities or 25)
             num_relationships = min(50, num_entities * 2)
-            
+
             # Generate simulated entities
             entities = []
             entity_ids = []
@@ -9295,14 +9295,14 @@ if (typeof module !== "undefined") {
                 entity_type = random.choice(entity_types)
                 entity_id = f"{entity_type.lower()}_{i}"
                 entity_ids.append(entity_id)
-                
+
                 # Create entity with properties based on type
                 entity = {
                     "id": entity_id,
                     "type": entity_type,
                     "name": f"{entity_type} {i}"
                 }
-                
+
                 # Add type-specific properties
                 if entity_type == "Person":
                     entity["properties"] = {
@@ -9319,9 +9319,9 @@ if (typeof module !== "undefined") {
                         "type": random.choice(["City", "Country", "Building", "Region"]),
                         "population": random.randint(1000, 1000000)
                     }
-                    
+
                 entities.append(entity)
-                
+
             # Generate simulated relationships
             relationships = []
             for i in range(num_relationships):
@@ -9331,10 +9331,10 @@ if (typeof module !== "undefined") {
                 # Avoid self-relationships
                 while target_id == source_id:
                     target_id = random.choice(entity_ids)
-                    
+
                 # Select relationship type
                 rel_type = random.choice(relationship_types)
-                
+
                 # Create relationship with properties
                 relationship = {
                     "id": f"rel_{i}",
@@ -9347,10 +9347,10 @@ if (typeof module !== "undefined") {
                     }
                 }
                 relationships.append(relationship)
-            
+
             # Generate a simulated graph CID
             graph_cid = f"QmSimulatedGraph{uuid.uuid4().hex[:8]}"
-            
+
             # Create the result
             result["success"] = True
             result["graph_cid"] = graph_cid
@@ -9360,18 +9360,18 @@ if (typeof module !== "undefined") {
             result["relationship_count"] = num_relationships
             result["processing_time_ms"] = random.randint(500, 3000)
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
-            
+
             # Gather all parameters
             kg_params = {
                 "graph_name": graph_name,
@@ -9379,7 +9379,7 @@ if (typeof module !== "undefined") {
                 "extract_metadata": extract_metadata,
                 "save_intermediate_results": save_intermediate_results
             }
-            
+
             # Add optional parameters
             if entity_types is not None:
                 kg_params["entity_types"] = entity_types
@@ -9387,13 +9387,13 @@ if (typeof module !== "undefined") {
                 kg_params["relationship_types"] = relationship_types
             if max_entities is not None:
                 kg_params["max_entities"] = max_entities
-                
+
             # Add any additional kwargs
             kg_params.update(kwargs)
-            
+
             # Create the knowledge graph
             kg_result = kg_manager.create_knowledge_graph(source_data_cid, **kg_params)
-            
+
             # Process the result
             result["success"] = kg_result["success"]
             if result["success"]:
@@ -9403,13 +9403,13 @@ if (typeof module !== "undefined") {
                 result["entity_count"] = kg_result["entity_count"]
                 result["relationship_count"] = kg_result["relationship_count"]
                 result["processing_time_ms"] = kg_result["processing_time_ms"]
-                
+
                 # Include additional metadata if available
                 if "entity_types" in kg_result:
                     result["entity_types"] = kg_result["entity_types"]
                 if "relationship_types" in kg_result:
                     result["relationship_types"] = kg_result["relationship_types"]
-                
+
                 # Include any other fields from the result
                 for key, value in kg_result.items():
                     if key not in result and key not in ["success"]:
@@ -9417,16 +9417,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = kg_result.get("error", "Unknown error")
                 result["error_type"] = kg_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error creating knowledge graph: {e}")
-            
+
         return result
 
     def ai_create_vector_index(
-        self, 
+        self,
         embedding_cid: str,
         *,
         index_type: str = "hnsw",
@@ -9437,7 +9437,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Create a vector index from embeddings.
-        
+
         Args:
             embedding_cid: CID of the embeddings
             index_type: Type of index to create ("hnsw", "flat", etc.)
@@ -9445,7 +9445,7 @@ if (typeof module !== "undefined") {
             save_index: Whether to save the index to IPFS
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for index creation
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9456,13 +9456,13 @@ if (typeof module !== "undefined") {
             "embedding_cid": embedding_cid,
             "index_type": index_type
         }
-        
+
         # Parameter validation
         if not embedding_cid:
             result["error"] = "Embedding CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         # Set default parameters if none provided
         if params is None:
             if index_type == "hnsw":
@@ -9476,7 +9476,7 @@ if (typeof module !== "undefined") {
         if not AI_ML_AVAILABLE and allow_simulation:
             # Simulate vector index creation
             index_cid = f"QmSimVectorIndexCID{hash(embedding_cid) % 10000}"
-            
+
             result["success"] = True
             result["cid"] = index_cid
             result["index_type"] = index_type
@@ -9485,31 +9485,31 @@ if (typeof module !== "undefined") {
             result["parameters"] = params
             result["processing_time_ms"] = 800
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             vector_index_manager = ai_ml_integration.VectorIndexManager(self.kit)
-            
+
             # Prepare parameters
             index_params = {
                 "index_type": index_type,
                 "params": params,
                 "save_index": save_index
             }
-            
+
             # Add any additional kwargs
             index_params.update(kwargs)
-            
+
             # Create vector index
             index_result = vector_index_manager.create_index(embedding_cid, **index_params)
-            
+
             # Process the result
             result["success"] = index_result["success"]
             if result["success"]:
@@ -9518,7 +9518,7 @@ if (typeof module !== "undefined") {
                 result["vector_count"] = index_result["vector_count"]
                 result["parameters"] = index_result["parameters"]
                 result["processing_time_ms"] = index_result["processing_time_ms"]
-                
+
                 # Include additional fields from the result
                 for key, value in index_result.items():
                     if key not in result and key not in ["success"]:
@@ -9526,16 +9526,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = index_result.get("error", "Unknown error")
                 result["error_type"] = index_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error creating vector index: {e}")
-            
+
         return result
 
     def ai_distributed_training_cancel_job(
-        self, 
+        self,
         job_id: str,
         *,
         force: bool = False,
@@ -9544,13 +9544,13 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Cancel a distributed training job.
-        
+
         Args:
             job_id: ID of the training job to cancel
             force: Whether to force cancellation
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for job cancellation
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9561,7 +9561,7 @@ if (typeof module !== "undefined") {
             "job_id": job_id,
             "force": force
         }
-        
+
         # Parameter validation
         if not job_id:
             result["error"] = "Job ID cannot be empty"
@@ -9572,14 +9572,14 @@ if (typeof module !== "undefined") {
         if not AI_ML_AVAILABLE and allow_simulation:
             # Simulate job cancellation with realistic data
             import random
-            
+
             # Simulate cancellation time
             cancellation_time = round(time.time())
-            
+
             # Possible previous statuses with realistic probabilities
             status_options = ["running", "queued", "initializing", "pending"]
             previous_status = random.choice(status_options)
-            
+
             result["success"] = True
             result["job_id"] = job_id
             result["cancelled_at"] = cancellation_time
@@ -9587,36 +9587,36 @@ if (typeof module !== "undefined") {
             result["current_status"] = "cancelled"
             result["force"] = force
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             training_manager = ai_ml_integration.DistributedTrainingManager(self.kit)
-            
+
             # Prepare parameters
             cancel_params = {
                 "force": force
             }
-            
+
             # Add any additional kwargs
             cancel_params.update(kwargs)
-            
+
             # Cancel the job
             cancel_result = training_manager.cancel_job(job_id, **cancel_params)
-            
+
             # Process the result
             result["success"] = cancel_result["success"]
             if result["success"]:
                 result["cancelled_at"] = cancel_result["cancelled_at"]
                 result["previous_status"] = cancel_result["previous_status"]
                 result["current_status"] = cancel_result["current_status"]
-                
+
                 # Include any additional fields from the result
                 for key, value in cancel_result.items():
                     if key not in result and key not in ["success"]:
@@ -9624,16 +9624,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = cancel_result.get("error", "Unknown error")
                 result["error_type"] = cancel_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error cancelling training job: {e}")
-            
+
         return result
 
     def ai_expand_knowledge_graph(
-        self, 
+        self,
         *,
         graph_cid: str,
         seed_entity: Optional[str] = None,
@@ -9646,7 +9646,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Expand an existing knowledge graph with new entities and relationships.
-        
+
         Args:
             graph_cid: CID of the knowledge graph to expand
             seed_entity: Optional entity ID to start expansion from
@@ -9656,7 +9656,7 @@ if (typeof module !== "undefined") {
             max_depth: Maximum depth for graph traversal during expansion
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for expansion
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9667,13 +9667,13 @@ if (typeof module !== "undefined") {
             "graph_cid": graph_cid,
             "data_source": data_source
         }
-        
+
         # Parameter validation
         if not graph_cid:
             result["error"] = "Graph CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         # Add optional parameters to result
         if seed_entity:
             result["seed_entity"] = seed_entity
@@ -9685,11 +9685,11 @@ if (typeof module !== "undefined") {
             # Simulate knowledge graph expansion with realistic data
             import random
             import uuid
-            
+
             # Simulate new entities
             new_entities = []
             entity_count = random.randint(1, max_entities)
-            
+
             for i in range(entity_count):
                 entity_type = random.choice(["Person", "Organization", "Location", "Topic"])
                 entity = {
@@ -9698,7 +9698,7 @@ if (typeof module !== "undefined") {
                     "name": f"New {entity_type} {i}",
                     "properties": {}
                 }
-                
+
                 # Add type-specific properties
                 if entity_type == "Person":
                     entity["properties"] = {
@@ -9710,13 +9710,13 @@ if (typeof module !== "undefined") {
                         "industry": random.choice(["Technology", "Healthcare", "Finance", "Education"]),
                         "size": random.choice(["Small", "Medium", "Large"])
                     }
-                
+
                 new_entities.append(entity)
-                
+
             # Simulate new relationships
             new_relationships = []
             relationship_count = random.randint(entity_count, entity_count * 2)
-            
+
             for i in range(relationship_count):
                 # Determine source and target
                 if seed_entity and i < entity_count:
@@ -9727,7 +9727,7 @@ if (typeof module !== "undefined") {
                     # Connect between new entities
                     source = new_entities[i % entity_count]["id"]
                     target = new_entities[(i + 1) % entity_count]["id"]
-                
+
                 # Create relationship
                 rel_type = random.choice(["RELATED_TO", "SIMILAR_TO", "PART_OF", "LOCATED_IN"])
                 relationship = {
@@ -9740,10 +9740,10 @@ if (typeof module !== "undefined") {
                     }
                 }
                 new_relationships.append(relationship)
-            
+
             # Generate new graph CID
             expanded_graph_cid = f"QmExpanded{uuid.uuid4().hex[:8]}"
-            
+
             result["success"] = True
             result["original_graph_cid"] = graph_cid
             result["expanded_graph_cid"] = expanded_graph_cid
@@ -9754,37 +9754,37 @@ if (typeof module !== "undefined") {
             result["expansion_time_ms"] = random.randint(500, 3000)
             result["expansion_source"] = data_source
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
-            
+
             # Prepare parameters
             expansion_params = {
                 "data_source": data_source,
                 "max_entities": max_entities,
                 "max_depth": max_depth
             }
-            
+
             # Add optional parameters
             if seed_entity:
                 expansion_params["seed_entity"] = seed_entity
             if expansion_type:
                 expansion_params["expansion_type"] = expansion_type
-                
+
             # Add any additional kwargs
             expansion_params.update(kwargs)
-            
+
             # Expand the knowledge graph
             expansion_result = kg_manager.expand_graph(graph_cid, **expansion_params)
-            
+
             # Process the result
             result["success"] = expansion_result["success"]
             if result["success"]:
@@ -9795,7 +9795,7 @@ if (typeof module !== "undefined") {
                 result["entity_count"] = expansion_result["entity_count"]
                 result["relationship_count"] = expansion_result["relationship_count"]
                 result["expansion_time_ms"] = expansion_result["expansion_time_ms"]
-                
+
                 # Include any additional fields from the result
                 for key, value in expansion_result.items():
                     if key not in result and key not in ["success"]:
@@ -9803,16 +9803,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = expansion_result.get("error", "Unknown error")
                 result["error_type"] = expansion_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error expanding knowledge graph: {e}")
-            
+
         return result
 
     def ai_hybrid_search(
-        self, 
+        self,
         query: str,
         *,
         vector_index_cid: str,
@@ -9826,7 +9826,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Perform hybrid search (vector + keyword) on content.
-        
+
         Args:
             query: Search query
             vector_index_cid: CID of the vector index
@@ -9837,7 +9837,7 @@ if (typeof module !== "undefined") {
             rerank: Whether to rerank results
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for search
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9848,32 +9848,32 @@ if (typeof module !== "undefined") {
             "query": query,
             "vector_index_cid": vector_index_cid
         }
-        
+
         # Parameter validation
         if not query:
             result["error"] = "Query cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if not vector_index_cid:
             result["error"] = "Vector index CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if keyword_index_cid:
             result["keyword_index_cid"] = keyword_index_cid
-            
+
         # Validate weights
         if not 0.0 <= vector_weight <= 1.0:
             result["error"] = "Vector weight must be between 0.0 and 1.0"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if not 0.0 <= keyword_weight <= 1.0:
             result["error"] = "Keyword weight must be between 0.0 and 1.0"
             result["error_type"] = "ValidationError"
             return result
-            
+
         # Ensure weights sum to 1.0
         if abs(vector_weight + keyword_weight - 1.0) > 0.001:
             result["error"] = "Vector weight and keyword weight must sum to 1.0"
@@ -9884,7 +9884,7 @@ if (typeof module !== "undefined") {
         if not AI_ML_AVAILABLE and allow_simulation:
             # Simulate hybrid search
             import random
-            
+
             # Generate simulated results
             results = []
             for i in range(min(top_k, 5)):
@@ -9892,7 +9892,7 @@ if (typeof module !== "undefined") {
                 vector_score = random.uniform(0.7, 0.95)
                 keyword_score = random.uniform(0.6, 0.9)
                 combined_score = vector_weight * vector_score + keyword_weight * keyword_score
-                
+
                 result_item = {
                     "content": f"This is simulated content {i} relevant to '{query}'...",
                     "vector_score": vector_score,
@@ -9905,28 +9905,28 @@ if (typeof module !== "undefined") {
                     }
                 }
                 results.append(result_item)
-                
+
             # Sort by combined score
             results.sort(key=lambda x: x["combined_score"], reverse=True)
-            
+
             result["success"] = True
             result["results"] = results
             result["count"] = len(results)
             result["weights"] = {"vector": vector_weight, "keyword": keyword_weight}
             result["search_time_ms"] = 120
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             search_manager = ai_ml_integration.SearchManager(self.kit)
-            
+
             # Prepare parameters
             search_params = {
                 "vector_weight": vector_weight,
@@ -9934,17 +9934,17 @@ if (typeof module !== "undefined") {
                 "top_k": top_k,
                 "rerank": rerank
             }
-            
+
             # Add optional parameters
             if keyword_index_cid:
                 search_params["keyword_index_cid"] = keyword_index_cid
-                
+
             # Add any additional kwargs
             search_params.update(kwargs)
-            
+
             # Perform hybrid search
             search_result = search_manager.hybrid_search(query, vector_index_cid, **search_params)
-            
+
             # Process the result
             result["success"] = search_result["success"]
             if result["success"]:
@@ -9952,7 +9952,7 @@ if (typeof module !== "undefined") {
                 result["count"] = search_result["count"]
                 result["weights"] = search_result["weights"]
                 result["search_time_ms"] = search_result["search_time_ms"]
-                
+
                 # Include additional fields from the result
                 for key, value in search_result.items():
                     if key not in result and key not in ["success"]:
@@ -9960,16 +9960,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = search_result.get("error", "Unknown error")
                 result["error_type"] = search_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error performing hybrid search: {e}")
-            
+
         return result
 
     def ai_langchain_query(
-        self, 
+        self,
         *,
         vectorstore_cid: str,
         query: str,
@@ -9979,14 +9979,14 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Query a Langchain vectorstore.
-        
+
         Args:
             vectorstore_cid: CID of the vectorstore
             query: Query string
             top_k: Number of results to return
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for the query
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -9998,13 +9998,13 @@ if (typeof module !== "undefined") {
             "query": query,
             "top_k": top_k
         }
-        
+
         # Parameter validation
         if not vectorstore_cid:
             result["error"] = "Vectorstore CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if not query:
             result["error"] = "Query cannot be empty"
             result["error_type"] = "ValidationError"
@@ -10014,13 +10014,13 @@ if (typeof module !== "undefined") {
         if (not AI_ML_AVAILABLE or not LANGCHAIN_AVAILABLE) and allow_simulation:
             # Simulate Langchain query with realistic data
             import random
-            
+
             # Generate simulated results
             results = []
             for i in range(min(top_k, 5)):
                 # Simulate different similarity scores
                 similarity = round(random.uniform(0.7, 0.95), 2)
-                
+
                 result_item = {
                     "content": f"This is simulated document content {i} relevant to '{query}'...",
                     "metadata": {
@@ -10031,45 +10031,45 @@ if (typeof module !== "undefined") {
                     "similarity": similarity
                 }
                 results.append(result_item)
-                
+
             # Sort by similarity
             results.sort(key=lambda x: x["similarity"], reverse=True)
-            
+
             result["success"] = True
             result["results"] = results
             result["count"] = len(results)
             result["search_time_ms"] = 85
             result["simulation_note"] = "AI/ML or Langchain not available, using simulated response"
-            
+
             return result
-            
+
         elif (not AI_ML_AVAILABLE or not LANGCHAIN_AVAILABLE) and not allow_simulation:
             result["error"] = "AI/ML or Langchain not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML and Langchain are available
         try:
             langchain_manager = ai_ml_integration.LangchainManager(self.kit)
-            
+
             # Prepare parameters
             query_params = {
                 "top_k": top_k
             }
-            
+
             # Add any additional kwargs
             query_params.update(kwargs)
-            
+
             # Perform Langchain query
             query_result = langchain_manager.query_vectorstore(vectorstore_cid, query, **query_params)
-            
+
             # Process the result
             result["success"] = query_result["success"]
             if result["success"]:
                 result["results"] = query_result["results"]
                 result["count"] = query_result["count"]
                 result["search_time_ms"] = query_result["search_time_ms"]
-                
+
                 # Include additional fields from the result
                 for key, value in query_result.items():
                     if key not in result and key not in ["success"]:
@@ -10077,16 +10077,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = query_result.get("error", "Unknown error")
                 result["error_type"] = query_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error performing Langchain query: {e}")
-            
+
         return result
 
     def ai_list_models(
-        self, 
+        self,
         *,
         framework: Optional[str] = None,
         model_type: Optional[str] = None,
@@ -10099,7 +10099,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         List available models in the registry.
-        
+
         Args:
             framework: Optional filter by framework (pytorch, tensorflow, etc.)
             model_type: Optional filter by model type (classification, detection, etc.)
@@ -10109,7 +10109,7 @@ if (typeof module !== "undefined") {
             order_dir: Order direction ("asc" or "desc")
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional query parameters
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results and model list
         """
@@ -10120,7 +10120,7 @@ if (typeof module !== "undefined") {
             "models": [],
             "count": 0
         }
-        
+
         # Parameter validation
         if order_dir not in ["asc", "desc"]:
             result["error"] = "order_dir must be 'asc' or 'desc'"
@@ -10132,11 +10132,11 @@ if (typeof module !== "undefined") {
             # Simulate a list of models
             models = []
             count = min(limit, 10)  # Simulate up to 10 models
-            
+
             for i in range(count):
                 model_framework = framework or ["pytorch", "tensorflow", "sklearn"][i % 3]
                 model_type_value = model_type or ["classification", "regression", "detection", "segmentation", "nlp"][i % 5]
-                
+
                 model = {
                     "id": f"model_{i}",
                     "name": f"Simulated {model_type_value.capitalize()} Model {i}",
@@ -10150,15 +10150,15 @@ if (typeof module !== "undefined") {
                         "accuracy": round(0.9 - (i * 0.05), 2) if i < 5 else None
                     }
                 }
-                
+
                 # Apply filters
                 if framework and model["framework"] != framework:
                     continue
                 if model_type and model["type"] != model_type:
                     continue
-                    
+
                 models.append(model)
-            
+
             result["success"] = True
             result["models"] = models
             result["count"] = len(models)
@@ -10166,18 +10166,18 @@ if (typeof module !== "undefined") {
             result["limit"] = limit
             result["offset"] = offset
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             model_manager = ai_ml_integration.ModelManager(self.kit)
-            
+
             # Prepare parameters
             query_params = {
                 "limit": limit,
@@ -10185,19 +10185,19 @@ if (typeof module !== "undefined") {
                 "order_by": order_by,
                 "order_dir": order_dir
             }
-            
+
             # Add optional filters
             if framework:
                 query_params["framework"] = framework
             if model_type:
                 query_params["model_type"] = model_type
-                
+
             # Add any additional kwargs
             query_params.update(kwargs)
-            
+
             # Get models from the registry
             models_result = model_manager.list_models(**query_params)
-            
+
             # Process the result
             result["success"] = models_result["success"]
             if result["success"]:
@@ -10209,16 +10209,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = models_result.get("error", "Unknown error")
                 result["error_type"] = models_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error listing models: {e}")
-            
+
         return result
 
     def ai_llama_index_query(
-        self, 
+        self,
         *,
         index_cid: str,
         query: str,
@@ -10228,14 +10228,14 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Query a LlamaIndex index.
-        
+
         Args:
             index_cid: CID of the index
             query: Query string
             response_mode: Response mode (default, compact, tree, etc.)
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for the query
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -10247,13 +10247,13 @@ if (typeof module !== "undefined") {
             "query": query,
             "response_mode": response_mode
         }
-        
+
         # Parameter validation
         if not index_cid:
             result["error"] = "Index CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if not query:
             result["error"] = "Query cannot be empty"
             result["error_type"] = "ValidationError"
@@ -10263,16 +10263,16 @@ if (typeof module !== "undefined") {
         if (not AI_ML_AVAILABLE or not LLAMA_INDEX_AVAILABLE) and allow_simulation:
             # Simulate LlamaIndex query with realistic data
             import random
-            
+
             # Generate simulated response
             simulated_response = f"Based on the documents, {query} involves several key considerations. First, the primary process typically requires proper analysis and planning. Second, implementation follows a structured approach with verification at each step. Finally, monitoring and maintenance ensure ongoing effectiveness."
-            
+
             # Generate simulated source nodes
             source_nodes = []
             for i in range(3):
                 # Simulate different scores
                 score = round(random.uniform(0.7, 0.95), 2)
-                
+
                 node = {
                     "content": f"Document {i} discusses {query} in detail, highlighting the importance of proper preparation and execution...",
                     "metadata": {
@@ -10283,46 +10283,46 @@ if (typeof module !== "undefined") {
                     "score": score
                 }
                 source_nodes.append(node)
-                
+
             # Sort by score
             source_nodes.sort(key=lambda x: x["score"], reverse=True)
-            
+
             result["success"] = True
             result["response"] = simulated_response
             result["source_nodes"] = source_nodes
             result["response_mode"] = response_mode
             result["query_time_ms"] = 250
             result["simulation_note"] = "AI/ML or LlamaIndex not available, using simulated response"
-            
+
             return result
-            
+
         elif (not AI_ML_AVAILABLE or not LLAMA_INDEX_AVAILABLE) and not allow_simulation:
             result["error"] = "AI/ML or LlamaIndex not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML and LlamaIndex are available
         try:
             llama_index_manager = ai_ml_integration.LlamaIndexManager(self.kit)
-            
+
             # Prepare parameters
             query_params = {
                 "response_mode": response_mode
             }
-            
+
             # Add any additional kwargs
             query_params.update(kwargs)
-            
+
             # Perform LlamaIndex query
             query_result = llama_index_manager.query_index(index_cid, query, **query_params)
-            
+
             # Process the result
             result["success"] = query_result["success"]
             if result["success"]:
                 result["response"] = query_result["response"]
                 result["source_nodes"] = query_result.get("source_nodes", [])
                 result["query_time_ms"] = query_result["query_time_ms"]
-                
+
                 # Include additional fields from the result
                 for key, value in query_result.items():
                     if key not in result and key not in ["success"]:
@@ -10330,16 +10330,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = query_result.get("error", "Unknown error")
                 result["error_type"] = query_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error performing LlamaIndex query: {e}")
-            
+
         return result
 
     def ai_query_knowledge_graph(
-        self, 
+        self,
         *,
         graph_cid: str,
         query: str,
@@ -10350,7 +10350,7 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Query a knowledge graph.
-        
+
         Args:
             graph_cid: CID of the knowledge graph
             query: Query string (Cypher, SPARQL, or natural language)
@@ -10358,7 +10358,7 @@ if (typeof module !== "undefined") {
             parameters: Parameters for parameterized queries
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for the query
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -10370,23 +10370,23 @@ if (typeof module !== "undefined") {
             "query": query,
             "query_type": query_type
         }
-        
+
         # Parameter validation
         if not graph_cid:
             result["error"] = "Graph CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if not query:
             result["error"] = "Query cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if query_type not in ["cypher", "sparql", "natural"]:
             result["error"] = f"Invalid query type: {query_type}. Must be 'cypher', 'sparql', or 'natural'"
             result["error_type"] = "ValidationError"
             return result
-            
+
         # Add parameters to result if provided
         if parameters:
             result["parameters"] = parameters
@@ -10395,13 +10395,13 @@ if (typeof module !== "undefined") {
         if not AI_ML_AVAILABLE and allow_simulation:
             # Simulate knowledge graph query with realistic data
             import random
-            
+
             # Simulate query execution time
             execution_time = random.randint(5, 20)
-            
+
             # Generate simulated results based on query type
             simulated_results = []
-            
+
             if query_type == "cypher":
                 # Simulate Cypher query results
                 if "MATCH (p:Person)" in query:
@@ -10476,42 +10476,42 @@ if (typeof module !== "undefined") {
                             "role": random.choice(["Engineer", "Manager", "Director"]),
                             "confidence": round(random.uniform(0.8, 0.95), 2)
                         })
-            
+
             result["success"] = True
             result["results"] = simulated_results
             result["count"] = len(simulated_results)
             result["execution_time_ms"] = execution_time
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
-            
+
             # Prepare parameters
             query_params = {}
             if parameters:
                 query_params["parameters"] = parameters
-                
+
             # Add any additional kwargs
             query_params.update(kwargs)
-            
+
             # Execute the query
             query_result = kg_manager.query_graph(graph_cid, query, query_type, **query_params)
-            
+
             # Process the result
             result["success"] = query_result["success"]
             if result["success"]:
                 result["results"] = query_result["results"]
                 result["count"] = query_result["count"]
                 result["execution_time_ms"] = query_result["execution_time_ms"]
-                
+
                 # Include any additional fields from the result
                 for key, value in query_result.items():
                     if key not in result and key not in ["success"]:
@@ -10519,16 +10519,16 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = query_result.get("error", "Unknown error")
                 result["error_type"] = query_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error querying knowledge graph: {e}")
-            
+
         return result
 
     def ai_register_model(
-        self, 
+        self,
         model_cid: str,
         metadata: Dict[str, Any],
         *,
@@ -10537,13 +10537,13 @@ if (typeof module !== "undefined") {
     ) -> Dict[str, Any]:
         """
         Register a model in the model registry.
-        
+
         Args:
             model_cid: CID of the model to register
             metadata: Metadata about the model (name, version, framework, etc.)
             allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
             **kwargs: Additional parameters for registration
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing operation results
         """
@@ -10553,18 +10553,18 @@ if (typeof module !== "undefined") {
             "timestamp": time.time(),
             "model_cid": model_cid
         }
-        
+
         # Parameter validation
         if not model_cid:
             result["error"] = "Model CID cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         if not metadata:
             result["error"] = "Metadata cannot be empty"
             result["error_type"] = "ValidationError"
             return result
-            
+
         # Check for required metadata fields
         required_fields = ["name", "version"]
         missing_fields = [field for field in required_fields if field not in metadata]
@@ -10577,35 +10577,35 @@ if (typeof module !== "undefined") {
         if not AI_ML_AVAILABLE and allow_simulation:
             # Simulate model registration
             registry_cid = f"QmSimRegistryCID{hash(model_cid) % 10000}"
-            
+
             result["success"] = True
             result["registry_cid"] = registry_cid
             result["model_id"] = f"model_{int(time.time())}"
             result["metadata"] = metadata
             result["registered_at"] = time.time()
             result["simulation_note"] = "AI/ML integration not available, using simulated response"
-            
+
             return result
-            
+
         elif not AI_ML_AVAILABLE and not allow_simulation:
             result["error"] = "AI/ML integration not available and simulation not allowed"
             result["error_type"] = "IntegrationError"
             return result
-        
+
         # Real implementation when AI/ML is available
         try:
             model_manager = ai_ml_integration.ModelManager(self.kit)
-            
+
             # Register the model
             registration_result = model_manager.register_model(model_cid, metadata, **kwargs)
-            
+
             # Process the result
             result["success"] = registration_result["success"]
             if result["success"]:
                 result["registry_cid"] = registration_result["registry_cid"]
                 result["model_id"] = registration_result["model_id"]
                 result["registered_at"] = registration_result["registered_at"]
-                
+
                 # Include additional fields from the result
                 for key, value in registration_result.items():
                     if key not in result and key not in ["success"]:
@@ -10613,12 +10613,12 @@ if (typeof module !== "undefined") {
             else:
                 result["error"] = registration_result.get("error", "Unknown error")
                 result["error_type"] = registration_result.get("error_type", "UnknownError")
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.error(f"Error registering model: {e}")
-            
+
         return result
 # Create a singleton instance for easy import
 # This is disabled during import to prevent test failures

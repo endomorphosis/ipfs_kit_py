@@ -19,11 +19,11 @@ def fix_unmatched_parenthesis():
         if not os.path.exists("direct_mcp_server_with_tools.py"):
             logger.error("direct_mcp_server_with_tools.py not found")
             return False
-        
+
         # Read the file content
         with open("direct_mcp_server_with_tools.py", "r") as f:
             lines = f.readlines()
-        
+
         # Find the line with the unmatched parenthesis
         for i, line in enumerate(lines):
             if 'os.path.exists(abs_destination) and not overwrite)' in line:
@@ -31,14 +31,14 @@ def fix_unmatched_parenthesis():
                 lines[i] = line.replace('and not overwrite)', 'and not overwrite')
                 logger.info(f"Fixed unmatched parenthesis at line {i+1}")
                 break
-        
+
         # Write the fixed content back to the file
         with open("direct_mcp_server_with_tools.py", "w") as f:
             f.writelines(lines)
-        
+
         logger.info("✅ Fixed unmatched parenthesis")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error fixing unmatched parenthesis: {e}")
         return False
@@ -46,12 +46,12 @@ def fix_unmatched_parenthesis():
 def main():
     """Main function"""
     logger.info("Starting to fix unmatched parenthesis in direct_mcp_server_with_tools.py...")
-    
+
     # Fix unmatched parenthesis
     if not fix_unmatched_parenthesis():
         logger.error("❌ Failed to fix unmatched parenthesis")
         return 1
-    
+
     logger.info("\n✅ Successfully fixed unmatched parenthesis in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0

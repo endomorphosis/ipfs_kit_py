@@ -118,7 +118,7 @@ def parse_key_value(value: str) -> Dict[str, Any]:
         raise ValueError(f"Invalid key-value format: {value}. Expected format: key=value")
 
     key, val = value.split("=", 1)
-    
+
     # Convert values appropriately
     if val.lower() == "true":
         val = True
@@ -135,19 +135,19 @@ def parse_key_value(value: str) -> Dict[str, Any]:
         except json.JSONDecodeError:
             # Keep as string if not valid JSON
             pass
-    
+
     return {key: val}
 
 
 def handle_version_command(api, args, kwargs):
     """
     Handle the 'version' command to show version information.
-    
+
     Args:
         api: The IPFS API instance
         args: Parsed command-line arguments
         kwargs: Additional keyword arguments
-    
+
     Returns:
         Version information dictionary
     """
@@ -242,7 +242,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
             logger.warning(f"Could not register Filesystem Journal commands: {e}")
     else:
         logger.debug("Filesystem Journal CLI integration not available, skipping command registration.")
-        
+
     # Try to register WAL Telemetry commands
     try:
         from .wal_telemetry_cli import register_wal_telemetry_commands
@@ -250,17 +250,17 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         logger.debug("WAL Telemetry commands registered.")
     except Exception as e:
         logger.warning(f"Could not register WAL Telemetry commands: {e}")
-        
+
     # Register additional advanced commands
     try:
         # Add parallel query execution commands
         add_parallel_query_commands(subparsers)
         logger.debug("Parallel query execution commands registered.")
-        
+
         # Add unified dashboard commands
         add_dashboard_commands(subparsers)
         logger.debug("Unified dashboard commands registered.")
-        
+
         # Add schema optimization commands
         add_schema_commands(subparsers)
         logger.debug("Schema optimization commands registered.")
@@ -379,14 +379,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Return only CIDs",
     )
     list_pins_parser.set_defaults(func=lambda api, args, kwargs: api.list_pins(**kwargs))
-    
+
     # WebRTC streaming commands
     webrtc_parser = subparsers.add_parser(
         "webrtc",
         help="WebRTC streaming operations",
     )
     webrtc_subparsers = webrtc_parser.add_subparsers(dest="webrtc_command", help="WebRTC command", required=True)
-    
+
     # Check WebRTC dependencies
     webrtc_check_parser = webrtc_subparsers.add_parser(
         "check",
@@ -394,7 +394,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["check-deps"],  # Keep backward compatibility
     )
     webrtc_check_parser.set_defaults(func=lambda api, args, kwargs: api.check_webrtc_dependencies())
-    
+
     # Start WebRTC stream from IPFS content
     webrtc_stream_parser = webrtc_subparsers.add_parser(
         "stream",
@@ -456,7 +456,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Enable performance benchmarking during streaming",
     )
     webrtc_stream_parser.set_defaults(func=lambda api, args, kwargs: api.start_webrtc_stream(**kwargs))
-    
+
     # Multi-peer streaming
     webrtc_multi_parser = webrtc_subparsers.add_parser(
         "multi-peer",
@@ -490,7 +490,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         default=json.dumps([{"urls": ["stun:stun.l.google.com:19302"]}])
     )
     webrtc_multi_parser.set_defaults(func=lambda api, args, kwargs: api.start_multi_peer_stream(**kwargs))
-    
+
     # Get stream status
     webrtc_status_parser = webrtc_subparsers.add_parser(
         "status",
@@ -506,7 +506,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Include detailed connection metrics",
     )
     webrtc_status_parser.set_defaults(func=lambda api, args, kwargs: api.get_webrtc_status(**kwargs))
-    
+
     # WebRTC benchmark
     webrtc_benchmark_parser = webrtc_subparsers.add_parser(
         "benchmark",
@@ -555,7 +555,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         default=False
     )
     webrtc_benchmark_parser.set_defaults(func=lambda api, args, kwargs: api.run_webrtc_benchmark(args.cid, **kwargs))
-    
+
     # WebRTC benchmark-compare command
     webrtc_compare_parser = webrtc_subparsers.add_parser(
         "benchmark-compare",
@@ -577,18 +577,18 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     )
     webrtc_compare_parser.add_argument(
         "--visualize",
-        action="store_true", 
+        action="store_true",
         help="Generate visualizations of comparison results",
         default=False
     )
     webrtc_compare_parser.set_defaults(func=lambda api, args, kwargs: api.compare_webrtc_benchmarks(
-        args.benchmark1, 
-        args.benchmark2, 
+        args.benchmark1,
+        args.benchmark2,
         output=args.output,
         visualize=args.visualize,
         **kwargs
     ))
-    
+
     # WebRTC benchmark-visualize command
     webrtc_visualize_parser = webrtc_subparsers.add_parser(
         "benchmark-visualize",
@@ -608,7 +608,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         output_dir=args.output_dir,
         **kwargs
     ))
-    
+
     # WebRTC benchmark-list command
     webrtc_list_parser = webrtc_subparsers.add_parser(
         "benchmark-list",
@@ -629,7 +629,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         format=args.format,
         **kwargs
     ))
-    
+
     # WebRTC connections management
     webrtc_conn_parser = webrtc_subparsers.add_parser(
         "connections",
@@ -640,14 +640,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Connection action to perform",
         required=True
     )
-    
+
     # List connections
     webrtc_conn_list_parser = webrtc_conn_subparsers.add_parser(
         "list",
         help="List active WebRTC connections",
     )
     webrtc_conn_list_parser.set_defaults(func=lambda api, args, kwargs: api.list_webrtc_connections())
-    
+
     # Connection stats
     webrtc_conn_stats_parser = webrtc_conn_subparsers.add_parser(
         "stats",
@@ -659,7 +659,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Connection ID",
     )
     webrtc_conn_stats_parser.set_defaults(func=lambda api, args, kwargs: api.get_webrtc_connection_stats(connection_id=args.id))
-    
+
     # Close connection
     webrtc_conn_close_parser = webrtc_conn_subparsers.add_parser(
         "close",
@@ -669,9 +669,9 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "--id",
         help="Connection ID (omit to close all connections)",
     )
-    webrtc_conn_close_parser.set_defaults(func=lambda api, args, kwargs: 
+    webrtc_conn_close_parser.set_defaults(func=lambda api, args, kwargs:
         api.close_webrtc_connection(connection_id=args.id) if args.id else api.close_all_webrtc_connections())
-    
+
     # Change quality
     webrtc_conn_quality_parser = webrtc_conn_subparsers.add_parser(
         "quality",
@@ -689,14 +689,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Quality preset to use",
     )
     webrtc_conn_quality_parser.set_defaults(func=lambda api, args, kwargs: api.set_webrtc_quality(connection_id=args.id, quality=args.quality))
-    
+
     # IPLD commands
     ipld_parser = subparsers.add_parser(
         "ipld",
         help="IPLD operations for content-addressed data structures",
     )
     ipld_subparsers = ipld_parser.add_subparsers(dest="ipld_command", help="IPLD command", required=True)
-    
+
     # Import IPLD object
     ipld_import_parser = ipld_subparsers.add_parser(
         "import",
@@ -719,7 +719,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Pin the imported object",
     )
     ipld_import_parser.set_defaults(func=lambda api, args, kwargs: api.ipld_import(args.file, **kwargs))
-    
+
     # Create IPLD links
     ipld_link_parser = ipld_subparsers.add_parser(
         "link",
@@ -738,7 +738,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Link name",
     )
     ipld_link_parser.set_defaults(func=lambda api, args, kwargs: api.ipld_link(args.from_cid, args.to_cid, args.link_name))
-    
+
     # Get IPLD object
     ipld_get_parser = ipld_subparsers.add_parser(
         "get",
@@ -753,7 +753,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Optional path within the object",
     )
     ipld_get_parser.set_defaults(func=lambda api, args, kwargs: api.ipld_get(args.cid, path=args.path))
-    
+
     # Knowledge Graph commands
     kg_parser = ipld_subparsers.add_parser(
         "knowledge-graph",
@@ -761,7 +761,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["kg"]
     )
     kg_subparsers = kg_parser.add_subparsers(dest="kg_command", help="Knowledge graph command", required=True)
-    
+
     # Create entity
     kg_entity_parser = kg_subparsers.add_parser(
         "add-entity",
@@ -786,7 +786,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         json.loads(args.vector) if args.vector else None,
         **kwargs
     ))
-    
+
     # Add relationship
     kg_relation_parser = kg_subparsers.add_parser(
         "add-relationship",
@@ -815,7 +815,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         json.loads(args.properties) if args.properties else None,
         **kwargs
     ))
-    
+
     # Query related entities
     kg_query_parser = kg_subparsers.add_parser(
         "query-related",
@@ -841,7 +841,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         direction=args.direction,
         **kwargs
     ))
-    
+
     # Vector search
     kg_vector_parser = kg_subparsers.add_parser(
         "vector-search",
@@ -862,7 +862,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         top_k=args.top_k,
         **kwargs
     ))
-    
+
     # Graph-Vector Hybrid Search (GraphRAG)
     kg_graph_vector_parser = kg_subparsers.add_parser(
         "graph-vector-search",
@@ -891,14 +891,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         top_k=args.top_k,
         **kwargs
     ))
-    
+
     # MCP server commands
     mcp_parser = subparsers.add_parser(
         "mcp",
         help="MCP server operations",
     )
     mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command", help="MCP command", required=True)
-    
+
     # Start MCP server
     mcp_start_parser = mcp_subparsers.add_parser(
         "start",
@@ -927,7 +927,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Logging level",
     )
     mcp_start_parser.set_defaults(func=lambda api, args, kwargs: api.start_mcp_server(**kwargs))
-    
+
     # Stop MCP server
     mcp_stop_parser = mcp_subparsers.add_parser(
         "stop",
@@ -945,7 +945,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Port of the server",
     )
     mcp_stop_parser.set_defaults(func=lambda api, args, kwargs: api.stop_mcp_server(**kwargs))
-    
+
     # Get MCP server status
     mcp_status_parser = mcp_subparsers.add_parser(
         "status",
@@ -963,7 +963,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Port of the server",
     )
     mcp_status_parser.set_defaults(func=lambda api, args, kwargs: api.get_mcp_server_status(**kwargs))
-    
+
     # Credential management commands
     credential_parser = subparsers.add_parser(
         "credential",
@@ -971,7 +971,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["cred"]
     )
     credential_subparsers = credential_parser.add_subparsers(dest="credential_command", help="Credential command", required=True)
-    
+
     # Add credential
     credential_add_parser = credential_subparsers.add_parser(
         "add",
@@ -1023,7 +1023,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         secure_storage=args.secure_storage,
         **kwargs
     ))
-    
+
     # Remove credential
     credential_remove_parser = credential_subparsers.add_parser(
         "remove",
@@ -1042,7 +1042,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         args.name,
         **kwargs
     ))
-    
+
     # List credentials
     credential_list_parser = credential_subparsers.add_parser(
         "list",
@@ -1062,14 +1062,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         show_secrets=args.show_secrets,
         **kwargs
     ))
-    
+
     # Filesystem commands
     filesystem_parser = subparsers.add_parser(
         "filesystem",
         help="Filesystem operations with IPFS content",
     )
     filesystem_subparsers = filesystem_parser.add_subparsers(dest="fs_command", help="Filesystem command", required=True)
-    
+
     # Get filesystem command
     get_fs_parser = filesystem_subparsers.add_parser(
         "get",
@@ -1098,11 +1098,11 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Size of the disk cache in bytes",
     )
     get_fs_parser.set_defaults(func=lambda api, args, kwargs: {
-        "success": True, 
+        "success": True,
         "message": "Filesystem interface created",
         "filesystem_info": api.get_filesystem(**kwargs) and {"ready": True}
     })
-    
+
     # Tiered cache commands
     tiered_cache_parser = filesystem_subparsers.add_parser(
         "tiered-cache",
@@ -1110,7 +1110,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["cache"]
     )
     tiered_cache_subparsers = tiered_cache_parser.add_subparsers(dest="cache_command", help="Cache command", required=True)
-    
+
     # Configure cache
     cache_configure_parser = tiered_cache_subparsers.add_parser(
         "configure",
@@ -1151,7 +1151,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Enable prefetching for sequential access patterns",
     )
     cache_configure_parser.set_defaults(func=lambda api, args, kwargs: api.configure_tiered_cache(**kwargs))
-    
+
     # Get cache stats
     cache_stats_parser = tiered_cache_subparsers.add_parser(
         "stats",
@@ -1163,7 +1163,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Include detailed tier-specific statistics",
     )
     cache_stats_parser.set_defaults(func=lambda api, args, kwargs: api.get_cache_stats(**kwargs))
-    
+
     # Clear cache
     cache_clear_parser = tiered_cache_subparsers.add_parser(
         "clear",
@@ -1176,7 +1176,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Cache tier to clear",
     )
     cache_clear_parser.set_defaults(func=lambda api, args, kwargs: api.clear_cache(**kwargs))
-    
+
     # Pin to cache tier
     cache_pin_parser = tiered_cache_subparsers.add_parser(
         "pin",
@@ -1193,7 +1193,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Cache tier to pin content to",
     )
     cache_pin_parser.set_defaults(func=lambda api, args, kwargs: api.pin_to_cache_tier(args.cid, tier=args.tier, **kwargs))
-    
+
     # Advanced partitioning
     partitioning_parser = filesystem_subparsers.add_parser(
         "partitioning",
@@ -1212,7 +1212,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Maximum records per partition",
     )
     partitioning_parser.set_defaults(func=lambda api, args, kwargs: api.configure_partitioning_strategy(**kwargs))
-    
+
     # Enable journaling command
     journal_parser = filesystem_subparsers.add_parser(
         "enable-journal",
@@ -1251,7 +1251,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "message": "Filesystem journaling enabled",
         "journal_info": api.enable_filesystem_journal(**kwargs)
     })
-    
+
     # Disable journaling command
     disable_journal_parser = filesystem_subparsers.add_parser(
         "disable-journal",
@@ -1262,7 +1262,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "message": "Filesystem journaling disabled",
         "journal_info": api.disable_filesystem_journal()
     })
-    
+
     # Journal status command
     journal_status_parser = filesystem_subparsers.add_parser(
         "journal-status",
@@ -1277,7 +1277,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "success": True,
         "journal_status": api.get_filesystem_journal_status(**kwargs)
     })
-    
+
     # Journal recovery command
     journal_recovery_parser = filesystem_subparsers.add_parser(
         "journal-recover",
@@ -1293,7 +1293,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Simulate recovery without making changes",
     )
     journal_recovery_parser.set_defaults(func=lambda api, args, kwargs: api.recover_from_journal(**kwargs))
-    
+
     # Probabilistic data structures commands
     pds_parser = filesystem_subparsers.add_parser(
         "probabilistic",
@@ -1301,7 +1301,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["pds"]
     )
     pds_subparsers = pds_parser.add_subparsers(dest="pds_command", help="PDS command", required=True)
-    
+
     # Bloom filter
     bloom_parser = pds_subparsers.add_parser(
         "bloom",
@@ -1342,7 +1342,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         error_rate=args.error_rate,
         **kwargs
     ))
-    
+
     # HyperLogLog
     hll_parser = pds_subparsers.add_parser(
         "hyperloglog",
@@ -1382,7 +1382,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         precision=args.precision,
         **kwargs
     ))
-    
+
     # Arrow metadata index
     arrow_parser = filesystem_subparsers.add_parser(
         "arrow-index",
@@ -1390,7 +1390,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["arrow"]
     )
     arrow_subparsers = arrow_parser.add_subparsers(dest="arrow_command", help="Arrow index command", required=True)
-    
+
     # Create index
     arrow_create_parser = arrow_subparsers.add_parser(
         "create",
@@ -1413,7 +1413,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Interval in seconds for syncing with peers",
     )
     arrow_create_parser.set_defaults(func=lambda api, args, kwargs: api.create_arrow_index(**kwargs))
-    
+
     # Add record
     arrow_add_parser = arrow_subparsers.add_parser(
         "add",
@@ -1424,7 +1424,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="JSON record to add to the index",
     )
     arrow_add_parser.set_defaults(func=lambda api, args, kwargs: api.add_to_arrow_index(json.loads(args.record), **kwargs))
-    
+
     # Query index
     arrow_query_parser = arrow_subparsers.add_parser(
         "query",
@@ -1449,7 +1449,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         limit=args.limit,
         **kwargs
     ))
-    
+
     # Get by CID
     arrow_get_parser = arrow_subparsers.add_parser(
         "get-by-cid",
@@ -1601,15 +1601,15 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Output directory",
     )
     sdk_parser.set_defaults(func=lambda api, args, kwargs: api.generate_sdk(args.language, args.output_dir))
-    
-    
+
+
     # Cluster management commands
     cluster_parser = subparsers.add_parser(
         "cluster",
         help="IPFS cluster management operations",
     )
     cluster_subparsers = cluster_parser.add_subparsers(dest="cluster_command", help="Cluster command", required=True)
-    
+
     # Create cluster command
     cluster_create_parser = cluster_subparsers.add_parser(
         "create",
@@ -1641,7 +1641,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         replication_factor=args.replication_factor,
         **kwargs
     ))
-    
+
     # Join cluster command
     cluster_join_parser = cluster_subparsers.add_parser(
         "join",
@@ -1674,7 +1674,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         listen_multiaddr=args.listen_multiaddr,
         **kwargs
     ))
-    
+
     # Leave cluster command
     cluster_leave_parser = cluster_subparsers.add_parser(
         "leave",
@@ -1689,7 +1689,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         force=args.force,
         **kwargs
     ))
-    
+
     # List peers command
     cluster_peers_parser = cluster_subparsers.add_parser(
         "peers",
@@ -1704,7 +1704,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         verbose=args.verbose,
         **kwargs
     ))
-    
+
     # Cluster status command
     cluster_status_parser = cluster_subparsers.add_parser(
         "status",
@@ -1719,7 +1719,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         detailed=args.detailed,
         **kwargs
     ))
-    
+
     # Set node role command
     cluster_role_parser = cluster_subparsers.add_parser(
         "set-role",
@@ -1734,7 +1734,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         args.role,
         **kwargs
     ))
-    
+
     # Cluster pin command
     cluster_pin_parser = cluster_subparsers.add_parser(
         "pin",
@@ -1764,7 +1764,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         allocations=args.allocations.split(",") if args.allocations else None,
         **kwargs
     ))
-    
+
     # Cluster unpin command
     cluster_unpin_parser = cluster_subparsers.add_parser(
         "unpin",
@@ -1778,7 +1778,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         args.cid,
         **kwargs
     ))
-    
+
     # List cluster pins command
     cluster_ls_pins_parser = cluster_subparsers.add_parser(
         "ls-pins",
@@ -1799,14 +1799,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         cid=args.cid,
         **kwargs
     ))
-    
+
     # Resource management commands
     resource_parser = subparsers.add_parser(
         "resource",
         help="Resource management operations",
     )
     resource_subparsers = resource_parser.add_subparsers(dest="resource_command", help="Resource command", required=True)
-    
+
     # Resource status command
     resource_status_parser = resource_subparsers.add_parser(
         "status",
@@ -1821,7 +1821,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         detailed=args.detailed,
         **kwargs
     ))
-    
+
     # Configure resource manager
     resource_config_parser = resource_subparsers.add_parser(
         "configure",
@@ -1868,11 +1868,11 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     )
     resource_config_parser.set_defaults(func=lambda api, args, kwargs: api.configure_resource_management(
         **{k: v for k, v in vars(args).items() if k in [
-            "enabled", "monitor_interval", "cpu_threshold", "memory_threshold", 
+            "enabled", "monitor_interval", "cpu_threshold", "memory_threshold",
             "disk_threshold", "min_threads", "max_threads_factor", "config_file"
         ] and v is not None}
     ))
-    
+
     # Resource monitoring command
     resource_monitor_parser = resource_subparsers.add_parser(
         "monitor",
@@ -1900,7 +1900,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         output_file=args.output_file,
         **kwargs
     ))
-    
+
     # Resource allocation command
     resource_allocate_parser = resource_subparsers.add_parser(
         "allocate",
@@ -1916,14 +1916,14 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         component=args.component,
         **kwargs
     ))
-    
+
     # Health monitoring commands
     health_parser = subparsers.add_parser(
         "health",
         help="Health monitoring and diagnostics",
     )
     health_subparsers = health_parser.add_subparsers(dest="health_command", help="Health command", required=True)
-    
+
     # Health check command
     health_check_parser = health_subparsers.add_parser(
         "check",
@@ -1950,7 +1950,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         components=args.components.split(",") if args.components else None,
         **kwargs
     ))
-    
+
     # System metrics command
     health_metrics_parser = health_subparsers.add_parser(
         "metrics",
@@ -1978,7 +1978,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         time_range=args.time_range,
         **kwargs
     ))
-    
+
     # Enable monitoring command
     health_monitor_parser = health_subparsers.add_parser(
         "monitor",
@@ -2013,7 +2013,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         webhook_url=args.webhook_url,
         **kwargs
     ))
-    
+
     # Diagnostic tools command
     health_diagnostic_parser = health_subparsers.add_parser(
         "diagnostic",
@@ -2039,7 +2039,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         detailed=args.detailed,
         **kwargs
     ))
-    
+
     # Network configuration commands
     network_parser = subparsers.add_parser(
         "network",
@@ -2047,7 +2047,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["swarm"]
     )
     network_subparsers = network_parser.add_subparsers(dest="network_command", help="Network command", required=True)
-    
+
     # Network info command
     network_info_parser = network_subparsers.add_parser(
         "info",
@@ -2062,7 +2062,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         detailed=args.detailed,
         **kwargs
     ))
-    
+
     # Network configuration command
     network_config_parser = network_subparsers.add_parser(
         "config",
@@ -2106,27 +2106,27 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Path to JSON file with network configuration",
     )
     network_config_parser.set_defaults(func=lambda api, args, kwargs: api.configure_network(**{
-        k: v for k, v in vars(args).items() 
-        if k in ["listen_addresses", "announce_addresses", "connection_manager_low", 
-                 "connection_manager_high", "enable_relay", "enable_auto_relay", 
-                 "enable_nat_traversal", "config_file"] 
+        k: v for k, v in vars(args).items()
+        if k in ["listen_addresses", "announce_addresses", "connection_manager_low",
+                 "connection_manager_high", "enable_relay", "enable_auto_relay",
+                 "enable_nat_traversal", "config_file"]
         and v is not None
     }))
-    
+
     # Bootstrap commands
     bootstrap_parser = network_subparsers.add_parser(
         "bootstrap",
         help="Bootstrap node operations",
     )
     bootstrap_subparsers = bootstrap_parser.add_subparsers(dest="bootstrap_command", help="Bootstrap command", required=True)
-    
+
     # List bootstrap nodes
     bootstrap_list_parser = bootstrap_subparsers.add_parser(
         "list",
         help="List bootstrap nodes",
     )
     bootstrap_list_parser.set_defaults(func=lambda api, args, kwargs: api.list_bootstrap_nodes(**kwargs))
-    
+
     # Add bootstrap node
     bootstrap_add_parser = bootstrap_subparsers.add_parser(
         "add",
@@ -2137,7 +2137,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Peer multiaddress to add as bootstrap node",
     )
     bootstrap_add_parser.set_defaults(func=lambda api, args, kwargs: api.add_bootstrap_node(args.peer, **kwargs))
-    
+
     # Remove bootstrap node
     bootstrap_remove_parser = bootstrap_subparsers.add_parser(
         "remove",
@@ -2148,21 +2148,21 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Peer multiaddress to remove from bootstrap nodes",
     )
     bootstrap_remove_parser.set_defaults(func=lambda api, args, kwargs: api.remove_bootstrap_node(args.peer, **kwargs))
-    
+
     # Reset bootstrap nodes
     bootstrap_reset_parser = bootstrap_subparsers.add_parser(
         "reset",
         help="Reset to default bootstrap nodes",
     )
     bootstrap_reset_parser.set_defaults(func=lambda api, args, kwargs: api.reset_bootstrap_nodes(**kwargs))
-    
+
     # Peer connection commands
     peer_parser = network_subparsers.add_parser(
         "peer",
         help="Peer connection operations",
     )
     peer_subparsers = peer_parser.add_subparsers(dest="peer_command", help="Peer command", required=True)
-    
+
     # Connect to peer
     peer_connect_parser = peer_subparsers.add_parser(
         "connect",
@@ -2179,7 +2179,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Connection timeout in seconds",
     )
     peer_connect_parser.set_defaults(func=lambda api, args, kwargs: api.connect_peer(args.peer, timeout=args.timeout, **kwargs))
-    
+
     # Disconnect from peer
     peer_disconnect_parser = peer_subparsers.add_parser(
         "disconnect",
@@ -2190,7 +2190,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Peer ID to disconnect from",
     )
     peer_disconnect_parser.set_defaults(func=lambda api, args, kwargs: api.disconnect_peer(args.peer, **kwargs))
-    
+
     # List peers
     peer_list_parser = peer_subparsers.add_parser(
         "list",
@@ -2219,7 +2219,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         verbose=args.verbose,
         **kwargs
     ))
-    
+
     # Node addresses
     addresses_parser = network_subparsers.add_parser(
         "addresses",
@@ -2242,7 +2242,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Plugin management operations",
     )
     plugin_subparsers = plugin_parser.add_subparsers(dest="plugin_command", help="Plugin command", required=True)
-    
+
     # List plugins
     plugin_list_parser = plugin_subparsers.add_parser(
         "list",
@@ -2264,7 +2264,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         detailed=args.detailed,
         **kwargs
     ))
-    
+
     # Enable plugin
     plugin_enable_parser = plugin_subparsers.add_parser(
         "enable",
@@ -2278,7 +2278,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         args.name,
         **kwargs
     ))
-    
+
     # Disable plugin
     plugin_disable_parser = plugin_subparsers.add_parser(
         "disable",
@@ -2292,7 +2292,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         args.name,
         **kwargs
     ))
-    
+
     # Register plugin
     plugin_register_parser = plugin_subparsers.add_parser(
         "register",
@@ -2323,7 +2323,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         enabled=args.enabled,
         **kwargs
     ))
-    
+
     # AI/ML integration commands
     aiml_parser = subparsers.add_parser(
         "ai-ml",
@@ -2331,7 +2331,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         aliases=["aiml", "ai"]
     )
     aiml_subparsers = aiml_parser.add_subparsers(dest="aiml_command", help="AI/ML command", required=True)
-    
+
     # Generate embeddings
     embedding_parser = aiml_subparsers.add_parser(
         "embed",
@@ -2363,7 +2363,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         store=args.store,
         **kwargs
     ))
-    
+
     # Distributed model training
     training_parser = aiml_subparsers.add_parser(
         "train",
@@ -2402,7 +2402,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         parameters=json.loads(args.parameters) if args.parameters else None,
         **kwargs
     ))
-    
+
     # Model inference
     inference_parser = aiml_subparsers.add_parser(
         "inference",
@@ -2435,7 +2435,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         output_cid=args.output_cid,
         **kwargs
     ))
-    
+
     # LangChain/LlamaIndex integration
     llm_integration_parser = aiml_subparsers.add_parser(
         "llm-integration",
@@ -2479,7 +2479,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         options=json.loads(args.options) if args.options else None,
         **kwargs
     ))
-    
+
     # AI model visualization
     visualization_parser = aiml_subparsers.add_parser(
         "visualize",
@@ -2511,7 +2511,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         parameters=json.loads(args.parameters) if args.parameters else None,
         **kwargs
     ))
-    
+
     # Metrics collection
     metrics_parser = aiml_subparsers.add_parser(
         "metrics",
@@ -2542,7 +2542,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         output=args.output,
         **kwargs
     ))
-    
+
     # Version command
     version_parser = subparsers.add_parser(
         "version",
@@ -2564,12 +2564,12 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
 def handle_version_command(api, args, kwargs):
     """
     Handle the 'version' command to show version information.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Version information as a dictionary
     """
@@ -2578,7 +2578,7 @@ def handle_version_command(api, args, kwargs):
         "ipfs_kit_py": getattr(api, "version", "unknown"),
         "ipfs_daemon": "unknown",
     }
-    
+
     # Try to get IPFS daemon version if available
     try:
         if hasattr(api, "ipfs") and hasattr(api.ipfs, "ipfs_version"):
@@ -2589,27 +2589,27 @@ def handle_version_command(api, args, kwargs):
                 version_info["ipfs_daemon"] = str(daemon_version)
     except Exception as e:
         version_info["ipfs_daemon_error"] = str(e)
-    
+
     return version_info
 
 def handle_get_command(api, args, kwargs):
     """
     Handle the 'get' command with output file support.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result or content
     """
     # Extract timeout from kwargs or use default
     timeout = kwargs.pop('timeout', 30)
-    
+
     # Get the content from IPFS
     content = api.get(args.cid, timeout=timeout, **kwargs)
-    
+
     # If output file is specified, save content to file
     if hasattr(args, 'output') and args.output:
         # Handle both binary and string content
@@ -2619,14 +2619,14 @@ def handle_get_command(api, args, kwargs):
         else:
             with open(args.output, 'wb') as f:
                 f.write(content)
-        
+
         # Return success message instead of content
         return {
             "success": True,
             "message": f"Content saved to {args.output}",
             "size": len(content)
         }
-    
+
     # If no output file, return content directly
     return content
 
@@ -2696,7 +2696,7 @@ def parse_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
     # Add timeout if present in args for specific commands
     if hasattr(args, 'timeout'):
         kwargs['timeout'] = args.timeout
-    
+
     # Handle command-specific timeouts (e.g., timeout_get for get command)
     # Only apply command-specific timeouts if not already provided via --param
     if hasattr(args, 'command') and 'timeout' not in kwargs:
@@ -3080,12 +3080,12 @@ def add_schema_commands(subparsers):
 def handle_version_command(api, args, kwargs):
     """
     Handle the 'version' command with platform information.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Dictionary with version information
     """
@@ -3094,19 +3094,19 @@ def handle_version_command(api, args, kwargs):
         package_version = importlib.metadata.version("ipfs_kit_py")
     except importlib.metadata.PackageNotFoundError:
         package_version = "unknown (development mode)"
-    
+
     # Get Python version
     python_version = f"{platform.python_version()}"
-    
+
     # Get platform information
     platform_info = f"{platform.system()} {platform.release()}"
-    
+
     # Try to get IPFS daemon version (this might fail if daemon is not running)
     try:
         ipfs_version = api.ipfs.ipfs_version()["Version"]
     except Exception:
         ipfs_version = "unknown (daemon not running)"
-    
+
     # Component availability
     components = {}
     if WAL_CLI_AVAILABLE:
@@ -3119,7 +3119,7 @@ def handle_version_command(api, args, kwargs):
             components["webrtc"] = webrtc_available
         except Exception:
             components["webrtc"] = False
-    
+
     # Return version information
     return {
         "ipfs_kit_py_version": package_version,

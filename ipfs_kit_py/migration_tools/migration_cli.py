@@ -23,8 +23,8 @@ logger = logging.getLogger("migration_cli")
 
 try:
     from ipfs_kit_py.migration_tools.migration_controller import (
-        MigrationController, 
-        MigrationStatus, 
+        MigrationController,
+        MigrationStatus,
         MigrationPriority
     )
 except ImportError:
@@ -55,7 +55,7 @@ def format_duration(start: Optional[float], end: Optional[float]) -> str:
     """Format duration between two timestamps."""
     if start is None or end is None:
         return "N/A"
-    
+
     duration = end - start
     if duration < 60:
         return f"{duration:.2f} seconds"
@@ -77,25 +77,25 @@ def print_task_details(task: Dict[str, Any]):
     print(f"Created: {format_time(task['created_at'])}")
     print(f"Started: {format_time(task['started_at'])}")
     print(f"Completed: {format_time(task['completed_at'])}")
-    
+
     if task.get('source_size'):
         print(f"Size: {format_size(task['source_size'])}")
-    
+
     if task.get('transfer_speed'):
         print(f"Transfer Speed: {format_size(int(task['transfer_speed']))}/s")
-    
+
     if task.get('started_at') and task.get('completed_at'):
         print(f"Duration: {format_duration(task['started_at'], task['completed_at'])}")
-    
+
     if task.get('error'):
         print(f"Error: {task['error']}")
-    
+
     if task.get('target_identifier'):
         print(f"Target Identifier: {task['target_identifier']}")
-    
+
     if task.get('verification_result'):
         print(f"Verification: {task['verification_result'].get('success', False)}")
-    
+
     print("-" * 60)
     print("Metadata:")
     for key, value in task.get('metadata', {}).items():
@@ -106,7 +106,7 @@ def print_task_details(task: Dict[str, Any]):
 def list_tasks_cmd(controller, args):
     """Handle the list tasks command."""
     status = MigrationStatus[args.status.upper()] if args.status else None
-    
+
     tasks = controller.list_tasks(
         status=status,
         source_backend=args.source,
@@ -115,23 +115,23 @@ def list_tasks_cmd(controller, args):
         limit=args.limit,
         offset=args.offset
     )
-    
+
     if not tasks:
         print("No tasks found matching the criteria.")
         return
-    
+
     print(f"\nFound {len(tasks)} tasks:")
     print("-" * 100)
     print(f"{'ID':<36} {'Status':<15} {'Source->Target':<25} {'Size':<10} {'Created':<20}")
     print("-" * 100)
-    
+
     for task in tasks:
         size_str = format_size(task.get('source_size', 0)) if task.get('source_size') else "Unknown"
         source_target = f"{task['source_backend']} -> {task['target_backend']}"
         print(f"{task['id']:<36} {task['status']:<15} {source_target:<25} {size_str:<10} {format_time(task['created_at']):<20}")
-    
+
     print("-" * 100)
-    
+
     if args.verbose and len(tasks) > 0:
         for task in tasks:
             print_task_details(task)
@@ -140,11 +140,11 @@ def list_tasks_cmd(controller, args):
 def get_task_cmd(controller, args):
     """Handle the get task command."""
     task = controller.get_task(args.task_id)
-    
+
     if not task:
         print(f"Task with ID {args.task_id} not found.")
         return
-    
+
     print_task_details(task.to_dict())
 
 
@@ -158,14 +158,14 @@ def create_task_cmd(controller, args):
         except json.JSONDecodeError:
             print("Error: Metadata must be a valid JSON string.")
             return
-    
+
     # Get priority enum
     try:
         priority = MigrationPriority[args.priority.upper()]
     except KeyError:
         print(f"Error: Invalid priority '{args.priority}'. Valid values are: LOW, NORMAL, HIGH, CRITICAL")
         return
-    
+
     # Create the task
     task = controller.create_migration_task(
         source_backend=args.source,
@@ -175,7 +175,7 @@ def create_task_cmd(controller, args):
         priority=priority,
         metadata=metadata
     )
-    
+
     print(f"Created migration task with ID: {task.id}")
     print_task_details(task.to_dict())
 
@@ -183,7 +183,7 @@ def create_task_cmd(controller, args):
 def cancel_task_cmd(controller, args):
     """Handle the cancel task command."""
     result = controller.cancel_task(args.task_id)
-    
+
     if result:
         print(f"Successfully cancelled task {args.task_id}")
     else:
@@ -193,14 +193,14 @@ def cancel_task_cmd(controller, args):
 def list_policies_cmd(controller, args):
     """Handle the list policies command."""
     policies = controller.list_policies()
-    
+
     if not policies:
         print("No migration policies defined.")
         return
-    
+
     print(f"\nFound {len(policies)} policies:")
     print("-" * 80)
-    
+
     for policy in policies:
         name = policy['name']
         config = policy['config']
@@ -208,17 +208,17 @@ def list_policies_cmd(controller, args):
         target = config.get('target_backend', 'Unknown')
         verify = "Yes" if config.get('verification_required', True) else "No"
         retain = "Yes" if config.get('retention', True) else "No"
-        
+
         print(f"Policy: {name}")
         print(f"  Source -> Target: {source} -> {target}")
         print(f"  Verification: {verify}, Retention: {retain}")
-        
+
         if args.verbose:
             print(f"  Content Filters: {config.get('content_filters', {})}")
             print(f"  Cost Threshold: {config.get('cost_threshold', 'Unlimited')}")
             print(f"  Bandwidth Limit: {config.get('bandwidth_limit', 'Unlimited')}")
             print(f"  Schedule: {config.get('schedule', 'None')}")
-        
+
         print("-" * 80)
 
 
@@ -226,7 +226,7 @@ def add_policy_cmd(controller, args):
     """Handle the add policy command."""
     # Parse config from file or JSON string
     config = {}
-    
+
     if args.config_file:
         try:
             with open(args.config_file, 'r') as f:
@@ -243,15 +243,15 @@ def add_policy_cmd(controller, args):
     else:
         print("Error: Either --config or --config-file must be provided.")
         return
-    
+
     # Validate minimal configuration
     if 'source_backend' not in config or 'target_backend' not in config:
         print("Error: Config must include at least 'source_backend' and 'target_backend'.")
         return
-    
+
     # Add the policy
     policy = controller.add_policy(args.name, config)
-    
+
     print(f"Added migration policy '{args.name}':")
     print(f"  Source -> Target: {policy.source_backend} -> {policy.target_backend}")
     print(f"  Verification: {'Yes' if policy.verification_required else 'No'}")
@@ -261,7 +261,7 @@ def add_policy_cmd(controller, args):
 def remove_policy_cmd(controller, args):
     """Handle the remove policy command."""
     result = controller.remove_policy(args.name)
-    
+
     if result:
         print(f"Successfully removed policy '{args.name}'")
     else:
@@ -272,7 +272,7 @@ def apply_policy_cmd(controller, args):
     """Handle the apply policy command."""
     # Parse content list from file or JSON string
     content_list = []
-    
+
     if args.content_file:
         try:
             with open(args.content_file, 'r') as f:
@@ -289,18 +289,18 @@ def apply_policy_cmd(controller, args):
     else:
         print("Error: Either --content or --content-file must be provided.")
         return
-    
+
     # Validate content list
     if not isinstance(content_list, list):
         print("Error: Content must be a JSON array of items.")
         return
-    
+
     # Apply the policy
     task_ids = controller.apply_policy_to_content(args.policy, content_list)
-    
+
     if task_ids:
         print(f"Successfully applied policy '{args.policy}' to {len(task_ids)} content items.")
-        print(f"Created migration tasks: {', '.join(task_ids[:5])}" + 
+        print(f"Created migration tasks: {', '.join(task_ids[:5])}" +
               (f"... and {len(task_ids) - 5} more" if len(task_ids) > 5 else ""))
     else:
         print(f"No content items matched policy '{args.policy}' criteria or policy doesn't exist.")
@@ -310,7 +310,7 @@ def analyze_cost_cmd(controller, args):
     """Handle the analyze cost command."""
     # Parse content list from file or JSON string
     content_list = []
-    
+
     if args.content_file:
         try:
             with open(args.content_file, 'r') as f:
@@ -327,14 +327,14 @@ def analyze_cost_cmd(controller, args):
     else:
         print("Error: Either --content or --content-file must be provided.")
         return
-    
+
     # Analyze the cost
     cost_analysis = controller.analyze_migration_cost(
         args.source,
         args.target,
         content_list
     )
-    
+
     print("\nMigration Cost Analysis:")
     print("=" * 60)
     print(f"Source Backend: {cost_analysis['source_backend']}")
@@ -350,7 +350,7 @@ def analyze_cost_cmd(controller, args):
 def get_stats_cmd(controller, args):
     """Handle the get statistics command."""
     stats = controller.get_statistics()
-    
+
     print("\nMigration Controller Statistics:")
     print("=" * 60)
     print(f"Total Migrations: {stats['total_migrations']}")
@@ -363,7 +363,7 @@ def get_stats_cmd(controller, args):
     print(f"Failed Tasks: {stats['failed_tasks']}")
     print(f"Number of Policies: {stats['policies']}")
     print(f"Supported Backend Pairs: {', '.join(stats['supported_backend_pairs'])}")
-    
+
     if args.verbose:
         print("\nBackend Statistics:")
         for backend, backend_stats in stats['backend_stats'].items():
@@ -372,7 +372,7 @@ def get_stats_cmd(controller, args):
             print(f"    Outgoing Bytes: {format_size(backend_stats.get('outgoing_bytes', 0))}")
             print(f"    Incoming Migrations: {backend_stats.get('incoming_migrations', 0)}")
             print(f"    Incoming Bytes: {format_size(backend_stats.get('incoming_bytes', 0))}")
-    
+
     print("=" * 60)
 
 
@@ -384,13 +384,13 @@ def find_optimal_backend_cmd(controller, args):
     except json.JSONDecodeError:
         print("Error: Metadata must be a valid JSON string.")
         return
-    
+
     # Parse available backends list
     backends = args.backends.split(",")
-    
+
     # Find optimal backend
     optimal = controller.get_optimal_backend(metadata, backends)
-    
+
     print(f"\nOptimal Backend Analysis for Content:")
     print("=" * 60)
     print(f"Content Size: {format_size(metadata.get('size', 0))}")
@@ -413,36 +413,36 @@ def main():
 Examples:
   # List all migration tasks
   migration_cli list-tasks
-  
+
   # Get details of a specific task
   migration_cli get-task --task-id 123e4567-e89b-12d3-a456-426614174000
-  
+
   # Create a new migration task
   migration_cli create-task --source ipfs --target s3 --content-id QmXYZ...
-  
+
   # List all migration policies
   migration_cli list-policies
-  
+
   # Get migration statistics
   migration_cli stats
         """
     )
-    
+
     # Create subparsers for commands
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
-    
+
     # Global arguments
     parser.add_argument(
-        "--config", 
+        "--config",
         help="Path to configuration file",
         default=os.environ.get("MCP_CONFIG", None)
     )
     parser.add_argument(
-        "--verbose", "-v", 
-        action="store_true", 
+        "--verbose", "-v",
+        action="store_true",
         help="Enable verbose output"
     )
-    
+
     # List tasks command
     list_parser = subparsers.add_parser("list-tasks", help="List migration tasks")
     list_parser.add_argument("--status", help="Filter by status (e.g., PENDING, COMPLETED)")
@@ -451,11 +451,11 @@ Examples:
     list_parser.add_argument("--policy", help="Filter by policy name")
     list_parser.add_argument("--limit", type=int, default=100, help="Maximum number of tasks to show")
     list_parser.add_argument("--offset", type=int, default=0, help="Number of tasks to skip")
-    
+
     # Get task command
     get_parser = subparsers.add_parser("get-task", help="Get details of a specific task")
     get_parser.add_argument("--task-id", required=True, help="Task ID to retrieve")
-    
+
     # Create task command
     create_parser = subparsers.add_parser("create-task", help="Create a new migration task")
     create_parser.add_argument("--source", required=True, help="Source backend name")
@@ -464,56 +464,56 @@ Examples:
     create_parser.add_argument("--policy", help="Policy name to apply")
     create_parser.add_argument("--priority", default="NORMAL", help="Task priority (LOW, NORMAL, HIGH, CRITICAL)")
     create_parser.add_argument("--metadata", help="Content metadata as JSON string")
-    
+
     # Cancel task command
     cancel_parser = subparsers.add_parser("cancel-task", help="Cancel a pending migration task")
     cancel_parser.add_argument("--task-id", required=True, help="Task ID to cancel")
-    
+
     # List policies command
     list_policies_parser = subparsers.add_parser("list-policies", help="List migration policies")
-    
+
     # Add policy command
     add_policy_parser = subparsers.add_parser("add-policy", help="Add a new migration policy")
     add_policy_parser.add_argument("--name", required=True, help="Policy name")
     add_policy_parser.add_argument("--config", help="Policy configuration as JSON string")
     add_policy_parser.add_argument("--config-file", help="Path to policy configuration file")
-    
+
     # Remove policy command
     remove_policy_parser = subparsers.add_parser("remove-policy", help="Remove a migration policy")
     remove_policy_parser.add_argument("--name", required=True, help="Policy name to remove")
-    
+
     # Apply policy command
     apply_policy_parser = subparsers.add_parser("apply-policy", help="Apply a policy to content")
     apply_policy_parser.add_argument("--policy", required=True, help="Policy name to apply")
     apply_policy_parser.add_argument("--content", help="Content list as JSON string")
     apply_policy_parser.add_argument("--content-file", help="Path to content list file")
-    
+
     # Analyze cost command
     analyze_cost_parser = subparsers.add_parser("analyze-cost", help="Analyze migration cost")
     analyze_cost_parser.add_argument("--source", required=True, help="Source backend name")
     analyze_cost_parser.add_argument("--target", required=True, help="Target backend name")
     analyze_cost_parser.add_argument("--content", help="Content list as JSON string")
     analyze_cost_parser.add_argument("--content-file", help="Path to content list file")
-    
+
     # Get statistics command
     stats_parser = subparsers.add_parser("stats", help="Get migration statistics")
-    
+
     # Find optimal backend command
     optimal_parser = subparsers.add_parser("find-optimal", help="Find optimal backend for content")
     optimal_parser.add_argument("--metadata", required=True, help="Content metadata as JSON string")
     optimal_parser.add_argument("--backends", required=True, help="Comma-separated list of available backends")
-    
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return
-    
+
     # Initialize controller
     resources = {}
     metadata = {}
-    
+
     if args.config:
         try:
             with open(args.config, 'r') as f:
@@ -522,9 +522,9 @@ Examples:
                 metadata = config.get("metadata", {})
         except (json.JSONDecodeError, FileNotFoundError) as e:
             print(f"Warning: Could not load config file: {e}")
-    
+
     controller = MigrationController(resources, metadata)
-    
+
     # Execute command
     try:
         if args.command == "list-tasks":

@@ -33,19 +33,19 @@ router = APIRouter(prefix="/api/v0/ha/replication", tags=["replication"])
 # Request and response models
 class KeyItem(BaseModel):
     """Key item for batch operations."""
-    
+
     key: str
 
 
 class KeysRequest(BaseModel):
     """Request for batch key operations."""
-    
+
     keys: List[str] = Field(..., description="List of keys")
 
 
 class VersionInfo(BaseModel):
     """Version information for a key."""
-    
+
     version_id: str
     timestamp: float
     node_id: str
@@ -56,13 +56,13 @@ class VersionInfo(BaseModel):
 
 class VersionsRequest(BaseModel):
     """Request for comparing versions."""
-    
+
     versions: Dict[str, Dict[str, Any]] = Field(..., description="Version information keyed by key")
 
 
 class SetRequest(BaseModel):
     """Request for setting a key."""
-    
+
     key: str
     value: Any
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -73,13 +73,13 @@ class SetRequest(BaseModel):
 
 class BatchSetRequest(BaseModel):
     """Request for setting multiple keys."""
-    
+
     items: List[Dict[str, Any]] = Field(..., description="List of items to set")
 
 
 class ConfigModel(BaseModel):
     """Configuration for replication."""
-    
+
     consistency_model: str = "eventual"
     replication_strategy: str = "asynchronous"
     conflict_resolution: str = "vector_clock"
@@ -95,10 +95,10 @@ class ConfigModel(BaseModel):
 def get_consistency_service(request: Request) -> ConsistencyService:
     """
     Get consistency service from request.
-    
+
     Args:
         request: FastAPI request object
-        
+
     Returns:
         ConsistencyService instance
     """
@@ -153,7 +153,7 @@ async def get_batch(
     for key in request.keys:
         result = await service.get(key)
         items.append(result)
-    
+
     return {
         "success": True,
         "items": items,
@@ -170,7 +170,7 @@ async def get_version(
     result = await service.get(key)
     if not result.get("success"):
         return result
-    
+
     return {
         "success": True,
         "key": key,
@@ -193,41 +193,41 @@ async def compare_versions(
             "equal": [],
             "message": "No versions to compare"
         }
-    
+
     remote_newer = []
     local_newer = []
     conflicts = []
     equal = []
-    
+
     for key, remote_version_data in request.versions.items():
         # Get local data
         local_result = await service.get(key)
-        
+
         if not local_result.get("success"):
             # We don't have this key, so remote is newer
             remote_newer.append(key)
             continue
-        
+
         # Compare vector clocks
         local_version_data = local_result.get("version", {})
-        
+
         # Create vector clocks
         local_vc_data = local_version_data.get("vector_clock", {})
         remote_vc_data = remote_version_data.get("vector_clock", {})
-        
+
         local_vc = VectorClock(
             node_counters=local_vc_data.get("node_counters", {}),
             last_updated=local_vc_data.get("last_updated", 0)
         )
-        
+
         remote_vc = VectorClock(
             node_counters=remote_vc_data.get("node_counters", {}),
             last_updated=remote_vc_data.get("last_updated", 0)
         )
-        
+
         # Compare
         comparison = local_vc.compare(remote_vc)
-        
+
         if comparison < 0:
             # Remote is newer
             remote_newer.append(key)
@@ -238,14 +238,14 @@ async def compare_versions(
             # Check content hash if available
             local_hash = local_version_data.get("content_hash")
             remote_hash = remote_version_data.get("content_hash")
-            
+
             if local_hash and remote_hash and local_hash == remote_hash:
                 # Equal content
                 equal.append(key)
             else:
                 # Potentially conflicting
                 conflicts.append(key)
-    
+
     return {
         "success": True,
         "remote_newer": remote_newer,
@@ -279,28 +279,28 @@ async def set_batch(
     results = []
     accepted_keys = []
     rejected_keys = []
-    
+
     for item in request.items:
         key = item.get("key")
         value = item.get("value")
         metadata = item.get("metadata", {})
-        
+
         # Handle version if provided
         incoming_version = item.get("version")
         if incoming_version:
             # Check if we need to reconstruct objects
             # For normal operation this is handled by the consistency service
             pass
-        
+
         # Set the key
         result = await service.set(key, value, metadata)
         results.append(result)
-        
+
         if result.get("success"):
             accepted_keys.append(key)
         else:
             rejected_keys.append(key)
-    
+
     return {
         "success": True,
         "results": results,
@@ -331,16 +331,16 @@ async def delete_batch(
     results = []
     success_keys = []
     failed_keys = []
-    
+
     for key in request.keys:
         result = await service.delete(key)
         results.append(result)
-        
+
         if result.get("success"):
             success_keys.append(key)
         else:
             failed_keys.append(key)
-    
+
     return {
         "success": True,
         "results": results,
@@ -358,7 +358,7 @@ async def get_config(
 ):
     """Get current configuration."""
     config = service.config
-    
+
     return {
         "success": True,
         "config": {
@@ -386,7 +386,7 @@ async def update_config(
         consistency_model = ConsistencyModel(config.consistency_model)
         replication_strategy = ReplicationStrategy(config.replication_strategy)
         conflict_resolution = ConflictResolutionStrategy(config.conflict_resolution)
-        
+
         # Create new config
         new_config = ReplicationConfig(
             consistency_model=consistency_model,
@@ -399,10 +399,10 @@ async def update_config(
             max_sync_batch=config.max_sync_batch,
             priority_keys=config.priority_keys
         )
-        
+
         # Update service config
         service.config = new_config
-        
+
         return {
             "success": True,
             "message": "Configuration updated",
@@ -428,13 +428,13 @@ async def update_config(
 def register_with_app(app, service: ConsistencyService):
     """
     Register replication router with FastAPI app.
-    
+
     Args:
         app: FastAPI application
         service: ConsistencyService instance
     """
     # Store service in app state
     app.state.consistency_service = service
-    
+
     # Include router
     app.include_router(router)

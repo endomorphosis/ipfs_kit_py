@@ -42,7 +42,7 @@ class StorageManager:
         self.resources = resources or {}  # Store resources for potential use by storage models
         self.metadata = metadata or {}    # Store metadata for potential use by storage models
         self.storage_models: Dict[str, BaseStorageModel] = {}
-        
+
         # Initialize storage backends
         self._init_storage_models()
 
@@ -57,7 +57,7 @@ class StorageManager:
                 self.ipfs_model.isolation_mode = self.isolation_mode
         else:
             # Create a new IPFSModel with isolation_mode
-            ipfs_model = IPFSModel(debug_mode=self.debug_mode, 
+            ipfs_model = IPFSModel(debug_mode=self.debug_mode,
                                  log_level=self.log_level)
             # Add isolation_mode attribute to IPFSModel
             ipfs_model.isolation_mode = self.isolation_mode
@@ -73,17 +73,17 @@ class StorageManager:
                 "region": os.environ.get("S3_REGION", "us-east-1"),
                 "bucket": os.environ.get("S3_BUCKET", "ipfs-storage")
             }
-            
+
             s3_resources = {}
-            
+
             logger.info(f"Initializing S3 kit with resources={s3_resources}, config={s3_config}")
-            
+
             if not s3_config["accessKey"] or not s3_config["secretKey"] or not s3_config["endpoint"]:
                 logger.warning("s3_config is incomplete; skipping S3 configuration.")
                 s3_kit_instance = None
             else:
                 s3_kit_instance = s3_kit(resources=s3_resources, meta={"s3cfg": s3_config})
-                        
+
             if s3_kit_instance:
                 # S3Model might accept different parameter names, simplifying initialization
                 self.storage_models['s3'] = S3Model()

@@ -22,31 +22,31 @@ API_URL = f"{SERVER_URL}{API_PREFIX}"
 def start_server():
     """Start the MCP test server."""
     print("Starting MCP test server...")
-    
+
     # Make sure start_test_mcp_server.py exists
-    server_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+    server_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "start_test_mcp_server.py")
     if not os.path.exists(server_script):
         print(f"Server script not found at {server_script}")
         return None
-    
+
     # Start the server on a different port
     cmd = [
-        sys.executable, 
-        server_script, 
-        "--host", "127.0.0.1", 
+        sys.executable,
+        server_script,
+        "--host", "127.0.0.1",
         "--port", str(SERVER_PORT)
     ]
-    
+
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
-    
+
     # Register cleanup function
     atexit.register(lambda: process.terminate())
-    
+
     # Wait for server to start
     print("Waiting for server to start...")
     for i in range(10):
@@ -59,7 +59,7 @@ def start_server():
                 return process
         except requests.exceptions.RequestException:
             print(f"Waiting for server... (attempt {i+1}/10)")
-    
+
     # If we get here, failed to start
     print("Failed to start server!")
     process.terminate()
@@ -88,7 +88,7 @@ def test_endpoints():
             print(json.dumps(response.json(), indent=2))
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # List all available routes
     print("\nGetting all available routes...")
     try:
@@ -101,7 +101,7 @@ def test_endpoints():
                     print(f"  {route['path']} - {', '.join(route['methods'])}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test IPFS add endpoint
     print("\nTesting IPFS add endpoint...")
     try:
@@ -110,7 +110,7 @@ def test_endpoints():
             content = b"Hello, MCP Server! Test content."
             temp_file.write(content)
             temp_file_path = temp_file.name
-        
+
         # Upload the file
         with open(temp_file_path, 'rb') as f:
             files = {'file': ('test.txt', f, 'text/plain')}
@@ -118,24 +118,24 @@ def test_endpoints():
                 f"{API_URL}/ipfs/add",
                 files=files
             )
-        
+
         print(f"Status code: {response.status_code}")
         if response.status_code == 200:
             print("Add response:")
             print(json.dumps(response.json(), indent=2))
-            
+
             # Save the CID for further tests
             cid = response.json().get("cid") or response.json().get("Hash")
             if cid:
                 print(f"Got CID: {cid}")
-                
+
                 # Try to retrieve the content
                 print("\nTesting IPFS cat endpoint...")
                 response = requests.get(f"{API_URL}/ipfs/cat/{cid}")
                 print(f"Status code: {response.status_code}")
                 if response.status_code == 200:
                     print(f"Retrieved content: {response.content}")
-                
+
                 # Try to pin the content
                 print("\nTesting IPFS pin endpoint...")
                 response = requests.post(
@@ -148,7 +148,7 @@ def test_endpoints():
                     print(json.dumps(response.json(), indent=2))
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test Files API (MFS)
     print("\nTesting Files API (MFS)...")
     try:
@@ -164,7 +164,7 @@ def test_endpoints():
             print(json.dumps(response.json(), indent=2))
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test Block API
     print("\nTesting Block API...")
     if 'cid' in locals():
@@ -179,7 +179,7 @@ def test_endpoints():
             if response.status_code == 200:
                 print("Block stat response:")
                 print(json.dumps(response.json(), indent=2))
-            
+
             # Try to get block content
             print("Testing block/get...")
             response = requests.get(f"{API_URL}/ipfs/block/get/{cid}")
@@ -188,7 +188,7 @@ def test_endpoints():
                 print(f"Block content: {response.content}")
         except Exception as e:
             print(f"Error: {e}")
-    
+
     print("\nTests completed!")
 
 if __name__ == "__main__":

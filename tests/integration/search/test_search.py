@@ -24,14 +24,14 @@ logger = logging.getLogger(__name__)
 
 class TestSearchIntegration(unittest.TestCase):
     """Integration tests for the MCP search capabilities."""
-    
+
     @classmethod
     def setUpClass(cls):
         """Set up test resources."""
         # Create a temporary directory for search database
         cls.temp_dir = Path(tempfile.mkdtemp())
         cls.db_path = cls.temp_dir / "search_test.db"
-        
+
         # Sample test documents for indexing
         cls.test_docs = [
             {
@@ -65,13 +65,13 @@ class TestSearchIntegration(unittest.TestCase):
                 }
             }
         ]
-        
+
         # Try to import the search module
         try:
             from ipfs_kit_py.mcp.search import mcp_search
             cls.search_module = mcp_search
             cls.import_error = None
-            
+
             # Initialize the search engine
             cls.search_engine = cls.search_module.SearchEngine(
                 db_path=str(cls.db_path),
@@ -85,7 +85,7 @@ class TestSearchIntegration(unittest.TestCase):
             logger.error(f"Error initializing search engine: {e}")
             cls.init_error = e
             return
-        
+
         # Index the test documents
         try:
             for doc in cls.test_docs:
@@ -98,60 +98,60 @@ class TestSearchIntegration(unittest.TestCase):
         except Exception as e:
             logger.error(f"Error indexing test documents: {e}")
             cls.index_error = e
-    
+
     def setUp(self):
         """Set up for each test."""
         if hasattr(self.__class__, 'import_error') and self.__class__.import_error:
             self.skipTest(f"Search module not available: {self.__class__.import_error}")
-        
+
         if hasattr(self.__class__, 'init_error') and self.__class__.init_error:
             self.skipTest(f"Search engine initialization failed: {self.__class__.init_error}")
-        
+
         if hasattr(self.__class__, 'index_error') and self.__class__.index_error:
             self.skipTest(f"Document indexing failed: {self.__class__.index_error}")
-    
+
     def test_search_module_exists(self):
         """Test that the search module exists and can be initialized."""
         self.assertIsNotNone(self.search_module)
         logger.info("Search module exists")
-        
+
         # Check for expected attributes/methods
         expected_attributes = [
-            'SearchEngine', 'search_text', 'search_vector', 
+            'SearchEngine', 'search_text', 'search_vector',
             'search_hybrid', 'index_document'
         ]
-        
+
         for attr in expected_attributes:
-            self.assertTrue(hasattr(self.search_module, attr) or 
+            self.assertTrue(hasattr(self.search_module, attr) or
                           hasattr(self.search_engine, attr.split('_')[-1]),
                           f"Missing attribute: {attr}")
-        
+
         logger.info("Search module has expected components")
-    
+
     def test_text_search(self):
         """Test basic text search functionality."""
         # Search for "artificial intelligence"
         results = self.search_engine.search_text("artificial intelligence")
         self.assertIsNotNone(results)
         self.assertGreater(len(results), 0)
-        
+
         # The first document should be the one about AI
         first_result = results[0]
         self.assertIn("artificial intelligence", first_result["text"].lower())
-        
+
         logger.info(f"Text search returned {len(results)} results")
-        
+
         # Search for "blockchain"
         results = self.search_engine.search_text("blockchain")
         self.assertIsNotNone(results)
         self.assertGreater(len(results), 0)
-        
+
         # The first document should be the one about blockchain
         first_result = results[0]
         self.assertIn("blockchain", first_result["text"].lower())
-        
+
         logger.info(f"Text search for 'blockchain' returned {len(results)} results")
-    
+
     def test_metadata_filtering(self):
         """Test search with metadata filtering."""
         # Search with author filter
@@ -159,16 +159,16 @@ class TestSearchIntegration(unittest.TestCase):
             "technology",
             metadata_filters={"author": "IPFS Developer"}
         )
-        
+
         self.assertIsNotNone(results)
         self.assertGreater(len(results), 0)
-        
+
         # Should only return the IPFS document
         first_result = results[0]
         self.assertEqual(first_result["metadata"]["author"], "IPFS Developer")
-        
+
         logger.info(f"Metadata-filtered search returned {len(results)} results")
-    
+
     def test_tag_search(self):
         """Test searching by tags in metadata."""
         # Search for documents with the "ipfs" tag
@@ -176,16 +176,16 @@ class TestSearchIntegration(unittest.TestCase):
             "", # Empty query to match everything
             metadata_filters={"tags": ["ipfs"]}
         )
-        
+
         self.assertIsNotNone(results)
         self.assertGreater(len(results), 0)
-        
+
         # Should return the IPFS document
         first_result = results[0]
         self.assertIn("ipfs", first_result["metadata"]["tags"])
-        
+
         logger.info(f"Tag search returned {len(results)} results")
-    
+
     def test_vector_search_support(self):
         """Test if vector search is supported (even if not enabled)."""
         try:
@@ -194,24 +194,24 @@ class TestSearchIntegration(unittest.TestCase):
                 db_path=str(self.db_path) + ".vector",
                 enable_vector_search=True
             )
-            
+
             # If we got here, vector search is at least supported in code
             logger.info("Vector search is supported in the code")
-            
+
             # Clean up
             if hasattr(search_engine_vector, "close"):
                 search_engine_vector.close()
-            
+
             # Remove the vector database file if it was created
             vector_db_path = Path(str(self.db_path) + ".vector")
             if vector_db_path.exists():
                 vector_db_path.unlink()
-                
+
         except (ImportError, Exception) as e:
             # This is not a failure - just means optional dependencies aren't installed
             logger.info(f"Vector search not available: {e}")
             self.skipTest(f"Vector search dependencies not installed: {e}")
-    
+
     @classmethod
     def tearDownClass(cls):
         """Clean up resources."""
@@ -219,7 +219,7 @@ class TestSearchIntegration(unittest.TestCase):
         if hasattr(cls, 'search_engine'):
             if hasattr(cls.search_engine, "close"):
                 cls.search_engine.close()
-        
+
         # Clean up the temporary directory
         if hasattr(cls, 'temp_dir') and cls.temp_dir.exists():
             import shutil

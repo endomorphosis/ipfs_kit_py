@@ -411,7 +411,7 @@ class ContentSearchService:
                 if self.ipfs_model and hasattr(self.ipfs_model, 'retrieve'):
                     # Use the IPFS model with the standardized interface
                     logger.info(f"Retrieving content for CID {cid} using IPFS model")
-                    
+
                     # Run the retrieve operation in a thread to avoid blocking
                     def retrieve_with_model():
                         result = self.ipfs_model.retrieve(cid)
@@ -420,10 +420,10 @@ class ContentSearchService:
                         else:
                             logger.warning(f"Error retrieving content for CID {cid} using IPFS model: {result.get('error', 'Unknown error')}")
                             return None
-                    
+
                     # Get the content using the IPFS model
                     content = await anyio.to_thread.run_sync(retrieve_with_model)
-                    
+
                     if content:
                         # Process content based on type
                         def process_content():
@@ -434,14 +434,14 @@ class ContentSearchService:
                             else:
                                 # Handle other types (like JSON)
                                 decoded_text = str(content)
-                                
+
                             if content_type in JSON_CONTENT_TYPES:
                                 try:
                                     json_data = json.loads(decoded_text)
                                     return self._extract_text_from_json(json_data)
                                 except: return decoded_text # Fallback
                             return decoded_text
-                            
+
                         text = await anyio.to_thread.run_sync(process_content)
                     else:
                         logger.warning(f"No content retrieved for CID {cid} using IPFS model")

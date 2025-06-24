@@ -36,7 +36,7 @@ try:
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
-    
+
 try:
     import aiohttp
     AIOHTTP_AVAILABLE = True
@@ -59,7 +59,7 @@ try:
     from ipfs_kit_py.wal_telemetry import WALTelemetry
     from ipfs_kit_py.wal_telemetry_tracing import (
         WALTracing,
-        TracingExporterType, 
+        TracingExporterType,
         add_tracing_middleware,
         trace_aiohttp_request
     )
@@ -86,7 +86,7 @@ WORKER_COUNT = 3
 
 class SimulationService:
     """Base class for simulation services."""
-    
+
     def __init__(
         self,
         service_name: str,
@@ -100,23 +100,23 @@ class SimulationService:
         self.base_path = os.path.expanduser(base_path)
         self.exporter_type = exporter_type
         self.exporter_endpoint = exporter_endpoint
-        
+
         # Create base path
         os.makedirs(self.base_path, exist_ok=True)
-        
+
         # Create WAL, telemetry and tracing
         self.health_monitor = BackendHealthMonitor(
             check_interval=5,
             history_size=10,
             status_change_callback=self._on_backend_status_change
         )
-        
+
         self.wal = StorageWriteAheadLog(
             base_path=os.path.join(self.base_path, f"{service_name}/wal"),
             partition_size=100,
             health_monitor=self.health_monitor
         )
-        
+
         self.telemetry = WALTelemetry(
             wal=self.wal,
             metrics_path=os.path.join(self.base_path, f"{service_name}/telemetry"),
@@ -124,7 +124,7 @@ class SimulationService:
             enable_detailed_timing=True,
             operation_hooks=True
         )
-        
+
         self.tracer = WALTracing(
             service_name=service_name,
             telemetry=self.telemetry,
@@ -136,15 +136,15 @@ class SimulationService:
             },
             auto_instrument=True
         )
-        
+
         # Create FastAPI app if available
         self.app = None
         if FASTAPI_AVAILABLE:
             self.app = FastAPI(title=f"{service_name} API", version="1.0.0")
-            
+
             # Add tracing middleware
             add_tracing_middleware(self.app, self.tracer, service_name)
-            
+
             # Add CORS middleware
             self.app.add_middleware(
                 CORSMiddleware,
@@ -153,12 +153,12 @@ class SimulationService:
                 allow_methods=["*"],
                 allow_headers=["*"]
             )
-            
+
             # Add health check endpoint
             @self.app.get("/health")
             async def health_check():
                 return {"status": "ok", "service": self.service_name}
-                
+
             # Add trace-id endpoint
             @self.app.get("/trace-id")
             async def get_trace_id():
@@ -169,13 +169,13 @@ class SimulationService:
                     "span_id": span_id,
                     "service": self.service_name
                 }
-        
+
         logger.info(f"Initialized {service_name} service on port {port}")
-        
+
     def _on_backend_status_change(self, backend, old_status, new_status):
         """Handle backend status changes."""
         logger.info(f"[{self.service_name}] Backend {backend} status changed: {old_status} -> {new_status}")
-        
+
         # Add custom event to current span if available
         self.tracer.add_event(
             name="backend.status.change",
@@ -185,21 +185,21 @@ class SimulationService:
                 "new_status": new_status
             }
         )
-        
+
     async def start(self):
         """Start the service."""
         if self.app and FASTAPI_AVAILABLE:
             # Start the FastAPI app in a background thread
             def run_app():
                 uvicorn.run(self.app, host="0.0.0.0", port=self.port)
-                
+
             thread = threading.Thread(target=run_app, daemon=True)
             thread.start()
             logger.info(f"[{self.service_name}] API server started on port {self.port}")
-            
+
             # Give it a moment to start
             await anyio.sleep(0.5)
-            
+
     def close(self):
         """Clean up resources."""
         # Close resources
@@ -211,13 +211,13 @@ class SimulationService:
             self.wal.close()
         if hasattr(self, 'health_monitor'):
             self.health_monitor.close()
-        
+
         logger.info(f"[{self.service_name}] Service shut down")
 
 
 class MasterService(SimulationService):
     """Master service that orchestrates operations."""
-    
+
     def __init__(
         self,
         port: int = 8000,
@@ -231,13 +231,13 @@ class MasterService(SimulationService):
             exporter_type=exporter_type,
             exporter_endpoint=exporter_endpoint
         )
-        
+
         self.worker_ports = worker_ports or []
         self.worker_urls = [f"http://localhost:{port}" for port in self.worker_ports]
-        
+
         # Set up worker health checks
         self.worker_health = {url: True for url in self.worker_urls}
-        
+
         # Add master-specific API endpoints
         if self.app:
             @self.app.post("/api/operation")
@@ -250,7 +250,7 @@ class MasterService(SimulationService):
             ):
                 # Extract trace context from request headers
                 trace_context = self.tracer.extract_context(dict(request.headers))
-                
+
                 # Create span for this request
                 with self.tracer.start_span(
                     name="master.add_operation",
@@ -267,18 +267,18 @@ class MasterService(SimulationService):
                         backend=backend,
                         parameters={"path": param} if param else {}
                     )
-                    
+
                     if result.get("success"):
                         operation_id = result["operation_id"]
-                        
+
                         # Process in background
                         background_tasks.add_task(
-                            self.process_operation, 
-                            operation_id, 
-                            operation_type, 
+                            self.process_operation,
+                            operation_id,
+                            operation_type,
                             backend
                         )
-                        
+
                         return {
                             "success": True,
                             "operation_id": operation_id,
@@ -288,18 +288,18 @@ class MasterService(SimulationService):
                     else:
                         span.set_status(StatusCode.ERROR)
                         span.set_attribute("error.message", result.get("error", "Unknown error"))
-                        
+
                         return {
                             "success": False,
                             "error": result.get("error", "Failed to add operation"),
                             "trace_id": self.tracer.get_trace_id()
                         }
-                        
+
             @self.app.get("/api/status/{operation_id}")
             async def get_operation_status(operation_id: str, request: Request):
                 # Extract trace context from request headers
                 trace_context = self.tracer.extract_context(dict(request.headers))
-                
+
                 # Create span for this request
                 with self.tracer.start_span(
                     name="master.get_operation_status",
@@ -310,7 +310,7 @@ class MasterService(SimulationService):
                 ) as span:
                     # Get operation from WAL
                     operation = self.wal.get_operation(operation_id)
-                    
+
                     if operation:
                         return {
                             "success": True,
@@ -320,20 +320,20 @@ class MasterService(SimulationService):
                     else:
                         span.set_status(StatusCode.ERROR)
                         span.set_attribute("error.message", f"Operation {operation_id} not found")
-                        
+
                         return {
                             "success": False,
                             "error": f"Operation {operation_id} not found",
                             "trace_id": self.tracer.get_trace_id()
                         }
-                        
+
             @self.app.get("/api/simulate")
             async def simulate_operation():
                 """Simulate a random operation."""
                 operation_type = random.choice(OPERATION_TYPES)
                 backend = random.choice(BACKENDS)
                 param = f"/tmp/file-{uuid.uuid4()}.txt"
-                
+
                 return await add_operation(
                     Request(scope={"type": "http"}),
                     BackgroundTasks(),
@@ -341,22 +341,22 @@ class MasterService(SimulationService):
                     backend=backend,
                     param=param
                 )
-                
+
     async def process_operation(self, operation_id: str, operation_type: str, backend: str):
         """Process an operation, potentially delegating to a worker."""
         # Update status to processing
         self.wal.update_operation_status(operation_id, OperationStatus.PROCESSING)
-        
+
         # Determine if we should delegate to a worker
         should_delegate = random.random() < 0.7  # 70% chance of delegation
-        
+
         if should_delegate and self.worker_urls:
             # Choose an available worker
             available_workers = [url for url, healthy in self.worker_health.items() if healthy]
-            
+
             if available_workers:
                 worker_url = random.choice(available_workers)
-                
+
                 try:
                     # Create a span for the worker request
                     with self.tracer.create_span_context(
@@ -368,20 +368,20 @@ class MasterService(SimulationService):
                         # Prepare headers with trace context
                         headers = {}
                         self.tracer.inject_context(None, headers)
-                        
+
                         # Delegate to worker
                         if AIOHTTP_AVAILABLE:
                             async with aiohttp.ClientSession() as session:
                                 # Trace the request
                                 carrier, request_span = trace_aiohttp_request(
-                                    self.tracer, 
-                                    "POST", 
+                                    self.tracer,
+                                    "POST",
                                     f"{worker_url}/api/process"
                                 )
-                                
+
                                 # Add trace context to headers
                                 headers.update(carrier)
-                                
+
                                 async with session.post(
                                     f"{worker_url}/api/process",
                                     json={
@@ -392,27 +392,27 @@ class MasterService(SimulationService):
                                     headers=headers
                                 ) as response:
                                     data = await response.json()
-                                    
+
                                     # Record the result
                                     span.set_attribute("worker.response.success", data.get("success", False))
                                     if not data.get("success", False):
                                         span.set_attribute("worker.response.error", data.get("error", "Unknown error"))
                                         span.set_status(StatusCode.ERROR)
-                                        
+
                                         # Mark worker as unhealthy if it consistently fails
                                         self.worker_health[worker_url] = False
-                                    
+
                                     # End the request span
                                     request_span.end()
-                                    
+
                                     return
                         else:
                             # Simulate a worker response without aiohttp
                             await anyio.sleep(0.5)  # Simulate network delay
-                            
+
                             # Randomly succeed or fail
                             success = random.random() > OPERATION_ERROR_PROBABILITY
-                            
+
                             if success:
                                 span.set_attribute("worker.response.success", True)
                                 span.set_attribute("worker.response.simulated", True)
@@ -421,14 +421,14 @@ class MasterService(SimulationService):
                                 span.set_attribute("worker.response.error", "Simulated error")
                                 span.set_status(StatusCode.ERROR)
                                 return
-                                
+
                 except Exception as e:
                     # Handle request failure
                     logger.error(f"[master] Failed to delegate to worker {worker_url}: {e}")
-                    
+
                     # Mark worker as unhealthy
                     self.worker_health[worker_url] = False
-                    
+
                     # Process locally as fallback
                     await self._local_processing(operation_id, operation_type, backend)
             else:
@@ -437,17 +437,17 @@ class MasterService(SimulationService):
         else:
             # Process locally
             await self._local_processing(operation_id, operation_type, backend)
-            
+
     async def _local_processing(self, operation_id: str, operation_type: str, backend: str):
         """Process an operation locally."""
         try:
             # Simulate processing time
             await anyio.sleep(random.uniform(0.1, 1.0))
-            
+
             # Simulate random errors
             if random.random() < OPERATION_ERROR_PROBABILITY:
                 self.wal.update_operation_status(
-                    operation_id, 
+                    operation_id,
                     OperationStatus.FAILED,
                     updates={
                         "error": f"Simulated error in {operation_type}",
@@ -455,29 +455,29 @@ class MasterService(SimulationService):
                     }
                 )
                 return
-                
+
             # Mark operation as complete
             self.wal.update_operation_status(
-                operation_id, 
+                operation_id,
                 OperationStatus.COMPLETED,
                 updates={
                     "result": f"Completed {operation_type} on {backend}"
                 }
             )
-            
+
         except Exception as e:
             logger.error(f"[master] Error processing operation {operation_id}: {e}")
-            
+
             # Mark operation as failed
             self.wal.update_operation_status(
-                operation_id, 
+                operation_id,
                 OperationStatus.FAILED,
                 updates={
                     "error": str(e),
                     "error_type": type(e).__name__
                 }
             )
-            
+
     async def simulate_backend_health(self):
         """Simulate backend health status changes."""
         while True:
@@ -485,7 +485,7 @@ class MasterService(SimulationService):
             if random.random() < BACKEND_FAILURE_PROBABILITY:
                 backend = random.choice(BACKENDS)
                 current_status = self.health_monitor.get_status().get(backend, {}).get("status", "unknown")
-                
+
                 if current_status == "online":
                     # Simulate degradation or failure
                     new_status = random.choice(["degraded", "offline"])
@@ -493,10 +493,10 @@ class MasterService(SimulationService):
                 elif current_status in ("degraded", "offline"):
                     # Simulate recovery
                     self.health_monitor.update_backend_status(backend, "online")
-                    
+
             # Wait before next health check
             await anyio.sleep(10)
-            
+
     async def check_worker_health(self):
         """Check the health of worker services."""
         while True:
@@ -514,14 +514,14 @@ class MasterService(SimulationService):
                         pass
                 except Exception:
                     self.worker_health[worker_url] = False
-                    
+
             # Wait before next check
             await anyio.sleep(10)
 
 
 class WorkerService(SimulationService):
     """Worker service that processes delegated operations."""
-    
+
     def __init__(
         self,
         port: int,
@@ -536,34 +536,34 @@ class WorkerService(SimulationService):
             exporter_type=exporter_type,
             exporter_endpoint=exporter_endpoint
         )
-        
+
         self.worker_id = worker_id
         self.master_url = master_url
-        
+
         # Add worker-specific API endpoints
         if self.app:
             @self.app.post("/api/process")
             async def process_operation(request: Request):
                 # Extract trace context from request headers
                 trace_context = self.tracer.extract_context(dict(request.headers))
-                
+
                 # Get request body
                 try:
                     data = await request.json()
                 except ValueError:
                     return {"success": False, "error": "Invalid JSON"}
-                
+
                 operation_id = data.get("operation_id")
                 operation_type = data.get("operation_type")
                 backend = data.get("backend")
-                
+
                 if not all([operation_id, operation_type, backend]):
                     return {
-                        "success": False, 
+                        "success": False,
                         "error": "Missing required fields",
                         "trace_id": self.tracer.get_trace_id()
                     }
-                
+
                 # Create span for processing
                 with self.tracer.start_span(
                     name=f"worker.process.{operation_type}",
@@ -579,21 +579,21 @@ class WorkerService(SimulationService):
                         # Simulate processing time
                         processing_time = random.uniform(0.2, 2.0)
                         await anyio.sleep(processing_time)
-                        
+
                         # Record processing time
                         span.set_attribute("processing.time_seconds", processing_time)
-                        
+
                         # Simulate random errors
                         if random.random() < OPERATION_ERROR_PROBABILITY:
                             span.set_status(StatusCode.ERROR)
                             span.set_attribute("error.message", f"Simulated worker error in {operation_type}")
-                            
+
                             return {
                                 "success": False,
                                 "error": f"Simulated worker error in {operation_type}",
                                 "trace_id": self.tracer.get_trace_id()
                             }
-                            
+
                         # Record a successful event
                         span.add_event(
                             name="operation.processed",
@@ -602,7 +602,7 @@ class WorkerService(SimulationService):
                                 "processing.time_seconds": processing_time
                             }
                         )
-                        
+
                         return {
                             "success": True,
                             "message": f"Operation {operation_id} processed successfully",
@@ -610,12 +610,12 @@ class WorkerService(SimulationService):
                             "worker_id": self.worker_id,
                             "trace_id": self.tracer.get_trace_id()
                         }
-                        
+
                     except Exception as e:
                         # Handle processing error
                         span.record_exception(e)
                         span.set_status(StatusCode.ERROR)
-                        
+
                         return {
                             "success": False,
                             "error": str(e),
@@ -627,7 +627,7 @@ class WorkerService(SimulationService):
 async def run_simulation(args):
     """Run the complete simulation."""
     logger.info("Starting WAL tracing simulation")
-    
+
     # Determine exporter based on arguments
     if args.exporter == "jaeger":
         exporter_type = TracingExporterType.JAEGER
@@ -641,18 +641,18 @@ async def run_simulation(args):
     else:
         exporter_type = TracingExporterType.CONSOLE
         exporter_endpoint = None
-    
+
     # Create master service
     master_port = args.master_port
     worker_ports = [args.worker_port + i for i in range(args.workers)]
-    
+
     master = MasterService(
         port=master_port,
         exporter_type=exporter_type,
         exporter_endpoint=exporter_endpoint,
         worker_ports=worker_ports
     )
-    
+
     # Create worker services
     workers = []
     for i in range(args.workers):
@@ -664,23 +664,23 @@ async def run_simulation(args):
             master_url=f"http://localhost:{master_port}"
         )
         workers.append(worker)
-    
+
     # Start services
     logger.info("Starting master and worker services")
     await master.start()
     for worker in workers:
         await worker.start()
-        
+
     # Run background health simulation
     anyio.create_task(master.simulate_backend_health())
     anyio.create_task(master.check_worker_health())
-    
+
     # Run simulation for specified duration
     end_time = time.time() + args.duration
-    
+
     logger.info(f"Starting operation simulation for {args.duration} seconds")
     operations_sent = 0
-    
+
     try:
         while time.time() < end_time:
             # Generate random operations
@@ -691,7 +691,7 @@ async def run_simulation(args):
                             if response.status == 200:
                                 data = await response.json()
                                 operations_sent += 1
-                                
+
                                 if operations_sent % 10 == 0:
                                     logger.info(f"Sent {operations_sent} operations")
                     except Exception as e:
@@ -701,16 +701,16 @@ async def run_simulation(args):
                 operations_sent += 1
                 if operations_sent % 10 == 0:
                     logger.info(f"Simulated {operations_sent} operations")
-            
+
             # Wait for next operation
             await anyio.sleep(args.interval)
-            
+
         logger.info(f"Simulation completed with {operations_sent} operations")
-        
+
         # Wait a bit for processing to complete
         logger.info("Allowing time for final processing...")
         await anyio.sleep(5)
-        
+
     except KeyboardInterrupt:
         logger.info("Simulation interrupted by user")
     finally:
@@ -724,29 +724,29 @@ async def run_simulation(args):
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="WAL Telemetry Tracing Simulation")
-    parser.add_argument("--exporter", choices=["console", "jaeger", "zipkin", "otlp"], 
+    parser.add_argument("--exporter", choices=["console", "jaeger", "zipkin", "otlp"],
                         default="console", help="Tracing exporter type")
     parser.add_argument("--endpoint", help="Exporter endpoint URL")
     parser.add_argument("--master-port", type=int, default=8000, help="Master service port")
     parser.add_argument("--worker-port", type=int, default=8100, help="Base port for worker services")
     parser.add_argument("--workers", type=int, default=WORKER_COUNT, help="Number of worker services")
-    parser.add_argument("--duration", type=int, default=SIM_DURATION_SECONDS, 
+    parser.add_argument("--duration", type=int, default=SIM_DURATION_SECONDS,
                         help="Simulation duration in seconds")
-    parser.add_argument("--interval", type=float, default=REQUEST_INTERVAL_SECONDS, 
+    parser.add_argument("--interval", type=float, default=REQUEST_INTERVAL_SECONDS,
                         help="Interval between operations in seconds")
-    
+
     args = parser.parse_args()
-    
+
     if not WAL_AVAILABLE:
         print("WAL components not available. Cannot run simulation.")
         sys.exit(1)
-        
+
     if not FASTAPI_AVAILABLE:
         print("WARNING: FastAPI not available. Simulation will run in limited mode.")
-        
+
     if not AIOHTTP_AVAILABLE:
         print("WARNING: aiohttp not available. HTTP requests will be simulated.")
-    
+
     # Print simulation info
     print(f"Starting WAL telemetry tracing simulation:")
     print(f"- Exporter: {args.exporter}" + (f" ({args.endpoint})" if args.endpoint else ""))
@@ -755,7 +755,7 @@ def main():
     print(f"- Duration: {args.duration} seconds")
     print(f"- Operation interval: {args.interval} seconds")
     print()
-    
+
     if args.exporter != "console":
         print(f"NOTE: Traces will be sent to {args.exporter}. Make sure it's running at the specified endpoint.")
         if args.exporter == "jaeger" and not args.endpoint:
@@ -763,7 +763,7 @@ def main():
         elif args.exporter == "zipkin" and not args.endpoint:
             print("Zipkin UI should be available at: http://localhost:9411")
         print()
-    
+
     # Run simulation
     try:
         anyio.run(run_simulation(args))

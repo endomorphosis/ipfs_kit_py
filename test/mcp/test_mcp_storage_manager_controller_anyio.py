@@ -30,32 +30,32 @@ from ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio import (
 
 class TestStorageManagerControllerAnyIOInitialization:
     """Test initialization and setup of StorageManagerControllerAnyIO."""
-    
+
     def test_init(self):
         """Test initialization of StorageManagerControllerAnyIO."""
         # Mock storage manager
         mock_storage_manager = MagicMock()
-        
+
         # Initialize controller
         controller = StorageManagerControllerAnyIO(mock_storage_manager)
-        
+
         # Verify controller was initialized with storage manager
         assert controller.storage_manager == mock_storage_manager
-    
+
     def test_register_routes(self):
         """Test that all routes are registered with AnyIO handlers."""
         # Mock storage manager
         mock_storage_manager = MagicMock()
-        
+
         # Mock router
         mock_router = MagicMock(spec=APIRouter)
-        
+
         # Initialize controller
         controller = StorageManagerControllerAnyIO(mock_storage_manager)
-        
+
         # Register routes
         controller.register_routes(mock_router)
-        
+
         # Verify that routes were registered using async handlers
         expected_routes = [
             "/storage/status",
@@ -65,10 +65,10 @@ class TestStorageManagerControllerAnyIOInitialization:
             "/storage/migrate",
             "/storage/apply-policy"
         ]
-        
+
         # Get all the calls to add_api_route
         add_route_calls = mock_router.add_api_route.call_args_list
-        
+
         # Verify all expected routes were registered
         for route in expected_routes:
             registered = False
@@ -78,7 +78,7 @@ class TestStorageManagerControllerAnyIOInitialization:
                     registered = True
                     break
             assert registered, f"Route {route} was not registered"
-        
+
         # Verify that all handlers have "async" in their name
         for call in add_route_calls:
             # Second argument (args[1]) should be the handler function
@@ -100,49 +100,49 @@ class TestStorageManagerControllerAnyIOInitialization:
         # Test static method directly
         backend = StorageManagerControllerAnyIO.get_backend()
         assert backend is None  # No async context when running this test
-        
+
         # In an async context, it should return the backend name
         @pytest.mark.anyio
         async def check_async_backend():
             return StorageManagerControllerAnyIO.get_backend()
-        
+
         # Can't test the result directly here, but the function shouldn't raise an exception
 
 @pytest.mark.anyio
 class TestStorageManagerControllerAnyIO:
     """Test StorageManagerControllerAnyIO with AnyIO compatibility."""
-    
+
     @pytest.fixture
     def mock_storage_manager(self):
         """Create a mock storage manager for testing."""
         mock_manager = MagicMock()
-        
+
         # Set up mock backends
         mock_ipfs = MagicMock(name="ipfs_model")
         mock_s3 = MagicMock(name="s3_model")
         mock_storacha = MagicMock(name="storacha_model")
-        
+
         # Configure get_available_backends
         mock_manager.get_available_backends.return_value = {
             "ipfs": True,
             "s3": True,
             "storacha": True
         }
-        
+
         # Configure get_all_models
         mock_manager.get_all_models.return_value = {
             "ipfs": mock_ipfs,
             "s3": mock_s3,
             "storacha": mock_storacha
         }
-        
+
         # Configure get_model
         mock_manager.get_model.side_effect = lambda name: {
             "ipfs": mock_ipfs,
             "s3": mock_s3,
             "storacha": mock_storacha
         }.get(name)
-        
+
         # Set up backend model capabilities
         for model in [mock_ipfs, mock_s3, mock_storacha]:
             model.get_stats.return_value = {
@@ -151,11 +151,11 @@ class TestStorageManagerControllerAnyIO:
                 "storage_used": 1024,
                 "content_count": 10
             }
-        
+
         # Create mock storage bridge
         mock_bridge = MagicMock()
         mock_manager.storage_bridge = mock_bridge
-        
+
         return {
             "manager": mock_manager,
             "backends": {
@@ -165,12 +165,12 @@ class TestStorageManagerControllerAnyIO:
             },
             "bridge": mock_bridge
         }
-    
+
     @pytest.fixture
     def controller(self, mock_storage_manager):
         """Create a controller instance for testing."""
         return StorageManagerControllerAnyIO(mock_storage_manager["manager"])
-    
+
     @pytest.mark.anyio
     async def test_handle_status_request_async(self, controller, mock_storage_manager):
         """Test the async status request handler."""
@@ -189,19 +189,19 @@ class TestStorageManagerControllerAnyIO:
                 "total_count": 3,
                 "duration_ms": 10.5
             }
-            
+
             # Call the async method
             result = await controller.handle_status_request_async()
-            
+
             # Verify anyio.to_thread.run_sync was called with the correct sync method
             mock_run_sync.assert_called_once()
             assert mock_run_sync.call_args[0][0] == controller.handle_status_request
-            
+
             # Verify result
             assert result["success"] is True
             assert "backends" in result
             assert len(result["backends"]) == 3
-    
+
     @pytest.mark.anyio
     async def test_handle_backend_status_request_async(self, controller, mock_storage_manager):
         """Test the async backend status request handler."""
@@ -217,21 +217,21 @@ class TestStorageManagerControllerAnyIO:
                 "stats": {"storage_used": 1024, "content_count": 10},
                 "duration_ms": 5.2
             }
-            
+
             # Call the async method
             result = await controller.handle_backend_status_request_async("ipfs")
-            
+
             # Verify anyio.to_thread.run_sync was called with the correct sync method and arguments
             mock_run_sync.assert_called_once()
             assert mock_run_sync.call_args[0][0] == controller.handle_backend_status_request
             assert mock_run_sync.call_args[0][1] == "ipfs"
-            
+
             # Verify result
             assert result["success"] is True
             assert result["backend_name"] == "ipfs"
             assert "capabilities" in result
             assert "stats" in result
-    
+
     @pytest.mark.anyio
     async def test_handle_transfer_request_async(self, controller, mock_storage_manager):
         """Test the async transfer request handler."""
@@ -242,7 +242,7 @@ class TestStorageManagerControllerAnyIO:
             content_id="test-cid",
             options={"retention": "standard"}
         )
-        
+
         # Patch anyio.to_thread.run_sync
         with patch("anyio.to_thread.run_sync") as mock_run_sync:
             # Configure mock to return a valid transfer response
@@ -257,29 +257,29 @@ class TestStorageManagerControllerAnyIO:
                 "bytes_transferred": 1024,
                 "duration_ms": 15.3
             }
-            
+
             # Call the async method
             result = await controller.handle_transfer_request_async(request)
-            
+
             # Verify anyio.to_thread.run_sync was called with the correct sync method and arguments
             mock_run_sync.assert_called_once()
             assert mock_run_sync.call_args[0][0] == controller.handle_transfer_request
             assert mock_run_sync.call_args[0][1] == request
-            
+
             # Verify result
             assert result["success"] is True
             assert result["source_backend"] == "ipfs"
             assert result["target_backend"] == "s3"
             assert result["content_id"] == "test-cid"
             assert result["bytes_transferred"] == 1024
-    
+
     @pytest.mark.anyio
     async def test_handle_verify_request_async(self, controller, mock_storage_manager):
         """Test the async verify request handler."""
         # Prepare test parameters
         content_id = "test-cid"
         backends = ["ipfs", "s3"]
-        
+
         # Patch anyio.to_thread.run_sync
         with patch("anyio.to_thread.run_sync") as mock_run_sync:
             # Configure mock to return a valid verification response
@@ -295,21 +295,21 @@ class TestStorageManagerControllerAnyIO:
                 },
                 "duration_ms": 8.7
             }
-            
+
             # Call the async method
             result = await controller.handle_verify_request_async(content_id, backends)
-            
+
             # Verify anyio.to_thread.run_sync was called with the correct sync method and arguments
             mock_run_sync.assert_called_once()
             assert mock_run_sync.call_args[0][0] == controller.handle_verify_request
             assert mock_run_sync.call_args[0][1] == content_id
             assert mock_run_sync.call_args[0][2] == backends
-            
+
             # Verify result
             assert result["success"] is True
             assert result["content_id"] == "test-cid"
             assert result["verified_backends"] == ["ipfs", "s3"]
-    
+
     @pytest.mark.anyio
     async def test_handle_migration_request_async(self, controller, mock_storage_manager):
         """Test the async migration request handler."""
@@ -322,7 +322,7 @@ class TestStorageManagerControllerAnyIO:
             delete_source=False,
             verify_integrity=True
         )
-        
+
         # Patch anyio.to_thread.run_sync
         with patch("anyio.to_thread.run_sync") as mock_run_sync:
             # Configure mock to return a valid migration response
@@ -341,15 +341,15 @@ class TestStorageManagerControllerAnyIO:
                 },
                 "duration_ms": 25.1
             }
-            
+
             # Call the async method
             result = await controller.handle_migration_request_async(request)
-            
+
             # Verify anyio.to_thread.run_sync was called with the correct sync method and arguments
             mock_run_sync.assert_called_once()
             assert mock_run_sync.call_args[0][0] == controller.handle_migration_request
             assert mock_run_sync.call_args[0][1] == request
-            
+
             # Verify result
             assert result["success"] is True
             assert result["source_backend"] == "ipfs"
@@ -357,13 +357,13 @@ class TestStorageManagerControllerAnyIO:
             assert result["content_count"] == 2
             assert result["successful_count"] == 2
             assert result["total_bytes_transferred"] == 2048
-            
+
             # Check for individual content results
             assert "cid1" in result["results"]
             assert "cid2" in result["results"]
             assert result["results"]["cid1"]["success"] is True
             assert result["results"]["cid2"]["success"] is True
-    
+
     @pytest.mark.anyio
     async def test_handle_replication_policy_request_async(self, controller, mock_storage_manager):
         """Test the async replication policy request handler."""
@@ -376,7 +376,7 @@ class TestStorageManagerControllerAnyIO:
                 "replication_factor": 3
             }
         )
-        
+
         # Patch anyio.to_thread.run_sync
         with patch("anyio.to_thread.run_sync") as mock_run_sync:
             # Configure mock to return a valid policy application response
@@ -392,15 +392,15 @@ class TestStorageManagerControllerAnyIO:
                 "bytes_transferred": 3072,
                 "duration_ms": 30.5
             }
-            
+
             # Call the async method
             result = await controller.handle_replication_policy_request_async(request)
-            
+
             # Verify anyio.to_thread.run_sync was called with the correct sync method and arguments
             mock_run_sync.assert_called_once()
             assert mock_run_sync.call_args[0][0] == controller.handle_replication_policy_request
             assert mock_run_sync.call_args[0][1] == request
-            
+
             # Verify result
             assert result["success"] is True
             assert result["content_id"] == "test-cid"
@@ -419,43 +419,43 @@ class TestStorageManagerControllerAnyIO:
 @pytest.mark.skip("HTTP endpoint tests need FastAPI dependency injection to be fixed")
 class TestStorageManagerControllerAnyIOHTTPEndpoints:
     """Test HTTP endpoints of StorageManagerControllerAnyIO."""
-    
+
     @pytest.fixture
     def test_app(self, monkeypatch):
         """Create a FastAPI test app with the controller."""
         # Create FastAPI app
         app = FastAPI()
         router = APIRouter()
-        
+
         # Mock storage manager
         mock_manager = MagicMock()
-        
+
         # Set up mock backends
         mock_ipfs = MagicMock(name="ipfs_model")
         mock_s3 = MagicMock(name="s3_model")
-        
+
         mock_manager.get_available_backends.return_value = {
             "ipfs": True,
             "s3": True
         }
-        
+
         mock_manager.get_all_models.return_value = {
             "ipfs": mock_ipfs,
             "s3": mock_s3
         }
-        
+
         mock_manager.get_model.side_effect = lambda name: {
             "ipfs": mock_ipfs,
             "s3": mock_s3
         }.get(name)
-        
+
         # Mock storage bridge
         mock_bridge = MagicMock()
         mock_manager.storage_bridge = mock_bridge
-        
+
         # Initialize controller
         controller = StorageManagerControllerAnyIO(mock_manager)
-        
+
         # Patch the async methods to return dummy values
         # This is necessary for FastAPI to properly handle the routes
         async def mock_status_request_async():
@@ -468,7 +468,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "available_count": 2,
                 "total_count": 2
             }
-            
+
         async def mock_backend_status_request_async(backend_name):
             if backend_name == "nonexistent":
                 raise HTTPException(
@@ -482,7 +482,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "capabilities": ["content_retrieval", "content_storage"],
                 "stats": {"storage_used": 1024}
             }
-            
+
         async def mock_transfer_request_async(request):
             return {
                 "success": True,
@@ -492,14 +492,14 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "content_id": request.content_id,
                 "bytes_transferred": 1024
             }
-            
+
         async def mock_verify_request_async(content_id, backends=None):
             return {
                 "success": True,
                 "content_id": content_id,
                 "verified_backends": backends or []
             }
-            
+
         async def mock_migration_request_async(request):
             return {
                 "success": True,
@@ -511,7 +511,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "total_bytes_transferred": 2048,
                 "results": {cid: {"success": True} for cid in request.content_ids}
             }
-            
+
         async def mock_replication_policy_request_async(request):
             return {
                 "success": True,
@@ -522,7 +522,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "successful_backends": ["ipfs", "s3"],
                 "failed_backends": []
             }
-        
+
         # Patch the async methods with mocks that will be used in HTTP routes
         monkeypatch.setattr(controller, "handle_status_request_async", mock_status_request_async)
         monkeypatch.setattr(controller, "handle_backend_status_request_async", mock_backend_status_request_async)
@@ -530,16 +530,16 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
         monkeypatch.setattr(controller, "handle_verify_request_async", mock_verify_request_async)
         monkeypatch.setattr(controller, "handle_migration_request_async", mock_migration_request_async)
         monkeypatch.setattr(controller, "handle_replication_policy_request_async", mock_replication_policy_request_async)
-        
+
         # Register routes
         controller.register_routes(router)
-        
+
         # Mount router to app
         app.include_router(router, prefix="/api/v0")
-        
+
         # Create test client
         client = TestClient(app)
-        
+
         return {
             "app": app,
             "client": client,
@@ -551,14 +551,14 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
             },
             "bridge": mock_bridge
         }
-    
+
     def test_get_all_backends_status(self, test_app):
         """Test GET /storage/status endpoint."""
         client = test_app["client"]
-        
+
         # Send request to endpoint
         response = client.get("/api/v0/storage/status")
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
@@ -567,14 +567,14 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
         assert len(data["backends"]) == 2
         assert "ipfs" in data["backends"]
         assert "s3" in data["backends"]
-    
+
     def test_get_backend_status(self, test_app):
         """Test GET /storage/{backend_name}/status endpoint."""
         client = test_app["client"]
-        
+
         # Send request to endpoint
         response = client.get("/api/v0/storage/ipfs/status")
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
@@ -582,11 +582,11 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
         assert data["backend_name"] == "ipfs"
         assert "capabilities" in data
         assert "stats" in data
-    
+
     def test_post_transfer_content(self, test_app):
         """Test POST /storage/transfer endpoint."""
         client = test_app["client"]
-        
+
         # Send request to endpoint
         response = client.post(
             "/api/v0/storage/transfer",
@@ -597,7 +597,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "options": {"retention": "standard"}
             }
         )
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
@@ -606,11 +606,11 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
         assert data["target_backend"] == "s3"
         assert data["content_id"] == "test-cid"
         assert "bytes_transferred" in data
-    
+
     def test_post_verify_content(self, test_app):
         """Test POST /storage/verify endpoint."""
         client = test_app["client"]
-        
+
         # Send request to endpoint
         response = client.post(
             "/api/v0/storage/verify",
@@ -619,18 +619,18 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "backends": ["ipfs", "s3"]
             }
         )
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert data["content_id"] == "test-cid"
         assert "verified_backends" in data
-    
+
     def test_post_migrate_content(self, test_app):
         """Test POST /storage/migrate endpoint."""
         client = test_app["client"]
-        
+
         # Send request to endpoint
         response = client.post(
             "/api/v0/storage/migrate",
@@ -643,7 +643,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 "verify_integrity": True
             }
         )
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
@@ -653,11 +653,11 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
         assert data["content_count"] == 2
         assert data["successful_count"] == 2
         assert "results" in data
-    
+
     def test_post_apply_policy(self, test_app):
         """Test POST /storage/apply-policy endpoint."""
         client = test_app["client"]
-        
+
         # Send request to endpoint
         response = client.post(
             "/api/v0/storage/apply-policy",
@@ -670,7 +670,7 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
                 }
             }
         )
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
@@ -678,14 +678,14 @@ class TestStorageManagerControllerAnyIOHTTPEndpoints:
         assert data["content_id"] == "test-cid"
         assert "backends_selected" in data
         assert "policy_applied" in data
-    
+
     def test_endpoint_error_handling(self, test_app):
         """Test error handling in endpoints."""
         client = test_app["client"]
-        
+
         # Send request to a non-existent backend
         response = client.get("/api/v0/storage/nonexistent/status")
-        
+
         # Verify response
         assert response.status_code == 404
         data = response.json()

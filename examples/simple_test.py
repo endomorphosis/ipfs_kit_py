@@ -18,15 +18,15 @@ def create_mock_environment():
     mock_kit = MagicMock()
     mock_fs = MagicMock()
     mock_kit.get_filesystem.return_value = mock_fs
-    
+
     # Mock common methods
     mock_kit.ipfs_add.return_value = {"success": True, "cid": "QmTest"}
     mock_kit.ipfs_cat.return_value = b"Test content"
-    
+
     # Create a module mock
     mock_module = MagicMock()
     mock_module.IPFSKit = MagicMock(return_value=mock_kit)
-    
+
     # Replace the real module with the mock
     sys.modules['ipfs_kit_py.ipfs_kit'] = mock_module
 

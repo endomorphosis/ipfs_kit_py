@@ -23,42 +23,42 @@ logger = logging.getLogger(__name__)
 def find_mcp_settings_file() -> Optional[str]:
     """
     Find the MCP settings file in the user's home directory.
-    
+
     Returns:
         str: Path to the settings file or None if not found
     """
     home_dir = os.path.expanduser("~")
     vscode_dir = os.path.join(home_dir, ".config", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings")
     settings_file = os.path.join(vscode_dir, "cline_mcp_settings.json")
-    
+
     if os.path.exists(settings_file):
         return settings_file
-    
+
     return None
 
 def verify_ipfs_server_registered(settings_file: str) -> bool:
     """
     Verify that the IPFS MCP server is registered in the settings file.
-    
+
     Args:
         settings_file: Path to the settings file
-        
+
     Returns:
         bool: True if the server is registered, False otherwise
     """
     try:
         with open(settings_file, 'r') as f:
             settings = json.load(f)
-        
+
         if 'servers' not in settings:
             logger.error("No servers found in MCP settings")
             return False
-        
+
         for server in settings['servers']:
             if server.get('name') == 'direct-ipfs-kit-mcp':
                 logger.info(f"Found IPFS MCP server in settings: {server['name']} (port: {server.get('port', 'unknown')})")
                 return True
-        
+
         logger.error("IPFS MCP server not found in settings")
         return False
     except Exception as e:
@@ -68,32 +68,32 @@ def verify_ipfs_server_registered(settings_file: str) -> bool:
 def verify_ipfs_tools_registered(settings_file: str) -> bool:
     """
     Verify that IPFS tools are registered in the settings file.
-    
+
     Args:
         settings_file: Path to the settings file
-        
+
     Returns:
         bool: True if tools are registered, False otherwise
     """
     try:
         with open(settings_file, 'r') as f:
             settings = json.load(f)
-        
+
         if 'servers' not in settings:
             logger.error("No servers found in MCP settings")
             return False
-        
+
         for server in settings['servers']:
             if server.get('name') == 'direct-ipfs-kit-mcp':
                 if 'tools' not in server or not server['tools']:
                     logger.error("No tools found for IPFS MCP server")
                     return False
-                
+
                 # Count tools by category
                 categories = {}
                 for tool in server['tools']:
                     category = None
-                    
+
                     # Extract category from tool name or description
                     if tool['name'].startswith('swarm_'):
                         category = 'ipfs_swarm'
@@ -113,32 +113,32 @@ def verify_ipfs_tools_registered(settings_file: str) -> bool:
                         category = 'ipfs_ipns'
                     elif tool['name'] in ['get_node_id', 'get_version', 'get_stats', 'check_daemon_status', 'get_replication_status']:
                         category = 'ipfs_node'
-                    elif tool['name'] in ['map_ipfs_to_fs', 'unmap_ipfs_from_fs', 'sync_fs_to_ipfs', 'sync_ipfs_to_fs', 
+                    elif tool['name'] in ['map_ipfs_to_fs', 'unmap_ipfs_from_fs', 'sync_fs_to_ipfs', 'sync_ipfs_to_fs',
                                          'list_fs_ipfs_mappings', 'mount_ipfs_to_fs', 'unmount_ipfs_from_fs']:
                         category = 'ipfs_fs_integration'
-                    
+
                     if category:
                         categories[category] = categories.get(category, 0) + 1
-                
+
                 # Report on categories
                 logger.info(f"Found {len(server['tools'])} IPFS tools registered")
                 for category, count in categories.items():
                     logger.info(f"- {category}: {count} tools")
-                
+
                 # Check that we have tools in all expected categories
                 expected_categories = [
                     'ipfs_swarm', 'ipfs_mfs', 'ipfs_content', 'ipfs_pins',
                     'ipfs_ipns', 'ipfs_dag', 'ipfs_block', 'ipfs_dht',
                     'ipfs_node', 'ipfs_fs_integration'
                 ]
-                
+
                 missing_categories = [cat for cat in expected_categories if cat not in categories]
                 if missing_categories:
                     logger.warning(f"Missing tools in categories: {', '.join(missing_categories)}")
-                
+
                 # If we have at least some tools, consider it a success
                 return len(server['tools']) > 0
-        
+
         logger.error("IPFS MCP server not found in settings")
         return False
     except Exception as e:
@@ -148,7 +148,7 @@ def verify_ipfs_tools_registered(settings_file: str) -> bool:
 def verify_ipfs_daemon_running() -> bool:
     """
     Verify that the IPFS daemon is running.
-    
+
     Returns:
         bool: True if the daemon is running, False otherwise
     """
@@ -169,7 +169,7 @@ def verify_ipfs_daemon_running() -> bool:
 def verify_mcp_server_running() -> bool:
     """
     Verify that the MCP server is running.
-    
+
     Returns:
         bool: True if the server is running, False otherwise
     """
@@ -179,10 +179,10 @@ def verify_mcp_server_running() -> bool:
         if not os.path.exists(pid_file):
             logger.error("MCP server PID file not found")
             return False
-        
+
         with open(pid_file, 'r') as f:
             pid = f.read().strip()
-        
+
         # Check if process is running
         import subprocess
         result = subprocess.run(['kill', '-0', pid], capture_output=True, text=True)
@@ -201,25 +201,25 @@ def main():
     print("=" * 50)
     print("IPFS MCP Tools Verification")
     print("=" * 50)
-    
+
     # Find MCP settings file
     settings_file = find_mcp_settings_file()
     if not settings_file:
         logger.error("MCP settings file not found")
         return 1
-    
+
     # Verify that the IPFS server is registered
     server_registered = verify_ipfs_server_registered(settings_file)
-    
+
     # Verify that IPFS tools are registered
     tools_registered = verify_ipfs_tools_registered(settings_file)
-    
+
     # Verify that the IPFS daemon is running
     daemon_running = verify_ipfs_daemon_running()
-    
+
     # Verify that the MCP server is running
     server_running = verify_mcp_server_running()
-    
+
     # Print summary
     print("\n" + "=" * 50)
     print("Verification Summary")
@@ -229,7 +229,7 @@ def main():
     print(f"IPFS Daemon Running: {'✓' if daemon_running else '✗'}")
     print(f"MCP Server Running: {'✓' if server_running else '✗'}")
     print("=" * 50)
-    
+
     # Final result
     if server_registered and tools_registered and daemon_running and server_running:
         print("\nVerification PASSED: IPFS MCP tools are ready to use!")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to fix daemon management issues and start IPFS, IPFS Cluster, and Lotus daemons 
+Script to fix daemon management issues and start IPFS, IPFS Cluster, and Lotus daemons
 for the MCP server.
 
 This script:
@@ -36,7 +36,7 @@ def get_ipfs_path():
     ipfs_path = os.environ.get("IPFS_PATH")
     if ipfs_path:
         return os.path.expanduser(ipfs_path)
-    
+
     # Default path
     return os.path.expanduser("~/.ipfs")
 
@@ -46,7 +46,7 @@ def get_ipfs_cluster_path():
     cluster_path = os.environ.get("IPFS_CLUSTER_PATH")
     if cluster_path:
         return os.path.expanduser(cluster_path)
-    
+
     # Default path
     return os.path.expanduser("~/.ipfs-cluster")
 
@@ -56,7 +56,7 @@ def get_lotus_path():
     lotus_path = os.environ.get("LOTUS_PATH")
     if lotus_path:
         return os.path.expanduser(lotus_path)
-    
+
     # Default path
     return os.path.expanduser("~/.lotus")
 
@@ -66,7 +66,7 @@ def get_ipfs_cluster_follow_path():
     follower_path = os.environ.get("IPFS_CLUSTER_FOLLOW_PATH")
     if follower_path:
         return os.path.expanduser(follower_path)
-    
+
     # Default path (using a subdirectory of cluster path)
     cluster_path = get_ipfs_cluster_path()
     return os.path.join(os.path.dirname(cluster_path), ".ipfs-cluster-follow")
@@ -78,7 +78,7 @@ def check_daemon_process(process_name):
             # Check process name
             if process_name in proc.info['name']:
                 return True
-            
+
             # Check command line arguments
             if proc.info['cmdline'] and any(process_name in arg for arg in proc.info['cmdline']):
                 return True
@@ -101,7 +101,7 @@ def check_ipfs_cluster_api():
         return response.status_code == 200
     except requests.RequestException:
         return False
-        
+
 def check_lotus_api():
     """Check if Lotus API is responsive."""
     try:
@@ -109,7 +109,7 @@ def check_lotus_api():
         socket_path = os.path.join(get_lotus_path(), "api")
         if os.path.exists(socket_path):
             return True
-        
+
         # Check if the daemon is running
         return check_daemon_process("lotus daemon")
     except Exception:
@@ -118,7 +118,7 @@ def check_lotus_api():
 def clean_lock_files():
     """Clean up any stale lock files."""
     locks_cleaned = 0
-    
+
     # IPFS lock file
     ipfs_lock = os.path.join(get_ipfs_path(), "repo.lock")
     if os.path.exists(ipfs_lock):
@@ -127,7 +127,7 @@ def clean_lock_files():
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS lock file with PID: {pid}")
-                    
+
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
@@ -147,7 +147,7 @@ def clean_lock_files():
                     locks_cleaned += 1
         except Exception as e:
             logger.error(f"Error handling IPFS lock file: {e}")
-    
+
     # IPFS Cluster lock file
     cluster_lock = os.path.join(get_ipfs_cluster_path(), "service.lock")
     if os.path.exists(cluster_lock):
@@ -156,7 +156,7 @@ def clean_lock_files():
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS Cluster lock file with PID: {pid}")
-                    
+
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
@@ -176,7 +176,7 @@ def clean_lock_files():
                     locks_cleaned += 1
         except Exception as e:
             logger.error(f"Error handling IPFS Cluster lock file: {e}")
-    
+
     # IPFS Cluster Follow lock file
     cluster_follow_lock = os.path.join(get_ipfs_cluster_follow_path(), "service.lock")
     if os.path.exists(cluster_follow_lock):
@@ -185,7 +185,7 @@ def clean_lock_files():
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS Cluster Follow lock file with PID: {pid}")
-                    
+
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
@@ -205,7 +205,7 @@ def clean_lock_files():
                     locks_cleaned += 1
         except Exception as e:
             logger.error(f"Error handling IPFS Cluster Follow lock file: {e}")
-    
+
     # Lotus lock file
     lotus_lock = os.path.join(get_lotus_path(), "repo.lock")
     if os.path.exists(lotus_lock):
@@ -214,7 +214,7 @@ def clean_lock_files():
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found Lotus lock file with PID: {pid}")
-                    
+
                     # Check if process is running
                     try:
                         process = psutil.Process(pid)
@@ -234,19 +234,19 @@ def clean_lock_files():
                     locks_cleaned += 1
         except Exception as e:
             logger.error(f"Error handling Lotus lock file: {e}")
-    
+
     return locks_cleaned
 
 def ensure_ipfs_initialized():
     """Ensure IPFS repository is initialized."""
     ipfs_path = get_ipfs_path()
     config_file = os.path.join(ipfs_path, "config")
-    
+
     if not os.path.exists(config_file):
         logger.info(f"Initializing IPFS repository at {ipfs_path}")
         try:
             os.makedirs(ipfs_path, exist_ok=True)
-            
+
             # Initialize IPFS with lowpower profile for faster startup
             result = subprocess.run(
                 ["ipfs", "init", "--profile=lowpower"],
@@ -254,17 +254,17 @@ def ensure_ipfs_initialized():
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode != 0:
                 logger.error(f"Failed to initialize IPFS repository: {result.stderr}")
                 return False
-            
+
             logger.info("IPFS repository initialized successfully")
             return True
         except Exception as e:
             logger.error(f"Error initializing IPFS repository: {e}")
             return False
-    
+
     logger.info(f"IPFS repository already initialized at {ipfs_path}")
     return True
 
@@ -273,12 +273,12 @@ def ensure_ipfs_cluster_initialized():
     cluster_path = get_ipfs_cluster_path()
     identity_file = os.path.join(cluster_path, "identity.json")
     service_file = os.path.join(cluster_path, "service.json")
-    
+
     if not os.path.exists(identity_file) or not os.path.exists(service_file):
         logger.info(f"Initializing IPFS Cluster repository at {cluster_path}")
         try:
             os.makedirs(cluster_path, exist_ok=True)
-            
+
             # Initialize IPFS Cluster
             result = subprocess.run(
                 ["ipfs-cluster-service", "init"],
@@ -286,17 +286,17 @@ def ensure_ipfs_cluster_initialized():
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode != 0:
                 logger.error(f"Failed to initialize IPFS Cluster repository: {result.stderr}")
                 return False
-            
+
             logger.info("IPFS Cluster repository initialized successfully")
             return True
         except Exception as e:
             logger.error(f"Error initializing IPFS Cluster repository: {e}")
             return False
-    
+
     logger.info(f"IPFS Cluster repository already initialized at {cluster_path}")
     return True
 
@@ -304,12 +304,12 @@ def ensure_lotus_initialized():
     """Ensure Lotus repository is initialized."""
     lotus_path = get_lotus_path()
     config_file = os.path.join(lotus_path, "config.toml")
-    
+
     if not os.path.exists(config_file):
         logger.info(f"Lotus repository not found at {lotus_path}, no automatic initialization available")
         logger.info("You will need to initialize Lotus manually with: lotus daemon --init")
         return False
-    
+
     logger.info(f"Lotus repository already initialized at {lotus_path}")
     return True
 
@@ -319,15 +319,15 @@ def start_ipfs_daemon():
     if check_ipfs_api():
         logger.info("IPFS daemon is already running")
         return True
-    
+
     # Ensure repository is initialized
     if not ensure_ipfs_initialized():
         logger.error("Failed to ensure IPFS repository is initialized")
         return False
-    
+
     # Clean any stale lock files
     clean_lock_files()
-    
+
     logger.info("Starting IPFS daemon")
     try:
         # Start IPFS daemon with nofuse option (more compatible)
@@ -339,22 +339,22 @@ def start_ipfs_daemon():
             text=True,
             start_new_session=True  # Detach from parent process
         )
-        
+
         # Wait for daemon to start (look for the "Daemon is ready" message)
         start_time = time.time()
         for _ in range(30):  # Wait up to 30 seconds
             if check_ipfs_api():
                 logger.info("IPFS daemon started successfully")
                 return True
-            
+
             # Check if process is still running
             if process.poll() is not None:
                 stdout, stderr = process.communicate()
                 logger.error(f"IPFS daemon exited prematurely: {stderr}")
                 return False
-            
+
             time.sleep(1)
-        
+
         # If we get here, daemon didn't start in time
         logger.error("Timeout waiting for IPFS daemon to start")
         return False
@@ -368,22 +368,22 @@ def start_ipfs_cluster_service():
     if check_ipfs_cluster_api():
         logger.info("IPFS Cluster service is already running")
         return True
-    
+
     # Make sure IPFS is running first
     if not check_ipfs_api():
         logger.warning("IPFS daemon is not running, starting it first")
         if not start_ipfs_daemon():
             logger.error("Failed to start IPFS daemon, cannot start Cluster")
             return False
-    
+
     # Ensure repository is initialized
     if not ensure_ipfs_cluster_initialized():
         logger.error("Failed to ensure IPFS Cluster repository is initialized")
         return False
-    
+
     # Clean any stale lock files
     clean_lock_files()
-    
+
     logger.info("Starting IPFS Cluster service")
     try:
         # Start IPFS Cluster service
@@ -395,22 +395,22 @@ def start_ipfs_cluster_service():
             text=True,
             start_new_session=True  # Detach from parent process
         )
-        
+
         # Wait for daemon to start
         start_time = time.time()
         for _ in range(30):  # Wait up to 30 seconds
             if check_ipfs_cluster_api():
                 logger.info("IPFS Cluster service started successfully")
                 return True
-            
+
             # Check if process is still running
             if process.poll() is not None:
                 stdout, stderr = process.communicate()
                 logger.error(f"IPFS Cluster service exited prematurely: {stderr}")
                 return False
-            
+
             time.sleep(1)
-        
+
         # If we get here, daemon didn't start in time
         logger.error("Timeout waiting for IPFS Cluster service to start")
         return False
@@ -424,14 +424,14 @@ def start_lotus_daemon():
     if check_lotus_api():
         logger.info("Lotus daemon is already running")
         return True
-    
+
     # Ensure repository is initialized
     if not ensure_lotus_initialized():
         logger.warning("Lotus repository is not initialized, trying to start anyway")
-    
+
     # Clean any stale lock files
     clean_lock_files()
-    
+
     logger.info("Starting Lotus daemon")
     try:
         # Start Lotus daemon
@@ -443,22 +443,22 @@ def start_lotus_daemon():
             text=True,
             start_new_session=True  # Detach from parent process
         )
-        
+
         # Wait for daemon to start
         start_time = time.time()
         for _ in range(60):  # Wait up to 60 seconds (Lotus can take longer)
             if check_lotus_api():
                 logger.info("Lotus daemon started successfully")
                 return True
-            
+
             # Check if process is still running
             if process.poll() is not None:
                 stdout, stderr = process.communicate()
                 logger.error(f"Lotus daemon exited prematurely: {stderr}")
                 return False
-            
+
             time.sleep(1)
-        
+
         # If we get here, daemon didn't start in time
         logger.error("Timeout waiting for Lotus daemon to start")
         return False
@@ -473,9 +473,9 @@ def fix_mcp_daemon_configuration():
         ".",
         "ipfs_kit_py"
     ]
-    
+
     fixed_files = []
-    
+
     # Files to fix
     files_to_check = [
         "run_mcp_server_anyio.py",
@@ -484,28 +484,28 @@ def fix_mcp_daemon_configuration():
         "start_mcp_server.sh",
         "start_mcp_anyio_server.sh"
     ]
-    
+
     for script_path in script_paths:
         for filename in files_to_check:
             full_path = os.path.join(script_path, filename)
             if not os.path.exists(full_path):
                 continue
-                
+
             with open(full_path, 'r') as f:
                 content = f.read()
-            
+
             # Check if this file has "--skip-daemon" flag
             if "--skip-daemon" in content:
                 # Remove or change the --skip-daemon flag
                 updated_content = content.replace("--skip-daemon", "")
-                
+
                 # Write updated content back
                 with open(full_path, 'w') as f:
                     f.write(updated_content)
-                    
+
                 fixed_files.append(full_path)
                 logger.info(f"Removed --skip-daemon flag from {full_path}")
-    
+
     # Create a new script to patch the server module to allow manual daemon control
     patch_script = """# Apply runtime patch to MCP server to enable manual daemon control
 import types
@@ -518,10 +518,10 @@ def apply_daemon_control_patch():
     # Apply runtime patch to enable manual daemon control.
     try:
         from ipfs_kit_py.mcp.server_anyio import MCPServer
-        
+
         # Original start_daemon method has a check that prevents manual control
         original_start_daemon = MCPServer.start_daemon
-        
+
         # Create a new implementation that bypasses the check
         async def patched_start_daemon(self, daemon_type: str):
             # Patched version that allows manual daemon control.
@@ -533,7 +533,7 @@ def apply_daemon_control_patch():
                     "error": f"Invalid daemon type: {daemon_type}. Must be one of: {', '.join(valid_types)}",
                     "error_type": "InvalidDaemonType"
                 }
-            
+
             # Try to start the daemon directly using our helper functions
             if daemon_type == 'ipfs':
                 from fix_mcp_daemons import start_ipfs_daemon
@@ -565,7 +565,7 @@ def apply_daemon_control_patch():
                     "error": f"Daemon type not implemented: {daemon_type}",
                     "error_type": "NotImplemented"
                 }
-        
+
         # Replace the method
         MCPServer.start_daemon = patched_start_daemon
         logger.info("Successfully patched MCPServer.start_daemon to enable manual daemon control")
@@ -577,15 +577,15 @@ def apply_daemon_control_patch():
 # Apply the patch when this module is imported
 apply_daemon_control_patch()
 """
-    
+
     # Write the patch script
     patch_path = "patch_mcp_daemon_control.py"
     with open(patch_path, 'w') as f:
         f.write(patch_script)
-    
+
     fixed_files.append(patch_path)
     logger.info(f"Created daemon control patch script at {patch_path}")
-    
+
     return fixed_files
 
 def main():
@@ -598,67 +598,67 @@ def main():
     parser.add_argument("--ipfs", action="store_true", help="Start IPFS daemon")
     parser.add_argument("--ipfs-cluster", action="store_true", help="Start IPFS Cluster service")
     parser.add_argument("--lotus", action="store_true", help="Start Lotus daemon")
-    
+
     args = parser.parse_args()
-    
+
     # Default to starting IPFS if no specific action is specified
-    if not (args.clean_locks or args.init_only or args.start_all or 
+    if not (args.clean_locks or args.init_only or args.start_all or
             args.fix_config or args.ipfs or args.ipfs_cluster or args.lotus):
         args.ipfs = True
-    
+
     # Clean lock files if requested
     if args.clean_locks:
         locks_cleaned = clean_lock_files()
         logger.info(f"Cleaned {locks_cleaned} stale lock files")
-    
+
     # Fix MCP configuration if requested
     if args.fix_config:
         fixed_files = fix_mcp_daemon_configuration()
         logger.info(f"Fixed {len(fixed_files)} configuration files for better daemon handling")
-    
+
     # Initialize repositories if requested or if starting daemons
     if args.init_only or args.start_all or args.ipfs:
         if ensure_ipfs_initialized():
             logger.info("IPFS repository is ready")
         else:
             logger.error("Failed to initialize IPFS repository")
-    
+
     if args.init_only or args.start_all or args.ipfs_cluster:
         if ensure_ipfs_cluster_initialized():
             logger.info("IPFS Cluster repository is ready")
         else:
             logger.error("Failed to initialize IPFS Cluster repository")
-    
+
     if args.init_only or args.start_all or args.lotus:
         if ensure_lotus_initialized():
             logger.info("Lotus repository is ready")
         else:
             logger.warning("Lotus repository initialization may be required")
-    
+
     # Stop here if only initializing
     if args.init_only:
         logger.info("Initialization complete")
         return
-    
+
     # Start daemons as requested
     if args.start_all or args.ipfs:
         if start_ipfs_daemon():
             logger.info("IPFS daemon is running")
         else:
             logger.error("Failed to start IPFS daemon")
-    
+
     if args.start_all or args.ipfs_cluster:
         if start_ipfs_cluster_service():
             logger.info("IPFS Cluster service is running")
         else:
             logger.error("Failed to start IPFS Cluster service")
-    
+
     if args.start_all or args.lotus:
         if start_lotus_daemon():
             logger.info("Lotus daemon is running")
         else:
             logger.error("Failed to start Lotus daemon")
-    
+
     logger.info("Daemon management complete")
 
 if __name__ == "__main__":

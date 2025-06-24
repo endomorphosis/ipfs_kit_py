@@ -56,54 +56,54 @@ class StreamProgress:
     average_speed: float = 0.0  # bytes/second
     estimated_remaining: float = 0.0  # seconds
     percentage: float = 0.0
-    
+
     def update(self, bytes_processed: int, total_bytes: Optional[int] = None) -> None:
         """
         Update progress information.
-        
+
         Args:
             bytes_processed: Current number of bytes processed
             total_bytes: Optional total bytes (if known)
         """
         now = time.time()
         time_diff = now - self.last_update_time
-        
+
         # Update byte counts
         self.bytes_processed = bytes_processed
         if total_bytes is not None:
             self.total_bytes = total_bytes
-        
+
         # Only update speed calculations if enough time has passed
         if time_diff >= 0.1:  # 100ms minimum to avoid division by very small numbers
             # Calculate current speed
             bytes_diff = bytes_processed - self.last_bytes_processed
             self.current_speed = bytes_diff / time_diff if time_diff > 0 else 0
-            
+
             # Calculate average speed
             elapsed = now - self.start_time
             self.average_speed = bytes_processed / elapsed if elapsed > 0 else 0
-            
+
             # Estimate remaining time
             if self.total_bytes > 0 and self.average_speed > 0:
                 remaining_bytes = self.total_bytes - bytes_processed
                 self.estimated_remaining = remaining_bytes / self.average_speed
             else:
                 self.estimated_remaining = 0
-            
+
             # Calculate percentage
             if self.total_bytes > 0:
                 self.percentage = (bytes_processed / self.total_bytes) * 100
             else:
                 self.percentage = 0
-            
+
             # Update tracking variables
             self.last_update_time = now
             self.last_bytes_processed = bytes_processed
-    
+
     def increment_chunks(self, processed: int = 1, total: Optional[int] = None) -> None:
         """
         Increment chunk counters.
-        
+
         Args:
             processed: Number of chunks processed
             total: Optional total chunks (if known)
@@ -111,7 +111,7 @@ class StreamProgress:
         self.chunks_processed += processed
         if total is not None:
             self.total_chunks = total
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert progress to dictionary."""
         return {
@@ -144,37 +144,37 @@ class StreamOperation:
     result: Optional[Dict[str, Any]] = None
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
-    
+
     def update_status(self, status: StreamStatus) -> None:
         """
         Update the status of the operation.
-        
+
         Args:
             status: New status
         """
         self.status = status
         self.updated_at = datetime.now()
-    
+
     def set_error(self, error: str) -> None:
         """
         Set error information and update status.
-        
+
         Args:
             error: Error message
         """
         self.error = error
         self.update_status(StreamStatus.FAILED)
-    
+
     def set_result(self, result: Dict[str, Any]) -> None:
         """
         Set operation result and update status.
-        
+
         Args:
             result: Operation result
         """
         self.result = result
         self.update_status(StreamStatus.COMPLETED)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert operation to dictionary."""
         return {

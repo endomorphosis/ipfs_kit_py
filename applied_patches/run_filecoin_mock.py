@@ -32,7 +32,7 @@ DATA_DIR = os.path.expanduser("~/.ipfs_kit/filecoin_mock")
 
 class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
     """HTTP request handler for Filecoin mock server."""
-    
+
     def do_GET(self):
         """Handle GET requests."""
         if self.path == "/health":
@@ -45,7 +45,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Not found"}).encode())
-    
+
     def do_POST(self):
         """Handle POST requests (JSON-RPC)."""
         # Check authorization
@@ -60,7 +60,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 "id": None
             }).encode())
             return
-        
+
         # Parse request
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length > 0:
@@ -70,7 +70,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 method = request.get("method", "")
                 params = request.get("params", [])
                 request_id = request.get("id", 0)
-                
+
                 # Handle different methods
                 if method == "Filecoin.Version":
                     result = {
@@ -125,7 +125,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     # Generic mock for any other methods
                     result = {"mock": True, "method": method}
-                
+
                 # Send response
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
@@ -135,7 +135,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                     "result": result,
                     "id": request_id
                 }).encode())
-                
+
             except json.JSONDecodeError:
                 self.send_response(400)
                 self.send_header("Content-type", "application/json")
@@ -154,7 +154,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 "error": {"code": -32700, "message": "Empty request"},
                 "id": None
             }).encode())
-    
+
     def log_message(self, format, *args):
         """Override to use our logger."""
         logger.debug(f"{self.client_address[0]} - {format % args}")
@@ -165,18 +165,18 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     lotus_dir = os.path.join(DATA_DIR, "lotus")
     os.makedirs(lotus_dir, exist_ok=True)
-    
+
     # Save API info
     with open(os.path.join(lotus_dir, "api"), "w") as f:
         f.write(f"http://localhost:{PORT}/rpc/v0")
-    
+
     with open(os.path.join(lotus_dir, "token"), "w") as f:
         f.write(API_TOKEN)
-    
+
     # Start server
     server = socketserver.ThreadingTCPServer(("localhost", PORT), FilecoinMockHandler)
     logger.info(f"Starting Filecoin mock server on port {PORT}")
-    
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:

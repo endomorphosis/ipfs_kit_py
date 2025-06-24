@@ -69,7 +69,7 @@ def create_example_app(
     backend: str = "asyncio",
 ) -> FastAPI:
     """Create a FastAPI application with MCP server integration."""
-    
+
     # Initialize the FastAPI app
     app = FastAPI(
         title="IPFS Kit MCP AnyIO Example",
@@ -78,7 +78,7 @@ def create_example_app(
         docs_url="/docs",
         redoc_url="/redoc",
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -87,15 +87,15 @@ def create_example_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Initialize the IPFS Simple API client
     ipfs_api = IPFSSimpleAPI()
-    
+
     # Create a temporary directory for cache if not provided
     if cache_dir is None:
         cache_dir = tempfile.mkdtemp(prefix="ipfs_mcp_anyio_cache_")
         logger.info(f"Created temporary cache directory: {cache_dir}")
-    
+
     # Initialize the MCP server with AnyIO
     mcp_server = MCPServerAnyIO(
         debug_mode=debug_mode,
@@ -103,10 +103,10 @@ def create_example_app(
         persistence_path=cache_dir,
         async_backend=backend
     )
-    
+
     # Register the MCP server with the FastAPI app
     mcp_server.register_with_app(app, prefix=f"{api_prefix}/mcp")
-    
+
     # Add a welcome endpoint for testing
     @app.get("/")
     async def welcome():
@@ -116,7 +116,7 @@ def create_example_app(
             current_backend = sniffio.current_async_library()
         except sniffio.AsyncLibraryNotFoundError:
             current_backend = "none"
-            
+
         return {
             "success": True,
             "message": "Welcome to IPFS Kit MCP AnyIO Example",
@@ -136,7 +136,7 @@ def create_example_app(
             "debug_mode": debug_mode,
             "isolation_mode": isolation_mode,
         }
-    
+
     # Add a middleware for request timing
     @app.middleware("http")
     async def request_timer_middleware(request: Request, call_next):
@@ -147,13 +147,13 @@ def create_example_app(
         response.headers["X-Process-Time"] = str(process_time)
         response.headers["X-Async-Backend"] = backend
         return response
-    
+
     # Add an example endpoint using the MCP model directly (for demonstration)
     @app.get(f"{api_prefix}/direct-mcp-model-example")
     async def direct_model_example():
         """Example of directly using the MCP model layer with AnyIO."""
         ipfs_model = mcp_server.models["ipfs"]
-        
+
         # Use the model to get stats asynchronously
         # Use the appropriate async method based on our implementation approach
         if hasattr(ipfs_model, "get_stats_async"):
@@ -161,13 +161,13 @@ def create_example_app(
         else:
             # Fall back to using anyio.to_thread.run_sync if no async method exists
             stats = await anyio.to_thread.run_sync(ipfs_model.get_stats)
-        
+
         # Get cache manager stats
         if hasattr(mcp_server.persistence, "get_cache_info_async"):
             cache_info = await mcp_server.persistence.get_cache_info_async()
         else:
             cache_info = await anyio.to_thread.run_sync(mcp_server.persistence.get_cache_info)
-        
+
         return {
             "success": True,
             "message": "Directly accessed MCP model layer with AnyIO",
@@ -175,7 +175,7 @@ def create_example_app(
             "model_stats": stats,
             "cache_info": cache_info,
         }
-    
+
     logger.info(f"Created FastAPI app with AnyIO-based MCP server ({api_prefix}/mcp) using {backend} backend")
     return app
 
@@ -192,17 +192,17 @@ def run_example_server(
         isolation_mode=isolation_mode,
         backend=backend,
     )
-    
+
     logger.info(f"Starting server on http://{host}:{port}")
     logger.info(f"Debug mode: {debug_mode}, Isolation mode: {isolation_mode}")
     logger.info(f"Using AnyIO with {backend} backend")
     logger.info(f"API docs available at http://{host}:{port}/docs")
-    
+
     # Run the FastAPI application
     if backend == "trio" and uvicorn.__version__ < "0.15.0":
         logger.warning("Using trio backend with Uvicorn < 0.15.0 may not be fully supported")
         logger.warning("Consider upgrading Uvicorn or using asyncio backend")
-    
+
     # When using trio backend with uvicorn, we still use asyncio
     # since Uvicorn's trio support is limited
     uvicorn.run(app, host=host, port=port)
@@ -214,16 +214,16 @@ async def test_api_async(
 ):
     """Example of calling the MCP API endpoints asynchronously."""
     base_url = f"http://{host}:{port}{api_prefix}/mcp"
-    
+
     logger.info("Testing MCP AnyIO API endpoints...")
-    
+
     # Use httpx for async HTTP requests
     try:
         import httpx
     except ImportError:
         logger.error("httpx is required for async HTTP tests. Install with: pip install httpx")
         return
-    
+
     async with httpx.AsyncClient() as client:
         # Test health endpoint
         try:
@@ -231,7 +231,7 @@ async def test_api_async(
             logger.info(f"Health check: {response.json()}")
         except Exception as e:
             logger.error(f"Health check failed: {e}")
-        
+
         # Test adding content
         try:
             # Test adding via file upload
@@ -240,17 +240,17 @@ async def test_api_async(
             response = await client.post(f"{base_url}/ipfs/add/file", files=files)
             result = response.json()
             logger.info(f"Add file result: {result}")
-            
+
             # Test adding via JSON
             json_content = {"content": "Hello, IPFS MCP AnyIO via JSON!", "filename": "test.json"}
             response2 = await client.post(f"{base_url}/ipfs/add", json=json_content)
             result2 = response2.json()
             logger.info(f"Add JSON result: {result2}")
-            
+
             # Test debug endpoints
             debug_response = await client.get(f"{base_url}/debug")
             logger.info(f"Debug state available: {debug_response.status_code == 200}")
-            
+
             operations_response = await client.get(f"{base_url}/operations")
             logger.info(f"Operations log available: {operations_response.status_code == 200}")
         except Exception as e:
@@ -278,16 +278,16 @@ if __name__ == "__main__":
     parser.add_argument("--isolation", action="store_true", help="Enable isolation mode")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind the server")
     parser.add_argument("--port", type=int, default=9999, help="Port to bind the server")
-    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio", 
+    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio",
                         help="Async backend to use (asyncio or trio)")
-    parser.add_argument("--test-api", action="store_true", 
+    parser.add_argument("--test-api", action="store_true",
                         help="Just test the API endpoints without starting a server")
-    
+
     args = parser.parse_args()
-    
+
     if args.test_api:
         call_api_example(
-            host=args.host, 
+            host=args.host,
             port=args.port,
             backend=args.backend
         )

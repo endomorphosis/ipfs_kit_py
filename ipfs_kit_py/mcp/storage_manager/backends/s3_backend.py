@@ -671,7 +671,7 @@ class S3Backend(BackendStorage):
                     {
                         "identifier": obj.get("Key"),
                         "size": obj.get("Size"),
-                        "last_modified": 
+                        "last_modified":
                             obj.get("LastModified").isoformat() if obj.get("LastModified") else None,
                         "etag": obj.get("ETag"),
                         "backend": self.get_name(),
@@ -797,7 +797,7 @@ class S3Backend(BackendStorage):
                 "metadata": {
                     "size": response.get("ContentLength", 0),
                     "content_type": response.get("ContentType"),
-                    "last_modified": 
+                    "last_modified":
                         response.get("LastModified").isoformat()
                         if response.get("LastModified")
                         else None,

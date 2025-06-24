@@ -23,9 +23,9 @@ def run_command(command, check=True, timeout=30):
     """Run a command and return the result."""
     try:
         result = subprocess.run(
-            command, 
-            check=check, 
-            timeout=timeout, 
+            command,
+            check=check,
+            timeout=timeout,
             capture_output=True,
             text=True
         )
@@ -67,7 +67,7 @@ def test_ipfs_cluster_service():
         if not os.path.exists(script_path):
             print(f"❌ Error: Could not find {script_path}")
             return False
-            
+
         # Try importing the module to see if it has any errors
         print("Importing ipfs_cluster_service module...")
         try:
@@ -76,26 +76,26 @@ def test_ipfs_cluster_service():
         except Exception as e:
             print(f"❌ Error importing ipfs_cluster_service: {e}")
             return False
-            
+
         # Check if already running
         if check_process_running("ipfs_cluster_service"):
             print("ipfs_cluster_service is already running. Stopping it first...")
             run_command(["pkill", "-f", "ipfs_cluster_service"], check=False)
             time.sleep(2)
-            
+
         # Try starting the daemon in the background
         print("Starting ipfs_cluster_service daemon...")
         result = run_command([sys.executable, script_path, '--debug', '--fake-daemon'], check=False)
-        
+
         if not result["success"]:
             print(f"❌ Failed to start ipfs_cluster_service:")
             print(f"Return code: {result['returncode']}")
             print(f"Stderr: {result['stderr']}")
             return False
-            
+
         # Give it a moment to start
         time.sleep(2)
-        
+
         # Check if it's running
         if check_process_running("ipfs_cluster_service"):
             print("✅ ipfs_cluster_service daemon started successfully")
@@ -112,7 +112,7 @@ def test_ipfs_cluster_follow():
         if not os.path.exists(script_path):
             print(f"❌ Error: Could not find {script_path}")
             return False
-            
+
         # Try importing the module to see if it has any errors
         print("Importing ipfs_cluster_follow module...")
         try:
@@ -121,26 +121,26 @@ def test_ipfs_cluster_follow():
         except Exception as e:
             print(f"❌ Error importing ipfs_cluster_follow: {e}")
             return False
-            
+
         # Check if already running
         if check_process_running("ipfs_cluster_follow"):
             print("ipfs_cluster_follow is already running. Stopping it first...")
             run_command(["pkill", "-f", "ipfs_cluster_follow"], check=False)
             time.sleep(2)
-            
+
         # Try starting the daemon in the background
         print("Starting ipfs_cluster_follow daemon...")
         result = run_command([sys.executable, script_path, '--debug', '--fake-daemon'], check=False)
-        
+
         if not result["success"]:
             print(f"❌ Failed to start ipfs_cluster_follow:")
             print(f"Return code: {result['returncode']}")
             print(f"Stderr: {result['stderr']}")
             return False
-            
+
         # Give it a moment to start
         time.sleep(2)
-        
+
         # Check if it's running
         if check_process_running("ipfs_cluster_follow"):
             print("✅ ipfs_cluster_follow daemon started successfully")
@@ -152,6 +152,6 @@ def test_ipfs_cluster_follow():
 if __name__ == "__main__":
     # Test IPFS Cluster Service
     test_ipfs_cluster_service()
-    
+
     # Test IPFS Cluster Follow
     test_ipfs_cluster_follow()

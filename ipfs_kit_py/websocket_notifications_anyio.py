@@ -2,7 +2,7 @@
 WebSocket Notifications for IPFS Kit using anyio.
 
 This module provides a real-time notification system for IPFS Kit using WebSockets,
-implemented with anyio for backend-agnostic async operations. It enables clients to 
+implemented with anyio for backend-agnostic async operations. It enables clients to
 subscribe to various event types and receive notifications when those events occur,
 providing real-time visibility into IPFS operations.
 
@@ -53,30 +53,30 @@ logger = logging.getLogger(__name__)
 
 class NotificationType(str, Enum):
     """Types of notifications that can be sent or subscribed to."""
-    
+
     # Content-related events
     CONTENT_ADDED = "content_added"
     CONTENT_RETRIEVED = "content_retrieved"
     CONTENT_REMOVED = "content_removed"
-    
+
     # Pin-related events
     PIN_ADDED = "pin_added"
     PIN_REMOVED = "pin_removed"
     PIN_PROGRESS = "pin_progress"
     PIN_STATUS_CHANGED = "pin_status_changed"
-    
+
     # Peer-related events
     PEER_CONNECTED = "peer_connected"
     PEER_DISCONNECTED = "peer_disconnected"
     SWARM_CHANGED = "swarm_changed"
-    
+
     # Cluster-related events
     CLUSTER_PEER_JOINED = "cluster_peer_joined"
     CLUSTER_PEER_LEFT = "cluster_peer_left"
     CLUSTER_STATE_CHANGED = "cluster_state_changed"
     CLUSTER_PIN_ADDED = "cluster_pin_added"
     CLUSTER_PIN_REMOVED = "cluster_pin_removed"
-    
+
     # WebRTC streaming events
     WEBRTC_CONNECTION_CREATED = "webrtc_connection_created"
     WEBRTC_CONNECTION_ESTABLISHED = "webrtc_connection_established"
@@ -85,13 +85,13 @@ class NotificationType(str, Enum):
     WEBRTC_STREAM_ENDED = "webrtc_stream_ended"
     WEBRTC_QUALITY_CHANGED = "webrtc_quality_changed"
     WEBRTC_ERROR = "webrtc_error"
-    
+
     # System events
     SYSTEM_METRICS = "system_metrics"
     SYSTEM_WARNING = "system_warning"
     SYSTEM_ERROR = "system_error"
     SYSTEM_INFO = "system_info"
-    
+
     # Generic events
     CUSTOM_EVENT = "custom_event"
     ALL_EVENTS = "all_events"  # Special type to subscribe to all events
@@ -99,23 +99,23 @@ class NotificationType(str, Enum):
 
 class NotificationManager:
     """Manages WebSocket subscriptions and notifications."""
-    
+
     def __init__(self):
         """Initialize the notification manager."""
         # Maps connection ID to WebSocket and subscriptions
         self.active_connections: Dict[str, Dict[str, Any]] = {}
-        
+
         # Maps notification types to sets of connection IDs
         self.subscriptions: Dict[str, Set[str]] = {}
-        
+
         # Initialize subscription maps for all notification types
         for notification_type in NotificationType:
             self.subscriptions[notification_type.value] = set()
-            
+
         # Event history for persistent notifications
         self.event_history: List[Dict[str, Any]] = []
         self.max_history_size = 1000
-        
+
         # Metrics collection
         self.metrics = {
             "connections_total": 0,
@@ -123,18 +123,18 @@ class NotificationManager:
             "notifications_sent": 0,
             "subscriptions_by_type": {t.value: 0 for t in NotificationType}
         }
-        
+
         # Task group for background tasks
         self.task_group = None
-    
+
     async def connect(self, websocket: WebSocket, connection_id: str) -> bool:
         """
         Register a new WebSocket connection.
-        
+
         Args:
             websocket: The WebSocket connection
             connection_id: Unique identifier for this connection
-            
+
         Returns:
             bool: True if connection was successful
         """
@@ -146,7 +146,7 @@ class NotificationManager:
             except anyio.TimeoutError:
                 logger.error(f"Timeout accepting WebSocket connection: {connection_id}")
                 return False
-            
+
             # Register the connection
             self.active_connections[connection_id] = {
                 "websocket": websocket,
@@ -155,53 +155,53 @@ class NotificationManager:
                 "connected_at": time.time(),
                 "last_activity": time.time()
             }
-            
+
             # Update metrics
             self.metrics["connections_total"] += 1
             self.metrics["active_connections"] = len(self.active_connections)
-            
+
             logger.info(f"WebSocket client connected: {connection_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error accepting WebSocket connection: {e}")
             return False
-    
+
     def disconnect(self, connection_id: str) -> None:
         """
         Unregister a WebSocket connection.
-        
+
         Args:
             connection_id: ID of the connection to remove
         """
         if connection_id in self.active_connections:
             # Get current subscriptions
             current_subs = self.active_connections[connection_id]["subscriptions"]
-            
+
             # Remove from subscription maps
             for sub_type in current_subs:
                 if sub_type in self.subscriptions:
                     self.subscriptions[sub_type].discard(connection_id)
                     self.metrics["subscriptions_by_type"][sub_type] -= 1
-            
+
             # Remove connection
             del self.active_connections[connection_id]
-            
+
             # Update metrics
             self.metrics["active_connections"] = len(self.active_connections)
-            
+
             logger.info(f"WebSocket client disconnected: {connection_id}")
-    
-    async def subscribe(self, connection_id: str, notification_types: List[str], 
+
+    async def subscribe(self, connection_id: str, notification_types: List[str],
                       filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Subscribe a connection to specific notification types.
-        
+
         Args:
             connection_id: ID of the connection
             notification_types: List of notification types to subscribe to
             filters: Optional filters to apply to notifications
-            
+
         Returns:
             Dict with subscription results
         """
@@ -211,28 +211,28 @@ class NotificationManager:
                 "error": "Connection not registered",
                 "subscribed_types": []
             }
-        
+
         # Validate notification types
         valid_types = []
         invalid_types = []
-        
+
         for n_type in notification_types:
             if n_type in [t.value for t in NotificationType]:
                 valid_types.append(n_type)
             else:
                 invalid_types.append(n_type)
-        
+
         # Update connection's subscriptions
         connection = self.active_connections[connection_id]
         old_subs = connection["subscriptions"].copy()
-        
+
         # Add new subscriptions
         for n_type in valid_types:
             if n_type not in connection["subscriptions"]:
                 connection["subscriptions"].add(n_type)
                 self.subscriptions[n_type].add(connection_id)
                 self.metrics["subscriptions_by_type"][n_type] += 1
-        
+
         # Special case: if ALL_EVENTS is subscribed, add all types
         if NotificationType.ALL_EVENTS.value in valid_types:
             for n_type in [t.value for t in NotificationType]:
@@ -240,14 +240,14 @@ class NotificationManager:
                     connection["subscriptions"].add(n_type)
                     self.subscriptions[n_type].add(connection_id)
                     self.metrics["subscriptions_by_type"][n_type] += 1
-        
+
         # Update filters if provided
         if filters:
             connection["filters"] = filters
-        
+
         # Update last activity timestamp
         connection["last_activity"] = time.time()
-        
+
         # Send confirmation
         websocket = connection["websocket"]
         confirmation = {
@@ -257,7 +257,7 @@ class NotificationManager:
             "invalid_types": invalid_types,
             "timestamp": time.time()
         }
-        
+
         try:
             # Send confirmation with timeout
             with anyio.fail_after(5.0):  # 5-second timeout
@@ -266,22 +266,22 @@ class NotificationManager:
             logger.error(f"Timeout sending subscription confirmation to {connection_id}")
         except Exception as e:
             logger.error(f"Error sending subscription confirmation: {e}")
-        
+
         return {
             "success": True,
             "subscribed_types": list(connection["subscriptions"]),
             "new_types": list(set(connection["subscriptions"]) - set(old_subs)),
             "invalid_types": invalid_types
         }
-    
+
     async def unsubscribe(self, connection_id: str, notification_types: List[str]) -> Dict[str, Any]:
         """
         Unsubscribe a connection from specific notification types.
-        
+
         Args:
             connection_id: ID of the connection
             notification_types: List of notification types to unsubscribe from
-            
+
         Returns:
             Dict with unsubscription results
         """
@@ -290,10 +290,10 @@ class NotificationManager:
                 "success": False,
                 "error": "Connection not registered"
             }
-        
+
         # Update connection's subscriptions
         connection = self.active_connections[connection_id]
-        
+
         # Remove specified subscriptions
         for n_type in notification_types:
             if n_type in connection["subscriptions"]:
@@ -301,7 +301,7 @@ class NotificationManager:
                 if n_type in self.subscriptions:
                     self.subscriptions[n_type].discard(connection_id)
                     self.metrics["subscriptions_by_type"][n_type] -= 1
-        
+
         # Special case: if ALL_EVENTS is unsubscribed, remove all types
         if NotificationType.ALL_EVENTS.value in notification_types:
             for n_type in list(connection["subscriptions"]):
@@ -309,10 +309,10 @@ class NotificationManager:
                 if n_type in self.subscriptions:
                     self.subscriptions[n_type].discard(connection_id)
                     self.metrics["subscriptions_by_type"][n_type] -= 1
-        
+
         # Update last activity timestamp
         connection["last_activity"] = time.time()
-        
+
         # Send confirmation
         websocket = connection["websocket"]
         confirmation = {
@@ -320,7 +320,7 @@ class NotificationManager:
             "notification_types": list(connection["subscriptions"]),
             "timestamp": time.time()
         }
-        
+
         try:
             # Send confirmation with timeout
             with anyio.fail_after(5.0):  # 5-second timeout
@@ -329,22 +329,22 @@ class NotificationManager:
             logger.error(f"Timeout sending unsubscription confirmation to {connection_id}")
         except Exception as e:
             logger.error(f"Error sending unsubscription confirmation: {e}")
-        
+
         return {
             "success": True,
             "remaining_subscriptions": list(connection["subscriptions"])
         }
-    
-    async def notify(self, notification_type: str, data: Dict[str, Any], 
+
+    async def notify(self, notification_type: str, data: Dict[str, Any],
                    source: Optional[str] = None) -> Dict[str, Any]:
         """
         Send a notification to all subscribed connections.
-        
+
         Args:
             notification_type: Type of notification to send
             data: Notification data
             source: Optional source of the notification
-            
+
         Returns:
             Dict with notification results
         """
@@ -354,7 +354,7 @@ class NotificationManager:
                 "error": f"Invalid notification type: {notification_type}",
                 "recipients": 0
             }
-        
+
         # Create notification message
         notification = {
             "type": "notification",
@@ -362,73 +362,73 @@ class NotificationManager:
             "data": data,
             "timestamp": time.time()
         }
-        
+
         if source:
             notification["source"] = source
-        
+
         # Add to history
         self.event_history.append(notification)
         if len(self.event_history) > self.max_history_size:
             self.event_history = self.event_history[-self.max_history_size:]
-        
+
         # Get subscribed connections
         recipients = self.subscriptions[notification_type]
         sent_count = 0
         errors = []
-        
+
         # Create a list of send tasks
         send_tasks = []
         for conn_id in recipients:
             if conn_id in self.active_connections:
                 connection = self.active_connections[conn_id]
                 websocket = connection["websocket"]
-                
+
                 # Check if this notification passes the connection's filters
                 if not self._passes_filters(notification, connection["filters"]):
                     continue
-                
+
                 # Check if WebSocket is still connected
                 if websocket.client_state == WebSocketState.DISCONNECTED:
                     continue
-                
+
                 # Add send task
                 send_tasks.append((conn_id, websocket, notification.copy()))
-        
+
         # Use memory streams to collect results
         send_stream, receive_stream = anyio.create_memory_object_stream(len(send_tasks))
-        
+
         # Function to send notification and report result
         async def send_notification(conn_id: str, websocket: WebSocket, notification: Dict[str, Any]):
             try:
                 # Send with timeout
                 with anyio.fail_after(5.0):  # 5-second timeout
                     await websocket.send_json(notification)
-                
+
                 # Update last activity timestamp
                 if conn_id in self.active_connections:
                     self.active_connections[conn_id]["last_activity"] = time.time()
-                
+
                 # Report success
                 await send_stream.send((conn_id, True, None))
             except Exception as e:
                 # Report error
                 await send_stream.send((conn_id, False, str(e)))
-        
+
         # Send notifications concurrently
         async with anyio.create_task_group() as tg:
             # Start all send tasks
             for conn_id, websocket, notification in send_tasks:
                 tg.start_soon(send_notification, conn_id, websocket, notification)
-            
+
             # Close send stream when all tasks are done
             tg.start_soon(send_stream.aclose)
-        
+
         # Collect results
         async with receive_stream:
             async for conn_id, success, error in receive_stream:
                 if success:
                     sent_count += 1
-                    
+
                     # Update metrics
                     self.metrics["notifications_sent"] += 1
                 else:
@@ -437,7 +437,7 @@ class NotificationManager:
                         "error": error
                     })
                     logger.error(f"Error sending notification to {conn_id}: {error}")
-        
+
         return {
             "success": True,
             "notification_type": notification_type,
@@ -445,17 +445,17 @@ class NotificationManager:
             "recipients_sent": sent_count,
             "errors": errors
         }
-    
-    async def notify_all(self, notification_type: str, data: Dict[str, Any], 
+
+    async def notify_all(self, notification_type: str, data: Dict[str, Any],
                        source: Optional[str] = None) -> Dict[str, Any]:
         """
         Send a notification to all connected clients, regardless of subscription.
-        
+
         Args:
             notification_type: Type of notification to send
             data: Notification data
             source: Optional source of the notification
-            
+
         Returns:
             Dict with notification results
         """
@@ -466,18 +466,18 @@ class NotificationManager:
             "data": data,
             "timestamp": time.time()
         }
-        
+
         if source:
             notification["source"] = source
-        
+
         # Add to history
         self.event_history.append(notification)
         if len(self.event_history) > self.max_history_size:
             self.event_history = self.event_history[-self.max_history_size:]
-        
+
         # Use memory streams to collect results
         send_stream, receive_stream = anyio.create_memory_object_stream(len(self.active_connections))
-        
+
         # Function to send notification and report result
         async def send_notification(conn_id: str, websocket: WebSocket, notification: Dict[str, Any]):
             try:
@@ -485,40 +485,40 @@ class NotificationManager:
                 if websocket.client_state == WebSocketState.DISCONNECTED:
                     await send_stream.send((conn_id, False, "WebSocket disconnected"))
                     return
-                
+
                 # Send with timeout
                 with anyio.fail_after(5.0):  # 5-second timeout
                     await websocket.send_json(notification)
-                
+
                 # Update last activity timestamp
                 if conn_id in self.active_connections:
                     self.active_connections[conn_id]["last_activity"] = time.time()
-                
+
                 # Report success
                 await send_stream.send((conn_id, True, None))
             except Exception as e:
                 # Report error
                 await send_stream.send((conn_id, False, str(e)))
-        
+
         # Send notifications concurrently
         async with anyio.create_task_group() as tg:
             # Start all send tasks
             for conn_id, connection in self.active_connections.items():
                 websocket = connection["websocket"]
                 tg.start_soon(send_notification, conn_id, websocket, notification.copy())
-            
+
             # Close send stream when all tasks are done
             tg.start_soon(send_stream.aclose)
-        
+
         # Collect results
         sent_count = 0
         errors = []
-        
+
         async with receive_stream:
             async for conn_id, success, error in receive_stream:
                 if success:
                     sent_count += 1
-                    
+
                     # Update metrics
                     self.metrics["notifications_sent"] += 1
                 else:
@@ -527,7 +527,7 @@ class NotificationManager:
                         "error": error
                     })
                     logger.error(f"Error sending system notification to {conn_id}: {error}")
-        
+
         return {
             "success": True,
             "notification_type": notification_type,
@@ -535,14 +535,14 @@ class NotificationManager:
             "recipients_sent": sent_count,
             "errors": errors
         }
-    
+
     async def get_connection_info(self, connection_id: str) -> Dict[str, Any]:
         """
         Get information about a specific connection.
-        
+
         Args:
             connection_id: ID of the connection
-            
+
         Returns:
             Dict with connection information
         """
@@ -551,9 +551,9 @@ class NotificationManager:
                 "success": False,
                 "error": "Connection not found"
             }
-        
+
         connection = self.active_connections[connection_id]
-        
+
         return {
             "success": True,
             "connection_id": connection_id,
@@ -563,41 +563,41 @@ class NotificationManager:
             "last_activity": connection["last_activity"],
             "duration": time.time() - connection["connected_at"]
         }
-    
+
     def get_metrics(self) -> Dict[str, Any]:
         """
         Get current notification metrics.
-        
+
         Returns:
             Dict with notification metrics
         """
         # Update active connections count
         self.metrics["active_connections"] = len(self.active_connections)
-        
+
         # Add timestamp
         metrics = self.metrics.copy()
         metrics["timestamp"] = time.time()
-        
+
         return metrics
-    
+
     def _passes_filters(self, notification: Dict[str, Any], filters: Dict[str, Any]) -> bool:
         """
         Check if a notification passes the specified filters.
-        
+
         Args:
             notification: The notification to check
             filters: The filters to apply
-            
+
         Returns:
             True if the notification passes the filters, False otherwise
         """
         # If no filters, always pass
         if not filters:
             return True
-        
+
         # Check each filter
         data = notification.get("data", {})
-        
+
         for key, value in filters.items():
             # Handle nested keys with dot notation (e.g., "data.cid")
             if "." in key:
@@ -608,28 +608,28 @@ class NotificationManager:
                         current = current[part]
                     else:
                         return False  # Key path doesn't exist
-                
+
                 # Compare the value
                 if current != value:
                     return False
-            
+
             # Direct key in data
             elif key in data and data[key] != value:
                 return False
-        
+
         # All filters passed
         return True
-    
+
     async def start_maintenance(self, inactive_timeout: float = 300.0, check_interval: float = 60.0):
         """
         Start background maintenance tasks.
-        
+
         Args:
             inactive_timeout: Time in seconds after which inactive connections are closed
             check_interval: How often to check for inactive connections
         """
         self.task_group = anyio.create_task_group()
-        
+
         # Define the maintenance task
         async def maintenance_task():
             while True:
@@ -637,32 +637,32 @@ class NotificationManager:
                     # Check for inactive connections
                     now = time.time()
                     inactive_connections = []
-                    
+
                     for conn_id, connection in self.active_connections.items():
                         inactive_time = now - connection["last_activity"]
                         if inactive_time > inactive_timeout:
                             inactive_connections.append(conn_id)
-                    
+
                     # Close inactive connections
                     for conn_id in inactive_connections:
                         if conn_id in self.active_connections:
                             # Get the WebSocket
                             websocket = self.active_connections[conn_id]["websocket"]
-                            
+
                             # Try to close it properly
                             try:
                                 with anyio.fail_after(5.0):  # 5-second timeout
                                     await websocket.close(code=1000, reason="Inactivity timeout")
                             except Exception as e:
                                 logger.error(f"Error closing inactive connection {conn_id}: {e}")
-                            
+
                             # Disconnect it from the manager
                             self.disconnect(conn_id)
                             logger.info(f"Closed inactive connection: {conn_id}")
-                    
+
                     # Wait until next check
                     await anyio.sleep(check_interval)
-                    
+
                 except anyio.get_cancelled_exc_class():
                     logger.debug("Maintenance task cancelled")
                     break
@@ -670,12 +670,12 @@ class NotificationManager:
                     logger.error(f"Error in maintenance task: {e}")
                     # Wait a bit before retrying
                     await anyio.sleep(check_interval)
-        
+
         # Start the maintenance task
         await self.task_group.__aenter__()
         self.task_group.start_soon(maintenance_task)
         logger.info("Started notification system maintenance tasks")
-    
+
     async def stop_maintenance(self):
         """Stop background maintenance tasks."""
         if self.task_group:
@@ -695,20 +695,20 @@ notification_manager = NotificationManager()
 async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
     """
     Handle a WebSocket connection for notifications.
-    
+
     Args:
         websocket: The WebSocket connection
         ipfs_api: IPFS API instance (optional)
     """
     # Generate a unique connection ID
     connection_id = f"conn_{int(time.time() * 1000)}_{id(websocket)}"
-    
+
     try:
         # Register connection with timeout handling
         try:
             with anyio.fail_after(5.0):  # 5-second timeout
                 success = await notification_manager.connect(websocket, connection_id)
-            
+
             # Return early if connection failed
             if not success:
                 logger.error(f"Failed to register connection: {connection_id}")
@@ -716,7 +716,7 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
         except anyio.TimeoutError:
             logger.error(f"Timeout registering connection: {connection_id}")
             return
-        
+
         # Send welcome message with timeout handling
         try:
             with anyio.fail_after(5.0):  # 5-second timeout
@@ -735,27 +735,27 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
             logger.error(f"Error sending welcome message: {e}")
             notification_manager.disconnect(connection_id)
             return
-        
+
         # Main connection management loop
         connection_active = True
         last_activity_time = time.time()
         ping_interval = 30  # Send ping every 30 seconds of inactivity
-        
+
         while connection_active:
             try:
                 # Calculate time until next ping
                 time_since_activity = time.time() - last_activity_time
                 timeout = max(1.0, ping_interval - time_since_activity)
-                
+
                 # Wait for message with timeout
                 with anyio.fail_after(timeout):
                     # Receive JSON message with proper error handling
                     try:
                         message = await websocket.receive_json()
-                        
+
                         # Update activity time
                         last_activity_time = time.time()
-                        
+
                         # Process the message
                         if "action" not in message:
                             await websocket.send_json({
@@ -764,39 +764,39 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                                 "timestamp": time.time()
                             })
                             continue
-                        
+
                         action = message["action"]
-                        
+
                         if action == "subscribe":
                             # Subscribe to notification types
                             notification_types = message.get("notification_types", [])
                             filters = message.get("filters")
-                            
+
                             result = await notification_manager.subscribe(
                                 connection_id, notification_types, filters
                             )
-                            
+
                             # Log subscriptions for debugging
                             if result["success"]:
                                 logger.debug(f"Client {connection_id} subscribed to: {result['subscribed_types']}")
-                        
+
                         elif action == "unsubscribe":
                             # Unsubscribe from notification types
                             notification_types = message.get("notification_types", [])
-                            
+
                             result = await notification_manager.unsubscribe(
                                 connection_id, notification_types
                             )
-                            
+
                             # Log remaining subscriptions
                             if result["success"]:
                                 logger.debug(f"Client {connection_id} remaining subscriptions: {result['remaining_subscriptions']}")
-                        
+
                         elif action == "get_history":
                             # Get event history
                             limit = message.get("limit", 100)
                             notification_type = message.get("notification_type")
-                            
+
                             # Filter history based on type if specified
                             if notification_type:
                                 history = [
@@ -805,10 +805,10 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                                 ]
                             else:
                                 history = notification_manager.event_history
-                            
+
                             # Apply limit
                             history = history[-limit:]
-                            
+
                             # Send history with timeout
                             with anyio.fail_after(10.0):  # 10-second timeout for potentially large response
                                 await websocket.send_json({
@@ -817,34 +817,34 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                                     "count": len(history),
                                     "timestamp": time.time()
                                 })
-                        
+
                         elif action == "ping":
                             # Simple ping-pong for connection testing
                             await websocket.send_json({
                                 "type": "pong",
                                 "timestamp": time.time()
                             })
-                        
+
                         elif action == "get_metrics":
                             # Get notification system metrics
                             metrics = notification_manager.get_metrics()
-                            
+
                             await websocket.send_json({
                                 "type": "metrics",
                                 "metrics": metrics,
                                 "timestamp": time.time()
                             })
-                        
+
                         elif action == "get_info":
                             # Get connection info
                             info = await notification_manager.get_connection_info(connection_id)
-                            
+
                             await websocket.send_json({
                                 "type": "connection_info",
                                 "info": info,
                                 "timestamp": time.time()
                             })
-                        
+
                         else:
                             # Unknown action
                             await websocket.send_json({
@@ -852,7 +852,7 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                                 "error": f"Unknown action: {action}",
                                 "timestamp": time.time()
                             })
-                    
+
                     except WebSocketDisconnect:
                         logger.info(f"WebSocket disconnect during receive: {connection_id}")
                         connection_active = False
@@ -868,11 +868,11 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                         # Only close on serious errors
                         if "connection" in str(e).lower() or "closed" in str(e).lower():
                             connection_active = False
-            
+
             except anyio.TimeoutError:
                 # No message received within timeout - send a ping
                 time_since_activity = time.time() - last_activity_time
-                
+
                 if time_since_activity >= ping_interval:
                     try:
                         # Check if the connection is still active
@@ -880,7 +880,7 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                             logger.debug(f"WebSocket no longer connected: {connection_id}")
                             connection_active = False
                             break
-                        
+
                         # Send ping with timeout
                         with anyio.fail_after(5.0):  # 5-second ping timeout
                             await websocket.send_json({
@@ -893,11 +893,11 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
                         # Any error during ping means the connection is probably dead
                         logger.info(f"Error sending ping, closing connection {connection_id}: {e}")
                         connection_active = False
-            
+
             except Exception as e:
                 logger.error(f"Unexpected error in WebSocket handler: {e}")
                 connection_active = False
-    
+
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected normally: {connection_id}")
     except Exception as e:
@@ -905,10 +905,10 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
     finally:
         # Always clean up the connection
         notification_manager.disconnect(connection_id)
-        
+
         # Ensure socket is closed
         try:
-            if (hasattr(websocket, 'client_state') and 
+            if (hasattr(websocket, 'client_state') and
                 websocket.client_state != WebSocketState.DISCONNECTED):
                 with anyio.fail_after(2.0):  # 2-second close timeout
                     await websocket.close(code=1000, reason="Connection complete")
@@ -917,19 +917,19 @@ async def handle_notification_websocket(websocket: WebSocket, ipfs_api=None):
 
 
 # Function to emit events from IPFS operations to WebSocket subscribers
-async def emit_event(notification_type: str, data: Dict[str, Any], 
+async def emit_event(notification_type: str, data: Dict[str, Any],
                    source: Optional[str] = None) -> Dict[str, Any]:
     """
     Emit an event to all subscribed WebSocket clients.
-    
+
     This function should be called from various parts of the IPFS Kit
     when events occur that clients might be interested in.
-    
+
     Args:
         notification_type: Type of notification (use NotificationType enum)
         data: Event data to include in the notification
         source: Optional source of the event
-        
+
     Returns:
         Dict with notification results
     """
@@ -948,11 +948,11 @@ async def emit_event(notification_type: str, data: Dict[str, Any],
 def register_notification_websocket(app: FastAPI, path: str = "/api/v0/notifications/ws"):
     """
     Register notification WebSocket endpoint with FastAPI.
-    
+
     Args:
         app: FastAPI application
         path: WebSocket endpoint path
-        
+
     Returns:
         True if registration was successful
     """
@@ -961,17 +961,17 @@ def register_notification_websocket(app: FastAPI, path: str = "/api/v0/notificat
         @app.websocket(path)
         async def notifications_websocket(websocket: WebSocket):
             await handle_notification_websocket(websocket)
-        
+
         # Add startup event to start maintenance tasks
         @app.on_event("startup")
         async def start_notification_maintenance():
             await notification_manager.start_maintenance()
-        
+
         # Add shutdown event to stop maintenance tasks
         @app.on_event("shutdown")
         async def stop_notification_maintenance():
             await notification_manager.stop_maintenance()
-        
+
         logger.info(f"Registered notification WebSocket endpoint at {path}")
         return True
     except Exception as e:
@@ -1018,13 +1018,13 @@ class NotificationClient {
         this.socket.onclose = (event) => {
           console.log(`WebSocket closed: ${event.code} - ${event.reason}`);
           this.connected = false;
-          
+
           // Try to reconnect
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             const delay = Math.pow(2, this.reconnectAttempts) * 1000; // Exponential backoff
             console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-            
+
             setTimeout(() => {
               this.connect().catch(err => console.error("Reconnect failed:", err));
             }, delay);
@@ -1161,34 +1161,34 @@ class NotificationClient {
 async def run_example():
     """Run a simple example of the notification WebSocket system."""
     print("Running notification WebSocket example...")
-    
+
     # Mock WebSocket for local testing
     class MockWebSocket:
         def __init__(self):
             self.client_state = WebSocketState.CONNECTED
             self.sent_messages = []
             self.client = None
-            
+
         async def accept(self):
             print("WebSocket connection accepted")
-            
+
         async def send_json(self, data):
             self.sent_messages.append(data)
             print(f"Sent: {data['type']}")
-            
+
         async def close(self, code=1000, reason=""):
             self.client_state = WebSocketState.DISCONNECTED
             print(f"WebSocket closed: {code} - {reason}")
-    
+
     # Create mock WebSocket
     websocket = MockWebSocket()
-    
+
     # Handle WebSocket connection
     connection_task = handle_notification_websocket(websocket)
-    
+
     # Wait a bit
     await anyio.sleep(1)
-    
+
     # Simulate receiving a subscription message
     websocket.receive_json = lambda: {
         "action": "subscribe",
@@ -1197,28 +1197,28 @@ async def run_example():
             NotificationType.SYSTEM_INFO.value
         ]
     }
-    
+
     # Wait for processing
     await anyio.sleep(1)
-    
+
     # Emit a test event
     await emit_event(
         NotificationType.CONTENT_ADDED.value,
         {"cid": "QmTest123", "size": 1024},
         "test_source"
     )
-    
+
     # Wait for notification to be processed
     await anyio.sleep(1)
-    
+
     # Print received messages
     print("\nReceived messages:")
     for i, msg in enumerate(websocket.sent_messages):
         print(f"{i+1}. {msg['type']}")
-    
+
     # Clean up
     websocket.client_state = WebSocketState.DISCONNECTED
-    
+
     print("Example completed")
 
 

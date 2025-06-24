@@ -25,7 +25,7 @@ for base_url in urls_to_try:
             print(f"Found working health endpoint at: {health_url}")
             print(f"Response: {response.text}")
             print("\nNow testing IPFS cat endpoint...")
-            
+
             # Try the test CID
             test_cid = "QmTest123"
             cat_url = f"{base_url}/ipfs/cat/{test_cid}"

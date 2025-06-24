@@ -428,7 +428,7 @@ class TestContentAwarePrefetchManager(unittest.TestCase):
 
         self.prefetch_manager.prefetch_thread_pool.submit = mock_submit
 
-        # Ensure prefetching is enabled 
+        # Ensure prefetching is enabled
         self.prefetch_manager.config["enabled"] = True
 
         # Ensure the content analyzer is set up to return prefetch_ahead = True for video

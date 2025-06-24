@@ -57,7 +57,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 try:
     import pandas as pd
     PANDAS_AVAILABLE = True
-    
+
     # Check if pandas is a real module or a mock
     if not hasattr(pd, 'DataFrame'):
         # It's a mock, so create DataFrame attribute
@@ -87,19 +87,19 @@ try:
 
 except ImportError:
     PANDAS_AVAILABLE = False
-    
+
     # Create a mock pandas module
     class MockPandas:
         def __init__(self):
             class DataFrame:
                 def __init__(self, *args, **kwargs):
                     pass
-                    
+
                 def to_numpy(self, *args, **kwargs):
                     return None
-            
+
             self.DataFrame = DataFrame
-            
+
     # Add to sys.modules
     sys.modules['pandas'] = MockPandas()
     logging.info("Created mock pandas module")
@@ -108,20 +108,20 @@ except ImportError:
 try:
     import numpy as np
     NUMPY_AVAILABLE = True
-    
+
     # Check if numpy is a real module or a mock
     if not hasattr(np, 'array'):
         np.array = MagicMock(return_value=None)
-        
+
 except ImportError:
     NUMPY_AVAILABLE = False
-    
+
     # Create a mock numpy module
     class MockNumpy:
         def __init__(self):
             self.array = lambda x, *args, **kwargs: x
             self.ndarray = type('ndarray', (), {})
-            
+
     # Add to sys.modules
     sys.modules['numpy'] = MockNumpy()
     logging.info("Created mock numpy module")

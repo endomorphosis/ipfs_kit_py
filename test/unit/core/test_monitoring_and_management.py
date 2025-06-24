@@ -80,13 +80,13 @@ def monitoring_cluster():
 
 class TestClusterHealthMonitoring:
     """Test cluster health monitoring capabilities."""
-    
+
     @classmethod
     def setup_class(cls):
         """Set up the event loop for all tests in this class."""
         cls.loop = anyio.new_event_loop()
         anyio.set_event_loop(cls.loop)
-        
+
     @classmethod
     def teardown_class(cls):
         """Clean up the event loop after all tests in this class."""
@@ -483,13 +483,13 @@ class TestClusterHealthMonitoring:
 
 class TestPerformanceVisualization:
     """Test performance visualization and metrics systems."""
-    
+
     @classmethod
     def setup_class(cls):
         """Set up the event loop for all tests in this class."""
         cls.loop = anyio.new_event_loop()
         anyio.set_event_loop(cls.loop)
-        
+
     @classmethod
     def teardown_class(cls):
         """Clean up the event loop after all tests in this class."""
@@ -806,13 +806,13 @@ class TestPerformanceVisualization:
 
 class TestConfigurationManagement:
     """Test configuration management tools."""
-    
+
     @classmethod
     def setup_class(cls):
         """Set up the event loop for all tests in this class."""
         cls.loop = anyio.new_event_loop()
         anyio.set_event_loop(cls.loop)
-        
+
     @classmethod
     def teardown_class(cls):
         """Clean up the event loop after all tests in this class."""

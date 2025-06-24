@@ -24,7 +24,7 @@ The nine least significant bits represent `ugo-rwx`
 The next three least significant bits represent setuid, setgid and the sticky bit.
 The remaining 20 bits are reserved for future use, and are subject to change.
 
-Spec implementations MUST handle bits they do not expect as follows: 
+Spec implementations MUST handle bits they do not expect as follows:
 - For future-proofing the (de)serialization layer must preserve the entire
   `uint32` value during clone/copy operations, modifying only bit values that
   have a well defined meaning:

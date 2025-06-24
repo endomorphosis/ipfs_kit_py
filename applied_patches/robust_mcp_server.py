@@ -42,9 +42,9 @@ SERVER_ID = str(uuid.uuid4())
 def check_ipfs_daemon():
     """Check if IPFS daemon is running."""
     try:
-        result = subprocess.run(["ipfs", "version"], 
-                              capture_output=True, 
-                              text=True, 
+        result = subprocess.run(["ipfs", "version"],
+                              capture_output=True,
+                              text=True,
                               timeout=5)
         return result.returncode == 0
     except Exception as e:
@@ -56,7 +56,7 @@ def start_ipfs_daemon():
     if not check_ipfs_daemon():
         try:
             # Start daemon in background
-            subprocess.Popen(["ipfs", "daemon", "--routing=dhtclient"], 
+            subprocess.Popen(["ipfs", "daemon", "--routing=dhtclient"],
                            stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
             # Wait a moment for it to initialize
@@ -72,13 +72,13 @@ def run_ipfs_command(command, input_data=None):
     try:
         full_command = ["ipfs"] + command
         if input_data:
-            result = subprocess.run(full_command, 
+            result = subprocess.run(full_command,
                                   input=input_data,
                                   capture_output=True)
         else:
-            result = subprocess.run(full_command, 
+            result = subprocess.run(full_command,
                                   capture_output=True)
-        
+
         if result.returncode == 0:
             return {"success": True, "output": result.stdout}
         else:
@@ -140,7 +140,7 @@ router = APIRouter()
 async def health():
     """Health check endpoint."""
     ipfs_running = check_ipfs_daemon()
-    
+
     health_info = {
         "success": True,
         "status": "healthy" if ipfs_running else "degraded",
@@ -154,7 +154,7 @@ async def health():
         },
         "storage_backends": storage_backends
     }
-    
+
     return health_info
 
 # Storage health endpoint
@@ -175,7 +175,7 @@ async def ipfs_version():
     """Get IPFS version information."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["version"])
     if result["success"]:
         try:
@@ -193,7 +193,7 @@ async def ipfs_add(file: UploadFile = File(...)):
     """Add a file to IPFS."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     try:
         # Create a temporary file to store the uploaded content
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -201,24 +201,24 @@ async def ipfs_add(file: UploadFile = File(...)):
             content = await file.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
-        
+
         # Add the file to IPFS
         result = run_ipfs_command(["add", "-q", temp_file_path])
-        
+
         # Clean up the temporary file
         os.unlink(temp_file_path)
-        
+
         if result["success"]:
             cid = result["output"].decode('utf-8').strip()
             return {
-                "success": True, 
+                "success": True,
                 "cid": cid,
                 "size": len(content),
                 "name": file.filename
             }
         else:
             return {"success": False, "error": result["error"]}
-    
+
     except Exception as e:
         logger.error(f"Error adding file to IPFS: {e}")
         return {"success": False, "error": str(e)}
@@ -229,13 +229,13 @@ async def ipfs_cat(cid: str):
     """Get content from IPFS by CID."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["cat", cid])
     if result["success"]:
         # Use StreamingResponse to handle large files efficiently
         async def content_generator():
             yield result["output"]
-        
+
         return StreamingResponse(
             content_generator(),
             media_type="application/octet-stream"
@@ -249,7 +249,7 @@ async def ipfs_pin_add(cid: str = Form(...)):
     """Pin content in IPFS by CID."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["pin", "add", cid])
     if result["success"]:
         return {"success": True, "cid": cid, "pinned": True}
@@ -262,20 +262,20 @@ async def ipfs_pin_list():
     """List pinned content in IPFS."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["pin", "ls", "--type=recursive"])
     if result["success"]:
         try:
             output = result["output"].decode('utf-8').strip()
             pins = {}
-            
+
             for line in output.split('\n'):
                 if line:
                     parts = line.split(' ')
                     if len(parts) >= 2:
                         cid = parts[0]
                         pins[cid] = {"type": "recursive"}
-            
+
             return {"success": True, "pins": pins}
         except Exception as e:
             logger.error(f"Error parsing pin list: {e}")
@@ -301,19 +301,19 @@ app.include_router(router, prefix=API_PREFIX)
 if __name__ == "__main__":
     # Create necessary directories
     os.makedirs("logs", exist_ok=True)
-    
+
     # Start IPFS daemon if not running
     start_ipfs_daemon()
-    
+
     # Write PID file
     with open("robust_mcp_server.pid", "w") as f:
         f.write(str(os.getpid()))
-    
+
     # Run server
     logger.info(f"Starting robust MCP server on port {PORT}")
     logger.info(f"API prefix: {API_PREFIX}")
     logger.info(f"Server ID: {SERVER_ID}")
-    
+
     uvicorn.run(
         "robust_mcp_server:app",
         host=HOST,

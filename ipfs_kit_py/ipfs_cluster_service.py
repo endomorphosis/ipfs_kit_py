@@ -238,12 +238,12 @@ class ipfs_cluster_service:
                 logger.info("IPFS cluster service configuration not found. Initializing...")
                 # Set up initialization result tracking
                 result["initialization_attempted"] = True
-                
+
                 # Use a verified ID and private key pair
                 # These were generated together and are known to work properly
                 peer_id = "12D3KooWSipNgSzxfHJLBUVBwxih8yYzFzJ6e5WrrUVPbNRBgXXu"
                 private_key = "CAESQK+BaRfdTsG0zF7kJ78bfBmTkP1oP3XJw4OKKaX3xDWEyxpXgpF/fJzA/pDnpwsRB2dIBQl/C5PgOLUHvdE2V5g="
-                
+
                 # Create installation metadata with sane defaults
                 install_metadata = {
                     "role": getattr(self, "role", "leecher"),
@@ -251,28 +251,28 @@ class ipfs_cluster_service:
                     "cluster_name": "ipfs_kit_cluster",
                     "cluster_location": "/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWSipNgSzxfHJLBUVBwxih8yYzFzJ6e5WrrUVPbNRBgXXu"
                 }
-                
+
                 # First, ensure the cluster directory exists
                 try:
                     cluster_dir = os.path.expanduser("~/.ipfs-cluster")
                     if not os.path.exists(cluster_dir):
                         os.makedirs(cluster_dir, exist_ok=True)
                         logger.info(f"Created IPFS cluster directory at {cluster_dir}")
-                    
+
                     result["cluster_dir_created"] = os.path.exists(cluster_dir)
-                    
+
                     # Create necessary directories for proper operation
                     for subdir in ["raft", "datastore", "peerstore"]:
                         subdir_path = os.path.join(cluster_dir, subdir)
                         if not os.path.exists(subdir_path):
                             os.makedirs(subdir_path, exist_ok=True)
                             logger.info(f"Created {subdir} directory at {subdir_path}")
-                    
+
                     # Create a comprehensive configuration file based on the role
                     config_path = os.path.join(cluster_dir, "service.json")
                     if not os.path.exists(config_path):
                         logger.info("Creating service.json configuration file")
-                        
+
                         # Create role-specific configuration
                         if install_metadata["role"] == "master":
                             basic_config = {
@@ -393,13 +393,13 @@ class ipfs_cluster_service:
                                     }
                                 }
                             }
-                        
+
                         # Write configuration to file with proper error handling
                         try:
                             with open(config_path, 'w') as f:
                                 import json
                                 json.dump(basic_config, f, indent=2)
-                            
+
                             logger.info(f"Created role-specific configuration at {config_path}")
                             result["config_created"] = True
                         except Exception as e:
@@ -410,23 +410,23 @@ class ipfs_cluster_service:
                         logger.info(f"Configuration file already exists at {config_path}")
                         result["config_created"] = False
                         result["config_exists"] = True
-                    
+
                     # Initialize identity.json file which is required for the service to start
                     identity_path = os.path.join(cluster_dir, "identity.json")
                     if not os.path.exists(identity_path):
                         logger.info("Creating identity.json file")
-                        
+
                         # Create identity file with the same peer ID used in configuration
                         identity_config = {
                             "id": peer_id,
                             "private_key": private_key
                         }
-                        
+
                         try:
                             with open(identity_path, 'w') as f:
                                 import json
                                 json.dump(identity_config, f, indent=2)
-                            
+
                             logger.info(f"Created identity file at {identity_path}")
                             result["identity_created"] = True
                         except Exception as e:
@@ -437,17 +437,17 @@ class ipfs_cluster_service:
                         logger.info(f"Identity file already exists at {identity_path}")
                         result["identity_created"] = False
                         result["identity_exists"] = True
-                    
+
                     # Attempt binary installation as a secondary step
                     # This may fail if permissions or dependencies are issues, but we will
                     # still try to use what's available in the PATH
                     try:
                         # Import only when needed to handle potential import errors gracefully
                         from .install_ipfs import install_ipfs
-                        
+
                         # Initialize installer with proper resources and metadata
                         installer = install_ipfs(resources=self.resources, metadata=install_metadata)
-                        
+
                         # Install appropriate binaries based on role
                         if install_metadata["role"] == "master":
                             bin_result = installer.install_ipfs_cluster_service()
@@ -457,7 +457,7 @@ class ipfs_cluster_service:
                                 "path": str(bin_result) if bin_result is not False else ""
                             }
                             logger.info(f"IPFS cluster service binary installation: {bin_result}")
-                            
+
                         elif install_metadata["role"] == "worker":
                             bin_result = installer.install_ipfs_cluster_follow()
                             result["binary_installation"] = {
@@ -466,7 +466,7 @@ class ipfs_cluster_service:
                                 "path": str(bin_result) if bin_result is not False else ""
                             }
                             logger.info(f"IPFS cluster follow binary installation: {bin_result}")
-                        
+
                         else:  # leecher doesn't require cluster binaries, but we'll install ipfs-cluster-ctl
                             bin_result = installer.install_ipfs_cluster_ctl()
                             result["binary_installation"] = {
@@ -475,7 +475,7 @@ class ipfs_cluster_service:
                                 "path": str(bin_result) if bin_result is not False else ""
                             }
                             logger.info(f"IPFS cluster ctl binary installation: {bin_result}")
-                        
+
                     except ImportError as e:
                         logger.warning(f"Could not import install_ipfs module for binary installation: {str(e)}")
                         result["binary_installation"] = {
@@ -488,21 +488,21 @@ class ipfs_cluster_service:
                             "success": False,
                             "error": str(e)
                         }
-                
+
                 except Exception as e:
                     logger.error(f"Error during cluster initialization: {str(e)}")
                     result["initialization_error"] = str(e)
                     # Include traceback for debugging
                     import traceback
                     result["initialization_traceback"] = traceback.format_exc()
-                
+
                 # Record overall initialization status
                 initialization_success = (
-                    result.get("cluster_dir_created", False) and 
+                    result.get("cluster_dir_created", False) and
                     (result.get("config_created", False) or result.get("config_exists", False)) and
                     (result.get("identity_created", False) or result.get("identity_exists", False))
                 )
-                
+
                 if initialization_success:
                     logger.info("IPFS cluster service initialization completed successfully")
                     result["initialization"] = "completed"
@@ -532,7 +532,7 @@ class ipfs_cluster_service:
 
                 # Construct command arguments as a list for security
                 cmd_args = ["ipfs-cluster-service", "daemon"]
-                
+
                 # Create environment with necessary variables
                 env = os.environ.copy()
                 env["IPFS_CLUSTER_PATH"] = self.ipfs_cluster_path

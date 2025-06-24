@@ -32,7 +32,7 @@ def fix_numpy_mock():
         if not hasattr(numpy, '__version__'):
             numpy.__version__ = '1.24.0'  # Set a reasonable version
             logger.info("Added missing '__version__' attribute to numpy mock")
-        
+
         # Add other commonly needed numpy attributes
         for attr_name, value in {
             "_core": types.ModuleType("numpy._core"),
@@ -53,7 +53,7 @@ def fix_numpy_mock():
         }.items():
             if not hasattr(numpy, attr_name):
                 setattr(numpy, attr_name, value)
-                
+
         # Add _core._multiarray_umath
         if hasattr(numpy, "_core") and not hasattr(numpy._core, "_multiarray_umath"):
             numpy._core._multiarray_umath = types.ModuleType("numpy._core._multiarray_umath")

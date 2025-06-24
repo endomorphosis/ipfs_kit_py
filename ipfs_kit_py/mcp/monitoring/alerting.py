@@ -712,12 +712,12 @@ Annotations:
         <p><span class="label">Status:</span> {alert.status}</p>
         <p><span class="label">Time:</span> {datetime.fromtimestamp(alert.start_time).strftime("%Y-%m-%d %H:%M:%S")}</p>
         <p><span class="label">Value:</span> {alert.value} {alert.comparison} {alert.threshold}</p>
-        
+
         {f"<p>{alert.description}</p>" if alert.description else ""}
-        
+
         <h3>Labels:</h3>
         <pre>{json.dumps(alert.labels, indent=2)}</pre>
-        
+
         <h3>Annotations:</h3>
         <pre>{json.dumps(alert.annotations, indent=2)}</pre>
     </div>
@@ -800,12 +800,12 @@ Annotations:
         <p><span class="label">Started:</span> {datetime.fromtimestamp(alert.start_time).strftime("%Y-%m-%d %H:%M:%S")}</p>
         <p><span class="label">Resolved:</span> {datetime.fromtimestamp(alert.end_time).strftime("%Y-%m-%d %H:%M:%S") if alert.end_time else "Unknown"}</p>
         <p><span class="label">Duration:</span> {self._format_duration(alert.end_time - alert.start_time) if alert.end_time else "Unknown"}</p>
-        
+
         {f"<p>{alert.description}</p>" if alert.description else ""}
-        
+
         <h3>Labels:</h3>
         <pre>{json.dumps(alert.labels, indent=2)}</pre>
-        
+
         <h3>Annotations:</h3>
         <pre>{json.dumps(alert.annotations, indent=2)}</pre>
     </div>

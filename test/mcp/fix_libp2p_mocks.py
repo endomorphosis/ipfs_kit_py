@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Create a mock pytest_anyio module if it doesn't exist
 class MockPytestAnyio:
     """Mock implementation of pytest_anyio for tests."""
-    
+
     @staticmethod
     def fixture(*args, **kwargs):
         """Mock fixture decorator that acts like pytest.fixture."""
@@ -78,13 +78,13 @@ def apply_libp2p_mocks():
 
 def patch_mcp_command_handlers():
     """Patch MCP command handlers for tests.
-    
+
     Returns:
         bool: True if successful
     """
     try:
         logger.info("Patching MCP command handlers")
-        
+
         # Mock MCP command handlers for testing
         if 'ipfs_kit_py.mcp_server.controllers.command_dispatcher' in sys.modules:
             dispatcher_module = sys.modules['ipfs_kit_py.mcp_server.controllers.command_dispatcher']
@@ -96,7 +96,7 @@ def patch_mcp_command_handlers():
                     "timestamp": 123456789
                 })
                 logger.info("Patched CommandDispatcher.dispatch method")
-        
+
         # Alternatively, try the new module path
         if 'ipfs_kit_py.mcp.controllers.command_dispatcher' in sys.modules:
             dispatcher_module = sys.modules['ipfs_kit_py.mcp.controllers.command_dispatcher']
@@ -108,7 +108,7 @@ def patch_mcp_command_handlers():
                     "timestamp": 123456789
                 })
                 logger.info("Patched new path CommandDispatcher.dispatch method")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error patching MCP command handlers: {e}")

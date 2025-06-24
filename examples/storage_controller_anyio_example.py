@@ -64,7 +64,7 @@ def create_storage_example_app(
     backend: str = "asyncio",
 ) -> FastAPI:
     """Create a FastAPI application with storage controllers integration."""
-    
+
     # Initialize the FastAPI app
     app = FastAPI(
         title="IPFS Kit Storage Controllers Example",
@@ -73,7 +73,7 @@ def create_storage_example_app(
         docs_url="/docs",
         redoc_url="/redoc",
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -82,21 +82,21 @@ def create_storage_example_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Create a temporary directory for cache
     cache_dir = tempfile.mkdtemp(prefix="ipfs_storage_anyio_cache_")
     logger.info(f"Created temporary cache directory: {cache_dir}")
-    
+
     # Initialize the MCP server with AnyIO
     mcp_server = MCPServerAnyIO(
         debug_mode=debug_mode,
         persistence_path=cache_dir,
         async_backend=backend
     )
-    
+
     # Register the MCP server with the FastAPI app
     mcp_server.register_with_app(app, prefix=f"{api_prefix}/mcp")
-    
+
     # Add a welcome endpoint for testing
     @app.get("/")
     async def welcome():
@@ -106,14 +106,14 @@ def create_storage_example_app(
             current_backend = sniffio.current_async_library()
         except sniffio.AsyncLibraryNotFoundError:
             current_backend = "none"
-            
+
         # Get information about available storage backends
         storage_backends = []
-        
+
         for model_name, model in mcp_server.models.items():
             if model_name.startswith("storage_") or model_name in ["s3", "storacha", "huggingface"]:
                 storage_backends.append(model_name)
-        
+
         return {
             "success": True,
             "message": "Welcome to IPFS Kit Storage Controllers Example",
@@ -130,7 +130,7 @@ def create_storage_example_app(
             },
             "debug_mode": debug_mode,
         }
-    
+
     # Add a middleware for request timing
     @app.middleware("http")
     async def request_timer_middleware(request: Request, call_next):
@@ -141,26 +141,26 @@ def create_storage_example_app(
         response.headers["X-Process-Time"] = str(process_time)
         response.headers["X-Async-Backend"] = backend
         return response
-    
+
     # Add endpoint to get storage backends status
     @app.get(f"{api_prefix}/storage-backends")
     async def get_storage_backends():
         """Get status of all storage backends."""
         # Get storage manager controller
         storage_manager = mcp_server.controllers.get("storage_manager")
-        
+
         if not storage_manager:
             return {"success": False, "error": "Storage manager not available"}
-        
+
         # Check if we have the async method
         if hasattr(storage_manager, "handle_status_request_async"):
             result = await storage_manager.handle_status_request_async()
         else:
             # Fall back to sync method with anyio
             result = await anyio.to_thread.run_sync(storage_manager.handle_status_request)
-        
+
         return result
-    
+
     # Add example endpoint for transferring content between backends
     @app.post(f"{api_prefix}/storage-transfer")
     async def transfer_content(
@@ -172,10 +172,10 @@ def create_storage_example_app(
         """Transfer content between storage backends."""
         # Get storage manager controller
         storage_manager = mcp_server.controllers.get("storage_manager")
-        
+
         if not storage_manager:
             return {"success": False, "error": "Storage manager not available"}
-        
+
         # Check if we have the async method
         if hasattr(storage_manager, "handle_transfer_request_async"):
             result = await storage_manager.handle_transfer_request_async(
@@ -193,9 +193,9 @@ def create_storage_example_app(
                 target_backend=target_backend,
                 metadata=metadata or {}
             )
-        
+
         return result
-    
+
     # Add example endpoint for multi-backend verification
     @app.post(f"{api_prefix}/verify-content")
     async def verify_content(
@@ -205,10 +205,10 @@ def create_storage_example_app(
         """Verify content across multiple storage backends."""
         # Get storage manager controller
         storage_manager = mcp_server.controllers.get("storage_manager")
-        
+
         if not storage_manager:
             return {"success": False, "error": "Storage manager not available"}
-        
+
         # Check if we have the async method
         if hasattr(storage_manager, "handle_verify_request_async"):
             result = await storage_manager.handle_verify_request_async(
@@ -222,9 +222,9 @@ def create_storage_example_app(
                 content_id=content_id,
                 backends=backends
             )
-        
+
         return result
-    
+
     logger.info(f"Created FastAPI app with AnyIO-based storage controllers using {backend} backend")
     return app
 
@@ -239,12 +239,12 @@ def run_storage_example_server(
         debug_mode=debug_mode,
         backend=backend,
     )
-    
+
     logger.info(f"Starting storage controllers server on http://{host}:{port}")
     logger.info(f"Debug mode: {debug_mode}")
     logger.info(f"Using AnyIO with {backend} backend")
     logger.info(f"API docs available at http://{host}:{port}/docs")
-    
+
     # Run the FastAPI application
     uvicorn.run(app, host=host, port=port)
 
@@ -255,16 +255,16 @@ async def test_storage_api_async(
 ):
     """Example of calling the storage API endpoints asynchronously."""
     base_url = f"http://{host}:{port}{api_prefix}"
-    
+
     logger.info("Testing storage controllers API endpoints...")
-    
+
     # Use httpx for async HTTP requests
     try:
         import httpx
     except ImportError:
         logger.error("httpx is required for async HTTP tests. Install with: pip install httpx")
         return
-    
+
     async with httpx.AsyncClient() as client:
         # Test welcome endpoint
         try:
@@ -272,14 +272,14 @@ async def test_storage_api_async(
             logger.info(f"Welcome response: {response.json()}")
         except Exception as e:
             logger.error(f"Welcome endpoint check failed: {e}")
-        
+
         # Test storage backends endpoint
         try:
             response = await client.get(f"{base_url}/storage-backends")
             logger.info(f"Storage backends: {response.json()}")
         except Exception as e:
             logger.error(f"Storage backends check failed: {e}")
-        
+
         # Test IPFS add (to have content to transfer)
         try:
             test_content = b"Hello, Storage Controllers AnyIO!"
@@ -287,11 +287,11 @@ async def test_storage_api_async(
             response = await client.post(f"{base_url}/mcp/ipfs/add/file", files=files)
             result = response.json()
             logger.info(f"Add file result: {result}")
-            
+
             if result.get("success") and "cid" in result:
                 # Try a content transfer (IPFS -> S3 if configured)
                 cid = result["cid"]
-                
+
                 # This will likely fail without proper S3 configuration, but demonstrates the API
                 transfer_response = await client.post(
                     f"{base_url}/storage-transfer",
@@ -326,16 +326,16 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind the server")
     parser.add_argument("--port", type=int, default=9998, help="Port to bind the server")
-    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio", 
+    parser.add_argument("--backend", choices=["asyncio", "trio"], default="asyncio",
                         help="Async backend to use (asyncio or trio)")
-    parser.add_argument("--test-api", action="store_true", 
+    parser.add_argument("--test-api", action="store_true",
                         help="Just test the API endpoints without starting a server")
-    
+
     args = parser.parse_args()
-    
+
     if args.test_api:
         test_storage_api(
-            host=args.host, 
+            host=args.host,
             port=args.port,
             backend=args.backend
         )

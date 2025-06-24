@@ -273,7 +273,7 @@ IPFS_TOOLS = [
             "required": ["cid"]
         }
     },
-    
+
     # New FS Journal Tools
     {
         "name": "fs_journal_get_history",
@@ -320,7 +320,7 @@ IPFS_TOOLS = [
             }
         }
     },
-    
+
     # IPFS Bridge Tools
     {
         "name": "ipfs_fs_bridge_status",
@@ -356,7 +356,7 @@ IPFS_TOOLS = [
             }
         }
     },
-    
+
     # S3 Storage Tools
     {
         "name": "s3_store_file",
@@ -406,7 +406,7 @@ IPFS_TOOLS = [
             "required": ["local_path", "bucket", "key"]
         }
     },
-    
+
     # Filecoin Storage Tools
     {
         "name": "filecoin_store_file",
@@ -450,7 +450,7 @@ IPFS_TOOLS = [
             "required": ["deal_id", "local_path"]
         }
     },
-    
+
     # HuggingFace Integration Tools
     {
         "name": "huggingface_model_load",
@@ -497,7 +497,7 @@ IPFS_TOOLS = [
             "required": ["model_id", "input_text"]
         }
     },
-    
+
     # WebRTC Tools
     {
         "name": "webrtc_peer_connect",
@@ -549,7 +549,7 @@ IPFS_TOOLS = [
             "required": ["peer_id", "data"]
         }
     },
-    
+
     # Credential Management Tools
     {
         "name": "credential_store",

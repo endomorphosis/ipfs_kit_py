@@ -23,41 +23,41 @@ logger = logging.getLogger("add-missing-endpoints")
 def add_endpoints_to_server(server_path):
     """Add missing endpoints to the MCP server."""
     logger.info(f"Adding missing endpoints to {server_path}")
-    
+
     # Check if file exists
     if not os.path.exists(server_path):
         logger.error(f"Server file not found: {server_path}")
         return False
-    
+
     # Read the file content
     with open(server_path, "r") as f:
         content = f.read()
-    
+
     # Make a backup
     backup_path = f"{server_path}.bak.{int(os.path.getmtime(server_path))}"
     with open(backup_path, "w") as f:
         f.write(content)
     logger.info(f"Created backup at {backup_path}")
-    
+
     # Find where to add the endpoints
     init_router_pattern = r"(\s+)self\.router = APIRouter\(\)"
     match = re.search(init_router_pattern, content)
-    
+
     if not match:
         logger.error("Could not find the router initialization")
         return False
-    
+
     # Find the self._register_controller_routes() line
     register_routes_pattern = r"(\s+)self\._register_controller_routes\(\)"
     routes_match = re.search(register_routes_pattern, content)
-    
+
     if not routes_match:
         logger.error("Could not find the controller routes registration")
         return False
-    
+
     indent = routes_match.group(1)  # Extract the indentation level
     position = routes_match.start()
-    
+
     # Create the new endpoints code
     new_endpoints = f"""
 {indent}# Add basic routes to the router
@@ -87,7 +87,7 @@ def add_endpoints_to_server(server_path):
 {indent}    import sys
 {indent}    import anyio
 {indent}    import fastapi
-{indent}    
+{indent}
 {indent}    versions = {{}}
 {indent}    if hasattr(self.models["ipfs"], "get_version"):
 {indent}        try:
@@ -97,7 +97,7 @@ def add_endpoints_to_server(server_path):
 {indent}            versions["ipfs"] = {{"success": False, "error": str(e)}}
 {indent}    else:
 {indent}        versions["ipfs"] = {{"success": False, "version": "unknown"}}
-{indent}    
+{indent}
 {indent}    return {{
 {indent}        "success": True,
 {indent}        "server": getattr(self, 'version', '0.1.0'),
@@ -125,23 +125,23 @@ def add_endpoints_to_server(server_path):
 {indent}        }}
 {indent}    }}
 """
-    
+
     # Insert the new endpoints before the route registration
     modified_content = content[:position] + new_endpoints + content[position:]
-    
+
     # Write the modified content back to the file
     with open(server_path, "w") as f:
         f.write(modified_content)
-    
+
     logger.info("Successfully added missing endpoints to the server")
     return True
 
 if __name__ == "__main__":
-    server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+    server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "ipfs_kit_py", "mcp", "server.py")
-    
+
     if len(sys.argv) > 1:
         server_path = sys.argv[1]
-    
+
     success = add_endpoints_to_server(server_path)
     sys.exit(0 if success else 1)

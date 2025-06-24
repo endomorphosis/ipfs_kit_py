@@ -22,7 +22,7 @@ def test_endpoint(url, method="GET", data=None, expected_status=200, description
         else:
             print(f"  ❌ Unsupported method: {method}")
             return False
-        
+
         if response.status_code == expected_status:
             print(f"  ✅ Status code: {response.status_code}")
             try:
@@ -45,24 +45,24 @@ def test_sse_endpoint(url):
     print(f"Testing SSE endpoint: {url}")
     try:
         response = requests.get(url, stream=True, timeout=5)
-        
+
         if response.status_code != 200:
             print(f"  ❌ Unexpected status code: {response.status_code}")
             return False
-        
+
         # Check headers for SSE content type
         content_type = response.headers.get('Content-Type', '')
         if 'text/event-stream' not in content_type:
             print(f"  ❌ Not an SSE stream. Content-Type: {content_type}")
             response.close()
             return False
-        
+
         # Try to read the first event
         print("  Waiting for initial event...")
         line_count = 0
         found_connected = False
         found_data = False
-        
+
         for line in response.iter_lines(decode_unicode=True):
             line_count += 1
             if line:
@@ -71,14 +71,14 @@ def test_sse_endpoint(url):
                     found_connected = True
                 elif line.startswith('data:'):
                     found_data = True
-            
+
             if found_connected and found_data:
                 print("  ✅ SSE endpoint working properly")
                 break
-                
+
             if line_count > 10:
                 break
-        
+
         response.close()
         return found_connected and found_data
     except Exception as e:
@@ -88,21 +88,21 @@ def test_sse_endpoint(url):
 def run_tests():
     """Run all MCP tools tests."""
     results = {}
-    
+
     # Test root endpoint
     results["root"] = test_endpoint(BASE_URL, description="Root endpoint")
-    
+
     # Test SSE endpoints
     results["sse_root"] = test_sse_endpoint(f"{BASE_URL}/sse")
     results["sse_api"] = test_sse_endpoint(f"{API_URL}/sse")
-    
+
     # Test IPFS endpoints
     results["ipfs_version"] = test_endpoint(f"{API_URL}/ipfs/version", description="IPFS Version")
-    
+
     # Test Storage endpoints
-    results["storage_manager"] = test_endpoint(f"{API_URL}/storage_manager/list_backends", 
+    results["storage_manager"] = test_endpoint(f"{API_URL}/storage_manager/list_backends",
                                                description="Storage backends")
-    
+
     # Print summary
     print("\n=== Summary ===")
     all_passed = True
@@ -111,7 +111,7 @@ def run_tests():
         print(f"{name}: {status}")
         if not result:
             all_passed = False
-    
+
     if all_passed:
         print("\nAll MCP tools are working correctly! 🎉")
         return 0

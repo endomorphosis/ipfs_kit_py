@@ -28,24 +28,24 @@ def backup_file(file_path):
 def fix_tool_class():
     """Fix the Tool class implementation."""
     direct_mcp_file = Path("direct_mcp_server.py")
-    
+
     # Create a backup
     backup_file(direct_mcp_file)
-    
+
     with open(direct_mcp_file, 'r') as f:
         content = f.read()
-    
+
     # Look for the Tool class definition
     lines = content.split('\n')
     tool_class_start = None
     tool_class_end = None
     indentation = 4  # Default indentation
-    
+
     for i, line in enumerate(lines):
         if "class Tool:" in line or "class Tool(object):" in line:
             tool_class_start = i
             indentation = len(line) - len(line.lstrip())
-            
+
             # Find where the class ends
             for j in range(i + 1, len(lines)):
                 # Next class or function at the same indentation level marks the end
@@ -53,27 +53,27 @@ def fix_tool_class():
                     if lines[j].lstrip().startswith(('class ', 'def ', '@')):
                         tool_class_end = j
                         break
-            
+
             # If we didn't find the end, it goes to the end of the file
             if tool_class_end is None:
                 tool_class_end = len(lines)
-            
+
             break
-    
+
     if tool_class_start is None:
         logger.error("Could not find the Tool class definition in the file.")
         return False
-    
+
     # Check if the 'use' method already exists
     use_method_exists = False
     for i in range(tool_class_start, tool_class_end):
         if "def use(" in lines[i]:
             use_method_exists = True
             break
-    
+
     if use_method_exists:
         logger.info("The 'use' method already exists in the Tool class.")
-        
+
         # We need to fix the implementation
         modified_lines = lines.copy()
         for i in range(tool_class_start, tool_class_end):
@@ -82,12 +82,12 @@ def fix_tool_class():
                 method_start = i
                 method_body_indentation = len(lines[i + 1]) - len(lines[i + 1].lstrip()) if i + 1 < len(lines) else indentation + 4
                 method_end = method_start + 1
-                
+
                 for j in range(method_start + 1, tool_class_end):
                     if lines[j].strip() and len(lines[j]) - len(lines[j].lstrip()) < method_body_indentation:
                         method_end = j
                         break
-                
+
                 # Replace with our implementation
                 new_method = [
                     f"{' ' * indentation}async def use(self, arguments):",
@@ -105,42 +105,42 @@ def fix_tool_class():
                     f"{' ' * (indentation + 4)}else:",
                     f"{' ' * (indentation + 8)}raise ValueError(f\"Tool {{self.name}} has no handler method.\")",
                 ]
-                
+
                 modified_lines[method_start:method_end] = new_method
                 break
-        
+
         # Update the content with our modified lines
         modified_content = '\n'.join(modified_lines)
-        
+
         # Add import for inspect if not already there
         if "import inspect" not in modified_content:
             import_line = "import inspect"
             import_section_end = 0
-            
+
             # Find a good place to insert the import
             for i, line in enumerate(modified_lines):
                 if line.startswith('import ') or line.startswith('from '):
                     import_section_end = i + 1
-            
+
             modified_lines.insert(import_section_end, import_line)
             modified_content = '\n'.join(modified_lines)
-        
+
         # Write the modified content
         with open(direct_mcp_file, 'w') as f:
             f.write(modified_content)
-        
+
         logger.info("Successfully updated the 'use' method in the Tool class")
         return True
     else:
         # Add the 'use' method to the Tool class
         tool_class_lines = lines[tool_class_start:tool_class_end]
         last_method_line = tool_class_start
-        
+
         # Find the last method in the class to insert after it
         for i, line in enumerate(tool_class_lines):
             if line.strip().startswith('def '):
                 last_method_line = tool_class_start + i
-        
+
         # Create the 'use' method
         use_method = [
             "",  # Empty line before the method
@@ -159,37 +159,37 @@ def fix_tool_class():
             f"{' ' * (indentation + 4)}else:",
             f"{' ' * (indentation + 8)}raise ValueError(f\"Tool {{self.name}} has no handler method.\")",
         ]
-        
+
         # Insert the method into the class
         modified_lines = lines[:last_method_line + 1] + use_method + lines[last_method_line + 1:]
-        
+
         # Update the content
         modified_content = '\n'.join(modified_lines)
-        
+
         # Add import for inspect if not already there
         if "import inspect" not in modified_content:
             import_line = "import inspect"
             import_section_end = 0
-            
+
             # Find a good place to insert the import
             for i, line in enumerate(modified_lines):
                 if line.startswith('import ') or line.startswith('from '):
                     import_section_end = i + 1
-            
+
             modified_lines.insert(import_section_end, import_line)
             modified_content = '\n'.join(modified_lines)
-        
+
         # Write the modified content
         with open(direct_mcp_file, 'w') as f:
             f.write(modified_content)
-        
+
         logger.info("Successfully added the 'use' method to the Tool class")
         return True
 
 def main():
     """Main function."""
     logger.info("Fixing Tool class implementation...")
-    
+
     if fix_tool_class():
         logger.info("\n✅ Tool class implementation fixed")
         logger.info("The MCP server should now be able to use tools through JSON-RPC")

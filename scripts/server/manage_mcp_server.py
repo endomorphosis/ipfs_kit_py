@@ -76,19 +76,19 @@ def find_mcp_process() -> Optional[psutil.Process]:
                 os.remove(PID_FILE)
         except Exception as e:
             logger.warning(f"Error reading PID file: {e}")
-    
+
     # Search for MCP server processes
     for process in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
             cmdline = " ".join(process.cmdline()) if process.cmdline() else ""
-            if ("enhanced_mcp_server.py" in cmdline or 
-                "fixed_mcp_server.py" in cmdline or 
+            if ("enhanced_mcp_server.py" in cmdline or
+                "fixed_mcp_server.py" in cmdline or
                 "real_mcp_server.py" in cmdline):
                 logger.info(f"Found MCP server process: {process.pid}: {cmdline}")
                 return process
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
-    
+
     return None
 
 def check_mcp_server_health(port: int = DEFAULT_MCP_PORT) -> Dict[str, Any]:
@@ -123,19 +123,19 @@ def kill_mcp_server(process: psutil.Process) -> bool:
     try:
         logger.info(f"Terminating MCP server process {process.pid}")
         process.terminate()
-        
+
         # Wait for the process to terminate
         gone, alive = psutil.wait_procs([process], timeout=DEFAULT_TIMEOUT)
         if alive:
             logger.warning(f"Process {process.pid} did not terminate, forcing kill")
             process.kill()
-        
+
         logger.info(f"MCP server process {process.pid} terminated")
-        
+
         # Remove PID file if it exists
         if os.path.exists(PID_FILE):
             os.remove(PID_FILE)
-            
+
         return True
     except Exception as e:
         logger.error(f"Error killing MCP server process: {e}")
@@ -144,7 +144,7 @@ def kill_mcp_server(process: psutil.Process) -> bool:
 def setup_real_implementations() -> bool:
     """Set up real implementations for all storage backends."""
     logger.info("Setting up real implementations for storage backends...")
-    
+
     # Source the real credentials file
     try:
         if os.path.exists("real_mcp_credentials.sh"):
@@ -154,7 +154,7 @@ def setup_real_implementations() -> bool:
                 ["bash", "-c", "source ./real_mcp_credentials.sh && env"],
                 universal_newlines=True
             )
-            
+
             # Parse the output and set environment variables
             for line in output.splitlines():
                 if "=" in line:
@@ -166,10 +166,10 @@ def setup_real_implementations() -> bool:
             logger.warning("real_mcp_credentials.sh not found, using default credentials")
     except Exception as e:
         logger.error(f"Error sourcing real_mcp_credentials.sh: {e}")
-    
+
     # Run setup scripts for each storage backend
     setup_results = {}
-    
+
     # HuggingFace setup
     if os.path.exists("setup_huggingface.py"):
         logger.info("Running HuggingFace setup script")
@@ -187,7 +187,7 @@ def setup_real_implementations() -> bool:
         except Exception as e:
             logger.error(f"Error running HuggingFace setup: {e}")
             setup_results["huggingface"] = False
-    
+
     # S3 setup
     if os.path.exists("setup_s3.py"):
         logger.info("Running S3 setup script")
@@ -205,7 +205,7 @@ def setup_real_implementations() -> bool:
         except Exception as e:
             logger.error(f"Error running S3 setup: {e}")
             setup_results["s3"] = False
-    
+
     # Filecoin setup
     if os.path.exists("setup_filecoin.py"):
         logger.info("Running Filecoin setup script")
@@ -223,7 +223,7 @@ def setup_real_implementations() -> bool:
         except Exception as e:
             logger.error(f"Error running Filecoin setup: {e}")
             setup_results["filecoin"] = False
-    
+
     # Storacha setup
     if os.path.exists("setup_storacha.py"):
         logger.info("Running Storacha setup script")
@@ -241,7 +241,7 @@ def setup_real_implementations() -> bool:
         except Exception as e:
             logger.error(f"Error running Storacha setup: {e}")
             setup_results["storacha"] = False
-    
+
     # Lassie setup
     if os.path.exists("setup_lassie.py"):
         logger.info("Running Lassie setup script")
@@ -259,7 +259,7 @@ def setup_real_implementations() -> bool:
         except Exception as e:
             logger.error(f"Error running Lassie setup: {e}")
             setup_results["lassie"] = False
-    
+
     # Run the fix_storage_backends script to handle any remaining issues
     if os.path.exists("fix_storage_backends.py"):
         logger.info("Running fix_storage_backends.py to handle any remaining issues")
@@ -275,29 +275,29 @@ def setup_real_implementations() -> bool:
                 logger.warning(f"Storage backend fixes failed: {result.stderr}")
         except Exception as e:
             logger.error(f"Error running storage backend fixes: {e}")
-    
+
     # Check overall results
     success_count = sum(1 for result in setup_results.values() if result)
     total_count = len(setup_results)
-    
+
     logger.info(f"Real implementation setup complete: {success_count}/{total_count} backends set up successfully")
     return success_count > 0
 
 def start_mcp_server(port: int, debug: bool = False, real_implementations: bool = False) -> Optional[psutil.Process]:
     """Start the MCP server."""
     logger.info(f"Starting MCP server on port {port} (debug={debug}, real_implementations={real_implementations})")
-    
+
     # First check if port is already in use
     if is_port_in_use(port):
         logger.warning(f"Port {port} is already in use")
-        
+
         # Try to find the process using this port
         for process in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 for conn in process.connections(kind='inet'):
                     if conn.laddr.port == port and conn.status == 'LISTEN':
                         logger.info(f"Process using port {port}: {process.pid} {process.name()} {' '.join(process.cmdline())}")
-                        
+
                         # Check if it's an MCP server process
                         cmdline = " ".join(process.cmdline())
                         if "enhanced_mcp_server.py" in cmdline or "fixed_mcp_server.py" in cmdline or "real_mcp_server.py" in cmdline:
@@ -305,15 +305,15 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
                             return process
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
-        
+
         # If we reached here, the port is in use but not by an MCP server
         logger.error(f"Port {port} is in use by another application, cannot start MCP server")
         return None
-    
+
     # Set up real implementations if requested
     if real_implementations:
         setup_real_implementations()
-    
+
     # Determine which MCP server script to use
     if os.path.exists("enhanced_mcp_server.py"):
         mcp_script = "enhanced_mcp_server.py"
@@ -322,12 +322,12 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
     else:
         logger.error("No MCP server script found")
         return None
-    
+
     # Start the MCP server
     cmd = [sys.executable, mcp_script, "--port", str(port)]
     if debug:
         cmd.append("--debug")
-    
+
     try:
         logger.info(f"Executing: {' '.join(cmd)}")
         process = subprocess.Popen(
@@ -338,10 +338,10 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
             bufsize=1,
             universal_newlines=True
         )
-        
+
         # Wait a moment for the server to start
         time.sleep(2)
-        
+
         # Check if the process is still running
         if process.poll() is not None:
             stdout, stderr = process.communicate()
@@ -349,9 +349,9 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
             logger.error(f"STDOUT: {stdout}")
             logger.error(f"STDERR: {stderr}")
             return None
-        
+
         logger.info(f"Started MCP server process with PID {process.pid}")
-        
+
         # Check health to confirm it's working
         health_check_attempts = 5
         for attempt in range(health_check_attempts):
@@ -363,7 +363,7 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
             else:
                 logger.warning(f"MCP server not healthy yet: {health.get('error', 'Unknown error')}")
                 time.sleep(2)
-        
+
         logger.error("MCP server did not become healthy within timeout")
         return psutil.Process(process.pid)
     except Exception as e:
@@ -373,7 +373,7 @@ def start_mcp_server(port: int, debug: bool = False, real_implementations: bool 
 def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port: int) -> bool:
     """Fix a specific storage backend."""
     logger.info(f"Fixing storage backend: {backend_name}")
-    
+
     # Implement specific fixes based on backend type and status
     if backend_name == "huggingface":
         # Fix HuggingFace backend
@@ -391,7 +391,7 @@ def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port:
                     logger.warning(f"Failed to fix HuggingFace backend: {result.stderr}")
             except Exception as e:
                 logger.error(f"Error fixing HuggingFace backend: {e}")
-    
+
     elif backend_name == "s3":
         # Fix S3 backend
         if os.path.exists("setup_s3.py"):
@@ -408,7 +408,7 @@ def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port:
                     logger.warning(f"Failed to fix S3 backend: {result.stderr}")
             except Exception as e:
                 logger.error(f"Error fixing S3 backend: {e}")
-    
+
     elif backend_name == "filecoin":
         # Fix Filecoin backend
         if os.path.exists("setup_filecoin.py"):
@@ -425,7 +425,7 @@ def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port:
                     logger.warning(f"Failed to fix Filecoin backend: {result.stderr}")
             except Exception as e:
                 logger.error(f"Error fixing Filecoin backend: {e}")
-    
+
     elif backend_name == "storacha":
         # Fix Storacha backend
         if os.path.exists("setup_storacha.py"):
@@ -442,7 +442,7 @@ def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port:
                     logger.warning(f"Failed to fix Storacha backend: {result.stderr}")
             except Exception as e:
                 logger.error(f"Error fixing Storacha backend: {e}")
-    
+
     elif backend_name == "lassie":
         # Fix Lassie backend
         if os.path.exists("setup_lassie.py"):
@@ -459,7 +459,7 @@ def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port:
                     logger.warning(f"Failed to fix Lassie backend: {result.stderr}")
             except Exception as e:
                 logger.error(f"Error fixing Lassie backend: {e}")
-    
+
     # If we've reached here, we couldn't fix the backend with a specific setup script
     # Try to fix it with the general fix_storage_backends.py script
     if os.path.exists("fix_storage_backends.py"):
@@ -477,90 +477,90 @@ def fix_storage_backend(backend_name: str, backend_status: Dict[str, Any], port:
                 logger.warning(f"Failed to apply general fixes to {backend_name} backend: {result.stderr}")
         except Exception as e:
             logger.error(f"Error applying general fixes to {backend_name} backend: {e}")
-    
+
     return False
 
 def verify_and_fix_storage_backends(port: int) -> Dict[str, bool]:
     """Verify and fix all storage backends."""
     logger.info("Verifying and fixing storage backends...")
-    
+
     # Check current status
     backends = check_storage_backends(port)
-    
+
     if not backends:
         logger.warning("Could not retrieve storage backends status")
         return {}
-    
+
     # Track fixes applied
     fixes_applied = {}
-    
+
     # Check each backend
     for backend_name, backend_status in backends.items():
         # Skip IPFS and local backends as they should work natively
         if backend_name in ["ipfs", "local"]:
             fixes_applied[backend_name] = True
             continue
-        
+
         # Check if backend needs fixing
         needs_fixing = False
-        
+
         # Backend is not available
         if not backend_status.get("available", False):
             logger.warning(f"Backend {backend_name} is not available")
             needs_fixing = True
-        
+
         # Backend is in simulation mode
         elif backend_status.get("simulation", False):
             logger.warning(f"Backend {backend_name} is in simulation mode")
             needs_fixing = True
-        
+
         # Backend has an error
         elif "error" in backend_status and backend_status["error"]:
             logger.warning(f"Backend {backend_name} has an error: {backend_status['error']}")
             needs_fixing = True
-        
+
         # Apply fixes if needed
         if needs_fixing:
             fixes_applied[backend_name] = fix_storage_backend(backend_name, backend_status, port)
         else:
             logger.info(f"Backend {backend_name} is working correctly")
             fixes_applied[backend_name] = True
-    
+
     return fixes_applied
 
 def restart_mcp_server(process: psutil.Process, port: int, debug: bool = False, real_implementations: bool = False) -> Optional[psutil.Process]:
     """Restart the MCP server."""
     logger.info(f"Restarting MCP server (PID: {process.pid})")
-    
+
     # Kill the existing process
     if not kill_mcp_server(process):
         logger.error("Failed to kill existing MCP server")
         return None
-    
+
     # Wait a moment for the port to be released
     time.sleep(2)
-    
+
     # Start a new server
     return start_mcp_server(port, debug, real_implementations)
 
 def check_mcp_server_features(port: int) -> Dict[str, Any]:
     """Check all MCP server features to ensure they're working."""
     features = {}
-    
+
     # Check general health
     health = check_mcp_server_health(port)
     features["health"] = health.get("success", False)
-    
+
     # Check storage backends
     storage_backends = check_storage_backends(port)
     features["storage"] = {name: backend.get("available", False) for name, backend in storage_backends.items()}
-    
+
     # Check IPFS features
     try:
         # Check version endpoint
         version_response = requests.get(f"http://localhost:{port}/api/v0/ipfs/version", timeout=DEFAULT_TIMEOUT)
         features["ipfs_version"] = version_response.status_code == 200
-        
+
         # Try to add a small file
         test_data = b"Test data for IPFS add"
         files = {'file': ('test.txt', test_data)}
@@ -568,7 +568,7 @@ def check_mcp_server_features(port: int) -> Dict[str, Any]:
         if add_response.status_code == 200:
             add_result = add_response.json()
             features["ipfs_add"] = add_result.get("success", False)
-            
+
             # If add was successful, try to retrieve the content
             if features["ipfs_add"] and "cid" in add_result:
                 cid = add_result["cid"]
@@ -584,69 +584,69 @@ def check_mcp_server_features(port: int) -> Dict[str, Any]:
         features["ipfs_version"] = False
         features["ipfs_add"] = False
         features["ipfs_cat"] = False
-    
+
     return features
 
 def main():
     """Main function."""
     args = parse_arguments()
-    
+
     logger.info("MCP Server Manager")
     logger.info(f"Port: {args.port}")
     logger.info(f"Debug mode: {args.debug}")
     logger.info(f"Real implementations: {args.real_implementations}")
-    
+
     # First, check if MCP server is already running
     process = find_mcp_process()
-    
+
     if process:
         logger.info(f"Found MCP server process: {process.pid}")
-        
+
         # Check health to see if it's responsive
         health = check_mcp_server_health(args.port)
-        
+
         if health.get("success", False):
             logger.info("MCP server is healthy")
-            
+
             # Check features
             logger.info("Checking MCP server features")
             features = check_mcp_server_features(args.port)
-            
+
             all_features_working = all(features.values()) and all(features.get("storage", {}).values())
-            
+
             if all_features_working:
                 logger.info("All MCP server features are working correctly")
             else:
                 logger.warning("Some MCP server features are not working correctly")
                 logger.warning(f"Features status: {json.dumps(features, indent=2)}")
-                
+
                 # Check storage backends
                 logger.info("Checking storage backends")
                 storage_backends = check_storage_backends(args.port)
-                
+
                 # Apply fixes to storage backends if needed
                 if args.real_implementations:
                     logger.info("Setting up real implementations for storage backends")
                     setup_real_implementations()
-                
+
                 logger.info("Verifying and fixing storage backends")
                 fixes = verify_and_fix_storage_backends(args.port)
-                
+
                 # If we applied any fixes, restart the server to apply them
                 if any(not status for status in fixes.values()):
                     logger.info("Restarting MCP server to apply fixes")
                     process = restart_mcp_server(process, args.port, args.debug, args.real_implementations)
-                    
+
                     if not process:
                         logger.error("Failed to restart MCP server")
                         sys.exit(1)
-                        
+
                     # Check features again
                     logger.info("Checking MCP server features after restart")
                     features = check_mcp_server_features(args.port)
-                    
+
                     all_features_working = all(features.values()) and all(features.get("storage", {}).values())
-                    
+
                     if all_features_working:
                         logger.info("All MCP server features are now working correctly")
                     else:
@@ -654,18 +654,18 @@ def main():
                         logger.warning(f"Features status: {json.dumps(features, indent=2)}")
         else:
             logger.warning(f"MCP server is not healthy: {health.get('error', 'Unknown error')}")
-            
+
             # Restart the server
             logger.info("Restarting MCP server")
             process = restart_mcp_server(process, args.port, args.debug, args.real_implementations)
-            
+
             if not process:
                 logger.error("Failed to restart MCP server")
                 sys.exit(1)
-                
+
             # Check health again
             health = check_mcp_server_health(args.port)
-            
+
             if health.get("success", False):
                 logger.info("MCP server is now healthy")
             else:
@@ -673,42 +673,42 @@ def main():
                 sys.exit(1)
     else:
         logger.info("No MCP server process found, starting new server")
-        
+
         # Start new server
         process = start_mcp_server(args.port, args.debug, args.real_implementations)
-        
+
         if not process:
             logger.error("Failed to start MCP server")
             sys.exit(1)
-            
+
         logger.info(f"Started MCP server process: {process.pid}")
-        
+
         # Check health
         health = check_mcp_server_health(args.port)
-        
+
         if health.get("success", False):
             logger.info("MCP server is healthy")
-            
+
             # Verify and fix storage backends
             logger.info("Verifying and fixing storage backends")
             fixes = verify_and_fix_storage_backends(args.port)
-            
+
             # If we applied any fixes, restart the server to apply them
             if any(not status for status in fixes.values()):
                 logger.info("Restarting MCP server to apply fixes")
                 process = restart_mcp_server(process, args.port, args.debug, args.real_implementations)
-                
+
                 if not process:
                     logger.error("Failed to restart MCP server")
                     sys.exit(1)
         else:
             logger.error(f"MCP server is not healthy after start: {health.get('error', 'Unknown error')}")
             sys.exit(1)
-    
+
     # Final check
     logger.info("Final MCP server status:")
     health = check_mcp_server_health(args.port)
-    
+
     if health.get("success", False):
         logger.info("MCP server is healthy")
         logger.info(f"Storage backends: {json.dumps(health.get('storage_backends', {}), indent=2)}")

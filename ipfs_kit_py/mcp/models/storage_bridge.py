@@ -180,7 +180,7 @@ class StorageBridgeModel:
         """
         for backend_name, backend_model in self.backends.items():
             has_content = False
-            
+
             # Check if the backend has the content
             if hasattr(backend_model, "has_content"):
                 try:
@@ -205,10 +205,10 @@ class StorageBridgeModel:
                     # If we get an error, the content is not available
                     logger.debug(f"Error checking if IPFS has content {content_id}: {str(e)}")
                     continue
-            
+
             if has_content:
                 return backend_name
-        
+
         return None
 
     async def _async_find_content_source(self, content_id: str) -> Optional[str]:
@@ -223,7 +223,7 @@ class StorageBridgeModel:
         """
         for backend_name, backend_model in self.backends.items():
             has_content = False
-            
+
             # Check if the backend has the content using async methods if available
             if hasattr(backend_model, "async_has_content"):
                 try:
@@ -272,10 +272,10 @@ class StorageBridgeModel:
                         # If we get an error, the content is not available
                         logger.debug(f"Error checking if IPFS has content {content_id}: {str(e)}")
                         continue
-            
+
             if has_content:
                 return backend_name
-        
+
         return None
 
     def _get_content_from_backend(
@@ -364,7 +364,7 @@ class StorageBridgeModel:
                     # Clean up temporary file if it exists
                     if os.path.exists(temp_path):
                         os.unlink(temp_path)
-                    
+
                     # Return the download result
                     return dl_result or {
                         "success": False,
@@ -485,7 +485,7 @@ class StorageBridgeModel:
                     # Clean up temporary file if it exists
                     if os.path.exists(temp_path):
                         os.unlink(temp_path)
-                    
+
                     # Return the download result
                     return dl_result or {
                         "success": False,

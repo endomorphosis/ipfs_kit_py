@@ -66,7 +66,7 @@ if missing_deps:
 try:
     from ipfs_kit_py.mcp.utils.file_watcher import MCPFileWatcher
     HAS_FILE_WATCHER = True
-    
+
     try:
         from ipfs_kit_py.mcp.utils.dashboard import MCPDashboard
         HAS_DASHBOARD = True
@@ -87,22 +87,22 @@ class ServerTypes:
     ENHANCED = "enhanced"
     FIXED = "fixed"
     WEBRTC = "webrtc"
-    
+
     @classmethod
     def get_all(cls):
         """Get all supported server types."""
         return [
-            cls.SYNC, cls.ANYIO, cls.REAL, cls.STORAGE, 
+            cls.SYNC, cls.ANYIO, cls.REAL, cls.STORAGE,
             cls.ENHANCED, cls.FIXED, cls.WEBRTC
         ]
 
 def get_server_class(server_type: str):
     """
     Get the appropriate server class based on server type.
-    
+
     Args:
         server_type: Type of server (sync, anyio, real, storage, etc.)
-        
+
     Returns:
         Server class or None if not found
     """
@@ -143,7 +143,7 @@ def get_server_class(server_type: str):
 
 class MCPServerRunner:
     """Consolidated runner for all MCP server types."""
-    
+
     def __init__(
         self,
         server_type: str = ServerTypes.ANYIO,
@@ -173,7 +173,7 @@ class MCPServerRunner:
     ):
         """
         Initialize the server runner with comprehensive options.
-        
+
         Args:
             server_type: Type of server (sync, anyio, real, storage, etc.)
             debug_mode: Enable debug mode
@@ -224,18 +224,18 @@ class MCPServerRunner:
         self.webrtc_config = webrtc_config or {}
         self.metrics_enabled = metrics_enabled
         self.metrics_config = metrics_config or {}
-        
+
         # Server and app
         self.server = None
         self.app = None
         self.file_watcher = None
         self.shutdown_event = threading.Event()
-        
+
         # Get server class based on server type
         self.server_class = get_server_class(server_type)
         if not self.server_class:
             raise ValueError(f"Server type '{server_type}' is not available")
-        
+
         # Initialize server arguments
         self.server_args = {
             'debug_mode': debug_mode,
@@ -244,50 +244,50 @@ class MCPServerRunner:
             'skip_daemon': skip_daemon,
             'config': config
         }
-        
+
         # Add persistence path if provided
         if persistence_path:
             self.server_args['persistence_path'] = persistence_path
-            
+
         # Add storage configuration if required
         if server_type == ServerTypes.STORAGE and self.storage_config:
             self.server_args['storage_config'] = self.storage_config
-            
+
         # Add daemon configuration
         if auto_start_daemons:
             self.server_args['auto_start_daemons'] = True
-        
+
         if daemon_health_monitor:
             self.server_args['daemon_health_monitor'] = True
-            
+
         # Add WebRTC configuration if enabled
         if webrtc_enabled and self.webrtc_config:
             self.server_args['webrtc_enabled'] = True
             self.server_args['webrtc_config'] = self.webrtc_config
-            
+
         # Add metrics configuration if enabled
         if metrics_enabled and self.metrics_config:
             self.server_args['metrics_enabled'] = True
             self.server_args['metrics_config'] = self.metrics_config
-        
+
         logger.info(f"Initialized MCPServerRunner with {server_type} server")
-        
+
         # Print dashboard status if relevant
         if self.dashboard_enabled:
             logger.info("Dashboard enabled for real-time monitoring")
-    
+
     def start(self):
         """Start the server with all configured options."""
         # Print banner
         self._print_banner()
-        
+
         # Create FastAPI app
         self.app = FastAPI(
             title="IPFS MCP Server",
             description="Model-Controller-Persistence Server for IPFS Kit",
             version="1.0.0"
         )
-        
+
         # Create server instance
         logger.info(f"Creating {self.server_type} server instance")
         try:
@@ -296,7 +296,7 @@ class MCPServerRunner:
             logger.error(f"Failed to create server: {e}")
             logger.error(traceback.format_exc())
             return False
-        
+
         # Register server with app
         logger.info(f"Registering server with app at prefix: {self.api_prefix}")
         try:
@@ -309,7 +309,7 @@ class MCPServerRunner:
             logger.error(f"Failed to register server with app: {e}")
             logger.error(traceback.format_exc())
             return False
-            
+
         # Add root endpoint if it doesn't exist
         if '/' not in [route.path for route in self.app.routes]:
             @self.app.get("/")
@@ -322,20 +322,20 @@ class MCPServerRunner:
                         daemon_info["ipfs_daemon_running"] = self.server.ipfs_kit.check_daemon_status('ipfs').get("running", False)
                     except Exception:
                         daemon_info["ipfs_daemon_running"] = False
-                        
+
                 if hasattr(self.server, 'ipfs_kit') and hasattr(self.server.ipfs_kit, 'auto_start_daemons'):
                     daemon_info["auto_start_daemons"] = self.server.ipfs_kit.auto_start_daemons
-                    
+
                 if self.daemon_health_monitor and hasattr(self.server, 'ipfs_kit') and hasattr(self.server.ipfs_kit, 'is_daemon_health_monitor_running'):
                     daemon_info["daemon_monitor_running"] = self.server.ipfs_kit.is_daemon_health_monitor_running()
-                
+
                 # List available controllers if any
                 controllers = []
                 if hasattr(self.server, 'controllers'):
                     controllers = list(self.server.controllers.keys())
-                
+
                 return {
-                    "message": "MCP Server is running", 
+                    "message": "MCP Server is running",
                     "server_type": self.server_type,
                     "debug_mode": self.debug_mode,
                     "isolation_mode": self.isolation_mode,
@@ -343,11 +343,11 @@ class MCPServerRunner:
                     "daemon_status": daemon_info,
                     "documentation": "/docs"
                 }
-        
+
         # Set up file watcher if enabled
         if self.watch_mode:
             self._setup_file_watcher()
-        
+
         # Add shutdown event handler
         @self.app.on_event("shutdown")
         async def shutdown_event():
@@ -355,14 +355,14 @@ class MCPServerRunner:
             if self.server:
                 logger.info("FastAPI shutdown event received, cleaning up server")
                 self._cleanup_server()
-        
+
         # Register signal handlers for graceful shutdown
         self._setup_signal_handlers()
-        
+
         # Start the server using uvicorn
         logger.info(f"Starting server at http://{self.host}:{self.port}")
         os.environ["ANYIO_BACKEND"] = self.backend
-        
+
         # Create uvicorn config
         config = uvicorn.Config(
             app=self.app,
@@ -371,7 +371,7 @@ class MCPServerRunner:
             log_level=self.log_level.lower()
         )
         server = uvicorn.Server(config)
-        
+
         # Start server (will block until server stops)
         try:
             server.run()
@@ -385,18 +385,18 @@ class MCPServerRunner:
             logger.error(traceback.format_exc())
             self._cleanup()
             return False
-    
+
     def _setup_file_watcher(self):
         """Set up file watcher for hot reloading."""
         if not HAS_FILE_WATCHER:
             logger.warning("File watcher not available, running without hot reloading")
             return
-            
+
         logger.info("Setting up file watcher for hot reloading")
-        
+
         # Get project root directory
         project_root = os.path.abspath(os.path.dirname(__file__))
-        
+
         # Initialize file watcher
         try:
             self.file_watcher = MCPFileWatcher(
@@ -409,20 +409,20 @@ class MCPServerRunner:
                 server_args=self.server_args,
                 use_dashboard=self.dashboard_enabled
             )
-            
+
             # Configure dashboard if enabled
             if self.dashboard_enabled and hasattr(self.file_watcher, 'dashboard') and self.file_watcher.dashboard:
                 dashboard_interval = self.dashboard_config.get('update_interval', 1.0)
                 if dashboard_interval != 1.0:
                     self.file_watcher.dashboard.update_interval = dashboard_interval
-            
+
             # Start file watcher
             self.file_watcher.start()
             logger.info("File watcher started successfully")
         except Exception as e:
             logger.error(f"Failed to set up file watcher: {e}")
             logger.error(traceback.format_exc())
-    
+
     def _setup_signal_handlers(self):
         """Set up signal handlers for graceful shutdown."""
         def signal_handler(sig, frame):
@@ -431,16 +431,16 @@ class MCPServerRunner:
             self._cleanup()
             # Let the process terminate naturally after cleanup
             sys.exit(0)
-            
+
         # Register handlers for SIGINT (Ctrl+C) and SIGTERM
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
-    
+
     def _cleanup_server(self):
         """Clean up server resources."""
         if self.server:
             logger.info("Shutting down server")
-            
+
             # Determine correct shutdown method
             try:
                 if hasattr(self.server, 'sync_shutdown'):
@@ -453,13 +453,13 @@ class MCPServerRunner:
                     logger.warning("No suitable shutdown method found for server")
             except Exception as e:
                 logger.error(f"Error during server shutdown: {e}")
-                
+
             self.server = None
-    
+
     def _cleanup(self):
         """Clean up all resources."""
         logger.info("Cleaning up resources")
-        
+
         # Stop file watcher
         if self.file_watcher:
             logger.info("Stopping file watcher")
@@ -467,14 +467,14 @@ class MCPServerRunner:
                 self.file_watcher.stop()
             except Exception as e:
                 logger.error(f"Error stopping file watcher: {e}")
-                
+
             self.file_watcher = None
-        
+
         # Shut down server
         self._cleanup_server()
-        
+
         logger.info("Cleanup complete")
-    
+
     def _print_banner(self):
         """Print a banner for the server."""
         banner = f"""
@@ -496,36 +496,36 @@ def main():
         description="Consolidated MCP Server Runner for IPFS Kit",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    
+
     # Server configuration
     server_group = parser.add_argument_group("Server Configuration")
     server_group.add_argument("--server-type", choices=ServerTypes.get_all(), default=ServerTypes.ANYIO,
                         help="Server type")
     server_group.add_argument("--debug", action="store_true", help="Enable debug mode")
     server_group.add_argument("--isolation", action="store_true", help="Enable isolation mode")
-    server_group.add_argument("--log-level", default="INFO", 
+    server_group.add_argument("--log-level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
                         help="Logging level")
     server_group.add_argument("--port", type=int, default=8000, help="Port to run the server on")
     server_group.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     server_group.add_argument("--persistence-path", help="Path for persistence files")
     server_group.add_argument("--api-prefix", default="/api/v0", help="Prefix for API endpoints")
-    server_group.add_argument("--backend", default="asyncio", choices=["asyncio", "trio"], 
+    server_group.add_argument("--backend", default="asyncio", choices=["asyncio", "trio"],
                         help="AnyIO backend to use")
-    server_group.add_argument("--skip-daemon", action="store_true", 
+    server_group.add_argument("--skip-daemon", action="store_true",
                         help="Skip IPFS daemon initialization")
     server_group.add_argument("--config", help="Path to JSON configuration file")
-    
+
     # Daemon configuration
     daemon_group = parser.add_argument_group("Daemon Configuration")
     daemon_group.add_argument("--auto-start-daemons", action="store_true",
                         help="Automatically start required daemons")
     daemon_group.add_argument("--daemon-health-monitor", action="store_true",
                         help="Enable daemon health monitoring")
-    
+
     # File watcher configuration
     watcher_group = parser.add_argument_group("File Watcher Configuration")
-    watcher_group.add_argument("--watch-mode", action="store_true", 
+    watcher_group.add_argument("--watch-mode", action="store_true",
                         help="Enable file watching and hot reload")
     watcher_group.add_argument("--watch-dir", action="append", dest="watch_dirs", default=[],
                         help="Additional directories to watch (can be specified multiple times)")
@@ -533,39 +533,39 @@ def main():
                         help="Directories to ignore (can be specified multiple times)")
     watcher_group.add_argument("--ignore-pattern", action="append", dest="ignore_patterns", default=[],
                         help="File patterns to ignore (can be specified multiple times)")
-    
+
     # Dashboard configuration
     dashboard_group = parser.add_argument_group("Dashboard Configuration")
-    dashboard_group.add_argument("--dashboard", action="store_true", 
+    dashboard_group.add_argument("--dashboard", action="store_true",
                         help="Enable the real-time dashboard")
     dashboard_group.add_argument("--dashboard-interval", type=float, default=1.0,
                         help="Dashboard update interval in seconds")
-    
+
     # Storage configuration
     storage_group = parser.add_argument_group("Storage Configuration")
     storage_group.add_argument("--storage-backend", choices=["local", "s3", "ipfs", "filecoin"],
                         help="Storage backend to use")
     storage_group.add_argument("--storage-path", help="Path for local storage")
     storage_group.add_argument("--storage-config", help="Path to storage configuration JSON file")
-    
+
     # WebRTC configuration
     webrtc_group = parser.add_argument_group("WebRTC Configuration")
-    webrtc_group.add_argument("--webrtc-enabled", action="store_true", 
+    webrtc_group.add_argument("--webrtc-enabled", action="store_true",
                         help="Enable WebRTC functionality")
     webrtc_group.add_argument("--webrtc-config", help="Path to WebRTC configuration JSON file")
-    
+
     # Metrics configuration
     metrics_group = parser.add_argument_group("Metrics Configuration")
-    metrics_group.add_argument("--metrics-enabled", action="store_true", 
+    metrics_group.add_argument("--metrics-enabled", action="store_true",
                         help="Enable metrics collection")
     metrics_group.add_argument("--metrics-config", help="Path to metrics configuration JSON file")
-    
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Set logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level))
-    
+
     # Load configuration from file if specified
     config = {}
     if args.config and os.path.exists(args.config):
@@ -576,15 +576,15 @@ def main():
         except Exception as e:
             logger.error(f"Failed to load configuration from {args.config}: {e}")
             return 1
-    
+
     # Load storage configuration if specified
     storage_config = {}
     if args.storage_backend:
         storage_config["backend"] = args.storage_backend
-        
+
     if args.storage_path:
         storage_config["path"] = args.storage_path
-        
+
     if args.storage_config and os.path.exists(args.storage_config):
         try:
             with open(args.storage_config, 'r') as f:
@@ -593,7 +593,7 @@ def main():
         except Exception as e:
             logger.error(f"Failed to load storage configuration from {args.storage_config}: {e}")
             return 1
-    
+
     # Load WebRTC configuration if specified
     webrtc_config = {}
     if args.webrtc_config and os.path.exists(args.webrtc_config):
@@ -604,7 +604,7 @@ def main():
         except Exception as e:
             logger.error(f"Failed to load WebRTC configuration from {args.webrtc_config}: {e}")
             return 1
-    
+
     # Load metrics configuration if specified
     metrics_config = {}
     if args.metrics_config and os.path.exists(args.metrics_config):
@@ -615,12 +615,12 @@ def main():
         except Exception as e:
             logger.error(f"Failed to load metrics configuration from {args.metrics_config}: {e}")
             return 1
-    
+
     # Initialize dashboard configuration
     dashboard_config = {
         'update_interval': args.dashboard_interval
     }
-    
+
     # Create server runner
     try:
         runner = MCPServerRunner(
@@ -652,7 +652,7 @@ def main():
     except ValueError as e:
         logger.error(f"Error creating server runner: {e}")
         return 1
-    
+
     # Start server
     try:
         success = runner.start()

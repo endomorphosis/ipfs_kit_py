@@ -29,7 +29,7 @@ try:
     from ipfs_kit_py.mcp.auth.auth_integration import initialize_auth_system, get_auth_system
     from ipfs_kit_py.mcp.auth.models import User, Role, Permission
     from ipfs_kit_py.mcp.auth.router import get_current_user, get_admin_user
-    
+
     # Enhanced Components
     from ipfs_kit_py.mcp.auth.enhanced_backend_middleware import BackendAuthorizationMiddleware
     from ipfs_kit_py.mcp.auth.api_key_enhanced import EnhancedAPIKeyManager
@@ -52,7 +52,7 @@ class MCPAuthIntegrator:
     """
     Helper class for integrating Advanced Authentication & Authorization with MCP server.
     """
-    
+
     def __init__(self):
         """Initialize auth integrator."""
         self.initialized = False
@@ -61,31 +61,31 @@ class MCPAuthIntegrator:
         self.api_key_manager = None
         self.oauth_manager = None
         self.backend_middleware = None
-    
+
     async def initialize(
-        self, 
-        app: FastAPI, 
+        self,
+        app: FastAPI,
         backend_manager: Any = None,
         config: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Initialize and integrate the auth system.
-        
+
         Args:
             app: FastAPI application
             backend_manager: Backend manager instance
             config: Optional configuration dictionary
-            
+
         Returns:
             Success flag
         """
         if not AUTH_IMPORTS_SUCCESSFUL:
             logger.error("Auth component imports failed - cannot initialize")
             return False
-        
+
         try:
             logger.info("Initializing MCP Auth System...")
-            
+
             # Default configuration
             default_config = {
                 "data_dir": os.path.join(os.path.expanduser("~"), ".ipfs_kit", "auth"),
@@ -98,7 +98,7 @@ class MCPAuthIntegrator:
                 "default_roles": ["admin", "user", "readonly", "backend_manager"],
                 "custom_roles": []
             }
-            
+
             # Merge with provided config
             if config:
                 # Deep merge for nested dictionaries like oauth_providers
@@ -109,7 +109,7 @@ class MCPAuthIntegrator:
                         default_config[key].extend(value)
                     else:
                         default_config[key] = value
-            
+
             # Ensure data directories exist
             os.makedirs(default_config["data_dir"], exist_ok=True)
             rbac_dir = os.path.join(default_config["data_dir"], "rbac")
@@ -118,7 +118,7 @@ class MCPAuthIntegrator:
             os.makedirs(api_keys_dir, exist_ok=True)
             audit_dir = os.path.join(default_config["data_dir"], "audit")
             os.makedirs(audit_dir, exist_ok=True)
-            
+
             # Initialize core auth system
             self.auth_system = await initialize_auth_system(
                 app=app,
@@ -132,46 +132,46 @@ class MCPAuthIntegrator:
                     "oauth_providers": default_config["oauth_providers"]
                 }
             )
-            
+
             # Get core managers
             self.rbac_manager = self.auth_system.rbac_manager
             self.api_key_manager = self.auth_system.apikey_manager
             self.oauth_manager = self.auth_system.oauth_manager
             self.backend_middleware = self.auth_system.backend_middleware
-            
+
             # Configure default admin account
             await self._ensure_admin_account(
                 username=default_config["admin_username"],
                 password=default_config["admin_password"]
             )
-            
+
             # Configure custom roles
             if default_config["custom_roles"]:
                 await self.auth_system.configure_roles(default_config["custom_roles"])
-            
+
             self.initialized = True
             logger.info("MCP Auth System initialized successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error initializing auth system: {e}")
             return False
-    
+
     async def _ensure_admin_account(self, username: str, password: str) -> bool:
         """
         Ensure admin account exists.
-        
+
         Args:
             username: Admin username
             password: Admin password
-            
+
         Returns:
             Success flag
         """
         try:
             # Check if user exists
             existing_user = await self.auth_system.auth_service.get_user_by_username(username)
-            
+
             if not existing_user:
                 # Create admin user
                 admin_user = User(
@@ -181,36 +181,36 @@ class MCPAuthIntegrator:
                 )
                 # Set password
                 admin_user.set_password(password)
-                
+
                 # Save user
                 await self.auth_system.auth_service.create_user(admin_user)
                 logger.info(f"Created admin account: {username}")
             else:
                 logger.info(f"Admin account already exists: {username}")
-            
+
             return True
-        
+
         except Exception as e:
             logger.error(f"Error ensuring admin account: {e}")
             return False
-    
+
     async def configure_backend_permissions(
-        self, 
+        self,
         backend_permissions: Dict[str, List[str]]
     ) -> bool:
         """
         Configure backend-specific permissions.
-        
+
         Args:
             backend_permissions: Dictionary mapping backend names to permission lists
-            
+
         Returns:
             Success flag
         """
         if not self.initialized or not self.rbac_manager:
             logger.error("Auth system not initialized")
             return False
-        
+
         try:
             # Create backend-specific permissions for each role
             for backend_name, permissions in backend_permissions.items():
@@ -218,7 +218,7 @@ class MCPAuthIntegrator:
                     # Check if permission already exists
                     perm_name = f"{permission}:{backend_name}"
                     existing_perm = self.rbac_manager.get_permission_by_name(perm_name)
-                    
+
                     if not existing_perm:
                         # Create permission
                         self.rbac_manager.create_permission(
@@ -229,13 +229,13 @@ class MCPAuthIntegrator:
                             resource_id=backend_name
                         )
                         logger.info(f"Created backend permission: {perm_name}")
-            
+
             return True
-        
+
         except Exception as e:
             logger.error(f"Error configuring backend permissions: {e}")
             return False
-    
+
     async def create_role_if_not_exists(
         self,
         role_id: str,
@@ -246,25 +246,25 @@ class MCPAuthIntegrator:
     ) -> bool:
         """
         Create a role if it doesn't exist.
-        
+
         Args:
             role_id: Role ID
             name: Role name
             permissions: List of permissions
             parent_role: Optional parent role
             description: Optional description
-            
+
         Returns:
             Success flag
         """
         if not self.initialized or not self.rbac_manager:
             logger.error("Auth system not initialized")
             return False
-        
+
         try:
             # Check if role exists
             existing_role = self.rbac_manager.get_role_by_name(name)
-            
+
             if not existing_role:
                 # Create role
                 self.rbac_manager.create_role(
@@ -279,7 +279,7 @@ class MCPAuthIntegrator:
             else:
                 logger.info(f"Role already exists: {name}")
                 return True
-        
+
         except Exception as e:
             logger.error(f"Error creating role: {e}")
             return False
@@ -289,42 +289,42 @@ class MCPAuthIntegrator:
 _instance = None
 
 async def setup_mcp_auth(
-    app: FastAPI, 
+    app: FastAPI,
     backend_manager: Any = None,
     config: Optional[Dict[str, Any]] = None
 ) -> MCPAuthIntegrator:
     """
     Set up the MCP authentication system.
-    
+
     Args:
         app: FastAPI application
         backend_manager: Backend manager instance
         config: Optional configuration
-        
+
     Returns:
         Auth integrator instance
     """
     global _instance
     if _instance is None:
         _instance = MCPAuthIntegrator()
-    
+
     success = await _instance.initialize(app, backend_manager, config)
     if not success:
         logger.error("Failed to initialize MCP auth system")
-    
+
     return _instance
 
 def get_mcp_auth() -> MCPAuthIntegrator:
     """
     Get the MCP auth integrator instance.
-    
+
     Returns:
         Auth integrator instance
     """
     global _instance
     if _instance is None:
         _instance = MCPAuthIntegrator()
-    
+
     return _instance
 
 # Export key components for convenience

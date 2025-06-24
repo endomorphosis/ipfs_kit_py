@@ -43,7 +43,7 @@ except ImportError:
         def __init__(self):
             pass
     app = MockApp()
-    
+
     class MockIPFSSimpleAPI:
         def __init__(self):
             pass
@@ -178,14 +178,14 @@ def make_request(method, url, **kwargs):
     if not USE_MOCK_SERVER:
         # Use real server
         return getattr(requests, method)(url, **kwargs)
-    
+
     # Use mock responses
     mock_response = MagicMock()
     mock_response.status_code = 200
-    
+
     # Extract endpoint from URL
     endpoint = url.replace(TEST_SERVER_URL, "").replace(TEST_API_PREFIX, "")
-    
+
     # Set response based on endpoint
     if endpoint == "/health":
         mock_response.json.return_value = pytest.mock_responses["health"]
@@ -219,7 +219,7 @@ def make_request(method, url, **kwargs):
     else:
         # Default response
         mock_response.json.return_value = {"success": True}
-    
+
     return mock_response
 
 # Test server connectivity
@@ -232,19 +232,19 @@ def test_server_health():
         data = response.json()
         assert data["success"], "Health check reported failure"
         assert data["status"] in ["healthy", "degraded"], "Invalid health status"
-        
+
         # Check IPFS daemon status
         assert "ipfs_daemon_running" in data, "Health check missing IPFS daemon status"
-        
+
         # Check storage backends
         assert "storage_backends" in data, "Health check missing storage backends info"
         assert "ipfs" in data["storage_backends"], "IPFS backend not found"
-        
+
         # Log the health status for debugging
         print(f"Server health status: {data['status']}")
         print(f"IPFS daemon running: {data['ipfs_daemon_running']}")
         print(f"Storage backends status: {json.dumps(data['storage_backends'], indent=2)}")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -258,15 +258,15 @@ def test_storage_health():
         assert response.status_code == 200, "Storage health endpoint returned non-200 status"
         data = response.json()
         assert data["success"], "Storage health check reported failure"
-        
+
         # Check storage backends
         assert "components" in data, "Storage health check missing components info"
         assert "ipfs" in data["components"], "IPFS component not found"
-        
+
         # Log the storage health for debugging
         print(f"Storage health mode: {data.get('mode', 'unknown')}")
         print(f"Overall status: {data.get('overall_status', 'unknown')}")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -284,10 +284,10 @@ def test_ipfs_version():
         assert data["success"], "IPFS version check reported failure"
         assert "version" in data, "Version information missing from response"
         assert "ipfs version" in data["version"], "Invalid version string format"
-        
+
         # Log the version for debugging
         print(f"IPFS version: {data['version']}")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -297,36 +297,36 @@ def test_ipfs_version():
 def test_ipfs_add_and_cat(test_file):
     """Test the IPFS add and cat endpoints."""
     file_path, content = test_file
-    
+
     try:
         # Test add
         with open(file_path, "rb") as f:
             files = {"file": f}
             response = make_request("post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files=files)
-        
+
         assert response.status_code == 200, "IPFS add endpoint returned non-200 status"
         data = response.json()
         assert data["success"], "IPFS add reported failure"
         assert "cid" in data, "CID missing from response"
-        
+
         # Store the CID for the cat test
         cid = data["cid"]
         print(f"Added content with CID: {cid}")
-        
+
         # Test cat
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/cat/{cid}")
         assert response.status_code == 200, "IPFS cat endpoint returned non-200 status"
         retrieved_content = response.content
         if isinstance(retrieved_content, bytes):
             retrieved_content = retrieved_content.decode('utf-8', errors='replace')
-            
+
         if not USE_MOCK_SERVER:  # In real server mode, check content match
             assert retrieved_content == content, "Retrieved content doesn't match original"
         else:
             assert retrieved_content, "Retrieved content is empty"
-            
+
         print(f"Successfully retrieved content: {retrieved_content[:50]}...")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -336,17 +336,17 @@ def test_ipfs_add_and_cat(test_file):
 def test_ipfs_pin_operations(test_file):
     """Test the IPFS pin add and list endpoints."""
     file_path, _ = test_file
-    
+
     try:
         # Add a file to IPFS first
         with open(file_path, "rb") as f:
             files = {"file": f}
             response = make_request("post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files=files)
-        
+
         assert response.status_code == 200, "IPFS add endpoint returned non-200 status"
         data = response.json()
         cid = data["cid"]
-        
+
         # Test pin add
         response = make_request(
             "post",
@@ -358,24 +358,24 @@ def test_ipfs_pin_operations(test_file):
         data = response.json()
         assert data["success"], "IPFS pin add reported failure"
         assert data["pinned"], "Content was not pinned"
-        
+
         # Test pin list
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/pin/ls")
         assert response.status_code == 200, "IPFS pin list endpoint returned non-200 status"
         data = response.json()
         assert data["success"], "IPFS pin list reported failure"
         assert "pins" in data, "Pins missing from response"
-        
+
         # Verify our CID is in the list
         found = False
         for pin_cid in data["pins"]:
             if pin_cid == cid:
                 found = True
                 break
-        
+
         assert found, f"Added CID {cid} not found in pin list"
         print(f"Successfully pinned and found CID: {cid}")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -394,19 +394,19 @@ def test_ipfs_object_operations():
             data={"template": "unixfs-dir"},
             headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("Enhanced IPFS object operations not available")
-            
+
         assert response.status_code == 200, "IPFS object new endpoint returned non-200 status"
         data = response.json()
         assert data["success"], "IPFS object new reported failure"
         assert "cid" in data, "CID missing from response"
-        
+
         dir_cid = data["cid"]
         print(f"Created new directory object with CID: {dir_cid}")
-        
+
         # Test object links
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/object/links/{dir_cid}")
         assert response.status_code == 200, "IPFS object links endpoint returned non-200 status"
@@ -415,7 +415,7 @@ def test_ipfs_object_operations():
         assert "links" in data, "Links missing from response"
         assert isinstance(data["links"], list), "Links should be a list"
         print(f"Directory object has {len(data['links'])} links")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -425,7 +425,7 @@ def test_ipfs_object_operations():
 def test_ipfs_dag_operations(test_file):
     """Test the enhanced IPFS DAG operations."""
     _, content = test_file
-    
+
     try:
         # Create test JSON data
         test_data = json.dumps({
@@ -433,7 +433,7 @@ def test_ipfs_dag_operations(test_file):
             "content": content,
             "timestamp": time.time()
         })
-        
+
         # Test DAG put
         response = make_request(
             "post",
@@ -445,35 +445,35 @@ def test_ipfs_dag_operations(test_file):
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("Enhanced IPFS DAG operations not available")
-            
+
         assert response.status_code == 200, "IPFS DAG put endpoint returned non-200 status"
         data = response.json()
         assert data["success"], "IPFS DAG put reported failure"
         assert "cid" in data, "CID missing from response"
-        
+
         dag_cid = data["cid"]
         print(f"Added DAG node with CID: {dag_cid}")
-        
+
         # Test DAG get
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/dag/get/{dag_cid}")
         assert response.status_code == 200, "IPFS DAG get endpoint returned non-200 status"
         data = response.json()
         assert data["success"], "IPFS DAG get reported failure"
         assert "data" in data, "Data missing from response"
-        
+
         retrieved_data = data["data"]
         assert retrieved_data["test"] == True, "Retrieved data doesn't match original"
-        
+
         # Only check content in real server mode
         if not USE_MOCK_SERVER:
             assert retrieved_data["content"] == content, "Retrieved content doesn't match original"
-            
+
         print(f"Successfully retrieved DAG node data")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -486,20 +486,20 @@ def test_huggingface_status():
     """Test the HuggingFace status endpoint."""
     try:
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/huggingface/status")
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("HuggingFace integration not available")
-            
+
         assert response.status_code == 200, "HuggingFace status endpoint returned non-200 status"
         data = response.json()
-        
+
         # Log the status for debugging
         print(f"HuggingFace status: {json.dumps(data, indent=2)}")
-        
+
         # Even if it's in mock mode, it should be available
         assert data["available"], "HuggingFace backend should be available (even in mock mode)"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -510,20 +510,20 @@ def test_s3_status():
     """Test the S3 status endpoint."""
     try:
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/s3/status")
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("S3 integration not available")
-            
+
         assert response.status_code == 200, "S3 status endpoint returned non-200 status"
         data = response.json()
-        
+
         # Log the status for debugging
         print(f"S3 status: {json.dumps(data, indent=2)}")
-        
+
         # Even if it's in mock mode, it should be available
         assert data["available"], "S3 backend should be available (even in mock mode)"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -534,20 +534,20 @@ def test_filecoin_status():
     """Test the Filecoin status endpoint."""
     try:
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/filecoin/status")
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("Filecoin integration not available")
-            
+
         assert response.status_code == 200, "Filecoin status endpoint returned non-200 status"
         data = response.json()
-        
+
         # Log the status for debugging
         print(f"Filecoin status: {json.dumps(data, indent=2)}")
-        
+
         # Even if it's in mock mode, it should be available
         assert data["available"], "Filecoin backend should be available (even in mock mode)"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -558,20 +558,20 @@ def test_storacha_status():
     """Test the Storacha status endpoint."""
     try:
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/storacha/status")
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("Storacha integration not available")
-            
+
         assert response.status_code == 200, "Storacha status endpoint returned non-200 status"
         data = response.json()
-        
+
         # Log the status for debugging
         print(f"Storacha status: {json.dumps(data, indent=2)}")
-        
+
         # Even if it's in mock mode, it should be available
         assert data["available"], "Storacha backend should be available (even in mock mode)"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -582,20 +582,20 @@ def test_lassie_status():
     """Test the Lassie status endpoint."""
     try:
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/lassie/status")
-        
+
         # If the endpoint doesn't exist (and we're not in mock mode), skip the test
         if not USE_MOCK_SERVER and response.status_code == 404:
             pytest.skip("Lassie integration not available")
-            
+
         assert response.status_code == 200, "Lassie status endpoint returned non-200 status"
         data = response.json()
-        
+
         # Log the status for debugging
         print(f"Lassie status: {json.dumps(data, indent=2)}")
-        
+
         # Even if it's in mock mode, it should be available
         assert data["available"], "Lassie backend should be available (even in mock mode)"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -608,7 +608,7 @@ def test_error_handling_invalid_cid():
     """Test error handling with an invalid CID."""
     try:
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/cat/InvalidCID")
-        
+
         # In mock mode, we should still test the error handling logic
         if USE_MOCK_SERVER:
             # For mock responses, we need to manually set the status code for error tests
@@ -616,9 +616,9 @@ def test_error_handling_invalid_cid():
             mock_response.status_code = 404
             mock_response.json.return_value = {"detail": "Invalid CID format"}
             response = mock_response
-            
+
         assert response.status_code == 404, "Expected 404 status for invalid CID"
-        
+
         # Verify error response format
         try:
             data = response.json()
@@ -627,7 +627,7 @@ def test_error_handling_invalid_cid():
         except json.JSONDecodeError:
             # If not JSON, that's a failure
             assert False, "Error response should be valid JSON"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -639,12 +639,12 @@ def test_error_handling_missing_param():
     try:
         # Try to pin without providing a CID
         response = make_request(
-            "post", 
+            "post",
             f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/pin/add",
             data={},  # Empty data - missing required CID
             headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
-        
+
         # In mock mode, we should still test the error handling logic
         if USE_MOCK_SERVER:
             # For mock responses, we need to manually set the status code for error tests
@@ -660,18 +660,18 @@ def test_error_handling_missing_param():
                 ]
             }
             response = mock_response
-            
+
         assert response.status_code in [400, 422], "Expected 400 or 422 status for missing param"
-        
+
         # Verify error response format
         try:
             data = response.json()
             print(f"Error response for missing param: {data}")
-            
+
             # FastAPI typically returns a detailed validation error
             if "detail" in data:
                 assert isinstance(data["detail"], list) or isinstance(data["detail"], str), "Detail should be list or string"
-                
+
                 # If it's a list, it should contain validation errors
                 if isinstance(data["detail"], list):
                     assert len(data["detail"]) > 0, "Validation errors list should not be empty"
@@ -680,7 +680,7 @@ def test_error_handling_missing_param():
         except json.JSONDecodeError:
             # If not JSON, that's a failure
             assert False, "Error response should be valid JSON"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -695,33 +695,33 @@ def test_large_file_handling(temp_dir):
     file_path = os.path.join(temp_dir, "large_file.bin")
     with open(file_path, "wb") as f:
         f.write(os.urandom(1024 * 1024))  # 1MB of random data
-    
+
     try:
         # Test add with larger file
         with open(file_path, "rb") as f:
             files = {"file": f}
             response = make_request("post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files=files)
-        
+
         assert response.status_code == 200, "IPFS add endpoint returned non-200 status for large file"
         data = response.json()
         assert data["success"], "IPFS add reported failure for large file"
         assert "cid" in data, "CID missing from response"
-        
+
         # Store the CID for the cat test
         cid = data["cid"]
         print(f"Added large file with CID: {cid}")
-        
+
         # Test cat of larger file
         response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/cat/{cid}")
         assert response.status_code == 200, "IPFS cat endpoint returned non-200 status for large file"
         retrieved_content = response.content
-        
+
         # In mock mode, we don't expect actual content to match
         if not USE_MOCK_SERVER:
             assert len(retrieved_content) == 1024 * 1024, "Retrieved content size doesn't match original"
-        
+
         print(f"Successfully retrieved large file, size: {len(retrieved_content)} bytes")
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")
@@ -731,10 +731,10 @@ def test_large_file_handling(temp_dir):
 def test_concurrent_requests(test_file):
     """Test handling multiple concurrent requests."""
     import threading
-    
+
     file_path, _ = test_file
     results = {"success": 0, "failure": 0, "errors": []}
-    
+
     def make_concurrent_request():
         try:
             with open(file_path, "rb") as f:
@@ -745,7 +745,7 @@ def test_concurrent_requests(test_file):
                 else:
                     # In real mode, make actual request
                     response = requests.post(f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files=files)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 if data.get("success"):
@@ -759,34 +759,34 @@ def test_concurrent_requests(test_file):
         except Exception as e:
             results["failure"] += 1
             results["errors"].append(str(e))
-    
+
     try:
         # Make a test request first to check if server is up
         if USE_MOCK_SERVER:
             response = make_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/health")
         else:
             response = requests.get(f"{TEST_SERVER_URL}{TEST_API_PREFIX}/health")
-            
+
         if not USE_MOCK_SERVER and response.status_code != 200:
             pytest.skip(f"Server not running properly at {TEST_SERVER_URL}")
-        
+
         # Launch 5 concurrent requests
         threads = []
         for _ in range(5):
             thread = threading.Thread(target=make_concurrent_request)
             thread.start()
             threads.append(thread)
-        
+
         # Wait for all threads to complete
         for thread in threads:
             thread.join()
-        
+
         print(f"Concurrent requests: {results['success']} succeeded, {results['failure']} failed")
         if results["errors"]:
             print(f"Errors: {results['errors']}")
-        
+
         assert results["success"] > 0, "No concurrent requests succeeded"
-        
+
     except (requests.RequestException, AssertionError) as e:
         if USE_MOCK_SERVER:
             pytest.fail(f"Mock server test failed: {str(e)}")

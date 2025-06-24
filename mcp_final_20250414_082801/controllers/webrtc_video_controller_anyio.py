@@ -81,10 +81,10 @@ class WebRTCVideoPlayerControllerAnyIO:
                             document.addEventListener('DOMContentLoaded', function() {{
                                 // Set connection details from URL parameters
                                 document.getElementById('content-cid').value = "{content_cid}";
-                                
+
                                 // Add a message about the connection
                                 addLogEntry("Connection parameters received from dashboard: Connection ID {connection_id}", "info");
-                                
+
                                 // Optionally auto-connect when from dashboard
                                 if (confirm("Auto-connect to stream with content CID {content_cid}?")) {{
                                     connectStream();

@@ -95,7 +95,7 @@ ADDITIONAL_TOOLS = [
             "required": ["cid"]
         }
     },
-    
+
     # IPFS Cluster Integration
     {
         "name": "ipfs_cluster_pin",
@@ -147,7 +147,7 @@ ADDITIONAL_TOOLS = [
             "properties": {}
         }
     },
-    
+
     # Lassie Content Retrieval Tools
     {
         "name": "lassie_fetch",
@@ -202,7 +202,7 @@ ADDITIONAL_TOOLS = [
             "required": ["cid", "providers", "output_path"]
         }
     },
-    
+
     # AI/ML Model Integration Tools
     {
         "name": "ai_model_register",
@@ -266,7 +266,7 @@ ADDITIONAL_TOOLS = [
             "required": ["dataset_path", "dataset_name", "dataset_type"]
         }
     },
-    
+
     # Search Tools
     {
         "name": "search_content",
@@ -296,7 +296,7 @@ ADDITIONAL_TOOLS = [
             "required": ["query"]
         }
     },
-    
+
     # Storacha Integration
     {
         "name": "storacha_store",
@@ -340,7 +340,7 @@ ADDITIONAL_TOOLS = [
             "required": ["content_id", "output_path"]
         }
     },
-    
+
     # Multi-Backend Management
     {
         "name": "multi_backend_add_backend",
@@ -389,7 +389,7 @@ ADDITIONAL_TOOLS = [
             }
         }
     },
-    
+
     # Streaming Tools
     {
         "name": "streaming_create_stream",
@@ -438,7 +438,7 @@ ADDITIONAL_TOOLS = [
             "required": ["stream_name", "data"]
         }
     },
-    
+
     # Monitoring and Metrics Tools
     {
         "name": "monitoring_get_metrics",
@@ -498,33 +498,33 @@ ADDITIONAL_TOOLS = [
 def backup_file(file_path):
     """Create a backup of the file"""
     backup_path = f"{file_path}.bak.enhanced"
-    
+
     if os.path.exists(file_path):
         import shutil
         shutil.copy2(file_path, backup_path)
         logger.info(f"Created backup at {backup_path}")
-    
+
     return backup_path
 
 def update_tools_registry():
     """Update the IPFS tools registry with additional tools"""
     tools_registry_path = "ipfs_tools_registry.py"
-    
+
     # Backup the file
     backup_file(tools_registry_path)
-    
+
     try:
         # Read the current registry
         with open(tools_registry_path, 'r') as f:
             content = f.read()
-        
+
         # Find the position to insert the new tools
         tools_list_end = content.find("]\n\ndef get_ipfs_tools()")
-        
+
         if tools_list_end == -1:
             logger.error("Could not find the end of the IPFS_TOOLS list in the registry")
             return False
-        
+
         # Format the new tools as Python code
         new_tools_str = ""
         for tool in ADDITIONAL_TOOLS:
@@ -533,17 +533,17 @@ def update_tools_registry():
             new_tools_str += f"        \"description\": \"{tool['description']}\",\n"
             new_tools_str += f"        \"schema\": {json.dumps(tool['schema'], indent=4).replace('{', '{{').replace('}', '}}').replace('\n', '\n        ')}\n"
             new_tools_str += f"    }}"
-        
+
         # Insert the new tools
         updated_content = content[:tools_list_end] + new_tools_str + content[tools_list_end:]
-        
+
         # Write the updated content
         with open(tools_registry_path, 'w') as f:
             f.write(updated_content)
-        
+
         logger.info(f"✅ Successfully added {len(ADDITIONAL_TOOLS)} new tools to the registry")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error updating tools registry: {e}")
         return False
@@ -551,7 +551,7 @@ def update_tools_registry():
 def create_tool_implementations():
     """Create implementations for the new tools"""
     implementations_path = "enhanced_tool_implementations.py"
-    
+
     try:
         with open(implementations_path, 'w') as f:
             f.write('''#!/usr/bin/env python3
@@ -581,7 +581,7 @@ logger = logging.getLogger(__name__)
 try:
     # Add IPFS Kit to path
     sys.path.append(os.path.join(os.getcwd(), 'ipfs_kit_py'))
-    
+
     # Try to import advanced modules
     HAS_CLUSTER = False
     HAS_LASSIE = False
@@ -589,7 +589,7 @@ try:
     HAS_AI = False
     HAS_STREAMING = False
     HAS_MULTI_BACKEND = False
-    
+
     # Import IPFS Cluster
     try:
         from ipfs_kit_py.cluster import cluster_pin, cluster_status, cluster_peers
@@ -597,7 +597,7 @@ try:
         logger.info("Successfully imported IPFS Cluster extensions")
     except ImportError as e:
         logger.warning(f"Could not import IPFS Cluster extensions: {e}")
-    
+
     # Import Lassie for content retrieval
     try:
         from ipfs_kit_py.mcp.controllers.storage.lassie_controller import fetch_content, fetch_with_providers
@@ -605,7 +605,7 @@ try:
         logger.info("Successfully imported Lassie content retrieval")
     except ImportError as e:
         logger.warning(f"Could not import Lassie controller: {e}")
-    
+
     # Import Storacha
     try:
         from ipfs_kit_py.mcp.controllers.storage.storacha_controller import store_content, retrieve_content
@@ -613,7 +613,7 @@ try:
         logger.info("Successfully imported Storacha controller")
     except ImportError as e:
         logger.warning(f"Could not import Storacha controller: {e}")
-    
+
     # Import AI/ML modules
     try:
         from ipfs_kit_py.mcp.ai.model_registry import register_model, register_dataset
@@ -621,7 +621,7 @@ try:
         logger.info("Successfully imported AI/ML modules")
     except ImportError as e:
         logger.warning(f"Could not import AI/ML modules: {e}")
-    
+
     # Import streaming modules
     try:
         from ipfs_kit_py.mcp.streaming import create_stream, publish_to_stream
@@ -629,7 +629,7 @@ try:
         logger.info("Successfully imported Streaming modules")
     except ImportError as e:
         logger.warning(f"Could not import Streaming modules: {e}")
-    
+
     # Import multi-backend storage
     try:
         from ipfs_kit_py.mcp.storage_manager import add_backend, list_backends
@@ -637,7 +637,7 @@ try:
         logger.info("Successfully imported Multi-Backend Storage Manager")
     except ImportError as e:
         logger.warning(f"Could not import Multi-Backend Storage Manager: {e}")
-    
+
 except ImportError as e:
     logger.warning(f"Could not import IPFS Kit modules: {e}. Using mock implementations.")
 
@@ -863,13 +863,13 @@ async def storacha_retrieve(ctx: Any, content_id: str, output_path: str) -> Dict
 def main():
     """Main function to enhance tool coverage"""
     logger.info("Starting tool coverage enhancement...")
-    
+
     # Update the tools registry
     registry_updated = update_tools_registry()
-    
+
     # Create tool implementations
     implementations_created = create_tool_implementations()
-    
+
     if registry_updated and implementations_created:
         logger.info("\n✅ Tool coverage enhancement completed successfully")
         logger.info(f"Added {len(ADDITIONAL_TOOLS)} new tools to the registry")

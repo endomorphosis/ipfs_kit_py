@@ -11,7 +11,7 @@ class JSONRPCHandler(http.server.BaseHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             request = json.loads(post_data.decode('utf-8'))
-            
+
             # Create a response based on the request method
             if request.get("method") == "initialize":
                 response = {
@@ -58,7 +58,7 @@ class JSONRPCHandler(http.server.BaseHTTPRequestHandler):
                         "message": f"Method '{request.get('method')}' not found"
                     }
                 }
-            
+
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -67,14 +67,14 @@ class JSONRPCHandler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
-    
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
-    
+
     def do_GET(self):
         if self.path == "/":
             self.send_response(200)

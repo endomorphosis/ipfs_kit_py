@@ -54,11 +54,11 @@ logger = logging.getLogger(__name__)
 def pa_safe_table_from_arrays(arrays, schema):
     """
     Safely create a PyArrow table from arrays, handling mocked objects.
-    
+
     Args:
         arrays: List of PyArrow arrays
         schema: PyArrow schema
-        
+
     Returns:
         PyArrow Table
     """
@@ -69,16 +69,16 @@ def pa_safe_table_from_arrays(arrays, schema):
         # If there's an error about mocked objects or immutable types
         error_msg = str(e)
         logger.warning(f"Error in from_arrays: {error_msg}")
-        
+
         # Create a new array of dictionaries
         data = []
         # Get column names from schema
         if hasattr(schema, "names") and callable(schema.names):
             column_names = schema.names
-        else:  
+        else:
             # Try to get field names differently
             column_names = [f"col_{i}" for i in range(len(arrays))]
-        
+
         # Create a row dict from arrays
         row = {}
         for i, name in enumerate(column_names):
@@ -89,16 +89,16 @@ def pa_safe_table_from_arrays(arrays, schema):
                     row[name] = value
                 except Exception:
                     row[name] = None
-        
+
         # Add the row to data
         data.append(row)
-        
+
         # Create table from dict
         try:
             return pa.Table.from_pydict(data)
         except Exception as e2:
             logger.error(f"Failed to create table from dict: {e2}")
-            
+
             # Last resort - create minimal empty table
             empty_table = pa.table({
                 "cluster_id": ["dummy_cluster"],
@@ -119,11 +119,11 @@ def apply_patches():
     original_save_to_disk = ArrowClusterState._save_to_disk
     original_cleanup = ArrowClusterState._cleanup
     original_access_via_c_data_interface = ArrowClusterState.access_via_c_data_interface
-    
+
     # If ClusterManager is available, save its methods too
     if CLUSTER_MANAGER_AVAILABLE:
         original_access_state_from_external_process = ClusterManager.access_state_from_external_process
-    
+
     # Add our patched methods
     def patched_add_task(self, task_id, task_type, parameters=None, priority=0):
         """Patched add_task method for testing."""
@@ -325,21 +325,21 @@ def apply_patches():
             return original_access_via_c_data_interface(state_path)
         except Exception as e:
             logger.warning(f"Original access_via_c_data_interface failed: {e}")
-            
+
             # Simple implementation for tests
             logger.info("Using simplified test implementation of access_via_c_data_interface")
-            
+
             # Load metadata to know the cluster config
             import json
             import os
-            
+
             metadata_path = os.path.join(os.path.expanduser(state_path), 'state_metadata.json')
             if not os.path.exists(metadata_path):
                 return {
                     "success": False,
                     "error": f"Metadata file not found at {metadata_path}"
                 }
-                
+
             try:
                 with open(metadata_path, 'r') as f:
                     metadata = json.load(f)
@@ -348,26 +348,26 @@ def apply_patches():
                     "success": False,
                     "error": f"Error reading metadata file: {e}"
                 }
-                
+
             # Try to load the parquet file if available
             parquet_path = metadata.get('parquet_path')
             if parquet_path and os.path.exists(parquet_path):
                 try:
                     # Try to load data from parquet file
                     table = pq.read_table(parquet_path)
-                    
+
                     # If successful, we can return some basic stats
                     cluster_id = metadata.get('cluster_id', 'unknown')
-                    
+
                     # Try to get counts from the table
                     node_count = 2  # Default value if we can't extract from table
                     task_count = 3  # Default value if we can't extract from table
                     content_count = 4  # Default value if we can't extract from table
-                    
+
                     # Create a mock table for return
                     mock_table = MagicMock()
                     mock_table.num_rows = 1
-                    
+
                     # Return simplified result with the table
                     return {
                         "success": True,
@@ -378,15 +378,15 @@ def apply_patches():
                         "state_path": state_path,
                         "table": mock_table
                     }
-                    
+
                 except Exception as e:
                     logger.warning(f"Error reading parquet file: {e}")
                     # Fall through to default values
-            
+
             # If we can't load the parquet file, return success with default values and a mock table
             mock_table = MagicMock()
             mock_table.num_rows = 1
-            
+
             return {
                 "success": True,
                 "cluster_id": metadata.get('cluster_id', 'unknown'),
@@ -397,13 +397,13 @@ def apply_patches():
                 "state_path": state_path,
                 "table": mock_table
             }
-    
+
     # Special patch for ClusterManager.access_state_from_external_process
     @staticmethod
     def patched_access_state_from_external_process(state_path):
         """Patched version of access_state_from_external_process for testing."""
         logger.info(f"Using simplified test implementation of access_state_from_external_process with path: {state_path}")
-        
+
         # Directly use the simplified implementation without trying the original method
         result = {
             "success": True,
@@ -415,7 +415,7 @@ def apply_patches():
             "task_count": 3,
             "content_count": 4
         }
-        
+
         # Try to read metadata file if it exists
         metadata_path = os.path.join(os.path.expanduser(state_path), 'state_metadata.json')
         if os.path.exists(metadata_path):
@@ -429,23 +429,23 @@ def apply_patches():
                         result["master_id"] = metadata["master_id"]
             except Exception as e:
                 logger.warning(f"Error reading metadata file: {e}")
-                
+
         # Create a mock table object that can be serialized
         result["state_table"] = "Available in memory"
-        
+
         return result
-    
+
     # Apply patches to ArrowClusterState
     ArrowClusterState.add_task = patched_add_task
     ArrowClusterState.get_task_info = patched_get_task_info
     ArrowClusterState._save_to_disk = patched_save_to_disk
     ArrowClusterState._cleanup = patched_cleanup
     ArrowClusterState.access_via_c_data_interface = patched_access_via_c_data_interface
-    
+
     # Apply patches to ClusterManager if available
     if CLUSTER_MANAGER_AVAILABLE:
         ClusterManager.access_state_from_external_process = patched_access_state_from_external_process
-    
+
     logger.info("ArrowClusterState and ClusterManager patches applied for testing")
 
 # Export the patched functions for direct import in tests
@@ -454,10 +454,10 @@ def patched_access_via_c_data_interface(state_path):
     import json
     import os
     import logging
-    
+
     logger = logging.getLogger(__name__)
     logger.info(f"Using simplified test implementation of access_via_c_data_interface with path: {state_path}")
-    
+
     # Load metadata to know the cluster config
     metadata_path = os.path.join(os.path.expanduser(state_path), 'state_metadata.json')
     if not os.path.exists(metadata_path):
@@ -465,7 +465,7 @@ def patched_access_via_c_data_interface(state_path):
             "success": False,
             "error": f"Metadata file not found at {metadata_path}"
         }
-        
+
     try:
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
@@ -474,11 +474,11 @@ def patched_access_via_c_data_interface(state_path):
             "success": False,
             "error": f"Error reading metadata file: {e}"
         }
-    
+
     # Create a mock table that supports the required interface
     mock_table = MagicMock()
     mock_table.num_rows = 1
-    
+
     # Return success with default values and a mock table
     return {
         "success": True,
@@ -498,10 +498,10 @@ def patched_access_state_from_external_process(state_path):
     import logging
     import time
     from unittest.mock import MagicMock
-    
+
     logger = logging.getLogger(__name__)
     logger.info(f"Using simplified test implementation of access_state_from_external_process with path: {state_path}")
-    
+
     # Create default result
     result = {
         "success": True,
@@ -513,7 +513,7 @@ def patched_access_state_from_external_process(state_path):
         "task_count": 3,
         "content_count": 4
     }
-    
+
     # Try to read metadata file if it exists
     metadata_path = os.path.join(os.path.expanduser(state_path), 'state_metadata.json')
     if os.path.exists(metadata_path):
@@ -527,10 +527,10 @@ def patched_access_state_from_external_process(state_path):
                     result["master_id"] = metadata["master_id"]
         except Exception as e:
             logger.warning(f"Error reading metadata file: {e}")
-    
+
     # Create a mock table object that can be serialized
     mock_table = MagicMock()
     mock_table.num_rows = 1
     result["state_table"] = "Available in memory"
-    
+
     return result

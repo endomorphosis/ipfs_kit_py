@@ -386,7 +386,7 @@ def handle_wal_command(args: argparse.Namespace, client: IPFSSimpleAPI) -> Any:
     # Check if client has the run_async method (enhanced IPFSSimpleAPI with AnyIO support)
     if hasattr(client, "run_async"):
         return client.run_async(async_handle_wal_command, args, client)
-    
+
     # For backward compatibility - handle synchronously using the synchronous API methods
     # In test mode, we don't need to check for WAL availability
     if hasattr(args, "test_mode") and args.test_mode:

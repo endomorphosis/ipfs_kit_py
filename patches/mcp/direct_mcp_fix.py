@@ -27,12 +27,12 @@ def patch_ipfs_model():
     """Directly patch the IPFSModelAnyIO class with an add_content method."""
     # Import the module that needs patching
     from ipfs_kit_py.mcp.models.ipfs_model_anyio import IPFSModelAnyIO
-    
+
     # Check if the method already exists
     if hasattr(IPFSModelAnyIO, 'add_content'):
         logger.info("IPFSModelAnyIO already has add_content method")
         return True
-    
+
     # Define the add_content method
     async def add_content(self, content=None, **kwargs):
         """
@@ -40,14 +40,14 @@ def patch_ipfs_model():
         This is a compatibility method added at runtime.
         """
         logger.info("Using patched add_content method")
-        
+
         # Handle args/kwargs
         if content is None and 'content' in kwargs:
             content = kwargs.pop('content')
-            
+
         if content is None:
             raise ValueError("Content must be provided")
-        
+
         # Add string content to IPFS
         if isinstance(content, str):
             # Try to find a suitable string method
@@ -70,7 +70,7 @@ def patch_ipfs_model():
                     # Last resort: use command directly
                     result = await self.ipfs.command('add', stdin=content)
                     return result
-        
+
         # Add bytes content to IPFS
         elif isinstance(content, bytes):
             if hasattr(self, 'add_bytes'):
@@ -81,11 +81,11 @@ def patch_ipfs_model():
                 # Last resort: use command directly
                 result = await self.ipfs.command('add', stdin=content)
                 return result
-                
+
         # Unknown content type
         else:
             raise TypeError(f"Unsupported content type: {type(content)}")
-    
+
     # Add the method to the class
     IPFSModelAnyIO.add_content = add_content
     logger.info("Successfully patched IPFSModelAnyIO.add_content")
@@ -109,7 +109,7 @@ def check_ipfs_daemon():
 def get_free_port(start=8080, max_attempts=100):
     """Find a free port starting from the given port."""
     import socket
-    
+
     for port in range(start, start + max_attempts):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -117,7 +117,7 @@ def get_free_port(start=8080, max_attempts=100):
                 return port
         except OSError:
             continue
-    
+
     # Fallback to a random port
     return 0
 
@@ -127,29 +127,29 @@ def start_mcp_server():
     if not patch_ipfs_model():
         logger.error("Failed to patch IPFSModelAnyIO")
         return False
-    
+
     # Find a suitable port
     port = get_free_port(8080)
-    
+
     # Find an MCP server script to use
     script_candidates = [
         "run_mcp_server_anyio.py",
         "run_mcp_server_fixed.py",
         "run_mcp_server.py"
     ]
-    
+
     server_script = None
     for script in script_candidates:
         if os.path.exists(script):
             server_script = script
             break
-    
+
     if not server_script:
         logger.error("Could not find an MCP server script to use")
         return False
-    
+
     logger.info(f"Starting MCP server using {server_script} on port {port}")
-    
+
     # Start the server in a subprocess
     cmd = [
         sys.executable,  # Use the same Python interpreter
@@ -180,7 +180,7 @@ else:
     sys.exit(1)
         """
     ]
-    
+
     # Start the server and detach it
     try:
         with open("mcp_direct_server.log", "w") as log_file:
@@ -190,11 +190,11 @@ else:
                 stderr=log_file,
                 start_new_session=True  # Detach from parent process
             )
-        
+
         # Give it time to start
         logger.info(f"MCP server starting on port {port}, waiting for it to become responsive...")
         time.sleep(5)
-        
+
         # Poll the health endpoint to see if it's running
         for i in range(30):  # Wait up to 30 seconds
             try:
@@ -204,16 +204,16 @@ else:
                     text=True,
                     check=False
                 )
-                
+
                 if health_check.returncode == 0 and "success" in health_check.stdout:
                     logger.info(f"MCP server is running on port {port}")
                     return {"port": port, "pid": process.pid}
             except Exception:
                 pass
-            
+
             # Wait before trying again
             time.sleep(1)
-        
+
         logger.error(f"MCP server did not become responsive after 30 seconds")
         return False
     except Exception as e:
@@ -225,7 +225,7 @@ def test_ipfs_api(port):
     try:
         # Create a test string
         test_content = f"Test content {time.time()}"
-        
+
         # Try to add the content via the API
         add_command = [
             "curl", "-s",
@@ -234,10 +234,10 @@ def test_ipfs_api(port):
             "-d", json.dumps({"content": test_content}),
             f"http://localhost:{port}/api/v0/mcp/ipfs/add/json"
         ]
-        
+
         logger.info(f"Testing IPFS API with content: {test_content}")
         result = subprocess.run(add_command, capture_output=True, text=True, check=False)
-        
+
         # Check if the result was successful
         if result.returncode == 0 and "success" in result.stdout:
             try:
@@ -245,15 +245,15 @@ def test_ipfs_api(port):
                 if response.get("success", False) and "cid" in response:
                     cid = response["cid"]
                     logger.info(f"Successfully added content to IPFS with CID: {cid}")
-                    
+
                     # Now try to retrieve the content
                     cat_command = [
                         "curl", "-s",
                         f"http://localhost:{port}/api/v0/mcp/ipfs/cat/{cid}"
                     ]
-                    
+
                     cat_result = subprocess.run(cat_command, capture_output=True, text=True, check=False)
-                    
+
                     if cat_result.returncode == 0 and cat_result.stdout.strip() == test_content:
                         logger.info(f"Successfully retrieved content from IPFS: {cat_result.stdout.strip()}")
                         return {"success": True, "cid": cid, "content": cat_result.stdout.strip()}
@@ -283,28 +283,28 @@ def main():
             with open(script_path, "r") as source:
                 f.write(source.read())
         logger.info(f"Created {module_name}.py for subprocess to import")
-    
+
     # Check if IPFS daemon is running
     if not check_ipfs_daemon():
         logger.error("IPFS daemon is not running. Please start it first with: ipfs daemon")
         return 1
-    
+
     # Start the MCP server
     server_info = start_mcp_server()
     if not server_info:
         logger.error("Failed to start MCP server")
         return 1
-    
+
     # Test the IPFS API
     test_result = test_ipfs_api(server_info["port"])
     if not test_result:
         logger.error("IPFS integration test failed")
-        
+
         # Try again with a small delay
         logger.info("Retrying IPFS integration test after a delay...")
         time.sleep(5)
         test_result = test_ipfs_api(server_info["port"])
-        
+
         if not test_result:
             logger.error("IPFS integration test failed again")
             print("\nMCP server is running but the IPFS integration test failed.")
@@ -315,7 +315,7 @@ def main():
             print(f"Log file: {os.path.abspath('mcp_direct_server.log')}")
             print("\nTo stop this server: kill", server_info["pid"])
             return 1
-    
+
     # Success!
     print("\n=== SUCCESS! ===")
     print("MCP server is running with IPFS daemon integration")

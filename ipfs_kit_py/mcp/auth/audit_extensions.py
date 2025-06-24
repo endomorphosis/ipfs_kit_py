@@ -48,62 +48,62 @@ class AuditExtensions:
     """
     Extensions to the core AuditLogger for enhanced security monitoring.
     """
-    
+
     def __init__(self, audit_logger: AuditLogger):
         """
         Initialize audit extensions with a reference to the main audit logger.
-        
+
         Args:
             audit_logger: Main audit logger instance
         """
         self.audit_logger = audit_logger
-        
+
         # Event counters for pattern detection
         self._event_counters: Dict[str, List[float]] = {}
-        
+
         # User IP tracking
         self._user_ips: Dict[str, Set[str]] = {}
-        
+
         # Log integrity tracking
         self._last_log_hash: Optional[str] = None
         self._integrity_logs: List[Dict[str, Any]] = []
-        
+
         # Alert subscribers
         self._alert_subscribers: List[callable] = []
-        
+
         # Background tasks
         self._background_tasks: List[asyncio.Task] = []
         self._shutdown_event = asyncio.Event()
-        
+
         logger.info("Audit extensions initialized")
-    
+
     async def start(self):
         """Start the audit extensions background tasks."""
         # Start log integrity verification task
         integrity_task = asyncio.create_task(self._verify_log_integrity_task())
         self._background_tasks.append(integrity_task)
-        
+
         # Start log retention task
         retention_task = asyncio.create_task(self._enforce_retention_policy_task())
         self._background_tasks.append(retention_task)
-        
+
         logger.info("Audit extensions background tasks started")
-    
+
     async def stop(self):
         """Stop the audit extensions background tasks."""
         # Signal tasks to shut down
         self._shutdown_event.set()
-        
+
         # Wait for tasks to complete
         if self._background_tasks:
             await asyncio.gather(*self._background_tasks, return_exceptions=True)
-        
+
         logger.info("Audit extensions background tasks stopped")
-    
+
     async def process_log_event(self, event: Dict[str, Any]):
         """
         Process an audit log event for security pattern detection.
-        
+
         Args:
             event: Audit log event
         """
@@ -113,31 +113,31 @@ class AuditExtensions:
             counter_key = action
             if "status" in event:
                 counter_key = f"{action}:{event['status']}"
-            
+
             if counter_key not in self._event_counters:
                 self._event_counters[counter_key] = []
-            
+
             # Add current timestamp
             self._event_counters[counter_key].append(time.time())
-            
+
             # Clean up old timestamps
             self._cleanup_counters(counter_key)
-        
+
         # Track user IPs for detecting new login locations
         if event.get("action") == "login" and event.get("status") == "success":
             user_id = event.get("user_id")
             ip_address = event.get("ip_address")
-            
+
             if user_id and ip_address:
                 if user_id not in self._user_ips:
                     self._user_ips[user_id] = set()
-                
+
                 # Check if this is a new IP
                 is_new_ip = ip_address not in self._user_ips[user_id]
-                
+
                 # Add the IP to the user's set
                 self._user_ips[user_id].add(ip_address)
-                
+
                 # If this is a new IP, log it and potentially alert
                 if is_new_ip:
                     event["from_new_ip"] = True
@@ -153,17 +153,17 @@ class AuditExtensions:
                         },
                         priority="medium"
                     )
-        
+
         # Check for security patterns
         await self._check_security_patterns(event)
-        
+
         # Update log integrity chain
         await self._update_log_integrity(event)
-    
+
     def _cleanup_counters(self, counter_key: str, max_age: int = 86400):
         """
         Clean up old timestamps from event counters.
-        
+
         Args:
             counter_key: Counter key to clean up
             max_age: Maximum age of timestamps to keep (in seconds)
@@ -174,11 +174,11 @@ class AuditExtensions:
                 ts for ts in self._event_counters[counter_key]
                 if now - ts <= max_age
             ]
-    
+
     async def _check_security_patterns(self, event: Dict[str, Any]):
         """
         Check if the event matches any security alert patterns.
-        
+
         Args:
             event: Audit log event
         """
@@ -188,13 +188,13 @@ class AuditExtensions:
                 # First check if the basic action/status match
                 if pattern.get("action") != event.get("action"):
                     continue
-                
+
                 if "status" in pattern and pattern["status"] != event.get("status"):
                     continue
-                
+
                 if "from_new_ip" in pattern and pattern["from_new_ip"] != event.get("from_new_ip", False):
                     continue
-                
+
                 if "roles" in pattern:
                     # For role-related events, check if any of the specified roles are involved
                     role_match = False
@@ -205,22 +205,22 @@ class AuditExtensions:
                                 break
                     if not role_match:
                         continue
-                
+
                 # Now check the event count within the time window
                 counter_key = event.get("action")
                 if "status" in event:
                     counter_key = f"{counter_key}:{event['status']}"
-                
+
                 if counter_key in self._event_counters:
                     now = time.time()
                     window_start = now - pattern.get("window", 300)
-                    
+
                     # Count events in the window
                     events_in_window = sum(
                         1 for ts in self._event_counters[counter_key]
                         if ts >= window_start
                     )
-                    
+
                     # If count threshold is reached, trigger alert
                     if events_in_window >= pattern.get("count", 1):
                         await self._trigger_security_alert(
@@ -229,7 +229,7 @@ class AuditExtensions:
                             pattern=pattern,
                             count=events_in_window
                         )
-    
+
     async def _trigger_security_alert(
         self,
         severity: str,
@@ -239,7 +239,7 @@ class AuditExtensions:
     ):
         """
         Trigger a security alert based on a detected pattern.
-        
+
         Args:
             severity: Alert severity (high, medium, low)
             event: Triggering audit log event
@@ -255,7 +255,7 @@ class AuditExtensions:
             "event_count": count,
             "time_window_seconds": pattern.get("window", 300),
         }
-        
+
         # Log the security alert
         await self.audit_logger.log_event(
             action="security_alert",
@@ -265,37 +265,37 @@ class AuditExtensions:
             details=alert,
             priority=severity
         )
-        
+
         # Notify all subscribers
         for subscriber in self._alert_subscribers:
             try:
                 await subscriber(alert)
             except Exception as e:
                 logger.error(f"Error notifying security alert subscriber: {e}")
-    
+
     async def _update_log_integrity(self, event: Dict[str, Any]):
         """
         Update the log integrity chain with a new event.
-        
+
         This creates a hash chain that can be used to verify log integrity.
-        
+
         Args:
             event: Audit log event
         """
         # Create event string
         event_str = json.dumps(event, sort_keys=True)
-        
+
         # Calculate hash including previous hash if available
         hash_input = event_str
         if self._last_log_hash:
             hash_input = f"{self._last_log_hash}:{hash_input}"
-        
+
         # Calculate new hash
         new_hash = hashlib.sha256(hash_input.encode()).hexdigest()
-        
+
         # Update last hash
         self._last_log_hash = new_hash
-        
+
         # Store integrity log entry
         integrity_entry = {
             "event_id": event.get("id"),
@@ -303,13 +303,13 @@ class AuditExtensions:
             "hash": new_hash,
             "previous_hash": self._last_log_hash if self._last_log_hash != new_hash else None,
         }
-        
+
         self._integrity_logs.append(integrity_entry)
-        
+
         # Keep only the last 1000 integrity logs in memory
         if len(self._integrity_logs) > 1000:
             self._integrity_logs = self._integrity_logs[-1000:]
-    
+
     async def _verify_log_integrity_task(self):
         """
         Background task for regular log integrity verification.
@@ -319,7 +319,7 @@ class AuditExtensions:
                 try:
                     # Verify log integrity once per hour
                     await self._verify_log_integrity()
-                    
+
                     # Wait for the next check or until shutdown
                     try:
                         await asyncio.wait_for(
@@ -329,59 +329,59 @@ class AuditExtensions:
                     except asyncio.TimeoutError:
                         # Normal timeout, continue with next verification
                         pass
-                    
+
                 except Exception as e:
                     logger.error(f"Error in log integrity verification: {e}")
                     # Wait a bit before trying again
                     await asyncio.sleep(60)
         except asyncio.CancelledError:
             logger.info("Log integrity verification task cancelled")
-    
+
     async def _verify_log_integrity(self):
         """
         Verify the integrity of the audit log.
-        
+
         This rebuilds the hash chain and checks for any discrepancies.
         """
         logger.info("Verifying audit log integrity")
-        
+
         # Get audit logs from storage
         logs = await self.audit_logger.query_logs(
             start_time=datetime.utcnow() - timedelta(days=1),
             limit=10000,
             ascending=True  # Get in chronological order
         )
-        
+
         if not logs:
             logger.info("No logs to verify")
             return
-        
+
         # Rebuild hash chain
         calculated_hash = None
         integrity_violations = []
-        
+
         for i, log in enumerate(logs):
             # Skip non-standard logs
             if not isinstance(log, dict) or "id" not in log:
                 continue
-            
+
             # Create event string
             event_str = json.dumps(log, sort_keys=True)
-            
+
             # Calculate hash
             hash_input = event_str
             if calculated_hash:
                 hash_input = f"{calculated_hash}:{hash_input}"
-            
+
             new_hash = hashlib.sha256(hash_input.encode()).hexdigest()
-            
+
             # Check if this log has a stored integrity hash
             stored_hash = None
             for integrity_log in self._integrity_logs:
                 if integrity_log.get("event_id") == log.get("id"):
                     stored_hash = integrity_log.get("hash")
                     break
-            
+
             # If we have a stored hash, compare with calculated
             if stored_hash and stored_hash != new_hash:
                 integrity_violations.append({
@@ -391,14 +391,14 @@ class AuditExtensions:
                     "stored_hash": stored_hash,
                     "index": i,
                 })
-            
+
             # Update calculated hash for next iteration
             calculated_hash = new_hash
-        
+
         # Report any violations
         if integrity_violations:
             logger.warning(f"Detected {len(integrity_violations)} audit log integrity violations")
-            
+
             # Log the integrity violation
             await self.audit_logger.log_event(
                 action="audit_log_integrity_violation",
@@ -410,7 +410,7 @@ class AuditExtensions:
                 },
                 priority="high"
             )
-            
+
             # Trigger security alert
             await self._trigger_security_alert(
                 severity="high",
@@ -423,7 +423,7 @@ class AuditExtensions:
             )
         else:
             logger.info("Audit log integrity verified successfully")
-    
+
     async def _enforce_retention_policy_task(self):
         """
         Background task for enforcing log retention policy.
@@ -433,7 +433,7 @@ class AuditExtensions:
                 try:
                     # Enforce retention policy once per day
                     await self._enforce_retention_policy()
-                    
+
                     # Wait for the next check or until shutdown
                     try:
                         await asyncio.wait_for(
@@ -443,47 +443,47 @@ class AuditExtensions:
                     except asyncio.TimeoutError:
                         # Normal timeout, continue with next verification
                         pass
-                    
+
                 except Exception as e:
                     logger.error(f"Error enforcing log retention policy: {e}")
                     # Wait a bit before trying again
                     await asyncio.sleep(300)
         except asyncio.CancelledError:
             logger.info("Log retention policy task cancelled")
-    
+
     async def _enforce_retention_policy(self):
         """Enforce the log retention policy."""
         logger.info("Enforcing audit log retention policy")
-        
+
         # Get retention period from configuration
         retention_days = 90  # Default to 90 days
-        
+
         # Calculate cutoff date
         cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
         cutoff_timestamp = cutoff_date.timestamp()
-        
+
         # Export logs before deleting (if export is enabled)
         # await self._export_logs_before_deletion(cutoff_timestamp)
-        
+
         # Delete old logs
         deleted_count = await self.audit_logger.delete_logs_before(cutoff_timestamp)
-        
+
         logger.info(f"Deleted {deleted_count} logs older than {cutoff_date.isoformat()}")
-    
+
     def register_alert_subscriber(self, subscriber: callable):
         """
         Register a subscriber for security alerts.
-        
+
         Args:
             subscriber: Async callable that takes an alert dictionary
         """
         self._alert_subscribers.append(subscriber)
         logger.info(f"Registered new security alert subscriber, total subscribers: {len(self._alert_subscribers)}")
-    
+
     def unregister_alert_subscriber(self, subscriber: callable):
         """
         Unregister a subscriber from security alerts.
-        
+
         Args:
             subscriber: Previously registered subscriber
         """
@@ -499,7 +499,7 @@ _audit_extensions = None
 def get_audit_extensions() -> AuditExtensions:
     """
     Get the singleton audit extensions instance.
-    
+
     Returns:
         AuditExtensions instance
     """
@@ -510,32 +510,32 @@ def get_audit_extensions() -> AuditExtensions:
 def extend_audit_logger():
     """
     Extend the audit logger with advanced features.
-    
+
     This function:
     1. Gets the existing audit logger
     2. Creates extensions for it
     3. Patches the log_event method to trigger extension processing
     """
     global _audit_extensions
-    
+
     # Get the audit logger
     audit_logger = get_audit_logger()
     if not audit_logger:
         logger.error("Cannot extend audit logger: Audit logger not initialized")
         return
-    
+
     # Create extensions if needed
     if _audit_extensions is None:
         _audit_extensions = AuditExtensions(audit_logger)
-    
+
     # Store the original log_event method
     original_log_event = audit_logger.log_event
-    
+
     # Define the patched method
     async def patched_log_event(*args, **kwargs):
         # Call the original method first
         result = await original_log_event(*args, **kwargs)
-        
+
         # Get the event that was just logged
         event = None
         if len(args) >= 1 and isinstance(args[0], dict):
@@ -548,19 +548,19 @@ def extend_audit_logger():
             }
             event["id"] = result  # The result of log_event should be the event ID
             event["timestamp"] = time.time()
-        
+
         # Process the event with extensions
         if event:
             await _audit_extensions.process_log_event(event)
-        
+
         return result
-    
+
     # Patch the method
     audit_logger.log_event = patched_log_event
-    
+
     # Start the extensions background tasks
     asyncio.create_task(_audit_extensions.start())
-    
+
     logger.info("Audit logger extended with advanced features")
-    
+
     return _audit_extensions

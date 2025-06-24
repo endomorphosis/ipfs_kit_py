@@ -31,19 +31,19 @@ def test_lotus_kit_available():
 def test_ipfs_basic_functionality(mock_ipfs):
     """Test basic IPFS functionality with mocks."""
     from ipfs_kit_py.ipfs import ipfs
-    
+
     # Configure mock
     mock_ipfs.return_value.add.return_value = {"Hash": "QmTestHash"}
     mock_ipfs.return_value.cat.return_value = b"test content"
-    
+
     # Create instance with test config
     instance = ipfs({"test_mode": True})
-    
+
     # Test add functionality
     add_result = instance.add(b"test data")
     assert "Hash" in add_result
     assert add_result["Hash"] == "QmTestHash"
-    
+
     # Test cat functionality
     cat_result = instance.cat("QmTestHash")
     assert cat_result == b"test content"

@@ -38,10 +38,10 @@ except Exception as e:
 def print_stability_summary():
     """Print a summary of API stability decorators."""
     print("\n=== API Stability Summary ===\n")
-    
+
     total_apis = sum(len(apis) for apis in api_stability.API_REGISTRY.values())
     print(f"Total decorated APIs: {total_apis}")
-    
+
     for stability_level, apis in api_stability.API_REGISTRY.items():
         if apis:
             print(f"\n{stability_level.upper()} APIs ({len(apis)}):")

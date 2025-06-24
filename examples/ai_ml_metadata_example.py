@@ -42,7 +42,7 @@ try:
 except ImportError:
     # Create mock functions for demonstration
     ARROW_INDEX_AVAILABLE = False
-    
+
     def find_ai_ml_resources(metadata_index, query_params=None):
         """Mock implementation of resource search for demo mode."""
         try:
@@ -52,7 +52,7 @@ except ImportError:
         except Exception as e:
             # Fall back to mock data
             pass
-            
+
         # Return mock data for demo
         return {
             "success": True,
@@ -64,7 +64,7 @@ except ImportError:
             ],
             "count": 2
         }
-    
+
     def find_similar_models(metadata_index, model_id, similarity_criteria=None, limit=5):
         """Mock implementation of similar model search for demo mode."""
         try:
@@ -74,7 +74,7 @@ except ImportError:
         except Exception as e:
             # Fall back to mock data
             pass
-            
+
         # Return mock data for demo
         return {
             "success": True,
@@ -87,7 +87,7 @@ except ImportError:
             ],
             "count": 2
         }
-    
+
     def find_datasets_for_task(metadata_index, task, domain=None, min_rows=None, format=None, limit=10):
         """Mock implementation of dataset search for demo mode."""
         try:
@@ -97,7 +97,7 @@ except ImportError:
         except Exception as e:
             # Fall back to mock data
             pass
-            
+
         # Return mock data for demo
         return {
             "success": True,
@@ -122,25 +122,25 @@ except ImportError:
 def create_sample_models():
     """Create several sample models with varying characteristics."""
     print("\n===== Creating Sample Models =====")
-    
+
     # Initialize IPFS Kit
     kit = ipfs_kit()
-    
+
     # Create model registry
     registry = ModelRegistry(ipfs_client=kit)
-    
+
     # 1. Create a random forest classifier (simplified for the example)
     print("Training Random Forest classifier...")
     X, y = make_classification(n_samples=100, n_features=10, random_state=42)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
+
     rf_model = RandomForestClassifier(n_estimators=10, random_state=42)
     rf_model.fit(X_train, y_train)
-    
+
     # Evaluate the model
     rf_accuracy = rf_model.score(X_test, y_test)
     print(f"Random Forest model trained with accuracy: {rf_accuracy:.4f}")
-    
+
     # Store the model in the registry with rich metadata
     try:
         rf_model_info = registry.add_model(
@@ -170,19 +170,19 @@ def create_sample_models():
         print(f"Random Forest model stored successfully!")
         if isinstance(rf_model_info, dict) and 'cid' in rf_model_info:
             print(f"Random Forest model stored with CID: {rf_model_info['cid']}")
-        
+
     except Exception as e:
         print(f"Error storing Random Forest model: {str(e)}")
-    
+
     # 2. Create a simplified logistic regression model
     print("\nTraining Logistic Regression model...")
     lr_model = LogisticRegression(max_iter=100, random_state=42)
     lr_model.fit(X_train, y_train)
-    
+
     # Evaluate the model
     lr_accuracy = lr_model.score(X_test, y_test)
     print(f"Logistic Regression model trained with accuracy: {lr_accuracy:.4f}")
-    
+
     # Store the model with rich metadata - simplified for this example
     try:
         lr_model_info = registry.add_model(
@@ -198,10 +198,10 @@ def create_sample_models():
             }
         )
         print(f"Logistic Regression model stored successfully!")
-        
+
     except Exception as e:
         print(f"Error storing Logistic Regression model: {str(e)}")
-    
+
     print("\nModel creation and storage complete!")
     return registry
 
@@ -209,32 +209,32 @@ def create_sample_models():
 def create_sample_datasets():
     """Create several sample datasets with varying characteristics."""
     print("\n===== Creating Sample Datasets =====")
-    
+
     # Initialize IPFS Kit
     kit = ipfs_kit()
-    
+
     # Create dataset manager
     dataset_manager = DatasetManager(ipfs_client=kit)
-    
+
     # Skip actual dataset creation for now since our focus is on the AI/ML metadata integration
     # We'll just print a message to indicate this
     print("Skipping dataset creation to focus on the metadata index integration example.")
     print("In a full implementation, datasets would be saved to files and then added to IPFS.")
-        
+
     return dataset_manager
 
 
 def query_metadata_index(kit=None, registry=None, dataset_manager=None):
     """Show how to query the metadata index for AI/ML resources."""
     print("\n===== Querying Metadata Index for AI/ML Resources =====")
-    
+
     # Initialize IPFS Kit if not provided
     if kit is None:
         kit = ipfs_kit()
-    
+
     # For demo purposes, we'll directly use our mock functions
     print("Using mock metadata index for demonstration")
-    
+
     # Run actual queries in demo mode
     print("\n1. Finding all ML models:")
     try:
@@ -249,7 +249,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             ],
             "count": 2
         }
-        
+
         print(f"Found {ml_models.get('count', 0)} models:")
         for i, model in enumerate(ml_models.get("results", []), 1):
             name = model.get("name", "Unknown")
@@ -258,7 +258,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             print(f"  {i}. {name} ({framework}) - CID: {cid}")
     except Exception as e:
         print(f"Error finding models: {str(e)}")
-    
+
     print("\n2. Finding classification models with high accuracy:")
     try:
         # Mock data for high accuracy models
@@ -272,7 +272,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             ],
             "count": 2
         }
-        
+
         print(f"Found {high_accuracy_models.get('count', 0)} high-accuracy models:")
         for i, model in enumerate(high_accuracy_models.get("results", []), 1):
             name = model.get("name", "Unknown")
@@ -280,7 +280,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             print(f"  {i}. {name} (accuracy: {accuracy})")
     except Exception as e:
         print(f"Error finding high-accuracy models: {str(e)}")
-    
+
     print("\n3. Finding similar models to 'random_forest_classifier':")
     try:
         # Mock data for similar models
@@ -295,7 +295,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             ],
             "count": 2
         }
-        
+
         print(f"Found {similar_models.get('count', 0)} similar models:")
         for i, model in enumerate(similar_models.get("results", []), 1):
             name = model.get("name", "Unknown")
@@ -303,7 +303,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             print(f"  {i}. {name} (similarity score: {score})")
     except Exception as e:
         print(f"Error finding similar models: {str(e)}")
-    
+
     print("\n4. Finding datasets for 'binary_classification' task:")
     try:
         # Mock data for datasets
@@ -318,7 +318,7 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             ],
             "count": 2
         }
-        
+
         print(f"Found {task_datasets.get('count', 0)} datasets for binary classification:")
         for i, dataset in enumerate(task_datasets.get("results", []), 1):
             name = dataset.get("name", "Unknown")
@@ -327,9 +327,9 @@ def query_metadata_index(kit=None, registry=None, dataset_manager=None):
             print(f"  {i}. {name} ({format}, {rows} rows)")
     except Exception as e:
         print(f"Error finding datasets: {str(e)}")
-    
+
     print("\nMetadata querying demonstration complete")
-    
+
     return ml_models
 
 
@@ -337,28 +337,28 @@ def run_all_examples():
     """Run all examples sequentially."""
     print("Running IPFS Kit AI/ML Metadata Integration Examples")
     print("===================================================")
-    
+
     try:
         # Initialize IPFS Kit
         kit = ipfs_kit()
-        
-        # Create sample models 
+
+        # Create sample models
         print("\nCreating sample models with rich metadata...")
         registry = create_sample_models()
-        
+
         # Initialize dataset manager (but skip actual dataset creation)
         dataset_manager = create_sample_datasets()
-        
+
         # Wait a moment for the metadata to be indexed
         print("\nWaiting for metadata indexing...")
         time.sleep(2)
-        
+
         # Run query examples with our demo/mock mode
         result = query_metadata_index(kit, registry, dataset_manager)
-        
+
         print("\n===================================================")
         print("Examples completed - successfully demonstrated model registration with metadata and querying!")
-        
+
     except Exception as e:
         print(f"\nError running examples: {str(e)}")
         print("\nThe example still demonstrates the key AI/ML integration concepts in demo mode.")

@@ -1,7 +1,7 @@
 """
 Tiered Cache System for IPFS - Backward Compatibility Module.
 
-This module provides backward compatibility for the tiered caching system 
+This module provides backward compatibility for the tiered caching system
 which has been split into separate files. It re-exports the core classes
 from their new locations.
 """

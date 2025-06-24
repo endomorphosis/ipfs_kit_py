@@ -38,7 +38,7 @@ try:
     )
 except ImportError:
     logger.warning("Could not import libp2p constants")
-    
+
     # Define basic constants for compatibility
     ALPHA_VALUE = 3
     MAX_PROVIDERS_PER_KEY = 20

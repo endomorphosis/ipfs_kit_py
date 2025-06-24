@@ -25,15 +25,15 @@ def get_ipfs_simple_api_class():
             try:
                 import os
                 import importlib.util
-                
+
                 # Get path to high_level_api.py
                 module_path = os.path.join(os.path.dirname(__file__), 'ipfs_kit_py', 'high_level_api.py')
-                
+
                 # Import the module
                 spec = importlib.util.spec_from_file_location("high_level_api", module_path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                
+
                 # Get the class
                 return module.IPFSSimpleAPI
             except Exception as e:
@@ -47,18 +47,18 @@ def apply_monkeypatch():
     if not IPFSSimpleAPI:
         print("Failed to get IPFSSimpleAPI class")
         return False
-    
+
     # Define the new pins method
     def pins(self, type=None, quiet=None, verify=None, **kwargs):
         """
         Alias for list_pins method with parameter support.
-        
+
         Args:
             type: Pin type filter
             quiet: Whether to return only CIDs
             verify: Whether to verify the pinned status
             **kwargs: Additional parameters
-            
+
         Returns:
             Dictionary with operation results
         """
@@ -73,22 +73,22 @@ def apply_monkeypatch():
                 "pins": {}
             }
             return result
-    
+
     # Apply the patch
     try:
         # Check if pins method exists
         if hasattr(IPFSSimpleAPI, 'pins'):
             # Save the original method
             original_pins = IPFSSimpleAPI.pins
-            
+
             # Method signature check
             sig = inspect.signature(original_pins)
             has_type_param = 'type' in sig.parameters
-            
+
             if has_type_param:
                 print("pins method already supports 'type' parameter, no need to patch")
                 return True
-        
+
         # Add or replace the method
         IPFSSimpleAPI.pins = pins
         print("Successfully applied monkeypatch to IPFSSimpleAPI.pins method")

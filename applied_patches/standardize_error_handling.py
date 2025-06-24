@@ -51,60 +51,60 @@ class ErrorCode(str, Enum):
     INVALID_FORMAT = "invalid_format"
     VALUE_OUT_OF_RANGE = "value_out_of_range"
     INVALID_CID = "invalid_cid"
-    
+
     # Authentication errors (401)
     UNAUTHORIZED = "unauthorized"
     INVALID_CREDENTIALS = "invalid_credentials"
     EXPIRED_TOKEN = "expired_token"
-    
+
     # Authorization errors (403)
     FORBIDDEN = "forbidden"
     INSUFFICIENT_PERMISSIONS = "insufficient_permissions"
-    
+
     # Not found errors (404)
     RESOURCE_NOT_FOUND = "resource_not_found"
     CONTENT_NOT_FOUND = "content_not_found"
     ENDPOINT_NOT_FOUND = "endpoint_not_found"
-    
+
     # Resource conflict errors (409)
     RESOURCE_ALREADY_EXISTS = "resource_already_exists"
     RESOURCE_IN_USE = "resource_in_use"
     CONCURRENT_MODIFICATION = "concurrent_modification"
-    
+
     # Dependency errors (502)
     UPSTREAM_SERVICE_ERROR = "upstream_service_error"
     DEPENDENCY_UNAVAILABLE = "dependency_unavailable"
     GATEWAY_ERROR = "gateway_error"
-    
+
     # Internal errors (500)
     INTERNAL_SERVER_ERROR = "internal_server_error"
     UNEXPECTED_ERROR = "unexpected_error"
     CONFIGURATION_ERROR = "configuration_error"
-    
+
     # Network errors (various)
     CONNECTION_ERROR = "connection_error"
     DNS_ERROR = "dns_error"
     TLS_ERROR = "tls_error"
-    
+
     # Timeout errors (408, 504)
     REQUEST_TIMEOUT = "request_timeout"
     OPERATION_TIMEOUT = "operation_timeout"
     GATEWAY_TIMEOUT = "gateway_timeout"
-    
+
     # Storage errors (507)
     STORAGE_FULL = "storage_full"
     IO_ERROR = "io_error"
     STORAGE_UNAVAILABLE = "storage_unavailable"
-    
+
     # Rate limiting (429)
     RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
     TOO_MANY_REQUESTS = "too_many_requests"
-    
+
     # Format errors (415)
     UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
     CONTENT_TYPE_MISMATCH = "content_type_mismatch"
     SERIALIZATION_ERROR = "serialization_error"
-    
+
     # Unknown errors
     UNKNOWN_ERROR = "unknown_error"
 
@@ -142,7 +142,7 @@ ERROR_METADATA = {
         "message": "The provided CID is invalid.",
         "suggestion": "Please provide a valid IPFS CID."
     },
-    
+
     # Authentication errors
     ErrorCode.UNAUTHORIZED: {
         "category": ErrorCategory.AUTHENTICATION,
@@ -162,7 +162,7 @@ ERROR_METADATA = {
         "message": "The authentication token has expired.",
         "suggestion": "Please refresh your token or login again."
     },
-    
+
     # Authorization errors
     ErrorCode.FORBIDDEN: {
         "category": ErrorCategory.AUTHORIZATION,
@@ -176,7 +176,7 @@ ERROR_METADATA = {
         "message": "You do not have sufficient permissions for this operation.",
         "suggestion": "Please request additional permissions or contact an administrator."
     },
-    
+
     # Not found errors
     ErrorCode.RESOURCE_NOT_FOUND: {
         "category": ErrorCategory.NOT_FOUND,
@@ -196,7 +196,7 @@ ERROR_METADATA = {
         "message": "The requested endpoint was not found.",
         "suggestion": "Please check the API documentation for available endpoints."
     },
-    
+
     # Resource conflict errors
     ErrorCode.RESOURCE_ALREADY_EXISTS: {
         "category": ErrorCategory.RESOURCE_CONFLICT,
@@ -216,7 +216,7 @@ ERROR_METADATA = {
         "message": "The resource was modified concurrently.",
         "suggestion": "Please refresh and try again."
     },
-    
+
     # Dependency errors
     ErrorCode.UPSTREAM_SERVICE_ERROR: {
         "category": ErrorCategory.DEPENDENCY_ERROR,
@@ -236,7 +236,7 @@ ERROR_METADATA = {
         "message": "The gateway encountered an error.",
         "suggestion": "Please try again later or contact support if the problem persists."
     },
-    
+
     # Internal errors
     ErrorCode.INTERNAL_SERVER_ERROR: {
         "category": ErrorCategory.INTERNAL_ERROR,
@@ -256,7 +256,7 @@ ERROR_METADATA = {
         "message": "A configuration error occurred.",
         "suggestion": "Please contact support to resolve this issue."
     },
-    
+
     # Network errors
     ErrorCode.CONNECTION_ERROR: {
         "category": ErrorCategory.NETWORK_ERROR,
@@ -276,7 +276,7 @@ ERROR_METADATA = {
         "message": "A TLS/SSL error occurred.",
         "suggestion": "Please check your SSL/TLS configuration or certificates."
     },
-    
+
     # Timeout errors
     ErrorCode.REQUEST_TIMEOUT: {
         "category": ErrorCategory.TIMEOUT_ERROR,
@@ -296,7 +296,7 @@ ERROR_METADATA = {
         "message": "The gateway timed out.",
         "suggestion": "Please try again later or check system status."
     },
-    
+
     # Storage errors
     ErrorCode.STORAGE_FULL: {
         "category": ErrorCategory.STORAGE_ERROR,
@@ -316,7 +316,7 @@ ERROR_METADATA = {
         "message": "The storage service is unavailable.",
         "suggestion": "Please try again later or check system status."
     },
-    
+
     # Rate limiting
     ErrorCode.RATE_LIMIT_EXCEEDED: {
         "category": ErrorCategory.RATE_LIMIT,
@@ -330,7 +330,7 @@ ERROR_METADATA = {
         "message": "Too many requests.",
         "suggestion": "Please reduce your request rate or try again later."
     },
-    
+
     # Format errors
     ErrorCode.UNSUPPORTED_MEDIA_TYPE: {
         "category": ErrorCategory.FORMAT_ERROR,
@@ -350,7 +350,7 @@ ERROR_METADATA = {
         "message": "Failed to serialize or deserialize the data.",
         "suggestion": "Please check the format of your data."
     },
-    
+
     # Unknown errors
     ErrorCode.UNKNOWN_ERROR: {
         "category": ErrorCategory.UNKNOWN,
@@ -364,11 +364,11 @@ ERROR_METADATA = {
 class MCPError(Exception):
     """
     Base exception class for MCP errors.
-    
+
     This class provides a standardized way to create and handle errors
     across the MCP system with consistent formats and behavior.
     """
-    
+
     def __init__(
         self,
         code: Union[ErrorCode, str],
@@ -382,7 +382,7 @@ class MCPError(Exception):
     ):
         """
         Initialize an MCP error.
-        
+
         Args:
             code: Error code (either an ErrorCode enum or string)
             message: Custom error message (uses default for the code if not provided)
@@ -403,13 +403,13 @@ class MCPError(Exception):
                 details["original_code"] = code
         else:
             self.code = code
-        
+
         # Get metadata for the error code
         metadata = ERROR_METADATA.get(self.code, ERROR_METADATA[ErrorCode.UNKNOWN_ERROR])
-        
+
         # Use provided message or default
         self.message = message or metadata["message"]
-        
+
         # Set attributes
         self.details = details or {}
         self.original_error = original_error
@@ -419,19 +419,19 @@ class MCPError(Exception):
         self.category = metadata["category"]
         self.operation = operation
         self.timestamp = time.time()
-        
+
         # Add original error details if available
         if original_error:
             self.details["original_error"] = str(original_error)
             self.details["original_error_type"] = type(original_error).__name__
-        
+
         # Set exception message
         super().__init__(self.message)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert the error to a dictionary representation.
-        
+
         Returns:
             Dictionary representing the error
         """
@@ -445,23 +445,23 @@ class MCPError(Exception):
                 "timestamp": self.timestamp
             }
         }
-        
+
         # Add optional fields if available
         if self.suggestion:
             error_dict["error"]["suggestion"] = self.suggestion
-        
+
         if self.operation:
             error_dict["error"]["operation"] = self.operation
-        
+
         if self.details:
             error_dict["error"]["details"] = self.details
-        
+
         return error_dict
-    
+
     def to_legacy_dict(self) -> Dict[str, Any]:
         """
         Convert the error to a legacy dictionary format for compatibility.
-        
+
         Returns:
             Dictionary representing the error in legacy format
         """
@@ -597,7 +597,7 @@ class ConfigurationError(MCPError):
             message = message or f"Configuration error with key: {config_key}"
         else:
             message = message or "Configuration error"
-        
+
         super().__init__(
             code=ErrorCode.CONFIGURATION_ERROR,
             message=message,
@@ -617,14 +617,14 @@ def error_from_exception(
 ) -> MCPError:
     """
     Convert a regular exception to an MCPError.
-    
+
     Args:
         exception: The exception to convert
         default_code: Default error code if the exception type can't be mapped
         include_traceback: Whether to include traceback in the error details
         correlation_id: Optional correlation ID
         operation: Optional operation name
-        
+
     Returns:
         An MCPError instance
     """
@@ -636,7 +636,7 @@ def error_from_exception(
         if operation and not exception.operation:
             exception.operation = operation
         return exception
-    
+
     # Map common exception types to appropriate error codes
     error_code = default_code
     if isinstance(exception, ValueError):
@@ -657,12 +657,12 @@ def error_from_exception(
         error_code = ErrorCode.IO_ERROR
     elif isinstance(exception, NotImplementedError):
         error_code = ErrorCode.INTERNAL_SERVER_ERROR
-    
+
     # Create details dict
     details = {}
     if include_traceback:
         details["traceback"] = traceback.format_exc()
-    
+
     # Create MCPError from the exception
     return MCPError(
         code=error_code,
@@ -677,10 +677,10 @@ def error_from_exception(
 def classify_error_code(status_code: int) -> ErrorCode:
     """
     Map an HTTP status code to an appropriate ErrorCode.
-    
+
     Args:
         status_code: HTTP status code
-        
+
     Returns:
         Mapped ErrorCode
     """
@@ -702,7 +702,7 @@ def classify_error_code(status_code: int) -> ErrorCode:
         HTTPStatus.GATEWAY_TIMEOUT: ErrorCode.GATEWAY_TIMEOUT,
         HTTPStatus.INSUFFICIENT_STORAGE: ErrorCode.STORAGE_FULL
     }
-    
+
     # Return mapped error code or default to unknown error
     return mapping.get(status_code, ErrorCode.UNKNOWN_ERROR)
 
@@ -713,20 +713,20 @@ def handle_error_response(
 ) -> MCPError:
     """
     Convert an error response dictionary to an MCPError.
-    
+
     This is useful for handling errors from API responses.
-    
+
     Args:
         response_dict: The error response dictionary
         correlation_id: Optional correlation ID
-        
+
     Returns:
         An MCPError instance
     """
     # Check if it's already in the new error format
     if "error" in response_dict and isinstance(response_dict["error"], dict):
         error_info = response_dict["error"]
-        
+
         # Extract error details
         code = error_info.get("code", ErrorCode.UNKNOWN_ERROR)
         message = error_info.get("message", "Unknown error")
@@ -734,7 +734,7 @@ def handle_error_response(
         suggestion = error_info.get("suggestion")
         operation = error_info.get("operation")
         response_correlation_id = error_info.get("correlation_id")
-        
+
         # Create MCPError
         return MCPError(
             code=code,
@@ -744,14 +744,14 @@ def handle_error_response(
             suggestion=suggestion,
             operation=operation
         )
-    
+
     # Handle legacy error format
     elif "error" in response_dict and isinstance(response_dict["error"], str):
         message = response_dict["error"]
         code = response_dict.get("error_code", ErrorCode.UNKNOWN_ERROR)
         details = response_dict.get("details")
         response_correlation_id = response_dict.get("correlation_id")
-        
+
         # Create MCPError
         return MCPError(
             code=code,
@@ -759,7 +759,7 @@ def handle_error_response(
             details=details,
             correlation_id=correlation_id or response_correlation_id
         )
-    
+
     # Handle unknown error format
     else:
         return MCPError(
@@ -782,7 +782,7 @@ def safe_execute(
 ) -> Tuple[bool, Any, Optional[MCPError]]:
     """
     Safely execute a function with error handling.
-    
+
     Args:
         func: Function to execute
         *args: Arguments to pass to the function
@@ -792,7 +792,7 @@ def safe_execute(
         correlation_id: Optional correlation ID
         operation: Optional operation name
         **kwargs: Keyword arguments to pass to the function
-        
+
     Returns:
         Tuple of (success, result, error)
             - success: Boolean indicating if the function executed successfully
@@ -803,7 +803,7 @@ def safe_execute(
         # Execute the function
         result = func(*args, **kwargs)
         return True, result, None
-    
+
     except Exception as e:
         # Convert to MCPError
         error = error_from_exception(
@@ -811,7 +811,7 @@ def safe_execute(
             correlation_id=correlation_id,
             operation=operation
         )
-        
+
         # Log the error if requested
         if log_errors:
             logger.error(
@@ -823,14 +823,14 @@ def safe_execute(
                     "error_details": error.details
                 }
             )
-        
+
         # Call custom error handler if provided
         if error_handler:
             try:
                 error_handler(error)
             except Exception as handler_error:
                 logger.error(f"Error in error handler: {handler_error}")
-        
+
         # Return the error result
         return False, default_value, error
 
@@ -847,7 +847,7 @@ async def async_safe_execute(
 ) -> Tuple[bool, Any, Optional[MCPError]]:
     """
     Safely execute an async function with error handling.
-    
+
     Args:
         func: Async function to execute
         *args: Arguments to pass to the function
@@ -857,7 +857,7 @@ async def async_safe_execute(
         correlation_id: Optional correlation ID
         operation: Optional operation name
         **kwargs: Keyword arguments to pass to the function
-        
+
     Returns:
         Tuple of (success, result, error)
             - success: Boolean indicating if the function executed successfully
@@ -868,7 +868,7 @@ async def async_safe_execute(
         # Execute the async function
         result = await func(*args, **kwargs)
         return True, result, None
-    
+
     except Exception as e:
         # Convert to MCPError
         error = error_from_exception(
@@ -876,7 +876,7 @@ async def async_safe_execute(
             correlation_id=correlation_id,
             operation=operation
         )
-        
+
         # Log the error if requested
         if log_errors:
             logger.error(
@@ -888,7 +888,7 @@ async def async_safe_execute(
                     "error_details": error.details
                 }
             )
-        
+
         # Call custom error handler if provided
         if error_handler:
             try:
@@ -898,7 +898,7 @@ async def async_safe_execute(
                     error_handler(error)
             except Exception as handler_error:
                 logger.error(f"Error in async error handler: {handler_error}")
-        
+
         # Return the error result
         return False, default_value, error
 
@@ -909,13 +909,13 @@ try:
     from fastapi.responses import JSONResponse
     from fastapi.exceptions import RequestValidationError
     from pydantic import ValidationError
-    
+
     FASTAPI_AVAILABLE = True
-    
+
     def add_error_handlers(app: FastAPI) -> None:
         """
         Add error handlers to a FastAPI application.
-        
+
         Args:
             app: FastAPI application instance
         """
@@ -924,7 +924,7 @@ try:
         async def validation_exception_handler(request: Request, exc: RequestValidationError):
             errors = exc.errors()
             details = {"validation_errors": errors}
-            
+
             # Extract field names and create a user-friendly message
             fields = []
             for error in errors:
@@ -933,10 +933,10 @@ try:
                     fields.append(loc[1])
                 elif len(loc) > 0:
                     fields.append(loc[0])
-            
+
             field_str = ", ".join(fields) if fields else "input data"
             message = f"Validation error with {field_str}"
-            
+
             # Create MCPError
             error = MCPError(
                 code=ErrorCode.INVALID_INPUT,
@@ -944,7 +944,7 @@ try:
                 details=details,
                 original_error=exc
             )
-            
+
             # Log the error
             logger.warning(
                 f"Validation error: {message}",
@@ -955,29 +955,29 @@ try:
                     "validation_errors": errors
                 }
             )
-            
+
             # Return error response
             return JSONResponse(
                 status_code=error.status_code,
                 content=error.to_dict()
             )
-        
+
         # Handle Pydantic validation errors
         @app.exception_handler(ValidationError)
         async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
             errors = exc.errors()
             details = {"validation_errors": errors}
-            
+
             # Extract field names and create a user-friendly message
             fields = []
             for error in errors:
                 loc = error.get("loc", [])
                 if loc:
                     fields.append(".".join(str(item) for item in loc))
-            
+
             field_str = ", ".join(fields) if fields else "input data"
             message = f"Validation error with {field_str}"
-            
+
             # Create MCPError
             error = MCPError(
                 code=ErrorCode.INVALID_INPUT,
@@ -985,7 +985,7 @@ try:
                 details=details,
                 original_error=exc
             )
-            
+
             # Log the error
             logger.warning(
                 f"Pydantic validation error: {message}",
@@ -996,13 +996,13 @@ try:
                     "validation_errors": errors
                 }
             )
-            
+
             # Return error response
             return JSONResponse(
                 status_code=error.status_code,
                 content=error.to_dict()
             )
-        
+
         # Handle MCPError exceptions
         @app.exception_handler(MCPError)
         async def mcp_error_exception_handler(request: Request, exc: MCPError):
@@ -1010,7 +1010,7 @@ try:
             level = logging.ERROR
             if exc.category in [ErrorCategory.VALIDATION, ErrorCategory.NOT_FOUND]:
                 level = logging.WARNING
-            
+
             logger.log(
                 level,
                 f"MCPError: {exc.message}",
@@ -1023,13 +1023,13 @@ try:
                     "details": exc.details
                 }
             )
-            
+
             # Return error response
             return JSONResponse(
                 status_code=exc.status_code,
                 content=exc.to_dict()
             )
-        
+
         # Handle generic exceptions
         @app.exception_handler(Exception)
         async def generic_exception_handler(request: Request, exc: Exception):
@@ -1038,7 +1038,7 @@ try:
                 exc,
                 include_traceback=True
             )
-            
+
             # Log the error
             logger.error(
                 f"Unhandled exception: {error.message}",
@@ -1051,28 +1051,28 @@ try:
                     "details": error.details
                 }
             )
-            
+
             # Return error response
             return JSONResponse(
                 status_code=error.status_code,
                 content=error.to_dict()
             )
-        
+
         # Add middleware to ensure correlation IDs and handle exceptions
         @app.middleware("http")
         async def error_handling_middleware(request: Request, call_next):
             # Generate or extract correlation ID
             correlation_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
-            
+
             try:
                 # Call the next middleware or endpoint
                 response = await call_next(request)
-                
+
                 # Add correlation ID to response headers
                 response.headers["X-Correlation-ID"] = correlation_id
-                
+
                 return response
-                
+
             except Exception as exc:
                 # This should only catch exceptions not handled by the exception handlers
                 # Convert to MCPError
@@ -1081,7 +1081,7 @@ try:
                     correlation_id=correlation_id,
                     include_traceback=True
                 )
-                
+
                 # Log the error
                 logger.error(
                     f"Unhandled middleware exception: {error.message}",
@@ -1094,14 +1094,14 @@ try:
                         "details": error.details
                     }
                 )
-                
+
                 # Return error response
                 return JSONResponse(
                     status_code=error.status_code,
                     headers={"X-Correlation-ID": correlation_id},
                     content=error.to_dict()
                 )
-        
+
         # Log successful FastAPI setup
         logger.info("Added standardized error handlers to FastAPI application")
 
@@ -1115,7 +1115,7 @@ except ImportError:
 if __name__ == "__main__":
     # Configure basic logging
     logging.basicConfig(level=logging.INFO)
-    
+
     # Example 1: Basic error creation
     try:
         # Simulate an error
@@ -1126,7 +1126,7 @@ if __name__ == "__main__":
         print("Example 1 - Basic error:")
         print(json.dumps(error.to_dict(), indent=2))
         print()
-    
+
     # Example 2: Custom error with details
     custom_error = MCPError(
         code=ErrorCode.RESOURCE_NOT_FOUND,
@@ -1137,26 +1137,26 @@ if __name__ == "__main__":
     print("Example 2 - Custom error with details:")
     print(json.dumps(custom_error.to_dict(), indent=2))
     print()
-    
+
     # Example 3: Using safe_execute
     def example_function(x, y):
         return x / y
-    
+
     print("Example 3 - Safe execute success:")
     success, result, error = safe_execute(example_function, 10, 2)
     print(f"Success: {success}, Result: {result}")
     print()
-    
+
     print("Example 4 - Safe execute failure:")
     success, result, error = safe_execute(example_function, 10, 0, default_value="Error occurred")
     print(f"Success: {success}, Result: {result}")
     print(json.dumps(error.to_dict(), indent=2))
     print()
-    
+
     # Example 5: Using specialized error classes
     validation_error = ValidationError("The email format is invalid")
     resource_not_found = ResourceNotFoundError("User", "12345")
-    
+
     print("Example 5 - Specialized error classes:")
     print(json.dumps(validation_error.to_dict(), indent=2))
     print(json.dumps(resource_not_found.to_dict(), indent=2))

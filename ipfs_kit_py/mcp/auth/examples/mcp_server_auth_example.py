@@ -47,7 +47,7 @@ try:
     # Storage Manager (minimal imports for example)
     from ipfs_kit_py.mcp.storage_manager.backend_manager import BackendManager
     from ipfs_kit_py.mcp.storage_manager.backends.ipfs_backend import IPFSBackend
-    
+
     # Advanced Authentication & Authorization
     from ipfs_kit_py.mcp.auth.mcp_auth_integration import (
         setup_mcp_auth, get_mcp_auth,
@@ -55,10 +55,10 @@ try:
     )
     from ipfs_kit_py.mcp.auth.models import User, Role, Permission
     from ipfs_kit_py.mcp.auth.router import get_current_user, get_admin_user
-    
+
     # Component initialization success
     COMPONENTS_INITIALIZED = True
-    
+
 except ImportError as e:
     logger.error(f"Error importing MCP components: {e}")
     COMPONENTS_INITIALIZED = False
@@ -72,12 +72,12 @@ auth_system = None
 async def initialize_components():
     """Initialize MCP components."""
     global backend_manager, auth_system
-    
+
     logger.info("Initializing MCP components...")
-    
+
     # Initialize Backend Manager
     backend_manager = BackendManager()
-    
+
     # Configure default IPFS backend
     ipfs_resources = {
         "ipfs_host": os.environ.get("IPFS_HOST", "127.0.0.1"),
@@ -85,12 +85,12 @@ async def initialize_components():
         "ipfs_timeout": int(os.environ.get("IPFS_TIMEOUT", "30")),
         "allow_mock": os.environ.get("ALLOW_MOCK", "1") == "1"
     }
-    
+
     ipfs_metadata = {
         "backend_name": "ipfs",
         "description": "IPFS backend"
     }
-    
+
     # Create and add IPFS backend
     try:
         ipfs_backend = IPFSBackend(ipfs_resources, ipfs_metadata)
@@ -98,18 +98,18 @@ async def initialize_components():
         logger.info("Added IPFS backend to manager")
     except Exception as e:
         logger.error(f"Error initializing IPFS backend: {e}")
-    
+
     # Initialize Advanced Authentication & Authorization System
     auth_config = {
         # JWT configuration
         "token_secret": os.environ.get("MCP_JWT_SECRET", "change-me-in-production"),
         "token_algorithm": "HS256",
         "token_expire_minutes": 1440,  # 24 hours
-        
+
         # Admin account
         "admin_username": os.environ.get("MCP_ADMIN_USERNAME", "admin"),
         "admin_password": os.environ.get("MCP_ADMIN_PASSWORD", "change-me-in-production"),
-        
+
         # OAuth providers (configure as needed)
         "oauth_providers": {
             "github": {
@@ -123,7 +123,7 @@ async def initialize_components():
                 "redirect_uri": os.environ.get("GOOGLE_REDIRECT_URI", "")
             }
         },
-        
+
         # Custom roles
         "custom_roles": [
             {
@@ -131,7 +131,7 @@ async def initialize_components():
                 "name": "Data Scientist",
                 "parent_role": "user",
                 "permissions": [
-                    "read:ipfs", "write:ipfs", 
+                    "read:ipfs", "write:ipfs",
                     "read:search", "write:search"
                 ]
             },
@@ -149,22 +149,22 @@ async def initialize_components():
                 "name": "Content Manager",
                 "parent_role": "user",
                 "permissions": [
-                    "read:ipfs", "write:ipfs", 
+                    "read:ipfs", "write:ipfs",
                     "read:s3", "write:s3"
                 ]
             }
         ]
     }
-    
+
     auth_system = await setup_mcp_auth(
         app=app,
         backend_manager=backend_manager,
         config=auth_config
     )
-    
+
     if auth_system and auth_system.initialized:
         logger.info("Advanced Authentication & Authorization system initialized")
-        
+
         # Configure backend permissions
         await auth_system.configure_backend_permissions({
             "ipfs": ["read", "write", "pin", "admin"],
@@ -173,7 +173,7 @@ async def initialize_components():
         })
     else:
         logger.error("Failed to initialize auth system")
-    
+
     logger.info("All MCP components initialized")
 
 
@@ -194,7 +194,7 @@ async def server_info():
 async def get_profile(current_user: User = Depends(get_current_user)):
     """
     Get current user profile.
-    
+
     Requires authentication.
     """
     # Log access
@@ -204,7 +204,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         operation="get_profile",
         granted=True
     )
-    
+
     return {
         "success": True,
         "profile": {
@@ -222,17 +222,17 @@ async def get_profile(current_user: User = Depends(get_current_user)):
 async def ipfs_version(current_user: User = Depends(get_current_user)):
     """
     Get IPFS version.
-    
+
     Requires 'read:ipfs' permission.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         # Log backend access
         audit_backend_access(
             user_id=current_user.id,
@@ -240,7 +240,7 @@ async def ipfs_version(current_user: User = Depends(get_current_user)):
             operation="version",
             granted=True
         )
-        
+
         return {"version": "0.12.0", "backend": "ipfs"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -248,23 +248,23 @@ async def ipfs_version(current_user: User = Depends(get_current_user)):
 
 @app.post("/api/v0/ipfs/add")
 async def ipfs_add(
-    file: UploadFile = File(...), 
+    file: UploadFile = File(...),
     pin: bool = Form(True),
     current_user: User = Depends(get_current_user)
 ):
     """
     Add content to IPFS.
-    
+
     Requires 'write:ipfs' permission.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         # Check permission (automatically enforced by backend middleware,
         # but shown here for example purposes)
         auth_system = get_mcp_auth()
@@ -272,7 +272,7 @@ async def ipfs_add(
             user_roles=[current_user.role],
             permission_name="write:ipfs"
         )
-        
+
         if not has_permission and current_user.role != Role.ADMIN:
             # Log permission check
             audit_permission_check(
@@ -280,28 +280,28 @@ async def ipfs_add(
                 permission="write:ipfs",
                 granted=False
             )
-            
+
             raise HTTPException(
                 status_code=403,
                 detail="Permission denied: You need 'write:ipfs' permission"
             )
-        
+
         # Read file content
         content = await file.read()
-        
+
         # Add to IPFS
         result = await ipfs_backend.add_content(content, {"filename": file.filename})
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to add content to IPFS")
             )
-        
+
         # Pin if requested
         if pin and result.get("identifier"):
             await ipfs_backend.pin_add(result["identifier"])
-        
+
         # Log successful operation
         audit_backend_access(
             user_id=current_user.id,
@@ -314,7 +314,7 @@ async def ipfs_add(
                 "cid": result.get("identifier")
             }
         )
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -325,17 +325,17 @@ async def ipfs_add(
 async def list_users(admin_user: User = Depends(get_admin_user)):
     """
     List all users.
-    
+
     Requires admin role.
     """
     if not COMPONENTS_INITIALIZED or not auth_system:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Get list of users
         auth_service = auth_system.auth_system.auth_service
         users = await auth_service.list_users()
-        
+
         # Log admin access
         audit_backend_access(
             user_id=admin_user.id,
@@ -343,7 +343,7 @@ async def list_users(admin_user: User = Depends(get_admin_user)):
             operation="list_users",
             granted=True
         )
-        
+
         return {
             "success": True,
             "users": [
@@ -399,7 +399,7 @@ def main():
     parser.add_argument("--port", type=int, default=5000, help="Port to listen on")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     args = parser.parse_args()
-    
+
     # Import and run server
     import uvicorn
     uvicorn.run(

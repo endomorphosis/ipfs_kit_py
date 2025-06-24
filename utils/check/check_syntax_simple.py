@@ -12,11 +12,11 @@ filename = 'ipfs_kit_py/mcp/models/libp2p_model.py'
 try:
     with open(filename, 'r') as f:
         source = f.read()
-    
+
     # Try to compile the source code
     compile(source, filename, 'exec')
     print('Compilation successful!')
-    
+
 except SyntaxError as e:
     print(f'Syntax error at line {e.lineno}: {e.msg}')
     # Get several lines of context
@@ -31,6 +31,6 @@ except SyntaxError as e:
                 print(f"{prefix} {i+1}: {lines[i].rstrip()}")
     except Exception as ex:
         print(f"Error getting context: {ex}")
-        
+
 except Exception as e:
     print(f'Error: {e}')

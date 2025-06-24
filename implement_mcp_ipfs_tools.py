@@ -53,20 +53,20 @@ MISSING_METHODS = [
 def fix_server_bridge():
     """Fix server_bridge.py to properly handle tool requests."""
     server_bridge_path = os.path.join(MCP_PATH, "server_bridge.py")
-    
+
     if not os.path.exists(server_bridge_path):
         logger.error(f"Server bridge file not found at {server_bridge_path}")
         return False
-    
+
     try:
         # Read the current file
         with open(server_bridge_path, 'r') as f:
             content = f.read()
-        
+
         # Check if the file already has tool handling
         if "tool_handler" in content and "/mcp/tools" in content:
             logger.info("Server bridge already has tool handling")
-            
+
             # Make sure the route is properly registered
             if "app.add_api_route(\"/mcp/tools\"" not in content:
                 # Add the route if it's missing
@@ -98,17 +98,17 @@ def fix_server_bridge():
 async def tool_handler(request: Request):
     \"\"\"Handle MCP tool requests.\"\"\"
     data = await request.json()
-    
+
     tool_name = data.get("name")
     server_name = data.get("server", "default")
     args = data.get("args", {})
-    
+
     if not tool_name:
         return JSONResponse(
             status_code=400,
             content={"error": "Tool name is required"}
         )
-    
+
     # Find the tool implementation
     try:
         # Try to get the tool from controllers
@@ -119,7 +119,7 @@ async def tool_handler(request: Request):
                     # Call the tool with args
                     result = await tool_impl(**args)
                     return JSONResponse(content=result)
-        
+
         # If not found in controllers, try model methods
         for model_name, model in models.items():
             if hasattr(model, tool_name):
@@ -128,7 +128,7 @@ async def tool_handler(request: Request):
                     # Call the tool with args
                     result = await tool_impl(**args)
                     return JSONResponse(content=result)
-        
+
         # If still not found, check extensions
         if hasattr(extensions, tool_name):
             tool_impl = getattr(extensions, tool_name)
@@ -136,7 +136,7 @@ async def tool_handler(request: Request):
                 # Call the tool with args
                 result = await tool_impl(**args)
                 return JSONResponse(content=result)
-        
+
         # Tool not found
         return JSONResponse(
             status_code=404,
@@ -146,7 +146,7 @@ async def tool_handler(request: Request):
         # Log the error
         logger.error(f"Error executing tool '{tool_name}': {e}")
         logger.error(traceback.format_exc())
-        
+
         # Return error response
         return JSONResponse(
             status_code=500,
@@ -156,7 +156,7 @@ async def tool_handler(request: Request):
             # Add the tool handler code
             content += tool_code
             logger.info("Added tool handler code to server_bridge.py")
-            
+
             # Add the route
             route_code = """
     # Add MCP tool handling route
@@ -179,11 +179,11 @@ async def tool_handler(request: Request):
                 logger.info("Added MCP tools route to server_bridge.py")
             else:
                 logger.warning("Could not find a place to add the MCP tools route")
-        
+
         # Write the updated content
         with open(server_bridge_path, 'w') as f:
             f.write(content)
-        
+
         logger.info(f"Updated server bridge file at {server_bridge_path}")
         return True
     except Exception as e:
@@ -194,7 +194,7 @@ async def tool_handler(request: Request):
 def create_ipfs_extensions():
     """Create a file with IPFS extension methods."""
     extensions_path = os.path.join(MCP_PATH, "ipfs_extensions.py")
-    
+
     extensions_code = """#!/usr/bin/env python3
 \"\"\"
 IPFS Extensions for MCP
@@ -233,11 +233,11 @@ ipfs_model = None
 def initialize_ipfs_model():
     \"\"\"Initialize IPFS model.\"\"\"
     global ipfs_model, IPFS_MODEL_AVAILABLE
-    
+
     if not IPFS_MODEL_AVAILABLE:
         logger.error("IPFSModel not available")
         return False
-    
+
     try:
         if ipfs_model is None:
             ipfs_model = IPFSModel()
@@ -261,12 +261,12 @@ def ensure_ipfs_model():
 async def add_content(content: str, filename: Optional[str] = None, pin: bool = True) -> Dict[str, Any]:
     \"\"\"
     Add content to IPFS.
-    
+
     Args:
         content: Content to add
         filename: Optional filename
         pin: Whether to pin the content
-        
+
     Returns:
         Dictionary with CID and other information
     \"\"\"
@@ -275,7 +275,7 @@ async def add_content(content: str, filename: Optional[str] = None, pin: bool = 
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Create a temporary file with the content
         with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as temp_file:
@@ -284,17 +284,17 @@ async def add_content(content: str, filename: Optional[str] = None, pin: bool = 
             else:
                 temp_file.write(content)
             temp_path = temp_file.name
-        
+
         # Add the file to IPFS
         result = ipfs_model.ipfs_client.add(temp_path)
-        
+
         # Clean up the temporary file
         os.unlink(temp_path)
-        
+
         # Pin the content if requested
         if pin and 'Hash' in result:
             ipfs_model.ipfs_client.pin.add(result['Hash'])
-        
+
         # Return the result
         return {
             "success": True,
@@ -313,10 +313,10 @@ async def add_content(content: str, filename: Optional[str] = None, pin: bool = 
 async def cat(cid: str) -> Dict[str, Any]:
     \"\"\"
     Retrieve content from IPFS.
-    
+
     Args:
         cid: Content ID to retrieve
-        
+
     Returns:
         Dictionary with content and other information
     \"\"\"
@@ -325,11 +325,11 @@ async def cat(cid: str) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Get the content from IPFS
         content = ipfs_model.ipfs_client.cat(cid)
-        
+
         # Try to decode as text if possible
         try:
             content_str = content.decode('utf-8')
@@ -338,7 +338,7 @@ async def cat(cid: str) -> Dict[str, Any]:
             # If not decodable as text, encode as base64
             content_str = base64.b64encode(content).decode('utf-8')
             content_encoding = "base64"
-        
+
         # Return the result
         return {
             "success": True,
@@ -357,11 +357,11 @@ async def cat(cid: str) -> Dict[str, Any]:
 async def pin_add(cid: str, recursive: bool = True) -> Dict[str, Any]:
     \"\"\"
     Pin content to IPFS.
-    
+
     Args:
         cid: Content ID to pin
         recursive: Whether to pin recursively
-        
+
     Returns:
         Dictionary with pin information
     \"\"\"
@@ -370,11 +370,11 @@ async def pin_add(cid: str, recursive: bool = True) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Pin the content
         result = ipfs_model.ipfs_client.pin.add(cid, recursive=recursive)
-        
+
         # Return the result
         return {
             "success": True,
@@ -392,11 +392,11 @@ async def pin_add(cid: str, recursive: bool = True) -> Dict[str, Any]:
 async def pin_rm(cid: str, recursive: bool = True) -> Dict[str, Any]:
     \"\"\"
     Unpin content from IPFS.
-    
+
     Args:
         cid: Content ID to unpin
         recursive: Whether to unpin recursively
-        
+
     Returns:
         Dictionary with unpin information
     \"\"\"
@@ -405,11 +405,11 @@ async def pin_rm(cid: str, recursive: bool = True) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Unpin the content
         result = ipfs_model.ipfs_client.pin.rm(cid, recursive=recursive)
-        
+
         # Return the result
         return {
             "success": True,
@@ -427,11 +427,11 @@ async def pin_rm(cid: str, recursive: bool = True) -> Dict[str, Any]:
 async def pin_ls(cid: Optional[str] = None, type_filter: str = "all") -> Dict[str, Any]:
     \"\"\"
     List pinned content in IPFS.
-    
+
     Args:
         cid: Optional content ID to filter by
         type_filter: Type of pins to list (all, direct, indirect, recursive)
-        
+
     Returns:
         Dictionary with pin information
     \"\"\"
@@ -440,14 +440,14 @@ async def pin_ls(cid: Optional[str] = None, type_filter: str = "all") -> Dict[st
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # List pins
         if cid:
             result = ipfs_model.ipfs_client.pin.ls(cid, type=type_filter)
         else:
             result = ipfs_model.ipfs_client.pin.ls(type=type_filter)
-        
+
         # Format the result
         pins = []
         for pin_cid, pin_type in result.get('Keys', {}).items():
@@ -455,7 +455,7 @@ async def pin_ls(cid: Optional[str] = None, type_filter: str = "all") -> Dict[st
                 "cid": pin_cid,
                 "type": pin_type.get('Type', 'unknown')
             })
-        
+
         # Return the result
         return {
             "success": True,
@@ -473,7 +473,7 @@ async def pin_ls(cid: Optional[str] = None, type_filter: str = "all") -> Dict[st
 async def get_version() -> Dict[str, Any]:
     \"\"\"
     Get IPFS version information.
-    
+
     Returns:
         Dictionary with version information
     \"\"\"
@@ -482,11 +482,11 @@ async def get_version() -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Get version information
         version = ipfs_model.ipfs_client.version()
-        
+
         # Return the result
         return {
             "success": True,
@@ -507,11 +507,11 @@ async def get_version() -> Dict[str, Any]:
 async def files_ls(path: str = '/', long: bool = False) -> Dict[str, Any]:
     \"\"\"
     List files in MFS.
-    
+
     Args:
         path: Path to list
         long: Whether to show detailed information
-        
+
     Returns:
         Dictionary with file information
     \"\"\"
@@ -520,11 +520,11 @@ async def files_ls(path: str = '/', long: bool = False) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # List files
         result = ipfs_model.ipfs_client.files.ls(path, long=long)
-        
+
         # Format the result
         entries = []
         for entry in result.get('Entries', []):
@@ -534,7 +534,7 @@ async def files_ls(path: str = '/', long: bool = False) -> Dict[str, Any]:
                 "size": entry.get('Size', 0),
                 "hash": entry.get('Hash', '')
             })
-        
+
         # Return the result
         return {
             "success": True,
@@ -553,11 +553,11 @@ async def files_ls(path: str = '/', long: bool = False) -> Dict[str, Any]:
 async def files_mkdir(path: str, parents: bool = True) -> Dict[str, Any]:
     \"\"\"
     Create a directory in MFS.
-    
+
     Args:
         path: Path to create
         parents: Whether to create parent directories
-        
+
     Returns:
         Dictionary with result information
     \"\"\"
@@ -566,11 +566,11 @@ async def files_mkdir(path: str, parents: bool = True) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Create directory
         ipfs_model.ipfs_client.files.mkdir(path, parents=parents)
-        
+
         # Return the result
         return {
             "success": True,
@@ -588,13 +588,13 @@ async def files_mkdir(path: str, parents: bool = True) -> Dict[str, Any]:
 async def files_write(path: str, content: str, create: bool = True, truncate: bool = True) -> Dict[str, Any]:
     \"\"\"
     Write content to a file in MFS.
-    
+
     Args:
         path: Path to write to
         content: Content to write
         create: Whether to create the file if it does not exist
         truncate: Whether to truncate the file before writing
-        
+
     Returns:
         Dictionary with result information
     \"\"\"
@@ -603,25 +603,25 @@ async def files_write(path: str, content: str, create: bool = True, truncate: bo
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Convert content to bytes if it's a string
         if isinstance(content, str):
             content_bytes = content.encode('utf-8')
         else:
             content_bytes = content
-        
+
         # Create a temporary file with the content
         with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as temp_file:
             temp_file.write(content_bytes)
             temp_path = temp_file.name
-        
+
         # Write the file to MFS
         ipfs_model.ipfs_client.files.write(path, temp_path, create=create, truncate=truncate)
-        
+
         # Clean up the temporary file
         os.unlink(temp_path)
-        
+
         # Return the result
         return {
             "success": True,
@@ -641,12 +641,12 @@ async def files_write(path: str, content: str, create: bool = True, truncate: bo
 async def files_read(path: str, offset: int = 0, count: int = -1) -> Dict[str, Any]:
     \"\"\"
     Read content from a file in MFS.
-    
+
     Args:
         path: Path to read from
         offset: Offset to start reading from
         count: Number of bytes to read (-1 for all)
-        
+
     Returns:
         Dictionary with content and result information
     \"\"\"
@@ -655,11 +655,11 @@ async def files_read(path: str, offset: int = 0, count: int = -1) -> Dict[str, A
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Read the file from MFS
         content = ipfs_model.ipfs_client.files.read(path, offset=offset, count=count)
-        
+
         # Try to decode as text if possible
         try:
             content_str = content.decode('utf-8')
@@ -668,7 +668,7 @@ async def files_read(path: str, offset: int = 0, count: int = -1) -> Dict[str, A
             # If not decodable as text, encode as base64
             content_str = base64.b64encode(content).decode('utf-8')
             content_encoding = "base64"
-        
+
         # Return the result
         return {
             "success": True,
@@ -689,11 +689,11 @@ async def files_read(path: str, offset: int = 0, count: int = -1) -> Dict[str, A
 async def files_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
     \"\"\"
     Remove a file or directory from MFS.
-    
+
     Args:
         path: Path to remove
         recursive: Whether to recursively remove directories
-        
+
     Returns:
         Dictionary with result information
     \"\"\"
@@ -702,11 +702,11 @@ async def files_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Remove the file or directory
         ipfs_model.ipfs_client.files.rm(path, recursive=recursive)
-        
+
         # Return the result
         return {
             "success": True,
@@ -724,10 +724,10 @@ async def files_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
 async def files_stat(path: str) -> Dict[str, Any]:
     \"\"\"
     Get information about a file or directory in MFS.
-    
+
     Args:
         path: Path to get information about
-        
+
     Returns:
         Dictionary with file information
     \"\"\"
@@ -736,11 +736,11 @@ async def files_stat(path: str) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Get file information
         stat = ipfs_model.ipfs_client.files.stat(path)
-        
+
         # Return the result
         return {
             "success": True,
@@ -763,11 +763,11 @@ async def files_stat(path: str) -> Dict[str, Any]:
 async def files_cp(source: str, dest: str) -> Dict[str, Any]:
     \"\"\"
     Copy a file or directory in MFS.
-    
+
     Args:
         source: Source path
         dest: Destination path
-        
+
     Returns:
         Dictionary with result information
     \"\"\"
@@ -776,11 +776,11 @@ async def files_cp(source: str, dest: str) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Copy the file or directory
         ipfs_model.ipfs_client.files.cp(source, dest)
-        
+
         # Return the result
         return {
             "success": True,
@@ -799,11 +799,11 @@ async def files_cp(source: str, dest: str) -> Dict[str, Any]:
 async def files_mv(source: str, dest: str) -> Dict[str, Any]:
     \"\"\"
     Move a file or directory in MFS.
-    
+
     Args:
         source: Source path
         dest: Destination path
-        
+
     Returns:
         Dictionary with result information
     \"\"\"
@@ -812,11 +812,11 @@ async def files_mv(source: str, dest: str) -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Move the file or directory
         ipfs_model.ipfs_client.files.mv(source, dest)
-        
+
         # Return the result
         return {
             "success": True,
@@ -835,10 +835,10 @@ async def files_mv(source: str, dest: str) -> Dict[str, Any]:
 async def files_flush(path: str = "/") -> Dict[str, Any]:
     \"\"\"
     Flush changes in MFS to IPFS.
-    
+
     Args:
         path: Path to flush
-        
+
     Returns:
         Dictionary with CID of the flushed path
     \"\"\"
@@ -847,11 +847,11 @@ async def files_flush(path: str = "/") -> Dict[str, Any]:
             "success": False,
             "error": "IPFS model not available"
         }
-    
+
     try:
         # Flush the path
         result = ipfs_model.ipfs_client.files.flush(path)
-        
+
         # Return the result
         return {
             "success": True,
@@ -892,85 +892,85 @@ async def main():
     if not initialize_ipfs_model():
         print("Failed to initialize IPFS model")
         return 1
-    
+
     # Test add content
     content = "Hello, IPFS from Python extensions!"
     print(f"Adding content: {content}")
     add_result = await add_content(content, filename="hello.txt", pin=True)
     print(f"Add result: {json.dumps(add_result, indent=2)}")
-    
+
     if add_result.get("success"):
         # Get the CID
         cid = add_result.get("cid")
         print(f"Content CID: {cid}")
-        
+
         # Test cat
         print(f"Retrieving content for CID: {cid}")
         cat_result = await cat(cid)
         print(f"Cat result: {json.dumps(cat_result, indent=2)}")
-        
+
         # Test pin operations
         print(f"Pinning CID: {cid}")
         pin_result = await pin_add(cid)
         print(f"Pin result: {json.dumps(pin_result, indent=2)}")
-        
+
         print(f"Listing pins")
         pins_result = await pin_ls()
         print(f"Pins result: {json.dumps(pins_result, indent=2)}")
-    
+
     # Test version
     print("Getting IPFS version")
     version_result = await get_version()
     print(f"Version result: {json.dumps(version_result, indent=2)}")
-    
+
     # Test MFS operations
     print("Creating directory in MFS")
     mkdir_result = await files_mkdir("/test")
     print(f"Mkdir result: {json.dumps(mkdir_result, indent=2)}")
-    
+
     print("Writing file to MFS")
     write_result = await files_write("/test/hello.txt", "Hello, MFS!")
     print(f"Write result: {json.dumps(write_result, indent=2)}")
-    
+
     print("Listing files in MFS")
     ls_result = await files_ls("/test")
     print(f"Ls result: {json.dumps(ls_result, indent=2)}")
-    
+
     print("Reading file from MFS")
     read_result = await files_read("/test/hello.txt")
     print(f"Read result: {json.dumps(read_result, indent=2)}")
-    
+
     print("Removing file from MFS")
     rm_result = await files_rm("/test/hello.txt")
     print(f"Rm result: {json.dumps(rm_result, indent=2)}")
-    
+
     print("Getting file stats in MFS")
     stat_result = await files_stat("/test")
     print(f"Stat result: {json.dumps(stat_result, indent=2)}")
-    
+
     print("Copying file in MFS")
     cp_result = await files_cp("/test", "/test_copy")
     print(f"Cp result: {json.dumps(cp_result, indent=2)}")
-    
+
     print("Moving file in MFS")
     mv_result = await files_mv("/test_copy", "/test_moved")
     print(f"Mv result: {json.dumps(mv_result, indent=2)}")
-    
+
     print("Flushing changes in MFS")
     flush_result = await files_flush("/test_moved")
     print(f"Flush result: {json.dumps(flush_result, indent=2)}")
-    
+
     return 0
 
 if __name__ == "__main__":
     asyncio.run(main())
 """
-    
+
     try:
         # Write the file
         with open(extensions_path, 'w') as f:
             f.write(extensions_code)
-        
+
         logger.info(f"Created IPFS extensions file at {extensions_path}")
         return True
     except Exception as e:
@@ -981,16 +981,16 @@ if __name__ == "__main__":
 def update_ipfs_controller():
     """Update IPFS controller to use the extensions."""
     controller_path = os.path.join(CONTROLLERS_PATH, "ipfs_controller.py")
-    
+
     if not os.path.exists(controller_path):
         logger.error(f"IPFS controller file not found at {controller_path}")
         return False
-    
+
     try:
         # Read the current file
         with open(controller_path, 'r') as f:
             content = f.read()
-        
+
         # Check if the file already imports the extensions
         if "from ipfs_kit_py.mcp.ipfs_extensions import" in content:
             logger.info("IPFS controller already imports extensions")
@@ -1012,7 +1012,7 @@ except ImportError as e:
             if "import " in content:
                 last_import_index = content.rfind("import ")
                 last_import_line_end = content.find("\n", last_import_index)
-                
+
                 if last_import_line_end > 0:
                     content = content[:last_import_line_end + 1] + import_code + content[last_import_line_end + 1:]
                     logger.info("Added IPFS extensions import to IPFS controller")
@@ -1022,14 +1022,14 @@ except ImportError as e:
                 # Add at the beginning of the file
                 content = import_code + content
                 logger.info("Added IPFS extensions import to IPFS controller")
-        
+
         # Add the tool methods if not already present
         for method_name in MISSING_METHODS:
             # Check if the method is already defined
             if f"async def {method_name}" in content:
                 logger.info(f"Method {method_name} already defined in IPFS controller")
                 continue
-            
+
             # Add the method
             method_code = f"""
     async def {method_name}(self, **kwargs):
@@ -1054,22 +1054,22 @@ except ImportError as e:
             if "class IPFSController" in content:
                 class_end_index = content.find("class IPFSController")
                 next_class_index = content.find("class ", class_end_index + 1)
-                
+
                 if next_class_index > 0:
                     # Insert before the next class
                     content = content[:next_class_index] + method_code + content[next_class_index:]
                 else:
                     # Add at the end of the file
                     content += method_code
-                
+
                 logger.info(f"Added method {method_name} to IPFS controller")
             else:
                 logger.warning(f"Could not find IPFSController class to add method {method_name}")
-        
+
         # Write the updated content
         with open(controller_path, 'w') as f:
             f.write(content)
-        
+
         logger.info(f"Updated IPFS controller file at {controller_path}")
         return True
     except Exception as e:
@@ -1080,30 +1080,30 @@ except ImportError as e:
 def main():
     """Main function."""
     logger.info("Starting IPFS MCP tool implementation")
-    
+
     # Fix server bridge
     logger.info("Fixing server bridge...")
     if fix_server_bridge():
         logger.info("Server bridge fixed successfully")
     else:
         logger.warning("Failed to fix server bridge")
-    
+
     # Create IPFS extensions
     logger.info("Creating IPFS extensions...")
     if create_ipfs_extensions():
         logger.info("IPFS extensions created successfully")
     else:
         logger.warning("Failed to create IPFS extensions")
-    
+
     # Update IPFS controller
     logger.info("Updating IPFS controller...")
     if update_ipfs_controller():
         logger.info("IPFS controller updated successfully")
     else:
         logger.warning("Failed to update IPFS controller")
-    
+
     logger.info("IPFS MCP tool implementation complete")
-    
+
     print("\n=== IPFS MCP Tool Implementation ===")
     print("The script has created and updated the necessary files to implement IPFS MCP tools.")
     print("To apply these changes, you need to:")
@@ -1111,7 +1111,7 @@ def main():
     print("2. Restart VS Code to apply the new settings")
     print("3. Test the tools using the working_example.py script")
     print("\nSee the log file for details: implement_mcp_ipfs_tools.log")
-    
+
     return 0
 
 if __name__ == "__main__":

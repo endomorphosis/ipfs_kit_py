@@ -38,7 +38,7 @@ class StorachaModel(BaseStorageModel):
     This class implements Storacha (Web3.Storage) storage operations using the BaseStorageModel interface.
     It provides methods for uploading files and CAR files, listing spaces and uploads, and
     cross-backend operations to transfer content between IPFS and Storacha.
-    
+
     It uses the enhanced StorachaConnectionManager for reliable API communication with
     endpoint failover, circuit breaker patterns, and comprehensive error handling.
     """
@@ -65,57 +65,57 @@ class StorachaModel(BaseStorageModel):
 
         # Store the IPFS model for cross-backend operations
         self.ipfs_model = ipfs_model
-        
+
         # Initialize the connection manager
         self.connection_manager = connection_manager
         if not self.connection_manager and credential_manager:
             # Try to get API key from credential manager
             api_key = self._get_api_key_from_credentials()
-            
+
             # Create a new connection manager
             self.connection_manager = StorachaConnectionManager(
                 api_key=api_key,
                 validate_endpoints=validate_endpoints
             )
-        
+
         self._check_dependencies()
         logger.info("Storacha Model initialized")
-    
+
     def _check_dependencies(self) -> None:
         """Check if dependencies are available and log their status."""
         # Check for either kit or connection manager
         if not self.kit and not self.connection_manager:
             logger.warning("Neither storacha_kit nor connection_manager available - operating in limited mode")
-        
+
         # Check for IPFS model (needed for cross-backend operations)
         if not self.ipfs_model:
             logger.warning("IPFS model not available - cross-backend operations will be unavailable")
-    
+
     def _get_api_key_from_credentials(self) -> Optional[str]:
         """Attempt to get API key from credential manager."""
         if not self.credential_manager:
             return None
-            
+
         try:
             # Try to get the Storacha API key
             credentials = self.credential_manager.get_credentials("storacha")
             if credentials and "api_key" in credentials:
                 return credentials["api_key"]
-                
+
             # Try alternative credential names
             for name in ["web3storage", "web3.storage", "w3storage"]:
                 credentials = self.credential_manager.get_credentials(name)
                 if credentials and "api_key" in credentials:
                     return credentials["api_key"]
-                    
+
         except Exception as e:
             logger.warning(f"Error getting API key from credential manager: {e}")
-            
+
         return None
-        
+
     def is_available(self) -> bool:
         """Check if the Storacha service is available.
-        
+
         Returns:
             True if available, False otherwise
         """
@@ -133,7 +133,7 @@ class StorachaModel(BaseStorageModel):
                 return self.kit.is_available()
             except Exception:
                 return False
-        
+
         return False
 
     def create_space(self, name: str = None) -> Dict[str, Any]:
@@ -155,20 +155,20 @@ class StorachaModel(BaseStorageModel):
                     data = {"name": name} if name else {}
                     response = self.connection_manager.post("spaces", json=data)
                     space_data = response.json()
-                    
+
                     result["success"] = True
                     result["space_did"] = space_data.get("did")
-                    
+
                     # Copy additional fields
                     for field in ["name", "type", "created"]:
                         if field in space_data:
                             result[field] = space_data[field]
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "SpaceCreationError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 space_result = self.kit.w3_create(name=name)
@@ -208,16 +208,16 @@ class StorachaModel(BaseStorageModel):
                 try:
                     response = self.connection_manager.get("spaces")
                     spaces_data = response.json()
-                    
+
                     result["success"] = True
                     result["spaces"] = spaces_data.get("spaces", [])
                     result["count"] = len(result["spaces"])
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "ListSpacesError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 list_result = self.kit.w3_list_spaces()
@@ -262,19 +262,19 @@ class StorachaModel(BaseStorageModel):
                 try:
                     response = self.connection_manager.post(f"spaces/{space_did}/use")
                     space_data = response.json()
-                    
+
                     result["success"] = True
                     result["space_did"] = space_did
-                    
+
                     # Copy additional fields
                     if "space_info" in space_data:
                         result["space_info"] = space_data["space_info"]
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "SetSpaceError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 space_result = self.kit.w3_use(space_did)
@@ -299,8 +299,8 @@ class StorachaModel(BaseStorageModel):
             return self._handle_exception(e, result, "set_current_space")
 
     def upload_file(
-        self, 
-        file_path: str, 
+        self,
+        file_path: str,
         space_did: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -341,24 +341,24 @@ class StorachaModel(BaseStorageModel):
             if self.connection_manager:
                 try:
                     upload_result = self.connection_manager.upload_file(file_path, metadata)
-                    
+
                     result["success"] = True
                     result["cid"] = upload_result.get("cid")
-                    
+
                     # Copy additional fields
                     for field in ["root_cid", "shard_size", "upload_id"]:
                         if field in upload_result:
                             result[field] = upload_result[field]
-                            
+
                     # If space_did was provided or set, include it
                     if space_did:
                         result["space_did"] = space_did
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "UploadError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 upload_result = self.kit.w3_up(file_path)
@@ -390,8 +390,8 @@ class StorachaModel(BaseStorageModel):
             return self._handle_exception(e, result, "upload_file")
 
     def upload_car(
-        self, 
-        car_path: str, 
+        self,
+        car_path: str,
         space_did: Optional[str] = None
     ) -> Dict[str, Any]:
         """Upload a CAR file to Storacha.
@@ -431,34 +431,34 @@ class StorachaModel(BaseStorageModel):
                 try:
                     # Special header for CAR files
                     headers = {"Content-Type": "application/car"}
-                    
+
                     with open(car_path, 'rb') as car_file:
                         response = self.connection_manager.post(
-                            "car", 
-                            data=car_file, 
+                            "car",
+                            data=car_file,
                             headers=headers
                         )
-                    
+
                     upload_result = response.json()
-                    
+
                     result["success"] = True
                     result["cid"] = upload_result.get("cid")
                     result["car_cid"] = upload_result.get("carCid", upload_result.get("car_cid"))
-                    
+
                     # Copy additional fields
                     for field in ["root_cid", "shard_size", "upload_id"]:
                         if field in upload_result:
                             result[field] = upload_result[field]
-                            
+
                     # If space_did was provided or set, include it
                     if space_did:
                         result["space_did"] = space_did
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "UploadCarError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 upload_result = self.kit.w3_up_car(car_path)
@@ -491,7 +491,7 @@ class StorachaModel(BaseStorageModel):
             return self._handle_exception(e, result, "upload_car")
 
     def list_uploads(
-        self, 
+        self,
         space_did: Optional[str] = None,
         limit: int = 100,
         offset: int = 0
@@ -527,24 +527,24 @@ class StorachaModel(BaseStorageModel):
                         "limit": limit,
                         "offset": offset
                     }
-                    
+
                     response = self.connection_manager.get("uploads", params=params)
                     list_data = response.json()
-                    
+
                     result["success"] = True
                     result["uploads"] = list_data.get("uploads", [])
                     result["count"] = len(result["uploads"])
                     result["total"] = list_data.get("total", len(result["uploads"]))
-                    
+
                     # If space_did was provided or set, include it
                     if space_did:
                         result["space_did"] = space_did
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "ListUploadsError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 list_result = self.kit.w3_list()
@@ -602,20 +602,20 @@ class StorachaModel(BaseStorageModel):
             if self.connection_manager:
                 try:
                     response = self.connection_manager.delete(f"uploads/{cid}")
-                    
+
                     # If we get here, the deletion was successful
                     result["success"] = True
                     result["cid"] = cid
-                    
+
                     # If space_did was provided or set, include it
                     if space_did:
                         result["space_did"] = space_did
-                            
+
                 except StorachaApiError as e:
                     result["error"] = str(e)
                     result["error_type"] = "DeleteUploadError"
                     result["status_code"] = e.status_code
-                    
+
             # Fall back to kit if available and connection manager failed or is unavailable
             elif self.kit and not result["success"]:
                 delete_result = self.kit.w3_remove(cid)
@@ -640,9 +640,9 @@ class StorachaModel(BaseStorageModel):
             return self._handle_exception(e, result, "delete_upload")
 
     def ipfs_to_storacha(
-        self, 
-        cid: str, 
-        space_did: Optional[str] = None, 
+        self,
+        cid: str,
+        space_did: Optional[str] = None,
         pin: bool = True,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -775,9 +775,9 @@ class StorachaModel(BaseStorageModel):
             return self._handle_exception(e, result, "ipfs_to_storacha")
 
     def storacha_to_ipfs(
-        self, 
-        cid: str, 
-        space_did: Optional[str] = None, 
+        self,
+        cid: str,
+        space_did: Optional[str] = None,
         pin: bool = True
     ) -> Dict[str, Any]:
         """Get content from Storacha and add to IPFS.
@@ -843,7 +843,7 @@ class StorachaModel(BaseStorageModel):
                                     )
                             except Exception as e:
                                 logger.warning(f"Error getting current space: {e}")
-                                
+
                         if not current_space and self.kit:
                             # Try with kit as fallback
                             spaces_result = self.kit.w3_list_spaces()
@@ -855,24 +855,24 @@ class StorachaModel(BaseStorageModel):
                                         (space["did"] for space in spaces if space.get("current", False)),
                                         spaces[0]["did"]
                                     )
-                                    
+
                     if not current_space:
                         result["error"] = "No space available and none provided"
                         result["error_type"] = "NoSpaceError"
                         return result
-                                            
+
                     # Download content from Storacha
                     if self.connection_manager:
                         try:
                             # Get content directly to file
                             with open(temp_path, 'wb') as f:
                                 response = self.connection_manager.get(
-                                    f"content/{cid}", 
+                                    f"content/{cid}",
                                     stream=True
                                 )
                                 for chunk in response.iter_content(chunk_size=8192):
                                     f.write(chunk)
-                            
+
                             # Success
                             download_success = True
                         except StorachaApiError as e:
@@ -884,7 +884,7 @@ class StorachaModel(BaseStorageModel):
                             space_did=current_space, cid=cid, output_file=temp_path
                         )
                         download_success = download_result.get("success", False)
-                        
+
                     if not download_success:
                         result["error"] = "Failed to download content from Storacha"
                         result["error_type"] = "StorachaDownloadError"
@@ -928,7 +928,7 @@ class StorachaModel(BaseStorageModel):
                     # If space_did was provided or found, include it
                     if current_space:
                         result["space_did"] = current_space
-                        
+
                 finally:
                     # Clean up the temporary file
                     try:
@@ -945,10 +945,10 @@ class StorachaModel(BaseStorageModel):
 
         except Exception as e:
             return self._handle_exception(e, result, "storacha_to_ipfs")
-            
+
     def get_connection_status(self) -> Dict[str, Any]:
         """Get status information about the Storacha connection.
-        
+
         Returns:
             Status information dictionary
         """
@@ -959,17 +959,17 @@ class StorachaModel(BaseStorageModel):
                 "error": "Connection manager not available",
                 "using_legacy_kit": self.kit is not None
             }
-    
+
     def _handle_exception(self, exception: Exception, result: Dict[str, Any], operation: str) -> Dict[str, Any]:
         """Handle exceptions during operations.
-        
+
         This method extends the base implementation to handle StorachaApiError exceptions specially.
-        
+
         Args:
             exception: Exception that occurred
             result: Current result dictionary
             operation: Name of the operation that failed
-            
+
         Returns:
             Updated result dictionary
         """
@@ -981,11 +981,11 @@ class StorachaModel(BaseStorageModel):
             result["status_code"] = exception.status_code
             if exception.response:
                 result["response"] = exception.response
-            
+
             # Log the error
             logger.error(f"Storacha API error during {operation}: {str(exception)}")
-            
+
             return result
-            
+
         # Otherwise use the base implementation
         return super()._handle_exception(exception, result, operation)

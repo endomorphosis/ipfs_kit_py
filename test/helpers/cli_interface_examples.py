@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-# IMPORTANT: These are example methods to add to test_cli_interface.py 
+# IMPORTANT: These are example methods to add to test_cli_interface.py
 # They are not meant to be run directly
 
 @patch("sys.argv")
@@ -95,8 +95,8 @@ def test_cli_no_command_help(self, mock_argv, mock_api_class):
 def test_cli_key_value_parsing(self, mock_argv, mock_api_class):
     """Test CLI parsing of key-value parameters."""
     # This tests the parse_key_value function indirectly
-    sys.argv = ["ipfs_kit", "--param", "string_value=text", "--param", "number=42", 
-               "--param", "boolean=true", "--param", "json_value={\"key\":\"value\"}", 
+    sys.argv = ["ipfs_kit", "--param", "string_value=text", "--param", "number=42",
+               "--param", "boolean=true", "--param", "json_value={\"key\":\"value\"}",
                "version"]
 
     # Mock version function
@@ -165,7 +165,7 @@ def test_cli_error_handling_validation_error(self, mock_argv, mock_api_class):
     # Mock API instance
     mock_instance = MagicMock()
     mock_api_class.return_value = mock_instance
-    
+
     # Mock validation function to raise validation error
     with patch("ipfs_kit_py.cli.validate_cid", return_value=False):
         # Capture stderr during execution

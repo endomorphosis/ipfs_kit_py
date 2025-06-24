@@ -37,7 +37,7 @@ logger.addHandler(file_handler)
 def load_config() -> Dict[str, Any]:
     """Load configuration from file or environment."""
     config_path = os.environ.get("MCP_CONFIG_PATH", "config/mcp_config.json")
-    
+
     # Default configuration
     default_config = {
         "server": {
@@ -70,7 +70,7 @@ def load_config() -> Dict[str, Any]:
             "huggingface"
         ]
     }
-    
+
     # Try to load from file
     config = default_config.copy()
     try:
@@ -83,7 +83,7 @@ def load_config() -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Error loading configuration from {config_path}: {e}")
         logger.warning("Using default configuration")
-    
+
     # Override with environment variables
     # Example: MCP_SERVER_PORT=8080 would override config["server"]["port"]
     for key, value in os.environ.items():
@@ -97,7 +97,7 @@ def load_config() -> Dict[str, Any]:
                     if part not in current:
                         current[part] = {}
                     current = current[part]
-                
+
                 # Set the value with appropriate type conversion
                 try:
                     # Try to parse as int, float, or bool
@@ -112,7 +112,7 @@ def load_config() -> Dict[str, Any]:
                 except Exception as e:
                     logger.warning(f"Error converting environment variable {key}: {e}")
                     current[parts[-1]] = value
-    
+
     return config
 
 def _deep_update(target, source):
@@ -128,7 +128,7 @@ def create_app(config: Dict[str, Any]) -> Any:
     try:
         from fastapi import FastAPI
         from fastapi.middleware.cors import CORSMiddleware
-        
+
         # Create FastAPI app
         app = FastAPI(
             title="MCP Enhanced Server",
@@ -138,7 +138,7 @@ def create_app(config: Dict[str, Any]) -> Any:
             redoc_url="/redoc",
             openapi_url="/openapi.json"
         )
-        
+
         # Add CORS middleware
         app.add_middleware(
             CORSMiddleware,
@@ -147,25 +147,25 @@ def create_app(config: Dict[str, Any]) -> Any:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         # Register integrator to add all roadmap features
         from ipfs_kit_py.mcp.integrator import get_integrator
         integrator = get_integrator(app, config)
         integrator.register_all_features()
-        
+
         # Add shutdown event handler
         @app.on_event("shutdown")
         def shutdown_event():
             logger.info("Shutting down MCP Enhanced Server")
             integrator.shutdown()
-        
+
         # Add basic health check endpoint
         @app.get("/health")
         async def health_check():
             return {"status": "healthy", "version": "1.0.0"}
-        
+
         return app
-    
+
     except ImportError as e:
         logger.error(f"Failed to import FastAPI or MCP components: {e}")
         sys.exit(1)
@@ -177,18 +177,18 @@ def main():
     """Main entry point for the MCP Enhanced Server."""
     # Load configuration
     config = load_config()
-    
+
     # Create FastAPI app with roadmap features
     app = create_app(config)
-    
+
     # Start server using Uvicorn
     server_config = config.get("server", {})
     host = server_config.get("host", "0.0.0.0")
     port = server_config.get("port", 8000)
-    
+
     logger.info(f"Starting MCP Enhanced Server on {host}:{port}")
     logger.info(f"Registered features: {', '.join(app._integrator.registered_features)}")
-    
+
     uvicorn.run(
         app,
         host=host,

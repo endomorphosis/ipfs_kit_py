@@ -49,15 +49,15 @@ def update_lassie_implementation():
         # 1. Backup the original files
         backup_file(ORIGINAL_LASSIE_STORAGE)
         backup_file(ORIGINAL_LASSIE_EXTENSION)
-        
+
         # 2. Replace the Lassie storage implementation
         shutil.copy2(ENHANCED_LASSIE_STORAGE, ORIGINAL_LASSIE_STORAGE)
         logger.info(f"Replaced {ORIGINAL_LASSIE_STORAGE} with enhanced implementation")
-        
+
         # 3. Replace the Lassie extension
         shutil.copy2(ENHANCED_LASSIE_EXTENSION, ORIGINAL_LASSIE_EXTENSION)
         logger.info(f"Replaced {ORIGINAL_LASSIE_EXTENSION} with enhanced implementation")
-        
+
         return True
     except Exception as e:
         logger.error(f"Failed to update Lassie implementation: {e}")
@@ -73,21 +73,21 @@ def restart_mcp_server():
             with open(pid_file, 'r') as f:
                 pid = f.read().strip()
                 subprocess.run(["kill", "-15", pid], check=False)
-        
+
         # Also try to kill by process name
         subprocess.run(["pkill", "-f", "enhanced_mcp_server.py"], check=False)
-        
+
         # Wait for processes to terminate
         time.sleep(2)
-        
+
         # Start MCP server
         logger.info("Starting MCP server...")
         start_script = PACKAGE_ROOT / "start_mcp_server.sh"
-        
+
         if start_script.exists():
             subprocess.run([str(start_script)], check=True)
             logger.info("MCP server started successfully")
-            
+
             # Allow time for the server to initialize
             time.sleep(5)
             return True
@@ -104,24 +104,24 @@ def test_lassie_integration():
         # Check server health to verify Lassie integration
         result = subprocess.run(
             ["curl", "http://localhost:9997/api/v0/health"],
-            capture_output=True, 
+            capture_output=True,
             text=True,
             check=True
         )
-        
+
         if "lassie" not in result.stdout:
             logger.error("Lassie not found in server health output")
             return False
-        
+
         logger.info("Lassie found in server health output")
-        
+
         # Test the well-known CIDs endpoint
         logger.info("Testing well-known CIDs endpoint...")
         subprocess.run(
             ["curl", "http://localhost:9997/api/v0/lassie/well_known_cids"],
             check=True
         )
-        
+
         return True
     except subprocess.CalledProcessError as e:
         logger.error(f"Test failed: {e}")
@@ -133,29 +133,29 @@ def test_lassie_integration():
 def main():
     """Main function to fix Lassie integration."""
     logger.info("=== Fixing Lassie Integration ===")
-    
+
     # 1. Update Lassie implementation
     if not update_lassie_implementation():
         logger.error("Failed to update Lassie implementation")
         return False
-    
+
     # 2. Restart MCP server
     if not restart_mcp_server():
         logger.error("Failed to restart MCP server")
         return False
-    
+
     # 3. Test Lassie integration
     if not test_lassie_integration():
         logger.warning("Lassie integration test had issues")
         # Continue anyway as some tests might fail in certain environments
-    
+
     logger.info("=== Lassie Integration Fix Complete ===")
     logger.info("Enhanced features added:")
     logger.info("1. Multi-tier fallback strategy for content retrieval")
     logger.info("2. Well-known CIDs support for testing")
     logger.info("3. Public gateway integration for better availability")
     logger.info("4. Detailed error messages with actionable suggestions")
-    
+
     return True
 
 if __name__ == "__main__":

@@ -22,11 +22,11 @@ def main():
     if not os.path.exists(TEST_FILE):
         print(f"Creating test file: {TEST_FILE}")
         os.system(f"dd if=/dev/urandom of={TEST_FILE} bs=1M count=1")
-    
+
     print(f"Test file size: {os.path.getsize(TEST_FILE)} bytes")
-    
+
     results = {}
-    
+
     # Direct upload with ipfs_kit
     print("\n=== Testing Direct IPFS Upload with ipfs_kit ===")
     try:
@@ -42,7 +42,7 @@ def main():
             print(f"IPFS upload failed: {result.get('error')}")
     except Exception as e:
         print(f"Error in direct IPFS upload: {e}")
-    
+
     # Direct upload with storacha_kit
     print("\n=== Testing Direct Storacha Upload with storacha_kit ===")
     if "ipfs_direct" in results:
@@ -50,18 +50,18 @@ def main():
         try:
             # Initialize storacha kit
             storacha = storacha_kit()
-            
+
             # List spaces
             spaces_result = storacha.w3_list_spaces()
             if spaces_result["success"]:
                 print(f"Available spaces: {len(spaces_result.get('spaces', []))}")
-                
+
                 # Set a current space if available
                 if spaces_result.get("spaces"):
                     space_did = spaces_result["spaces"][0]
                     storacha.w3_use(space_did)
                     print(f"Using space: {space_did}")
-                    
+
                     # Try to upload
                     upload_result = storacha.upload_from_ipfs(ipfs_cid)
                     results["storacha_direct"] = upload_result
@@ -76,13 +76,13 @@ def main():
                 print(f"Failed to list spaces: {spaces_result.get('error')}")
         except Exception as e:
             print(f"Error in direct Storacha upload: {e}")
-    
+
     # MCP server upload
     print("\n=== Testing IPFS Upload via MCP ===")
     try:
         with open(TEST_FILE, 'rb') as file:
             data = MultipartEncoder(fields={'file': ('random_1mb.bin', file, 'application/octet-stream')})
-            response = requests.post(f"{MCP_URL}/api/v0/mcp/ipfs/add", 
+            response = requests.post(f"{MCP_URL}/api/v0/mcp/ipfs/add",
                                   data=data,
                                   headers={'Content-Type': data.content_type})
             if response.status_code == 200:
@@ -94,7 +94,7 @@ def main():
                 print(f"MCP IPFS upload failed: {response.status_code}")
     except Exception as e:
         print(f"Error in MCP IPFS upload: {e}")
-    
+
     # Summary
     print("\n=== Upload Results Summary ===")
     for method, result in results.items():
@@ -102,7 +102,7 @@ def main():
         print(f"{method.upper()}: {status}")
         if result.get("Hash"):
             print(f"  CID: {result.get('Hash')}")
-    
+
     print("\n=== Detail Results ===")
     print(json.dumps(results, indent=2))
 

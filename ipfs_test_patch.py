@@ -19,12 +19,12 @@ def create_mock_module(name, attrs=None, allow_getattr=False):
     """Create a mock module with specified attributes."""
     mock_module = types.ModuleType(name)
     mock_module.__file__ = f"<mock {name}>"
-    
+
     # Add attributes if provided
     if attrs:
         for attr_name, attr_value in attrs.items():
             setattr(mock_module, attr_name, attr_value)
-    
+
     # Add __getattr__ if requested
     if allow_getattr:
         def __getattr__(name):
@@ -33,11 +33,11 @@ def create_mock_module(name, attrs=None, allow_getattr=False):
             setattr(mock_module, name, attr)
             return attr
         mock_module.__getattr__ = __getattr__
-    
+
     # Add to sys.modules
     sys.modules[name] = mock_module
     logger.info(f"Created mock module: {name}")
-    
+
     return mock_module
 
 def fix_pandas_mock():
@@ -49,22 +49,22 @@ def fix_pandas_mock():
             self.index = index or []
             self.columns = columns or []
             self.values = [[]] if not data else data
-            
+
         def to_numpy(self, *args, **kwargs):
             import numpy as np
             return np.array(self.values)
-            
+
         @property
         def iloc(self):
             return _IlocIndexer(self)
-            
+
         @property
         def loc(self):
             return _LocIndexer(self)
-            
+
         def __getitem__(self, key):
             return Series([], name=key)
-    
+
     # Create Series class
     class Series:
         def __init__(self, data=None, index=None, dtype=None, name=None, copy=False, fastpath=False):
@@ -72,16 +72,16 @@ def fix_pandas_mock():
             self.index = index or []
             self.name = name
             self.values = data or []
-            
+
         def to_numpy(self, *args, **kwargs):
             import numpy as np
             return np.array(self.values)
-    
+
     # Create indexers
     class _IlocIndexer:
         def __init__(self, obj):
             self.obj = obj
-            
+
         def __getitem__(self, key):
             if isinstance(key, tuple):
                 return Series([])
@@ -89,17 +89,17 @@ def fix_pandas_mock():
                 return Series([])
             else:
                 return DataFrame()
-    
+
     class _LocIndexer:
         def __init__(self, obj):
             self.obj = obj
-            
+
         def __getitem__(self, key):
             if isinstance(key, tuple):
                 return Series([])
             else:
                 return Series([], name=key if isinstance(key, str) else None)
-    
+
     # Create pandas mock with proper classes
     pd_attrs = {
         'DataFrame': DataFrame,
@@ -112,16 +112,16 @@ def fix_pandas_mock():
         'isna': lambda x: False,
         'notna': lambda x: True,
     }
-    
+
     pandas = create_mock_module('pandas', pd_attrs)
-    
+
     # Create submodules
     create_mock_module('pandas.core', {})
     create_mock_module('pandas.core.frame', {'DataFrame': DataFrame})
     create_mock_module('pandas.core.series', {'Series': Series})
     create_mock_module('pandas.compat', {})
     create_mock_module('pandas.compat.numpy', {'is_numpy_dev': False})
-    
+
     return pandas
 
 def fix_numpy_mock():
@@ -132,10 +132,10 @@ def fix_numpy_mock():
             self.shape = shape or (0,)
             self.dtype = dtype
             self.data = []
-            
+
         def __array__(self):
             return self
-    
+
     # Create numpy mock
     np_attrs = {
         '__version__': '1.24.0',
@@ -151,30 +151,30 @@ def fix_numpy_mock():
         'inf': float('inf'),
         'isnan': lambda x: False,
     }
-    
+
     numpy = create_mock_module('numpy', np_attrs)
-    
+
     # Create submodules
     create_mock_module('numpy.core', {})
     create_mock_module('numpy._core', {})
     create_mock_module('numpy._core._multiarray_umath', {'_ARRAY_API': {}})
     create_mock_module('numpy.random', {'random': lambda *args: 0.5})
-    
+
     return numpy
 
 def fix_pytest_anyio():
     """Create a mock for pytest_anyio."""
     import pytest
-    
+
     def fixture(*args, **kwargs):
         def decorator(func):
             return pytest.fixture(*args, **kwargs)(func)
         return decorator
-    
+
     anyio_attrs = {
         'fixture': fixture
     }
-    
+
     return create_mock_module('pytest_anyio', anyio_attrs)
 
 def create_common_mocks():
@@ -191,7 +191,7 @@ def create_common_mocks():
     create_mock_module('libp2p.network.stream', {})
     create_mock_module('libp2p.network.stream.net_stream_interface', {})
     create_mock_module('libp2p.tools.constants', {})
-    
+
     # Mock fastapi
     fastapi_attrs = {
         'FastAPI': type('FastAPI', (), {
@@ -207,7 +207,7 @@ def create_common_mocks():
     }
     create_mock_module('fastapi', fastapi_attrs)
     create_mock_module('fastapi.routing', {'APIRouter': fastapi_attrs['APIRouter']})
-    
+
     # Mock other common modules
     create_mock_module('storacha_storage', {})
     create_mock_module('enhanced_s3_storage', {})
@@ -215,7 +215,7 @@ def create_common_mocks():
     create_mock_module('mcp_auth', {})
     create_mock_module('mcp_extensions', {})
     create_mock_module('mcp_monitoring', {})
-    
+
     # Mock ipfs_kit_py modules
     create_mock_module('ipfs_kit_py', {})
     create_mock_module('ipfs_kit_py.mcp', {})
@@ -243,7 +243,7 @@ def apply_all_fixes():
     fix_pytest_anyio()
     create_common_mocks()
     fix_pytest_assertion_rewrite()
-    
+
     # Patch sys.exit to prevent tests from exiting
     orig_exit = sys.exit
     def patched_exit(code=0):
@@ -251,7 +251,7 @@ def apply_all_fixes():
         return None
     sys.exit = patched_exit
     logger.info("Patched sys.exit to prevent test termination")
-    
+
     logger.info("Applied all fixes successfully")
 
 # Apply fixes when imported

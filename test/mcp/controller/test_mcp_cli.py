@@ -21,30 +21,30 @@ logging.getLogger('ipfs_kit_py.wal_api').setLevel(logging.WARNING)
 
 def test_mcp_cli_integration():
     """Test MCP server with CLI controller integration."""
-    
+
     print("Creating MCP server instance...")
     server = MCPServer(
         debug_mode=True,
         log_level="INFO",
         isolation_mode=True  # Use isolated mode to avoid affecting the system
     )
-    
+
     print("\nVerifying CLI controller is registered...")
     if "cli" not in server.controllers:
         print("ERROR: CLI controller not found in server.controllers")
         return False
-    
+
     print(f"CLI controller is registered: {type(server.controllers['cli']).__name__}")
-    
+
     print("\nAvailable CLI routes:")
     route_count = 0
     for route in server.router.routes:
         if "/cli/" in str(route.path):
             print(f"  - {route.path} [{route.methods}]")
             route_count += 1
-    
+
     print(f"\nFound {route_count} CLI routes")
-    
+
     print("\nMCP CLI integration test completed successfully!")
     return True
 

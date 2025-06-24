@@ -27,7 +27,7 @@ def test_jsonrpc():
     """Test the JSON-RPC endpoint."""
     print("\nTesting JSON-RPC endpoint...")
     jsonrpc_url = f"{base_url}/jsonrpc"
-    
+
     initialize_request = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -38,7 +38,7 @@ def test_jsonrpc():
             "capabilities": {}
         }
     }
-    
+
     response = requests.post(jsonrpc_url, json=initialize_request)
     print(f"Status code: {response.status_code}")
     if response.status_code == 200:
@@ -53,7 +53,7 @@ def test_sse():
     """Test the SSE endpoint."""
     print("\nTesting SSE endpoint...")
     sse_url = f"{api_url}/sse"
-    
+
     try:
         with requests.get(sse_url, stream=True, timeout=3) as response:
             print(f"Status code: {response.status_code}")
@@ -63,7 +63,7 @@ def test_sse():
                     if line and line.startswith("data: "):
                         print(f"SSE event: {line}")
                         return True
-                    
+
                 print("No SSE events received")
                 return False
             else:
@@ -77,17 +77,17 @@ if __name__ == "__main__":
     print("=" * 60)
     print("MCP Server Connection Test")
     print("=" * 60)
-    
+
     server_ok = test_server_root()
     if server_ok:
         jsonrpc_ok = test_jsonrpc()
         sse_ok = test_sse()
-        
+
         print("\nTest Summary:")
         print(f"Server root: {'✅ PASS' if server_ok else '❌ FAIL'}")
         print(f"JSON-RPC endpoint: {'✅ PASS' if jsonrpc_ok else '❌ FAIL'}")
         print(f"SSE endpoint: {'✅ PASS' if sse_ok else '❌ FAIL'}")
-        
+
         if server_ok and jsonrpc_ok and sse_ok:
             print("\n✅ All tests passed! MCP server is operational.")
         else:

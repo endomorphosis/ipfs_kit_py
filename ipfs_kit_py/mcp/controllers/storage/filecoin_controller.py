@@ -64,7 +64,7 @@ class MinerInfoRequest(BaseModel):
 
 class TipsetKeyModel(BaseModel):
     """Tipset key model for Filecoin operations."""
-    
+
     cid: str = Field(..., description="The CID of the tipset")
     height: Optional[int] = Field(None, description="The height of the tipset")
     parents: Optional[List[str]] = Field(None, description="Parent tipset CIDs")
@@ -72,13 +72,13 @@ class TipsetKeyModel(BaseModel):
 
 class WalletRequest(BaseModel):
     """Request model for wallet operations."""
-    
+
     wallet_type: str = Field("secp256k1", description="Type of wallet to create")
 
 
 class DealRequest(BaseModel):
     """Request model for deal operations."""
-    
+
     cid: str = Field(..., description="Content identifier")
     miner: str = Field(..., description="Miner address")
     price: str = Field("0", description="Price per epoch in attoFIL")
@@ -91,14 +91,14 @@ class DealRequest(BaseModel):
 
 class RetrieveRequest(BaseModel):
     """Request model for content retrieval."""
-    
+
     cid: str = Field(..., description="Content identifier to retrieve")
     output_path: Optional[str] = Field(None, description="Path to save retrieved content")
 
 
 class IPFSToFilecoinRequest(BaseModel):
     """Request model for transferring content from IPFS to Filecoin."""
-    
+
     cid: str = Field(..., description="IPFS content identifier")
     miner: str = Field(..., description="Target miner address")
     price: str = Field("0", description="Price per epoch in attoFIL")
@@ -111,26 +111,26 @@ class IPFSToFilecoinRequest(BaseModel):
 
 class FilecoinToIPFSRequest(BaseModel):
     """Request model for transferring content from Filecoin to IPFS."""
-    
+
     data_cid: str = Field(..., description="Filecoin data CID")
     pin: bool = Field(True, description="Pin content in IPFS after transfer")
 
 
 class ImportFileRequest(BaseModel):
     """Request model for importing a file."""
-    
+
     file_path: str = Field(..., description="Path to file for import")
 
 
 class MinerInfoRequest(BaseModel):
     """Request model for miner information."""
-    
+
     miner_address: str = Field(..., description="Miner address to query")
 
 
 class FilecoinDealRequest(BaseModel):
     """Request model for Filecoin storage deals."""
-    
+
     cid: str = Field(..., description="The CID of the content to store")
     duration: int = Field(..., description="Duration of the deal in epochs")
     replication: int = Field(1, description="Number of storage providers to use")
@@ -142,7 +142,7 @@ class FilecoinDealRequest(BaseModel):
 
 class FilecoinDealStatus(BaseModel):
     """Status model for Filecoin storage deals."""
-    
+
     deal_id: str = Field(..., description="The ID of the storage deal")
     status: str = Field(..., description="Current status of the deal")
     provider: str = Field(..., description="Storage provider address")
@@ -157,7 +157,7 @@ class FilecoinDealStatus(BaseModel):
 
 class GetTipsetRequest(BaseModel):
     """Request model for retrieving a Filecoin tipset."""
-    
+
     tipset_key: List[str] = Field(
         ..., description="List of block CIDs that form the tipset key"
     )
@@ -166,16 +166,16 @@ class GetTipsetRequest(BaseModel):
 
 class FilecoinController:
     """Controller for Filecoin operations."""
-    
+
     def __init__(self, filecoin_model):
         """Initialize with a Filecoin model."""
         self.filecoin_model = filecoin_model
         self.logger = logging.getLogger(__name__)
-        
+
     def register_routes(self, router, prefix: str = ""):
         """
         Register routes with a FastAPI router.
-        
+
         Args:
             router: FastAPI router to register routes with
             prefix: Optional prefix for all routes
@@ -188,7 +188,7 @@ class FilecoinController:
             summary="Get Filecoin node status",
             description="Check if the Filecoin node is available and get its version"
         )
-        
+
         # Wallet endpoints
         router.add_api_route(
             "/filecoin/wallets",
@@ -197,7 +197,7 @@ class FilecoinController:
             summary="List Filecoin wallets",
             description="List all available Filecoin wallets"
         )
-        
+
         router.add_api_route(
             "/filecoin/wallets/create",
             self.handle_create_wallet_request,
@@ -205,7 +205,7 @@ class FilecoinController:
             summary="Create Filecoin wallet",
             description="Create a new Filecoin wallet"
         )
-        
+
         router.add_api_route(
             "/filecoin/wallets/{address}/balance",
             self.handle_wallet_balance_request,
@@ -213,7 +213,7 @@ class FilecoinController:
             summary="Get wallet balance",
             description="Get the balance of a specific Filecoin wallet"
         )
-        
+
         # Storage deal endpoints
         router.add_api_route(
             "/filecoin/deals",
@@ -222,7 +222,7 @@ class FilecoinController:
             summary="List storage deals",
             description="List all Filecoin storage deals"
         )
-        
+
         router.add_api_route(
             "/filecoin/deals/{deal_id}",
             self.handle_deal_info_request,
@@ -230,7 +230,7 @@ class FilecoinController:
             summary="Get deal info",
             description="Get information about a specific storage deal"
         )
-        
+
         router.add_api_route(
             "/filecoin/deals/create",
             self.create_deal,
@@ -238,7 +238,7 @@ class FilecoinController:
             summary="Create storage deal",
             description="Create a new Filecoin storage deal"
         )
-        
+
         router.add_api_route(
             "/filecoin/deals/status",
             self.get_deal_status,
@@ -246,7 +246,7 @@ class FilecoinController:
             summary="Get deal status",
             description="Get the status of a storage deal"
         )
-        
+
         # Miner endpoints
         router.add_api_route(
             "/filecoin/miners",
@@ -255,7 +255,7 @@ class FilecoinController:
             summary="List miners",
             description="List available Filecoin miners"
         )
-        
+
         router.add_api_route(
             "/filecoin/miners/info",
             self.handle_miner_info_request,
@@ -263,7 +263,7 @@ class FilecoinController:
             summary="Get miner info",
             description="Get information about a specific miner"
         )
-        
+
         # File import endpoints
         router.add_api_route(
             "/filecoin/imports",
@@ -272,7 +272,7 @@ class FilecoinController:
             summary="List imports",
             description="List all imports in Filecoin"
         )
-        
+
         router.add_api_route(
             "/filecoin/imports/file",
             self.handle_import_file_request,
@@ -280,7 +280,7 @@ class FilecoinController:
             summary="Import file",
             description="Import a file to Filecoin"
         )
-        
+
         # Content transfer endpoints
         router.add_api_route(
             "/filecoin/from_ipfs",
@@ -289,7 +289,7 @@ class FilecoinController:
             summary="IPFS to Filecoin",
             description="Transfer content from IPFS to Filecoin"
         )
-        
+
         router.add_api_route(
             "/filecoin/to_ipfs",
             self.handle_filecoin_to_ipfs_request,
@@ -297,7 +297,7 @@ class FilecoinController:
             summary="Filecoin to IPFS",
             description="Transfer content from Filecoin to IPFS"
         )
-        
+
         # Chain endpoints
         router.add_api_route(
             "/filecoin/chain/head",
@@ -306,7 +306,7 @@ class FilecoinController:
             summary="Get chain head",
             description="Get the current Filecoin chain head tipset"
         )
-        
+
         router.add_api_route(
             "/filecoin/chain/tipset",
             self.get_tipset,
@@ -314,9 +314,9 @@ class FilecoinController:
             summary="Get tipset",
             description="Get a specific tipset by key or height"
         )
-        
+
         self.logger.info("Filecoin controller routes registered")
-        
+
     async def handle_status_request(self) -> Dict[str, Any]:
         """Handle request to check Filecoin node status."""
         self.logger.info("Checking Filecoin node status")
@@ -336,7 +336,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error checking status: {str(e)}"
             }
-    
+
     async def handle_list_wallets_request(self) -> Dict[str, Any]:
         """Handle request to list Filecoin wallets."""
         self.logger.info("Listing Filecoin wallets")
@@ -356,7 +356,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error listing wallets: {str(e)}"
             }
-    
+
     async def handle_create_wallet_request(self, request: WalletRequest) -> Dict[str, Any]:
         """Handle request to create a new Filecoin wallet."""
         wallet_type = request.wallet_type
@@ -377,7 +377,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error creating wallet: {str(e)}"
             }
-    
+
     async def handle_wallet_balance_request(self, address: str) -> Dict[str, Any]:
         """Handle request to get wallet balance."""
         self.logger.info(f"Getting balance for wallet: {address}")
@@ -397,7 +397,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error getting wallet balance: {str(e)}"
             }
-    
+
     async def handle_import_file_request(self, request: ImportFileRequest) -> Dict[str, Any]:
         """Handle request to import a file to Filecoin."""
         file_path = request.file_path
@@ -420,7 +420,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error importing file: {str(e)}"
             }
-    
+
     async def handle_list_imports_request(self) -> Dict[str, Any]:
         """Handle request to list imports."""
         self.logger.info("Listing Filecoin imports")
@@ -440,7 +440,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error listing imports: {str(e)}"
             }
-    
+
     async def handle_list_deals_request(self) -> Dict[str, Any]:
         """Handle request to list storage deals."""
         self.logger.info("Listing Filecoin storage deals")
@@ -460,7 +460,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error listing deals: {str(e)}"
             }
-    
+
     async def handle_deal_info_request(self, deal_id: str) -> Dict[str, Any]:
         """Handle request to get information about a specific deal."""
         self.logger.info(f"Getting info for deal: {deal_id}")
@@ -480,7 +480,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error getting deal info: {str(e)}"
             }
-    
+
     async def handle_list_miners_request(self) -> Dict[str, Any]:
         """Handle request to list miners."""
         self.logger.info("Listing Filecoin miners")
@@ -500,7 +500,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error listing miners: {str(e)}"
             }
-    
+
     async def handle_miner_info_request(self, request: MinerInfoRequest) -> Dict[str, Any]:
         """Handle request to get miner information."""
         miner_address = request.miner_address
@@ -521,7 +521,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error getting miner info: {str(e)}"
             }
-    
+
     async def handle_ipfs_to_filecoin_request(self, request: IPFSToFilecoinRequest) -> Dict[str, Any]:
         """Handle request to transfer content from IPFS to Filecoin."""
         self.logger.info(f"Transferring content from IPFS to Filecoin: {request.cid}")
@@ -550,7 +550,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error transferring from IPFS to Filecoin: {str(e)}"
             }
-    
+
     async def handle_filecoin_to_ipfs_request(self, request: FilecoinToIPFSRequest) -> Dict[str, Any]:
         """Handle request to transfer content from Filecoin to IPFS."""
         self.logger.info(f"Transferring content from Filecoin to IPFS: {request.data_cid}")
@@ -573,7 +573,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error transferring from Filecoin to IPFS: {str(e)}"
             }
-    
+
     async def get_chain_head(self, request) -> Dict[str, Any]:
         """Get the current chain head tipset."""
         self.logger.info("Getting Filecoin chain head")
@@ -591,7 +591,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error getting chain head: {str(e)}"
             }
-    
+
     async def create_deal(self, request: FilecoinDealRequest) -> Dict[str, Any]:
         """Create a new Filecoin storage deal."""
         self.logger.info(f"Creating Filecoin deal for CID: {request.cid}")
@@ -617,7 +617,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error creating deal: {str(e)}"
             }
-    
+
     async def get_deal_status(self, request) -> Dict[str, Any]:
         """Get the status of a Filecoin storage deal."""
         deal_id = request.deal_id
@@ -636,7 +636,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error getting deal status: {str(e)}"
             }
-    
+
     async def list_deals(self, request) -> Dict[str, Any]:
         """List all Filecoin storage deals."""
         self.logger.info("Listing Filecoin deals")
@@ -661,7 +661,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error listing deals: {str(e)}"
             }
-    
+
     async def get_tipset(self, request: GetTipsetRequest) -> Dict[str, Any]:
         """Get a specific tipset by key or height."""
         self.logger.info(f"Getting tipset with key: {request.tipset_key}")
@@ -682,7 +682,7 @@ class FilecoinController:
                 "success": False,
                 "message": f"Error getting tipset: {str(e)}"
             }
-    
+
     async def get_wallet_balance(self, request) -> Dict[str, Any]:
         """Get the balance of a Filecoin wallet address."""
         address = request.address

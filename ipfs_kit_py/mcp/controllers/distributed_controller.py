@@ -363,8 +363,8 @@ class DistributedController:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def list_known_peers(
-        self, 
-        include_metrics=False, 
+        self,
+        include_metrics=False,
         filter_role=None
     ) -> Dict[str, Any]:
         """

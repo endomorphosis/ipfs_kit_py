@@ -25,7 +25,7 @@ def find_ipfs_model_anyio_module():
         "ipfs_kit_py.mcp.models.ipfs_model_anyio",
         "mcp.models.ipfs_model_anyio"
     ]
-    
+
     for path in module_paths:
         try:
             module = importlib.import_module(path)
@@ -34,7 +34,7 @@ def find_ipfs_model_anyio_module():
                 return module
         except ImportError:
             continue
-    
+
     return None
 
 def find_ipfs_model_class():
@@ -43,7 +43,7 @@ def find_ipfs_model_class():
         "ipfs_kit_py.mcp.models.ipfs_model",
         "mcp.models.ipfs_model"
     ]
-    
+
     for path in module_paths:
         try:
             module = importlib.import_module(path)
@@ -52,7 +52,7 @@ def find_ipfs_model_class():
                 return module.IPFSModel
         except ImportError:
             continue
-    
+
     return None
 
 def add_compatibility_methods():
@@ -62,27 +62,27 @@ def add_compatibility_methods():
     if not anyio_module:
         logger.error("Could not find IPFSModelAnyIO module")
         return False
-    
+
     regular_model_class = find_ipfs_model_class()
-    
+
     # Get the IPFSModelAnyIO class
     IPFSModelAnyIO = anyio_module.IPFSModelAnyIO
-    
+
     # Check for the missing add_content method
     if hasattr(IPFSModelAnyIO, "add_content"):
         logger.info("IPFSModelAnyIO already has add_content method")
         return True
-    
+
     # Look for alternative method names that might serve the same purpose
     alternative_methods = ["add_string", "add_text", "add_data", "add_bytes"]
-    
+
     for method_name in alternative_methods:
         if hasattr(IPFSModelAnyIO, method_name) and callable(getattr(IPFSModelAnyIO, method_name)):
             logger.info(f"Found alternative method: {method_name}")
-            
+
             # Get the signature of the alternative method
             alt_method = getattr(IPFSModelAnyIO, method_name)
-            
+
             # Define a wrapper method that calls the alternative
             async def add_content(self, *args, **kwargs):
                 """
@@ -92,42 +92,42 @@ def add_compatibility_methods():
                 """
                 logger.info(f"Calling {method_name} instead of add_content")
                 return await getattr(self, method_name)(*args, **kwargs)
-            
+
             # Add the docstring to explain what this does
             add_content.__doc__ = f"""
             Compatibility wrapper for add_content method.
             This calls the {method_name} method that exists in IPFSModelAnyIO.
             Added by the fix_ipfs_model.py script.
             """
-            
+
             # Add the method to the class
             setattr(IPFSModelAnyIO, "add_content", add_content)
             logger.info(f"Added add_content method that redirects to {method_name}")
             return True
-    
+
     # If no alternative methods are found, and we have the regular model class,
     # try to copy its implementation (with modifications for async)
     if regular_model_class and hasattr(regular_model_class, "add_content"):
         logger.info("Attempting to adapt add_content method from regular IPFSModel")
-        
+
         # Get the source code of the original method
         try:
             original_source = inspect.getsource(regular_model_class.add_content)
-            
+
             # Check if it's already async
             if "async def" in original_source:
                 new_source = original_source
             else:
                 # Modify the source code to make it async
                 new_source = original_source.replace("def add_content", "async def add_content")
-                
+
                 # Replace synchronous IPFS calls with async versions
                 # This part is tricky and might need manual adjustments
                 if "self.ipfs.add_string" in new_source:
                     new_source = new_source.replace("self.ipfs.add_string", "await self.ipfs.add_string_async")
                 if "self.ipfs.add_bytes" in new_source:
                     new_source = new_source.replace("self.ipfs.add_bytes", "await self.ipfs.add_bytes_async")
-                
+
             # Save the modified source to a temporary file
             with open("temp_method.py", "w") as f:
                 f.write("async def add_content(self, *args, **kwargs):\n")
@@ -163,34 +163,34 @@ def add_compatibility_methods():
                 f.write("            return result\n")
                 f.write("    except Exception as e:\n")
                 f.write("        raise RuntimeError(f'Failed to add content: {e}')\n")
-            
+
             # Load the method
             import temp_method
-            
+
             # Add the method to the class
             setattr(IPFSModelAnyIO, "add_content", temp_method.add_content)
             logger.info("Added add_content method adapted from regular IPFSModel")
-            
+
             # Clean up
             os.remove("temp_method.py")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error adapting add_content method: {e}")
-    
+
     # If all else fails, create a minimal implementation
     logger.info("Creating minimal add_content implementation")
-    
+
     async def minimal_add_content(self, content=None, **kwargs):
         """
         Minimal implementation of add_content method.
         This is a fallback implementation created by the fix_ipfs_model.py script.
         """
         logger.warning("Using minimal add_content implementation")
-        
+
         if content is None:
             raise ValueError("Content is required")
-        
+
         # Try to find the best way to add content
         try:
             if hasattr(self, "ipfs") and hasattr(self.ipfs, "add_str"):
@@ -211,7 +211,7 @@ def add_compatibility_methods():
         except Exception as e:
             logger.error(f"Error in minimal add_content: {e}")
             raise RuntimeError(f"Failed to add content: {e}")
-    
+
     # Add the method to the class
     setattr(IPFSModelAnyIO, "add_content", minimal_add_content)
     logger.info("Added minimal add_content implementation")
@@ -222,17 +222,17 @@ def check_method_added():
     anyio_module = find_ipfs_model_anyio_module()
     if not anyio_module:
         return False
-    
+
     IPFSModelAnyIO = anyio_module.IPFSModelAnyIO
     return hasattr(IPFSModelAnyIO, "add_content") and callable(getattr(IPFSModelAnyIO, "add_content"))
 
 def main():
     """Main function to fix the IPFS model."""
     print("Fixing IPFS model method name mismatch in MCP server...")
-    
+
     # Make sure we can import from the current directory
     sys.path.insert(0, os.getcwd())
-    
+
     # Add the missing method
     if add_compatibility_methods():
         if check_method_added():

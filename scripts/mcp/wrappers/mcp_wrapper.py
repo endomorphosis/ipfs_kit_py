@@ -44,23 +44,23 @@ def ensure_webrtc_in_module(module_name):
     try:
         # Import the module
         module = importlib.import_module(module_name)
-        
+
         # Set WebRTC flags if they exist
         if hasattr(module, 'HAVE_WEBRTC'):
             original_value = module.HAVE_WEBRTC
             module.HAVE_WEBRTC = True
             logger.info(f"Set {module_name}.HAVE_WEBRTC = True (was {original_value})")
-        
+
         # Set related flags
         for flag_name in ['HAVE_NUMPY', 'HAVE_CV2', 'HAVE_AV', 'HAVE_AIORTC', 'HAVE_NOTIFICATIONS']:
             if hasattr(module, flag_name):
                 original_value = getattr(module, flag_name)
                 setattr(module, flag_name, True)
                 logger.info(f"Set {module_name}.{flag_name} = True (was {original_value})")
-        
+
         # Reload the module to ensure changes take effect
         importlib.reload(module)
-        
+
         return True
     except Exception as e:
         logger.error(f"Error ensuring WebRTC in {module_name}: {e}")
@@ -83,27 +83,27 @@ server_ready = threading.Event()
 def start_mcp_server() -> None:
     """Start the MCP server process."""
     global server_process, server_port
-    
+
     # Check if WebRTC was enabled
     webrtc_enabled = os.environ.get("IPFS_KIT_FORCE_WEBRTC", "0") == "1"
-    
+
     logger.info(f"Starting MCP server on port {server_port}{' with WebRTC support' if webrtc_enabled else ''}...")
-    
+
     # Spawn a uvicorn process for the MCP server
     cmd = [
-        "uvicorn", 
-        "run_mcp_server:app", 
+        "uvicorn",
+        "run_mcp_server:app",
         "--port", str(server_port),
         "--log-level", "info"
     ]
-    
+
     # Prepare environment for the subprocess with WebRTC variables set
     env = os.environ.copy()
     env["IPFS_KIT_FORCE_WEBRTC"] = "1"
     env["FORCE_WEBRTC_TESTS"] = "1"
     env["IPFS_KIT_RUN_ALL_TESTS"] = "1"
     env["IPFS_KIT_FORCE_WEBRTC_DEPS"] = "1"
-    
+
     try:
         server_process = subprocess.Popen(
             cmd,
@@ -113,7 +113,7 @@ def start_mcp_server() -> None:
             bufsize=1,
             env=env  # Pass the environment with WebRTC variables
         )
-        
+
         # Monitor startup
         for line in server_process.stderr:
             logger.info(f"Server: {line.strip()}")
@@ -121,7 +121,7 @@ def start_mcp_server() -> None:
                 logger.info("MCP server started successfully")
                 server_ready.set()
                 break
-        
+
         # Continue reading output
         def monitor_output():
             try:
@@ -130,24 +130,24 @@ def start_mcp_server() -> None:
             except ValueError:
                 # Stream closed
                 pass
-                
+
         threading.Thread(target=monitor_output, daemon=True).start()
-        
+
         # Check if server started successfully
         if not server_ready.wait(timeout=10):
             logger.error("MCP server failed to start")
             return
-            
+
         # Wait for a moment to ensure the server is fully ready
         time.sleep(1)
-        
+
     except Exception as e:
         logger.error(f"Error starting MCP server: {e}")
 
 def stop_mcp_server() -> None:
     """Stop the MCP server process."""
     global server_process
-    
+
     if server_process:
         logger.info("Stopping MCP server...")
         server_process.terminate()
@@ -156,7 +156,7 @@ def stop_mcp_server() -> None:
         except subprocess.TimeoutExpired:
             logger.warning("Server did not terminate gracefully, forcing...")
             server_process.kill()
-        
+
         server_process = None
         logger.info("MCP server stopped")
 
@@ -165,14 +165,14 @@ def server_thread_func() -> None:
     # Set environment variables to ensure WebRTC capabilities are available
     os.environ["IPFS_KIT_FORCE_WEBRTC"] = "1"
     os.environ["IPFS_KIT_FORCE_WEBRTC_DEPS"] = "1"
-    
+
     logger.info("Environment variables set to force WebRTC availability")
-    
+
     # Try to force enable WebRTC in the modules
     try:
         # Import modules and update their availability flags
         from ipfs_kit_py import webrtc_streaming, high_level_api
-        
+
         # Force WebRTC capabilities in the main module
         for module_name, module in [
             ("ipfs_kit_py.webrtc_streaming", webrtc_streaming),
@@ -183,28 +183,28 @@ def server_thread_func() -> None:
                     old_value = getattr(module, flag)
                     setattr(module, flag, True)
                     logger.info(f"Set {module_name}.{flag} = True (was {old_value})")
-            
+
             # Force HAVE_NOTIFICATIONS in webrtc_streaming
             if module_name == "ipfs_kit_py.webrtc_streaming" and hasattr(module, "HAVE_NOTIFICATIONS"):
                 old_value = getattr(module, "HAVE_NOTIFICATIONS")
                 setattr(module, "HAVE_NOTIFICATIONS", True)
                 logger.info(f"Set {module_name}.HAVE_NOTIFICATIONS = True (was {old_value})")
-            
+
         logger.info("WebRTC dependencies forced available for MCP server")
     except ImportError:
         logger.warning("Could not import WebRTC modules for forced availability")
     except Exception as e:
         logger.warning(f"Error forcing WebRTC availability: {e}")
-    
+
     # Start the MCP server
     start_mcp_server()
-    
+
 def get_status() -> Dict[str, Any]:
     """Get the status of the MCP server."""
     if server_process and server_process.poll() is None:
         # Check if WebRTC was enabled
         webrtc_enabled = os.environ.get("IPFS_KIT_FORCE_WEBRTC", "0") == "1"
-        
+
         return {
             "status": "running",
             "port": server_port,
@@ -220,9 +220,9 @@ def handle_command(args: List[str], input_data: Dict[str, Any] = None) -> Dict[s
     """Handle MCP protocol commands."""
     if not args:
         return {"error": "No command specified"}
-        
+
     command = args[0]
-    
+
     if command == "mcp_ipfs_kit":
         # Start the server if not already running
         if not server_process or server_process.poll() is not None:
@@ -231,19 +231,19 @@ def handle_command(args: List[str], input_data: Dict[str, Any] = None) -> Dict[s
                 server_thread = threading.Thread(target=server_thread_func, daemon=True)
                 server_thread.start()
                 server_ready.wait(timeout=10)
-                
+
                 # Check if server started
                 if not server_ready.is_set():
                     return {
                         "success": False,
                         "error": "Failed to start MCP server"
                     }
-        
+
         # Handle specific operations if input data is provided
         if input_data:
             # Use explicit operation if provided
             operation = input_data.get("operation", "")
-            
+
             # If operation is explicitly specified
             if operation:
                 if operation == "add" and "content" in input_data:
@@ -281,7 +281,7 @@ def handle_command(args: List[str], input_data: Dict[str, Any] = None) -> Dict[s
                         "success": False,
                         "error": f"Invalid operation parameters for {operation}"
                     }
-            
+
             # Backward compatibility with previous approach (implicit operations)
             elif "cid" in input_data and not "content" in input_data:
                 # Get content operation
@@ -290,12 +290,12 @@ def handle_command(args: List[str], input_data: Dict[str, Any] = None) -> Dict[s
                 # Add content operation
                 filename = input_data.get("filename")
                 return handle_add_content(input_data["content"], filename)
-        
+
         # Return success with server info
         if server_process and server_process.poll() is None:
             # Check if WebRTC was enabled
             webrtc_enabled = os.environ.get("IPFS_KIT_FORCE_WEBRTC", "0") == "1"
-            
+
             return {
                 "success": True,
                 "port": server_port,
@@ -344,9 +344,9 @@ def handle_command(args: List[str], input_data: Dict[str, Any] = None) -> Dict[s
 def handle_add_content(content: str, filename: str = None) -> Dict[str, Any]:
     """Handle adding content to IPFS."""
     import requests
-    
+
     logger.info(f"Adding content: {content[:30]}...")
-    
+
     try:
         # Ensure server is running
         if not server_process or server_process.poll() is not None:
@@ -354,18 +354,18 @@ def handle_add_content(content: str, filename: str = None) -> Dict[str, Any]:
                 "success": False,
                 "error": "MCP server not running"
             }
-        
+
         # Prepare request data
         request_data = {"content": content}
         if filename:
             request_data["filename"] = filename
-        
+
         # Make API request to add content
         response = requests.post(
             f"http://localhost:{server_port}/api/v0/mcp/ipfs/add",
             json=request_data
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             logger.info(f"Added content: {result}")
@@ -393,9 +393,9 @@ def handle_add_content(content: str, filename: str = None) -> Dict[str, Any]:
 def handle_get_content(cid: str) -> Dict[str, Any]:
     """Handle getting content from IPFS."""
     import requests
-    
+
     logger.info(f"Getting content for CID: {cid}...")
-    
+
     try:
         # Ensure server is running
         if not server_process or server_process.poll() is not None:
@@ -403,21 +403,21 @@ def handle_get_content(cid: str) -> Dict[str, Any]:
                 "success": False,
                 "error": "MCP server not running"
             }
-        
+
         # Make API request to get content
         response = requests.get(
             f"http://localhost:{server_port}/api/v0/mcp/ipfs/cat/{cid}"
         )
-        
+
         if response.status_code == 200:
             data = response.content.decode("utf-8")
             logger.info(f"Retrieved content: {data[:30]}...")
-            
+
             # Get headers for additional info
             operation_id = response.headers.get("X-Operation-ID", "unknown")
             duration = response.headers.get("X-Operation-Duration-MS", "0")
             cache_hit = response.headers.get("X-Cache-Hit", "false").lower() == "true"
-            
+
             return {
                 "success": True,
                 "data": data,
@@ -443,9 +443,9 @@ def handle_get_content(cid: str) -> Dict[str, Any]:
 def handle_pin_content(cid: str, recursive: bool = True) -> Dict[str, Any]:
     """Handle pinning content in IPFS."""
     import requests
-    
+
     logger.info(f"Pinning content for CID: {cid}...")
-    
+
     try:
         # Ensure server is running
         if not server_process or server_process.poll() is not None:
@@ -453,17 +453,17 @@ def handle_pin_content(cid: str, recursive: bool = True) -> Dict[str, Any]:
                 "success": False,
                 "error": "MCP server not running"
             }
-        
+
         # Make API request to pin content
         response = requests.post(
             f"http://localhost:{server_port}/api/v0/mcp/ipfs/pin/add",
             json={"cid": cid, "recursive": recursive}
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             logger.info(f"Pinned content: {result}")
-            
+
             return {
                 "success": True,
                 "cid": cid,
@@ -488,9 +488,9 @@ def handle_pin_content(cid: str, recursive: bool = True) -> Dict[str, Any]:
 def handle_unpin_content(cid: str) -> Dict[str, Any]:
     """Handle unpinning content from IPFS."""
     import requests
-    
+
     logger.info(f"Unpinning content for CID: {cid}...")
-    
+
     try:
         # Ensure server is running
         if not server_process or server_process.poll() is not None:
@@ -498,17 +498,17 @@ def handle_unpin_content(cid: str) -> Dict[str, Any]:
                 "success": False,
                 "error": "MCP server not running"
             }
-        
+
         # Make API request to unpin content
         response = requests.post(
             f"http://localhost:{server_port}/api/v0/mcp/ipfs/pin/rm",
             json={"cid": cid}
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             logger.info(f"Unpinned content: {result}")
-            
+
             return {
                 "success": True,
                 "cid": cid,
@@ -533,9 +533,9 @@ def handle_unpin_content(cid: str) -> Dict[str, Any]:
 def handle_list_pins() -> Dict[str, Any]:
     """Handle listing pinned content in IPFS."""
     import requests
-    
+
     logger.info("Listing pinned content...")
-    
+
     try:
         # Ensure server is running
         if not server_process or server_process.poll() is not None:
@@ -543,16 +543,16 @@ def handle_list_pins() -> Dict[str, Any]:
                 "success": False,
                 "error": "MCP server not running"
             }
-        
+
         # Make API request to list pins
         response = requests.get(
             f"http://localhost:{server_port}/api/v0/mcp/ipfs/pin/ls"
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             logger.info(f"Listed pins: {len(result.get('pins', []))} pins")
-            
+
             return {
                 "success": True,
                 "pins": result.get("pins", []),
@@ -577,9 +577,9 @@ def handle_list_pins() -> Dict[str, Any]:
 def handle_get_stats() -> Dict[str, Any]:
     """Handle getting IPFS operation statistics."""
     import requests
-    
+
     logger.info("Getting IPFS operation statistics...")
-    
+
     try:
         # Ensure server is running
         if not server_process or server_process.poll() is not None:
@@ -587,16 +587,16 @@ def handle_get_stats() -> Dict[str, Any]:
                 "success": False,
                 "error": "MCP server not running"
             }
-        
+
         # Make API request to get stats
         response = requests.get(
             f"http://localhost:{server_port}/api/v0/mcp/ipfs/stats"
         )
-        
+
         if response.status_code == 200:
             result = response.json()
             logger.info(f"Retrieved stats: {result}")
-            
+
             return {
                 "success": True,
                 "operation_stats": result.get("operation_stats", {}),
@@ -616,14 +616,14 @@ def handle_get_stats() -> Dict[str, Any]:
             "success": False,
             "error": str(e)
         }
-        
+
 def handle_pin_update(from_path: str, to_path: str) -> Dict[str, Any]:
     """Handle updating a recursive pin from one path to another."""
     import requests
     import subprocess
-    
+
     logger.info(f"Updating pin from {from_path} to {to_path}...")
-    
+
     # This operation isn't directly available in the MCP server,
     # so we'll use the IPFS CLI directly
     try:
@@ -633,7 +633,7 @@ def handle_pin_update(from_path: str, to_path: str) -> Dict[str, Any]:
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             logger.info(f"Updated pin: {result.stdout}")
             return {
@@ -664,9 +664,9 @@ def handle_pin_verify() -> Dict[str, Any]:
     """Handle verifying that recursive pins are complete."""
     import requests
     import subprocess
-    
+
     logger.info("Verifying pins...")
-    
+
     # This operation isn't directly available in the MCP server,
     # so we'll use the IPFS CLI directly
     try:
@@ -676,7 +676,7 @@ def handle_pin_verify() -> Dict[str, Any]:
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             logger.info(f"Verified pins: {result.stdout}")
             return {
@@ -704,9 +704,9 @@ def handle_name_publish(path: str, key: str = "self") -> Dict[str, Any]:
     """Handle publishing an IPNS name."""
     import requests
     import subprocess
-    
+
     logger.info(f"Publishing IPNS name for {path} with key {key}...")
-    
+
     # This operation isn't directly available in the MCP server,
     # so we'll use the IPFS CLI directly
     try:
@@ -716,18 +716,18 @@ def handle_name_publish(path: str, key: str = "self") -> Dict[str, Any]:
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             logger.info(f"Published IPNS name: {result.stdout}")
             # Parse the output to extract name and value
             output = result.stdout.strip()
-            
+
             # Typical output is "Published to <name>: <value>"
             parts = output.split(": ")
             if len(parts) == 2:
                 name = parts[0].replace("Published to ", "")
                 value = parts[1]
-                
+
                 return {
                     "success": True,
                     "operation": "name_publish",
@@ -766,9 +766,9 @@ def handle_name_resolve(name: str, recursive: bool = True) -> Dict[str, Any]:
     """Handle resolving an IPNS name."""
     import requests
     import subprocess
-    
+
     logger.info(f"Resolving IPNS name {name}...")
-    
+
     # This operation isn't directly available in the MCP server,
     # so we'll use the IPFS CLI directly
     try:
@@ -777,18 +777,18 @@ def handle_name_resolve(name: str, recursive: bool = True) -> Dict[str, Any]:
         if recursive:
             cmd.append("--recursive")
         cmd.append(name)
-        
+
         # Run the IPFS command directly
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             resolved_path = result.stdout.strip()
             logger.info(f"Resolved IPNS name {name} to {resolved_path}")
-            
+
             return {
                 "success": True,
                 "operation": "name_resolve",
@@ -817,15 +817,15 @@ def handle_dag_put(data: str, format_str: str = "json") -> Dict[str, Any]:
     import tempfile
     import json
     import hashlib
-    
+
     logger.info(f"Putting DAG node in format {format_str}...")
-    
+
     try:
         # Create a temporary file for the data
         with tempfile.NamedTemporaryFile(mode="w+", delete=False) as temp:
             temp_path = temp.name
             temp.write(data)
-        
+
         # Try to run the IPFS command directly
         try:
             result = subprocess.run(
@@ -836,15 +836,15 @@ def handle_dag_put(data: str, format_str: str = "json") -> Dict[str, Any]:
             command_success = result.returncode == 0
         except:
             command_success = False
-            
+
         # Clean up the temporary file
         import os
         os.unlink(temp_path)
-        
+
         if command_success:
             cid = result.stdout.strip()
             logger.info(f"Put DAG node with CID: {cid}")
-            
+
             return {
                 "success": True,
                 "operation": "dag_put",
@@ -856,12 +856,12 @@ def handle_dag_put(data: str, format_str: str = "json") -> Dict[str, Any]:
             # Base the CID on the content hash to ensure deterministic results
             logger.warning("IPFS dag put failed. Using simulated response for development.")
             data_hash = hashlib.sha256(data.encode()).hexdigest()
-            
+
             # Create a fake CID that looks realistic (starts with "bafy" for DAG-PB CIDv1)
             simulated_cid = f"bafy2bzace{data_hash[:40]}"
-            
+
             logger.info(f"Generated simulated CID: {simulated_cid}")
-            
+
             return {
                 "success": True,
                 "operation": "dag_put",
@@ -882,13 +882,13 @@ def handle_dag_get(cid: str, path: str = "") -> Dict[str, Any]:
     import requests
     import subprocess
     import json
-    
+
     full_path = cid
     if path:
         full_path = f"{cid}/{path}"
-    
+
     logger.info(f"Getting DAG node {full_path}...")
-    
+
     # This operation isn't directly available in the MCP server,
     # so we'll use the IPFS CLI directly
     try:
@@ -898,7 +898,7 @@ def handle_dag_get(cid: str, path: str = "") -> Dict[str, Any]:
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             # Try to parse the output as JSON
             try:
@@ -942,13 +942,13 @@ def main() -> int:
     parser.add_argument("command", nargs="*", help="Command to execute")
     parser.add_argument("--port", type=int, default=9999, help="Port to run the MCP server on")
     parser.add_argument("--input", type=str, help="JSON input data for the command")
-    
+
     args = parser.parse_args()
-    
+
     # Set server port
     global server_port
     server_port = args.port
-    
+
     # Parse input data if provided
     input_data = None
     if args.input:
@@ -960,7 +960,7 @@ def main() -> int:
                 "error": f"Invalid JSON input: {e}"
             }))
             return 1
-    
+
     # Check for stdin input if no input parameter
     if not input_data and not sys.stdin.isatty():
         try:
@@ -970,13 +970,13 @@ def main() -> int:
         except json.JSONDecodeError:
             # Not valid JSON, ignore
             pass
-    
+
     # Handle the command
     result = handle_command(args.command, input_data)
-    
+
     # Print the result as JSON
     print(json.dumps(result, indent=2))
-    
+
     # Return exit code
     return 0 if result.get("success", False) else 1
 

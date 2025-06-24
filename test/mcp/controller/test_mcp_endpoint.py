@@ -8,15 +8,15 @@ def test_endpoint(url, params=None, json_data=None):
             response = requests.post(url, json=json_data)
         else:
             response = requests.post(url, params=params)
-            
+
         print(f"Status Code: {response.status_code}")
         print(f"Response: {response.text}")
-        
+
         try:
             return response.json()
         except:
             return None
-            
+
     except Exception as e:
         print(f"Error: {str(e)}")
         return None

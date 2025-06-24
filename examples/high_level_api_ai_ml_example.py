@@ -38,10 +38,10 @@ logger = logging.getLogger(__name__)
 def dataset_workflow():
     """Demonstrate dataset management workflow."""
     logger.info("=== Dataset Management Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Create a sample dataset
     logger.info("Creating sample dataset")
     df = pd.DataFrame({
@@ -50,25 +50,25 @@ def dataset_workflow():
         'feature3': np.random.rand(100),
         'target': np.random.randint(0, 2, 100)
     })
-    
+
     # Save dataset to CSV
     dataset_path = "example_dataset.csv"
     df.to_csv(dataset_path, index=False)
-    
+
     try:
         # Add dataset to IPFS
         logger.info("Adding dataset to IPFS")
         dataset_result = api.add(dataset_path)
-        
+
         if not dataset_result.get("success", False):
             # Simulated CID for demo purposes when IPFS is not available
             logger.warning("Failed to add dataset to IPFS, using simulated CID")
             dataset_cid = f"Qm{os.urandom(16).hex()}"
         else:
             dataset_cid = dataset_result.get("cid", f"Qm{os.urandom(16).hex()}")
-            
+
         logger.info(f"Dataset CID: {dataset_cid}")
-        
+
         # Create dataset metadata
         metadata = {
             "name": "Example Classification Dataset",
@@ -79,7 +79,7 @@ def dataset_workflow():
             "columns": 4,
             "created_at": time.time()
         }
-        
+
         # Register dataset with metadata (using generic add_json for simulation)
         logger.info("Registering dataset with metadata")
         try:
@@ -91,16 +91,16 @@ def dataset_workflow():
         except Exception as e:
             logger.warning(f"Failed to register dataset with metadata: {e}")
             register_result = {
-                "success": False, 
+                "success": False,
                 "error": str(e),
                 "simulated_result": {
-                    "success": True, 
-                    "cid": f"Qm{os.urandom(16).hex()}", 
+                    "success": True,
+                    "cid": f"Qm{os.urandom(16).hex()}",
                     "dataset_cid": dataset_cid
                 }
             }
             logger.info("Using simulated registration result")
-        
+
         # Create data loader (simulation)
         logger.info("Creating data loader for dataset")
         try:
@@ -117,15 +117,15 @@ def dataset_workflow():
         except Exception as e:
             logger.warning(f"Failed to create data loader: {e}")
             loader_result = {"success": False, "error": str(e)}
-        
+
         # If a framework is available, demonstrate conversion
         try:
             import torch
             logger.info("Creating PyTorch data loader")
             try:
                 torch_loader_result = api.ai_data_loader(
-                    dataset_cid, 
-                    batch_size=16, 
+                    dataset_cid,
+                    batch_size=16,
                     shuffle=True,
                     framework="pytorch"
                 )
@@ -134,7 +134,7 @@ def dataset_workflow():
                 logger.warning(f"Failed to create PyTorch data loader: {e}")
         except ImportError:
             logger.info("PyTorch not available, skipping PyTorch data loader example")
-            
+
     finally:
         # Clean up test file
         if os.path.exists(dataset_path):
@@ -144,10 +144,10 @@ def dataset_workflow():
 def model_registry_workflow():
     """Demonstrate model registry workflow."""
     logger.info("=== Model Registry Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Create a sample model (we'll use a simple dictionary as a placeholder)
     model = {
         "model_type": "random_forest",
@@ -158,26 +158,26 @@ def model_registry_workflow():
         },
         "weights": [0.1, 0.2, 0.3, 0.4, 0.5]  # Simplified representation
     }
-    
+
     # Save model to JSON
     model_path = "example_model.json"
     with open(model_path, 'w') as f:
         json.dump(model, f)
-        
+
     try:
         # Add model to IPFS
         logger.info("Adding model to IPFS")
         model_result = api.add(model_path)
-        
+
         if not model_result.get("success", False):
             # Simulated CID for demo purposes when IPFS is not available
             logger.warning("Failed to add model to IPFS, using simulated CID")
             model_cid = f"Qm{os.urandom(16).hex()}"
         else:
             model_cid = model_result.get("cid", f"Qm{os.urandom(16).hex()}")
-            
+
         logger.info(f"Model CID: {model_cid}")
-        
+
         # Register model with metadata
         metadata = {
             "name": "Example Classification Model",
@@ -193,7 +193,7 @@ def model_registry_workflow():
             "created_at": time.time(),
             "model_cid": model_cid  # Include the model CID in metadata
         }
-        
+
         logger.info("Registering model with metadata")
         try:
             # Try to use the AI-specific method first
@@ -208,16 +208,16 @@ def model_registry_workflow():
             except Exception as e2:
                 logger.warning(f"Failed to register model with generic method: {e2}")
                 register_result = {
-                    "success": False, 
+                    "success": False,
                     "error": str(e2),
                     "simulated_result": {
-                        "success": True, 
-                        "cid": f"Qm{os.urandom(16).hex()}", 
+                        "success": True,
+                        "cid": f"Qm{os.urandom(16).hex()}",
                         "model_cid": model_cid
                     }
                 }
                 logger.info("Using simulated registration result")
-        
+
         # List models in registry
         logger.info("Listing models in registry")
         try:
@@ -240,7 +240,7 @@ def model_registry_workflow():
                 "count": 1
             }
             logger.info(f"Using simulated models list: {models_result}")
-        
+
         # Benchmark model
         logger.info("Benchmarking model")
         try:
@@ -266,7 +266,7 @@ def model_registry_workflow():
                 "completed_at": time.time()
             }
             logger.info(f"Using simulated benchmark result: {benchmark_result}")
-        
+
         # Deploy model
         logger.info("Deploying model")
         try:
@@ -291,7 +291,7 @@ def model_registry_workflow():
                 "estimated_ready_time": time.time() + 60  # Ready in 60 seconds
             }
             logger.info(f"Using simulated deployment result: {deploy_result}")
-        
+
         # Optimize model
         logger.info("Optimizing model")
         try:
@@ -319,7 +319,7 @@ def model_registry_workflow():
                 "completed_at": time.time()
             }
             logger.info(f"Using simulated optimization result: {optimize_result}")
-        
+
     finally:
         # Clean up test file
         if os.path.exists(model_path):
@@ -329,10 +329,10 @@ def model_registry_workflow():
 def langchain_workflow():
     """Demonstrate Langchain integration workflow."""
     logger.info("=== Langchain Integration Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Check if langchain is available
     try:
         import langchain
@@ -341,11 +341,11 @@ def langchain_workflow():
     except ImportError:
         logger.info("Langchain not available, will use simulation mode")
         langchain_available = False
-    
+
     # Create sample documents
     docs_dir = "example_docs"
     os.makedirs(docs_dir, exist_ok=True)
-    
+
     try:
         # Create a few sample text files
         for i in range(3):
@@ -353,7 +353,7 @@ def langchain_workflow():
                 f.write(f"This is sample document {i} for testing Langchain integration with IPFS Kit.\n")
                 f.write(f"It contains information about topic {i} that can be retrieved using LLMs.\n")
                 f.write(f"This document discusses various aspects of machine learning and IPFS integration.\n")
-        
+
         # Add documents to IPFS
         logger.info("Adding documents to IPFS")
         try:
@@ -361,7 +361,7 @@ def langchain_workflow():
             import subprocess
             cmd = ["ipfs", "add", "-Q", "-r", "--cid-version=1", docs_dir]
             p = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             if p.returncode == 0:
                 docs_cid = p.stdout.strip()
                 docs_result = {"success": True, "cid": docs_cid}
@@ -380,9 +380,9 @@ def langchain_workflow():
         except Exception as e:
             logger.warning(f"Error adding documents to IPFS: {e}")
             docs_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-            
+
         logger.info(f"Documents added with CID: {docs_cid}")
-        
+
         # Load documents with Langchain
         logger.info("Loading documents with Langchain")
         try:
@@ -413,7 +413,7 @@ def langchain_workflow():
                 "count": 3
             }
             logger.info(f"Using simulated document loading result with {len(load_result['documents'])} documents")
-        
+
         # Create vector store from loaded documents
         if load_result.get('success', False) and 'documents' in load_result:
             logger.info("Creating vector store")
@@ -435,12 +435,12 @@ def langchain_workflow():
                     "vector_store": "Simulated FAISS vector store"
                 }
                 logger.info("Using simulated vector store result")
-            
+
             # Store vector index in IPFS (create mock file for simulation)
             index_path = "vector_index.faiss"
             with open(index_path, 'wb') as f:
                 f.write(b"MOCK FAISS INDEX")  # Mock data for demo purposes
-                
+
             logger.info("Adding vector index to IPFS")
             try:
                 index_result = api.add(index_path)
@@ -452,9 +452,9 @@ def langchain_workflow():
             except Exception as e:
                 logger.warning(f"Error adding vector index to IPFS: {e}")
                 index_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-                
+
             logger.info(f"Vector index added with CID: {index_cid}")
-            
+
             # Demonstrate a query (simulated)
             logger.info("Performing vector similarity search")
             try:
@@ -485,11 +485,11 @@ def langchain_workflow():
                     "count": 2
                 }
                 logger.info(f"Using simulated search result with {len(search_result['results'])} matches")
-            
+
             # Clean up index file
             if os.path.exists(index_path):
                 os.remove(index_path)
-    
+
     finally:
         # Clean up test files
         import shutil
@@ -500,10 +500,10 @@ def langchain_workflow():
 def llama_index_workflow():
     """Demonstrate LlamaIndex integration workflow."""
     logger.info("=== LlamaIndex Integration Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Check if llama_index is available
     try:
         import llama_index
@@ -512,11 +512,11 @@ def llama_index_workflow():
     except ImportError:
         logger.info("LlamaIndex not available, will use simulation mode")
         llama_index_available = False
-    
+
     # Create sample documents
     docs_dir = "example_llama_docs"
     os.makedirs(docs_dir, exist_ok=True)
-    
+
     try:
         # Create a few sample text files
         for i in range(3):
@@ -524,7 +524,7 @@ def llama_index_workflow():
                 f.write(f"This is sample document {i} for testing LlamaIndex integration with IPFS Kit.\n")
                 f.write(f"It contains information about topic {i} that can be retrieved using LLMs.\n")
                 f.write(f"This document discusses various aspects of machine learning and IPFS integration.\n")
-        
+
         # Add documents to IPFS
         logger.info("Adding documents to IPFS")
         try:
@@ -532,7 +532,7 @@ def llama_index_workflow():
             import subprocess
             cmd = ["ipfs", "add", "-Q", "-r", "--cid-version=1", docs_dir]
             p = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             if p.returncode == 0:
                 docs_cid = p.stdout.strip()
                 docs_result = {"success": True, "cid": docs_cid}
@@ -551,9 +551,9 @@ def llama_index_workflow():
         except Exception as e:
             logger.warning(f"Error adding documents to IPFS: {e}")
             docs_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-            
+
         logger.info(f"Documents added with CID: {docs_cid}")
-        
+
         # Load documents with LlamaIndex
         logger.info("Loading documents with LlamaIndex")
         try:
@@ -584,7 +584,7 @@ def llama_index_workflow():
                 "count": 3
             }
             logger.info(f"Using simulated document loading result with {len(load_result['documents'])} documents")
-        
+
         # Create index
         if load_result.get('success', False) and 'documents' in load_result:
             logger.info("Creating LlamaIndex index")
@@ -605,12 +605,12 @@ def llama_index_workflow():
                     "index": "Simulated LlamaIndex vector store index"
                 }
                 logger.info("Using simulated index creation result")
-            
+
             # Store index in IPFS (create mock file for simulation)
             index_path = "llama_index.json"
             with open(index_path, 'w') as f:
                 f.write(json.dumps({"mock_index": "data"}))  # Mock data for demo purposes
-                
+
             logger.info("Adding index to IPFS")
             try:
                 index_add_result = api.add(index_path)
@@ -622,9 +622,9 @@ def llama_index_workflow():
             except Exception as e:
                 logger.warning(f"Error adding index to IPFS: {e}")
                 index_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-                
+
             logger.info(f"Index added with CID: {index_cid}")
-            
+
             # Demonstrate a query (simulated)
             logger.info("Performing query with LlamaIndex")
             try:
@@ -656,11 +656,11 @@ def llama_index_workflow():
                     "response_mode": "compact"
                 }
                 logger.info(f"Using simulated query result with response: '{query_result['response']}'")
-            
+
             # Clean up index file
             if os.path.exists(index_path):
                 os.remove(index_path)
-    
+
     finally:
         # Clean up test files
         import shutil
@@ -671,10 +671,10 @@ def llama_index_workflow():
 def distributed_training_workflow():
     """Demonstrate distributed training workflow."""
     logger.info("=== Distributed Training Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Define a training task
     training_task = {
         "task_type": "model_training",
@@ -694,7 +694,7 @@ def distributed_training_workflow():
             "activation": "relu"
         }
     }
-    
+
     # Submit training job
     logger.info("Submitting distributed training job")
     try:
@@ -720,10 +720,10 @@ def distributed_training_workflow():
             "task": training_task
         }
         logger.info(f"Using simulated job submission result with job_id: {job_id}")
-    
+
     if submit_result.get('success', False) and 'job_id' in submit_result:
         job_id = submit_result['job_id']
-        
+
         # Get job status
         logger.info(f"Getting status for job {job_id}")
         try:
@@ -752,7 +752,7 @@ def distributed_training_workflow():
                 "estimated_completion_time": time.time() + 180  # Will complete in 3 minutes
             }
             logger.info(f"Using simulated job status: {status_result['status']} ({status_result['progress']['percentage']}% complete)")
-        
+
         # Aggregate results
         logger.info(f"Aggregating results for job {job_id}")
         try:
@@ -785,7 +785,7 @@ def distributed_training_workflow():
                 "completed_at": time.time()
             }
             logger.info(f"Using simulated aggregation result with model_cid: {model_cid}")
-        
+
         # Cancel job (only if the job is still running)
         # In simulation, assume the job is still running
         logger.info(f"Canceling job {job_id}")
@@ -810,10 +810,10 @@ def distributed_training_workflow():
 def model_deployment_workflow():
     """Demonstrate model deployment workflow."""
     logger.info("=== Model Deployment Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Create a simple model (placeholder for this example)
     model = {
         "name": "example_model",
@@ -825,12 +825,12 @@ def model_deployment_workflow():
         },
         "weights": [0.1, 0.2, 0.3]  # Simplified for example
     }
-    
+
     # Save to JSON file
     model_path = "deployment_model.json"
     with open(model_path, "w") as f:
         json.dump(model, f)
-    
+
     try:
         # Add model to IPFS
         logger.info("Adding model to IPFS")
@@ -844,9 +844,9 @@ def model_deployment_workflow():
         except Exception as e:
             logger.warning(f"Error adding model to IPFS: {e}")
             model_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-            
+
         logger.info(f"Model added with CID: {model_cid}")
-        
+
         # Deploy model
         logger.info("Deploying model to inference endpoint")
         try:
@@ -875,10 +875,10 @@ def model_deployment_workflow():
                 "estimated_ready_time": time.time() + 60  # Ready in 60 seconds
             }
             logger.info(f"Using simulated deployment result with endpoint_id: {endpoint_id}")
-        
+
         if deploy_result.get("success", False) and "endpoint_id" in deploy_result:
             endpoint_id = deploy_result["endpoint_id"]
-            
+
             # Get endpoint status
             logger.info(f"Getting status for endpoint {endpoint_id}")
             try:
@@ -905,7 +905,7 @@ def model_deployment_workflow():
                     "last_updated": time.time()
                 }
                 logger.info(f"Using simulated endpoint status: {status_result['status']}")
-            
+
             # Simulate a test inference request
             logger.info("Testing inference endpoint with sample data")
             try:
@@ -925,7 +925,7 @@ def model_deployment_workflow():
                     "model_version": model["version"]
                 }
                 logger.info(f"Using simulated inference result: {inference_result['predictions']}")
-            
+
             # Optimize model for inference
             logger.info("Optimizing model for inference")
             try:
@@ -957,7 +957,7 @@ def model_deployment_workflow():
                     "completed_at": time.time()
                 }
                 logger.info(f"Using simulated optimization result with optimized_cid: {optimized_model_cid}")
-                
+
             # Update deployment with optimized model
             logger.info("Updating deployment with optimized model")
             try:
@@ -979,7 +979,7 @@ def model_deployment_workflow():
                     "estimated_completion_time": time.time() + 30  # 30 seconds to update
                 }
                 logger.info(f"Using simulated deployment update result: {update_result['status']}")
-    
+
     finally:
         # Clean up test file
         if os.path.exists(model_path):
@@ -989,14 +989,14 @@ def model_deployment_workflow():
 def vector_search_workflow():
     """Demonstrate vector search workflow."""
     logger.info("=== Vector Search Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Create sample documents
     docs_dir = "vector_search_docs"
     os.makedirs(docs_dir, exist_ok=True)
-    
+
     try:
         # Create a few sample text files
         for i in range(5):
@@ -1004,7 +1004,7 @@ def vector_search_workflow():
                 f.write(f"This is document {i} about topic {i % 3}.\n")
                 f.write(f"It contains information that might be relevant to search queries.\n")
                 f.write(f"Keywords: topic{i % 3}, example, document{i}\n")
-        
+
         # Add documents to IPFS
         logger.info("Adding documents to IPFS")
         try:
@@ -1012,7 +1012,7 @@ def vector_search_workflow():
             import subprocess
             cmd = ["ipfs", "add", "-Q", "-r", "--cid-version=1", docs_dir]
             p = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             if p.returncode == 0:
                 docs_cid = p.stdout.strip()
                 docs_result = {"success": True, "cid": docs_cid}
@@ -1031,12 +1031,12 @@ def vector_search_workflow():
         except Exception as e:
             logger.warning(f"Error adding documents to IPFS: {e}")
             docs_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-            
+
         logger.info(f"Documents added with CID: {docs_cid}")
-        
+
         # Create vector embeddings using langchain
         logger.info("Creating vector embeddings")
-        
+
         # Check if langchain is available for more realistic example
         try:
             import langchain
@@ -1045,7 +1045,7 @@ def vector_search_workflow():
         except ImportError:
             logger.info("Langchain not available, using simulated embeddings")
             is_langchain_available = False
-            
+
         # Try to generate embeddings
         try:
             if is_langchain_available:
@@ -1078,9 +1078,9 @@ def vector_search_workflow():
                 "index_type": "hnsw"
             }
             logger.info("Using simulated embedding result")
-            
+
         logger.info(f"Embedding result: {embedding_result}")
-        
+
         # Create a vector index from the embeddings
         logger.info("Creating vector search index")
         try:
@@ -1107,7 +1107,7 @@ def vector_search_workflow():
                 }
             }
             logger.info("Using simulated vector index result")
-        
+
         # Perform vector search
         logger.info("Performing vector search")
         query = "information about topic1"
@@ -1141,7 +1141,7 @@ def vector_search_workflow():
                 "search_time_ms": 8
             }
             logger.info(f"Using simulated search results with {len(search_result['results'])} matches")
-        
+
         # Demonstrate hybrid search (combining vector and keyword search)
         logger.info("Performing hybrid search (vector + keyword)")
         try:
@@ -1177,7 +1177,7 @@ def vector_search_workflow():
                 "search_time_ms": 12
             }
             logger.info(f"Using simulated hybrid search results with {len(hybrid_result['results'])} matches")
-            
+
     finally:
         # Clean up test files
         import shutil
@@ -1188,10 +1188,10 @@ def vector_search_workflow():
 def knowledge_graph_workflow():
     """Demonstrate knowledge graph workflow."""
     logger.info("=== Knowledge Graph Workflow ===")
-    
+
     # Initialize API
     api = IPFSSimpleAPI()
-    
+
     # Create entity data
     entities = [
         {"id": "entity1", "type": "Person", "name": "John Doe", "age": 30},
@@ -1199,7 +1199,7 @@ def knowledge_graph_workflow():
         {"id": "entity3", "type": "Product", "name": "Widget X", "price": 99.99},
         {"id": "entity4", "type": "Person", "name": "Jane Smith", "age": 28}
     ]
-    
+
     # Create relationships data
     relationships = [
         {"from": "entity1", "to": "entity2", "type": "WORKS_FOR", "since": 2020},
@@ -1207,16 +1207,16 @@ def knowledge_graph_workflow():
         {"from": "entity4", "to": "entity2", "type": "WORKS_FOR", "since": 2019},
         {"from": "entity1", "to": "entity4", "type": "KNOWS", "strength": 0.8}
     ]
-    
+
     # Save to JSON files
     entities_path = "knowledge_graph_entities.json"
     with open(entities_path, "w") as f:
         json.dump(entities, f)
-        
+
     relationships_path = "knowledge_graph_relationships.json"
     with open(relationships_path, "w") as f:
         json.dump(relationships, f)
-    
+
     try:
         # Add entities to IPFS
         logger.info("Adding entities to IPFS")
@@ -1230,9 +1230,9 @@ def knowledge_graph_workflow():
         except Exception as e:
             logger.warning(f"Error adding entities to IPFS: {e}")
             entities_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-            
+
         logger.info(f"Entities added with CID: {entities_cid}")
-        
+
         # Add relationships to IPFS
         logger.info("Adding relationships to IPFS")
         try:
@@ -1245,9 +1245,9 @@ def knowledge_graph_workflow():
         except Exception as e:
             logger.warning(f"Error adding relationships to IPFS: {e}")
             relationships_cid = f"Qm{os.urandom(16).hex()}"  # Simulated CID
-            
+
         logger.info(f"Relationships added with CID: {relationships_cid}")
-        
+
         # Create knowledge graph
         logger.info("Creating knowledge graph")
         try:
@@ -1274,10 +1274,10 @@ def knowledge_graph_workflow():
                 }
             }
             logger.info(f"Using simulated knowledge graph creation result with graph_cid: {graph_cid}")
-        
+
         if graph_result.get("success", False) and "graph_cid" in graph_result:
             graph_cid = graph_result["graph_cid"]
-            
+
             # Query the knowledge graph
             logger.info("Querying knowledge graph")
             try:
@@ -1309,7 +1309,7 @@ def knowledge_graph_workflow():
                     "execution_time_ms": 8
                 }
                 logger.info(f"Using simulated query result with {len(query_result['results'])} matches")
-            
+
             # Calculate node metrics
             logger.info("Calculating graph metrics")
             try:
@@ -1343,14 +1343,14 @@ def knowledge_graph_workflow():
                     "calculation_time_ms": 15
                 }
                 logger.info("Using simulated graph metrics result")
-                
+
             # Demonstrate graph expansion with external data (simulated)
             logger.info("Expanding knowledge graph with external data")
             try:
                 expansion_result = api.ai_expand_knowledge_graph(
                     graph_cid=graph_cid,
                     seed_entity="entity2",  # Acme Corp
-                    data_source="external", 
+                    data_source="external",
                     expansion_type="competitors",
                     max_entities=3
                 )
@@ -1378,7 +1378,7 @@ def knowledge_graph_workflow():
                     "relationship_count": 7  # Original 4 + 3 new ones
                 }
                 logger.info(f"Using simulated graph expansion result with new graph_cid: {new_graph_cid}")
-    
+
     finally:
         # Clean up test files
         if os.path.exists(entities_path):
@@ -1392,7 +1392,7 @@ def check_ipfs_available():
     try:
         # Initialize API
         api = IPFSSimpleAPI()
-        
+
         # Try a simple operation
         version_result = api("get_version")
         if version_result and version_result.get("success", False):
@@ -1405,7 +1405,7 @@ def check_ipfs_available():
 def main():
     """Run the AI/ML integration examples."""
     logger.info("Starting High-Level API AI/ML Integration Example")
-    
+
     # Check if IPFS daemon is available
     if not check_ipfs_available():
         logger.warning("=============================================")
@@ -1415,58 +1415,58 @@ def main():
         logger.warning("    ipfs daemon")
         logger.warning("=============================================")
         logger.warning("Continuing with simulated responses...")
-        
+
         # For demo purposes, we'll continue with simulated operations
         # In a real application, you might want to exit here
-    
+
     try:
         # Run dataset workflow
         dataset_workflow()
     except Exception as e:
         logger.error(f"Error in dataset workflow: {e}")
-    
+
     try:
         # Run model registry workflow
         model_registry_workflow()
     except Exception as e:
         logger.error(f"Error in model registry workflow: {e}")
-    
+
     try:
         # Run Langchain integration workflow
         langchain_workflow()
     except Exception as e:
         logger.error(f"Error in Langchain workflow: {e}")
-    
+
     try:
         # Run LlamaIndex integration workflow
         llama_index_workflow()
     except Exception as e:
         logger.error(f"Error in LlamaIndex workflow: {e}")
-    
+
     try:
         # Run distributed training workflow
         distributed_training_workflow()
     except Exception as e:
         logger.error(f"Error in distributed training workflow: {e}")
-    
+
     try:
         # Run model deployment workflow
         model_deployment_workflow()
     except Exception as e:
         logger.error(f"Error in model deployment workflow: {e}")
-    
+
     try:
         # Run vector search workflow
         vector_search_workflow()
     except Exception as e:
         logger.error(f"Error in vector search workflow: {e}")
-    
+
     try:
         # Run knowledge graph workflow
         knowledge_graph_workflow()
     except Exception as e:
         logger.error(f"Error in knowledge graph workflow: {e}")
-    
+
     logger.info("AI/ML integration examples completed")
 
 

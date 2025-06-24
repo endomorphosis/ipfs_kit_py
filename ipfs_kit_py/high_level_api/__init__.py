@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 try:
     # First check if libp2p is available
     from ..libp2p import HAS_LIBP2P
-    
+
     # Only attempt to import integration if libp2p is available
     if HAS_LIBP2P:
         from . import libp2p_integration
@@ -39,7 +39,7 @@ try:
 
     # Get the path to the high_level_api.py file (parent module)
     high_level_api_path = os.path.join(os.path.dirname(__file__), "..", "high_level_api.py")
-    
+
     if os.path.exists(high_level_api_path):
         # Load the module directly using importlib
         spec = importlib.util.spec_from_file_location("ipfs_kit_py.high_level_api", high_level_api_path)
@@ -57,7 +57,7 @@ try:
             def __init__(self, *args, **kwargs):
                 logger.warning("Using stub implementation of IPFSSimpleAPI")
                 self.available = False
-                
+
             def __getattr__(self, name):
                 """Return a dummy function that logs a warning and returns a default result."""
                 def dummy_method(*args, **kwargs):
@@ -67,13 +67,13 @@ try:
 except Exception as e:
     # Create a functional stub that won't raise exceptions
     logger.warning(f"Error importing IPFSSimpleAPI: {e}")
-    
+
     class IPFSSimpleAPI:
         """Functional stub implementation of IPFSSimpleAPI."""
         def __init__(self, *args, **kwargs):
             logger.warning("Using stub implementation of IPFSSimpleAPI")
             self.available = False
-            
+
         def __getattr__(self, name):
             """Return a dummy function that logs a warning and returns a default result."""
             def dummy_method(*args, **kwargs):

@@ -36,10 +36,10 @@ if last_brace_pos == -1:
 
 # Insert the new methods before the last closing brace
 updated_content = (
-    controller_content[:last_brace_pos] + 
-    "\n    # List files method\n    " + 
+    controller_content[:last_brace_pos] +
+    "\n    # List files method\n    " +
     list_files_content +
-    "\n    # MFS methods\n    " + 
+    "\n    # MFS methods\n    " +
     mfs_methods_content +
     controller_content[last_brace_pos:]
 )

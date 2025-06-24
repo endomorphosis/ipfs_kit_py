@@ -27,24 +27,24 @@ def find_method(content):
     # Find the method definition
     method_pattern = re.compile(r'(\s*)def\s+ipfs_name_resolve\s*\([^)]*\)\s*-?>?\s*[^:]*:')
     match = method_pattern.search(content)
-    
+
     if not match:
         print(f"ERROR: Could not find ipfs_name_resolve method in {MODEL_FILE}")
         return None, None
-    
+
     # Determine indentation level (needed for proper replacemnet)
     indentation = match.group(1)
     method_start_pos = match.start()
-    
+
     # Find the next method (or end of file)
     next_method_pattern = re.compile(r'\n\s*def\s+', re.MULTILINE)
     next_match = next_method_pattern.search(content, match.end())
-    
+
     if next_match:
         method_end_pos = next_match.start()
     else:
         method_end_pos = len(content)
-    
+
     return method_start_pos, method_end_pos, indentation
 
 def create_fixed_method(indentation):
@@ -53,7 +53,7 @@ def create_fixed_method(indentation):
     base_indent = indentation
     # Method body indentation (one level deeper)
     body_indent = base_indent + "    "
-    
+
     # The fixed method implementation
     return f"""{base_indent}def ipfs_name_resolve(self, name: str, recursive: bool = True, nocache: bool = False, timeout: int = None) -> Dict[str, Any]:
 {body_indent}\"\"\"
@@ -112,27 +112,27 @@ def create_fixed_method(indentation):
 {body_indent}    # Execute the command
 {body_indent}    try:
 {body_indent}        cmd_result = self.ipfs_kit.run_ipfs_command(cmd)
-{body_indent}        
+{body_indent}
 {body_indent}        # Handle the case where cmd_result is raw bytes instead of a dictionary
 {body_indent}        if isinstance(cmd_result, bytes):
 {body_indent}            # Log the raw response for debugging
 {body_indent}            logger.debug(f"Raw bytes response from ipfs name resolve: {{cmd_result}}")
 {body_indent}            result["raw_output"] = cmd_result
-{body_indent}            
+{body_indent}
 {body_indent}            # Try to decode the bytes as UTF-8 text
 {body_indent}            try:
 {body_indent}                decoded = cmd_result.decode("utf-8", errors="replace").strip()
 {body_indent}                result["success"] = True
 {body_indent}                result["path"] = decoded
 {body_indent}                result["duration_ms"] = (time.time() - start_time) * 1000
-{body_indent}                
+{body_indent}
 {body_indent}                # Update operation stats
 {body_indent}                if "name_resolve" not in self.operation_stats:
 {body_indent}                    self.operation_stats["name_resolve"] = {{"count": 0, "errors": 0}}
 {body_indent}                self.operation_stats["name_resolve"]["count"] = self.operation_stats["name_resolve"].get("count", 0) + 1
 {body_indent}                self.operation_stats["total_operations"] += 1
 {body_indent}                self.operation_stats["success_count"] += 1
-{body_indent}                
+{body_indent}
 {body_indent}                logger.info(f"Successfully resolved IPNS name {{name}} to {{result.get('path', 'unknown path')}}")
 {body_indent}                return result
 {body_indent}            except Exception as decode_error:
@@ -146,7 +146,7 @@ def create_fixed_method(indentation):
 {body_indent}            result["error_type"] = "unexpected_response_type"
 {body_indent}            logger.error(f"Unexpected response type from IPFS name resolve: {{type(cmd_result)}}")
 {body_indent}            return result
-{body_indent}            
+{body_indent}
 {body_indent}    except AttributeError:
 {body_indent}        # If run_ipfs_command doesn't exist, use subprocess directly
 {body_indent}        import subprocess
@@ -169,7 +169,7 @@ def create_fixed_method(indentation):
 {body_indent}            error_msg = stderr.decode("utf-8", errors="replace")
 {body_indent}        else:
 {body_indent}            error_msg = str(stderr)
-{body_indent}        
+{body_indent}
 {body_indent}        result["error"] = error_msg
 {body_indent}        result["error_type"] = "command_error"
 {body_indent}        logger.error(f"IPFS name resolve command failed: {{result['error']}}")
@@ -225,34 +225,34 @@ def fix_file():
     if not os.path.exists(MODEL_FILE):
         print(f"ERROR: File not found: {MODEL_FILE}")
         return False
-        
+
     # Read the file content
     with open(MODEL_FILE, 'r') as f:
         content = f.read()
-        
+
     # Find the method
     method_start_pos, method_end_pos, indentation = find_method(content)
-    
+
     if method_start_pos is None:
         return False
-        
+
     # Create a fixed version of the method
     fixed_method = create_fixed_method(indentation)
-    
+
     # Create new content with the fixed method
     new_content = content[:method_start_pos] + fixed_method + content[method_end_pos:]
-    
+
     # Create a backup of the original file
     backup_file = MODEL_FILE + '.orig_fix'
     shutil.copy2(MODEL_FILE, backup_file)
     print(f"Created backup: {backup_file}")
-    
+
     # Write the new content
     with open(MODEL_FILE, 'w') as f:
         f.write(new_content)
-        
+
     print(f"Updated {MODEL_FILE} with fixed ipfs_name_resolve method")
-    
+
     # Validate the file
     try:
         py_compile.compile(MODEL_FILE, doraise=True)

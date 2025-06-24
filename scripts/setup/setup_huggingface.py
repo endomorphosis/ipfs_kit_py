@@ -24,8 +24,8 @@ def check_huggingface_cli():
     """Check if HuggingFace CLI is installed and configured."""
     try:
         result = subprocess.run(
-            ["huggingface-cli", "whoami"], 
-            capture_output=True, 
+            ["huggingface-cli", "whoami"],
+            capture_output=True,
             text=True
         )
         if result.returncode == 0:
@@ -64,16 +64,16 @@ def setup_huggingface_login(token=None):
         if not token:
             logger.warning("No HuggingFace token provided")
             return False
-    
+
     # Create token file
     try:
         home_dir = Path.home()
         token_path = home_dir / ".huggingface" / "token"
         os.makedirs(os.path.dirname(token_path), exist_ok=True)
-        
+
         with open(token_path, "w") as f:
             f.write(token)
-        
+
         logger.info(f"HuggingFace token saved to {token_path}")
         return True
     except Exception as e:
@@ -85,13 +85,13 @@ def verify_huggingface_access():
     try:
         # First try importing the library
         from huggingface_hub import HfApi
-        
+
         # Initialize API
         api = HfApi()
-        
+
         # Try getting user info
         user_info = api.whoami()
-        
+
         if user_info:
             logger.info(f"Successfully authenticated with HuggingFace as {user_info.get('name')}")
             return True
@@ -112,7 +112,7 @@ def create_or_verify_repo(repo_name=None, organization=None):
     """Create or verify a HuggingFace repository."""
     if not repo_name:
         repo_name = os.environ.get("HUGGINGFACE_REPO_NAME", "ipfs-storage")
-    
+
     if organization:
         full_repo_name = f"{organization}/{repo_name}"
     else:
@@ -121,18 +121,18 @@ def create_or_verify_repo(repo_name=None, organization=None):
             full_repo_name = f"{org}/{repo_name}"
         else:
             full_repo_name = repo_name
-    
+
     try:
         from huggingface_hub import HfApi, repository_exists
-        
+
         # Initialize API
         api = HfApi()
-        
+
         # Check if repo exists
         if repository_exists(repo_id=full_repo_name, repo_type="dataset"):
             logger.info(f"Repository {full_repo_name} already exists")
             return True
-        
+
         # Create repo if it doesn't exist
         try:
             api.create_repo(
@@ -157,18 +157,18 @@ def create_or_verify_repo(repo_name=None, organization=None):
 def main():
     """Main function to setup HuggingFace integration."""
     logger.info("Setting up HuggingFace integration...")
-    
+
     # Load token from environment
     token = os.environ.get("HUGGINGFACE_TOKEN")
     organization = os.environ.get("HUGGINGFACE_ORGANIZATION")
     repo_name = os.environ.get("HUGGINGFACE_REPO_NAME", "ipfs-storage")
-    
+
     # Check if token exists
     if not token:
         logger.warning("No HuggingFace token found in environment")
         logger.info("You can get a token from https://huggingface.co/settings/tokens")
         return False
-    
+
     # Install library if needed
     try:
         import huggingface_hub
@@ -177,21 +177,21 @@ def main():
         if not install_huggingface_hub():
             logger.error("Failed to install huggingface_hub, cannot proceed")
             return False
-    
+
     # Setup login
     if not setup_huggingface_login(token):
         logger.warning("Failed to setup HuggingFace login")
-    
+
     # Verify access
     if not verify_huggingface_access():
         logger.error("Failed to verify HuggingFace access")
         return False
-    
+
     # Create or verify repository
     if not create_or_verify_repo(repo_name, organization):
         logger.error(f"Failed to create or verify repository {repo_name}")
         return False
-    
+
     logger.info("HuggingFace integration setup complete!")
     return True
 

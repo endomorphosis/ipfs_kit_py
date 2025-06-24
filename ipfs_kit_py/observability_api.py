@@ -32,45 +32,45 @@ async def get_metrics(
 ):
     """
     Get system and IPFS metrics.
-    
+
     This endpoint returns metrics from the IPFS Kit instance, including system metrics,
     IPFS metrics, LibP2P metrics, and storage metrics.
-    
+
     Parameters:
     - **metric_type**: Filter metrics by type (system, ipfs, libp2p, storage)
     - **format**: Response format (json or prometheus)
-    
+
     Returns:
         Metrics data in the specified format
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Get metrics
         logger.info(f"Getting metrics (type: {metric_type or 'all'}, format: {format})")
         metrics = api.observability.get_metrics(metric_type=metric_type)
-        
+
         # Return in requested format
         if format.lower() == "prometheus":
             # Convert to Prometheus format
             prometheus_lines = []
-            
+
             for metric_name, metric_data in metrics.items():
                 metric_type = metric_data.get("type", "gauge")
                 help_text = metric_data.get("description", "")
-                
+
                 # Add metric type and help
                 prometheus_lines.append(f"# TYPE {metric_name} {metric_type}")
                 prometheus_lines.append(f"# HELP {metric_name} {help_text}")
-                
+
                 # Add metric values
                 if isinstance(metric_data.get("value"), dict):
                     # Metric with labels
@@ -80,7 +80,7 @@ async def get_metrics(
                 else:
                     # Simple metric
                     prometheus_lines.append(f"{metric_name} {metric_data.get('value', 0)}")
-            
+
             # Return Prometheus format
             return Response(
                 content="\n".join(prometheus_lines),
@@ -100,7 +100,7 @@ async def get_metrics(
     except Exception as e:
         logger.exception(f"Error getting metrics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting metrics: {str(e)}")
-        
+
 @observability_router.post("/metrics/export", response_model=Dict[str, Any])
 async def export_metrics(
     export_target: str = Body(..., description="Export target (prometheus, influxdb, etc.)"),
@@ -109,37 +109,37 @@ async def export_metrics(
 ):
     """
     Export metrics to an external system.
-    
+
     This endpoint configures metric export to an external monitoring system.
-    
+
     Parameters:
     - **export_target**: Export target (prometheus, influxdb, etc.)
     - **config**: Export configuration
-    
+
     Returns:
         Export operation status
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Export metrics
         logger.info(f"Exporting metrics to {export_target}")
-        
+
         # Start export in background task
         background_tasks.add_task(
             api.observability.export_metrics,
             target=export_target,
             config=config
         )
-        
+
         return {
             "success": True,
             "operation": "export_metrics",
@@ -153,7 +153,7 @@ async def export_metrics(
     except Exception as e:
         logger.exception(f"Error exporting metrics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error exporting metrics: {str(e)}")
-        
+
 @observability_router.get("/logs", response_model=Dict[str, Any])
 async def get_logs(
     level: Optional[str] = Query(None, description="Filter logs by level (debug, info, warning, error)"),
@@ -164,30 +164,30 @@ async def get_logs(
 ):
     """
     Get system logs.
-    
+
     This endpoint returns logs from the IPFS Kit instance.
-    
+
     Parameters:
     - **level**: Filter logs by level (debug, info, warning, error)
     - **component**: Filter logs by component
     - **limit**: Maximum number of logs to return
     - **since**: Get logs since timestamp (ISO format)
     - **query**: Search query
-    
+
     Returns:
         Log entries matching the filters
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Get logs
         logger.info(f"Getting logs (level: {level or 'all'}, component: {component or 'all'}, limit: {limit})")
         logs = api.observability.get_logs(
@@ -197,7 +197,7 @@ async def get_logs(
             since=since,
             query=query
         )
-        
+
         return {
             "success": True,
             "operation": "get_logs",
@@ -212,7 +212,7 @@ async def get_logs(
     except Exception as e:
         logger.exception(f"Error getting logs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting logs: {str(e)}")
-        
+
 @observability_router.post("/logs/level", response_model=Dict[str, Any])
 async def set_log_level(
     component: str = Body(..., description="Component to set log level for"),
@@ -220,27 +220,27 @@ async def set_log_level(
 ):
     """
     Set log level for a component.
-    
+
     This endpoint sets the log level for a specific component.
-    
+
     Parameters:
     - **component**: Component to set log level for
     - **level**: Log level to set (debug, info, warning, error)
-    
+
     Returns:
         Operation status
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Validate log level
         valid_levels = ["debug", "info", "warning", "error"]
         if level.lower() not in valid_levels:
@@ -248,11 +248,11 @@ async def set_log_level(
                 status_code=400,
                 detail=f"Invalid log level. Must be one of: {', '.join(valid_levels)}"
             )
-            
+
         # Set log level
         logger.info(f"Setting log level for {component} to {level}")
         result = api.observability.set_log_level(component, level)
-        
+
         return {
             "success": True,
             "operation": "set_log_level",
@@ -268,32 +268,32 @@ async def set_log_level(
     except Exception as e:
         logger.exception(f"Error setting log level: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error setting log level: {str(e)}")
-        
+
 @observability_router.get("/tracing", response_model=Dict[str, Any])
 async def get_tracing_config():
     """
     Get distributed tracing configuration.
-    
+
     This endpoint returns the current distributed tracing configuration.
-    
+
     Returns:
         Tracing configuration
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Get tracing config
         logger.info("Getting tracing configuration")
         config = api.observability.get_tracing_config()
-        
+
         return {
             "success": True,
             "operation": "get_tracing_config",
@@ -310,7 +310,7 @@ async def get_tracing_config():
     except Exception as e:
         logger.exception(f"Error getting tracing configuration: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting tracing configuration: {str(e)}")
-        
+
 @observability_router.post("/tracing", response_model=Dict[str, Any])
 async def configure_tracing(
     enabled: bool = Body(..., description="Enable or disable tracing"),
@@ -321,30 +321,30 @@ async def configure_tracing(
 ):
     """
     Configure distributed tracing.
-    
+
     This endpoint configures distributed tracing.
-    
+
     Parameters:
     - **enabled**: Enable or disable tracing
     - **provider**: Tracing provider (jaeger, zipkin, otlp)
     - **endpoint**: Tracing endpoint
     - **sampling_rate**: Sampling rate (0.0-1.0)
     - **propagation**: Context propagation formats
-    
+
     Returns:
         Operation status
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Validate provider
         valid_providers = ["jaeger", "zipkin", "otlp"]
         if provider.lower() not in valid_providers:
@@ -352,14 +352,14 @@ async def configure_tracing(
                 status_code=400,
                 detail=f"Invalid tracing provider. Must be one of: {', '.join(valid_providers)}"
             )
-            
+
         # Validate sampling rate
         if sampling_rate < 0.0 or sampling_rate > 1.0:
             raise HTTPException(
                 status_code=400,
                 detail="Sampling rate must be between 0.0 and 1.0"
             )
-            
+
         # Configure tracing
         logger.info(f"Configuring tracing (enabled: {enabled}, provider: {provider})")
         result = api.observability.configure_tracing(
@@ -369,7 +369,7 @@ async def configure_tracing(
             sampling_rate=sampling_rate,
             propagation=propagation
         )
-        
+
         return {
             "success": True,
             "operation": "configure_tracing",
@@ -387,26 +387,26 @@ async def configure_tracing(
     except Exception as e:
         logger.exception(f"Error configuring tracing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error configuring tracing: {str(e)}")
-        
+
 @observability_router.get("/health", response_model=Dict[str, Any])
 async def health_check(
     comprehensive: bool = Query(False, description="Perform a comprehensive health check")
 ):
     """
     Perform a health check.
-    
+
     This endpoint performs a health check on the IPFS Kit instance.
-    
+
     Parameters:
     - **comprehensive**: Perform a comprehensive health check
-    
+
     Returns:
         Health check results
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             # Fallback to basic health check
@@ -418,11 +418,11 @@ async def health_check(
                 "api_version": getattr(api, "version", "unknown"),
                 "uptime": 0  # We don't know the uptime
             }
-            
+
         # Perform health check
         logger.info(f"Performing health check (comprehensive: {comprehensive})")
         result = api.observability.health_check(comprehensive=comprehensive)
-        
+
         return {
             "success": True,
             "operation": "health_check",
@@ -443,7 +443,7 @@ async def health_check(
             "status": "error",
             "error": str(e)
         }
-        
+
 @observability_router.post("/alerts", response_model=Dict[str, Any])
 async def configure_alerts(
     enabled: bool = Body(..., description="Enable or disable alerts"),
@@ -452,28 +452,28 @@ async def configure_alerts(
 ):
     """
     Configure alerts.
-    
+
     This endpoint configures alerts based on metrics and logs.
-    
+
     Parameters:
     - **enabled**: Enable or disable alerts
     - **endpoints**: Alert endpoints (email, webhook, etc.)
     - **rules**: Alert rules
-    
+
     Returns:
         Operation status
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Configure alerts
         logger.info(f"Configuring alerts (enabled: {enabled})")
         result = api.observability.configure_alerts(
@@ -481,7 +481,7 @@ async def configure_alerts(
             endpoints=endpoints,
             rules=rules
         )
-        
+
         return {
             "success": True,
             "operation": "configure_alerts",
@@ -497,32 +497,32 @@ async def configure_alerts(
     except Exception as e:
         logger.exception(f"Error configuring alerts: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error configuring alerts: {str(e)}")
-        
+
 @observability_router.get("/alerts", response_model=Dict[str, Any])
 async def get_alert_config():
     """
     Get alert configuration.
-    
+
     This endpoint returns the current alert configuration.
-    
+
     Returns:
         Alert configuration
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Get alert config
         logger.info("Getting alert configuration")
         config = api.observability.get_alert_config()
-        
+
         return {
             "success": True,
             "operation": "get_alert_config",
@@ -537,7 +537,7 @@ async def get_alert_config():
     except Exception as e:
         logger.exception(f"Error getting alert configuration: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting alert configuration: {str(e)}")
-        
+
 @observability_router.get("/alerts/history", response_model=Dict[str, Any])
 async def get_alert_history(
     limit: int = Query(100, description="Maximum number of alerts to return"),
@@ -547,29 +547,29 @@ async def get_alert_history(
 ):
     """
     Get alert history.
-    
+
     This endpoint returns the alert history.
-    
+
     Parameters:
     - **limit**: Maximum number of alerts to return
     - **since**: Get alerts since timestamp (ISO format)
     - **rule_id**: Filter alerts by rule ID
     - **severity**: Filter alerts by severity
-    
+
     Returns:
         Alert history
     """
     try:
         # Get API from request state
         api = fastapi.requests.Request.state.ipfs_api
-        
+
         # Check if observability module is available
         if not hasattr(api, "observability"):
             raise HTTPException(
                 status_code=404,
                 detail="Observability API is not available."
             )
-            
+
         # Get alert history
         logger.info(f"Getting alert history (limit: {limit})")
         history = api.observability.get_alert_history(
@@ -578,7 +578,7 @@ async def get_alert_history(
             rule_id=rule_id,
             severity=severity
         )
-        
+
         return {
             "success": True,
             "operation": "get_alert_history",

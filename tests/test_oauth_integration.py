@@ -1,7 +1,7 @@
 """
 Tests for OAuth integration in the advanced authentication system.
 
-These tests verify that the OAuth functionality implemented as part of the 
+These tests verify that the OAuth functionality implemented as part of the
 MCP roadmap Phase 1: Core Functionality Enhancements (Q3 2025) works correctly.
 """
 
@@ -53,26 +53,26 @@ def mock_oauth_persistence():
     with patch("ipfs_kit_py.mcp.auth.oauth_manager.get_persistence_manager") as mock_persistence:
         # Configure the mock
         persistence_instance = AsyncMock()
-        
+
         # Mock provider storage
         providers = {TEST_PROVIDER_CONFIG["id"]: TEST_PROVIDER_CONFIG}
         persistence_instance.get_oauth_providers.return_value = providers
         persistence_instance.save_oauth_provider.return_value = True
         persistence_instance.delete_oauth_provider.return_value = True
-        
+
         # Mock connections storage
         persistence_instance.find_user_by_oauth.return_value = None  # No existing user by default
         persistence_instance.create_oauth_connection.return_value = True
         persistence_instance.update_oauth_connection.return_value = True
         persistence_instance.delete_oauth_connection.return_value = True
         persistence_instance.get_user_oauth_connections.return_value = []
-        
+
         # Mock state storage
         persistence_instance.save_oauth_state.return_value = True
         persistence_instance.verify_oauth_state.return_value = {"provider_id": "test_provider"}
-        
+
         mock_persistence.return_value = persistence_instance
-        
+
         yield persistence_instance
 
 
@@ -89,12 +89,12 @@ def mock_http_client():
     with patch("ipfs_kit_py.mcp.auth.oauth_manager.aiohttp.ClientSession") as mock_session:
         # Configure the mock session
         session_instance = AsyncMock()
-        
+
         # Mock for token exchange
         token_response = AsyncMock()
         token_response.status = 200
         token_response.json.return_value = {"access_token": "test_access_token"}
-        
+
         # Mock for user info
         user_info_response = AsyncMock()
         user_info_response.status = 200
@@ -106,18 +106,18 @@ def mock_http_client():
             "avatar_url": "https://example.com/avatar.jpg",
             "html_url": "https://example.com/profile"
         }
-        
+
         # Configure context manager returns
         session_cm = MagicMock()
         session_cm.__aenter__.return_value = session_instance
         session_instance.post.return_value = session_cm
         session_instance.post.return_value.__aenter__.return_value = token_response
-        
+
         session_instance.get.return_value = session_cm
         session_instance.get.return_value.__aenter__.return_value = user_info_response
-        
+
         mock_session.return_value = session_cm
-        
+
         yield mock_session
 
 
@@ -127,7 +127,7 @@ def mock_auth_service():
     with patch("ipfs_kit_py.mcp.auth.oauth_router.get_auth_service") as mock_service:
         # Configure the mock
         service_instance = AsyncMock()
-        
+
         # Mock process_oauth_callback
         service_instance.process_oauth_callback.return_value = (
             True,
@@ -145,9 +145,9 @@ def mock_auth_service():
             },
             "OAuth login successful"
         )
-        
+
         mock_service.return_value = service_instance
-        
+
         yield service_instance
 
 
@@ -156,7 +156,7 @@ def test_app(mock_auth_service):
     """Create a test FastAPI app with OAuth router."""
     app = FastAPI()
     app.include_router(oauth_router)
-    
+
     return TestClient(app)
 
 
@@ -166,12 +166,12 @@ async def test_load_providers(oauth_manager, mock_oauth_persistence):
     """Test loading OAuth providers."""
     # Test loading providers
     providers = await oauth_manager.load_providers()
-    
+
     # Verify providers were loaded
     assert len(providers) == 1
     assert TEST_PROVIDER_CONFIG["id"] in providers
     assert providers[TEST_PROVIDER_CONFIG["id"]].name == TEST_PROVIDER_CONFIG["name"]
-    
+
     # Verify persistence was called
     mock_oauth_persistence.get_oauth_providers.assert_called_once()
 
@@ -191,14 +191,14 @@ async def test_add_provider(oauth_manager, mock_oauth_persistence):
         "scope": "user:email",
         "active": True
     }
-    
+
     # Add the provider
     success, message = await oauth_manager.add_provider(new_provider)
-    
+
     # Verify success
     assert success
     assert "saved successfully" in message
-    
+
     # Verify persistence was called
     mock_oauth_persistence.save_oauth_provider.assert_called_once()
 
@@ -212,11 +212,11 @@ async def test_create_authorization_url(oauth_manager):
         "https://example.com/callback",
         "test_state"
     )
-    
+
     # Verify success
     assert success
     assert "authorization_url" in result
-    
+
     # Verify URL contains expected parameters
     auth_url = result["authorization_url"]
     assert TEST_PROVIDER_CONFIG["authorize_url"] in auth_url
@@ -234,7 +234,7 @@ async def test_exchange_code_for_token(oauth_manager, mock_http_client):
         "test_code",
         "https://example.com/callback"
     )
-    
+
     # Verify success
     assert success
     assert "access_token" in token_data
@@ -249,7 +249,7 @@ async def test_get_user_info(oauth_manager, mock_http_client):
         TEST_PROVIDER_CONFIG["id"],
         "test_access_token"
     )
-    
+
     # Verify success
     assert success
     assert "provider_id" in user_info
@@ -264,10 +264,10 @@ def test_list_providers_endpoint(test_app, oauth_manager):
     """Test the list providers endpoint."""
     with patch("ipfs_kit_py.mcp.auth.oauth_router.get_oauth_manager") as mock_get_manager:
         mock_get_manager.return_value = oauth_manager
-        
+
         # Make the request
         response = test_app.get("/providers")
-        
+
         # Verify response
         assert response.status_code == 200
         data = response.json()
@@ -280,18 +280,18 @@ def test_get_oauth_login_url_endpoint(test_app, oauth_manager):
     """Test the get OAuth login URL endpoint."""
     with patch("ipfs_kit_py.mcp.auth.oauth_router.get_oauth_manager") as mock_get_manager:
         mock_get_manager.return_value = oauth_manager
-        
+
         # Mock the persistence manager
         with patch("ipfs_kit_py.mcp.auth.oauth_router.get_persistence_manager") as mock_get_persistence:
             persistence = AsyncMock()
             persistence.save_oauth_state.return_value = True
             mock_get_persistence.return_value = persistence
-            
+
             # Make the request
             response = test_app.get(
                 f"/login/{TEST_PROVIDER_CONFIG['id']}?redirect_uri=https://example.com/callback"
             )
-            
+
             # Verify response
             assert response.status_code == 200
             data = response.json()
@@ -304,7 +304,7 @@ def test_oauth_callback_endpoint(test_app, mock_auth_service):
     response = test_app.get(
         f"/callback/test_provider?code=test_code&state=test_state&redirect_uri=https://example.com/callback"
     )
-    
+
     # Verify response
     assert response.status_code == 200
     data = response.json()
@@ -320,7 +320,7 @@ def test_oauth_integration():
     with patch("ipfs_kit_py.mcp.auth.oauth_integration_service.AuthenticationService") as MockAuthService:
         # Verify the patch function works without errors
         patch_authentication_service()
-        
+
         # Verify methods were replaced
         assert hasattr(MockAuthService, "get_oauth_login_url")
         assert hasattr(MockAuthService, "process_oauth_callback")

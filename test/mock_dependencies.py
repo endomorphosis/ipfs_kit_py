@@ -19,7 +19,7 @@ MOCK_MODULES = {}
 # Mock classes and functions
 class WebSocket:
     """Mock WebSocket implementation for testing."""
-    
+
     def __init__(self):
         self.accepted = False
         self.closed = False
@@ -30,40 +30,40 @@ class WebSocket:
         self.query_params = {}
         self.path_params = {}
         self.cookies = {}
-        
+
     async def accept(self):
         """Accept the WebSocket connection."""
         self.accepted = True
         self.client_state = "CONNECTED"
         logger.info("WebSocket connection accepted")
         return True
-        
+
     async def close(self, code: int = 1000):
         """Close the WebSocket connection."""
         self.closed = True
         self.client_state = "DISCONNECTED"
         logger.info(f"WebSocket connection closed with code {code}")
         return True
-        
+
     async def send_text(self, data: str):
         """Send text data to the client."""
         self.sent_messages.append({"type": "text", "data": data})
         logger.info(f"Sent text message: {data}")
         return True
-        
+
     async def send_json(self, data: Dict[str, Any]):
         """Send JSON data to the client."""
         text_data = json.dumps(data)
         self.sent_messages.append({"type": "json", "data": data})
         logger.info(f"Sent JSON message: {data}")
         return True
-        
+
     async def send_bytes(self, data: bytes):
         """Send binary data to the client."""
         self.sent_messages.append({"type": "bytes", "data": data})
         logger.info(f"Sent binary message: {len(data)} bytes")
         return True
-        
+
     async def receive_text(self):
         """Receive text data from the client."""
         if not self.received_messages:
@@ -76,7 +76,7 @@ class WebSocket:
         elif isinstance(msg, bytes):
             return msg.decode("utf-8")
         return str(msg)
-        
+
     async def receive_json(self):
         """Receive JSON data from the client."""
         if not self.received_messages:
@@ -89,7 +89,7 @@ class WebSocket:
         elif isinstance(msg, bytes):
             return json.loads(msg.decode("utf-8"))
         return {}
-        
+
     async def receive_bytes(self):
         """Receive binary data from the client."""
         if not self.received_messages:
@@ -105,14 +105,14 @@ class WebSocket:
 
 class WebSocketDisconnect(Exception):
     """Exception raised when WebSocket connection is closed."""
-    
+
     def __init__(self, code: int = 1000):
         self.code = code
         super().__init__(f"WebSocket disconnected with code {code}")
 
 class FastAPI:
     """Mock FastAPI implementation for testing."""
-    
+
     def __init__(self, **kwargs):
         self.routes = []
         self.router = Router()
@@ -126,56 +126,56 @@ class FastAPI:
         self.docs_url = kwargs.get("docs_url", "/docs")
         self.redoc_url = kwargs.get("redoc_url", "/redoc")
         self.state = SimpleNamespace()
-        
+
     def get(self, path, **kwargs):
         """Register a GET route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["GET"]))
             return func
         return decorator
-        
+
     def post(self, path, **kwargs):
         """Register a POST route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["POST"]))
             return func
         return decorator
-        
+
     def put(self, path, **kwargs):
         """Register a PUT route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["PUT"]))
             return func
         return decorator
-        
+
     def delete(self, path, **kwargs):
         """Register a DELETE route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["DELETE"]))
             return func
         return decorator
-        
+
     def websocket(self, path):
         """Register a WebSocket route."""
         def decorator(func):
             self.routes.append(WebSocketRoute(path, func))
             return func
         return decorator
-        
+
     def exception_handler(self, exc_class_or_status_code):
         """Register an exception handler."""
         def decorator(func):
             self.exception_handlers[exc_class_or_status_code] = func
             return func
         return decorator
-        
+
     def middleware(self, middleware_type):
         """Register middleware."""
         def decorator(func):
             self.middleware.append((middleware_type, func))
             return func
         return decorator
-        
+
     def include_router(self, router, **kwargs):
         """Include routes from another router."""
         for route in router.routes:
@@ -189,7 +189,7 @@ class SimpleNamespace:
 
 class Router:
     """Mock router implementation for testing."""
-    
+
     def __init__(self):
         self.routes = []
         self.dependencies = {}
@@ -197,49 +197,49 @@ class Router:
         self.tags = []
         self.on_startup = []
         self.on_shutdown = []
-        
+
     def get(self, path, **kwargs):
         """Register a GET route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["GET"]))
             return func
         return decorator
-        
+
     def post(self, path, **kwargs):
         """Register a POST route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["POST"]))
             return func
         return decorator
-        
+
     def put(self, path, **kwargs):
         """Register a PUT route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["PUT"]))
             return func
         return decorator
-        
+
     def delete(self, path, **kwargs):
         """Register a DELETE route."""
         def decorator(func):
             self.routes.append(Route(path, func, methods=["DELETE"]))
             return func
         return decorator
-        
+
     def websocket(self, path):
         """Register a WebSocket route."""
         def decorator(func):
             self.routes.append(WebSocketRoute(path, func))
             return func
         return decorator
-        
+
     def include_router(self, router, **kwargs):
         """Include routes from another router."""
         for route in router.routes:
             if kwargs.get("prefix"):
                 route.path = kwargs["prefix"] + route.path
             self.routes.append(route)
-            
+
     def add_event_handler(self, event, func):
         """Add an event handler."""
         if event == "startup":
@@ -253,22 +253,22 @@ class APIRouter(Router):
 
 class Route:
     """Mock route implementation for testing."""
-    
+
     def __init__(self, path, endpoint, methods=None):
         self.path = path
         self.endpoint = endpoint
         self.methods = methods or ["GET"]
         self.dependencies = []
         self.tags = []
-        
+
 class WebSocketRoute(Route):
     """Mock WebSocket route implementation for testing."""
-    
+
     def __init__(self, path, endpoint):
         super().__init__(path, endpoint, methods=None)
-        
+
 # Create mock modules
-        
+
 # fastapi module
 fastapi_module = types.ModuleType("fastapi")
 fastapi_module.FastAPI = FastAPI
@@ -340,16 +340,16 @@ spec_module = types.ModuleType("fsspec.spec")
 # Create abstract filesystem class
 class AbstractFileSystem:
     protocol = "abstract"
-    
+
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
-    
+
     def ls(self, path, detail=True, **kwargs):
         return []
-    
+
     def info(self, path, **kwargs):
         return {"name": path, "size": 0, "type": "file"}
-    
+
     def open(self, path, mode="rb", **kwargs):
         return None
 
@@ -370,20 +370,20 @@ class Graph:
     def __init__(self, *args, **kwargs):
         self.nodes = {}
         self.edges = {}
-        
+
     def add_node(self, node, **attrs):
         self.nodes[node] = attrs
-        
+
     def add_edge(self, u, v, **attrs):
         if u not in self.nodes:
             self.add_node(u)
         if v not in self.nodes:
             self.add_node(v)
         self.edges[(u, v)] = attrs
-        
+
     def neighbors(self, node):
         return [v for u, v in self.edges if u == node]
-        
+
     def __iter__(self):
         return iter(self.nodes)
 
@@ -414,7 +414,7 @@ def apply_additional_patches():
     api_stability_module = types.ModuleType("api_stability")
     api_stability_module.stable_api = {"endpoints": []}
     sys.modules["api_stability"] = api_stability_module
-    
+
     logger.info("Applied additional patches to system modules")
     return True
 

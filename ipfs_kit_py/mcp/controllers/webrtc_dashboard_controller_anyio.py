@@ -43,7 +43,7 @@ class WebRTCDashboardControllerAnyIO:
     def __init__(self, webrtc_model):
         """
         Initialize with a WebRTC model.
-        
+
         Args:
             webrtc_model: WebRTC model to use for dashboard operations
         """
@@ -54,7 +54,7 @@ class WebRTCDashboardControllerAnyIO:
     def register_routes(self, router):
         """
         Register routes with a FastAPI router.
-        
+
         Args:
             router: FastAPI router to register routes with
         """
@@ -67,7 +67,7 @@ class WebRTCDashboardControllerAnyIO:
             summary="Get dashboard statistics",
             description="Get statistics about WebRTC usage"
         )
-        
+
         # List active streams
         router.add_api_route(
             "/streams",
@@ -77,7 +77,7 @@ class WebRTCDashboardControllerAnyIO:
             summary="List active streams",
             description="List all active WebRTC streams"
         )
-        
+
         # Serve dashboard UI
         router.add_api_route(
             "/",
@@ -86,22 +86,22 @@ class WebRTCDashboardControllerAnyIO:
             summary="Serve dashboard UI",
             description="Serve the WebRTC dashboard UI"
         )
-        
+
         logger.info("WebRTC Dashboard Controller (AnyIO) routes registered")
-    
+
     async def get_dashboard_stats(self) -> Dict[str, Any]:
         """
         Get dashboard statistics.
-        
+
         Returns:
             Dictionary with dashboard statistics
         """
         try:
             logger.info("Getting WebRTC dashboard statistics")
-            
+
             # Call the model's get_dashboard_stats method
             result = await self.webrtc_model.get_dashboard_stats()
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error getting dashboard statistics: {error_msg}")
@@ -110,7 +110,7 @@ class WebRTCDashboardControllerAnyIO:
                     "timestamp": int(time.time()),
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "timestamp": result.get("timestamp", int(time.time())),
@@ -118,7 +118,7 @@ class WebRTCDashboardControllerAnyIO:
                 "active_connections": result.get("active_connections", 0),
                 "bandwidth_usage": result.get("bandwidth_usage", {})
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting dashboard statistics: {e}")
             return {
@@ -126,20 +126,20 @@ class WebRTCDashboardControllerAnyIO:
                 "timestamp": int(time.time()),
                 "error": str(e)
             }
-    
+
     async def list_streams(self) -> Dict[str, Any]:
         """
         List active streams.
-        
+
         Returns:
             Dictionary with list of active streams
         """
         try:
             logger.info("Listing active WebRTC streams")
-            
+
             # Call the model's list_streams method
             result = await self.webrtc_model.list_streams()
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error listing streams: {error_msg}")
@@ -149,14 +149,14 @@ class WebRTCDashboardControllerAnyIO:
                     "count": 0,
                     "error": error_msg
                 }
-            
+
             streams = result.get("streams", [])
             return {
                 "success": True,
                 "streams": streams,
                 "count": len(streams)
             }
-            
+
         except Exception as e:
             logger.error(f"Error listing streams: {e}")
             return {
@@ -165,27 +165,27 @@ class WebRTCDashboardControllerAnyIO:
                 "count": 0,
                 "error": str(e)
             }
-    
+
     async def serve_dashboard(self):
         """
         Serve the WebRTC dashboard UI.
-        
+
         Returns:
             HTML content for the dashboard
         """
         try:
             logger.info("Serving WebRTC dashboard UI")
-            
+
             # Call the model's get_dashboard_html method
             result = await self.webrtc_model.get_dashboard_html()
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error serving dashboard UI: {error_msg}")
                 return {"error": error_msg}
-            
+
             return result.get("html", "<html><body><h1>WebRTC Dashboard</h1><p>No data available</p></body></html>")
-            
+
         except Exception as e:
             logger.error(f"Error serving dashboard UI: {e}")
             return {"error": str(e)}
@@ -194,20 +194,20 @@ class WebRTCDashboardControllerAnyIO:
 def create_webrtc_dashboard_router_anyio(webrtc_model) -> Any:
     """
     Create a FastAPI router for WebRTC dashboard operations.
-    
+
     Args:
         webrtc_model: WebRTC model to use for dashboard operations
-        
+
     Returns:
         FastAPI router with WebRTC dashboard routes registered
     """
     try:
         from fastapi import APIRouter
-        
+
         controller = WebRTCDashboardControllerAnyIO(webrtc_model)
         router = APIRouter(prefix="/dashboard", tags=["webrtc-dashboard"])
         controller.register_routes(router)
-        
+
         return router
     except ImportError as e:
         logger.error(f"Error creating WebRTC dashboard router: {e}")

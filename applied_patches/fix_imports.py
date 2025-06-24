@@ -56,13 +56,13 @@ logger = logging.getLogger(__name__)
 try:
     # Import the real module
     _real_module = importlib.import_module("{source_path}")
-    
+
     # Get the exported symbols
     if hasattr(_real_module, "__all__"):
         __all__ = _real_module.__all__
     else:
         __all__ = [name for name in dir(_real_module) if not name.startswith("_")]
-    
+
     # Import everything into this namespace
     for name in __all__:
         try:
@@ -70,7 +70,7 @@ try:
             logger.debug(f"Imported {{name}} from {source_path}")
         except AttributeError:
             logger.warning(f"Failed to import {{name}} from {source_path}")
-    
+
     logger.debug(f"Successfully imported from {source_path}")
 except ImportError as e:
     logger.error(f"Failed to import from {source_path}: {{e}}")
@@ -101,7 +101,7 @@ def create_bridge_modules(source_dir, target_dir):
         rel_path = os.path.relpath(root, source_dir)
         # Skip the root directory for the relative path calculation
         module_prefix = '' if rel_path == '.' else f"{rel_path.replace('/', '.')}."
-        
+
         for filename in files:
             if filename.endswith('.py') and not filename.startswith('__'):
                 # Get the module name without .py extension
@@ -109,20 +109,20 @@ def create_bridge_modules(source_dir, target_dir):
                 # Construct full module paths
                 source_module = f"mcp_server.{module_prefix}{module_name}"
                 target_module = f"mcp.{module_prefix}{module_name}"
-                
+
                 # Create the bridge module code
                 bridge_code = create_module_bridge(source_module, target_module)
-                
+
                 # Write the bridge module to the target path
                 target_file = os.path.join(target_dir, rel_path, filename)
                 os.makedirs(os.path.dirname(target_file), exist_ok=True)
-                
+
                 with open(target_file, 'w') as f:
                     f.write(bridge_code)
-                    
+
                 count += 1
                 logger.info(f"Created bridge module: {target_file}")
-    
+
     return count
 
 # Create __init__.py files in all directories
@@ -159,36 +159,36 @@ except ImportError as e:
             logger.warning("Using stub implementation of MCPServer")
             self.controllers = {}
             self.models = {}
-            
+
         def register_with_app(self, app, prefix=""):
             return False
-    
+
     class AsyncMCPServer:
         def __init__(self, *args, **kwargs):
             logger.warning("Using stub implementation of AsyncMCPServer")
-            
+
         async def __aenter__(self):
             return self
-            
+
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
-    
+
     class MCPCacheManager:
         def __init__(self, *args, **kwargs):
             logger.warning("Using stub implementation of MCPCacheManager")
             self.memory_cache = {}
             self.running = True
-            
+
         def put(self, key, value, metadata=None):
             self.memory_cache[key] = value
             return True
-            
+
         def get(self, key):
             return self.memory_cache.get(key)
-            
+
         def stop(self):
             self.running = False
-            
+
     __all__ = ["MCPServer", "AsyncMCPServer", "MCPCacheManager"]
 ''')
             else:
@@ -196,7 +196,7 @@ except ImportError as e:
                 rel_path = os.path.relpath(root, target_dir)
                 module_path = rel_path.replace('/', '.')
                 source_module = f"mcp_server.{module_path}" if module_path != '.' else "mcp_server"
-                
+
                 with open(init_file, 'w') as f:
                     f.write(f'''"""
 Bridge module for {module_path} package.
@@ -212,11 +212,11 @@ logger = logging.getLogger(__name__)
 # Import from real module
 try:
     _real_module = importlib.import_module("ipfs_kit_py.{source_module}")
-    
+
     # Import all public members
     if hasattr(_real_module, "__all__"):
         __all__ = _real_module.__all__
-        
+
         # Import all listed names
         for name in __all__:
             try:
@@ -233,16 +233,16 @@ try:
                     __all__.append(name)
                 except AttributeError:
                     pass
-                    
+
     logger.debug(f"Successfully imported from ipfs_kit_py.{source_module}")
 except ImportError as e:
     logger.warning(f"Failed to import from ipfs_kit_py.{source_module}: {{e}}")
     __all__ = []
 ''')
-            
+
             count += 1
             logger.info(f"Created __init__.py: {init_file}")
-    
+
     return count
 
 # Main function to fix imports
@@ -251,21 +251,21 @@ def fix_imports():
     # Remove any existing symbolic links
     removed = remove_symlinks(MCP_PATH)
     logger.info(f"Removed {removed} symbolic links")
-    
+
     # Create the MCP directory if it doesn't exist
     os.makedirs(MCP_PATH, exist_ok=True)
-    
+
     # Copy the directory structure
     copy_directory_structure(MCP_SERVER_PATH, MCP_PATH)
-    
+
     # Create bridge modules
     bridge_count = create_bridge_modules(MCP_SERVER_PATH, MCP_PATH)
     logger.info(f"Created {bridge_count} bridge modules")
-    
+
     # Create __init__.py files
     init_count = create_init_files(MCP_PATH)
     logger.info(f"Created {init_count} __init__.py files")
-    
+
     logger.info("Import fixing completed successfully!")
     return True
 

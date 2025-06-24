@@ -30,9 +30,9 @@ logger = logging.getLogger("grpc_routing_example")
 
 # Sample content types for demonstration
 SAMPLE_CONTENT_TYPES = [
-    "application/pdf", 
-    "image/jpeg", 
-    "video/mp4", 
+    "application/pdf",
+    "image/jpeg",
+    "video/mp4",
     "text/plain",
     "application/json"
 ]
@@ -57,7 +57,7 @@ async def run_server():
     try:
         # Import gRPC server
         from ipfs_kit_py.routing.grpc_server import run_server
-        
+
         # Start server
         port = 50051
         address = "127.0.0.1"
@@ -66,10 +66,10 @@ async def run_server():
             port=port,
             max_workers=10
         )
-        
+
         logger.info(f"Started gRPC server on {address}:{port}")
         return server
-        
+
     except ImportError as e:
         logger.error(f"Error importing gRPC server: {e}")
         logger.error("Make sure to install gRPC dependencies: pip install grpcio grpcio-tools")
@@ -84,23 +84,23 @@ async def run_client_example():
     try:
         # Import gRPC client
         from ipfs_kit_py.routing.grpc_client import create_client
-        
+
         # Create client
         client = await create_client(
             host="127.0.0.1",
             port=50051,
             timeout=10.0
         )
-        
+
         logger.info("Connected to gRPC routing server")
-        
+
         # Process different content types
         for content_type in SAMPLE_CONTENT_TYPES:
             # Generate test content info
             content_info = generate_mock_content_info(content_type)
-            
+
             logger.info(f"Processing {content_type} content: {content_info['filename']}")
-            
+
             # Try different routing strategies
             for strategy in ["content_type", "cost", "performance", "hybrid"]:
                 # Select backend for content
@@ -111,13 +111,13 @@ async def run_client_example():
                     metadata=content_info["metadata"],
                     strategy=strategy
                 )
-                
+
                 backend_id = backend_result["backend_id"]
                 logger.info(f"Strategy '{strategy}' selected backend: {backend_id} with score {backend_result['score']:.2f}")
-                
+
                 # Simulate content operation (success 80% of the time)
                 success = random.random() < 0.8
-                
+
                 # Record outcome
                 outcome_result = await client.record_outcome(
                     backend_id=backend_id,
@@ -127,15 +127,15 @@ async def run_client_example():
                     content_hash=content_info["content_hash"],
                     duration_ms=random.randint(10, 500)
                 )
-                
+
                 logger.info(f"Recorded outcome: {outcome_result['message']}")
-        
+
         # Get routing insights
         insights = await client.get_insights()
         logger.info("Routing Insights:")
         logger.info(f"  Factor weights: {insights['factor_weights']}")
         logger.info(f"  Backend scores: {insights['backend_scores']}")
-        
+
         # Define metrics callback
         def metrics_callback(update):
             status_str = "NORMAL"
@@ -143,14 +143,14 @@ async def run_client_example():
                 status_str = "WARNING"
             elif update["status"] == 2:
                 status_str = "CRITICAL"
-                
+
             logger.info(f"Metrics update ({status_str}) at {update['timestamp']}:")
             for metric_type, value in update["metrics"].items():
                 if isinstance(value, dict) and len(value) <= 5:  # Show only if dict is small
                     logger.info(f"  {metric_type}: {value}")
                 else:
                     logger.info(f"  {metric_type}: (data available)")
-        
+
         # Stream metrics for a short time
         logger.info("Starting metrics streaming (5 seconds)...")
         await client.start_metrics_streaming(
@@ -158,18 +158,18 @@ async def run_client_example():
             update_interval_seconds=1,
             include_backends=True
         )
-        
+
         # Wait for a few updates
         await asyncio.sleep(5)
-        
+
         # Stop metrics streaming
         await client.stop_metrics_streaming()
         logger.info("Stopped metrics streaming")
-        
+
         # Disconnect client
         await client.disconnect()
         logger.info("Disconnected from routing gRPC server")
-        
+
     except ImportError as e:
         logger.error(f"Error importing gRPC client: {e}")
         logger.error("Make sure to install gRPC dependencies: pip install grpcio grpcio-tools")
@@ -183,14 +183,14 @@ async def run_example():
     server = await run_server()
     if not server:
         return
-    
+
     try:
         # Wait for server to initialize
         await asyncio.sleep(1)
-        
+
         # Run client example
         await run_client_example()
-        
+
     finally:
         # Stop server
         await server.stop()

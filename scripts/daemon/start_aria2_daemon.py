@@ -33,22 +33,22 @@ def main():
         "Please use daemon_manager.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     print("Starting Aria2 daemon using the new daemon_manager module...")
-    
+
     # Check if daemon_manager.py exists
     daemon_manager_path = os.path.join(os.path.dirname(__file__), "daemon_manager.py")
     if not os.path.exists(daemon_manager_path):
         print("ERROR: daemon_manager.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Parse original arguments
     parser = argparse.ArgumentParser(description="Start Aria2 daemon for testing")
     parser.add_argument("--rpc-secret", help="RPC secret for Aria2 daemon", default="ipfs_kit_secret")
     parser.add_argument("--port", type=int, help="RPC port for Aria2 daemon", default=6800)
     parser.add_argument("--dir", help="Download directory", default="/tmp/aria2_downloads")
     args = parser.parse_args()
-    
+
     # Build command for daemon_manager
     cmd = [
         sys.executable,
@@ -56,12 +56,12 @@ def main():
         "--daemons", "aria2",
         "--start"
     ]
-    
+
     # Run daemon_manager
     try:
         print(f"Running: {' '.join(cmd)}")
         result = subprocess.run(cmd)
-        
+
         if result.returncode == 0:
             print("\n----------------------------------------------------------")
             print("Aria2 daemon is running successfully!")
@@ -69,7 +69,7 @@ def main():
             print("To check daemon status: python daemon_manager.py --status")
             print("To stop the daemon: python daemon_manager.py --daemons aria2 --stop")
             print("----------------------------------------------------------\n")
-            
+
         return result.returncode
     except KeyboardInterrupt:
         print("\nStopping Aria2 daemon startup...")

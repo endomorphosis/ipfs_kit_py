@@ -15,7 +15,7 @@ def fix_integration_file():
         # Read the current file
         with open("ipfs_mcp_tools_integration.py", "r") as f:
             content = f.read()
-        
+
         # Create the fixed version
         fixed_content = """\"\"\"IPFS MCP Tools Integration - Fixed for FastMCP decorator pattern\"\"\"
 
@@ -31,18 +31,18 @@ def register_ipfs_tools(mcp_server):
 
     # Define the handler functions for each tool
     tool_handlers = {}
-    
+
     # Register each tool with mock implementations for now
     for tool in tools:
         tool_name = tool["name"]
         tool_schema = tool["schema"]
-        
+
         # Create a decorator function for this tool
         @mcp_server.tool(name=tool_name, schema=tool_schema)
         async def tool_handler(ctx, params):
             logger.info(f"Called {tool_name} with params: {params}")
             return {"success": True, "message": f"Mock implementation of {tool_name}"}
-        
+
         # Store the handler in case we need to reference it later
         tool_handlers[tool_name] = tool_handler
         logger.info(f"Registered tool: {tool_name}")
@@ -50,11 +50,11 @@ def register_ipfs_tools(mcp_server):
     logger.info("✅ Successfully registered all IPFS tools")
     return True
 """
-        
+
         # Write the fixed content back
         with open("ipfs_mcp_tools_integration.py", "w") as f:
             f.write(fixed_content)
-        
+
         logger.info("✅ Successfully fixed the IPFS tools integration file")
         return True
     except Exception as e:

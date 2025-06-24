@@ -20,7 +20,7 @@ def fixture(*args, **kwargs):
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
         return wrapper
-    
+
     # Allow both @fixture and @fixture(scope="function") syntax
     if len(args) == 1 and callable(args[0]):
         return decorator(args[0])

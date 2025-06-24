@@ -980,10 +980,10 @@ class IPFSController:
 
         """
         Get content from IPFS by CID and return as raw response.
-        
+
         Args:
             cid: Content Identifier
-            
+
         Returns:
             Raw response with content
         """

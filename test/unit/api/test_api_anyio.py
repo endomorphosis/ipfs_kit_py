@@ -1,7 +1,7 @@
 """
 Tests for the anyio-based API server.
 
-This module provides comprehensive tests for the anyio-based FastAPI 
+This module provides comprehensive tests for the anyio-based FastAPI
 server implementation of the IPFS Kit API.
 
 Unlike traditional pytest tests, this file does not use pytest-anyio since
@@ -30,7 +30,7 @@ class MockIPFSSimpleAPI:
     def __init__(self, *args, **kwargs):
         # Create a mock performance_metrics that works with anyio
         self.performance_metrics = MagicMock()
-        
+
         # Define an async method for get_system_stats
         async def async_get_system_stats():
             return {
@@ -38,49 +38,49 @@ class MockIPFSSimpleAPI:
                 "memory_percent": 20.0,
                 "disk_percent": 30.0
             }
-        
+
         # Make the mock's get_system_stats awaitable
         self.performance_metrics.get_system_stats = async_get_system_stats
         self.version = "test-version"
-        
+
     async def ipfs_id(self):
         return {"ID": "QmTest", "AgentVersion": "test/1.0.0"}
-        
+
     async def get(self, cid, timeout=30):
         if cid == "timeout":
             # Use standard TimeoutError since AnyIO can handle this
             raise TimeoutError("Timeout retrieving content")
         return f"Content for {cid}".encode()
-        
+
     async def add(self, content, pin=True, wrap_with_directory=False):
         # Return proper format for API response
         return {"cid": "QmTestHash", "size": len(content)}
-    
+
     async def cluster_id(self):
         return {"success": True, "id": "cluster-test-id"}
-        
+
     async def get_filesystem(self):
         # Create a mock filesystem with async info method
         fs = MagicMock()
         fs.info.return_value = {"size": 1024}
         return fs
-        
+
     # Async methods
     async def add_file_streaming(self, file, chunk_size=1024*1024):
         content = await file.read()
         return {"cid": "QmTestHash", "size": len(content)}
-        
+
     # Mock generator for streaming
     async def stream_media_async(self, path, **kwargs):
         # Mock streaming generator
         yield b"Chunk 1"
         yield b"Chunk 2"
         yield b"Chunk 3"
-    
+
     # Additional methods required for API endpoints
     async def record_operation(self, *args, **kwargs):
         return {"success": True}
-        
+
     async def get_system_stats(self):
         return {
             "cpu_percent": 10.0,
@@ -93,22 +93,22 @@ class MockIPFSSimpleAPI:
 def test_client():
     # Create a mock instance
     mock_api = MockIPFSSimpleAPI()
-    
+
     # First patch IPFSSimpleAPI class to return our mock
     with patch('ipfs_kit_py.api_anyio.IPFSSimpleAPI', return_value=mock_api):
         # Then directly patch the ipfs_api instance already created in the module
         with patch.object(api_anyio, 'ipfs_api', mock_api):
             # Create another MockIPFSSimpleAPI instance for app.state
             state_mock = MockIPFSSimpleAPI()
-            
+
             # Create a test client for the FastAPI app
             client = TestClient(api_anyio.app)
-            
+
             # Check that app.state exists and has the right attribute
             if hasattr(api_anyio.app, 'state'):
                 # Set the ipfs_api directly on the app state
                 api_anyio.app.state.ipfs_api = state_mock
-                
+
             yield client
 
 # Test the health endpoint
@@ -127,14 +127,14 @@ def test_add_content(test_client):
     # Create test file content
     file_content = b"Test content for IPFS"
     files = {"file": ("test.txt", file_content)}
-    
+
     # Make request
     response = test_client.post(
         "/api/v0/add",
         files=files,
         data={"pin": "true", "wrap_with_directory": "false"}
     )
-    
+
     # Check response
     assert response.status_code == 200
     data = response.json()
@@ -150,7 +150,7 @@ def test_cat_content(test_client):
     response = test_client.get("/api/v0/cat?cid=QmTestCid")
     assert response.status_code == 200
     assert response.content == b"Content for QmTestCid"
-    
+
     # Test with timeout parameter
     response = test_client.get("/api/v0/cat?cid=QmTestCid&timeout=5")
     assert response.status_code == 200
@@ -172,7 +172,7 @@ def test_stream_media(test_client):
     assert response.content == b"Chunk 1Chunk 2Chunk 3"
     assert response.headers["Content-Type"] == "video/mp4"
     assert response.headers["Accept-Ranges"] == "bytes"
-    
+
     # Test with range
     response = test_client.get("/api/v0/stream/media?path=test.mp4&start_byte=10&end_byte=100")
     assert response.status_code == 206  # Partial Content
@@ -185,14 +185,14 @@ def test_upload_stream(test_client):
     # Create test file content
     file_content = b"Test content for streaming upload"
     files = {"file": ("test_stream.txt", file_content)}
-    
+
     # Make request
     response = test_client.post(
         "/api/v0/upload/stream",
         files=files,
         data={"chunk_size": "1024", "timeout": "30"}
     )
-    
+
     # Check response
     assert response.status_code == 200
     data = response.json()
@@ -213,9 +213,9 @@ def test_error_handling(test_client):
         assert data["success"] is False
         assert "error" in data
     else:
-        # Standard FastAPI error response 
+        # Standard FastAPI error response
         assert "detail" in data
-        
+
     # Skip the unexpected error test since we're using TestClient in sync mode
     # and it directly propagates exceptions rather than handling via middleware
     # In a real application with uvicorn server, this would return a 500 error

@@ -59,7 +59,7 @@ CORE_API_FUNCTIONS = {
 
 class APISignature:
     """Represents the signature of an API function."""
-    
+
     def __init__(self, func: Callable):
         """Initialize from a function."""
         self.name = func.__name__
@@ -67,41 +67,41 @@ class APISignature:
         self.parameters = list(self.signature.parameters.keys())
         self.return_annotation = self.signature.return_annotation
         self.module = func.__module__
-    
+
     def __eq__(self, other: 'APISignature') -> bool:
         """Check if two API signatures are equal."""
         if not isinstance(other, APISignature):
             return False
-        
+
         # Basic equality: name and module
         if self.name != other.name or self.module != other.module:
             return False
-            
+
         # Compare parameters
         if self.parameters != other.parameters:
             return False
-            
+
         # Return type can change as long as it's compatible
         # For now, just check strict equality
         if self.return_annotation != other.return_annotation:
             return False
-            
+
         return True
-    
+
     def is_compatible_with(self, other: 'APISignature') -> bool:
         """Check if this signature is backward compatible with another."""
         if self.name != other.name or self.module != other.module:
             return False
-            
+
         # Check that all parameters in other exist in self
         # New optional parameters are allowed
         for param in other.parameters:
             if param not in self.parameters:
                 return False
-                
+
         # Return type should be compatible (not strictly checked here)
         return True
-        
+
     def __str__(self) -> str:
         """Get string representation."""
         return f"{self.module}.{self.name}{self.signature}"
@@ -109,42 +109,42 @@ class APISignature:
 
 class APISnapshot:
     """Represents a snapshot of an API at a specific version."""
-    
+
     def __init__(self, version: str, api_dict: Dict[str, Dict[str, Callable]]):
         """Initialize from a version string and API dictionary."""
         self.version = version
         self.api = {}
-        
+
         # Create signatures for all functions
         for module_name, functions in api_dict.items():
             self.api[module_name] = {}
             for func_name, func in functions.items():
                 self.api[module_name][func_name] = APISignature(func)
-    
+
     def is_compatible_with(self, other: 'APISnapshot') -> bool:
         """Check if this snapshot is backward compatible with another."""
         # Check version compatibility
         if other.version not in API_COMPATIBILITY.get(self.version, []):
             logger.warning(f"Version incompatibility: {self.version} not compatible with {other.version}")
             return False
-            
+
         # Check API compatibility
         for module_name, funcs in other.api.items():
             if module_name not in self.api:
                 logger.warning(f"Module missing: {module_name}")
                 return False
-                
+
             for func_name, signature in funcs.items():
                 if func_name not in self.api[module_name]:
                     logger.warning(f"Function missing: {module_name}.{func_name}")
                     return False
-                    
+
                 if not self.api[module_name][func_name].is_compatible_with(signature):
                     logger.warning(f"Function signature changed: {module_name}.{func_name}")
                     return False
-                    
+
         return True
-    
+
     def get_differences(self, other: 'APISnapshot') -> Dict[str, List[str]]:
         """Get differences between this snapshot and another."""
         differences = {
@@ -152,63 +152,63 @@ class APISnapshot:
             "missing_functions": [],
             "signature_changes": []
         }
-        
+
         # Check for missing modules and functions
         for module_name, funcs in other.api.items():
             if module_name not in self.api:
                 differences["missing_modules"].append(module_name)
                 continue
-                
+
             for func_name, signature in funcs.items():
                 if func_name not in self.api[module_name]:
                     differences["missing_functions"].append(f"{module_name}.{func_name}")
                 elif not self.api[module_name][func_name].is_compatible_with(signature):
                     differences["signature_changes"].append(f"{module_name}.{func_name}")
-                    
+
         return differences
 
 
-def verify_api_compatibility(current_api: Dict[str, Dict[str, Callable]], 
+def verify_api_compatibility(current_api: Dict[str, Dict[str, Callable]],
                             reference_api: Dict[str, Dict[str, Callable]],
                             current_version: str = "0.6.0",
                             reference_version: str = "0.5.0") -> bool:
     """
     Verify that the current API is backward compatible with the reference API.
-    
+
     Args:
         current_api: Current API dictionary
         reference_api: Reference API dictionary
         current_version: Current API version
         reference_version: Reference API version
-        
+
     Returns:
         True if compatible, False otherwise
     """
     current_snapshot = APISnapshot(current_version, current_api)
     reference_snapshot = APISnapshot(reference_version, reference_api)
-    
+
     return current_snapshot.is_compatible_with(reference_snapshot)
 
 
-def get_api_diff(current_api: Dict[str, Dict[str, Callable]], 
+def get_api_diff(current_api: Dict[str, Dict[str, Callable]],
                 reference_api: Dict[str, Dict[str, Callable]],
                 current_version: str = "0.6.0",
                 reference_version: str = "0.5.0") -> Dict[str, List[str]]:
     """
     Get differences between current API and reference API.
-    
+
     Args:
         current_api: Current API dictionary
         reference_api: Reference API dictionary
         current_version: Current API version
         reference_version: Reference API version
-        
+
     Returns:
         Dictionary of differences
     """
     current_snapshot = APISnapshot(current_version, current_api)
     reference_snapshot = APISnapshot(reference_version, reference_api)
-    
+
     return current_snapshot.get_differences(reference_snapshot)
 
 

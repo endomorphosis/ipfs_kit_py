@@ -30,11 +30,11 @@ new_init = '''            ipfs_model = IPFSModel(
 # Replace the problematic line
 if old_init in content:
     modified_content = content.replace(old_init, new_init)
-    
+
     # Write the modified content back to the file
     with open(server_bridge_path, 'w') as f:
         f.write(modified_content)
-    
+
     print(f"✅ Successfully fixed IPFSModel initialization in {server_bridge_path}")
     print("   Removed 'ipfs_backend' argument that was causing the error.")
 else:

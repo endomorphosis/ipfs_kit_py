@@ -17,19 +17,19 @@ def add_ipfs_tools_to_mcp():
     if not os.path.exists(MCP_SERVER_PATH):
         logger.error(f"❌ File not found: {MCP_SERVER_PATH}")
         return False
-    
+
     try:
         # Read the file
         with open(MCP_SERVER_PATH, 'r') as f:
             content = f.read()
-        
+
         # Add the import statement
         import_line = "from ipfs_mcp_tools_integration import register_ipfs_tools"
         if import_line not in content:
             # Find the last import statement
             import_pattern = r"^(?:import\s+.*|from\s+.*\s+import\s+.*)$"
             matches = list(re.finditer(import_pattern, content, re.MULTILINE))
-            
+
             if matches:
                 last_import = matches[-1]
                 pos = last_import.end()
@@ -38,14 +38,14 @@ def add_ipfs_tools_to_mcp():
             else:
                 logger.error("❌ Could not find a suitable location to add import")
                 return False
-        
+
         # Add the tools registration call
         register_call = "register_ipfs_tools(server)"
         if register_call not in content:
             # Find where the FastMCP server is created
             server_pattern = r"(server\s*=\s*FastMCP\([^)]*\))"
             server_match = re.search(server_pattern, content)
-            
+
             if server_match:
                 # Insert after the server creation
                 pos = server_match.end()
@@ -56,7 +56,7 @@ def add_ipfs_tools_to_mcp():
                 # Try a different approach - find where the server variable is first used
                 server_use_pattern = r"(?<=\n)(\s*server\.)"
                 server_use_match = re.search(server_use_pattern, content)
-                
+
                 if server_use_match:
                     # Insert before the first use of server
                     indentation = server_use_match.group(1).replace("server.", "")
@@ -66,11 +66,11 @@ def add_ipfs_tools_to_mcp():
                 else:
                     logger.error("❌ Could not find a suitable location to add register call")
                     return False
-        
+
         # Write the updated content back to the file
         with open(MCP_SERVER_PATH, 'w') as f:
             f.write(content)
-        
+
         logger.info(f"✅ Successfully modified {MCP_SERVER_PATH} to add IPFS tools")
         return True
     except Exception as e:

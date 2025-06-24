@@ -48,7 +48,7 @@ HAS_NEW_MESSAGE_FACTORY = False
 try:
     from google.protobuf.descriptor_pool import DescriptorPool
     from google.protobuf.message_factory import MessageFactory
-    
+
     # Try old API (GetPrototype)
     try:
         factory = MessageFactory()
@@ -59,7 +59,7 @@ try:
             logger.debug("MessageFactory.GetPrototype method is available")
     except (AttributeError, TypeError):
         pass
-    
+
     # Try new API (message_factory_for_descriptor_pool)
     try:
         from google.protobuf.message_factory import message_factory_for_descriptor_pool
@@ -67,7 +67,7 @@ try:
         logger.debug("message_factory_for_descriptor_pool function is available")
     except ImportError:
         pass
-        
+
 except ImportError as e:
     logger.warning(f"Protobuf message factory not available: {e}")
 
@@ -75,16 +75,16 @@ except ImportError as e:
 class CompatMessageFactory:
     """
     Compatibility wrapper for MessageFactory.
-    
+
     This class provides a consistent interface for MessageFactory across
     different protobuf versions, particularly handling the removal of
     GetPrototype method in newer versions.
     """
-    
+
     def __init__(self):
         """Initialize the compatible message factory."""
         self.descriptor_pool = DescriptorPool()
-        
+
         # Create the appropriate factory based on available API
         if HAS_NEW_MESSAGE_FACTORY:
             # New API (protobuf v3.19.0+)
@@ -99,16 +99,16 @@ class CompatMessageFactory:
             logger.debug("Using old MessageFactory API")
         else:
             raise ImportError("Neither old nor new MessageFactory API is available")
-    
+
     def GetPrototype(self, descriptor):
         """
         Get a message class based on the descriptor.
-        
+
         This method provides compatibility with the old GetPrototype method.
-        
+
         Args:
             descriptor: The descriptor for the message
-            
+
         Returns:
             Message class for the descriptor
         """
@@ -118,14 +118,14 @@ class CompatMessageFactory:
         else:
             # Old API approach
             return self._factory.GetPrototype(descriptor)
-    
+
     def get_prototype(self, descriptor):
         """
         Pythonic alias for GetPrototype.
-        
+
         Args:
             descriptor: The descriptor for the message
-            
+
         Returns:
             Message class for the descriptor
         """
@@ -135,13 +135,13 @@ class CompatMessageFactory:
 def get_compatible_message_factory():
     """
     Get a MessageFactory instance that works across protobuf versions.
-    
+
     This function provides a consistent interface for creating message
     factories regardless of the protobuf version.
-    
+
     Returns:
         CompatMessageFactory: A compatible message factory instance
-        
+
     Raises:
         ImportError: If protobuf is not available or if no compatible
                      message factory implementation can be found
@@ -156,38 +156,38 @@ def get_compatible_message_factory():
 def monkey_patch_message_factory():
     """
     Monkey patch the protobuf MessageFactory to ensure compatibility.
-    
+
     This function applies patches to the MessageFactory class to ensure
     that older code expecting the GetPrototype method will continue to
     work with newer protobuf versions.
-    
+
     Returns:
         bool: True if patching was successful, False otherwise
     """
     if not HAS_NEW_MESSAGE_FACTORY or HAS_OLD_MESSAGE_FACTORY:
         # No need to patch if using old API or if new API is not available
         return False
-        
+
     try:
         from google.protobuf.message_factory import MessageFactory
         from google.protobuf.message_factory import message_factory_for_descriptor_pool
-        
+
         # Check if GetPrototype already exists
         if hasattr(MessageFactory, 'GetPrototype'):
             logger.debug("MessageFactory.GetPrototype already exists, no patching needed")
             return True
-            
+
         # Define the compatibility method
         def get_prototype(self, descriptor):
             """
             Compatibility wrapper for GetPrototype.
-            
+
             This method provides backwards compatibility with older protobuf versions
             by implementing the GetPrototype method using the new API.
-            
+
             Args:
                 descriptor: The descriptor for the message
-                
+
             Returns:
                 Message class for the descriptor
             """
@@ -196,16 +196,16 @@ def monkey_patch_message_factory():
             if pool is None:
                 from google.protobuf.descriptor_pool import DescriptorPool
                 pool = DescriptorPool()
-            
+
             # Get the message class using the new API
             factory = message_factory_for_descriptor_pool(pool)
             return factory.GetPrototype(descriptor)
-        
+
         # Add the method to the class
         setattr(MessageFactory, 'GetPrototype', get_prototype)
         logger.info("Successfully patched MessageFactory.GetPrototype")
         return True
-        
+
     except (ImportError, AttributeError, TypeError) as e:
         logger.error(f"Failed to patch MessageFactory: {e}")
         return False

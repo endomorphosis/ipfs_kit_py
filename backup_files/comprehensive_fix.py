@@ -3,7 +3,7 @@ import os
 
 def fix_tiered_cache():
     file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/tiered_cache.py'
-    
+
     print(f"Reading file: {file_path}")
     # Read the file
     try:
@@ -13,11 +13,11 @@ def fix_tiered_cache():
     except Exception as e:
         print(f"Error reading file: {e}")
         return
-    
+
     # Find the _discover_partitions method
     start_line = -1
     end_line = -1
-    
+
     for i, line in enumerate(content):
         if 'def _discover_partitions' in line:
             start_line = i
@@ -27,12 +27,12 @@ def fix_tiered_cache():
             end_line = i
             print(f"Found end of method at line {end_line}")
             break
-    
+
     # If we didn't find the end, assume it's the last line
     if end_line == -1:
         end_line = len(content)
         print(f"Could not find end of method, assuming it's the last line: {end_line}")
-    
+
     # Create the fixed version of the method
     fixed_method = [
         '    def _discover_partitions(self) -> Dict[int, Dict[str, Any]]:\n',
@@ -66,11 +66,11 @@ def fix_tiered_cache():
         '        return partitions\n',
         '\n'
     ]
-    
+
     # Replace the old method with the fixed version
     print(f"Replacing method from line {start_line} to {end_line} with fixed version")
     content[start_line:end_line] = fixed_method
-    
+
     # Write the fixed content back
     try:
         with open(file_path, 'w') as f:
@@ -78,7 +78,7 @@ def fix_tiered_cache():
         print(f"Successfully wrote fixed content back to file")
     except Exception as e:
         print(f"Error writing to file: {e}")
-    
+
     print(f"Fixed _discover_partitions method in tiered_cache.py")
 
 if __name__ == "__main__":

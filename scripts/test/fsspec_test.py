@@ -31,8 +31,8 @@ sys.modules['fsspec.spec'].AbstractFileSystem = MockAbstractFileSystem
 # Mock the ipfs_fsspec module
 class MockIPFSFileSystem(MockAbstractFileSystem):
     protocol = "ipfs"
-    
-    def __init__(self, ipfs_path=None, socket_path=None, role="leecher", 
+
+    def __init__(self, ipfs_path=None, socket_path=None, role="leecher",
                  cache_config=None, use_mmap=True, enable_metrics=True, **kwargs):
         super().__init__(**kwargs)
         self.ipfs_path = ipfs_path
@@ -82,38 +82,38 @@ def test_fsspec_integration():
     try:
         # Initialize the API
         api = IPFSSimpleAPI()
-        
+
         # Test get_filesystem method
         logger.info("Testing get_filesystem() method")
         fs = api.get_filesystem()
-        
+
         if fs is None:
             logger.warning("Filesystem is None - likely fsspec is not available")
             return False
-            
+
         # Verify properties
         logger.info(f"Successfully created filesystem: {type(fs).__name__}")
         logger.info(f"Protocol: {fs.protocol}")
         logger.info(f"Role: {fs.role}")
         logger.info(f"IPFS Path: {fs.ipfs_path}")
         logger.info(f"Cache Config: {fs.cache_config}")
-        
+
         # Test with different parameters
         logger.info("Testing with custom parameters")
         custom_fs = api.get_filesystem(
             ipfs_path="/custom/path",
-            role="master", 
+            role="master",
             cache_config={"memory_cache_size": 200 * 1024 * 1024}
         )
-        
+
         logger.info(f"Custom filesystem properties:")
         logger.info(f"IPFS Path: {custom_fs.ipfs_path}")
         logger.info(f"Role: {custom_fs.role}")
         logger.info(f"Cache Config: {custom_fs.cache_config}")
-        
+
         logger.info("Test completed successfully")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error during test: {type(e).__name__}: {e}")
         return False

@@ -20,10 +20,10 @@ def test_mcp_endpoints():
         "/api/v0/cli/status",
         "/api/v0/discovery/server"
     ]
-    
+
     base_url = "http://localhost:8000"
     results = {}
-    
+
     # Test each endpoint
     for endpoint in endpoints:
         url = f"{base_url}{endpoint}"
@@ -38,7 +38,7 @@ def test_mcp_endpoints():
                 "error": str(e),
                 "working": False
             }
-    
+
     # Print results
     print("\nEndpoint Test Results:")
     print("-" * 50)
@@ -46,11 +46,11 @@ def test_mcp_endpoints():
         status = "✅ Working" if result.get("working") else "❌ Not Working"
         code = result.get("status_code", "N/A")
         print(f"{endpoint}: {status} (Status: {code})")
-    
+
     # Determine if test passed
     all_working = all(result.get("working", False) for result in results.values())
     print("\nOverall Result:", "✅ All endpoints working" if all_working else "❌ Some endpoints not working")
-    
+
     return all_working
 
 

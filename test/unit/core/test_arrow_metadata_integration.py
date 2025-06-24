@@ -166,7 +166,7 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
         self.assertEqual(result.dataset_name, "test_dataset")
         # Check that the CID returned is the mocked string CID
         self.assertEqual(result.cid, "mock-dataset-cid")
-        
+
         # Verify that at least basic dataset registration worked
         # Use dictionary-style access since result might be a dict or an object with attributes
         if hasattr(result, 'success'):
@@ -177,7 +177,7 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
             self.assertTrue(result.get('success'))
             self.assertEqual(result.get('dataset_name'), "test_dataset")
             self.assertEqual(result.get('cid'), "mock-dataset-cid")
-        
+
         # Let's also manually call the metadata_index.add method to see if it would work
         # Create the record we would expect
         expected_record = {
@@ -197,10 +197,10 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
                 "description": "Test dataset"
             }
         }
-        
+
         # Call it directly to verify it would work
         self.mock_metadata_index.add(expected_record)
-        
+
         # Now we can check the call arguments
         self.mock_metadata_index.add.assert_called_once()
         # Ensure call_args is properly extracted
@@ -208,13 +208,13 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
             call_args = self.mock_metadata_index.add.call_args[0][0]
         else:
             self.fail("mock_metadata_index.add was not called with arguments")
-        
+
         # Verify basic structure
         self.assertEqual(call_args["cid"], "mock-dataset-cid")
         self.assertEqual(call_args["filename"], "test_dataset_1.0.0")
-        
+
         # Since we manually constructed this, more detailed assertions aren't needed
-        # This test shows that although metadata_index.add isn't being called by 
+        # This test shows that although metadata_index.add isn't being called by
         # store_dataset, the basic functionality works
 
 

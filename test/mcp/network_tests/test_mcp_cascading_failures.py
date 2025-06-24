@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # Create test suite with just the cascading network failures test
     test_method = "test_cascading_network_failures"
     suite = unittest.TestSuite([EnhancedMCPDiscoveryTest(test_method)])
-    
+
     print(f"Running MCP Discovery cascading network failures test...")
     print("This test simulates progressively degrading network conditions where")
     print("failures spread across the system in several stages:")
@@ -47,15 +47,15 @@ if __name__ == "__main__":
     print("  5. Partial recovery process")
     print("  6. Full recovery process")
     print("")
-    
+
     # Run the test
     result = unittest.TextTestRunner(verbosity=2).run(suite)
-    
+
     # Check if test was successful
     if result.wasSuccessful():
         print("\nSUCCESS: MCP Discovery protocol successfully handled cascading network failures")
     else:
         print("\nFAILURE: MCP Discovery protocol failed to handle cascading network failures")
-    
+
     # Exit with status code
     sys.exit(not result.wasSuccessful())

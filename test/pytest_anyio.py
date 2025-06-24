@@ -17,13 +17,13 @@ try:
     import os
     import sys
     import importlib.util
-    
+
     fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
     if os.path.exists(fix_script_path):
         spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
         fix_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fix_module)
-        
+
         # Get pytest_anyio from the module
         pytest_anyio = fix_module.pytest_anyio
     else:
@@ -45,13 +45,13 @@ try:
     import os
     import sys
     import importlib.util
-    
+
     fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
     if os.path.exists(fix_script_path):
         spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
         fix_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fix_module)
-        
+
         # Get pytest_anyio from the module
         pytest_anyio = fix_module.pytest_anyio
     else:
@@ -73,13 +73,13 @@ try:
     import os
     import sys
     import importlib.util
-    
+
     fix_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fix_libp2p_mocks.py")
     if os.path.exists(fix_script_path):
         spec = importlib.util.spec_from_file_location("fix_libp2p_mocks", fix_script_path)
         fix_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fix_module)
-        
+
         # Get pytest_anyio from the module
         pytest_anyio = fix_module.pytest_anyio
     else:
@@ -106,10 +106,10 @@ anyio = pytest.mark.anyio
 async def anyio_backend() -> str:
     """
     Return the current AnyIO backend name.
-    
+
     This is a built-in fixture from pytest-anyio but we redefine it
     here in case it's not available in the testing environment.
-    
+
     Returns:
         The name of the backend ('asyncio' or 'trio')
     """
@@ -126,14 +126,14 @@ async def anyio_backend() -> str:
 def fixture(*args: Any, **kwargs: Any) -> Callable:
     """
     Define an AnyIO compatible fixture.
-    
+
     This is a thin wrapper around pytest.fixture that ensures fixtures
     work with AnyIO, regardless of the backend.
-    
+
     Args:
         *args: Arguments to pass to pytest.fixture
         **kwargs: Keyword arguments to pass to pytest.fixture
-        
+
     Returns:
         Fixture decorator function
     """

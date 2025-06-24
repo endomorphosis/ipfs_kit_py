@@ -57,20 +57,20 @@ try:
     from ipfs_kit_py.mcp.storage_manager.backend_manager import BackendManager
     from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
     from ipfs_kit_py.mcp.storage_manager.backends.ipfs_backend import IPFSBackend
-    
+
     # Migration Controller
     from ipfs_kit_py.mcp.migration import MigrationController, MigrationPolicy, MigrationTask
-    
+
     # Search Engine
     from ipfs_kit_py.mcp.search import SearchEngine
-    
+
     # Streaming Operations
     from ipfs_kit_py.mcp.streaming import (
         ChunkedFileUploader, StreamingDownloader, BackgroundPinningManager, ProgressTracker,
         WebSocketManager, get_ws_manager, EventType,
         SignalingServer
     )
-    
+
     # Advanced Authentication & Authorization
     from ipfs_kit_py.mcp.auth.enhanced_integration import (
         initialize_auth_system, get_auth_system,
@@ -81,20 +81,20 @@ try:
     from ipfs_kit_py.mcp.auth.models import User, Role, Permission
     from ipfs_kit_py.mcp.auth.router import get_current_user, get_admin_user
     from ipfs_kit_py.mcp.rbac import (
-        check_permission, check_backend_permission, 
+        check_permission, check_backend_permission,
         require_permission, require_backend_permission
     )
-    
+
     # Enhanced Metrics & Monitoring
     from ipfs_kit_py.mcp.monitoring import setup_monitoring, MonitoringService
-    
+
     # Advanced IPFS Operations
     from ipfs_kit_py.mcp.storage_manager.backends.ipfs_advanced_integration import (
-        setup_advanced_ipfs_operations, 
+        setup_advanced_ipfs_operations,
         verify_ipfs_advanced_operations,
         setup_ipfs_dht
     )
-    
+
     # Optimized Data Routing
     from ipfs_kit_py.mcp.routing.integration import (
         setup_optimized_routing,
@@ -102,10 +102,10 @@ try:
         get_router_instance,
         get_enhanced_router_instance
     )
-    
+
     # Component initialization success
     COMPONENTS_INITIALIZED = True
-    
+
 except ImportError as e:
     logger.error(f"Error importing MCP components: {e}")
     COMPONENTS_INITIALIZED = False
@@ -129,12 +129,12 @@ async def initialize_components():
     global backend_manager, migration_controller, search_engine
     global pinning_manager, file_uploader, file_downloader
     global ws_manager, signaling_server, monitoring_service
-    
+
     logger.info("Initializing MCP components...")
-    
+
     # Initialize Backend Manager
     backend_manager = BackendManager()
-    
+
     # Configure default IPFS backend
     ipfs_resources = {
         "ipfs_host": os.environ.get("IPFS_HOST", "127.0.0.1"),
@@ -142,7 +142,7 @@ async def initialize_components():
         "ipfs_timeout": int(os.environ.get("IPFS_TIMEOUT", "30")),
         "allow_mock": os.environ.get("ALLOW_MOCK", "1") == "1"
     }
-    
+
     ipfs_metadata = {
         "backend_name": "ipfs",
         "performance_metrics_file": os.environ.get(
@@ -150,7 +150,7 @@ async def initialize_components():
             os.path.join(os.path.expanduser("~"), ".ipfs_kit", "ipfs_metrics.json")
         )
     }
-    
+
     # Create and add IPFS backend
     try:
         ipfs_backend = IPFSBackend(ipfs_resources, ipfs_metadata)
@@ -158,9 +158,9 @@ async def initialize_components():
         logger.info("Added IPFS backend to manager")
     except Exception as e:
         logger.error(f"Error initializing IPFS backend: {e}")
-    
+
     # TODO: Add other backends as needed
-    
+
     # Initialize Migration Controller
     migration_controller = MigrationController(
         backend_manager=backend_manager,
@@ -170,7 +170,7 @@ async def initialize_components():
         )
     )
     logger.info("Initialized Migration Controller")
-    
+
     # Initialize Search Engine
     enable_vector_search = os.environ.get("ENABLE_VECTOR_SEARCH", "1") == "1"
     search_engine = SearchEngine(
@@ -182,39 +182,39 @@ async def initialize_components():
         vector_model_name=os.environ.get("VECTOR_MODEL_NAME", "all-MiniLM-L6-v2")
     )
     logger.info(f"Initialized Search Engine (vector search: {enable_vector_search})")
-    
+
     # Initialize Background Pinning Manager
     pinning_manager = BackgroundPinningManager(
         max_concurrent=int(os.environ.get("MAX_CONCURRENT_PINS", "10"))
     )
     pinning_manager.start()
     logger.info("Started Background Pinning Manager")
-    
+
     # Initialize File Streaming components
     file_uploader = ChunkedFileUploader(
         chunk_size=int(os.environ.get("UPLOAD_CHUNK_SIZE", str(1024 * 1024))),
         max_concurrent=int(os.environ.get("MAX_CONCURRENT_CHUNKS", "5"))
     )
-    
+
     file_downloader = StreamingDownloader(
         chunk_size=int(os.environ.get("DOWNLOAD_CHUNK_SIZE", str(1024 * 1024))),
         max_concurrent=int(os.environ.get("MAX_CONCURRENT_DOWNLOADS", "3"))
     )
     logger.info("Initialized File Streaming components")
-    
+
     # Get WebSocket Manager
     ws_manager = get_ws_manager()
     logger.info("Initialized WebSocket Manager")
-    
+
     # Initialize Signaling Server
     signaling_server = SignalingServer()
     logger.info("Initialized WebRTC Signaling Server")
-    
+
     # Initialize Advanced Authentication & Authorization System
     from ipfs_kit_py.mcp.auth.enhanced_integration import initialize_auth_system, get_auth_system
     auth_system = await initialize_auth_system(app, backend_manager)
     logger.info("Initialized Advanced Authentication & Authorization System")
-    
+
     # Configure custom roles
     custom_roles = [
         {
@@ -222,7 +222,7 @@ async def initialize_components():
             "name": "API Client",
             "parent_role": "user",
             "permissions": [
-                "read:ipfs", "write:ipfs", "read:filecoin", 
+                "read:ipfs", "write:ipfs", "read:filecoin",
                 "read:storage", "read:search"
             ]
         },
@@ -231,7 +231,7 @@ async def initialize_components():
             "name": "Data Scientist",
             "parent_role": "user",
             "permissions": [
-                "read:ipfs", "write:ipfs", "read:huggingface", 
+                "read:ipfs", "write:ipfs", "read:huggingface",
                 "write:huggingface", "read:search", "write:search"
             ]
         },
@@ -253,7 +253,7 @@ async def initialize_components():
             "name": "Project Manager",
             "permissions": [
                 "read:ipfs", "write:ipfs", "pin:ipfs",
-                "read:filecoin", "write:filecoin", 
+                "read:filecoin", "write:filecoin",
                 "read:storacha", "write:storacha",
                 "read:users"
             ],
@@ -267,7 +267,7 @@ async def initialize_components():
                 "read:huggingface", "write:huggingface",
                 "read:search", "write:search"
             ],
-            "parent_role": "user" 
+            "parent_role": "user"
         },
         {
             "id": "operations",
@@ -281,15 +281,15 @@ async def initialize_components():
         }
     ]
     await auth_system.configure_roles(custom_roles)
-    
+
     # Initialize Monitoring System
     monitoring_service = setup_monitoring(app, backend_manager)
     logger.info("Initialized Enhanced Metrics & Monitoring System")
-    
+
     # Set up Advanced IPFS Operations
     setup_advanced_ipfs_operations(app, backend_manager)
     logger.info("Initialized Advanced IPFS Operations")
-    
+
     # Set up Optimized Data Routing
     global router_instance
     router_result = await setup_optimized_routing(app, backend_manager)
@@ -298,7 +298,7 @@ async def initialize_components():
         logger.info(f"Initialized Optimized Data Routing with strategy: {router_result.get('default_strategy', 'hybrid')}")
     else:
         logger.warning(f"Failed to initialize Optimized Data Routing: {router_result.get('message', 'Unknown error')}")
-    
+
     # Verify advanced IPFS operations
     try:
         verification_result = await verify_ipfs_advanced_operations(backend_manager)
@@ -308,7 +308,7 @@ async def initialize_components():
             logger.warning(f"Advanced IPFS operations verification failed: {verification_result.get('failures', [])}")
     except Exception as e:
         logger.error(f"Error verifying advanced IPFS operations: {e}")
-    
+
     # Initialize DHT functionality if IPFS_ENABLE_DHT is set
     if os.environ.get("IPFS_ENABLE_DHT", "0") == "1":
         try:
@@ -322,7 +322,7 @@ async def initialize_components():
                     logger.warning(f"IPFS DHT functionality initialization failed: {dht_result.get('error', 'Unknown error')}")
         except Exception as e:
             logger.error(f"Error initializing IPFS DHT functionality: {e}")
-    
+
     logger.info("All MCP components initialized successfully")
 
 
@@ -332,12 +332,12 @@ async def ipfs_version(current_user: User = Depends(get_current_user)):
     """Get IPFS version."""
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         return {"version": "0.12.0", "backend": "ipfs"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -345,39 +345,39 @@ async def ipfs_version(current_user: User = Depends(get_current_user)):
 
 @app.post("/api/v0/ipfs/add")
 async def ipfs_add(
-    file: UploadFile = File(...), 
+    file: UploadFile = File(...),
     pin: bool = Form(True),
     current_user: User = Depends(get_current_user)
 ):
     """
     Add content to IPFS.
-    
+
     Requires write permission for the IPFS backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         # Read file content
         content = await file.read()
-        
+
         # Add to IPFS
         result = await ipfs_backend.add_content(content, {"filename": file.filename})
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to add content to IPFS")
             )
-        
+
         # Pin if requested
         if pin and result.get("identifier"):
             await ipfs_backend.pin_add(result["identifier"])
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -387,26 +387,26 @@ async def ipfs_add(
 async def ipfs_cat(cid: str, current_user: User = Depends(get_current_user)):
     """
     Get content from IPFS.
-    
+
     Requires read permission for the IPFS backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         # Get content
         result = await ipfs_backend.get_content(cid)
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=404,
                 detail=result.get("error", f"Failed to get content for {cid}")
             )
-        
+
         # Return content data
         data = result.get("data")
         if isinstance(data, bytes):
@@ -424,23 +424,23 @@ async def ipfs_cat(cid: str, current_user: User = Depends(get_current_user)):
 
 @app.post("/api/v0/ipfs/pin/add")
 async def ipfs_pin_add(
-    cid: str = Form(...), 
+    cid: str = Form(...),
     background: bool = Form(False),
     current_user: User = Depends(get_current_user)
 ):
     """
     Pin content in IPFS.
-    
+
     Requires write permission for the IPFS backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager or not pinning_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         if background:
             # Schedule background pinning
             operation_id = await pinning_manager.pin(ipfs_backend, cid)
@@ -452,13 +452,13 @@ async def ipfs_pin_add(
         else:
             # Pin immediately
             result = await ipfs_backend.pin_add(cid)
-            
+
             if not result.get("success", False):
                 raise HTTPException(
                     status_code=500,
                     detail=result.get("error", f"Failed to pin {cid}")
                 )
-            
+
             return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -471,25 +471,25 @@ async def ipfs_pin_ls(
 ):
     """
     List pinned content in IPFS.
-    
+
     Requires read permission for the IPFS backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         result = await ipfs_backend.pin_ls(cid)
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to list pins")
             )
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -502,25 +502,25 @@ async def ipfs_pin_rm(
 ):
     """
     Remove pin from content in IPFS.
-    
+
     Requires write permission for the IPFS backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         ipfs_backend = backend_manager.get_backend("ipfs")
         if not ipfs_backend:
             raise HTTPException(status_code=404, detail="IPFS backend not found")
-        
+
         result = await ipfs_backend.pin_rm(cid)
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", f"Failed to unpin {cid}")
             )
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -532,7 +532,7 @@ async def list_storage_backends(current_user: User = Depends(get_current_user)):
     """List available storage backends."""
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         backends = backend_manager.list_backends()
         return {"success": True, "backends": backends}
@@ -549,33 +549,33 @@ async def storage_add(
 ):
     """
     Add content to a specific storage backend.
-    
+
     Requires write permission for the specified backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         storage_backend = backend_manager.get_backend(backend)
         if not storage_backend:
             raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
-        
+
         # Read file content
         content = await file.read()
-        
+
         # Add to backend
         result = await storage_backend.add_content(content, {"filename": file.filename})
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", f"Failed to add content to {backend}")
             )
-        
+
         # Pin if requested and supported
         if pin and result.get("identifier") and hasattr(storage_backend, "pin_add"):
             await storage_backend.pin_add(result["identifier"])
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -583,32 +583,32 @@ async def storage_add(
 
 @app.get("/api/v0/storage/get/{backend}/{cid}")
 async def storage_get(
-    backend: str, 
+    backend: str,
     cid: str,
     current_user: User = Depends(get_current_user)
 ):
     """
     Get content from a specific storage backend.
-    
+
     Requires read permission for the specified backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         storage_backend = backend_manager.get_backend(backend)
         if not storage_backend:
             raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
-        
+
         # Get content
         result = await storage_backend.get_content(cid)
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=404,
                 detail=result.get("error", f"Failed to get content for {cid} from {backend}")
             )
-        
+
         # Return content data
         data = result.get("data")
         if isinstance(data, bytes):
@@ -632,7 +632,7 @@ async def list_migration_policies(
     """List migration policies."""
     if not COMPONENTS_INITIALIZED or not migration_controller:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         policies = migration_controller.list_policies()
         return {
@@ -654,12 +654,12 @@ async def create_migration_policy(
 ):
     """
     Create a migration policy.
-    
+
     Requires write permission for both the source and destination backends.
     """
     if not COMPONENTS_INITIALIZED or not migration_controller:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     # Check permissions for both source and destination backends
     if not check_backend_permission(source_backend, write_access=True) or \
        not check_backend_permission(destination_backend, write_access=True):
@@ -667,11 +667,11 @@ async def create_migration_policy(
             status_code=403,
             detail="Permission denied: You need write access to both source and destination backends"
         )
-    
+
     try:
         # Parse content filter
         filter_dict = json.loads(content_filter)
-        
+
         # Create policy
         policy = MigrationPolicy(
             name=name,
@@ -680,13 +680,13 @@ async def create_migration_policy(
             content_filter=filter_dict,
             schedule=schedule
         )
-        
+
         # Add policy
         success = migration_controller.add_policy(policy)
-        
+
         if not success:
             raise HTTPException(status_code=500, detail="Failed to add policy")
-        
+
         return {"success": True, "policy": policy.to_dict()}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid content filter JSON")
@@ -701,22 +701,22 @@ async def execute_migration_policy(
 ):
     """
     Execute a migration policy.
-    
+
     Requires admin permission or write access to both source and destination backends.
     """
     if not COMPONENTS_INITIALIZED or not migration_controller:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Get policy to check backend permissions
         policy = migration_controller.get_policy(policy_name)
         if not policy:
             raise HTTPException(status_code=404, detail=f"Policy '{policy_name}' not found")
-        
+
         # Check permissions for both source and destination backends
         source_backend = policy.source_backend
         destination_backend = policy.destination_backend
-        
+
         if current_user.role != Role.ADMIN and current_user.role != Role.SYSTEM:
             if not check_backend_permission(source_backend, write_access=True) or \
                not check_backend_permission(destination_backend, write_access=True):
@@ -724,17 +724,17 @@ async def execute_migration_policy(
                     status_code=403,
                     detail="Permission denied: You need write access to both source and destination backends"
                 )
-        
+
         # Execute policy
         task_ids = migration_controller.execute_policy(policy_name)
-        
+
         if not task_ids:
             return {
                 "success": True,
                 "message": "No tasks created (no content matches policy filter)",
                 "task_ids": []
             }
-        
+
         return {"success": True, "task_ids": task_ids}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -748,13 +748,13 @@ async def get_migration_task(
     """Get migration task status."""
     if not COMPONENTS_INITIALIZED or not migration_controller:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         task = migration_controller.get_migration_status(task_id)
-        
+
         if not task:
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-        
+
         return {"success": True, "task": task.to_dict()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -766,7 +766,7 @@ async def search_status(current_user: User = Depends(get_current_user)):
     """Get search engine status."""
     if not COMPONENTS_INITIALIZED or not search_engine:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         stats = await search_engine.get_stats()
         return {"success": True, "stats": stats}
@@ -786,23 +786,23 @@ async def index_content(
 ):
     """
     Index content for search.
-    
+
     Requires write permission for the search system.
     """
     if not COMPONENTS_INITIALIZED or not search_engine or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     # Check if user has permission to write to the search system
     if not check_permission(current_user.request, Permission.WRITE_BASIC):
         raise HTTPException(
             status_code=403,
             detail="Permission denied: You need write access to index content"
         )
-    
+
     try:
         # Parse metadata
         metadata_dict = json.loads(metadata)
-        
+
         # Get IPFS client for text extraction if needed
         ipfs_client = None
         if extract_text and not text:
@@ -810,7 +810,7 @@ async def index_content(
             if not ipfs_backend:
                 raise HTTPException(status_code=404, detail="IPFS backend not found for text extraction")
             ipfs_client = ipfs_backend
-        
+
         # Index document
         success = await search_engine.index_document(
             cid=cid,
@@ -821,10 +821,10 @@ async def index_content(
             extract_text=extract_text,
             ipfs_client=ipfs_client
         )
-        
+
         if not success:
             raise HTTPException(status_code=500, detail="Failed to index document")
-        
+
         return {"success": True}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid metadata JSON")
@@ -842,16 +842,16 @@ async def search_text(
 ):
     """
     Search for content using text search.
-    
+
     Requires read permission for the search system.
     """
     if not COMPONENTS_INITIALIZED or not search_engine:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Parse metadata filters
         filters_dict = json.loads(metadata_filters)
-        
+
         # Search
         results = await search_engine.search_text(
             query=query,
@@ -859,7 +859,7 @@ async def search_text(
             offset=offset,
             metadata_filters=filters_dict
         )
-        
+
         return {"success": True, "results": results}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid metadata filters JSON")
@@ -876,28 +876,28 @@ async def search_vector(
 ):
     """
     Search for content using vector similarity.
-    
+
     Requires read permission for the search system.
     """
     if not COMPONENTS_INITIALIZED or not search_engine:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Check if vector search is enabled
         stats = await search_engine.get_stats()
         if not stats.get("vector_search_enabled", False):
             raise HTTPException(status_code=501, detail="Vector search is not enabled")
-        
+
         # Parse metadata filters
         filters_dict = json.loads(metadata_filters)
-        
+
         # Search
         results = await search_engine.search_vector(
             text=text,
             limit=limit,
             metadata_filters=filters_dict
         )
-        
+
         return {"success": True, "results": results}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid metadata filters JSON")
@@ -915,21 +915,21 @@ async def search_hybrid(
 ):
     """
     Search for content using hybrid text and vector search.
-    
+
     Requires read permission for the search system.
     """
     if not COMPONENTS_INITIALIZED or not search_engine:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Check if vector search is enabled
         stats = await search_engine.get_stats()
         if not stats.get("vector_search_enabled", False):
             raise HTTPException(status_code=501, detail="Vector search is not enabled")
-        
+
         # Parse metadata filters
         filters_dict = json.loads(metadata_filters)
-        
+
         # Search
         results = await search_engine.search_hybrid(
             query=query,
@@ -937,7 +937,7 @@ async def search_hybrid(
             metadata_filters=filters_dict,
             text_weight=text_weight
         )
-        
+
         return {"success": True, "results": results}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid metadata filters JSON")
@@ -951,11 +951,11 @@ async def stream_status(current_user: User = Depends(get_current_user)):
     """Get streaming status."""
     if not COMPONENTS_INITIALIZED or not pinning_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Get background pinning operations
         operations = pinning_manager.list_operations()
-        
+
         return {
             "success": True,
             "operations_count": len(operations),
@@ -975,25 +975,25 @@ async def upload_chunk(
 ):
     """
     Upload a file chunk.
-    
+
     Requires write permission for streaming operations.
     """
     if not COMPONENTS_INITIALIZED:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Read chunk data
         chunk_data = await chunk.read()
-        
+
         # Store chunk in temporary storage
         # (In a real implementation, you would store this in Redis or similar)
         temp_dir = Path(tempfile.gettempdir()) / "mcp_chunks" / file_id
         temp_dir.mkdir(parents=True, exist_ok=True)
-        
+
         chunk_path = temp_dir / f"chunk_{index}"
         with open(chunk_path, "wb") as f:
             f.write(chunk_data)
-        
+
         return {
             "success": True,
             "file_id": file_id,
@@ -1015,29 +1015,29 @@ async def finalize_upload(
 ):
     """
     Finalize a chunked upload.
-    
+
     Requires write permission for the specified backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Get backend
         storage_backend = backend_manager.get_backend(backend)
         if not storage_backend:
             raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
-        
+
         # Verify all chunks exist
         temp_dir = Path(tempfile.gettempdir()) / "mcp_chunks" / file_id
         if not temp_dir.exists():
             raise HTTPException(status_code=404, detail=f"No chunks found for file ID {file_id}")
-        
+
         # Check if all chunks are present
         for i in range(total_chunks):
             chunk_path = temp_dir / f"chunk_{i}"
             if not chunk_path.exists():
                 raise HTTPException(status_code=400, detail=f"Missing chunk {i}")
-        
+
         # Combine chunks
         temp_file = Path(tempfile.gettempdir()) / f"mcp_upload_{file_id}"
         with open(temp_file, "wb") as outfile:
@@ -1045,7 +1045,7 @@ async def finalize_upload(
                 chunk_path = temp_dir / f"chunk_{i}"
                 with open(chunk_path, "rb") as infile:
                     outfile.write(infile.read())
-        
+
         # Add to backend
         with open(temp_file, "rb") as f:
             content = f.read()
@@ -1053,25 +1053,25 @@ async def finalize_upload(
                 content,
                 {"filename": filename or f"upload_{file_id}"}
             )
-        
+
         if not result.get("success", False):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", f"Failed to add content to {backend}")
             )
-        
+
         # Pin if requested and supported
         if pin and result.get("identifier") and hasattr(storage_backend, "pin_add"):
             await storage_backend.pin_add(result["identifier"])
-        
+
         # Clean up
         if temp_file.exists():
             temp_file.unlink()
-        
+
         if temp_dir.exists():
             import shutil
             shutil.rmtree(temp_dir)
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1079,24 +1079,24 @@ async def finalize_upload(
 
 @app.get("/api/v0/stream/download/{backend}/{cid}")
 async def stream_download(
-    backend: str, 
+    backend: str,
     cid: str,
     current_user: User = Depends(get_current_user)
 ):
     """
     Stream download content from a backend.
-    
+
     Requires read permission for the specified backend.
     """
     if not COMPONENTS_INITIALIZED or not backend_manager or not file_downloader:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Get backend
         storage_backend = backend_manager.get_backend(backend)
         if not storage_backend:
             raise HTTPException(status_code=404, detail=f"Backend '{backend}' not found")
-        
+
         # Create async generator for streaming
         async def content_stream():
             async with file_downloader.stream(storage_backend, cid) as stream:
@@ -1104,10 +1104,10 @@ async def stream_download(
                     # Handle stream setup failure
                     yield b"Stream setup failed"
                     return
-                
+
                 async for chunk in stream:
                     yield chunk
-        
+
         # Return streaming response
         return StreamingResponse(
             content_stream(),
@@ -1123,7 +1123,7 @@ async def realtime_status(current_user: User = Depends(get_current_user)):
     """Get WebSocket manager status."""
     if not COMPONENTS_INITIALIZED or not ws_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         stats = ws_manager.get_stats()
         return {"success": True, "stats": stats}
@@ -1137,31 +1137,31 @@ async def websocket_endpoint(websocket: WebSocket):
     if not COMPONENTS_INITIALIZED or not ws_manager:
         await websocket.close(code=1011, reason="MCP components not initialized")
         return
-    
+
     try:
         # Accept connection
         await websocket.accept()
-        
+
         # Register client
         client_id = await ws_manager.register_client(websocket)
-        
+
         # Send welcome message
         await websocket.send_text(json.dumps({
             "type": "welcome",
             "client_id": client_id,
             "timestamp": time.time()
         }))
-        
+
         # Handle incoming messages
         try:
             while True:
                 # Wait for message
                 message = await websocket.receive_text()
-                
+
                 try:
                     # Parse message
                     data = json.loads(message)
-                    
+
                     # Handle subscribe/unsubscribe
                     if data.get("type") == "subscribe" and "channel" in data:
                         await ws_manager.subscribe(client_id, data["channel"])
@@ -1170,7 +1170,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             "channel": data["channel"],
                             "timestamp": time.time()
                         }))
-                    
+
                     elif data.get("type") == "unsubscribe" and "channel" in data:
                         await ws_manager.unsubscribe(client_id, data["channel"])
                         await websocket.send_text(json.dumps({
@@ -1178,7 +1178,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             "channel": data["channel"],
                             "timestamp": time.time()
                         }))
-                    
+
                 except json.JSONDecodeError:
                     # Invalid JSON
                     await websocket.send_text(json.dumps({
@@ -1186,11 +1186,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         "error": "Invalid JSON",
                         "timestamp": time.time()
                     }))
-                
+
         except WebSocketDisconnect:
             # Client disconnected
             await ws_manager.unregister_client(client_id)
-    
+
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         # Try to close connection
@@ -1206,7 +1206,7 @@ async def webrtc_status(current_user: User = Depends(get_current_user)):
     """Get WebRTC signaling server status."""
     if not COMPONENTS_INITIALIZED or not signaling_server:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         stats = signaling_server.get_stats()
         return {"success": True, "stats": stats}
@@ -1219,7 +1219,7 @@ async def list_webrtc_rooms(current_user: User = Depends(get_current_user)):
     """List WebRTC signaling rooms."""
     if not COMPONENTS_INITIALIZED or not signaling_server:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         rooms = signaling_server.list_rooms()
         return {"success": True, "rooms": rooms}
@@ -1233,21 +1233,21 @@ async def webrtc_signaling(websocket: WebSocket, room_id: str):
     if not COMPONENTS_INITIALIZED or not signaling_server:
         await websocket.close(code=1011, reason="MCP components not initialized")
         return
-    
+
     try:
         # Accept connection
         await websocket.accept()
-        
+
         # Extract peer ID from query parameters if available
         query_params = dict(websocket.query_params)
         peer_id = query_params.get("peer_id")
-        
+
         # Extract metadata from query parameters
         metadata = {}
         for key, value in query_params.items():
             if key.startswith("meta_"):
                 metadata[key[5:]] = value
-        
+
         # Join room
         peer = await signaling_server.join_room(
             room_id=room_id,
@@ -1255,7 +1255,7 @@ async def webrtc_signaling(websocket: WebSocket, room_id: str):
             peer_id=peer_id,
             metadata=metadata
         )
-        
+
         # Send welcome message
         await websocket.send_text(json.dumps({
             "type": "welcome",
@@ -1263,7 +1263,7 @@ async def webrtc_signaling(websocket: WebSocket, room_id: str):
             "room_id": room_id,
             "timestamp": time.time()
         }))
-        
+
         # Send peers list
         room = await signaling_server.get_room(room_id)
         if room:
@@ -1272,21 +1272,21 @@ async def webrtc_signaling(websocket: WebSocket, room_id: str):
                 "peers": [p for p in room.get_peers() if p["id"] != peer.id],
                 "timestamp": time.time()
             }))
-        
+
         # Handle incoming messages
         try:
             while True:
                 # Wait for message
                 message = await websocket.receive_text()
-                
+
                 try:
                     # Parse message
                     data = json.loads(message)
-                    
+
                     # Handle signaling messages
                     if "type" in data:
                         await signaling_server.handle_signal(room_id, peer.id, data)
-                    
+
                 except json.JSONDecodeError:
                     # Invalid JSON
                     await websocket.send_text(json.dumps({
@@ -1294,11 +1294,11 @@ async def webrtc_signaling(websocket: WebSocket, room_id: str):
                         "error": "Invalid JSON",
                         "timestamp": time.time()
                     }))
-                
+
         except WebSocketDisconnect:
             # Peer disconnected
             await signaling_server.leave_room(room_id, peer.id)
-    
+
     except Exception as e:
         logger.error(f"WebRTC signaling error: {e}")
         # Try to close connection
@@ -1316,7 +1316,7 @@ async def admin_system_status(current_user: User = Depends(get_admin_user)):
     """
     if not COMPONENTS_INITIALIZED:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         status = {
             "status": "operational",
@@ -1329,7 +1329,7 @@ async def admin_system_status(current_user: User = Depends(get_admin_user)):
                 "permission_cache_size": len(rbac_manager._permission_cache)
             }
         }
-        
+
         # Get backend status
         if backend_manager:
             backends = backend_manager.list_backends()
@@ -1339,36 +1339,36 @@ async def admin_system_status(current_user: User = Depends(get_admin_user)):
                     # Check if this is the advanced IPFS backend
                     from ipfs_kit_py.mcp.storage_manager.backends.ipfs_advanced_backend import IPFSAdvancedBackend
                     is_advanced = isinstance(backend, IPFSAdvancedBackend)
-                    
+
                     status["backends"][backend_name] = {
                         "type": backend.get_name(),
                         "status": "operational",
                         "details": await backend.get_status(),
                         "advanced_operations": is_advanced
                     }
-        
+
         # Get search status
         if search_engine:
             search_stats = await search_engine.get_stats()
             status["search"] = search_stats
-        
+
         # Get WebSocket status
         if ws_manager:
             ws_stats = ws_manager.get_stats()
             status["websocket"] = ws_stats
-        
+
         # Get WebRTC status
         if signaling_server:
             webrtc_stats = signaling_server.get_stats()
             status["webrtc"] = webrtc_stats
-        
+
         # Get monitoring status
         if monitoring_service:
             status["monitoring"] = {
                 "status": "operational",
                 "metrics_count": len(monitoring_service.metrics.get_metrics())
             }
-        
+
         # Get system stats
         import psutil
         status["system"] = {
@@ -1376,7 +1376,7 @@ async def admin_system_status(current_user: User = Depends(get_admin_user)):
             "memory_percent": psutil.virtual_memory().percent,
             "disk_usage": psutil.disk_usage('/').percent
         }
-        
+
         return status
     except Exception as e:
         return {
@@ -1394,14 +1394,14 @@ async def verify_auth_system(current_user: User = Depends(get_admin_user)):
     """
     if not COMPONENTS_INITIALIZED:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Get auth system
         auth_system = get_auth_system()
-        
+
         # Run verification
         verification_result = await auth_system.verify_auth_system()
-        
+
         # Return results
         return {
             "success": verification_result.get("success", False),
@@ -1419,11 +1419,11 @@ async def verify_routing_operations(current_user: User = Depends(get_admin_user)
     """
     if not COMPONENTS_INITIALIZED or not backend_manager:
         raise HTTPException(status_code=500, detail="MCP components not initialized")
-    
+
     try:
         # Run verification
         verification_result = await verify_optimized_routing(backend_manager)
-        
+
         # Return results
         return {
             "success": verification_result.get("success", False),
@@ -1454,7 +1454,7 @@ async def system_status():
             "timestamp": time.time(),
             "components_initialized": False
         }
-    
+
     try:
         status = {
             "status": "operational",
@@ -1462,7 +1462,7 @@ async def system_status():
             "components_initialized": True,
             "backends": {}
         }
-        
+
         # Get backend status
         if backend_manager:
             backends = backend_manager.list_backends()
@@ -1475,28 +1475,28 @@ async def system_status():
                         is_advanced = isinstance(backend, IPFSAdvancedBackend)
                     except ImportError:
                         is_advanced = False
-                    
+
                     status["backends"][backend_name] = {
                         "type": backend.get_name(),
                         "status": "operational",
                         "advanced_operations": is_advanced
                     }
-        
+
         # Get search status
         if search_engine:
             search_stats = await search_engine.get_stats()
             status["search"] = search_stats
-        
+
         # Get WebSocket status
         if ws_manager:
             ws_stats = ws_manager.get_stats()
             status["websocket"] = ws_stats
-        
+
         # Get WebRTC status
         if signaling_server:
             webrtc_stats = signaling_server.get_stats()
             status["webrtc"] = webrtc_stats
-        
+
         return status
     except Exception as e:
         return {
@@ -1519,12 +1519,12 @@ async def startup_event():
 async def shutdown_event():
     """Clean up on shutdown."""
     global pinning_manager, monitoring_service
-    
+
     # Stop background pinning manager
     if pinning_manager:
         pinning_manager.stop()
         logger.info("Stopped Background Pinning Manager")
-    
+
     # Stop monitoring service
     if monitoring_service:
         monitoring_service.stop()
@@ -1542,11 +1542,11 @@ def main():
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     parser.add_argument("--enable-dht", action="store_true", help="Enable IPFS DHT functionality")
     args = parser.parse_args()
-    
+
     # Set environment variables
     if args.enable_dht:
         os.environ["IPFS_ENABLE_DHT"] = "1"
-    
+
     # Run server
     uvicorn.run(
         "direct_mcp_server:app",

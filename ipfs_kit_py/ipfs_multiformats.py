@@ -477,44 +477,44 @@ def decode_multihash(multihash_bytes):
 
 def create_cid_from_bytes(content_bytes):
     """Create a valid CID from raw bytes content.
-    
+
     This function generates a CIDv1 using the raw codec and sha2-256 hash
     in base32 encoding (default for CIDv1) per IPFS specifications.
-    
+
     Args:
         content_bytes: The raw content bytes
-        
+
     Returns:
         A valid CIDv1 string
     """
     import hashlib
     import base64
-    
+
     # Compute sha2-256 hash of content
     h = hashlib.sha256(content_bytes).digest()
-    
+
     try:
         # Try to use base58 to create a proper CID
         # For CIDv1, we'll create a base32-encoded string with the 'raw' codec (0x55)
         # CIDv1 = <multibase><cid-version><multicodec><multihash-type><multihash-length><multihash-digest>
-        
+
         # CID version 1
         cid_version = bytes([0x01])
-        
+
         # Multicodec 'raw' (0x55)
         multicodec = bytes([0x55])
-        
+
         # Multihash: sha2-256 (0x12) + length (32) + digest
         multihash = bytes([0x12, 32]) + h
-        
+
         # Combine CID components
         cid_bytes = cid_version + multicodec + multihash
-        
+
         # Base32 encode (base32 prefix is 'b')
         cid_base32 = 'b' + base64.b32encode(cid_bytes).decode('utf-8').lower().replace('=', '')
-        
+
         return cid_base32
-        
+
     except Exception as e:
         # Fall back to a simple but valid-looking CID if encoding fails
         content_hash = hashlib.sha256(content_bytes).hexdigest()

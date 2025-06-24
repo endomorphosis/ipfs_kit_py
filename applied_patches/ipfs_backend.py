@@ -33,8 +33,8 @@ logger = logging.getLogger("ipfs_backend")
 # Import the standardized error handling
 try:
     from mcp_error_handling import (
-        create_error_response, 
-        handle_backend_error, 
+        create_error_response,
+        handle_backend_error,
         handle_daemon_error,
         handle_exception
     )
@@ -68,7 +68,7 @@ class IPFSErrorHandler:
         PERMISSION_ERROR: "UNAUTHORIZED",
         VALIDATION_ERROR: "VALIDATION_ERROR",
         DEPENDENCY_ERROR: "DAEMON_ERROR",
-        INTERNAL_ERROR: "INTERNAL_ERROR", 
+        INTERNAL_ERROR: "INTERNAL_ERROR",
         UNKNOWN_ERROR: "INTERNAL_ERROR"
     }
 
@@ -95,7 +95,7 @@ class IPFSErrorHandler:
                 details=details,
                 doc_category="storage"
             )
-        
+
         # Fall back to original format if standardized handling not available
         error_response = {
             "success": False,
@@ -124,7 +124,7 @@ class IPFSErrorHandler:
         # Use standardized error handling if available
         if STANDARD_ERROR_HANDLING:
             return handle_backend_error(e, backend_name="ipfs", endpoint=f"/ipfs/{operation}")
-            
+
         # Fall back to original implementation
         error_type = IPFSErrorHandler.UNKNOWN_ERROR
 

@@ -16,29 +16,29 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         request = json.loads(post_data.decode('utf-8'))
-        
+
         # Process JSON-RPC request
         response = self.handle_jsonrpc(request)
-        
+
         # Send response
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(response).encode('utf-8'))
-    
+
     def handle_jsonrpc(self, request):
         method = request.get('method', '')
         params = request.get('params', [])
         req_id = request.get('id', 0)
-        
+
         print(f"Received request for method: {method}")
-        
+
         # Basic structure for JSON-RPC response
         response = {
             "jsonrpc": "2.0",
             "id": req_id
         }
-        
+
         # Handle different methods
         if method == "Filecoin.ChainHead":
             response["result"] = {
@@ -81,7 +81,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 "message": f"Mock response for {method}",
                 "timestamp": time.time()
             }
-        
+
         return response
 
 def run_server():
@@ -94,9 +94,9 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=run_server)
     server_thread.daemon = True
     server_thread.start()
-    
+
     print("Mock Filecoin API server started. Press Ctrl+C to stop.")
-    
+
     try:
         # Keep the main thread alive
         while True:

@@ -372,11 +372,11 @@ if __name__ == "__main__":
     if "--test-routes" in sys.argv:
         test_routes()
         sys.exit(0)
-    
+
     port = int(os.environ.get("PORT", 8000))
     # Use 0.0.0.0 to listen on all interfaces (localhost, 127.0.0.1, etc.)
     host = os.environ.get("HOST", "0.0.0.0")
-    
+
     print(f"Starting simple MCP test server at {host}:{port}")
     print(f"Health endpoint at: http://localhost:{port}{api_prefix}/health")
     print(f"Health endpoint at: http://127.0.0.1:{port}{api_prefix}/health")

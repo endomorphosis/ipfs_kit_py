@@ -1511,7 +1511,7 @@ class ClusterManager:
                     from test.patch_cluster_state import patched_access_via_c_data_interface
                     # Use the patched function
                     state_result = patched_access_via_c_data_interface(state_path)
-                    
+
                     # Update our result with values from the patched function
                     if state_result.get("success", False):
                         result["success"] = True
@@ -1519,11 +1519,11 @@ class ClusterManager:
                         for key in ["cluster_id", "master_id", "node_count", "task_count", "content_count"]:
                             if key in state_result:
                                 result[key] = state_result[key]
-                        
+
                         # Table is handled separately to avoid serialization issues
                         if "table" in state_result:
                             result["state_table"] = "Available in memory"
-                            
+
                         return result
                 except ImportError:
                     # If we can't import the test patch, this is a real error
@@ -1532,7 +1532,7 @@ class ClusterManager:
 
             # Use ArrowClusterState static method to access state
             state_result = ArrowClusterState.access_via_c_data_interface(state_path)
-            
+
             # Check if we got a successful result with a table
             if not state_result.get("success", False):
                 if "error" in state_result:
@@ -1540,18 +1540,18 @@ class ClusterManager:
                 else:
                     result["error"] = "Failed to access cluster state"
                 return result
-                
+
             # Get the table from the result
             state_table = state_result.get("table")
 
             # Set result information
             result["success"] = True
-            
+
             # Copy relevant fields from state_result to our result
             for key in ["cluster_id", "master_id", "node_count", "task_count", "content_count"]:
                 if key in state_result:
                     result[key] = state_result[key]
-                    
+
             # Add timestamp if available (converting from ms to seconds if needed)
             if "updated_at" in state_result:
                 updated_at = state_result["updated_at"]
@@ -1559,7 +1559,7 @@ class ClusterManager:
                 if isinstance(updated_at, (int, float)) and updated_at > 1e10:
                     updated_at = updated_at / 1000.0
                 result["updated_at"] = updated_at
-            
+
             # If the result doesn't include node/task/content counts, try to extract them
             if state_table is not None and "node_count" not in result:
                 try:
@@ -1567,13 +1567,13 @@ class ClusterManager:
                     if state_table.num_rows > 0:
                         # Extract metadata if not already present
                         first_row = state_table.slice(0, 1)
-                        
+
                         if "cluster_id" not in result:
                             result["cluster_id"] = first_row.column("cluster_id")[0].as_py()
-                        
+
                         if "master_id" not in result:
                             result["master_id"] = first_row.column("master_id")[0].as_py()
-                        
+
                         if "updated_at" not in result:
                             timestamp = first_row.column("updated_at")[0].as_py()
                             if hasattr(timestamp, "timestamp"):

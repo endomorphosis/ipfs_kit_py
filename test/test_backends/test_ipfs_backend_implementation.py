@@ -24,7 +24,7 @@ class BackendStorage:
         self.backend_type = backend_type
         self.resources = resources
         self.metadata = metadata
-    
+
     def get_name(self):
         return self.backend_type
 
@@ -36,10 +36,10 @@ class IPFSBackend(BackendStorage):
 
         # Import dependencies with improved error handling
         ipfs_py_class = self._get_ipfs_py_class()
-        
+
         # Initialize IPFS client
         self.ipfs = ipfs_py_class(resources, metadata)
-        
+
         # Log the initialization status
         if hasattr(self.ipfs, "_mock_implementation") and self.ipfs._mock_implementation:
             logger.warning("IPFS backend initialized with mock implementation")
@@ -50,7 +50,7 @@ class IPFSBackend(BackendStorage):
         """
         Helper method to obtain the ipfs_py class with proper error handling.
         This resolves the "missing ipfs_py client dependency" issue mentioned in the roadmap.
-        
+
         Returns:
             The ipfs_py class or a mock implementation if not found
         """
@@ -61,25 +61,25 @@ class IPFSBackend(BackendStorage):
             return ipfs_py
         except ImportError as e1:
             logger.warning(f"Could not import ipfs_py from ipfs_kit_py.ipfs: {e1}")
-        
+
         # Second try: import from the root ipfs module
         try:
             # Add the project root to the path
             project_root = os.path.dirname(os.path.abspath(__file__))
             if project_root not in sys.path:
                 sys.path.insert(0, project_root)
-            
+
             # Try to import from ipfs module
             from ipfs import ipfs_py
             logger.info("Successfully imported ipfs_py from ipfs module")
             return ipfs_py
         except ImportError as e2:
             logger.warning(f"Could not import ipfs_py from ipfs module: {e2}")
-        
+
         # Third try: find ipfs.py file in the project and import from it
         try:
             project_root = os.path.dirname(os.path.abspath(__file__))
-            
+
             # Search for ipfs.py files
             potential_ipfs_files = glob.glob(os.path.join(project_root, "**", "ipfs.py"), recursive=True)
             if not potential_ipfs_files:
@@ -87,16 +87,16 @@ class IPFSBackend(BackendStorage):
                 specific_search_path = os.path.join(project_root, "ipfs_kit_py", "ipfs.py")
                 if os.path.exists(specific_search_path):
                     potential_ipfs_files = [specific_search_path]
-            
+
             if potential_ipfs_files:
                 # Found at least one ipfs.py file, add its directory to sys.path
                 ipfs_file = potential_ipfs_files[0]
                 logger.info(f"Found ipfs.py file at: {ipfs_file}")
-                
+
                 ipfs_dir = os.path.dirname(ipfs_file)
                 if ipfs_dir not in sys.path:
                     sys.path.insert(0, ipfs_dir)
-                
+
                 # Try to import the module
                 try:
                     # Try relative module path
@@ -106,7 +106,7 @@ class IPFSBackend(BackendStorage):
                     return ipfs_module.ipfs_py
                 except (ImportError, ValueError) as e:
                     logger.warning(f"Failed to import as module: {e}")
-                    
+
                     # Try direct file import
                     import importlib.util
                     spec = importlib.util.spec_from_file_location("ipfs_module", ipfs_file)
@@ -118,21 +118,21 @@ class IPFSBackend(BackendStorage):
                             return ipfs_module.ipfs_py
         except Exception as e3:
             logger.warning(f"Could not import ipfs_py from discovered files: {e3}")
-        
+
         # Final fallback: create a mock implementation
         logger.error("Could not import ipfs_py. Creating mock implementation.")
-        
+
         class MockIPFSPy:
             """Mock implementation of ipfs_py for when the real one can't be imported."""
             _mock_implementation = True
-            
+
             def __init__(self, *args, **kwargs):
                 self.logger = logging.getLogger("mock_ipfs_py")
                 self.logger.warning("Using mock IPFS implementation - limited functionality available")
-            
+
             def ipfs_add_file(self, *args, **kwargs):
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_add_bytes(self, *args, **kwargs):
                 # For testing purposes, we'll make this method work with a simulated CID
                 import hashlib
@@ -143,7 +143,7 @@ class IPFSBackend(BackendStorage):
                     cid = f"Qm{h[:44]}"  # Make it look like a CIDv0
                     return {"success": True, "Hash": cid, "cid": cid, "Size": len(data)}
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_cat(self, *args, **kwargs):
                 # For testing purposes, return the CID as content
                 if args and isinstance(args[0], str):
@@ -152,28 +152,28 @@ class IPFSBackend(BackendStorage):
                     content = f"Mock content for CID: {cid}".encode("utf-8")
                     return {"success": True, "data": content}
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_pin_ls(self, *args, **kwargs):
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_pin_add(self, *args, **kwargs):
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_pin_rm(self, *args, **kwargs):
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_object_stat(self, *args, **kwargs):
                 return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
-            
+
             def ipfs_add_metadata(self, *args, **kwargs):
                 return {"success": True, "metadata": args[1] if len(args) > 1 else {}}
-            
+
             def __getattr__(self, name):
                 # Handle any method call with a standard error response
                 def method(*args, **kwargs):
                     return {"success": False, "error": f"Mock IPFS implementation (method: {name})", "error_type": "MockImplementation"}
                 return method
-        
+
         return MockIPFSPy
 
     def store(

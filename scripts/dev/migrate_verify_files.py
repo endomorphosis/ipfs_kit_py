@@ -43,12 +43,12 @@ def migrate_files():
     for source_name, dest_path in MIGRATION_MAP.items():
         source_path = os.path.join(ROOT_DIR, source_name)
         dest_full_path = os.path.join(ROOT_DIR, dest_path)
-        
+
         # Check if source file exists
         if not os.path.exists(source_path):
             print(f"Source file not found, skipping: {source_path}")
             continue
-        
+
         # Check if destination file already exists
         if os.path.exists(dest_full_path):
             print(f"Destination file already exists: {dest_full_path}")
@@ -56,23 +56,23 @@ def migrate_files():
             if response.lower() != 'y':
                 print(f"Skipping: {source_name}")
                 continue
-        
+
         # Get file permissions
         source_perms = os.stat(source_path).st_mode
-        
+
         # Copy file to destination
         print(f"Moving {source_name} to {dest_path}")
         shutil.copy2(source_path, dest_full_path)
-        
+
         # Fix imports in the new file
         fix_imports(dest_full_path)
-        
+
         # Modify the shebang if necessary
         fix_shebang(dest_full_path)
-        
+
         # Remove the original file after successful copy
         os.remove(source_path)
-        
+
         print(f"Successfully migrated {source_name}")
 
 def fix_imports(file_path):
@@ -86,7 +86,7 @@ def fix_shebang(file_path):
     """Ensure the shebang line is correct for test files."""
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Replace shebang if needed (e.g., from #!/usr/bin/env python to #!/usr/bin/env python3)
     if content.startswith("#!/usr/bin/env python\n") and not content.startswith("#!/usr/bin/env python3\n"):
         content = content.replace("#!/usr/bin/env python\n", "#!/usr/bin/env python3\n")
@@ -100,7 +100,7 @@ def update_test_imports():
     init_paths = [
         "test/integration/backup/__init__.py",
     ]
-    
+
     for init_path in init_paths:
         full_path = os.path.join(ROOT_DIR, init_path)
         if not os.path.exists(full_path):
@@ -111,16 +111,16 @@ def update_test_imports():
 def main():
     """Main function to execute the migration."""
     print("Starting migration of verification files...")
-    
+
     # Create necessary directories
     ensure_directories_exist()
-    
+
     # Migrate files
     migrate_files()
-    
+
     # Update test imports
     update_test_imports()
-    
+
     print("Migration completed!")
 
 if __name__ == "__main__":

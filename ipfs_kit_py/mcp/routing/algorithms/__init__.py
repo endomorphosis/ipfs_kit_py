@@ -13,7 +13,7 @@ import logging
 from typing import Dict, List, Tuple, Optional, Any, Union
 
 from ..router import (
-    Backend, ContentType, OperationType, 
+    Backend, ContentType, OperationType,
     RouteMetrics, RoutingContext, RoutingDecision, RoutingStrategy
 )
 

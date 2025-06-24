@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fix for import issues in server_bridge.py to ensure proper compatibility 
+Fix for import issues in server_bridge.py to ensure proper compatibility
 between old and new MCP server implementations.
 
 This patch updates the server_bridge.py file to correctly handle import paths
@@ -37,16 +37,16 @@ try:
     from ipfs_kit_py.mcp_server.server import MCPServer as NewMCPServer
     from ipfs_kit_py.mcp_server.server import AsyncMCPServer as NewAsyncMCPServer
     logger.debug("Successfully imported from new MCP server structure")
-    
+
     # Create wrapper classes to ensure compatibility with old code
     class MCPServer(NewMCPServer):
         """Compatibility wrapper for new MCPServer implementation."""
         pass
-        
+
     class AsyncMCPServer(NewAsyncMCPServer):
         """Compatibility wrapper for new AsyncMCPServer implementation."""
         pass
-        
+
 except ImportError as e:
     logger.warning(f"Failed to import from new MCP server structure: {e}")
     # Fallback to old structure - these should be defined in the old module
@@ -61,21 +61,21 @@ __all__ = ['MCPServer', 'AsyncMCPServer']
 def fix_server_bridge():
     """Apply fixes to the server bridge file."""
     print(f"Updating server bridge at {SERVER_BRIDGE_PATH}...")
-    
+
     # Backup the original file
     backup_path = SERVER_BRIDGE_PATH.with_suffix(".py.bak")
     if SERVER_BRIDGE_PATH.exists():
         with open(SERVER_BRIDGE_PATH, 'r') as f:
             original_content = f.read()
-            
+
         with open(backup_path, 'w') as f:
             f.write(original_content)
             print(f"Created backup at {backup_path}")
-    
+
     # Write the updated content
     with open(SERVER_BRIDGE_PATH, 'w') as f:
         f.write(UPDATED_CONTENT)
-        
+
     print("Server bridge updated successfully")
 
 if __name__ == "__main__":

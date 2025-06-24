@@ -62,7 +62,7 @@ try:
             "processId": 12345
         }
     }
-    
+
     # Try the endpoint at the API prefix
     response = requests.post(
         "http://localhost:9994/api/v0/jsonrpc",
@@ -70,7 +70,7 @@ try:
         headers={"Content-Type": "application/json"},
         timeout=5
     )
-    
+
     print(f"MCP JSON-RPC endpoint status: {response.status_code}")
     if response.status_code == 200:
         print("✅ MCP JSON-RPC endpoint is available!")
@@ -93,7 +93,7 @@ try:
         headers={"Content-Type": "application/json"},
         timeout=5
     )
-    
+
     print(f"\nJSON-RPC proxy endpoint status: {response.status_code}")
     if response.status_code == 200:
         print("✅ JSON-RPC proxy endpoint is available!")
@@ -115,18 +115,18 @@ try:
     print("\nTesting IPFS add...")
     test_content = f"Test content {uuid.uuid4()}"
     files = {'file': ('test.txt', test_content)}
-    
+
     response = requests.post(
         "http://localhost:9994/api/v0/ipfs/add",
         files=files,
         timeout=10
     )
-    
+
     if response.status_code == 200:
         data = response.json()
         cid = data.get('cid')
         print(f"✅ IPFS add successful! CID: {cid}")
-        
+
         # Now test IPFS cat using the CID
         if cid:
             print("\nTesting IPFS cat...")
@@ -134,7 +134,7 @@ try:
                 f"http://localhost:9994/api/v0/ipfs/cat/{cid}",
                 timeout=10
             )
-            
+
             if cat_response.status_code == 200:
                 # Verify content matches
                 if cat_response.text == test_content:
@@ -143,24 +143,24 @@ try:
                     print(f"❌ IPFS cat returned different content. Expected: '{test_content}', Got: '{cat_response.text}'")
             else:
                 print(f"❌ IPFS cat failed: {cat_response.status_code} - {cat_response.text[:100]}")
-            
+
             # Test IPFS pin
             print("\nTesting IPFS pin add...")
             pin_response = requests.post(
                 f"http://localhost:9994/api/v0/ipfs/pin/add/{cid}",
                 timeout=10
             )
-            
+
             if pin_response.status_code == 200:
                 print(f"✅ IPFS pin add successful!")
-                
+
                 # Test pin list
                 print("\nTesting IPFS pin list...")
                 pin_ls_response = requests.get(
                     f"http://localhost:9994/api/v0/ipfs/pin/ls",
                     timeout=10
                 )
-                
+
                 if pin_ls_response.status_code == 200:
                     pin_data = pin_ls_response.json()
                     pins = pin_data.get('pins', [])

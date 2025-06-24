@@ -25,7 +25,7 @@ try:
     # Import the module first to see initial state
     from ipfs_kit_py.webrtc_streaming import HAVE_WEBRTC as original_webrtc_flag
     print(f"Original webrtc_streaming.HAVE_WEBRTC: {original_webrtc_flag}")
-    
+
     # Patch the module
     import ipfs_kit_py.webrtc_streaming
     ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC = True
@@ -34,7 +34,7 @@ try:
     ipfs_kit_py.webrtc_streaming.HAVE_AV = True
     ipfs_kit_py.webrtc_streaming.HAVE_AIORTC = True
     ipfs_kit_py.webrtc_streaming.HAVE_NOTIFICATIONS = True
-    
+
     # Reload the module
     importlib.reload(ipfs_kit_py.webrtc_streaming)
     print(f"Patched webrtc_streaming.HAVE_WEBRTC: {ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC}")
@@ -46,7 +46,7 @@ try:
     # Import the module to see initial state
     from ipfs_kit_py.webrtc_benchmark import HAVE_WEBRTC as original_benchmark_flag
     print(f"Original webrtc_benchmark.HAVE_WEBRTC: {original_benchmark_flag}")
-    
+
     # Patch the module
     import ipfs_kit_py.webrtc_benchmark
     ipfs_kit_py.webrtc_benchmark.HAVE_WEBRTC = True
@@ -54,7 +54,7 @@ try:
         print(f"Original webrtc_benchmark._can_test_webrtc: {ipfs_kit_py.webrtc_benchmark._can_test_webrtc}")
         ipfs_kit_py.webrtc_benchmark._can_test_webrtc = True
         print(f"Patched webrtc_benchmark._can_test_webrtc: {ipfs_kit_py.webrtc_benchmark._can_test_webrtc}")
-    
+
     # Reload the module
     importlib.reload(ipfs_kit_py.webrtc_benchmark)
 except Exception as e:
@@ -77,35 +77,35 @@ def remove_skip_from_file(file_path):
     try:
         with open(file_path, 'r') as f:
             content = f.read()
-        
+
         # Comment out pytestmark skip lines
         content = re.sub(
-            r'^(\s*pytestmark\s*=\s*pytest\.mark\.skip.*)', 
-            r'# \1', 
-            content, 
+            r'^(\s*pytestmark\s*=\s*pytest\.mark\.skip.*)',
+            r'# \1',
+            content,
             flags=re.MULTILINE
         )
-        
+
         # Comment out @pytest.mark.skip lines
         content = re.sub(
-            r'^(\s*@pytest\.mark\.skip.*)', 
-            r'# \1', 
-            content, 
+            r'^(\s*@pytest\.mark\.skip.*)',
+            r'# \1',
+            content,
             flags=re.MULTILINE
         )
-        
+
         # Comment out @pytest.mark.skipif lines for WebRTC
         content = re.sub(
-            r'^(\s*@pytest\.mark\.skipif\s*\(\s*not\s+_can_test_webrtc.*)', 
-            r'# \1', 
-            content, 
+            r'^(\s*@pytest\.mark\.skipif\s*\(\s*not\s+_can_test_webrtc.*)',
+            r'# \1',
+            content,
             flags=re.MULTILINE
         )
-        
+
         # Write the modified content back
         with open(file_path, 'w') as f:
             f.write(content)
-            
+
         print(f"Removed skip markers from {file_path}")
         return True
     except Exception as e:

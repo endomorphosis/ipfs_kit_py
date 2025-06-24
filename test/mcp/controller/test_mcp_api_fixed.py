@@ -16,7 +16,7 @@ logger = logging.getLogger("mcp-api-tester")
 
 class MCPAPITester:
     """Comprehensive MCP API tester."""
-    
+
     def __init__(self, base_url="http://localhost:9991"):
         """Initialize the API tester with a base URL."""
         self.base_url = base_url
@@ -27,161 +27,161 @@ class MCPAPITester:
             "failed": [],
             "skipped": []
         }
-        
+
     def test_endpoint(self, method, endpoint, expect_status=200, **kwargs):
         """
         Test a specific API endpoint.
-        
+
         Args:
             method: HTTP method (get, post, etc.)
             endpoint: Endpoint to test
             expect_status: Expected HTTP status code
             **kwargs: Arguments for the request method
-            
+
         Returns:
             Response data or error dictionary
         """
         url = f"{self.base_url}{endpoint}"
         method_fn = getattr(self.session, method.lower())
-        
+
         test_name = f"{method.upper()} {endpoint}"
         logger.info(f"Testing: {test_name}")
-        
+
         try:
             start_time = time.time()
             response = method_fn(url, **kwargs)
             elapsed = time.time() - start_time
-            
+
             status_code = response.status_code
-            
+
             try:
                 data = response.json()
                 logger.info(f"Response: {status_code} - {json.dumps(data, indent=2)[:1000]}")
             except:
                 data = {"text": response.text[:1000], "non_json": True}
                 logger.info(f"Response: {status_code} - (Non-JSON) {response.text[:1000]}")
-            
+
             result = {
                 "status_code": status_code,
                 "elapsed": elapsed,
                 "data": data
             }
-            
+
             if status_code == expect_status:
                 logger.info(f"✅ Passed: {test_name} ({elapsed:.3f}s)")
                 self.results["passed"].append({"test": test_name, "result": result})
             else:
                 logger.error(f"❌ Failed: {test_name} - Expected status {expect_status}, got {status_code}")
                 self.results["failed"].append({"test": test_name, "result": result})
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ Error: {test_name} - {e}")
             result = {"error": str(e), "exception": type(e).__name__}
             self.results["failed"].append({"test": test_name, "result": result})
             return result
-    
+
     def test_health(self):
         """Test the health endpoint."""
         return self.test_endpoint("get", "/api/v0/health")
-    
+
     def test_root(self):
         """Test the root endpoint."""
         return self.test_endpoint("get", "/")
-    
+
     def test_api_versions(self):
         """Test the API version endpoints."""
         return self.test_endpoint("get", "/api/v0/versions")
-    
+
     def test_ipfs_version(self):
         """Test the IPFS version endpoint."""
         return self.test_endpoint("get", "/api/v0/ipfs/version")
-    
+
     def test_ipfs_id(self):
         """Test the IPFS ID endpoint."""
         return self.test_endpoint("get", "/api/v0/ipfs/id")
-    
+
     def test_ipfs_add(self):
         """Test the IPFS add endpoint."""
         # Create a simple text file to upload
         test_data = b"Hello, MCP Server! This is a test file."
         files = {"file": ("test.txt", test_data)}
         return self.test_endpoint("post", "/api/v0/ipfs/add", files=files)
-    
+
     def test_ipfs_cat(self, cid="QmPHPs7vLTJN7nB4ryQ6MiQEyF6DmcrdAHJRbQXFXxsdvq"):
         """Test the IPFS cat endpoint with a known CID."""
         return self.test_endpoint("get", f"/api/v0/ipfs/cat/{cid}")
-    
+
     def test_ipfs_cat_query(self, cid="QmPHPs7vLTJN7nB4ryQ6MiQEyF6DmcrdAHJRbQXFXxsdvq"):
         """Test the IPFS cat endpoint with a known CID using query param."""
         return self.test_endpoint("get", f"/api/v0/ipfs/cat?arg={cid}")
-    
+
     def test_ipfs_pin_add(self, cid="QmPHPs7vLTJN7nB4ryQ6MiQEyF6DmcrdAHJRbQXFXxsdvq"):
         """Test the IPFS pin add endpoint."""
         data = {"cid": cid}
         return self.test_endpoint("post", "/api/v0/ipfs/pin/add", json=data)
-    
+
     def test_ipfs_pin_add_query(self, cid="QmPHPs7vLTJN7nB4ryQ6MiQEyF6DmcrdAHJRbQXFXxsdvq"):
         """Test the IPFS pin add endpoint with query param."""
         return self.test_endpoint("post", f"/api/v0/ipfs/pin/add?arg={cid}")
-    
+
     def test_ipfs_pin_ls(self):
         """Test the IPFS pin list endpoint."""
         return self.test_endpoint("get", "/api/v0/ipfs/pin/ls")
-    
+
     def test_ipfs_pin_rm(self, cid="QmPHPs7vLTJN7nB4ryQ6MiQEyF6DmcrdAHJRbQXFXxsdvq"):
         """Test the IPFS pin remove endpoint."""
         data = {"cid": cid}
         return self.test_endpoint("post", "/api/v0/ipfs/pin/rm", json=data)
-    
+
     def test_ipfs_pin_rm_query(self, cid="QmPHPs7vLTJN7nB4ryQ6MiQEyF6DmcrdAHJRbQXFXxsdvq"):
         """Test the IPFS pin remove endpoint with query param."""
         return self.test_endpoint("post", f"/api/v0/ipfs/pin/rm?arg={cid}")
-    
+
     def test_storage_backends(self):
         """Test the storage backends endpoint."""
         return self.test_endpoint("get", "/api/v0/storage/backends")
-    
+
     def test_webrtc_status(self):
         """Test the WebRTC status endpoint."""
         return self.test_endpoint("get", "/api/v0/webrtc/status")
-    
+
     def test_webrtc_check(self):
         """Test the WebRTC dependency check endpoint."""
         return self.test_endpoint("get", "/api/v0/webrtc/check")
-    
+
     def test_libp2p_status(self):
         """Test the libp2p status endpoint."""
         return self.test_endpoint("get", "/api/v0/libp2p/status")
-    
+
     def test_peer_websocket_status(self):
         """Test the peer websocket status endpoint."""
         return self.test_endpoint("get", "/api/v0/peer_websocket/status")
-    
+
     def test_fs_journal_status(self):
         """Test the filesystem journal status endpoint."""
         return self.test_endpoint("get", "/api/v0/fs_journal/status")
-    
+
     def test_daemon_status(self):
         """Test the daemon status endpoint."""
         return self.test_endpoint("get", "/api/v0/daemon/status")
-    
+
     def test_all_endpoints(self):
         """Test all key endpoints."""
         # Basic endpoints
         self.test_root()
         self.test_health()
         self.test_api_versions()
-        
+
         # Daemon status
         self.test_daemon_status()
-        
+
         # IPFS core endpoints
         self.test_ipfs_version()
         self.test_ipfs_id()
         add_result = self.test_ipfs_add()
-        
+
         # If add was successful, use that CID for subsequent tests
         if add_result.get("status_code") == 200 and add_result.get("data", {}).get("success"):
             cid = add_result["data"].get("cid")
@@ -211,44 +211,44 @@ class MCPAPITester:
             self.test_ipfs_pin_ls()
             self.test_ipfs_pin_rm()
             self.test_ipfs_pin_rm_query()
-        
+
         # Storage backends
         self.test_storage_backends()
-        
+
         # Optional controllers
         self.test_webrtc_status()
         self.test_webrtc_check()
         self.test_libp2p_status()
         self.test_peer_websocket_status()
         self.test_fs_journal_status()
-        
+
         return self.generate_report()
-    
+
     def analyze_failures(self):
         """Analyze failures to identify patterns."""
         if not self.results["failed"]:
             return "No failures to analyze"
-            
+
         patterns = {}
         for test in self.results["failed"]:
             result = test["result"]
             error_type = result.get("exception") or str(result.get("status_code"))
-            
+
             if error_type not in patterns:
                 patterns[error_type] = []
-                
+
             patterns[error_type].append(test["test"])
-            
+
         return {
             "error_patterns": patterns,
             "total_failures": len(self.results["failed"]),
             "recommendation": self._generate_fix_recommendations(patterns)
         }
-    
+
     def _generate_fix_recommendations(self, patterns):
         """Generate recommendations based on error patterns."""
         recommendations = []
-        
+
         for error_type, tests in patterns.items():
             if error_type == "ConnectionError":
                 recommendations.append("Check if the MCP server is running and accessible")
@@ -260,14 +260,14 @@ class MCPAPITester:
                 recommendations.append("Method not allowed - check if using correct HTTP method")
             elif error_type == "ConnectionRefusedError":
                 recommendations.append("MCP server is not accepting connections - restart it")
-                
+
         return recommendations
-    
+
     def generate_report(self):
         """Generate a summary report of test results."""
         total_tests = len(self.results["passed"]) + len(self.results["failed"]) + len(self.results["skipped"])
         pass_rate = len(self.results["passed"]) / total_tests * 100 if total_tests > 0 else 0
-        
+
         report = {
             "summary": {
                 "total_tests": total_tests,
@@ -279,7 +279,7 @@ class MCPAPITester:
             "failed_tests": [f['test'] for f in self.results["failed"]],
             "issues": self.analyze_failures() if self.results["failed"] else "No issues detected"
         }
-        
+
         logger.info("\n" + "="*50)
         logger.info("MCP API TEST REPORT")
         logger.info("="*50)
@@ -287,12 +287,12 @@ class MCPAPITester:
         logger.info(f"Passed: {report['summary']['passed']} ({report['summary']['pass_rate']})")
         logger.info(f"Failed: {report['summary']['failed']}")
         logger.info(f"Skipped: {report['summary']['skipped']}")
-        
+
         if report['summary']['failed'] > 0:
             logger.info("\nFailed Tests:")
             for test in report["failed_tests"]:
                 logger.info(f"  - {test}")
-                
+
             logger.info("\nIssue Analysis:")
             if isinstance(report["issues"], dict):
                 for key, value in report["issues"].items():
@@ -308,7 +308,7 @@ class MCPAPITester:
                         logger.info(f"  {key}: {value}")
             else:
                 logger.info(f"  {report['issues']}")
-                
+
         logger.info("="*50)
         return report
 
@@ -323,11 +323,11 @@ def main():
     else:
         # When run under pytest, use default values
         args = parser.parse_args([])
-    
+
     logger.info(f"Testing MCP API at {args.url}")
     tester = MCPAPITester(args.url)
     report = tester.test_all_endpoints()
-    
+
     # Return exit code based on test results
     return 0 if report["summary"]["failed"] == 0 else 1
 

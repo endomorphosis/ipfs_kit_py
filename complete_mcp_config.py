@@ -23,7 +23,7 @@ def create_complete_mcp_config():
     """Create a complete MCP configuration from scratch."""
     # Define the path to the settings file
     settings_path = os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json")
-    
+
     # Get server info to ensure it's running
     try:
         response = requests.get("http://localhost:9994/")
@@ -31,7 +31,7 @@ def create_complete_mcp_config():
     except Exception as e:
         logger.error(f"Error connecting to MCP server: {e}")
         return False
-    
+
     # Define the complete configuration
     complete_config = {
         "mcpServers": {
@@ -186,21 +186,21 @@ def create_complete_mcp_config():
             }
         }
     }
-    
+
     # Add storage-specific tools based on available endpoints
     if 'available_endpoints' in server_info and 'storage' in server_info['available_endpoints']:
         storage_endpoints = server_info['available_endpoints']['storage']
-        
+
         # Add storage backend tools
         for endpoint in storage_endpoints:
             parts = endpoint.split('/')
             if len(parts) >= 4:
                 backend_name = parts[3]  # e.g., "huggingface", "s3", "filecoin"
-                
+
                 # Skip health endpoint
                 if backend_name == "health":
                     continue
-                
+
                 # Status endpoint
                 if "status" in endpoint:
                     complete_config['mcpServers']['ipfs-kit-mcp']['tools'].append({
@@ -224,7 +224,7 @@ def create_complete_mcp_config():
                             }
                         }
                     })
-                
+
                 # Transfer to IPFS
                 if "to_ipfs" in endpoint:
                     complete_config['mcpServers']['ipfs-kit-mcp']['tools'].append({
@@ -254,7 +254,7 @@ def create_complete_mcp_config():
                             }
                         }
                     })
-                
+
                 # Transfer from IPFS
                 if "from_ipfs" in endpoint:
                     complete_config['mcpServers']['ipfs-kit-mcp']['tools'].append({
@@ -288,12 +288,12 @@ def create_complete_mcp_config():
                             }
                         }
                     })
-    
+
     try:
         # Write the configuration to the file, completely replacing the existing content
         with open(settings_path, 'w') as f:
             json.dump(complete_config, f, indent=2)
-        
+
         logger.info(f"Wrote complete MCP configuration to {settings_path}")
         return True
     except Exception as e:
@@ -305,7 +305,7 @@ def create_complete_mcp_config():
 def main():
     """Main function."""
     logger.info("Creating complete MCP configuration...")
-    
+
     if create_complete_mcp_config():
         logger.info("Successfully created complete MCP configuration")
         print("✅ Complete MCP configuration created successfully!")

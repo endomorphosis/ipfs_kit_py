@@ -6,7 +6,7 @@ This module defines the common interface that all storage backends must implemen
 It provides a standardized way to interact with different storage systems,
 including IPFS, Filecoin, S3, Storacha, HuggingFace, and Lassie.
 
-This is part of the effort to modularize storage backends as outlined in 
+This is part of the effort to modularize storage backends as outlined in
 the MCP Server Development Roadmap (Q2 2025).
 """
 
@@ -17,16 +17,16 @@ from typing import Dict, Any, Optional, Union, BinaryIO, List, Tuple
 class AbstractStorageBackend(abc.ABC):
     """
     Abstract base class for all storage backends.
-    
+
     This class defines the common interface that all storage backends must implement.
     Concrete implementations should inherit from this class and implement all abstract methods.
     """
-    
+
     @abc.abstractmethod
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the storage backend with the given configuration.
-        
+
         Args:
             config: Configuration dictionary for the backend
         """
@@ -40,37 +40,37 @@ class AbstractStorageBackend(abc.ABC):
             "delete": {"count": 0, "total_time": 0, "avg_time": 0},
             "list": {"count": 0, "total_time": 0, "avg_time": 0},
         }
-    
+
     @abc.abstractmethod
     def get_name(self) -> str:
         """
         Get the name of the storage backend.
-        
+
         Returns:
             The backend name as a string
         """
         pass
-    
+
     @abc.abstractmethod
     def get_description(self) -> str:
         """
         Get a description of the storage backend.
-        
+
         Returns:
             The backend description as a string
         """
         pass
-    
+
     @abc.abstractmethod
     def is_available(self) -> bool:
         """
         Check if the backend is available for use.
-        
+
         Returns:
             True if the backend is available, False otherwise
         """
         pass
-    
+
     @abc.abstractmethod
     def store(
         self,
@@ -81,13 +81,13 @@ class AbstractStorageBackend(abc.ABC):
     ) -> Dict[str, Any]:
         """
         Store data in the storage backend.
-        
+
         Args:
             data: The data to store (bytes, file-like object, or string)
             container: Optional container/bucket name
             path: Optional path within the container
             options: Additional options for the storage operation
-            
+
         Returns:
             Dict with operation results, including at minimum:
             {
@@ -98,7 +98,7 @@ class AbstractStorageBackend(abc.ABC):
             }
         """
         pass
-    
+
     @abc.abstractmethod
     def retrieve(
         self,
@@ -108,12 +108,12 @@ class AbstractStorageBackend(abc.ABC):
     ) -> Dict[str, Any]:
         """
         Retrieve data from the storage backend.
-        
+
         Args:
             identifier: The content ID or path to retrieve
             container: Optional container/bucket name
             options: Additional options for the retrieval operation
-            
+
         Returns:
             Dict with operation results, including at minimum:
             {
@@ -125,7 +125,7 @@ class AbstractStorageBackend(abc.ABC):
             }
         """
         pass
-    
+
     @abc.abstractmethod
     def delete(
         self,
@@ -135,12 +135,12 @@ class AbstractStorageBackend(abc.ABC):
     ) -> Dict[str, Any]:
         """
         Delete data from the storage backend.
-        
+
         Args:
             identifier: The content ID or path to delete
             container: Optional container/bucket name
             options: Additional options for the delete operation
-            
+
         Returns:
             Dict with operation results, including at minimum:
             {
@@ -151,7 +151,7 @@ class AbstractStorageBackend(abc.ABC):
             }
         """
         pass
-    
+
     @abc.abstractmethod
     def list(
         self,
@@ -161,12 +161,12 @@ class AbstractStorageBackend(abc.ABC):
     ) -> Dict[str, Any]:
         """
         List content in the storage backend.
-        
+
         Args:
             container: Optional container/bucket name
             prefix: Optional prefix to filter results
             options: Additional options for the list operation
-            
+
         Returns:
             Dict with operation results, including at minimum:
             {
@@ -177,7 +177,7 @@ class AbstractStorageBackend(abc.ABC):
             }
         """
         pass
-    
+
     @abc.abstractmethod
     def exists(
         self,
@@ -187,17 +187,17 @@ class AbstractStorageBackend(abc.ABC):
     ) -> bool:
         """
         Check if content exists in the storage backend.
-        
+
         Args:
             identifier: The content ID or path to check
             container: Optional container/bucket name
             options: Additional options for the check operation
-            
+
         Returns:
             True if the content exists, False otherwise
         """
         pass
-    
+
     @abc.abstractmethod
     def get_stats(
         self,
@@ -206,20 +206,20 @@ class AbstractStorageBackend(abc.ABC):
     ) -> Dict[str, Any]:
         """
         Get statistics for content or backend operations.
-        
+
         Args:
             identifier: Optional content ID or path
             options: Additional options for the stats operation
-            
+
         Returns:
             Dict with statistics information
         """
         pass
-    
+
     def _update_perf_stats(self, operation: str, duration: float) -> None:
         """
         Update performance statistics for an operation.
-        
+
         Args:
             operation: The name of the operation (store, retrieve, delete, list)
             duration: The duration of the operation in seconds
@@ -231,7 +231,7 @@ class AbstractStorageBackend(abc.ABC):
             count = stats["count"]
             if count > 0:
                 stats["avg_time"] = float(stats["total_time"]) / count
-    
+
     def format_response(
         self,
         success: bool,
@@ -242,14 +242,14 @@ class AbstractStorageBackend(abc.ABC):
     ) -> Dict[str, Any]:
         """
         Format a standardized response for backend operations.
-        
+
         Args:
             success: Whether the operation was successful
             data: Optional data returned by the operation
             identifier: Optional content ID or path
             details: Optional backend-specific details
             error: Optional error message
-            
+
         Returns:
             Standardized response dictionary
         """
@@ -257,17 +257,17 @@ class AbstractStorageBackend(abc.ABC):
             "success": success,
             "backend": self.get_name(),
         }
-        
+
         if data is not None:
             response["data"] = data
-            
+
         if identifier is not None:
             response["identifier"] = identifier
-            
+
         if details is not None:
             response["details"] = details
-            
+
         if error is not None:
             response["error"] = error
-            
+
         return response

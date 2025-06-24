@@ -563,7 +563,7 @@ class ipfs_kit:
 
         # Initialize libp2p peer if enabled
         self.libp2p = None
-        
+
         # Check if libp2p is enabled and try to initialize it if so
         if enable_libp2p:
             # Try to import libp2p directly to check availability
@@ -572,7 +572,7 @@ class ipfs_kit:
                 libp2p_installed = True
             except ImportError:
                 libp2p_installed = False
-                
+
             # Only attempt setup if it's actually installed
             if libp2p_installed:
                 self._setup_libp2p(resources, metadata)
@@ -798,19 +798,19 @@ class ipfs_kit:
                             ipfs_result = {"success": True, "status": "already_running"}
                     except Exception as e:
                         self.logger.error(f"Alternate daemon check failed: {str(e)}")
-                    
+
                 if not ipfs_result.get("success", False):
                     self.logger.error(f"Failed to start IPFS daemon: {ipfs_result.get('error', 'Unknown error')}")
                 else:
                     self.logger.info(f"IPFS daemon started successfully: {ipfs_result.get('status', 'running')}")
-                    
+
             # Start Lotus daemon if available and auto-start is configured
             if hasattr(self, 'lotus_kit'):
                 # Check if auto-start is enabled for lotus daemon
                 should_start_lotus = False
                 if hasattr(self.lotus_kit, 'auto_start_daemon'):
                     should_start_lotus = self.lotus_kit.auto_start_daemon
-                
+
                 if should_start_lotus:
                     lotus_result = self.lotus_kit.daemon_start()
                     if not lotus_result.get("success", False):
@@ -880,7 +880,7 @@ class ipfs_kit:
             # Check IPFS daemon
             if hasattr(self, 'ipfs'):
                 ipfs_running = False
-                
+
                 # First attempt: try ipfs id as a direct check
                 try:
                     id_result = self.ipfs.run_ipfs_command(["id"], check=False)
@@ -889,7 +889,7 @@ class ipfs_kit:
                         self.logger.debug("IPFS daemon detected as running using 'ipfs id' command")
                 except Exception as e:
                     self.logger.debug(f"Error checking IPFS daemon with 'ipfs id': {str(e)}")
-                
+
                 # Second attempt: use ps command if the first attempt fails
                 if not ipfs_running:
                     try:
@@ -903,14 +903,14 @@ class ipfs_kit:
                                     break
                     except Exception as e:
                         self.logger.debug(f"Error checking IPFS daemon with 'ps': {str(e)}")
-                
+
                 # Third attempt: direct process check
                 if not ipfs_running:
                     try:
                         import subprocess
                         # Try using 'pgrep' to find daemon
-                        pgrep_result = subprocess.run(["pgrep", "-f", "ipfs daemon"], 
-                                                    stdout=subprocess.PIPE, 
+                        pgrep_result = subprocess.run(["pgrep", "-f", "ipfs daemon"],
+                                                    stdout=subprocess.PIPE,
                                                     stderr=subprocess.PIPE,
                                                     check=False)
                         if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
@@ -957,16 +957,16 @@ class ipfs_kit:
                     "running": follow_running,
                     "type": "cluster_follow"
                 }
-                
+
             # Check Lotus daemon if available
             if hasattr(self, 'lotus_kit'):
                 lotus_status = self.lotus_kit.daemon_status()
-                
+
                 # Extract information from the lotus daemon status
                 lotus_running = lotus_status.get("process_running", False)
                 lotus_pid = lotus_status.get("pid", None)
                 lotus_api_ready = lotus_status.get("api_ready", False)
-                
+
                 result["daemons"]["lotus"] = {
                     "running": lotus_running,
                     "type": "lotus_daemon",
@@ -1015,7 +1015,7 @@ class ipfs_kit:
                 service_stopped = self.ipfs_cluster_service.ipfs_cluster_service_stop()
                 result["stopped"]["ipfs_cluster_service"] = service_stopped
                 self.logger.info(f"IPFS Cluster Service stopped: {service_stopped.get('success', False)}")
-                
+
             # Stop Lotus daemon if available (lotus should be stopped before IPFS)
             if hasattr(self, 'lotus_kit'):
                 lotus_stopped = self.lotus_kit.daemon_stop()
@@ -1350,10 +1350,10 @@ class ipfs_kit:
                 self.logger.warning("libp2p package is not installed. Skipping libp2p setup.")
                 self.logger.info("To enable libp2p, install it with: pip install libp2p")
                 return False
-                
+
             # Now that we've verified libp2p is available, import our peer implementation
             from .libp2p_peer import IPFSLibp2pPeer
-            
+
             self.logger.info("Setting up libp2p peer for direct P2P communication...")
             libp2p_config = metadata.get("libp2p_config", {}) if metadata else {}
             identity_path = libp2p_config.get("identity_path")
@@ -1378,7 +1378,7 @@ class ipfs_kit:
                 if hasattr(self, "_filesystem") and self._filesystem is not None
                 else None
             )
-            
+
             # Create the libp2p peer instance
             try:
                 self.libp2p = IPFSLibp2pPeer(
@@ -1391,7 +1391,7 @@ class ipfs_kit:
                     enable_relay=enable_relay,
                     tiered_storage_manager=tiered_storage_manager,
                 )
-                
+
                 # Start discovery if configured
                 if libp2p_config.get("auto_start_discovery", True):
                     cluster_name = (
@@ -1400,14 +1400,14 @@ class ipfs_kit:
                         else "ipfs-kit-cluster"
                     )
                     self.libp2p.start_discovery(rendezvous_string=cluster_name)
-                    
+
                 # Enable relay if configured
                 if enable_relay:
                     self.libp2p.enable_relay()
-                    
+
                 self.logger.info(f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}")
                 return True
-                
+
             except ImportError as e:
                 self.logger.error(f"Failed to create libp2p peer due to missing dependencies: {str(e)}")
                 self.logger.info("Make sure all required libp2p dependencies are installed")
@@ -1447,14 +1447,14 @@ class ipfs_kit:
         operation = f"libp2p_{method_name}"
         correlation_id = kwargs.pop("correlation_id", None)
         result = create_result_dict(operation, correlation_id)
-        
+
         # Check if libp2p is installed
         try:
             import libp2p
             libp2p_installed = True
         except ImportError:
             libp2p_installed = False
-        
+
         if not libp2p_installed:
             return handle_error(
                 result, IPFSError("libp2p is not available. Install with pip install libp2p")
@@ -3100,26 +3100,26 @@ class ipfs_kit:
                 **kwargs
             )  # Assuming list gives pinset for worker
         return {"ipfs_cluster": ipfs_cluster, "ipfs": ipfs_pinset}
-        
+
     def dht_findpeer(self, peer_id, **kwargs):
         """Find a specific peer via the DHT and retrieve addresses.
-        
+
         Args:
             peer_id: The ID of the peer to find
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing peer multiaddresses
         """
         operation = "dht_findpeer"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.dht_findpeer(peer_id)
             result.update(response)
@@ -3127,27 +3127,27 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def dht_findprovs(self, cid, num_providers=None, **kwargs):
         """Find providers for content via the DHT.
-        
+
         Args:
             cid: The content ID to find providers for
             num_providers: Maximum number of providers to find (optional)
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing provider information
         """
         operation = "dht_findprovs"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.dht_findprovs(cid, num_providers=num_providers)
             result.update(response)
@@ -3155,26 +3155,26 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_mkdir(self, path, **kwargs):
         """Create a directory in the MFS (Mutable File System).
-        
+
         Args:
             path: Path to create in the MFS
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result
         """
         operation = "files_mkdir"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.files_mkdir(path, **kwargs)
             result.update(response)
@@ -3182,26 +3182,26 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_ls(self, path=None, **kwargs):
         """List directory contents in the MFS (Mutable File System).
-        
+
         Args:
             path: Path to list (optional, defaults to root)
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing directory contents
         """
         operation = "files_ls"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.files_ls(path, **kwargs)
             result.update(response)
@@ -3209,26 +3209,26 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_stat(self, path, **kwargs):
         """Get file or directory information in the MFS (Mutable File System).
-        
+
         Args:
             path: Path to stat in the MFS
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing file/directory information
         """
         operation = "files_stat"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.files_stat(path, **kwargs)
             result.update(response)
@@ -3669,7 +3669,7 @@ class ipfs_kit:
 
         # Access the module-level HAS_LIBP2P variable
         from ipfs_kit_py.ipfs_kit import HAS_LIBP2P as has_libp2p_module
-        
+
         if enable_libp2p and has_libp2p_module:
             try:
                 if hasattr(self, "libp2p") and self.libp2p:
@@ -4480,7 +4480,7 @@ class IPFSKit:
         import re
         import threading
         from unittest.mock import MagicMock
-        
+
         # Import error handling utilities
         try:
             from .error import IPFSError, IPFSValidationError, create_result_dict, handle_error
@@ -4488,23 +4488,23 @@ class IPFSKit:
             # For standalone testing
             def create_result_dict(*args):
                 return {"success": False}
-                
+
             def handle_error(result, error):
                 result["error"] = str(error)
                 return result
-        
+
         # Try to import libp2p installation utilities
         try:
             from .install_libp2p import check_dependencies, install_dependencies_auto, check_dependency
             self.HAS_LIBP2P = check_dependencies()
         except ImportError:
             self.HAS_LIBP2P = False
-            
+
         # Import websocket peer discovery if available
         try:
             from .websocket_peer_discovery import (
-                PeerWebSocketServer, 
-                PeerWebSocketClient, 
+                PeerWebSocketServer,
+                PeerWebSocketClient,
                 create_peer_info_from_ipfs_kit
             )
             self.HAS_WEBSOCKET_PEER_DISCOVERY = True
@@ -4512,11 +4512,11 @@ class IPFSKit:
         except ImportError:
             self.HAS_WEBSOCKET_PEER_DISCOVERY = False
             self.WEBSOCKET_AVAILABLE = False
-        
+
         # Setup basic logger
         import logging
         self.logger = logging.getLogger("ipfs_kit")
-        
+
         # Initialize mock for testing
         self.ipfs_get = lambda **kwargs: b"test content"
         self.fs = MagicMock()
@@ -6370,24 +6370,24 @@ class IPFSKit:
             Dictionary with operation result information
         """
         result = {"success": False, "operation": "start_ipfs_cluster_follow"}
-        
+
         try:
             # Check if IPFS cluster follow is available
             if not hasattr(self, "ipfs_cluster_follow") or self.ipfs_cluster_follow is None:
                 logger.error("IPFS Cluster Follow component not available")
                 result["error"] = "IPFS Cluster Follow component not available"
                 return result
-            
+
             # Get cluster name from parameters or instance attribute
             cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
             if not cluster_name:
                 logger.error("Missing required parameter: cluster_name")
                 result["error"] = "Missing required parameter: cluster_name"
                 return result
-                
+
             # Determine if we need to initialize first
             should_init = kwargs.get("init", True)
-            
+
             if should_init:
                 # Check if bootstrap_peer is provided
                 bootstrap_peer = kwargs.get("bootstrap_peer")
@@ -6395,7 +6395,7 @@ class IPFSKit:
                     logger.error("Missing required parameter for initialization: bootstrap_peer")
                     result["error"] = "Missing required parameter for initialization: bootstrap_peer"
                     return result
-                    
+
                 # Run initialization first
                 logger.info(f"Initializing IPFS Cluster Follow for cluster: {cluster_name}")
                 init_result = self.ipfs_cluster_follow.ipfs_follow_init(
@@ -6403,37 +6403,37 @@ class IPFSKit:
                     bootstrap_peer=bootstrap_peer,
                     timeout=kwargs.get("timeout", 60)
                 )
-                
+
                 # Check if initialization was successful
                 if not init_result.get("success", False):
                     logger.error(f"Failed to initialize IPFS Cluster Follow: {init_result.get('error', 'Unknown error')}")
                     result["error"] = f"Failed to initialize IPFS Cluster Follow: {init_result.get('error', 'Unknown error')}"
                     result["init_result"] = init_result
                     return result
-                    
+
                 logger.info(f"Successfully initialized IPFS Cluster Follow for cluster: {cluster_name}")
                 result["init_result"] = init_result
-            
+
             # Start the IPFS cluster follow service
             logger.info(f"Starting IPFS Cluster Follow for cluster: {cluster_name}")
             start_result = self.ipfs_cluster_follow.ipfs_follow_start(
                 cluster_name=cluster_name,
                 timeout=kwargs.get("timeout", 30)
             )
-            
+
             # Set the result based on the start operation
             result["success"] = start_result.get("success", False)
             result["start_result"] = start_result
-            
+
             if not result["success"]:
                 error_msg = start_result.get("error", "Unknown error")
                 logger.error(f"Failed to start IPFS Cluster Follow: {error_msg}")
                 result["error"] = f"Failed to start IPFS Cluster Follow: {error_msg}"
             else:
                 logger.info(f"Successfully started IPFS Cluster Follow for cluster: {cluster_name}")
-                
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in start_ipfs_cluster_follow: {str(e)}")
             result["error"] = f"Error in start_ipfs_cluster_follow: {str(e)}"
@@ -6445,25 +6445,25 @@ extend_ipfs_kit(ipfs_kit)
 # Define DHT methods that will be added to the ipfs_kit class
 def dht_findpeer(self, peer_id, **kwargs):
     """Find a specific peer via the DHT and retrieve addresses.
-    
+
     Args:
         peer_id: The ID of the peer to find
         **kwargs: Additional parameters for the operation
-            
+
     Returns:
         Dict with operation result containing peer multiaddresses
     """
     from .error import create_result_dict, handle_error, IPFSError
-    
+
     operation = "dht_findpeer"
     correlation_id = kwargs.get("correlation_id")
     result = create_result_dict(operation, correlation_id)
-    
+
     try:
         # Delegate to the ipfs instance
         if not hasattr(self, "ipfs"):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
-            
+
         # Call the ipfs module's implementation
         response = self.ipfs.dht_findpeer(peer_id)
         result.update(response)
@@ -6474,31 +6474,31 @@ def dht_findpeer(self, peer_id, **kwargs):
 
 def dht_findprovs(self, cid, num_providers=None, **kwargs):
     """Find providers for a CID via the DHT.
-    
+
     Args:
         cid: The Content ID to find providers for
         num_providers: Maximum number of providers to find
         **kwargs: Additional parameters for the operation
-        
+
     Returns:
         Dict with operation result containing provider information
     """
     from .error import create_result_dict, handle_error, IPFSError
-    
+
     operation = "dht_findprovs"
     correlation_id = kwargs.get("correlation_id")
     result = create_result_dict(operation, correlation_id)
-    
+
     try:
         # Delegate to the ipfs instance
         if not hasattr(self, "ipfs"):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
-            
+
         # Build kwargs to pass to ipfs
         ipfs_kwargs = {}
         if num_providers is not None:
             ipfs_kwargs["num_providers"] = num_providers
-            
+
         # Call the ipfs module's implementation
         response = self.ipfs.dht_findprovs(cid, **ipfs_kwargs)
         result.update(response)
@@ -6510,26 +6510,26 @@ def dht_findprovs(self, cid, num_providers=None, **kwargs):
 # IPFS MFS (Mutable File System) Methods
 def files_mkdir(self, path, parents=False, **kwargs):
     """Create a directory in the MFS.
-    
+
     Args:
         path: Path to create in the MFS
         parents: Whether to create parent directories if they don't exist
         **kwargs: Additional parameters for the operation
-        
+
     Returns:
         Dict with operation result
     """
     from .error import create_result_dict, handle_error, IPFSError
-    
+
     operation = "files_mkdir"
     correlation_id = kwargs.get("correlation_id")
     result = create_result_dict(operation, correlation_id)
-    
+
     try:
         # Delegate to the ipfs instance
         if not hasattr(self, "ipfs"):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
-            
+
         # Call the ipfs module's implementation
         response = self.ipfs.files_mkdir(path, parents)
         result.update(response)
@@ -6537,28 +6537,28 @@ def files_mkdir(self, path, parents=False, **kwargs):
         return result
     except Exception as e:
         return handle_error(result, e)
-        
+
 def files_ls(self, path="/", **kwargs):
     """List directory contents in the MFS.
-    
+
     Args:
         path: Directory path in the MFS to list
         **kwargs: Additional parameters for the operation
-        
+
     Returns:
         Dict with operation result containing directory entries
     """
     from .error import create_result_dict, handle_error, IPFSError
-    
+
     operation = "files_ls"
     correlation_id = kwargs.get("correlation_id")
     result = create_result_dict(operation, correlation_id)
-    
+
     try:
         # Delegate to the ipfs instance
         if not hasattr(self, "ipfs"):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
-            
+
         # Call the ipfs module's implementation
         response = self.ipfs.files_ls(path)
         result.update(response)
@@ -6566,28 +6566,28 @@ def files_ls(self, path="/", **kwargs):
         return result
     except Exception as e:
         return handle_error(result, e)
-        
+
 def files_stat(self, path, **kwargs):
     """Get file information from the MFS.
-    
+
     Args:
         path: Path to file or directory in the MFS
         **kwargs: Additional parameters for the operation
-        
+
     Returns:
         Dict with operation result containing file statistics
     """
     from .error import create_result_dict, handle_error, IPFSError
-    
+
     operation = "files_stat"
     correlation_id = kwargs.get("correlation_id")
     result = create_result_dict(operation, correlation_id)
-    
+
     try:
         # Delegate to the ipfs instance
         if not hasattr(self, "ipfs"):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
-            
+
         # Call the ipfs module's implementation
         response = self.ipfs.files_stat(path)
         result.update(response)

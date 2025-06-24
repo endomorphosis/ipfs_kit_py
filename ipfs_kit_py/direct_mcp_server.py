@@ -38,29 +38,29 @@ except ImportError:
 async def lifespan(app: FastAPI):
     """
     FastAPI lifespan event handler.
-    
+
     This function handles startup and shutdown events for the FastAPI app.
     """
     # Startup
     logger.info("MCP server starting up")
-    
+
     # Add any additional startup here
-    
+
     yield
-    
+
     # Shutdown
     logger.info("MCP server shutting down")
-    
+
     # Add any additional cleanup here
 
 
 def create_app(config_path=None):
     """
     Create and configure the FastAPI application.
-    
+
     Args:
         config_path: Optional path to configuration file
-        
+
     Returns:
         Configured FastAPI application
     """
@@ -71,7 +71,7 @@ def create_app(config_path=None):
         version="0.1.0",
         lifespan=lifespan
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -80,7 +80,7 @@ def create_app(config_path=None):
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Root endpoint
     @app.get("/")
     async def root():
@@ -93,7 +93,7 @@ def create_app(config_path=None):
                 "ai_ml": HAS_AI_ML
             }
         }
-    
+
     # Health check endpoint
     @app.get("/health")
     async def health():
@@ -103,11 +103,11 @@ def create_app(config_path=None):
             "status": "healthy",
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         }
-    
+
     # Add main API router
     api_router = APIRouter(prefix="/api/v0")
     app.include_router(api_router)
-    
+
     # If AI/ML is available, initialize and register it
     if HAS_AI_ML:
         try:
@@ -117,47 +117,47 @@ def create_app(config_path=None):
             logger.info("AI/ML components registered with server")
         except Exception as e:
             logger.error(f"Error initializing AI/ML components: {e}")
-    
+
     return app
 
 
 def parse_args():
     """
     Parse command line arguments.
-    
+
     Returns:
         Parsed arguments
     """
     parser = argparse.ArgumentParser(description="IPFS Kit MCP Server")
-    
+
     parser.add_argument(
-        "--host", 
-        type=str, 
+        "--host",
+        type=str,
         default="0.0.0.0",
         help="Host to bind server to"
     )
-    
+
     parser.add_argument(
-        "--port", 
-        type=int, 
-        default=8000, 
+        "--port",
+        type=int,
+        default=8000,
         help="Port to bind server to"
     )
-    
+
     parser.add_argument(
-        "--config", 
-        type=str, 
+        "--config",
+        type=str,
         help="Path to configuration file"
     )
-    
+
     parser.add_argument(
-        "--log-level", 
-        type=str, 
+        "--log-level",
+        type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         default="INFO",
         help="Logging level"
     )
-    
+
     return parser.parse_args()
 
 
@@ -165,17 +165,17 @@ def main():
     """Run the MCP server."""
     # Parse command line arguments
     args = parse_args()
-    
+
     # Configure logging level
     logging.getLogger().setLevel(getattr(logging, args.log_level))
-    
+
     # Create app
     app = create_app(args.config)
-    
+
     # Run server
     uvicorn.run(
-        app, 
-        host=args.host, 
+        app,
+        host=args.host,
         port=args.port,
         log_level=args.log_level.lower()
     )

@@ -2,7 +2,7 @@
 """
 Fix MCP Initialize Endpoint
 
-This script updates the MCP server's initialize endpoint to include 
+This script updates the MCP server's initialize endpoint to include
 complete tool schemas to ensure VS Code and Claude can discover all
 the available tools properly.
 """
@@ -243,15 +243,15 @@ def update_mcp_server_with_sse(server_path):
         # Read the server file
         with open(server_path, 'r') as f:
             content = f.read()
-        
+
         # Find the initialize endpoint
         initialize_pattern = r'@app\.get\("/initialize"\)\s+async def initialize\(\):[^}]+}\s+}\s+}'
         initialize_match = re.search(initialize_pattern, content, re.DOTALL)
-        
+
         if not initialize_match:
             print(f"❌ Could not find the initialize endpoint in {server_path}")
             return False
-        
+
         # Build the new initialize endpoint
         new_initialize_endpoint = '''@app.get("/initialize")
 async def initialize():
@@ -273,14 +273,14 @@ async def initialize():
             "implementationName": "ipfs-kit-py-proxy"
         }
     }'''
-        
+
         # Replace the initialize endpoint
         new_content = content.replace(initialize_match.group(0), new_initialize_endpoint)
-        
+
         # Write the updated file
         with open(server_path, 'w') as f:
             f.write(new_content)
-        
+
         print(f"✅ Updated initialize endpoint in {server_path}")
         print(f"🛠️ Added {len(TOOL_SCHEMAS)} tool schemas to the initialize endpoint")
         return True
@@ -291,7 +291,7 @@ async def initialize():
 if __name__ == "__main__":
     # The MCP server to update
     server_path = "mcp_server_with_sse.py"
-    
+
     if update_mcp_server_with_sse(server_path):
         print("✅ Successfully updated the MCP server with complete tool schemas")
         print("Please restart the MCP server for the changes to take effect:")

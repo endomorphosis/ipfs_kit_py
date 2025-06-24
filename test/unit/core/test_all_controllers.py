@@ -24,7 +24,7 @@ def random_string(length=10):
 def make_request(method, endpoint, **kwargs):
     """Make HTTP request with unified error handling."""
     url = f"{MCP_SERVER_URL}{endpoint}"
-    
+
     try:
         response = getattr(requests, method.lower())(url, **kwargs)
         response.raise_for_status()
@@ -40,13 +40,13 @@ def make_request(method, endpoint, **kwargs):
             "error": str(e),
             "status_code": getattr(e.response, "status_code", None) if hasattr(e, "response") else None
         }
-        
+
         if hasattr(e, 'response') and e.response is not None:
             try:
                 error_data["response"] = e.response.json()
             except ValueError:
                 error_data["response_text"] = e.response.text
-                
+
         return error_data
 
 def test_core_endpoints():
@@ -57,7 +57,7 @@ def test_core_endpoints():
         "operations": make_request("GET", f"{MCP_API_PREFIX}/operations"),
         "daemon_status": make_request("GET", f"{MCP_API_PREFIX}/daemon/status")
     }
-    
+
     # Test daemon operations if the server is running
     if results["daemon_status"]["success"]:
         results["daemon_operations"] = {
@@ -66,41 +66,41 @@ def test_core_endpoints():
             "start_monitor": make_request("POST", f"{MCP_API_PREFIX}/daemon/monitor/start"),
             "stop_monitor": make_request("POST", f"{MCP_API_PREFIX}/daemon/monitor/stop")
         }
-    
+
     return results
 
 def test_ipfs_controller():
     """Test all IPFS controller endpoints."""
     results = {"endpoints": {}}
-    
+
     # Test add with JSON payload - the one endpoint we know works
     add_response = make_request(
-        "POST", 
-        f"{MCP_API_PREFIX}/ipfs/add", 
+        "POST",
+        f"{MCP_API_PREFIX}/ipfs/add",
         json={"content": TEST_CONTENT}
     )
     results["endpoints"]["add_json"] = add_response
-    
+
     # If add was successful, use the CID for other operations
     if add_response["success"] and "cid" in add_response["data"]:
         cid = add_response["data"]["cid"]
         results["test_cid"] = cid
-        
+
         # Test content retrieval
         results["endpoints"]["cat"] = make_request("GET", f"{MCP_API_PREFIX}/ipfs/cat/{cid}")
         results["endpoints"]["get"] = make_request("GET", f"{MCP_API_PREFIX}/ipfs/get/{cid}")
-        
-        # Test pin operations 
+
+        # Test pin operations
         results["endpoints"]["pin"] = make_request("POST", f"{MCP_API_PREFIX}/ipfs/pin", json={"cid": cid})
         results["endpoints"]["pins_list"] = make_request("GET", f"{MCP_API_PREFIX}/ipfs/pins")
         results["endpoints"]["unpin"] = make_request("POST", f"{MCP_API_PREFIX}/ipfs/unpin", json={"cid": cid})
-    
+
     # Test form-based file upload
     with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
         file_content = f"Test file content: {random_string(20)}"
         temp_file.write(file_content.encode())
         temp_file_path = temp_file.name
-    
+
     try:
         with open(temp_file_path, 'rb') as f:
             files = {'file': ('test.txt', f, 'text/plain')}
@@ -108,7 +108,7 @@ def test_ipfs_controller():
                 f"{MCP_SERVER_URL}{MCP_API_PREFIX}/ipfs/add",
                 files=files
             )
-        
+
         if response.status_code == 200:
             results["endpoints"]["add_form"] = {
                 "success": True,
@@ -132,7 +132,7 @@ def test_ipfs_controller():
         }
     finally:
         os.unlink(temp_file_path)
-    
+
     return results
 
 def test_cli_controller():
@@ -140,16 +140,16 @@ def test_cli_controller():
     results = {
         "version": make_request("GET", f"{MCP_API_PREFIX}/cli/version"),
         "command": make_request(
-            "POST", 
-            f"{MCP_API_PREFIX}/cli/command", 
+            "POST",
+            f"{MCP_API_PREFIX}/cli/command",
             json={"command": "ipfs", "args": ["--version"]}
         )
     }
-    
+
     # Additional possible CLI endpoints
     for endpoint in ["help", "commands", "status"]:
         results[endpoint] = make_request("GET", f"{MCP_API_PREFIX}/cli/{endpoint}")
-    
+
     return results
 
 def test_credential_controller():
@@ -159,7 +159,7 @@ def test_credential_controller():
         "info": make_request("GET", f"{MCP_API_PREFIX}/credentials/info"),
         "types": make_request("GET", f"{MCP_API_PREFIX}/credentials/types")
     }
-    
+
     # Test credential operations with a test credential
     test_credential = {
         "service": "test_service",
@@ -167,13 +167,13 @@ def test_credential_controller():
         "key": "test_key_" + random_string(8),
         "secret": "test_secret_" + random_string(16)
     }
-    
+
     results["add"] = make_request(
         "POST",
         f"{MCP_API_PREFIX}/credentials/add",
         json=test_credential
     )
-    
+
     # If add was successful, test deletion
     if results["add"]["success"]:
         results["delete"] = make_request(
@@ -181,7 +181,7 @@ def test_credential_controller():
             f"{MCP_API_PREFIX}/credentials/delete",
             json={"service": test_credential["service"]}
         )
-    
+
     return results
 
 def test_distributed_controller():
@@ -191,7 +191,7 @@ def test_distributed_controller():
         "peers": make_request("GET", f"{MCP_API_PREFIX}/distributed/peers"),
         "ping": make_request("POST", f"{MCP_API_PREFIX}/distributed/ping", json={"peer_id": "test_peer"})
     }
-    
+
     return results
 
 def test_webrtc_controller():
@@ -201,7 +201,7 @@ def test_webrtc_controller():
         "status": make_request("GET", f"{MCP_API_PREFIX}/webrtc/status"),
         "peers": make_request("GET", f"{MCP_API_PREFIX}/webrtc/peers")
     }
-    
+
     return results
 
 def test_fs_journal_controller():
@@ -211,7 +211,7 @@ def test_fs_journal_controller():
         "operations": make_request("GET", f"{MCP_API_PREFIX}/fs_journal/operations"),
         "stats": make_request("GET", f"{MCP_API_PREFIX}/fs_journal/stats")
     }
-    
+
     # Test journal operations
     journal_entry = {
         "operation": "test_operation",
@@ -219,13 +219,13 @@ def test_fs_journal_controller():
         "data": {"test_key": "test_value"},
         "timestamp": time.time()
     }
-    
+
     results["add_entry"] = make_request(
         "POST",
         f"{MCP_API_PREFIX}/fs_journal/add",
         json=journal_entry
     )
-    
+
     return results
 
 def run_all_tests():
@@ -240,11 +240,11 @@ def run_all_tests():
         "fs_journal": test_fs_journal_controller(),
         "timestamp": time.time()
     }
-    
+
     # Count successful endpoints
     success_count = 0
     total_count = 0
-    
+
     def count_successes(results):
         nonlocal success_count, total_count
         if isinstance(results, dict):
@@ -258,25 +258,25 @@ def run_all_tests():
         elif isinstance(results, list):
             for item in results:
                 count_successes(item)
-    
+
     count_successes(all_results)
     all_results["success_rate"] = {
         "successful": success_count,
         "total": total_count,
         "percentage": round(success_count / max(total_count, 1) * 100, 2)
     }
-    
+
     return all_results
 
 def generate_report(results):
     """Generate a human-readable report from the test results."""
     report = "# MCP Server Test Report\n\n"
     report += f"Test run completed at: {time.ctime()}\n\n"
-    
+
     report += "## Success Rate\n\n"
     rate = results["success_rate"]
     report += f"* Successful endpoints: {rate['successful']} / {rate['total']} ({rate['percentage']}%)\n\n"
-    
+
     report += "## Core Functionality\n\n"
     core = results["core"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -284,7 +284,7 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     report += "\n## IPFS Controller\n\n"
     ipfs = results["ipfs"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -292,7 +292,7 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     report += "\n## CLI Controller\n\n"
     cli = results["cli"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -300,7 +300,7 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     report += "\n## Credentials Controller\n\n"
     creds = results["credentials"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -308,7 +308,7 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     report += "\n## Distributed Controller\n\n"
     dist = results["distributed"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -316,7 +316,7 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     report += "\n## WebRTC Controller\n\n"
     webrtc = results["webrtc"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -324,7 +324,7 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     report += "\n## Filesystem Journal Controller\n\n"
     fs_journal = results["fs_journal"]
     report += "| Endpoint | Status |\n|----------|--------|\n"
@@ -332,22 +332,22 @@ def generate_report(results):
         if isinstance(result, dict) and "success" in result:
             status = "✅ Working" if result["success"] else f"❌ Failed ({result.get('status_code', 'unknown')})"
             report += f"| {name} | {status} |\n"
-    
+
     return report
 
 if __name__ == "__main__":
     print("Starting comprehensive MCP server tests...")
     results = run_all_tests()
-    
+
     # Save raw JSON results
     with open("mcp_comprehensive_test_results.json", "w") as f:
         json.dump(results, f, indent=2)
-    
+
     # Generate and save human-readable report
     report = generate_report(results)
     with open("MCP_COMPREHENSIVE_TEST_REPORT.md", "w") as f:
         f.write(report)
-    
+
     print("\nTest Summary:")
     rate = results["success_rate"]
     print(f"Successful endpoints: {rate['successful']} / {rate['total']} ({rate['percentage']}%)")

@@ -40,7 +40,7 @@ def main():
 
     # Explicitly register controllers in custom order
     router = mcp_server.register_controllers()
-    
+
     # Log all registered routes
     logger.info("All registered routes:")
     for route in router.routes:
@@ -83,7 +83,7 @@ def main():
             has_storage_endpoint = True
             logger.info(f"Found storage status endpoint: {route.path} with methods {route.methods}")
             logger.info(f"  Endpoint function: {route.endpoint}")
-    
+
     if not has_storage_endpoint:
         logger.warning("Storage status endpoint not found in registered routes!")
 
@@ -92,11 +92,11 @@ def main():
 
 if __name__ == "__main__":
     app = main()
-    
+
     # Print final status
     print("\nRoute verification complete. To start the server, run:")
     print("uvicorn check_server:app --reload --port 8000")
-    
+
     # Check if we should run the server
     if len(sys.argv) > 1 and sys.argv[1] == "--run":
         print("Starting server...")

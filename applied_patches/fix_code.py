@@ -37,28 +37,28 @@ def find_python_files():
 def fix_file(file_path):
     """Fix common issues in Python files."""
     print(f"Checking {file_path}...")
-    
+
     if is_valid_python(file_path):
         print(f"✓ {file_path} is valid Python")
         return True
-    
+
     print(f"✗ {file_path} has syntax issues, attempting to fix...")
-    
+
     # Read the file
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Fix common issues
     fixed_content = content.replace('</final_file_content>', '')
-    
+
     # Ensure the file ends with a newline
     if not fixed_content.endswith('\n'):
         fixed_content += '\n'
-    
+
     # Write the fixed content
     with open(file_path, 'w') as f:
         f.write(fixed_content)
-    
+
     # Check if file is now valid
     if is_valid_python(file_path):
         print(f"✓ Fixed {file_path}")
@@ -90,16 +90,16 @@ def run_ruff(file_path):
 def main():
     """Main function."""
     create_backup()
-    
+
     python_files = find_python_files()
     print(f"Found {len(python_files)} Python files")
-    
+
     # Process problematic files first
     problematic_files = [
         "ipfs_kit_py/mcp/models/ipfs_model_anyio.py",
         "ipfs_kit_py/mcp/models/storage/filecoin_model_anyio.py"
     ]
-    
+
     for problem_file in problematic_files:
         if os.path.exists(problem_file) and problem_file in python_files:
             print(f"\nHandling known problematic file: {problem_file}")
@@ -107,14 +107,14 @@ def main():
                 run_black(problem_file)
                 run_ruff(problem_file)
             python_files.remove(problem_file)
-    
+
     # Process remaining files
     for file_path in python_files:
         print(f"\nProcessing: {file_path}")
         if fix_file(file_path):
             run_black(file_path)
             run_ruff(file_path)
-    
+
     print("\nAll done! Code in MCP has been formatted with Black and fixed with Ruff.")
     print(f"Original files were backed up to {BACKUP_DIR}")
 

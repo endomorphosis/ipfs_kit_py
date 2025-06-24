@@ -17,7 +17,7 @@ try:
     )
 except ImportError:
     logger.warning("Could not import stream components")
-    
+
     # These will be provided by the placeholder implementations in stream/__init__.py
     from .stream import (
         INetStream, NetStream, StreamError, StreamHandler

@@ -33,11 +33,11 @@ def fix_config_module():
     try:
         import _pytest.config
         from _pytest.config import Config
-        
+
         if not hasattr(_pytest.config, 'Config'):
             _pytest.config.Config = Config
             logger.info("Added 'Config' reference to _pytest.config")
-            
+
         # Add create_terminal_writer to Config class directly
         if not hasattr(Config, 'create_terminal_writer'):
             def create_terminal_writer_static(config=None, file=None):
@@ -67,27 +67,27 @@ def fix_config_module():
                             self.file.flush()
                         return self
                 return MockTerminalWriter()
-                
+
             # Add as static method to Config class
             setattr(Config, 'create_terminal_writer', staticmethod(create_terminal_writer_static))
             logger.info("Added create_terminal_writer method to Config class")
-            
+
             # Also add to module level
             _pytest.config.create_terminal_writer = create_terminal_writer_static
             logger.info("Added create_terminal_writer function to _pytest.config module")
-                
+
         # Fix TerminalReporter if needed
         if '_pytest.terminal' in sys.modules:
             terminal = sys.modules['_pytest.terminal']
             if hasattr(terminal, 'TerminalReporter'):
                 original_init = terminal.TerminalReporter.__init__
-                
+
                 def patched_init(self, config, file=None):
                     self.config = config
                     self.verbosity = getattr(config.option, 'verbose', 0) if hasattr(config, 'option') else 0
                     tw = _pytest.config.create_terminal_writer(config, file)
                     self._tw = tw
-                
+
                 # Patch the init method
                 terminal.TerminalReporter.__init__ = patched_init
                 logger.info("Patched TerminalReporter.__init__")
@@ -103,7 +103,7 @@ def fix_config_module():
             lotus_kit_module.lotus_kit = MagicMock()
             sys.modules["ipfs_kit_py.lotus_kit"] = lotus_kit_module
             logger.info("Created mock lotus_kit module with LOTUS_KIT_AVAILABLE=True")
-            
+
         return True
     except Exception as e:
         logger.error(f"Failed to fix _pytest.config module: {e}")
@@ -117,7 +117,7 @@ def install_meta_path_hook():
             if fullname == '_pytest.config':
                 return importlib.util.find_spec('_pytest.config')
             return None
-            
+
     # Add our hook to sys.meta_path
     sys.meta_path.insert(0, PytestImportFixer())
     logger.info("Installed meta path hook for _pytest.config")

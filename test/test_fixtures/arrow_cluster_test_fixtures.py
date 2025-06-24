@@ -26,7 +26,7 @@ class ArrowMockHelper:
         """Create a mock PyArrow schema with proper attribute access."""
         schema = MagicMock(spec=pa.Schema)
         schema.names = ["cluster_id", "master_id", "updated_at", "nodes", "tasks", "content"]
-        
+
         # Create field mocks with proper type attributes
         fields = {}
         for name in schema.names:
@@ -44,11 +44,11 @@ class ArrowMockHelper:
                 list_type.value_type = struct_type
                 field.type = list_type
             fields[name] = field
-        
+
         # Add field accessor
         schema.__getitem__ = lambda self, key: fields[key]
         schema.field = lambda name: fields[name]
-        
+
         return schema
 
     @staticmethod
@@ -56,17 +56,17 @@ class ArrowMockHelper:
         """Create a mock PyArrow table with proper column access."""
         if schema is None:
             schema = ArrowMockHelper.create_mock_schema()
-        
+
         table = MagicMock(spec=pa.Table)
         table.schema = schema
         table.num_rows = num_rows
         table.column_names = schema.names
-        
+
         # Add columns
         columns = {}
         for name in schema.names:
             column = MagicMock()
-            
+
             # Configure column data based on name
             if name == "cluster_id":
                 column.as_py.return_value = "test-cluster"
@@ -77,15 +77,15 @@ class ArrowMockHelper:
             elif name == "nodes":
                 column.as_py.return_value = [
                     {
-                        "id": "node1", 
-                        "peer_id": "QmNode1", 
+                        "id": "node1",
+                        "peer_id": "QmNode1",
                         "role": "master",
                         "status": "online",
                         "resources": {"cpu_count": 4, "memory_total": 16000000000}
                     },
                     {
-                        "id": "node2", 
-                        "peer_id": "QmNode2", 
+                        "id": "node2",
+                        "peer_id": "QmNode2",
                         "role": "worker",
                         "status": "online",
                         "resources": {"cpu_count": 8, "memory_total": 32000000000}
@@ -120,14 +120,14 @@ class ArrowMockHelper:
                         "providers": ["node1", "node2"]
                     }
                 ]
-                
+
             columns[name] = column
-            
+
         # Define column accessor
         table.column = lambda name: columns[name]
-        
+
         return table
-    
+
     @staticmethod
     def create_mock_array_function():
         """Create a mock function that simulates pa.array for testing."""
@@ -138,7 +138,7 @@ class ArrowMockHelper:
             mock_arr._type = type  # Store type for inspection
             return mock_arr
         return mock_array
-    
+
     @staticmethod
     def create_mock_table_function():
         """Create a mock function that simulates pa.Table.from_arrays."""
@@ -154,32 +154,32 @@ class ArrowMockHelper:
 
 class ArrowClusterStateFixture(unittest.TestCase):
     """Base test fixture for testing Arrow-based cluster state."""
-    
+
     def setUp(self):
         """Set up test environment."""
         # Create a temporary directory for state files
         self.test_dir = tempfile.mkdtemp()
-        
+
         # Define common test parameters
         self.cluster_id = "test-cluster"
         self.node_id = "test-node"
-        
+
         # Create patchers for PyArrow functions
         self.pa_array_patcher = patch("pyarrow.array", ArrowMockHelper.create_mock_array_function())
         self.pa_table_from_arrays_patcher = patch(
             "pyarrow.Table.from_arrays", ArrowMockHelper.create_mock_table_function()
         )
-        
+
         # Start patchers
         self.mock_pa_array = self.pa_array_patcher.start()
         self.mock_pa_table_from_arrays = self.pa_table_from_arrays_patcher.start()
-        
+
         # Create a mock schema
         self.mock_schema = ArrowMockHelper.create_mock_schema()
-        
+
         # Create a mock table
         self.mock_table = ArrowMockHelper.create_mock_table(self.mock_schema)
-        
+
         # Mock plasma store if needed
         self.plasma_mock = None
         if hasattr(pa, "plasma"):
@@ -187,10 +187,10 @@ class ArrowClusterStateFixture(unittest.TestCase):
             self.plasma_mock = self.plasma_patcher.start()
             self.plasma_mock.connect.return_value = MagicMock()
             self.plasma_mock.ObjectID.return_value = MagicMock()
-        
+
         # Import actual module under test (delayed until after patchers are in place)
         from ipfs_kit_py.cluster_state import ArrowClusterState
-        
+
         # Create the state manager
         self.state = ArrowClusterState(
             cluster_id=self.cluster_id,
@@ -200,23 +200,23 @@ class ArrowClusterStateFixture(unittest.TestCase):
             enable_persistence=True,
             plasma_socket="mock_socket"  # Mock socket path
         )
-        
+
         # Replace the state's schema with our mock schema
         self.state.schema = self.mock_schema
-        
+
         # Replace state's table with our mock table (if needed for tests)
         # Uncomment the following line if your tests need a pre-populated table
         # self.state.state_table = self.mock_table
-    
+
     def tearDown(self):
         """Clean up after tests."""
         # Stop patchers
         self.pa_array_patcher.stop()
         self.pa_table_from_arrays_patcher.stop()
-        
+
         if self.plasma_mock is not None:
             self.plasma_patcher.stop()
-        
+
         # Remove the temporary directory
         import shutil
         if os.path.exists(self.test_dir):
@@ -225,7 +225,7 @@ class ArrowClusterStateFixture(unittest.TestCase):
 
 class NodeFixture:
     """Factory for creating test node data."""
-    
+
     @staticmethod
     def create_worker_node(node_id="worker1", online=True, resources=None):
         """Create a worker node test fixture."""
@@ -240,7 +240,7 @@ class NodeFixture:
                 "gpu_count": 2,
                 "gpu_available": True
             }
-            
+
         return {
             "id": node_id,
             "peer_id": f"Qm{node_id}PeerId",
@@ -252,7 +252,7 @@ class NodeFixture:
             "tasks": [],
             "capabilities": ["model_training", "embedding_generation"]
         }
-    
+
     @staticmethod
     def create_master_node(node_id="master", online=True):
         """Create a master node test fixture."""
@@ -266,7 +266,7 @@ class NodeFixture:
             "gpu_count": 4,
             "gpu_available": True
         }
-        
+
         node = NodeFixture.create_worker_node(node_id, online, resources)
         node["role"] = "master"
         node["capabilities"].extend(["cluster_management", "data_orchestration"])
@@ -275,14 +275,14 @@ class NodeFixture:
 
 class TaskFixture:
     """Factory for creating test task data."""
-    
+
     @staticmethod
     def create_training_task(task_id=None, status="pending", priority=5, assigned_to=None):
         """Create a model training task fixture."""
         import uuid
         if task_id is None:
             task_id = f"task-{uuid.uuid4()}"
-            
+
         return {
             "id": task_id,
             "type": "model_training",
@@ -292,20 +292,20 @@ class TaskFixture:
             "updated_at": int(os.path.getmtime(__file__) * 1000),  # Current timestamp in ms
             "assigned_to": assigned_to or "",
             "parameters": {
-                "model": "resnet50", 
-                "epochs": "10", 
+                "model": "resnet50",
+                "epochs": "10",
                 "batch_size": "32"
             },
             "result_cid": ""
         }
-    
+
     @staticmethod
     def create_embedding_task(task_id=None, status="pending", assigned_to=None):
         """Create an embedding generation task fixture."""
         import uuid
         if task_id is None:
             task_id = f"task-{uuid.uuid4()}"
-            
+
         return {
             "id": task_id,
             "type": "embedding_generation",
@@ -327,15 +327,15 @@ if __name__ == "__main__":
     # Create a node fixture
     worker = NodeFixture.create_worker_node()
     print(f"Worker node: {worker['id']}, Role: {worker['role']}")
-    
+
     # Create a task fixture
     task = TaskFixture.create_training_task()
     print(f"Task: {task['id']}, Type: {task['type']}")
-    
+
     # Demonstrate helper class
     schema = ArrowMockHelper.create_mock_schema()
     print(f"Schema fields: {schema.names}")
-    
+
     table = ArrowMockHelper.create_mock_table()
     print(f"Table rows: {table.num_rows}")
     print(f"Node count: {len(table.column('nodes').as_py())}")

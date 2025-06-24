@@ -700,22 +700,22 @@ FILESYSTEM_TOOL_DEFINITIONS = {
 def create_tool_handler(method_name: str, controller: Any, tool_def: Dict[str, Any]) -> Optional[ToolHandler]:
     """
     Create a tool handler for an IPFS method.
-    
+
     Args:
         method_name: Name of the IPFS method
         controller: IPFS controller instance
         tool_def: Tool definition
-        
+
     Returns:
         ToolHandler: Handler for the tool or None if not supported
     """
     if not hasattr(controller, method_name):
         print(f"Warning: Method {method_name} not found in controller")
         return None
-        
+
     # Get the method from the controller
     controller_method = getattr(controller, method_name)
-    
+
     def handle_tool(args):
         """Handle the tool call."""
         try:
@@ -727,13 +727,13 @@ def create_tool_handler(method_name: str, controller: Any, tool_def: Dict[str, A
                     params[name] = args[name]
                 elif "default" in param:
                     params[name] = param["default"]
-                    
+
             # Call the controller method
             result = controller_method(**params)
             return {"result": result}
         except Exception as e:
             return {"error": str(e)}
-    
+
     # Create the tool handler
     handler = {
         "name": tool_def["name"],
@@ -741,18 +741,18 @@ def create_tool_handler(method_name: str, controller: Any, tool_def: Dict[str, A
         "parameters": tool_def["parameters"],
         "handle": handle_tool
     }
-    
+
     return handler
 
 def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], controller: Any) -> Optional[ToolHandler]:
     """
     Create a tool handler for a filesystem integration method.
-    
+
     Args:
         method_name: Name of the filesystem integration method
         tool_def: Tool definition
         controller: IPFS controller instance
-        
+
     Returns:
         ToolHandler: Handler for the tool or None if not supported
     """
@@ -766,35 +766,35 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
         "mount_ipfs_to_fs": "_mount_ipfs_to_fs",
         "unmount_ipfs_from_fs": "_unmount_ipfs_from_fs"
     }
-    
+
     # Get the controller method name for this FS integration method
     controller_method_name = fs_method_mapping.get(method_name)
     if not controller_method_name:
         print(f"Warning: No controller method mapping found for {method_name}")
         return None
-        
+
     # Check if the method exists in the controller
     if not hasattr(controller, controller_method_name):
-        # For methods that don't exist in the controller, add a proxy method 
+        # For methods that don't exist in the controller, add a proxy method
         # that integrates with the rest of the controller's functionality
-        
+
         if method_name == "map_ipfs_to_fs":
             def map_ipfs_to_fs(cid, path, auto_pin=True):
                 """Map an IPFS CID to a virtual filesystem path."""
                 # Ensure the path starts with /ipfs/
                 if not path.startswith("/ipfs/"):
                     path = f"/ipfs/{path.lstrip('/')}"
-                
+
                 # Pin the content if requested
                 if auto_pin:
                     controller.pin_content(cid, recursive=True)
-                
+
                 # Use controller's MFS functionality to create the path
                 controller.make_directory(os.path.dirname(path), parents=True)
-                
+
                 # Create a symlink from the path to the CID
                 controller.remove_file(path, force=True, recursive=False)
-                
+
                 # Save the mapping in a special file
                 mappings_path = "/.fs_mappings"
                 mappings = {}
@@ -804,22 +804,22 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                 except:
                     # Create mappings file if it doesn't exist
                     pass
-                
+
                 # Update mappings
                 mappings[path] = cid
                 controller.write_file(mappings_path, json.dumps(mappings, indent=2))
-                
+
                 return {"path": path, "cid": cid, "mapped": True}
-            
+
             setattr(controller, "_map_ipfs_to_fs", map_ipfs_to_fs)
-            
+
         elif method_name == "unmap_ipfs_from_fs":
             def unmap_ipfs_from_fs(path, auto_unpin=False):
                 """Remove a mapping between IPFS and filesystem."""
                 # Ensure the path starts with /ipfs/
                 if not path.startswith("/ipfs/"):
                     path = f"/ipfs/{path.lstrip('/')}"
-                
+
                 # Get the current mappings
                 mappings_path = "/.fs_mappings"
                 mappings = {}
@@ -828,28 +828,28 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                     mappings = json.loads(mappings_data.get("Content", "{}"))
                 except:
                     return {"error": "No mappings found"}
-                
+
                 if path not in mappings:
                     return {"error": f"Path {path} not found in mappings"}
-                
+
                 # Get the CID for this path
                 cid = mappings[path]
-                
+
                 # Unpin the content if requested
                 if auto_unpin:
                     controller.unpin_content(cid, recursive=True)
-                
+
                 # Remove the path
                 controller.remove_file(path, force=True, recursive=False)
-                
+
                 # Update mappings
                 del mappings[path]
                 controller.write_file(mappings_path, json.dumps(mappings, indent=2))
-                
+
                 return {"path": path, "cid": cid, "unmapped": True}
-            
+
             setattr(controller, "_unmap_ipfs_from_fs", unmap_ipfs_from_fs)
-            
+
         elif method_name == "list_fs_ipfs_mappings":
             def list_fs_ipfs_mappings():
                 """List mappings between filesystem and IPFS."""
@@ -862,25 +862,25 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                 except:
                     # Return empty mappings if file doesn't exist
                     pass
-                
+
                 return {"mappings": mappings}
-            
+
             setattr(controller, "_list_fs_ipfs_mappings", list_fs_ipfs_mappings)
-            
+
         elif method_name == "sync_fs_to_ipfs":
             def sync_fs_to_ipfs(fs_path, ipfs_path, recursive=True):
                 """Synchronize a filesystem directory to IPFS."""
                 # Ensure ipfs_path starts with /ipfs/
                 if not ipfs_path.startswith("/ipfs/"):
                     ipfs_path = f"/ipfs/{ipfs_path.lstrip('/')}"
-                
+
                 # Ensure fs_path exists
                 if not os.path.exists(fs_path):
                     return {"error": f"Filesystem path {fs_path} does not exist"}
-                
+
                 # Create the target directory in IPFS if it doesn't exist
                 controller.make_directory(ipfs_path, parents=True)
-                
+
                 # If fs_path is a directory and recursive is True, sync all contents
                 results = []
                 if os.path.isdir(fs_path) and recursive:
@@ -889,81 +889,81 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                         rel_path = os.path.relpath(root, fs_path)
                         if rel_path == ".":
                             rel_path = ""
-                        
+
                         # Create directories in IPFS
                         for dirname in dirs:
                             ipfs_dir_path = os.path.join(ipfs_path, rel_path, dirname)
                             controller.make_directory(ipfs_dir_path, parents=True)
-                        
+
                         # Copy files to IPFS
                         for filename in files:
                             # Get full paths
                             fs_file_path = os.path.join(root, filename)
                             ipfs_file_path = os.path.join(ipfs_path, rel_path, filename)
-                            
+
                             # Read file content
                             with open(fs_file_path, 'rb') as f:
                                 content = f.read()
-                            
+
                             # Write to IPFS
                             controller.write_file(ipfs_file_path, content.decode('utf-8', errors='replace'))
-                            
+
                             results.append({
                                 "fs_path": fs_file_path,
                                 "ipfs_path": ipfs_file_path,
                                 "size": len(content)
                             })
-                
+
                 # If fs_path is a file, just copy it
                 elif os.path.isfile(fs_path):
                     filename = os.path.basename(fs_path)
                     ipfs_file_path = os.path.join(ipfs_path, filename)
-                    
+
                     # Read file content
                     with open(fs_path, 'rb') as f:
                         content = f.read()
-                    
+
                     # Write to IPFS
                     controller.write_file(ipfs_file_path, content.decode('utf-8', errors='replace'))
-                    
+
                     results.append({
                         "fs_path": fs_path,
                         "ipfs_path": ipfs_file_path,
                         "size": len(content)
                     })
-                
+
                 return {"synced": True, "results": results}
-            
+
             setattr(controller, "_sync_fs_to_ipfs", sync_fs_to_ipfs)
-            
+
         elif method_name == "sync_ipfs_to_fs":
             def sync_ipfs_to_fs(ipfs_path, fs_path, recursive=True):
                 """Synchronize IPFS directory to filesystem."""
                 # Ensure ipfs_path starts with /ipfs/
                 if not ipfs_path.startswith("/ipfs/"):
                     ipfs_path = f"/ipfs/{ipfs_path.lstrip('/')}"
-                
+
                 # Create the target directory in filesystem if it doesn't exist
                 os.makedirs(fs_path, exist_ok=True)
-                
+
                 # Get the IPFS directory listing
                 try:
                     listing = controller.list_files(ipfs_path, long=True)
                 except Exception as e:
                     return {"error": f"Error listing IPFS path: {str(e)}"}
-                
+
                 results = []
-                
+
                 # Process entries
                 entries = listing.get("Entries", [])
                 for entry in entries:
                     name = entry.get("Name", "")
                     type_code = entry.get("Type", 0)
                     is_dir = type_code == 1
-                    
+
                     ipfs_entry_path = os.path.join(ipfs_path, name)
                     fs_entry_path = os.path.join(fs_path, name)
-                    
+
                     if is_dir and recursive:
                         # Create directory and recurse
                         os.makedirs(fs_entry_path, exist_ok=True)
@@ -979,11 +979,11 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                         try:
                             file_data = controller.read_file(ipfs_entry_path)
                             content = file_data.get("Content", "")
-                            
+
                             # Write to filesystem
                             with open(fs_entry_path, 'w') as f:
                                 f.write(content)
-                            
+
                             results.append({
                                 "fs_path": fs_entry_path,
                                 "ipfs_path": ipfs_entry_path,
@@ -999,22 +999,22 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                                 "error": str(e),
                                 "synced": False
                             })
-                
+
                 return {"synced": True, "results": results}
-            
+
             setattr(controller, "_sync_ipfs_to_fs", sync_ipfs_to_fs)
-            
+
         elif method_name == "mount_ipfs_to_fs":
             def mount_ipfs_to_fs(mount_point):
                 """Mount IPFS to a filesystem path."""
                 # This is a more complex operation that requires FUSE
                 # For now, we'll just create a directory and return a message
                 os.makedirs(mount_point, exist_ok=True)
-                
+
                 try:
                     # Try to use the ipfs mount command
                     import subprocess
-                    result = subprocess.run(["ipfs", "mount", "-f", mount_point], 
+                    result = subprocess.run(["ipfs", "mount", "-f", mount_point],
                                           capture_output=True, text=True, check=True)
                     return {
                         "mounted": True,
@@ -1028,16 +1028,16 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                         "error": str(e),
                         "message": "Failed to mount IPFS. Make sure FUSE is installed and ipfs mount is supported."
                     }
-            
+
             setattr(controller, "_mount_ipfs_to_fs", mount_ipfs_to_fs)
-            
+
         elif method_name == "unmount_ipfs_from_fs":
             def unmount_ipfs_from_fs(mount_point):
                 """Unmount IPFS from a filesystem path."""
                 try:
                     # Try to use the fusermount command to unmount
                     import subprocess
-                    result = subprocess.run(["fusermount", "-u", mount_point], 
+                    result = subprocess.run(["fusermount", "-u", mount_point],
                                           capture_output=True, text=True, check=True)
                     return {
                         "unmounted": True,
@@ -1050,13 +1050,13 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                         "error": str(e),
                         "message": "Failed to unmount IPFS. Make sure FUSE is installed."
                     }
-            
+
             setattr(controller, "_unmount_ipfs_from_fs", unmount_ipfs_from_fs)
-    
+
     # If the method exists now (either originally or after adding it), create a handler
     if hasattr(controller, controller_method_name):
         controller_method = getattr(controller, controller_method_name)
-        
+
         def handle_tool(args):
             """Handle the tool call."""
             try:
@@ -1068,13 +1068,13 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
                         params[name] = args[name]
                     elif "default" in param:
                         params[name] = param["default"]
-                        
+
                 # Call the controller method
                 result = controller_method(**params)
                 return {"result": result}
             except Exception as e:
                 return {"error": str(e)}
-        
+
         # Create the tool handler
         handler = {
             "name": tool_def["name"],
@@ -1082,9 +1082,9 @@ def create_fs_integration_handler(method_name: str, tool_def: Dict[str, Any], co
             "parameters": tool_def["parameters"],
             "handle": handle_tool
         }
-        
+
         return handler
-    
+
     return None
 
 def main():
@@ -1102,7 +1102,7 @@ def main():
         "Node Operations": ["get_node_id", "get_version", "get_stats", "check_daemon_status", "get_replication_status"],
     }.items():
         print(f"  {category}: {len(tools)} tools")
-    
+
     print(f"Defined {len(FILESYSTEM_TOOL_DEFINITIONS)} filesystem integration tools")
 
 if __name__ == "__main__":

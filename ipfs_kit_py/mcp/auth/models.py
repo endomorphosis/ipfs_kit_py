@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, validator, root_validator
 class Permission(str, enum.Enum):
     """
     Available permission scopes in the MCP system.
-    
+
     Permissions follow a resource:action pattern.
     """
     # READ permissions
@@ -33,17 +33,17 @@ class Permission(str, enum.Enum):
     READ_LASSIE = "read:lassie"
     READ_HUGGINGFACE = "read:huggingface"
     READ_ADMIN = "read:admin"
-    
+
     # WRITE permissions
     WRITE_BASIC = "write:basic"
     WRITE_IPFS = "write:ipfs"
     WRITE_FILECOIN = "write:filecoin"
     WRITE_STORACHA = "write:storacha"
     WRITE_S3 = "write:s3"
-    WRITE_LASSIE = "write:lassie" 
+    WRITE_LASSIE = "write:lassie"
     WRITE_HUGGINGFACE = "write:huggingface"
     WRITE_ADMIN = "write:admin"
-    
+
     # ADMIN permissions
     ADMIN_USERS = "admin:users"
     ADMIN_ROLES = "admin:roles"
@@ -54,7 +54,7 @@ class Permission(str, enum.Enum):
 class Role(str, enum.Enum):
     """
     User roles in the MCP system.
-    
+
     Each role includes a set of permissions.
     """
     ANONYMOUS = "anonymous"  # Unauthenticated users
@@ -69,7 +69,7 @@ ROLE_PERMISSIONS = {
     Role.ANONYMOUS: [
         Permission.READ_BASIC,
     ],
-    
+
     Role.USER: [
         Permission.READ_BASIC,
         Permission.READ_IPFS,
@@ -81,7 +81,7 @@ ROLE_PERMISSIONS = {
         Permission.WRITE_BASIC,
         Permission.WRITE_IPFS,
     ],
-    
+
     Role.DEVELOPER: [
         Permission.READ_BASIC,
         Permission.READ_IPFS,
@@ -99,7 +99,7 @@ ROLE_PERMISSIONS = {
         Permission.WRITE_LASSIE,
         Permission.WRITE_HUGGINGFACE,
     ],
-    
+
     Role.ADMIN: [
         Permission.READ_BASIC,
         Permission.READ_IPFS,
@@ -121,7 +121,7 @@ ROLE_PERMISSIONS = {
         Permission.ADMIN_ROLES,
         Permission.ADMIN_AUDIT,
     ],
-    
+
     Role.SYSTEM: [
         # System role has all permissions
         *list(Permission),
@@ -153,24 +153,24 @@ BACKEND_PERMISSIONS = {
 def has_backend_permission(role: Role, backend: str, write_access: bool = False) -> bool:
     """
     Check if a role has permission to access a specific backend.
-    
+
     Args:
         role: User role
         backend: Storage backend name
         write_access: Whether write access is required
-    
+
     Returns:
         True if the role has permission to access the backend
     """
     # Admin and system roles have access to all backends
     if role in (Role.ADMIN, Role.SYSTEM):
         return True
-    
+
     # Get permissions for this backend
     backend_perms = BACKEND_PERMISSIONS.get(backend.lower(), [])
     if not backend_perms:
         return False
-    
+
     # Check for required permission (read or write)
     required_perm = backend_perms[1] if write_access and len(backend_perms) > 1 else backend_perms[0]
     return has_permission(role, required_perm)
@@ -189,7 +189,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Model for creating a new user."""
     password: str
-    
+
     @validator('password')
     def password_strength(cls, v):
         """Validate password strength."""
@@ -248,8 +248,8 @@ class APIKeyBase(BaseModel):
 class APIKeyCreate(APIKeyBase):
     """Model for creating a new API key."""
     user_id: str
-    
-    
+
+
 class APIKey(APIKeyBase):
     """Complete API key model."""
     id: str
@@ -332,14 +332,14 @@ class OAuthProvider(str, enum.Enum):
 class BackendPermission(BaseModel):
     """
     Backend-specific permission model.
-    
+
     Controls access to specific storage backends for users or API keys.
     """
     backend_id: str
     read_access: bool = True
     write_access: bool = False
     extra_permissions: Dict[str, bool] = {}
-    
+
     class Config:
         orm_mode = True
 

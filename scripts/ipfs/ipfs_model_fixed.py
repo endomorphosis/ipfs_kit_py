@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class IPFSModel:
     """IPFS Model for the MCP server architecture."""
-    
+
     def __init__(self, ipfs_kit_instance=None, cache_manager=None, credential_manager=None):
         """Initialize the IPFS Model."""
         self.ipfs_kit = ipfs_kit_instance
@@ -29,20 +29,20 @@ class IPFSModel:
             "failure_count": 0
         }
         self._detect_features()
-    
+
     def _detect_features(self):
         """Detect available features."""
         self.webrtc_available = False
         result = self._check_webrtc()
         self.webrtc_available = result.get("webrtc_available", False)
-        
+
     def _check_webrtc(self) -> Dict[str, Any]:
         """Check if WebRTC dependencies are available."""
         result = {
             "webrtc_available": False,
             "dependencies": {}
         }
-        
+
         try:
             # Try to import required modules
             dependencies = ["numpy", "cv2", "av", "aiortc"]
@@ -52,17 +52,17 @@ class IPFSModel:
                     result["dependencies"][dep] = True
                 except ImportError:
                     result["dependencies"][dep] = False
-            
+
             # Check if all dependencies are available
             all_deps_available = all(result["dependencies"].values())
             result["webrtc_available"] = all_deps_available
-            
+
         except Exception as e:
             logger.exception(f"Error checking WebRTC dependencies: {e}")
             result["error"] = str(e)
-            
+
         return result
-    
+
     def check_webrtc_dependencies(self) -> Dict[str, Any]:
         """
         Check if WebRTC dependencies are available.

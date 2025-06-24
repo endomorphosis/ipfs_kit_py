@@ -40,14 +40,14 @@ if "model.isolation_mode" in health_method:
         "model.isolation_mode",
         "getattr(model, 'isolation_mode', self.isolation_mode)"
     )
-    
+
     # Update the content
     content = content.replace(health_method, fixed_health_method)
-    
+
     # Write the modified content back to the file
     with open(server_bridge_path, 'w') as f:
         f.write(content)
-    
+
     print(f"✅ Fixed health method in {server_bridge_path}")
 else:
     print(f"✅ No issues found with health method in {server_bridge_path}")

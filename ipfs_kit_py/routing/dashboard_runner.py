@@ -47,30 +47,30 @@ def parse_args():
 async def main():
     """Main entry point for the dashboard runner."""
     args = parse_args()
-    
+
     try:
         # Import dashboard components
         from ipfs_kit_py.routing.dashboard import (
             create_dashboard_app, DashboardSettings
         )
-        
+
         # Load configuration if provided
         config = {}
         if args.config and os.path.exists(args.config):
             import json
             with open(args.config, 'r') as f:
                 config = json.load(f)
-        
+
         # Create dashboard settings
         settings = DashboardSettings(
             debug=args.debug,
             routing_data_dir=config.get('routing_data_dir', None),
             **config.get('dashboard', {})
         )
-        
+
         # Create dashboard app
         app = create_dashboard_app(settings)
-        
+
         # Start the dashboard
         config = uvicorn.Config(
             app=app,
@@ -82,7 +82,7 @@ async def main():
         server = uvicorn.Server(config)
         logger.info(f"Starting routing dashboard on http://{args.host}:{args.port}")
         await server.serve()
-        
+
     except Exception as e:
         logger.error(f"Error starting dashboard: {e}", exc_info=True)
         sys.exit(1)

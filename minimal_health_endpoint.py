@@ -85,7 +85,7 @@ async def health():
             "ipfs": True,
             "storage_manager": True,
             "filecoin": True,
-            "huggingface": True, 
+            "huggingface": True,
             "storacha": True,
             "lassie": True,
             "s3": True
@@ -134,7 +134,7 @@ async def health():
 def main():
     """Run the minimal health endpoint server."""
     logger.info(f"Starting Minimal MCP Health Endpoint on {args.host}:{args.port}")
-    
+
     uvicorn.run(
         app,
         host=args.host,

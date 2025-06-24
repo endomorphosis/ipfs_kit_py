@@ -726,7 +726,7 @@ class TestHighLevelAPIJournalMonitoring(unittest.TestCase):
                 timeframe_hours=timeframe_hours,
                 output_dir=output_dir
             )
-            
+
             # Instead, use the fixed paths we defined earlier
             return {
                 "success": True,

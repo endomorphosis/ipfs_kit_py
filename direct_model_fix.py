@@ -2,7 +2,7 @@
 """
 Direct Model Fix
 
-This script directly patches the IPFSModel class with the required methods 
+This script directly patches the IPFSModel class with the required methods
 instead of relying on the initializer which is having issues.
 """
 
@@ -21,35 +21,35 @@ logger = logging.getLogger("direct_model_fix")
 
 def directly_inject_methods():
     """
-    Directly inject methods into the IPFSModel class by extracting them from 
+    Directly inject methods into the IPFSModel class by extracting them from
     the ipfs_model_extensions module.
     """
     try:
         # Import the IPFSModel class
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
         logger.info("Successfully imported IPFSModel class")
-        
+
         # Import the extensions module
         extensions_module = importlib.import_module('ipfs_kit_py.mcp.models.ipfs_model_extensions')
         logger.info("Successfully imported ipfs_model_extensions module")
-        
+
         # Get the add_ipfs_model_extensions function
         add_extensions_func = getattr(extensions_module, 'add_ipfs_model_extensions')
         logger.info("Found add_ipfs_model_extensions function")
-        
+
         # Extract the method definitions directly from the source code
         methods = {}
         source_code = inspect.getsource(add_extensions_func)
-        
+
         # Directly define the methods we need
         def add_content(self, content, filename=None, pin=True):
             """Add content to IPFS."""
             if hasattr(self.ipfs_kit, 'add'):
                 if isinstance(content, str):
                     content = content.encode('utf-8')
-                
+
                 result = self.ipfs_kit.add(content, filename=filename if filename else None, pin=pin)
-                
+
                 # Handle different result formats
                 if isinstance(result, dict):
                     cid = result.get('Hash', result.get('cid', None))
@@ -57,7 +57,7 @@ def directly_inject_methods():
                 else:
                     cid = str(result)
                     size = len(content)
-                
+
                 return {
                     "success": True,
                     "cid": cid,
@@ -71,7 +71,7 @@ def directly_inject_methods():
                     "size": len(content) if isinstance(content, bytes) else len(content.encode('utf-8')),
                     "simulation": True
                 }
-        
+
         def cat(self, cid):
             """Retrieve content from IPFS."""
             if hasattr(self.ipfs_kit, 'cat'):
@@ -87,7 +87,7 @@ def directly_inject_methods():
                     "content": f"Simulated content for {cid}",
                     "simulation": True
                 }
-        
+
         def pin_add(self, cid, recursive=True):
             """Pin content in IPFS."""
             if hasattr(self.ipfs_kit, 'pin_add'):
@@ -96,7 +96,7 @@ def directly_inject_methods():
             else:
                 # Simulation mode
                 return {"success": True, "simulation": True}
-        
+
         def pin_rm(self, cid, recursive=True):
             """Remove pin from IPFS."""
             if hasattr(self.ipfs_kit, 'pin_rm'):
@@ -105,7 +105,7 @@ def directly_inject_methods():
             else:
                 # Simulation mode
                 return {"success": True, "simulation": True}
-        
+
         def pin_ls(self, cid=None, type="all"):
             """List pins in IPFS."""
             pins = []
@@ -124,13 +124,13 @@ def directly_inject_methods():
                         'cid': f"QmSimPin{i}",
                         'type': 'recursive'
                     })
-            
+
             return {
                 "success": True,
                 "pins": pins,
                 "count": len(pins)
             }
-        
+
         def swarm_peers(self):
             """List peers connected to the IPFS node."""
             peers = []
@@ -146,13 +146,13 @@ def directly_inject_methods():
                     {"Peer": "QmSimPeer1", "Addr": "/ip4/127.0.0.1/tcp/4001"},
                     {"Peer": "QmSimPeer2", "Addr": "/ip4/127.0.0.1/tcp/4002"}
                 ]
-            
+
             return {
                 "success": True,
                 "peers": peers,
                 "peer_count": len(peers)
             }
-        
+
         def swarm_connect(self, peer_addr):
             """Connect to a peer."""
             if hasattr(self.ipfs_kit, 'swarm_connect'):
@@ -161,7 +161,7 @@ def directly_inject_methods():
             else:
                 # Simulation mode
                 return {"success": True, "simulation": True}
-        
+
         def swarm_disconnect(self, peer_addr):
             """Disconnect from a peer."""
             if hasattr(self.ipfs_kit, 'swarm_disconnect'):
@@ -170,7 +170,7 @@ def directly_inject_methods():
             else:
                 # Simulation mode
                 return {"success": True, "simulation": True}
-        
+
         def storage_transfer(self, source, destination, identifier):
             """Transfer content between storage backends."""
             if hasattr(self, 'storage_manager') and self.storage_manager:
@@ -190,7 +190,7 @@ def directly_inject_methods():
                     "destinationId": f"{destination}_{hash(identifier) % 1000000}",
                     "simulation": True
                 }
-        
+
         def get_version(self):
             """Get IPFS version information."""
             if hasattr(self.ipfs_kit, 'version'):
@@ -209,7 +209,7 @@ def directly_inject_methods():
                     },
                     "simulation": True
                 }
-        
+
         # Attach methods to the IPFSModel class
         methods_to_attach = {
             'add_content': add_content,
@@ -223,18 +223,18 @@ def directly_inject_methods():
             'storage_transfer': storage_transfer,
             'get_version': get_version
         }
-        
+
         for name, method in methods_to_attach.items():
             setattr(IPFSModel, name, method)
             logger.info(f"Attached method {name} to IPFSModel class")
-        
+
         # Verify that methods are attached
         for name in methods_to_attach:
             if hasattr(IPFSModel, name):
                 logger.info(f"Verified method {name} is attached to IPFSModel class")
             else:
                 logger.warning(f"Method {name} NOT found on IPFSModel class")
-        
+
         # Create an instance to check instance methods
         model = IPFSModel()
         for name in methods_to_attach:
@@ -242,7 +242,7 @@ def directly_inject_methods():
                 logger.info(f"Verified method {name} is accessible on IPFSModel instance")
             else:
                 logger.warning(f"Method {name} NOT found on IPFSModel instance")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error directly injecting methods: {e}")
@@ -253,12 +253,12 @@ def main():
     Main function to directly fix the IPFSModel class.
     """
     logger.info("Starting direct model fix...")
-    
+
     # Directly inject methods
     if directly_inject_methods():
         logger.info("Successfully injected methods directly into IPFSModel class")
     else:
         logger.error("Failed to inject methods directly into IPFSModel class")
-    
+
 if __name__ == "__main__":
     main()

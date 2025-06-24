@@ -46,17 +46,17 @@ def backup_script(script_path):
     if not path.exists():
         print(f"Skipping {script_path} - file not found")
         return False
-        
+
     # Read the original content
     with open(path, 'r') as f:
         content = f.read()
-    
+
     # Create a backup with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = path.with_suffix(f".py.bak_{timestamp}")
     shutil.copy2(path, backup_path)
     print(f"Created backup: {backup_path}")
-    
+
     # Create a new version with a header comment
     header = f'''#!/usr/bin/env python3
 """
@@ -73,27 +73,27 @@ Backup of the original script is at: {os.path.basename(backup_path)}
 # Original content follows:
 
 '''
-    
+
     with open(path, 'w') as f:
         f.write(header + content)
-    
+
     print(f"Updated {script_path} with deprecation notice")
     return True
 
 def main():
     """Main function to back up redundant scripts."""
     print("Backing up redundant MCP server scripts...")
-    
+
     success_count = 0
     for script in REDUNDANT_SCRIPTS:
         if backup_script(script):
             success_count += 1
-    
+
     print(f"\nBackup complete. Processed {success_count} of {len(REDUNDANT_SCRIPTS)} scripts.")
     print(f"The following scripts were preserved (not modified):")
     for script in PRESERVE_SCRIPTS:
         print(f"  - {script}")
-    
+
     print("\nTo restore any file, rename the .bak version back to .py")
     print("To clean up completely, you can delete the .bak files once you're confident")
     print("that the unified script is working correctly.")

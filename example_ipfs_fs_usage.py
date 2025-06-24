@@ -19,11 +19,11 @@ def mcp_request(endpoint, method="GET", data=None):
         response = requests.get(url)
     else:
         response = requests.post(url, json=data)
-    
+
     if response.status_code != 200:
         print(f"Error: {response.status_code}")
         return None
-    
+
     return response.json()
 
 # Check server health

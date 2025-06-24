@@ -23,17 +23,17 @@ logger = logging.getLogger("mcp_compatibility")
 
 def add_compatibility_methods():
     """Add compatibility methods to ipfs_kit class for MCP server testing."""
-    
+
     from ipfs_kit_py import ipfs_kit
 
     logger.info("Adding compatibility methods to ipfs_kit for MCP server testing")
-    
+
     # Add _start_daemon method if it doesn't exist
     if not hasattr(ipfs_kit, '_start_daemon'):
         def _start_daemon(self, daemon_type):
             """Start a daemon of the specified type."""
             logger.info(f"Starting {daemon_type} daemon via compatibility layer")
-            
+
             if daemon_type == 'ipfs':
                 # Use our ipfs.py implementation
                 if hasattr(self, 'ipfs') and hasattr(self.ipfs, 'daemon_start'):
@@ -47,7 +47,7 @@ def add_compatibility_methods():
                         "error": "ipfs attribute or daemon_start method not found",
                         "error_type": "NotImplemented"
                     }
-            
+
             elif daemon_type == 'ipfs_cluster_service':
                 # Cluster service functionality
                 if hasattr(self, 'ipfs_cluster_service') and hasattr(self.ipfs_cluster_service, 'daemon_start'):
@@ -59,7 +59,7 @@ def add_compatibility_methods():
                         "error": "ipfs_cluster_service not available",
                         "error_type": "NotImplemented"
                     }
-            
+
             elif daemon_type == 'ipfs_cluster_follow':
                 # Cluster follow functionality
                 if hasattr(self, 'ipfs_cluster_follow') and hasattr(self.ipfs_cluster_follow, 'daemon_start'):
@@ -71,7 +71,7 @@ def add_compatibility_methods():
                         "error": "ipfs_cluster_follow not available",
                         "error_type": "NotImplemented"
                     }
-            
+
             else:
                 logger.error(f"Unknown daemon type: {daemon_type}")
                 return {
@@ -79,21 +79,21 @@ def add_compatibility_methods():
                     "error": f"Unknown daemon type: {daemon_type}",
                     "error_type": "InvalidDaemonType"
                 }
-        
+
         # Add the method to the class
         setattr(ipfs_kit, '_start_daemon', _start_daemon)
         # Critically, also patch the method to the actual instances too
         for instance in getattr(ipfs_kit, '_instances', []):
             setattr(instance, '_start_daemon', MethodType(_start_daemon, instance))
-            
+
         logger.info("Added _start_daemon method to ipfs_kit class and instances")
-    
+
     # Add _stop_daemon method if it doesn't exist
     if not hasattr(ipfs_kit, '_stop_daemon'):
         def _stop_daemon(self, daemon_type):
             """Stop a daemon of the specified type."""
             logger.info(f"Stopping {daemon_type} daemon via compatibility layer")
-            
+
             if daemon_type == 'ipfs':
                 # Use our ipfs.py implementation
                 if hasattr(self, 'ipfs') and hasattr(self.ipfs, 'daemon_stop'):
@@ -107,7 +107,7 @@ def add_compatibility_methods():
                         "error": "ipfs attribute or daemon_stop method not found",
                         "error_type": "NotImplemented"
                     }
-            
+
             elif daemon_type == 'ipfs_cluster_service':
                 # Cluster service functionality
                 if hasattr(self, 'ipfs_cluster_service') and hasattr(self.ipfs_cluster_service, 'daemon_stop'):
@@ -119,7 +119,7 @@ def add_compatibility_methods():
                         "error": "ipfs_cluster_service not available",
                         "error_type": "NotImplemented"
                     }
-            
+
             elif daemon_type == 'ipfs_cluster_follow':
                 # Cluster follow functionality
                 if hasattr(self, 'ipfs_cluster_follow') and hasattr(self.ipfs_cluster_follow, 'daemon_stop'):
@@ -131,7 +131,7 @@ def add_compatibility_methods():
                         "error": "ipfs_cluster_follow not available",
                         "error_type": "NotImplemented"
                     }
-            
+
             else:
                 logger.error(f"Unknown daemon type: {daemon_type}")
                 return {
@@ -139,23 +139,23 @@ def add_compatibility_methods():
                     "error": f"Unknown daemon type: {daemon_type}",
                     "error_type": "InvalidDaemonType"
                 }
-        
+
         # Add the method to the class
         setattr(ipfs_kit, '_stop_daemon', _stop_daemon)
         # Also patch existing instances
         for instance in getattr(ipfs_kit, '_instances', []):
             setattr(instance, '_stop_daemon', MethodType(_stop_daemon, instance))
-            
+
         logger.info("Added _stop_daemon method to ipfs_kit class and instances")
-    
+
     # Fix check_daemon_status to handle daemon_type parameter
     original_check_daemon_status = getattr(ipfs_kit, 'check_daemon_status', None)
-    
+
     if original_check_daemon_status:
         def check_daemon_status_wrapper(self, daemon_type=None):
             """Wrapper for check_daemon_status to handle daemon_type parameter."""
             logger.info(f"Checking daemon status via compatibility layer for: {daemon_type}")
-            
+
             # Check all daemons if no specific type is requested
             if daemon_type is None:
                 daemons = {}
@@ -168,13 +168,13 @@ def add_compatibility_methods():
                             "error": str(e),
                             "error_type": "Error"
                         }
-                
+
                 return {
                     "success": True,
                     "daemons": daemons,
                     "timestamp": getattr(self, '_last_check_time', 0)
                 }
-            
+
             # Handle specific daemon types
             if daemon_type == 'ipfs':
                 # Only check IPFS daemon
@@ -195,7 +195,7 @@ def add_compatibility_methods():
                         "error": str(e),
                         "error_type": "Error"
                     }
-                    
+
             elif daemon_type == 'ipfs_cluster_service':
                 # Check cluster service
                 try:
@@ -213,7 +213,7 @@ def add_compatibility_methods():
                         "error": str(e),
                         "error_type": "Error"
                     }
-                    
+
             elif daemon_type == 'ipfs_cluster_follow':
                 # Check cluster follow
                 try:
@@ -231,22 +231,22 @@ def add_compatibility_methods():
                         "error": str(e),
                         "error_type": "Error"
                     }
-                    
+
             else:
                 return {
-                    "success": False, 
+                    "success": False,
                     "error": f"Unknown daemon type: {daemon_type}",
                     "error_type": "InvalidDaemonType"
                 }
-        
+
         # Replace the method with our wrapper
         setattr(ipfs_kit, 'check_daemon_status', check_daemon_status_wrapper)
         # Also patch existing instances
         for instance in getattr(ipfs_kit, '_instances', []):
             setattr(instance, 'check_daemon_status', MethodType(check_daemon_status_wrapper, instance))
-            
+
         logger.info("Replaced check_daemon_status with compatible wrapper on class and instances")
-    
+
     # Add daemon health monitor methods if they don't exist
     if not hasattr(ipfs_kit, 'start_daemon_health_monitor'):
         def start_daemon_health_monitor(self, check_interval=60, auto_restart=True):
@@ -257,14 +257,14 @@ def add_compatibility_methods():
                 "success": True,
                 "message": "Daemon health monitor started (compatibility mode)"
             }
-        
+
         setattr(ipfs_kit, 'start_daemon_health_monitor', start_daemon_health_monitor)
         # Also patch existing instances
         for instance in getattr(ipfs_kit, '_instances', []):
             setattr(instance, 'start_daemon_health_monitor', MethodType(start_daemon_health_monitor, instance))
-            
+
         logger.info("Added start_daemon_health_monitor method to class and instances")
-    
+
     if not hasattr(ipfs_kit, 'stop_daemon_health_monitor'):
         def stop_daemon_health_monitor(self):
             """Stop monitoring daemon health."""
@@ -274,41 +274,41 @@ def add_compatibility_methods():
                 "success": True,
                 "message": "Daemon health monitor stopped (compatibility mode)"
             }
-        
+
         setattr(ipfs_kit, 'stop_daemon_health_monitor', stop_daemon_health_monitor)
         # Also patch existing instances
         for instance in getattr(ipfs_kit, '_instances', []):
             setattr(instance, 'stop_daemon_health_monitor', MethodType(stop_daemon_health_monitor, instance))
-            
+
         logger.info("Added stop_daemon_health_monitor method to class and instances")
-    
+
     if not hasattr(ipfs_kit, 'is_daemon_health_monitor_running'):
         def is_daemon_health_monitor_running(self):
             """Check if daemon health monitor is running."""
             return getattr(self, '_monitor_running', False)
-        
+
         setattr(ipfs_kit, 'is_daemon_health_monitor_running', is_daemon_health_monitor_running)
         # Also patch existing instances
         for instance in getattr(ipfs_kit, '_instances', []):
             setattr(instance, 'is_daemon_health_monitor_running', MethodType(is_daemon_health_monitor_running, instance))
-            
+
         logger.info("Added is_daemon_health_monitor_running method to class and instances")
-    
+
     # Add auto_start_daemons attribute if it doesn't exist
     if not hasattr(ipfs_kit, 'auto_start_daemons'):
         setattr(ipfs_kit, 'auto_start_daemons', True)
-        
+
     # Add daemon_restart_history attribute if it doesn't exist
     if not hasattr(ipfs_kit, 'daemon_restart_history'):
         setattr(ipfs_kit, 'daemon_restart_history', [])
-        
+
     # Add tracking for instances if it doesn't exist
     if not hasattr(ipfs_kit, '_instances'):
         setattr(ipfs_kit, '_instances', [])
-    
+
     # Monkey patch the ipfs_kit.__init__ to track instances
     original_init = ipfs_kit.__init__
-    
+
     def patched_init(self, *args, **kwargs):
         """Patched init to track instances for compatibility monkey patching."""
         original_init(self, *args, **kwargs)
@@ -317,7 +317,7 @@ def add_compatibility_methods():
         if self not in instances:
             instances.append(self)
             setattr(ipfs_kit, '_instances', instances)
-            
+
         # Add all our compatibility methods to the instance
         if not hasattr(self, '_start_daemon'):
             setattr(self, '_start_daemon', MethodType(_start_daemon, self))
@@ -331,20 +331,20 @@ def add_compatibility_methods():
             setattr(self, 'is_daemon_health_monitor_running', MethodType(is_daemon_health_monitor_running, self))
         if hasattr(ipfs_kit, 'check_daemon_status') and not callable(getattr(self, 'check_daemon_status', None)):
             setattr(self, 'check_daemon_status', MethodType(check_daemon_status_wrapper, self))
-    
+
     ipfs_kit.__init__ = patched_init
     logger.info("Patched ipfs_kit.__init__ to track instances and add compatibility methods")
-            
+
     logger.info("Compatibility layer setup complete")
 
 def patch_mcp_server():
     """Patch the MCP server to use our compatibility layer."""
     try:
         from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
-        
+
         # Store original method
         original_start_daemon = MCPServer.start_daemon
-        
+
         # Create patched method
         async def patched_start_daemon(self, daemon_type):
             """
@@ -357,7 +357,7 @@ def patch_mcp_server():
                     "error": f"Invalid daemon type: {daemon_type}.",
                     "error_type": "InvalidDaemonType"
                 }
-            
+
             # Try to start the daemon directly with the ipfs module
             if daemon_type == 'ipfs' and hasattr(self.ipfs_kit, 'ipfs'):
                 try:
@@ -374,17 +374,17 @@ def patch_mcp_server():
                         "error": f"Error starting {daemon_type} daemon: {str(e)}",
                         "error_type": "DaemonStartError"
                     }
-            
+
             # Fall back to original method
             return await original_start_daemon(self, daemon_type)
-        
+
         # Replace the method
         MCPServer.start_daemon = patched_start_daemon
         logger.info("Patched MCPServer.start_daemon method")
-        
+
         # Also patch stop_daemon
         original_stop_daemon = MCPServer.stop_daemon
-        
+
         async def patched_stop_daemon(self, daemon_type):
             """
             Patched method to bypass UnsupportedOperation check.
@@ -396,7 +396,7 @@ def patch_mcp_server():
                     "error": f"Invalid daemon type: {daemon_type}.",
                     "error_type": "InvalidDaemonType"
                 }
-            
+
             # Try to stop the daemon directly with the ipfs module
             if daemon_type == 'ipfs' and hasattr(self.ipfs_kit, 'ipfs'):
                 try:
@@ -413,14 +413,14 @@ def patch_mcp_server():
                         "error": f"Error stopping {daemon_type} daemon: {str(e)}",
                         "error_type": "DaemonStopError"
                     }
-            
+
             # Fall back to original method
             return await original_stop_daemon(self, daemon_type)
-        
+
         # Replace the method
         MCPServer.stop_daemon = patched_stop_daemon
         logger.info("Patched MCPServer.stop_daemon method")
-        
+
     except ImportError:
         logger.warning("Could not import MCPServer to patch daemon management methods")
 

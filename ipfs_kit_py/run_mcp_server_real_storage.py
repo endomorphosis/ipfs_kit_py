@@ -69,18 +69,18 @@ def create_app():
         description="Model-Controller-Persistence Server for IPFS Kit with real storage backends",
         version="0.1.0"
     )
-    
+
     # Import MCP server
     try:
         from ipfs_kit_py.mcp.server_bridge import MCPServer
-        
+
         # Create MCP server
         mcp_server = MCPServer(
             debug_mode=debug_mode,
             isolation_mode=isolation_mode,
             persistence_path=os.path.expanduser(persistence_path)
         )
-        
+
         # Register controllers
         from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController
         from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManagerController
@@ -89,11 +89,11 @@ def create_app():
         from ipfs_kit_py.mcp.controllers.storage.storacha_controller import StorachaController
         from ipfs_kit_py.mcp.controllers.storage.lassie_controller import LassieController
         from ipfs_kit_py.mcp.controllers.storage.s3_controller import S3Controller
-        
+
         # Import models
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
         from ipfs_kit_py.mcp.models.storage_manager import StorageManager
-        
+
         # Create and register models
         # Import ipfs_kit for model initialization
         try:
@@ -102,20 +102,20 @@ def create_app():
         except ImportError:
             ipfs_instance = None
             logger.warning("Could not import ipfs_kit, using None as instance")
-            
+
         # Create config for model
         ipfs_config = {
             "ipfs_host": mcp_server.ipfs_host,
             "ipfs_port": mcp_server.ipfs_port,
             "debug_mode": debug_mode
         }
-            
+
         ipfs_model = IPFSModel(
             ipfs_kit_instance=ipfs_instance,
             config=ipfs_config
         )
         mcp_server.register_model("ipfs", ipfs_model)
-        
+
         # Create properly formatted resources and metadata for StorageManager
         resources = {
             "ipfs": {
@@ -123,13 +123,13 @@ def create_app():
                 "port": mcp_server.ipfs_port
             }
         }
-        
+
         metadata = {
             "debug_mode": debug_mode,
             "isolation_mode": isolation_mode,
             "persistence_path": os.path.expanduser(persistence_path)
         }
-        
+
         # Create StorageManager with correct parameters
         storage_model = StorageManager(
             ipfs_model=ipfs_model,  # Pass the IPFS model we created earlier
@@ -137,40 +137,40 @@ def create_app():
             metadata=metadata
         )
         mcp_server.register_model("storage_manager", storage_model)
-        
+
         # Create and register controllers
         ipfs_controller = IPFSController(ipfs_model)
         mcp_server.register_controller("ipfs", ipfs_controller)
-        
+
         storage_manager_controller = StorageManagerController(storage_model)
         mcp_server.register_controller("storage_manager", storage_manager_controller)
-        
+
         # Storage backends controllers
         filecoin_controller = FilecoinController(storage_model)
         mcp_server.register_controller("filecoin", filecoin_controller)
-        
+
         huggingface_controller = HuggingFaceController(storage_model)
         mcp_server.register_controller("huggingface", huggingface_controller)
-        
+
         storacha_controller = StorachaController(storage_model)
         mcp_server.register_controller("storacha", storacha_controller)
-        
+
         lassie_controller = LassieController(storage_model)
         mcp_server.register_controller("lassie", lassie_controller)
-        
+
         s3_controller = S3Controller(storage_model)
         mcp_server.register_controller("s3", s3_controller)
-        
+
         # Try to import and register LibP2P controller if available
         try:
             from ipfs_kit_py.mcp.controllers.libp2p_controller import LibP2PController
             from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
-            
+
             # Create LibP2P model without debug_mode parameter
             try:
                 libp2p_model = LibP2PModel()  # Don't pass debug_mode
                 mcp_server.register_model("libp2p", libp2p_model)
-                
+
                 libp2p_controller = LibP2PController(libp2p_model)
                 mcp_server.register_controller("libp2p", libp2p_controller)
                 logger.info("LibP2P controller registered successfully")
@@ -178,16 +178,16 @@ def create_app():
                 logger.warning(f"Failed to initialize LibP2P model: {e}")
         except ImportError as e:
             logger.info(f"LibP2P controller not available: {e}")
-        
+
         # WebRTC controller is disabled to avoid import errors
         logger.info("WebRTC controller disabled")
-        
+
         # Log registered controllers
         logger.info(f"Registered controllers: {list(mcp_server.controllers.keys())}")
-        
+
         # Register with app
         mcp_server.register_with_app(app, prefix=api_prefix)
-        
+
         # Add root endpoint
         @app.get("/")
         async def root():
@@ -200,10 +200,10 @@ def create_app():
                     "port": mcp_server.ipfs_port
                 }
             }
-                    
+
             # Available controllers
             controllers = list(mcp_server.controllers.keys())
-            
+
             # Storage backends status
             storage_backends = {}
             if "storage_manager" in mcp_server.models:
@@ -231,7 +231,7 @@ def create_app():
                         storage_backends["info"] = "Storage backends information unavailable"
                 except Exception as e:
                     storage_backends["error"] = str(e)
-            
+
             # Example endpoints
             example_endpoints = {
                 "ipfs": {
@@ -271,7 +271,7 @@ def create_app():
                 },
                 "health": f"{api_prefix}/health"
             }
-            
+
             # Help message about URL structure
             help_message = f"""
             The MCP server exposes endpoints under the {api_prefix} prefix.
@@ -281,7 +281,7 @@ def create_app():
             - Health Check: {api_prefix}/health
             - HuggingFace Status: {api_prefix}/huggingface/status
             """
-            
+
             return {
                 "message": "MCP Server is running (REAL STORAGE MODE)",
                 "debug_mode": debug_mode,
@@ -294,7 +294,7 @@ def create_app():
                 "documentation": "/docs",
                 "server_id": str(uuid.uuid4())
             }
-        
+
         # Add SSE endpoint for server-sent events
         @app.get("/sse")
         async def sse(request: Request):
@@ -303,14 +303,14 @@ def create_app():
                 """Generate SSE events."""
                 # Initial connection established event
                 yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
-                
+
                 # Keep connection alive with heartbeats
                 counter = 0
                 while True:
                     if await request.is_disconnected():
                         logger.info("SSE client disconnected")
                         break
-                        
+
                     # Send a heartbeat every 15 seconds
                     if counter % 15 == 0:
                         status_data = {
@@ -319,11 +319,11 @@ def create_app():
                             "server_id": str(uuid.uuid4())
                         }
                         yield f"event: heartbeat\ndata: {json.dumps(status_data)}\n\n"
-                    
+
                     # Wait a second between iterations
                     await asyncio.sleep(1)
                     counter += 1
-            
+
             return StreamingResponse(
                 event_generator(),
                 media_type="text/event-stream",
@@ -333,7 +333,7 @@ def create_app():
                     "Access-Control-Allow-Origin": "*"
                 }
             )
-        
+
         # Add a storage backends health check
         @app.get(f"{api_prefix}/storage/health")
         async def storage_health():
@@ -344,11 +344,11 @@ def create_app():
                 "mode": "real_storage",
                 "components": {}
             }
-            
+
             # Check each storage backend
             if "storage_manager" in mcp_server.models:
                 storage_manager = mcp_server.models["storage_manager"]
-                
+
                 # Make sure storage_models exists and is a dictionary before iterating
                 if hasattr(storage_manager, 'storage_models') and isinstance(storage_manager.storage_models, dict):
                     for backend_name, backend in storage_manager.storage_models.items():
@@ -358,7 +358,7 @@ def create_app():
                                 status = await backend.async_health_check()
                             else:
                                 status = backend.health_check()
-                                
+
                             health_info["components"][backend_name] = {
                                 "status": "available" if status.get("success", False) else "error",
                                 "simulation": status.get("simulation", False),
@@ -383,30 +383,30 @@ def create_app():
                         "status": "unknown",
                         "message": "Storage backends information unavailable"
                     }
-            
+
             # Overall status
             errors = [c for c in health_info["components"].values() if c.get("status") == "error"]
             health_info["overall_status"] = "degraded" if errors else "healthy"
-                
+
             return health_info
-        
+
         # Add /initialize endpoint for health/initialization check compatibility
         @app.post("/initialize")
         async def initialize():
             """Initialization endpoint for MCP server tools/clients."""
             return {"status": "success", "message": "MCP server initialized", "timestamp": time.time()}
-        
+
         return app, mcp_server
-        
+
     except Exception as server_error:
         error_message = str(server_error)
         logger.error(f"Failed to initialize MCP server: {error_message}")
         app = FastAPI()
-        
+
         @app.get("/")
         async def error():
             return {"error": f"Failed to initialize MCP server: {error_message}"}
-            
+
         return app, None
 
 # Create the app for uvicorn
@@ -421,15 +421,15 @@ def write_pid():
 if __name__ == "__main__":
     # Write PID file
     write_pid()
-    
+
     # Run uvicorn directly
     logger.info(f"Starting MCP server on port {port} with API prefix: {api_prefix}")
     logger.info(f"Debug mode: {debug_mode}, Isolation mode: {isolation_mode}")
     logger.info(f"Using REAL storage backend implementations (no simulation)")
-    
+
     uvicorn.run(
-        "ipfs_kit_py.run_mcp_server_real_storage:app", 
-        host="0.0.0.0", 
+        "ipfs_kit_py.run_mcp_server_real_storage:app",
+        host="0.0.0.0",
         port=port,
         reload=False,  # Disable reload to avoid duplicate process issues
         log_level="info"

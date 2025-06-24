@@ -26,7 +26,7 @@ async def lassie_status():
 @app.post("/api/v0/lassie/to_ipfs")
 async def lassie_to_ipfs(request: Request):
     data = await request.json()
-    
+
     # Different parameter requirements by backend
     if "storage_lassie" in ["storage_lassie", "lassie"]:
         cid = data.get("cid")
@@ -58,7 +58,7 @@ async def lassie_to_ipfs(request: Request):
     else:
         # Generic case
         return_cid = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"  # example CID
-    
+
     # Simulate successful retrieval
     return {
         "success": True,

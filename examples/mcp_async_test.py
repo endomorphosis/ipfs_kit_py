@@ -38,34 +38,34 @@ except ImportError as e:
 async def test_mcp_server_async():
     """Test MCP server with FastAPI without actual HTTP server."""
     logger.info("Initializing FastAPI app and MCP Server...")
-    
+
     # Create temporary directory for testing
     temp_dir = tempfile.mkdtemp(prefix="ipfs_mcp_async_test_")
     logger.info(f"Using temporary directory: {temp_dir}")
-    
+
     # Create FastAPI app
     app = FastAPI(title="MCP Async Test")
-    
+
     # Initialize the MCP server with debug and isolation modes
     mcp_server = MCPServer(
         debug_mode=True,
         isolation_mode=True,
         persistence_path=temp_dir
     )
-    
+
     # Register MCP server with app
     mcp_server.register_with_app(app, prefix="/api/v0/mcp")
-    
+
     # Test health endpoint through FastAPI
     logger.info("Testing MCP integration with FastAPI...")
-    
+
     # Get the health endpoint handler
     health_route = None
     for route in app.routes:
         if route.path == "/api/v0/mcp/health":
             health_route = route
             break
-    
+
     if health_route:
         # Create mock request
         mock_request = Request(scope={
@@ -74,19 +74,19 @@ async def test_mcp_server_async():
             "path": "/api/v0/mcp/health",
             "headers": []
         })
-        
+
         # Call the endpoint handler directly
         logger.info("Calling health endpoint handler...")
         response = await health_route.endpoint(mock_request)
-        
+
         # Convert response to dict
         if hasattr(response, "body"):
             response_data = json.loads(response.body)
         else:
             response_data = response
-            
+
         logger.info(f"Health endpoint response: {json.dumps(response_data, indent=2)}")
-        
+
         # Basic validation
         if response_data.get("success") == True:
             logger.info("✅ MCP server integration with FastAPI successful!")
@@ -94,7 +94,7 @@ async def test_mcp_server_async():
             logger.error("❌ MCP server integration with FastAPI failed!")
     else:
         logger.error("❌ Health endpoint not found in registered routes!")
-    
+
     # List all registered routes
     routes = []
     for route in app.routes:
@@ -102,12 +102,12 @@ async def test_mcp_server_async():
             "path": route.path,
             "methods": list(route.methods) if hasattr(route, "methods") else ["unknown"]
         })
-    
+
     logger.info(f"Registered MCP routes: {json.dumps(routes, indent=2)}")
-    
+
     # Clean up
     logger.info(f"Test completed! Temporary directory {temp_dir} can be removed manually.")
-    
+
     return {
         "success": True,
         "message": "MCP server async test completed",

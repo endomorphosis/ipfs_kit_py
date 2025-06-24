@@ -86,16 +86,16 @@ try:
     huggingface_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(huggingface_module)
     logger.info("Loaded HuggingFace real API implementation")
-    
+
     # Get token from credentials
     hf_token = credentials.get("huggingface", {}).get("token")
-    
+
     # Create implementation
     huggingface_api = huggingface_module.HuggingFaceRealAPI(
         token=hf_token,
         simulation_mode=os.environ.get("HUGGINGFACE_SIMULATION", "1") == "1"
     )
-    
+
     backend_implementations["huggingface"] = huggingface_api
     logger.info(f"HuggingFace API initialized (simulation: {huggingface_api.simulation_mode})")
 except Exception as e:
@@ -109,10 +109,10 @@ def create_app():
         description="Model-Controller-Persistence Server for IPFS Kit",
         version="0.1.0"
     )
-    
+
     # Add backend-specific endpoints
     add_backend_endpoints(app)
-    
+
     # Add a custom pins endpoint that always works
     @app.get(f"{api_prefix}/mcp/cli/pins")
     async def list_pins():
@@ -125,21 +125,21 @@ def create_app():
             "operation_id": None,
             "format": None
         }
-    
+
     # Import MCP server
     try:
         from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
-        
+
         # Create MCP server
         mcp_server = MCPServer(
             debug_mode=debug_mode,
             isolation_mode=isolation_mode,
             persistence_path=os.path.expanduser(persistence_path)
         )
-        
+
         # Register with app
         mcp_server.register_with_app(app, prefix=api_prefix)
-        
+
         # Add root endpoint
         @app.get("/")
         async def root():
@@ -156,10 +156,10 @@ def create_app():
                         }
                 except Exception as e:
                     daemon_info["error"] = str(e)
-                    
+
             # Available controllers
             controllers = list(mcp_server.controllers.keys())
-            
+
             # Example endpoints
             example_endpoints = {
                 "ipfs": {
@@ -173,7 +173,7 @@ def create_app():
                 },
                 "health": f"{api_prefix}/health"
             }
-            
+
             # Help message about URL structure
             help_message = f"""
             The MCP server exposes endpoints under the {api_prefix} prefix.
@@ -182,7 +182,7 @@ def create_app():
             - IPFS Version: {api_prefix}/ipfs/version
             - Health Check: {api_prefix}/health
             """
-            
+
             # Add backend status
             backend_status = {}
             for backend, impl in backend_implementations.items():
@@ -192,7 +192,7 @@ def create_app():
                     "simulation": status_info.get("simulation", True),
                     "capabilities": status_info.get("capabilities", [])
                 }
-            
+
             return {
                 "message": "MCP Server is running with real API implementations",
                 "debug_mode": debug_mode,
@@ -204,17 +204,17 @@ def create_app():
                 "help": help_message,
                 "documentation": "/docs"
             }
-        
+
         return app, mcp_server
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize MCP server: {e}")
         app = FastAPI()
-        
+
         @app.get("/")
         async def error():
             return {"error": f"Failed to initialize MCP server: {str(e)}"}
-            
+
         return app, None
 
 def add_backend_endpoints(app):
@@ -222,12 +222,12 @@ def add_backend_endpoints(app):
     # HuggingFace endpoints
     if "huggingface" in backend_implementations:
         hf_api = backend_implementations["huggingface"]
-        
+
         @app.get(f"{api_prefix}/huggingface/status")
         async def huggingface_status():
             """Get HuggingFace backend status."""
             return hf_api.status()
-        
+
         @app.post(f"{api_prefix}/huggingface/from_ipfs")
         async def huggingface_from_ipfs(request: Request):
             """Transfer content from IPFS to HuggingFace."""
@@ -235,40 +235,40 @@ def add_backend_endpoints(app):
             cid = data.get("cid")
             repo_id = data.get("repo_id")
             path_in_repo = data.get("path_in_repo")
-            
+
             if not cid:
                 return JSONResponse(
                     status_code=422,
                     content={"success": False, "error": "CID is required"}
                 )
-                
+
             if not repo_id:
                 return JSONResponse(
                     status_code=422,
                     content={"success": False, "error": "Repository ID is required"}
                 )
-            
+
             return hf_api.from_ipfs(cid=cid, repo_id=repo_id, path_in_repo=path_in_repo)
-        
+
         @app.post(f"{api_prefix}/huggingface/to_ipfs")
         async def huggingface_to_ipfs(request: Request):
             """Transfer content from HuggingFace to IPFS."""
             data = await request.json()
             repo_id = data.get("repo_id")
             path_in_repo = data.get("path_in_repo")
-            
+
             if not repo_id:
                 return JSONResponse(
                     status_code=422,
                     content={"success": False, "error": "Repository ID is required"}
                 )
-                
+
             if not path_in_repo:
                 return JSONResponse(
                     status_code=422,
                     content={"success": False, "error": "Path in repository is required"}
                 )
-            
+
             return hf_api.to_ipfs(repo_id=repo_id, path_in_repo=path_in_repo)
 
 # Create the app for uvicorn
@@ -278,16 +278,16 @@ if __name__ == "__main__":
     # Run uvicorn directly
     logger.info(f"Starting MCP server with real APIs on port 9992")
     logger.info(f"Debug mode: {debug_mode}, Isolation mode: {isolation_mode}")
-    
+
     # Log backend status
     for backend, impl in backend_implementations.items():
         status = impl.status()
         mode = "SIMULATION" if status.get("simulation", True) else "REAL"
         logger.info(f"Backend {backend}: {mode} mode, Available: {status.get('is_available', False)}")
-    
+
     uvicorn.run(
-        "run_mcp_server_real_apis:app", 
-        host="0.0.0.0", 
+        "run_mcp_server_real_apis:app",
+        host="0.0.0.0",
         port=9992,
         reload=False,
         log_level="info"

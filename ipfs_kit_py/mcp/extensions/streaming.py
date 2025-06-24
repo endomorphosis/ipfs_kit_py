@@ -76,13 +76,13 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
     try:
         # Initialize streaming operations
         get_streaming_ops()
-        
+
         # Create the streaming router
         router = create_streaming_router(api_prefix)
         logger.info(f"Successfully created streaming router with prefix: {router.prefix}")
-        
+
         # Add additional status endpoint
-        
+
         @router.get("/status")
         async def streaming_status(streaming_ops=get_streaming_ops()):
             """Return status of streaming functionality."""
@@ -95,19 +95,19 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
                         doc_category="streaming"
                     )
                 return {"success": False, "error": error_message}
-            
+
             try:
                 # Check if IPFS daemon is running
                 import subprocess
                 import json
-                
+
                 process = subprocess.run(
                     ["ipfs", "id", "--format=json"],
                     capture_output=True,
                     text=True,
                     timeout=5
                 )
-                
+
                 if process.returncode != 0:
                     return {
                         "success": False,
@@ -115,10 +115,10 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
                         "error": "IPFS daemon is not running or not accessible",
                         "details": process.stderr.strip()
                     }
-                
+
                 # Parse IPFS ID info
                 id_info = json.loads(process.stdout.strip())
-                
+
                 return {
                     "success": True,
                     "status": "available",
@@ -143,7 +143,7 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
                         e, code="INTERNAL_ERROR", endpoint="/stream/status", doc_category="streaming"
                     )
                 return {"success": False, "error": str(e)}
-                
+
         return router
     except Exception as e:
         logger.error(f"Error creating streaming router: {e}")
@@ -200,12 +200,12 @@ def update_streaming_status(storage_backends: Dict[str, Any]) -> None:
 def on_startup(app: Optional[FastAPI] = None) -> None:
     """
     Initialize the streaming extension on server startup.
-    
+
     Args:
         app: The FastAPI application instance
     """
     logger.info("Initializing streaming extension")
-    
+
     # Initialize streaming operations in background
     get_streaming_ops()
 
@@ -213,12 +213,12 @@ def on_startup(app: Optional[FastAPI] = None) -> None:
 def on_shutdown(app: Optional[FastAPI] = None) -> None:
     """
     Clean up the streaming extension on server shutdown.
-    
+
     Args:
         app: The FastAPI application instance
     """
     logger.info("Shutting down streaming extension")
-    
+
     # No specific cleanup required for streaming operations
     global _streaming_ops
     _streaming_ops = None

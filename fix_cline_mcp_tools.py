@@ -25,24 +25,24 @@ def fix_ipfs_model_extensions():
     Fix the IPFS model extensions to ensure they are properly attached.
     """
     logger.info("Fixing IPFS model extensions...")
-    
+
     try:
         # Import the model and extensions
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
         from ipfs_kit_py.mcp.models.ipfs_model_extensions import add_ipfs_model_extensions
-        
+
         # Get all the extension methods
         extension_funcs = {}
         for name, obj in inspect.getmembers(sys.modules['ipfs_kit_py.mcp.models.ipfs_model_extensions']):
             if inspect.isfunction(obj) and name not in ['add_ipfs_model_extensions']:
                 extension_funcs[name] = obj
                 logger.info(f"Found extension method: {name}")
-        
+
         # Explicitly monkey-patch the IPFSModel class with each method
         for name, func in extension_funcs.items():
             setattr(IPFSModel, name, func)
             logger.info(f"Added {name} to IPFSModel")
-        
+
         # Create a sample instance to verify
         ipfs_model = IPFSModel()
         for name in extension_funcs.keys():
@@ -50,7 +50,7 @@ def fix_ipfs_model_extensions():
                 logger.info(f"Verified {name} is on IPFSModel instance")
             else:
                 logger.warning(f"Failed to verify {name} on IPFSModel instance")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error fixing IPFS model extensions: {e}")
@@ -61,18 +61,18 @@ def fix_cline_mcp_settings():
     Fix the Cline MCP settings file.
     """
     logger.info("Fixing Cline MCP settings...")
-    
+
     settings_path = os.path.expanduser("~/.config/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json")
-    
+
     try:
         # Read the current settings
         with open(settings_path, 'r') as f:
             settings = json.load(f)
-        
+
         # Check if mcpServers exists
         if "mcpServers" not in settings:
             settings["mcpServers"] = []
-        
+
         # If no servers, add one
         if not settings["mcpServers"]:
             settings["mcpServers"].append({
@@ -84,10 +84,10 @@ def fix_cline_mcp_settings():
                     "type": "none"
                 }
             })
-        
+
         # Get the first server
         server = settings["mcpServers"][0]
-        
+
         # Make sure it has resources
         if "resources" not in server:
             server["resources"] = [
@@ -102,11 +102,11 @@ def fix_cline_mcp_settings():
                     "mediaType": "application/json"
                 }
             ]
-        
+
         # Make sure it has tools
         if "tools" not in server:
             server["tools"] = []
-        
+
         # Define the required tools
         required_tools = {
             "ipfs_add": {
@@ -219,7 +219,7 @@ def fix_cline_mcp_settings():
                 }
             }
         }
-        
+
         # Add missing tools
         existing_tool_names = {tool.get("name") for tool in server["tools"]}
         for tool_name, tool_def in required_tools.items():
@@ -229,11 +229,11 @@ def fix_cline_mcp_settings():
                     **tool_def
                 })
                 logger.info(f"Added missing tool: {tool_name}")
-        
+
         # Write back the updated settings
         with open(settings_path, 'w') as f:
             json.dump(settings, f, indent=2)
-        
+
         logger.info(f"Updated Cline MCP settings at: {settings_path}")
         return True
     except Exception as e:
@@ -245,20 +245,20 @@ def main():
     Main function to fix all issues.
     """
     logger.info("Starting MCP tools fix...")
-    
+
     # Fix IPFS model extensions
     if fix_ipfs_model_extensions():
         logger.info("Successfully fixed IPFS model extensions")
     else:
         logger.error("Failed to fix IPFS model extensions")
-    
+
     # Fix Cline MCP settings
     if fix_cline_mcp_settings():
         logger.info("Successfully fixed Cline MCP settings")
     else:
         logger.error("Failed to fix Cline MCP settings")
-    
+
     logger.info("MCP tools fix completed")
-    
+
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 """
 Test the integration of Aria2 with the MCP server.
 
-This test verifies that the Aria2 controller and model are properly 
+This test verifies that the Aria2 controller and model are properly
 integrated with the MCP server and that the API endpoints work correctly.
 """
 
@@ -36,13 +36,13 @@ def test_aria2_health_endpoint():
     """Test the Aria2 health endpoint."""
     # Call the health endpoint
     response = client.get("/mcp/aria2/health")
-    
+
     # Verify the response
     assert response.status_code == 200
     data = response.json()
     assert "success" in data
     assert "status" in data
-    
+
     # Print the health status for debugging
     print(f"Aria2 health status: {data}")
 
@@ -50,7 +50,7 @@ def test_aria2_version_endpoint():
     """Test the Aria2 version endpoint."""
     # Call the version endpoint
     response = client.get("/mcp/aria2/version")
-    
+
     # This might fail if Aria2 is not installed, which is ok for testing
     if response.status_code == 200:
         data = response.json()
@@ -66,7 +66,7 @@ def test_aria2_list_downloads():
     """Test listing downloads."""
     # Call the list endpoint
     response = client.get("/mcp/aria2/list")
-    
+
     # This might fail if Aria2 is not running, which is ok for testing
     if response.status_code == 200:
         data = response.json()
@@ -76,7 +76,7 @@ def test_aria2_list_downloads():
     else:
         # Print error for information only
         print(f"Aria2 list error (expected if aria2 not running): {response.json()}")
-        
+
 def test_aria2_add_uri():
     """Test adding a download by URI."""
     # Test data
@@ -89,10 +89,10 @@ def test_aria2_add_uri():
             "out": "test_download.txt"
         }
     }
-    
+
     # Call the add endpoint
     response = client.post("/mcp/aria2/add", json=test_data)
-    
+
     # This might fail if Aria2 is not running, which is ok for testing
     if response.status_code == 200:
         data = response.json()
@@ -100,26 +100,26 @@ def test_aria2_add_uri():
         assert data["success"] == True
         assert "gid" in data
         print(f"Added download with GID: {data['gid']}")
-        
+
         # Try to get status
         time.sleep(1)  # Wait for download to start
         status_response = client.get(f"/mcp/aria2/status/{data['gid']}")
-        
+
         if status_response.status_code == 200:
             status_data = status_response.json()
             assert status_data["success"] == True
             print(f"Download status: {status_data.get('state', 'unknown')}")
-            
+
             # Try to pause download
             pause_response = client.post("/mcp/aria2/pause", json={"gid": data["gid"]})
             if pause_response.status_code == 200:
                 print("Successfully paused download")
-            
+
             # Try to resume download
             resume_response = client.post("/mcp/aria2/resume", json={"gid": data["gid"]})
             if resume_response.status_code == 200:
                 print("Successfully resumed download")
-            
+
             # Try to remove download
             remove_response = client.post("/mcp/aria2/remove", json={"gid": data["gid"]})
             if remove_response.status_code == 200:
@@ -132,7 +132,7 @@ def test_aria2_global_stats():
     """Test getting global statistics."""
     # Call the global stats endpoint
     response = client.get("/mcp/aria2/global-stats")
-    
+
     # This might fail if Aria2 is not running, which is ok for testing
     if response.status_code == 200:
         data = response.json()
@@ -146,13 +146,13 @@ def test_aria2_global_stats():
 def run_all_tests():
     """Run all tests manually in sequence."""
     print("\n=== Testing Aria2 MCP Integration ===\n")
-    
+
     test_aria2_health_endpoint()
     test_aria2_version_endpoint()
     test_aria2_list_downloads()
     test_aria2_add_uri()
     test_aria2_global_stats()
-    
+
     print("\n=== All tests completed ===")
 
 if __name__ == "__main__":

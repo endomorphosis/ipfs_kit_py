@@ -22,13 +22,13 @@ DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR, "auth_config.json")
 def generate_default_config() -> Dict[str, Any]:
     """
     Generate default configuration for the authentication system.
-    
+
     Returns:
         Dictionary with default configuration values
     """
     # Generate a random secret key if not set
     jwt_secret = os.environ.get("MCP_JWT_SECRET", secrets.token_hex(32))
-    
+
     config = {
         "jwt": {
             "secret_key": jwt_secret,
@@ -80,22 +80,22 @@ def generate_default_config() -> Dict[str, Any]:
             "permission_defaults_file": os.environ.get("MCP_PERMISSION_DEFAULTS_FILE", os.path.join(DEFAULT_CONFIG_DIR, "permission_defaults.json"))
         }
     }
-    
+
     return config
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
     Load configuration from file or generate default.
-    
+
     Args:
         config_path: Path to configuration file
-        
+
     Returns:
         Configuration dictionary
     """
     config_file = config_path or DEFAULT_CONFIG_FILE
-    
+
     try:
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
@@ -105,7 +105,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         else:
             config = generate_default_config()
             logger.info(f"Generated default auth configuration")
-            
+
             # Try to save the config
             try:
                 os.makedirs(os.path.dirname(config_file), exist_ok=True)
@@ -114,7 +114,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
                 logger.info(f"Saved default auth configuration to {config_file}")
             except Exception as e:
                 logger.warning(f"Failed to save default auth configuration: {e}")
-            
+
             return config
     except Exception as e:
         logger.error(f"Error loading auth configuration: {e}")
@@ -124,16 +124,16 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 def save_config(config: Dict[str, Any], config_path: Optional[str] = None) -> bool:
     """
     Save configuration to file.
-    
+
     Args:
         config: Configuration dictionary
         config_path: Path to configuration file
-        
+
     Returns:
         True if saved successfully
     """
     config_file = config_path or DEFAULT_CONFIG_FILE
-    
+
     try:
         os.makedirs(os.path.dirname(config_file), exist_ok=True)
         with open(config_file, 'w') as f:
@@ -148,21 +148,21 @@ def save_config(config: Dict[str, Any], config_path: Optional[str] = None) -> bo
 def get_config_value(key: str, default: Any = None, config: Optional[Dict[str, Any]] = None) -> Any:
     """
     Get a configuration value by dot-separated key path.
-    
+
     Args:
         key: Dot-separated key path (e.g., "jwt.secret_key")
         default: Default value if key not found
         config: Optional config dict, will load from file if not provided
-        
+
     Returns:
         Configuration value or default
     """
     if config is None:
         config = load_config()
-    
+
     parts = key.split('.')
     value = config
-    
+
     try:
         for part in parts:
             value = value[part]
@@ -175,14 +175,14 @@ def setup_auth_dirs() -> None:
     """Create necessary directories for authentication system."""
     # Create main config directory
     os.makedirs(DEFAULT_CONFIG_DIR, exist_ok=True)
-    
+
     # Create subdirectories
     os.makedirs(os.path.join(DEFAULT_CONFIG_DIR, "users"), exist_ok=True)
     os.makedirs(os.path.join(DEFAULT_CONFIG_DIR, "sessions"), exist_ok=True)
     os.makedirs(os.path.join(DEFAULT_CONFIG_DIR, "api_keys"), exist_ok=True)
     os.makedirs(os.path.join(DEFAULT_CONFIG_DIR, "oauth"), exist_ok=True)
     os.makedirs(os.path.join(DEFAULT_CONFIG_DIR, "logs"), exist_ok=True)
-    
+
     logger.info(f"Created authentication system directories in {DEFAULT_CONFIG_DIR}")
 
 

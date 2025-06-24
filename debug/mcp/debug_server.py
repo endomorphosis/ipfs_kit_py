@@ -203,7 +203,7 @@ HTML_TEMPLATE = """
                 Connection Status: <span id="connection-status">Disconnected</span>
             </div>
             <div>
-                Refresh Rate: 
+                Refresh Rate:
                 <select id="refresh-rate">
                     <option value="500">0.5s</option>
                     <option value="1000" selected>1s</option>
@@ -212,7 +212,7 @@ HTML_TEMPLATE = """
                 </select>
             </div>
         </div>
-        
+
         <div class="card">
             <h2>Test Status: <span class="status idle" id="test-status">idle</span></h2>
             <div id="test-info">
@@ -220,7 +220,7 @@ HTML_TEMPLATE = """
                 <p>Duration: <span id="duration">-</span></p>
             </div>
         </div>
-        
+
         <div class="card">
             <h2>Performance Metrics</h2>
             <div class="metrics" id="metrics">
@@ -230,14 +230,14 @@ HTML_TEMPLATE = """
                 <canvas id="batch-times-chart"></canvas>
             </div>
         </div>
-        
+
         <div class="card">
             <h2>System Information</h2>
             <div class="metrics" id="system-metrics">
                 <!-- System metrics will be added here -->
             </div>
         </div>
-        
+
         <div class="card">
             <h2>Thread Information</h2>
             <div id="thread-container">
@@ -252,20 +252,20 @@ HTML_TEMPLATE = """
         let refreshInterval = 1000;
         let chart;
         let lastData = null;
-        
+
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
-            
+
             ws = new WebSocket(wsUrl);
-            
+
             ws.onopen = function() {
                 console.log('WebSocket connected');
                 connected = true;
                 document.getElementById('status-indicator').classList.add('connected');
                 document.getElementById('connection-status').textContent = 'Connected';
             };
-            
+
             ws.onmessage = function(event) {
                 try {
                     const data = JSON.parse(event.data);
@@ -275,73 +275,73 @@ HTML_TEMPLATE = """
                     console.error('Error processing WebSocket message:', e);
                 }
             };
-            
+
             ws.onclose = function() {
                 console.log('WebSocket disconnected');
                 connected = false;
                 document.getElementById('status-indicator').classList.remove('connected');
                 document.getElementById('connection-status').textContent = 'Disconnected';
-                
+
                 // Try to reconnect after a delay
                 setTimeout(connectWebSocket, 2000);
             };
-            
+
             ws.onerror = function(error) {
                 console.error('WebSocket error:', error);
                 connected = false;
             };
         }
-        
+
         function updateDashboard(data) {
             // Update test status
             const statusElem = document.getElementById('test-status');
             statusElem.textContent = data.test_status;
             statusElem.className = 'status ' + data.test_status;
-            
+
             // Update test info
             if (data.start_time) {
                 const startTime = new Date(data.start_time * 1000);
                 document.getElementById('start-time').textContent = startTime.toLocaleTimeString();
-                
+
                 const duration = (data.last_update - data.start_time).toFixed(1);
                 document.getElementById('duration').textContent = `${duration}s`;
             }
-            
+
             // Update metrics
             updateMetrics(data.metrics);
-            
+
             // Update system info
             updateSystemInfo(data.system);
-            
+
             // Update thread information
             updateThreadInfo(data.threads);
-            
+
             // Update chart
             updateChart(data.metrics.batch_times);
         }
-        
+
         function updateMetrics(metrics) {
             const metricsContainer = document.getElementById('metrics');
             metricsContainer.innerHTML = '';
-            
+
             // Calculate cache hit rate
             const hits = metrics.cache_hits || 0;
             const misses = metrics.cache_misses || 0;
             const total = hits + misses;
             const hitRate = total > 0 ? (hits / total * 100).toFixed(1) : '0';
-            
+
             // Calculate batch time stats
             let avgBatchTime = '0';
             let minBatchTime = '0';
             let maxBatchTime = '0';
-            
+
             if (metrics.batch_times && metrics.batch_times.length > 0) {
                 const sum = metrics.batch_times.reduce((a, b) => a + b, 0);
                 avgBatchTime = (sum / metrics.batch_times.length).toFixed(2);
                 minBatchTime = Math.min(...metrics.batch_times).toFixed(2);
                 maxBatchTime = Math.max(...metrics.batch_times).toFixed(2);
             }
-            
+
             const metricItems = [
                 { name: 'Cache Hit Rate', value: `${hitRate}%` },
                 { name: 'Cache Hits', value: hits },
@@ -353,7 +353,7 @@ HTML_TEMPLATE = """
                 { name: 'Queue Full Events', value: metrics.queue_full_events || 0 },
                 { name: 'Worker Exceptions', value: metrics.worker_exceptions || 0 },
             ];
-            
+
             metricItems.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'metric';
@@ -364,17 +364,17 @@ HTML_TEMPLATE = """
                 metricsContainer.appendChild(div);
             });
         }
-        
+
         function updateSystemInfo(system) {
             const container = document.getElementById('system-metrics');
             container.innerHTML = '';
-            
+
             const items = [
                 { name: 'CPU Usage', value: `${system.cpu_usage?.toFixed(1) || '0'}%` },
                 { name: 'Memory Usage', value: `${system.memory_usage?.toFixed(1) || '0'}%` },
                 { name: 'Memory Available', value: `${(system.memory_available_mb?.toFixed(0) || '0')} MB` }
             ];
-            
+
             items.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'metric';
@@ -385,21 +385,21 @@ HTML_TEMPLATE = """
                 container.appendChild(div);
             });
         }
-        
+
         function updateThreadInfo(threads) {
             const container = document.getElementById('thread-container');
             container.innerHTML = '';
-            
+
             if (!threads || Object.keys(threads).length === 0) {
                 container.innerHTML = '<p>No thread information available</p>';
                 return;
             }
-            
+
             // Sort threads by name
             const sortedThreads = Object.entries(threads).sort((a, b) => {
                 return a[1].name.localeCompare(b[1].name);
             });
-            
+
             sortedThreads.forEach(([id, thread]) => {
                 const status = thread.is_alive ? 'active' : 'stopped';
                 const div = document.createElement('div');
@@ -416,13 +416,13 @@ HTML_TEMPLATE = """
                 container.appendChild(div);
             });
         }
-        
+
         function updateChart(batchTimes) {
             if (!batchTimes || batchTimes.length === 0) return;
-            
+
             // Get the most recent 50 batch times for chart display
             const recentTimes = batchTimes.slice(-50);
-            
+
             // Initialize chart if not already created
             if (!chart) {
                 const ctx = document.getElementById('batch-times-chart').getContext('2d');
@@ -466,26 +466,26 @@ HTML_TEMPLATE = """
                 chart.update();
             }
         }
-        
+
         function requestUpdate() {
             if (connected) {
                 ws.send(JSON.stringify({ action: 'get_data' }));
             }
         }
-        
+
         // Set up refresh rate change handler
         document.getElementById('refresh-rate').addEventListener('change', function(e) {
             refreshInterval = parseInt(e.target.value);
             clearInterval(window.updateInterval);
             window.updateInterval = setInterval(requestUpdate, refreshInterval);
         });
-        
+
         // Initialize WebSocket connection
         connectWebSocket();
-        
+
         // Set up periodic data updates
         window.updateInterval = setInterval(requestUpdate, refreshInterval);
-        
+
         // Initial data request after connection
         setTimeout(requestUpdate, 500);
     </script>
@@ -497,7 +497,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         logger.debug(f"GET request: {self.path}")
         parsed_path = urlparse(self.path)
-        
+
         # Serve the dashboard
         if parsed_path.path == "/debug/dashboard":
             self.send_response(200)
@@ -505,7 +505,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(HTML_TEMPLATE.encode())
             return
-            
+
         # API endpoint to get current state
         elif parsed_path.path == "/debug/api/state":
             self.send_response(200)
@@ -514,7 +514,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
             with state_lock:
                 self.wfile.write(json.dumps(debug_data).encode())
             return
-            
+
         # API endpoints for updating state
         else:
             self.send_response(404)
@@ -522,14 +522,14 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"Not found")
             return
-    
+
     def do_POST(self):
         logger.debug(f"POST request: {self.path}")
         parsed_path = urlparse(self.path)
-        
+
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length).decode('utf-8')
-        
+
         try:
             data = json.loads(post_data)
         except json.JSONDecodeError:
@@ -538,7 +538,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"Invalid JSON")
             return
-        
+
         # Update thread info
         if parsed_path.path == "/debug/api/thread":
             if 'thread_id' in data and 'info' in data:
@@ -553,7 +553,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Missing required fields")
             return
-            
+
         # Update metrics
         elif parsed_path.path == "/debug/api/metrics":
             if 'metrics' in data:
@@ -568,7 +568,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Missing required fields")
             return
-            
+
         # Update test status
         elif parsed_path.path == "/debug/api/status":
             if 'status' in data:
@@ -583,7 +583,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Missing required fields")
             return
-            
+
         # Unknown endpoint
         else:
             self.send_response(404)
@@ -599,29 +599,29 @@ class WebSocketHandler:
         self.clients = []
         self.broadcast_thread = threading.Thread(target=self.broadcast_loop, daemon=True)
         self.broadcast_thread.start()
-    
+
     def add_client(self, client_socket, client_address):
         self.clients.append((client_socket, client_address))
         logger.info(f"New WebSocket client connected: {client_address}")
         with state_lock:
             debug_data["clients"] = [str(addr) for _, addr in self.clients]
-    
+
     def remove_client(self, client_socket, client_address):
         self.clients.remove((client_socket, client_address))
         logger.info(f"WebSocket client disconnected: {client_address}")
         with state_lock:
             debug_data["clients"] = [str(addr) for _, addr in self.clients]
-    
+
     def broadcast_loop(self):
         while True:
             try:
                 # Update system info
                 update_system_info()
-                
+
                 # Broadcast current state to all clients
                 with state_lock:
                     data_json = json.dumps(debug_data)
-                
+
                 for client_socket, client_address in list(self.clients):
                     try:
                         client_socket.send(data_json.encode())
@@ -630,7 +630,7 @@ class WebSocketHandler:
                         self.remove_client(client_socket, client_address)
             except Exception as e:
                 logger.error(f"Error in broadcast loop: {e}")
-            
+
             time.sleep(1)  # Broadcast frequency
 
 class ThreadMonitoringServer:
@@ -641,7 +641,7 @@ class ThreadMonitoringServer:
         self.websocket_handler = WebSocketHandler(self)
         logger.info(f"Server started at http://{host}:{port}")
         logger.info(f"Dashboard available at http://{host}:{port}/debug/dashboard")
-    
+
     def start(self):
         try:
             self.httpd.serve_forever()
@@ -654,17 +654,17 @@ def main():
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind the server to")
     parser.add_argument("--port", type=int, default=8765, help="Port to bind the server to")
     parser.add_argument("--open-browser", action="store_true", help="Open browser automatically")
-    
+
     args = parser.parse_args()
-    
+
     # Create and start the server
     server = ThreadMonitoringServer(host=args.host, port=args.port)
-    
+
     # Open browser if requested
     if args.open_browser:
         dashboard_url = f"http://localhost:{args.port}/debug/dashboard"
         threading.Timer(1.0, lambda: webbrowser.open(dashboard_url)).start()
-    
+
     # Start the server
     logger.info("Starting server...")
     server.start()

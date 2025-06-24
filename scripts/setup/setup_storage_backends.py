@@ -32,19 +32,19 @@ def install_dependencies(backends=None):
     """Install required dependencies for specified backends."""
     if backends is None:
         backends = BACKEND_DEPENDENCIES.keys()
-    
+
     all_dependencies = []
     for backend in backends:
         if backend in BACKEND_DEPENDENCIES:
             all_dependencies.extend(BACKEND_DEPENDENCIES[backend])
-    
+
     if not all_dependencies:
         logger.info("No dependencies to install")
         return True
-    
+
     # Create a unique list
     all_dependencies = list(set(all_dependencies))
-    
+
     logger.info(f"Installing dependencies: {', '.join(all_dependencies)}")
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install"] + all_dependencies)
@@ -58,12 +58,12 @@ def create_credential_config(config_dir=None):
     """Create credential configuration for backends."""
     if config_dir is None:
         config_dir = Path.home() / ".ipfs_kit"
-    
+
     config_dir = Path(config_dir)
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     credentials_path = config_dir / "credentials.json"
-    
+
     # Default empty configuration
     credentials = {
         "huggingface": {
@@ -81,7 +81,7 @@ def create_credential_config(config_dir=None):
             "region_name": "us-east-1"
         }
     }
-    
+
     # Check if file exists
     if credentials_path.exists():
         logger.info(f"Credentials file already exists at {credentials_path}")
@@ -99,18 +99,18 @@ def create_credential_config(config_dir=None):
                 credentials = existing_creds
         except Exception as e:
             logger.warning(f"Failed to read existing credentials: {e}")
-    
+
     # Write credentials file
     try:
         with open(credentials_path, "w") as f:
             json.dump(credentials, f, indent=2)
-        
+
         logger.info(f"✅ Credentials template created at {credentials_path}")
         logger.info(f"Please edit this file to add your API tokens/keys")
-        
+
         # Set correct permissions (readable only by the user)
         os.chmod(credentials_path, 0o600)
-        
+
         return credentials_path
     except Exception as e:
         logger.error(f"❌ Failed to create credentials file: {e}")
@@ -120,12 +120,12 @@ def create_backend_config(config_dir=None):
     """Create configuration file for backend settings."""
     if config_dir is None:
         config_dir = Path.home() / ".ipfs_kit"
-    
+
     config_dir = Path(config_dir)
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     config_path = config_dir / "storage_backends.json"
-    
+
     # Default configuration
     config = {
         "backends": {
@@ -161,7 +161,7 @@ def create_backend_config(config_dir=None):
             "log_level": "INFO"
         }
     }
-    
+
     # Check if file exists
     if config_path.exists():
         logger.info(f"Backend config file already exists at {config_path}")
@@ -185,18 +185,18 @@ def create_backend_config(config_dir=None):
                 config = existing_config
         except Exception as e:
             logger.warning(f"Failed to read existing config: {e}")
-    
+
     # Create cache directories
     for backend, settings in config["backends"].items():
         cache_dir = Path(settings["cache_dir"])
         cache_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created cache directory for {backend}: {cache_dir}")
-    
+
     # Write config file
     try:
         with open(config_path, "w") as f:
             json.dump(config, f, indent=2)
-        
+
         logger.info(f"✅ Backend configuration created at {config_path}")
         return config_path
     except Exception as e:
@@ -207,7 +207,7 @@ def update_mcp_server():
     """Update MCP server to use real API implementations."""
     # Path to real API implementation
     impl_file = Path("real_api_storage_backends.py")
-    
+
     # Write implementation file
     impl_code = """
 '''
@@ -264,12 +264,12 @@ for backend, settings in config.get("backends", {}).items():
     if settings.get("enabled", False):
         ENABLED_BACKENDS.append(backend)
         logger.info(f"Backend enabled: {backend}")
-        
+
         # Set simulation mode in environment for each backend
         sim_var = f"{backend.upper()}_SIMULATION_MODE"
         sim_mode = "1" if settings.get("simulation_mode", False) else "0"
         os.environ[sim_var] = sim_mode
-        
+
         # Set cache directory
         cache_var = f"{backend.upper()}_CACHE_DIR"
         os.environ[cache_var] = settings.get("cache_dir", "")
@@ -285,14 +285,14 @@ for backend, creds in credentials.items():
 def get_backend_status(backend_name):
     \"\"\"Get status of a backend.\"\"\"
     backend = backend_name.lower()
-    
+
     # Backend exists in config
     if backend in config.get("backends", {}):
         # Backend is enabled
         if config["backends"][backend].get("enabled", False):
             # Simulation mode check
             simulation = config["backends"][backend].get("simulation_mode", False)
-            
+
             # Has credentials (if needed)
             has_creds = True
             if backend in credentials:
@@ -301,7 +301,7 @@ def get_backend_status(backend_name):
                     if not value:
                         has_creds = False
                         break
-            
+
             return {
                 "exists": True,
                 "enabled": True,
@@ -328,12 +328,12 @@ def get_all_backends_status():
         backends[backend] = get_backend_status(backend)
     return backends
 """
-    
+
     with open(impl_file, "w") as f:
         f.write(impl_code)
-    
+
     logger.info(f"✅ Created real API implementation at {impl_file}")
-    
+
     # Create MCP server patch
     server_patch_file = Path("patch_mcp_server_for_real_apis.py")
     server_patch_code = """#!/usr/bin/env python3
@@ -366,10 +366,10 @@ def patch_mcp_server():
     except Exception as e:
         logger.error(f"❌ Failed to load real API implementation: {e}")
         return False
-    
+
     # Get backend status
     backends_status = real_apis.get_all_backends_status()
-    
+
     # Log status
     for backend, status in backends_status.items():
         if status["exists"]:
@@ -381,24 +381,24 @@ def patch_mcp_server():
                 logger.info(f"Backend {backend}: DISABLED")
         else:
             logger.info(f"Backend {backend}: NOT FOUND")
-    
+
     # Check if any backend is in real mode and needs patching
     needs_patching = False
     for backend, status in backends_status.items():
         if status["exists"] and status["enabled"] and not status["simulation"]:
             needs_patching = True
             break
-    
+
     if not needs_patching:
         logger.info("No backends need patching (all in simulation mode or disabled)")
         return True
-    
+
     # Patch the server to use real APIs
     logger.info("Applying patches for real API implementations...")
-    
+
     # Create server_with_real_apis.py
     server_file = "run_mcp_server_real_apis.py"
-    
+
     server_code = '''#!/usr/bin/env python3
 """
 MCP server with real API implementations for storage backends.
@@ -440,7 +440,7 @@ def create_app():
         description="Model-Controller-Persistence Server for IPFS Kit",
         version="0.1.0"
     )
-    
+
     # Add real API proxy endpoints for each backend
     for backend, status in backends_status.items():
         if status["exists"] and status["enabled"]:
@@ -450,7 +450,7 @@ def create_app():
             else:
                 # For backends in real mode, ensure they connect to actual APIs
                 logger.info(f"Using REAL API implementation for {backend}")
-    
+
     # Add a custom pins endpoint that always works
     @app.get(f"{api_prefix}/mcp/cli/pins")
     async def list_pins():
@@ -463,21 +463,21 @@ def create_app():
             "operation_id": None,
             "format": None
         }
-    
+
     # Import MCP server
     try:
         from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
-        
+
         # Create MCP server
         mcp_server = MCPServer(
             debug_mode=debug_mode,
             isolation_mode=isolation_mode,
             persistence_path=os.path.expanduser(persistence_path)
         )
-        
+
         # Register with app
         mcp_server.register_with_app(app, prefix=api_prefix)
-        
+
         # Add root endpoint
         @app.get("/")
         async def root():
@@ -494,10 +494,10 @@ def create_app():
                         }
                 except Exception as e:
                     daemon_info["error"] = str(e)
-                    
+
             # Available controllers
             controllers = list(mcp_server.controllers.keys())
-            
+
             # Example endpoints
             example_endpoints = {
                 "ipfs": {
@@ -511,7 +511,7 @@ def create_app():
                 },
                 "health": f"{api_prefix}/health"
             }
-            
+
             # Help message about URL structure
             help_message = f"""
             The MCP server exposes endpoints under the {api_prefix} prefix.
@@ -520,7 +520,7 @@ def create_app():
             - IPFS Version: {api_prefix}/ipfs/version
             - Health Check: {api_prefix}/health
             """
-            
+
             # Add backend status
             backend_status = {}
             for backend, status in backends_status.items():
@@ -531,7 +531,7 @@ def create_app():
                         "mode": mode,
                         "status": status["status"]
                     }
-            
+
             return {
                 "message": "MCP Server is running with real API implementations",
                 "debug_mode": debug_mode,
@@ -543,23 +543,23 @@ def create_app():
                 "help": help_message,
                 "documentation": "/docs"
             }
-        
+
         return app, mcp_server
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize MCP server: {e}")
         app = FastAPI()
-        
+
         @app.get("/")
         async def error():
             return {"error": f"Failed to initialize MCP server: {str(e)}"}
-            
+
         return app, None
 
 def add_simulation_endpoints(app, backend):
     """Add simulation endpoints for a backend."""
     logger.info(f"Adding SIMULATION endpoints for {backend}")
-    
+
     @app.get(f"{api_prefix}/{backend}/status")
     async def status():
         """Simulation status endpoint."""
@@ -580,25 +580,25 @@ if __name__ == "__main__":
     # Run uvicorn directly
     logger.info(f"Starting MCP server with real APIs on port 9992")
     logger.info(f"Debug mode: {debug_mode}, Isolation mode: {isolation_mode}")
-    
+
     # Log backend status
     for backend, status in backends_status.items():
         if status["exists"] and status["enabled"]:
             mode = "SIMULATION" if status["simulation"] else "REAL"
             logger.info(f"Backend {backend}: {mode} mode")
-    
+
     uvicorn.run(
-        "run_mcp_server_real_apis:app", 
-        host="0.0.0.0", 
+        "run_mcp_server_real_apis:app",
+        host="0.0.0.0",
         port=9992,
         reload=False,
         log_level="info"
     )
 '''
-    
+
     with open(server_file, "w") as f:
         f.write(server_code)
-    
+
     os.chmod(server_file, 0o755)
     logger.info(f"✅ Created real API MCP server at {server_file}")
 
@@ -618,13 +618,13 @@ echo $! > mcp_real_apis.pid
 echo "MCP Server started with real API implementations (PID: $(cat mcp_real_apis.pid))"
 echo "Log file: mcp_real_apis.log"
 '''
-    
+
     with open(startup_script, "w") as f:
         f.write(script_content)
-    
+
     os.chmod(startup_script, 0o755)
     logger.info(f"✅ Created startup script at {startup_script}")
-    
+
     return True
 
 def main():
@@ -633,22 +633,22 @@ def main():
     parser.add_argument("--backends", nargs="+", help="Specific backends to configure")
     parser.add_argument("--config-dir", help="Configuration directory (default: ~/.ipfs_kit)")
     args = parser.parse_args()
-    
+
     config_dir = args.config_dir or Path.home() / ".ipfs_kit"
-    
+
     print("\n=== MCP STORAGE BACKENDS SETUP ===\n")
-    
+
     if args.install_deps:
         print("\n== Installing Dependencies ==")
         install_dependencies(args.backends)
-    
+
     print("\n== Creating Configuration ==")
     credentials_path = create_credential_config(config_dir)
     config_path = create_backend_config(config_dir)
-    
+
     print("\n== Updating MCP Server ==")
     update_mcp_server()
-    
+
     print("\n=== SETUP COMPLETE ===")
     print("\nNext steps:")
     print(f"1. Edit your credentials file: {credentials_path}")

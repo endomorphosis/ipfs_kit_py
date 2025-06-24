@@ -12,9 +12,9 @@ os.environ["FORCE_WEBRTC_TESTS"] = "1"
 
 def check_webrtc_availability():
     """Check if WebRTC dependencies are available."""
-    
+
     print("Checking WebRTC dependencies...\n")
-    
+
     # Try to import the webrtc_streaming module
     try:
         from ipfs_kit_py import webrtc_streaming
@@ -29,7 +29,7 @@ def check_webrtc_availability():
         print(f"Failed to import webrtc_streaming: {e}")
     except AttributeError as e:
         print(f"AttributeError when accessing WebRTC flags: {e}")
-    
+
     # Try to import high_level_api
     try:
         from ipfs_kit_py import high_level_api
@@ -39,26 +39,26 @@ def check_webrtc_availability():
         print(f"Failed to import high_level_api: {e}")
     except AttributeError as e:
         print(f"AttributeError when accessing WebRTC flags: {e}")
-    
+
     # Check if the individual packages are available
     try:
         import numpy
         print(f"\nnumpy: {numpy.__version__}")
     except ImportError:
         print("\nnumpy: Not available")
-    
+
     try:
         import cv2
         print(f"cv2: {cv2.__version__}")
     except ImportError:
         print("cv2: Not available")
-    
+
     try:
         import av
         print(f"av: {av.__version__}")
     except ImportError:
         print("av: Not available")
-    
+
     try:
         import aiortc
         print(f"aiortc: {aiortc.__version__}")

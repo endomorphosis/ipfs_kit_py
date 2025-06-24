@@ -31,7 +31,7 @@ logger = logging.getLogger("lotus_monitor_example")
 def check_platform():
     """Check if current platform is supported."""
     current_platform = platform.system()
-    
+
     if current_platform == 'Darwin':
         print(f"Running on macOS ({platform.mac_ver()[0]})")
         return True
@@ -55,40 +55,40 @@ def setup_lotus():
             "notification_enabled": False  # Enable for production
         }
     }
-    
+
     # Initialize lotus_kit with our configuration
     kit = lotus_kit(metadata=metadata)
-    
+
     return kit
 
 
 def monitor_start_example(kit):
     """Example of starting the Lotus daemon monitoring service."""
     print("\n=== Starting Lotus Monitor ===")
-    
+
     # Start the monitor with our configuration
     result = kit.monitor_start(
         interval=30,  # Override default interval
         auto_restart=True,
         report_path=os.path.expanduser("~/lotus_monitor_reports")
     )
-    
+
     if result.get("success", False):
         print(f"Monitor started successfully: {result.get('status', '')}")
         print(f"Monitor PID: {result.get('pid', 'unknown')}")
     else:
         print(f"Failed to start monitor: {result.get('error', 'Unknown error')}")
-    
+
     return result
 
 
 def monitor_status_example(kit):
     """Example of checking the Lotus monitor status."""
     print("\n=== Checking Lotus Monitor Status ===")
-    
+
     # Get basic status
     result = kit.monitor_status()
-    
+
     if result.get("success", False):
         print(f"Monitor status: {result.get('status', 'unknown')}")
         print(f"Running: {result.get('running', False)}")
@@ -96,10 +96,10 @@ def monitor_status_example(kit):
         print(f"Last check: {result.get('last_check_time', 'never')}")
     else:
         print(f"Failed to get monitor status: {result.get('error', 'Unknown error')}")
-    
+
     # Get detailed status
     result = kit.monitor_status(detailed=True)
-    
+
     if result.get("success", False) and result.get("metrics"):
         metrics = result.get("metrics", {})
         print("\nDetailed Metrics:")
@@ -107,23 +107,23 @@ def monitor_status_example(kit):
         print(f"  Memory Usage: {metrics.get('memory_percent', 'unknown')}%")
         print(f"  Disk Usage: {metrics.get('disk_percent', 'unknown')}%")
         print(f"  Uptime: {metrics.get('uptime', 'unknown')} seconds")
-        
+
         if "peer_count" in metrics:
             print(f"  Connected Peers: {metrics.get('peer_count')}")
-    
+
     return result
 
 
 def monitor_optimize_example(kit):
     """Example of optimizing the Lotus daemon for macOS."""
     print("\n=== Optimizing Lotus Daemon for macOS ===")
-    
+
     # Optimize with default settings
     result = kit.monitor_optimize()
-    
+
     if result.get("success", False):
         print("Optimization completed successfully")
-        
+
         # Show the optimizations that were applied
         for target, changes in result.get("optimizations", {}).items():
             print(f"\n{target.upper()} optimizations:")
@@ -131,25 +131,25 @@ def monitor_optimize_example(kit):
                 print(f"  {key}: {value}")
     else:
         print(f"Optimization failed: {result.get('error', 'Unknown error')}")
-    
+
     return result
 
 
 def monitor_report_example(kit):
     """Example of generating a Lotus daemon performance report."""
     print("\n=== Generating Lotus Performance Report ===")
-    
+
     # Generate a report in JSON format
     result = kit.monitor_report(
         format="json",
         period="day",
         output_path=os.path.expanduser("~/lotus_monitor_reports/report.json")
     )
-    
+
     if result.get("success", False):
         print(f"Report generated successfully")
         print(f"Report saved to: {result.get('report_path')}")
-        
+
         # Display a summary of the report
         if "summary" in result:
             summary = result["summary"]
@@ -161,53 +161,53 @@ def monitor_report_example(kit):
             print(f"  Max memory usage: {summary.get('max_memory', 'unknown')}%")
     else:
         print(f"Failed to generate report: {result.get('error', 'Unknown error')}")
-    
+
     return result
 
 
 def monitor_stop_example(kit):
     """Example of stopping the Lotus monitor."""
     print("\n=== Stopping Lotus Monitor ===")
-    
+
     result = kit.monitor_stop()
-    
+
     if result.get("success", False):
         print("Monitor stopped successfully")
     else:
         print(f"Failed to stop monitor: {result.get('error', 'Unknown error')}")
-    
+
     return result
 
 
 def main():
     """Main function running all examples."""
     print("=== Lotus Monitor Example ===")
-    
+
     # Check if platform is macOS
     check_platform()
-    
+
     # Setup Lotus kit
     kit = setup_lotus()
-    
+
     # Start the monitor
     monitor_start_example(kit)
-    
+
     # Wait a moment for the monitor to collect some data
     print("\nWaiting 10 seconds for the monitor to collect initial data...")
     time.sleep(10)
-    
+
     # Check the monitor status
     monitor_status_example(kit)
-    
+
     # Optimize the daemon for macOS
     monitor_optimize_example(kit)
-    
+
     # Generate a performance report
     monitor_report_example(kit)
-    
+
     # Stop the monitor
     monitor_stop_example(kit)
-    
+
     print("\nExample completed successfully!")
 
 

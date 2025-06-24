@@ -25,7 +25,7 @@ def fix_undefined_imports(file_path):
             count=1,
             flags=re.DOTALL
         )
-    
+
     # Fix missing time imports
     if 'time.time()' in content and 'import time' not in content:
         content = re.sub(
@@ -35,7 +35,7 @@ def fix_undefined_imports(file_path):
             count=1,
             flags=re.DOTALL
         )
-    
+
     # Fix missing asyncio imports
     if 'asyncio.iscoroutinefunction' in content and 'import asyncio' not in content:
         content = re.sub(
@@ -45,7 +45,7 @@ def fix_undefined_imports(file_path):
             count=1,
             flags=re.DOTALL
         )
-    
+
     # Fix missing uuid imports
     if 'uuid.uuid4()' in content and 'import uuid' not in content:
         content = re.sub(
@@ -55,7 +55,7 @@ def fix_undefined_imports(file_path):
             count=1,
             flags=re.DOTALL
         )
-    
+
     # Fix missing os and aiofiles imports in alerting.py
     if 'os.path.exists' in content and 'import os' not in content:
         content = re.sub(
@@ -65,7 +65,7 @@ def fix_undefined_imports(file_path):
             count=1,
             flags=re.DOTALL
         )
-    
+
     if 'aiofiles.open' in content and 'import aiofiles' not in content:
         content = re.sub(
             r'(import .*?\n\n)',
@@ -74,7 +74,7 @@ def fix_undefined_imports(file_path):
             count=1,
             flags=re.DOTALL
         )
-    
+
     # Fix undefined 'e' in search.py
     if 'error": str(e)' in content and file_path.name == 'search.py':
         content = re.sub(
@@ -91,14 +91,14 @@ def fix_bare_excepts(file_path):
     """Fix bare except statements by replacing them with Exception."""
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     # Replace bare excepts with except Exception
     content = re.sub(
         r'except:',
         r'except Exception:',
         content
     )
-    
+
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
@@ -107,7 +107,7 @@ def fix_ambiguous_variable_names(file_path):
     """Fix ambiguous variable names like 'l'."""
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     # Replace 'l' with 'long_format' in function parameters
     if 'l: bool = Query(False, description="Use long format")' in content:
         content = content.replace(
@@ -120,7 +120,7 @@ def fix_ambiguous_variable_names(file_path):
             'long_format',
             content
         )
-    
+
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
@@ -129,7 +129,7 @@ def fix_unused_imports(file_path):
     """Fix unused imports by commenting them out."""
     with open(file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    
+
     # Skip processing specific files that use * imports which might be needed
     if '__init__.py' in file_path.name:
         return
@@ -138,7 +138,7 @@ def fix_unused_imports(file_path):
     skip_files = ["mcp_server.py", "server.py"]
     if file_path.name in skip_files:
         return
-    
+
     output_lines = []
     for line in lines:
         # Check for import statements
@@ -155,9 +155,9 @@ def fix_unused_imports(file_path):
                 # Comment out the import but leave it for reference
                 output_lines.append(f'# {line}  # Unused import commented out\n')
                 continue
-        
+
         output_lines.append(line)
-    
+
     with open(file_path, 'w', encoding='utf-8') as f:
         f.writelines(output_lines)
 
@@ -173,10 +173,10 @@ def fix_redefined_functions(file_path):
 
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     # Find function definitions and store them
     function_defs = re.findall(r'(?:async\s+)?def\s+([a-zA-Z0-9_]+)', content)
-    
+
     # Find duplicates
     seen = set()
     duplicates = set()
@@ -184,28 +184,28 @@ def fix_redefined_functions(file_path):
         if func in seen:
             duplicates.add(func)
         seen.add(func)
-    
+
     # For each duplicate, rename the second occurrence
     for func in duplicates:
         # Find the second occurrence
         pattern = fr'(?:async\s+)?def\s+{func}\s*\('
         matches = list(re.finditer(pattern, content))
-        
+
         if len(matches) >= 2:
             # Get the position of the second match
             pos = matches[1].start()
-            
+
             # Get the text before and after the match
             before = content[:pos]
             match_text = matches[1].group(0)
             after = content[pos + len(match_text):]
-            
+
             # Replace "def func(" with "def func_v2("
             new_match_text = match_text.replace(f'{func}(', f'{func}_v2(')
-            
+
             # Put it back together
             content = before + new_match_text + after
-    
+
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
@@ -213,11 +213,11 @@ def fix_redefined_functions(file_path):
 def process_file(file_path):
     """Process a single file to fix linting issues."""
     print(f"Processing {file_path}")
-    
+
     # Skip generated files or backup files
     if any(x in file_path.name for x in ['.bak', '.backup', '.gen', '.pyc']):
         return
-    
+
     # Fix issues in order of least likely to cause problems
     fix_bare_excepts(file_path)
     fix_undefined_imports(file_path)
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         target = sys.argv[1]
     else:
         target = 'ipfs_kit_py/mcp'
-    
+
     if os.path.isfile(target):
         process_file(Path(target))
     elif os.path.isdir(target):
@@ -248,5 +248,5 @@ if __name__ == "__main__":
     else:
         print(f"Error: {target} is not a valid file or directory")
         sys.exit(1)
-    
+
     print("Fixes applied. Run ruff check to see if any issues remain.")

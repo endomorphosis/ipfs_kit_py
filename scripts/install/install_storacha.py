@@ -49,10 +49,10 @@ W3_CLI_DEPENDENCY = "@web3-storage/w3cli"
 def check_dependency(package):
     """
     Check if a dependency is installed.
-    
+
     Args:
         package: Package name to check
-        
+
     Returns:
         tuple: (is_installed, version)
     """
@@ -67,10 +67,10 @@ def check_dependency(package):
             module_name = package_to_module[package]
         else:
             module_name = package.replace("-", "_")  # Replace hyphens with underscores for import
-            
+
         # Try importing the module
         module = importlib.import_module(module_name)
-            
+
         # Try to get version
         version = getattr(module, "__version__", "unknown")
         return True, version
@@ -80,15 +80,15 @@ def check_dependency(package):
 def check_npm_installed():
     """
     Check if npm is installed and available.
-    
+
     Returns:
         bool: True if npm is installed, False otherwise
     """
     try:
         subprocess.run(
-            ["npm", "--version"], 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
+            ["npm", "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             check=True
         )
         return True
@@ -98,14 +98,14 @@ def check_npm_installed():
 def check_w3_cli_installed():
     """
     Check if the W3 CLI is installed globally.
-    
+
     Returns:
         tuple: (is_installed, version)
     """
     try:
         # Windows needs special handling
         cmd = ["npx", "--no", "w3", "--version"] if platform.system() == "Windows" else ["w3", "--version"]
-        
+
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
@@ -113,7 +113,7 @@ def check_w3_cli_installed():
             check=True,
             encoding="utf-8"
         )
-        
+
         # Extract version from output
         version = result.stdout.strip()
         return True, version
@@ -123,30 +123,30 @@ def check_w3_cli_installed():
 def install_python_dependencies(force=False, verbose=False):
     """
     Install required and optional Python dependencies.
-    
+
     Args:
         force: Force reinstallation even if already installed
         verbose: Enable verbose output
-        
+
     Returns:
         bool: True if installation was successful, False otherwise
     """
     # Set pip verbosity
     pip_args = ["-v"] if verbose else []
-    
+
     # Initialize results
     required_results = {}
-    
+
     # Check current state
     logger.info("Checking current Python dependency status...")
     all_required_installed = True
-    
+
     for dep in REQUIRED_DEPENDENCIES:
         installed, version = check_dependency(dep)
         required_results[dep] = {"installed": installed, "version": version}
         if not installed:
             all_required_installed = False
-            
+
     if all_required_installed and not force:
         logger.info("All required Python dependencies are already installed.")
         if force:
@@ -156,20 +156,20 @@ def install_python_dependencies(force=False, verbose=False):
             for dep, result in required_results.items():
                 logger.info(f"  {dep}: {result['version']}")
             return True
-    
+
     # Install required dependencies
     try:
         logger.info("Installing required Python dependencies...")
         cmd = [sys.executable, "-m", "pip", "install"] + pip_args
-        
+
         if force:
             cmd.append("--upgrade")
-            
+
         cmd.extend(REQUIRED_DEPENDENCIES)
-        
+
         logger.info(f"Running: {' '.join(cmd)}")
         subprocess.check_call(cmd)
-        
+
         # Verify installation
         all_installed = True
         for dep in REQUIRED_DEPENDENCIES:
@@ -179,26 +179,26 @@ def install_python_dependencies(force=False, verbose=False):
                 all_installed = False
             else:
                 logger.info(f"Successfully installed {dep} {version}")
-                
+
         if not all_installed:
             return False
     except subprocess.CalledProcessError as e:
         logger.error(f"Error installing required dependencies: {e}")
         return False
-    
+
     # Install optional dependencies
     try:
         logger.info("Installing optional Python dependencies...")
         cmd = [sys.executable, "-m", "pip", "install"] + pip_args
-        
+
         if force:
             cmd.append("--upgrade")
-            
+
         cmd.extend(OPTIONAL_DEPENDENCIES)
-        
+
         logger.info(f"Running: {' '.join(cmd)}")
         subprocess.check_call(cmd)
-        
+
         # Report on optional dependencies
         for dep in OPTIONAL_DEPENDENCIES:
             installed, version = check_dependency(dep)
@@ -209,17 +209,17 @@ def install_python_dependencies(force=False, verbose=False):
     except subprocess.CalledProcessError as e:
         logger.warning(f"Error installing optional dependencies: {e}")
         logger.warning("Some optional functionality may not be available.")
-    
+
     return True
 
 def install_w3_cli(force=False, verbose=False):
     """
     Install the W3 CLI tool via npm.
-    
+
     Args:
         force: Force reinstallation even if already installed
         verbose: Enable verbose output
-        
+
     Returns:
         bool: True if installation was successful, False otherwise
     """
@@ -228,39 +228,39 @@ def install_w3_cli(force=False, verbose=False):
         logger.error("npm is not installed. Please install Node.js and npm first.")
         logger.error("Visit https://nodejs.org/ for installation instructions.")
         return False
-    
+
     # Check if W3 CLI is already installed
     w3_installed, w3_version = check_w3_cli_installed()
-    
+
     if w3_installed and not force:
         logger.info(f"W3 CLI is already installed (version: {w3_version})")
         logger.info("Use --force to reinstall.")
         return True
-    
+
     # Install W3 CLI
     try:
         logger.info(f"Installing {W3_CLI_DEPENDENCY} globally...")
-        
+
         # Build npm command
         npm_args = []
         if verbose:
             npm_args.append("--loglevel=verbose")
-            
+
         install_cmd = ["npm", "install", "-g", W3_CLI_DEPENDENCY] + npm_args
-        
+
         logger.info(f"Running: {' '.join(install_cmd)}")
         subprocess.check_call(install_cmd)
-        
+
         # Verify installation
         w3_installed, w3_version = check_w3_cli_installed()
-        
+
         if w3_installed:
             logger.info(f"Successfully installed W3 CLI {w3_version}")
             return True
         else:
             logger.error("W3 CLI installation verification failed")
             return False
-            
+
     except subprocess.CalledProcessError as e:
         logger.error(f"Error installing W3 CLI: {e}")
         return False
@@ -268,12 +268,12 @@ def install_w3_cli(force=False, verbose=False):
 def verify_storacha_functionality():
     """
     Verify that storacha_kit dependencies are properly installed and functioning.
-    
+
     Returns:
         bool: True if verification passes, False otherwise
     """
     logger.info("Verifying storacha_kit functionality...")
-    
+
     # Verify Python dependencies
     try:
         import requests
@@ -281,7 +281,7 @@ def verify_storacha_functionality():
     except ImportError:
         logger.error("requests verification: Failed - module could not be imported")
         return False
-        
+
     # Verify W3 CLI
     w3_installed, w3_version = check_w3_cli_installed()
     if w3_installed:
@@ -289,7 +289,7 @@ def verify_storacha_functionality():
     else:
         logger.error("W3 CLI verification: Failed - command not found")
         return False
-        
+
     # Set up environment for W3 CLI
     # Create config directories if they don't exist
     w3_config_dir = os.path.expanduser("~/.w3")
@@ -299,16 +299,16 @@ def verify_storacha_functionality():
             logger.info(f"Created W3 configuration directory at {w3_config_dir}")
         except Exception as e:
             logger.warning(f"Failed to create W3 configuration directory: {e}")
-    
+
     # Test basic functionality
     try:
         # Set correct environment variables for W3 CLI
         env = os.environ.copy()
         env['W3_AGENT_DIR'] = w3_config_dir
-        
+
         # Try to run a simple w3 command to check if it works
         cmd = ["npx", "w3", "--help"] if platform.system() == "Windows" else ["w3", "--help"]
-        
+
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
@@ -317,12 +317,12 @@ def verify_storacha_functionality():
             encoding="utf-8",
             env=env  # Use the environment with W3_AGENT_DIR set
         )
-        
+
         if "Usage" in result.stdout:
             logger.info("W3 CLI command execution: Successful")
         else:
             logger.warning("W3 CLI command execution: Output doesn't contain expected content")
-            
+
         return True
     except Exception as e:
         logger.error(f"W3 CLI command execution failed: {e}")
@@ -331,14 +331,14 @@ def verify_storacha_functionality():
 def install_dependencies_auto(force=False, verbose=False):
     """
     Install all required dependencies for storacha functionality.
-    
+
     This function can be imported and called directly by other modules
     to ensure dependencies are installed without running the script.
-    
+
     Args:
         force: Force reinstallation even if already installed
         verbose: Enable verbose output
-        
+
     Returns:
         bool: True if installation successful, False otherwise
     """
@@ -346,27 +346,27 @@ def install_dependencies_auto(force=False, verbose=False):
     orig_level = logger.level
     if verbose:
         logger.setLevel(logging.DEBUG)
-    
+
     try:
         # Install Python dependencies
         python_success = install_python_dependencies(force=force, verbose=verbose)
-        
+
         if not python_success:
             logger.error("Failed to install required Python dependencies.")
             return False
-            
+
         # Install W3 CLI
         w3_success = install_w3_cli(force=force, verbose=verbose)
-        
+
         if not w3_success:
             logger.error("Failed to install W3 CLI.")
             logger.error(f"You may need to install it manually: npm install -g {W3_CLI_DEPENDENCY}")
             return False
-        
+
         # Verify installation
         if python_success and w3_success:
             verify_success = verify_storacha_functionality()
-            
+
             if verify_success:
                 logger.info("Storacha installation completed successfully!")
                 return True
@@ -388,18 +388,18 @@ def main():
     parser.add_argument("--force", action="store_true", help="Force reinstallation even if already installed")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
-    
+
     # Set log level
     if args.verbose:
         logger.setLevel(logging.DEBUG)
-    
+
     # Print welcome message
     logger.info("IPFS Kit - Storacha/Web3.Storage Dependency Installer")
     logger.info("=================================================")
-    
+
     # Use the common function for installation
     success = install_dependencies_auto(force=args.force, verbose=args.verbose)
-    
+
     if success:
         logger.info("=================================================")
         logger.info("Storacha installation completed successfully!")

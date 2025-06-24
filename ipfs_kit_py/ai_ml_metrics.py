@@ -538,11 +538,11 @@ class AIMLMetrics:
             loss_values = [
                 l for l in self.training_metrics["loss_values"].get(model_id, []) if l is not None
             ]
-            
+
             # Initialize an empty accuracy_values list since we don't track it directly
             # This is needed for the visualization function
             accuracy_values = []
-            
+
             # Calculate convergence rate if possible
             convergence_rate = None
             if len(loss_values) >= 2:
@@ -1241,16 +1241,16 @@ class AIMLMetrics:
 class AIMLMetricsCollector:
     """
     Collects and analyzes metrics for AI/ML workloads using IPFS.
-    
+
     This class tracks various performance metrics specific to AI/ML workloads,
     such as data loading times, checkpoint storage efficiency, and distributed
     training coordination overhead.
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the metrics collector.
-        
+
         Args:
             config: Optional configuration dictionary
         """
@@ -1275,7 +1275,7 @@ class AIMLMetricsCollector:
                 "network_overhead_bytes": 0,
             }
         }
-        
+
         # Default configuration
         self.config = {
             "histogram_buckets": [1, 10, 100, 1000, 10000],  # ms
@@ -1283,25 +1283,25 @@ class AIMLMetricsCollector:
             "enable_tracing": False,
             "metrics_export_path": None,
         }
-        
+
         # Update with provided config
         if config:
             self.config.update(config)
-            
+
         # Initialize histogram buckets
         for bucket in self.config["histogram_buckets"]:
             self.metrics["data_loading"]["histogram"][str(bucket)] = 0
-            
+
         # Start time for the session
         self.start_time = time.time()
-        
+
         logger.info("AIMLMetricsCollector initialized")
-    
-    def record_data_loading(self, bytes_loaded: int, time_ms: float, 
+
+    def record_data_loading(self, bytes_loaded: int, time_ms: float,
                            data_type: str = "generic") -> None:
         """
         Record metrics for data loading operation.
-        
+
         Args:
             bytes_loaded: Number of bytes loaded
             time_ms: Time taken in milliseconds
@@ -1310,25 +1310,25 @@ class AIMLMetricsCollector:
         self.metrics["data_loading"]["total_bytes"] += bytes_loaded
         self.metrics["data_loading"]["total_time_ms"] += time_ms
         self.metrics["data_loading"]["operations"] += 1
-        
+
         # Update throughput calculation
         total_time_sec = self.metrics["data_loading"]["total_time_ms"] / 1000.0
         if total_time_sec > 0:
-            throughput = (self.metrics["data_loading"]["total_bytes"] / 
+            throughput = (self.metrics["data_loading"]["total_bytes"] /
                          total_time_sec / (1024 * 1024))
             self.metrics["data_loading"]["avg_throughput_mbps"] = throughput
-        
+
         # Update histogram
         for bucket in sorted(map(int, self.metrics["data_loading"]["histogram"].keys())):
             if time_ms <= bucket:
                 self.metrics["data_loading"]["histogram"][str(bucket)] += 1
                 break
-    
-    def record_checkpoint(self, operation: str, size_bytes: int, 
+
+    def record_checkpoint(self, operation: str, size_bytes: int,
                          time_ms: float) -> None:
         """
         Record metrics for model checkpoint operations.
-        
+
         Args:
             operation: Either "save" or "load"
             size_bytes: Size of the checkpoint in bytes
@@ -1340,21 +1340,21 @@ class AIMLMetricsCollector:
         elif operation == "load":
             self.metrics["training"]["checkpoint_load_count"] += 1
             self.metrics["training"]["checkpoint_load_time_ms"] += time_ms
-        
+
         # Update average checkpoint size
-        total_ops = (self.metrics["training"]["checkpoint_save_count"] + 
+        total_ops = (self.metrics["training"]["checkpoint_save_count"] +
                     self.metrics["training"]["checkpoint_load_count"])
-        
+
         if total_ops > 0:
-            current_total = (self.metrics["training"]["avg_checkpoint_size_mb"] * 
+            current_total = (self.metrics["training"]["avg_checkpoint_size_mb"] *
                            (total_ops - 1))
             new_total = current_total + (size_bytes / (1024 * 1024))
             self.metrics["training"]["avg_checkpoint_size_mb"] = new_total / total_ops
-    
+
     def record_sync_operation(self, bytes_transferred: int, time_ms: float) -> None:
         """
         Record metrics for distributed training synchronization.
-        
+
         Args:
             bytes_transferred: Number of bytes transferred
             time_ms: Time taken in milliseconds
@@ -1362,92 +1362,92 @@ class AIMLMetricsCollector:
         self.metrics["distribution"]["sync_operations"] += 1
         self.metrics["distribution"]["sync_time_ms"] += time_ms
         self.metrics["distribution"]["network_overhead_bytes"] += bytes_transferred
-    
+
     def get_metrics(self) -> Dict[str, Any]:
         """
         Get the current metrics.
-        
+
         Returns:
             Dictionary of collected metrics
         """
         # Calculate derived metrics
         metrics = self.metrics.copy()
-        
+
         # Add session duration
         metrics["session_duration_sec"] = time.time() - self.start_time
-        
+
         # Calculate efficiency metrics
         if metrics["data_loading"]["operations"] > 0:
             metrics["data_loading"]["avg_time_per_op_ms"] = (
-                metrics["data_loading"]["total_time_ms"] / 
+                metrics["data_loading"]["total_time_ms"] /
                 metrics["data_loading"]["operations"]
             )
-        
+
         if metrics["training"]["checkpoint_save_count"] > 0:
             metrics["training"]["avg_save_time_ms"] = (
-                metrics["training"]["checkpoint_save_time_ms"] / 
+                metrics["training"]["checkpoint_save_time_ms"] /
                 metrics["training"]["checkpoint_save_count"]
             )
-            
+
         if metrics["training"]["checkpoint_load_count"] > 0:
             metrics["training"]["avg_load_time_ms"] = (
-                metrics["training"]["checkpoint_load_time_ms"] / 
+                metrics["training"]["checkpoint_load_time_ms"] /
                 metrics["training"]["checkpoint_load_count"]
             )
-            
+
         if metrics["distribution"]["sync_operations"] > 0:
             metrics["distribution"]["avg_sync_time_ms"] = (
-                metrics["distribution"]["sync_time_ms"] / 
+                metrics["distribution"]["sync_time_ms"] /
                 metrics["distribution"]["sync_operations"]
             )
-        
+
         return metrics
-    
+
     def export_metrics(self, file_path: Optional[str] = None) -> str:
         """
         Export metrics to a JSON file.
-        
+
         Args:
             file_path: Path to save the metrics, defaults to config path
-            
+
         Returns:
             Path to the saved file
         """
         if file_path is None:
             file_path = self.config.get("metrics_export_path")
-            
+
         if file_path is None:
             file_path = f"ipfs_aiml_metrics_{int(time.time())}.json"
-            
+
         metrics = self.get_metrics()
-        
+
         with open(file_path, 'w') as f:
             json.dump(metrics, f, indent=2)
-            
+
         logger.info(f"Exported AI/ML metrics to {file_path}")
         return file_path
-    
+
     def reset_metrics(self) -> None:
         """Reset all metrics to their initial state."""
         # Keep configuration but reset all metrics
         self.__init__(self.config)
-        
+
     def generate_report(self) -> str:
         """
         Generate a human-readable report of the metrics.
-        
+
         Returns:
             String containing the report
         """
         metrics = self.get_metrics()
-        
+
         report = []
         report.append("=" * 60)
         report.append("IPFS AI/ML Metrics Report")
         report.append("=" * 60)
         report.append(f"Session Duration: {metrics['session_duration_sec']:.2f} seconds")
         report.append("")
-        
+
         report.append("Data Loading Metrics:")
         report.append(f"- Total Data Loaded: {metrics['data_loading']['total_bytes']/1024/1024:.2f} MB")
         report.append(f"- Total Loading Time: {metrics['data_loading']['total_time_ms']/1000:.2f} seconds")
@@ -1456,7 +1456,7 @@ class AIMLMetricsCollector:
         if 'avg_time_per_op_ms' in metrics['data_loading']:
             report.append(f"- Average Time per Operation: {metrics['data_loading']['avg_time_per_op_ms']:.2f} ms")
         report.append("")
-        
+
         report.append("Training Metrics:")
         report.append(f"- Checkpoint Save Count: {metrics['training']['checkpoint_save_count']}")
         report.append(f"- Checkpoint Load Count: {metrics['training']['checkpoint_load_count']}")
@@ -1466,12 +1466,12 @@ class AIMLMetricsCollector:
         if 'avg_load_time_ms' in metrics['training']:
             report.append(f"- Average Load Time: {metrics['training']['avg_load_time_ms']:.2f} ms")
         report.append("")
-        
+
         report.append("Distribution Metrics:")
         report.append(f"- Sync Operations: {metrics['distribution']['sync_operations']}")
         report.append(f"- Total Sync Time: {metrics['distribution']['sync_time_ms']/1000:.2f} seconds")
         report.append(f"- Network Overhead: {metrics['distribution']['network_overhead_bytes']/1024/1024:.2f} MB")
         if 'avg_sync_time_ms' in metrics['distribution']:
             report.append(f"- Average Sync Time: {metrics['distribution']['avg_sync_time_ms']:.2f} ms")
-            
+
         return "\n".join(report)

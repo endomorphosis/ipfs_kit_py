@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class DashboardSettings:
     """Settings for the routing dashboard."""
-    
+
     def __init__(
         self,
         title: str = "IPFS Kit Routing Dashboard",
@@ -32,7 +32,7 @@ class DashboardSettings:
     ):
         """
         Initialize dashboard settings.
-        
+
         Args:
             title: Dashboard title
             theme: Dashboard theme (darkly, flatly, etc.)
@@ -56,7 +56,7 @@ class DashboardSettings:
         self.refresh_interval = refresh_interval
         self.enable_simulator = enable_simulator
         self.enable_config_editing = enable_config_editing
-        
+
         # Add any additional settings
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -65,19 +65,19 @@ class DashboardSettings:
 def create_dashboard_app(settings: Optional[DashboardSettings] = None) -> "FastAPI":
     """
     Create the routing dashboard FastAPI application.
-    
+
     Args:
         settings: Optional dashboard settings
-        
+
     Returns:
         FastAPI application
     """
     settings = settings or DashboardSettings()
-    
+
     try:
         from .dashboard.routing_dashboard import RoutingDashboard
         from fastapi import FastAPI
-        
+
         # Create FastAPI app
         app = FastAPI(
             title=settings.title,
@@ -85,11 +85,11 @@ def create_dashboard_app(settings: Optional[DashboardSettings] = None) -> "FastA
             version="1.0.0",
             debug=settings.debug
         )
-        
+
         # Create and mount dashboard
         dashboard = RoutingDashboard(settings)
         dashboard.mount_to_app(app)
-        
+
         return app
     except ImportError as e:
         logger.error(f"Error creating dashboard app: {e}", exc_info=True)
@@ -101,17 +101,17 @@ async def start_dashboard_server(
 ) -> None:
     """
     Start the routing dashboard server.
-    
+
     Args:
         settings: Optional dashboard settings
     """
     settings = settings or DashboardSettings()
-    
+
     try:
         import uvicorn
-        
+
         app = create_dashboard_app(settings)
-        
+
         config = uvicorn.Config(
             app=app,
             host=settings.host,
@@ -119,11 +119,11 @@ async def start_dashboard_server(
             log_level="debug" if settings.debug else "info",
             reload=settings.debug
         )
-        
+
         server = uvicorn.Server(config)
         logger.info(f"Starting routing dashboard on http://{settings.host}:{settings.port}")
         await server.serve()
-        
+
     except ImportError as e:
         logger.error(f"Error starting dashboard server: {e}", exc_info=True)
         raise
@@ -132,9 +132,9 @@ async def start_dashboard_server(
 def run_dashboard(settings: Optional[Dict[str, Any]] = None) -> None:
     """
     Run the routing dashboard (blocking).
-    
+
     This is a convenience function for running the dashboard from scripts.
-    
+
     Args:
         settings: Optional dashboard settings as dictionary
     """
@@ -143,10 +143,10 @@ def run_dashboard(settings: Optional[Dict[str, Any]] = None) -> None:
         settings_obj = None
         if settings is not None:
             settings_obj = DashboardSettings(**settings)
-        
+
         # Run the dashboard
         asyncio.run(start_dashboard_server(settings_obj))
-        
+
     except KeyboardInterrupt:
         logger.info("Dashboard server stopped by user")
     except Exception as e:

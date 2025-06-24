@@ -2,7 +2,7 @@
 Security Dashboard Router Integration for MCP Server
 
 This module integrates the security dashboard with the MCP server:
-- Initializes the security analyzer 
+- Initializes the security analyzer
 - Registers the security dashboard routes
 
 Part of the MCP Roadmap Phase 1: Core Functionality Enhancements (Q3 2025).
@@ -35,21 +35,21 @@ async def shutdown_security_dashboard():
 def setup_security_dashboard(app: FastAPI, prefix: str = "/api/v0"):
     """
     Set up the security dashboard with the FastAPI application.
-    
+
     Args:
         app: FastAPI application
         prefix: API prefix
     """
     # Register the security dashboard router
     app.include_router(security_router, prefix=prefix)
-    
+
     # Register startup and shutdown events
     @app.on_event("startup")
     async def startup_security_dashboard():
         asyncio.create_task(initialize_security_dashboard())
-    
+
     @app.on_event("shutdown")
     async def shutdown_security_dashboard_task():
         await shutdown_security_dashboard()
-    
+
     logger.info("Security dashboard setup complete")

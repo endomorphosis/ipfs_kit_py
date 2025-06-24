@@ -48,11 +48,11 @@ START_TIME = time.time()
 
 class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
     """Handler for VS Code JSON-RPC requests."""
-    
+
     def log_message(self, format, *args):
         """Override log_message to use our logger."""
         logger.info(format % args)
-    
+
     def send_json_response(self, data, status=200):
         """Send a JSON response."""
         self.send_response(status)
@@ -62,7 +62,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
-    
+
     def send_error_response(self, request_id, code, message):
         """Send a JSON-RPC error response."""
         response = {
@@ -74,17 +74,17 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
             }
         }
         self.send_json_response(response)
-        
+
     def handle_initialize(self, request):
         """Handle initialize request."""
         logger.info("Handling initialize request")
-        
+
         # Log client information
         params = request.get("params", {})
         client_info = params.get("clientInfo", {})
         if client_info:
             logger.info(f"Client: {client_info.get('name')} {client_info.get('version')}")
-        
+
         # Create detailed server capabilities
         response = {
             "jsonrpc": "2.0",
@@ -125,10 +125,10 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                 }
             }
         }
-        
+
         logger.debug(f"Sending initialize response: {json.dumps(response)}")
         return response
-    
+
     def handle_shutdown(self, request):
         """Handle shutdown request."""
         logger.info("Handling shutdown request")
@@ -137,7 +137,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
             "id": request.get("id"),
             "result": None
         }
-    
+
     def handle_exit(self, request):
         """Handle exit notification."""
         logger.info("Handling exit notification")
@@ -146,7 +146,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
             "id": request.get("id"),
             "result": None
         }
-    
+
     def handle_text_document_did_open(self, request):
         """Handle textDocument/didOpen notification."""
         logger.info("Handling textDocument/didOpen notification")
@@ -155,23 +155,23 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
         logger.info(f"Document opened: {text_document.get('uri')}")
         # No response needed for notifications
         return None
-    
+
     def handle_text_document_did_change(self, request):
         """Handle textDocument/didChange notification."""
         logger.info("Handling textDocument/didChange notification")
         # No response needed for notifications
         return None
-    
+
     def handle_text_document_did_close(self, request):
         """Handle textDocument/didClose notification."""
         logger.info("Handling textDocument/didClose notification")
         # No response needed for notifications
         return None
-    
+
     def handle_completion(self, request):
         """Handle textDocument/completion request."""
         logger.info("Handling completion request")
-        
+
         # Return IPFS-related completion items
         response = {
             "jsonrpc": "2.0",
@@ -197,13 +197,13 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                 }
             ]
         }
-        
+
         return response
-    
+
     def handle_hover(self, request):
         """Handle textDocument/hover request."""
         logger.info("Handling hover request")
-        
+
         # Return minimal hover response
         response = {
             "jsonrpc": "2.0",
@@ -212,9 +212,9 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                 "contents": "MCP IPFS Tools Hover Information"
             }
         }
-        
+
         return response
-        
+
     def do_POST(self):
         """Handle POST requests for JSON-RPC."""
         if self.path == "/jsonrpc":
@@ -224,15 +224,15 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                 if content_length == 0:
                     self.send_error_response(None, -32700, "Parse error: no content")
                     return
-                
+
                 post_data = self.rfile.read(content_length)
                 request = json.loads(post_data.decode('utf-8'))
                 request_id = request.get("id")
                 method = request.get("method")
-                
+
                 logger.info(f"Received JSON-RPC request: {method}")
                 logger.debug(f"Request details: {json.dumps(request)}")
-                
+
                 # Handle different methods
                 handlers = {
                     "initialize": self.handle_initialize,
@@ -244,7 +244,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                     "textDocument/completion": self.handle_completion,
                     "textDocument/hover": self.handle_hover,
                 }
-                
+
                 handler = handlers.get(method)
                 if handler:
                     response = handler(request)
@@ -254,7 +254,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                     logger.warning(f"Unsupported method: {method}")
                     # Method not found
                     self.send_error_response(request_id, -32601, f"Method not found: {method}")
-                
+
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error: {e}")
                 self.send_error_response(None, -32700, f"Parse error: {str(e)}")
@@ -263,7 +263,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error_response(None, -32603, f"Internal error: {str(e)}")
         else:
             self.send_error(404)
-    
+
     def do_OPTIONS(self):
         """Handle OPTIONS requests (CORS preflight)."""
         self.send_response(200)
@@ -271,7 +271,7 @@ class VSCodeJSONRPCHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
-    
+
     def do_GET(self):
         """Handle GET requests."""
         if self.path == "/":
@@ -293,11 +293,11 @@ def main():
     """Run the server."""
     host = args.host
     port = args.port
-    
+
     logger.info(f"Starting {SERVER_NAME} v{SERVER_VERSION} on port {port}")
     logger.info(f"Debug mode: {'enabled' if args.debug else 'disabled'}")
     print(f"Starting JSON-RPC server for VS Code integration on port {port}...")
-    
+
     try:
         with socketserver.TCPServer((host, port), VSCodeJSONRPCHandler) as httpd:
             print(f"Server running at http://localhost:{port}/")

@@ -51,7 +51,7 @@ def list_available_methods():
 def main():
     """Main function to demonstrate MCP server connectivity."""
     print("\n=== Connecting to MCP Server ===")
-    
+
     # Get basic server info
     print("\n>> Getting server information...")
     try:
@@ -60,7 +60,7 @@ def main():
     except Exception as e:
         print(f"Error getting server info: {e}")
         sys.exit(1)
-    
+
     # Check server health
     print("\n>> Checking server health...")
     try:
@@ -68,7 +68,7 @@ def main():
         print_json(health_info)
     except Exception as e:
         print(f"Error checking server health: {e}")
-    
+
     # Try to get IPFS version
     print("\n>> Getting IPFS version...")
     try:
@@ -76,7 +76,7 @@ def main():
         print_json(version_info)
     except Exception as e:
         print(f"Error getting IPFS version: {e}")
-    
+
     # Get daemon status
     print("\n>> Checking daemon status...")
     try:
@@ -84,7 +84,7 @@ def main():
         print_json(daemon_status)
     except Exception as e:
         print(f"Error checking daemon status: {e}")
-    
+
     # List pins
     print("\n>> Listing pinned items...")
     try:

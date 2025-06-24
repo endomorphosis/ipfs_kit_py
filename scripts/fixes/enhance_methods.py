@@ -25,16 +25,16 @@ def find_method(content: str, method_name: str) -> tuple:
     # Regular expression to find the method definition
     pattern = rf'def {method_name}\s*\('
     match = re.search(pattern, content)
-    
+
     if not match:
         return -1, -1, ""
-    
+
     start_idx = match.start()
-    
+
     # Find the method body by counting braces
     idx = match.end()
     brace_count = 1  # We've already found the opening parenthesis
-    
+
     # Find the end of the method signature
     while idx < len(content) and brace_count > 0:
         if content[idx] == '(':
@@ -42,29 +42,29 @@ def find_method(content: str, method_name: str) -> tuple:
         elif content[idx] == ')':
             brace_count -= 1
         idx += 1
-    
+
     # Now find the docstring
     while idx < len(content) and content[idx].isspace():
         idx += 1
-    
+
     # Check if there's a docstring
     if idx < len(content) and content[idx:idx+3] == '"""':
         # Find the end of the docstring
         idx = content.find('"""', idx + 3)
         if idx != -1:
             idx += 3  # Move past the closing quotes
-    
+
     # Find the method body by tracking indentation
     method_text = content[start_idx:idx]
     lines = content[idx:].split('\n')
-    
+
     method_indent = None
     current_method_text = method_text
     for i, line in enumerate(lines):
         if line.strip() and not line.isspace():
             # Get the indentation of the first non-empty line
             current_indent = len(line) - len(line.lstrip())
-            
+
             if method_indent is None:
                 method_indent = current_indent
                 current_method_text += '\n' + line
@@ -77,22 +77,22 @@ def find_method(content: str, method_name: str) -> tuple:
         else:
             # Empty line, keep it as part of the method
             current_method_text += '\n' + line
-    
+
     end_idx = start_idx + len(current_method_text)
     return start_idx, end_idx, current_method_text
 
 def enhance_ai_vector_search(method_text: str) -> str:
     """Enhance the ai_vector_search method with keyword-only parameters and type annotations."""
     enhanced_method = '''def ai_vector_search(
-    self, 
-    query: Union[str, List[float]], 
-    vector_index_cid: str, 
-    *, 
-    top_k: int = 10, 
-    similarity_threshold: float = 0.0, 
-    filter: Optional[Dict[str, Any]] = None, 
-    embedding_model: Optional[str] = None, 
-    search_type: Literal["similarity", "knn", "hybrid"] = "similarity", 
+    self,
+    query: Union[str, List[float]],
+    vector_index_cid: str,
+    *,
+    top_k: int = 10,
+    similarity_threshold: float = 0.0,
+    filter: Optional[Dict[str, Any]] = None,
+    embedding_model: Optional[str] = None,
+    search_type: Literal["similarity", "knn", "hybrid"] = "similarity",
     timeout: int = 30,
     allow_simulation: bool = True,
     **kwargs
@@ -134,10 +134,10 @@ def enhance_ai_vector_search(method_text: str) -> str:
         kwargs_dict["embedding_model"] = embedding_model
     kwargs_dict["search_type"] = search_type
     kwargs_dict["timeout"] = timeout
-    
+
     # Add any additional kwargs
     kwargs_dict.update(kwargs)
-    
+
     # Validate parameters
     validation.validate_parameters(
         kwargs_dict,
@@ -231,8 +231,8 @@ def enhance_ai_vector_search(method_text: str) -> str:
 def enhance_ai_register_dataset(method_text: str) -> str:
     """Enhance the ai_register_dataset method with better simulation handling."""
     enhanced_method = '''def ai_register_dataset(
-    self, 
-    dataset_cid: str, 
+    self,
+    dataset_cid: str,
     metadata: Dict[str, Any],
     *,
     pin: bool = True,
@@ -349,14 +349,14 @@ def enhance_ai_register_dataset(method_text: str) -> str:
 
         # Fallback to simple metadata registration without advanced features
         logger.warning("AI/ML integration not available, using fallback implementation")
-        
+
         # Generate a simulated metadata CID
         metadata_cid = f"Qm{os.urandom(16).hex()}"
-        
+
         # Create simulated metadata statistics
         num_features = len(metadata.get("features", []))
         num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
-        
+
         result = {
             "success": True,
             "operation": "ai_register_dataset",
@@ -396,7 +396,7 @@ def enhance_ai_register_dataset(method_text: str) -> str:
 
         # Forward allow_simulation parameter to the dataset_manager
         kwargs_with_defaults["allow_simulation"] = allow_simulation
-        
+
         result = dataset_manager.register_dataset(dataset_cid, metadata, **kwargs_with_defaults)
         return result
     except Exception as e:
@@ -409,17 +409,17 @@ def enhance_ai_register_dataset(method_text: str) -> str:
                 "error": f"Error in AI/ML integration: {str(e)}",
                 "error_type": type(e).__name__
             }
-            
+
         # Fallback to simulation on error
         logger.error(f"Error registering dataset with AI/ML integration: {str(e)}")
 
         # Generate a simulated metadata CID
         metadata_cid = f"Qm{os.urandom(16).hex()}"
-        
+
         # Create simulated metadata statistics
         num_features = len(metadata.get("features", []))
         num_rows = metadata.get("rows", 1000)  # Default to 1000 rows for simulation
-        
+
         return {
             "success": True,
             "operation": "ai_register_dataset",
@@ -465,10 +465,10 @@ def enhance_ai_list_models(method_text: str) -> str:
 ) -> Dict[str, Any]:
     """
     List machine learning models available in the system.
-    
+
     This method retrieves a list of models from the model registry
     based on the specified filters and sorting parameters.
-    
+
     Args:
         framework: Filter by machine learning framework (e.g., "pytorch", "tensorflow", "sklearn")
         tags: Filter by one or more tags
@@ -480,7 +480,7 @@ def enhance_ai_list_models(method_text: str) -> str:
         only_local: Whether to include only locally available models
         allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
         **kwargs: Additional filter parameters
-    
+
     Returns:
         Dict[str, Any]: Dictionary containing operation results with these keys:
             - "success": bool indicating if the operation succeeded
@@ -505,10 +505,10 @@ def enhance_ai_list_models(method_text: str) -> str:
     kwargs_with_defaults["sort_order"] = sort_order
     kwargs_with_defaults["include_metrics"] = include_metrics
     kwargs_with_defaults["only_local"] = only_local
-    
+
     # Add any additional kwargs
     kwargs_with_defaults.update(kwargs)
-    
+
     # Check if AI/ML integration is available
     if not AI_ML_AVAILABLE:
         if not allow_simulation:
@@ -519,16 +519,16 @@ def enhance_ai_list_models(method_text: str) -> str:
                 "error": "AI/ML integration not available and simulation not allowed",
                 "error_type": "ModuleNotFoundError"
             }
-            
+
         # Simulate model list
         models = []
         total_models = min(limit + offset, 25)  # Simulate at most 25 models
-        
+
         # Create simulated models
         frameworks = ["pytorch", "tensorflow", "sklearn", "onnx", "keras"]
         model_types = ["classification", "regression", "segmentation", "detection", "nlp", "timeseries"]
         architectures = ["resnet", "bert", "gpt", "transformer", "lstm", "vgg", "mobilenet", "efficientnet"]
-        
+
         for i in range(offset, min(offset + limit, total_models)):
             # Use deterministic values based on index to create realistic simulation
             model_idx = i % 25
@@ -536,7 +536,7 @@ def enhance_ai_list_models(method_text: str) -> str:
             framework_name = frameworks[framework_idx]
             model_type = model_types[model_idx % len(model_types)]
             architecture = architectures[model_idx % len(architectures)]
-            
+
             # Generate model metadata
             model = {
                 "cid": f"Qm{os.urandom(16).hex()}",
@@ -550,7 +550,7 @@ def enhance_ai_list_models(method_text: str) -> str:
                 "is_local": model_idx < 10,  # First 10 are local
                 "description": f"Simulated {architecture} model for {model_type} using {framework_name}"
             }
-            
+
             # Add metrics if requested
             if include_metrics:
                 model["metrics"] = {
@@ -559,7 +559,7 @@ def enhance_ai_list_models(method_text: str) -> str:
                     "parameters": 1000000 + (model_idx * 100000),
                     "memory_mb": 50 + (model_idx * 5)
                 }
-                
+
             # Add hyperparameters
             model["hyperparameters"] = {
                 "learning_rate": 0.001,
@@ -567,13 +567,13 @@ def enhance_ai_list_models(method_text: str) -> str:
                 "epochs": 10 + (model_idx % 5),
                 "optimizer": ["adam", "sgd", "rmsprop"][model_idx % 3]
             }
-            
+
             models.append(model)
-        
+
         # Apply framework filter if specified
         if framework:
             models = [m for m in models if m["framework"] == framework]
-            
+
         # Apply tags filter if specified
         if tags:
             filtered_models = []
@@ -581,11 +581,11 @@ def enhance_ai_list_models(method_text: str) -> str:
                 if all(tag in model["tags"] for tag in tags):
                     filtered_models.append(model)
             models = filtered_models
-            
+
         # Apply only_local filter if specified
         if only_local:
             models = [m for m in models if m.get("is_local", False)]
-            
+
         # Return the simulated model list
         return {
             "success": True,
@@ -606,17 +606,17 @@ def enhance_ai_list_models(method_text: str) -> str:
                 "sort_order": sort_order
             }
         }
-    
+
     # If AI/ML integration is available, use the real implementation
     try:
         model_manager = self.kit.model_manager
         if model_manager is None:
             model_manager = ai_ml_integration.ModelManager(self.kit)
             self.kit.model_manager = model_manager
-        
+
         result = model_manager.list_models(**kwargs_with_defaults)
         return result
-        
+
     except Exception as e:
         # Return error information
         return {
@@ -650,14 +650,14 @@ def create_ai_create_knowledge_graph() -> str:
     """
     Create a knowledge graph from source data.
 
-    This method extracts entities and relationships from source data and 
+    This method extracts entities and relationships from source data and
     creates a structured knowledge graph stored in IPLD format. The resulting
     graph can be used for semantic search, reasoning, and data exploration.
 
     Args:
         source_data_cid: CID of the source data to process (document, dataset, etc.)
         graph_name: Name to assign to the created knowledge graph
-        extraction_model: Optional name/type of model to use for entity extraction 
+        extraction_model: Optional name/type of model to use for entity extraction
             (if None, uses the default model appropriate for the content type)
         entity_types: List of entity types to extract (e.g., ["Person", "Organization", "Location"])
         relationship_types: List of relationship types to extract (e.g., ["worksFor", "locatedIn"])
@@ -700,7 +700,7 @@ def create_ai_create_knowledge_graph() -> str:
         "save_intermediate_results": save_intermediate_results,
         "timeout": timeout
     }
-    
+
     # Add optional parameters if provided
     if extraction_model is not None:
         kwargs_dict["extraction_model"] = extraction_model
@@ -708,10 +708,10 @@ def create_ai_create_knowledge_graph() -> str:
         kwargs_dict["entity_types"] = entity_types
     if relationship_types is not None:
         kwargs_dict["relationship_types"] = relationship_types
-        
+
     # Add any additional kwargs
     kwargs_dict.update(kwargs)
-    
+
     # Validate parameters
     validation.validate_parameters(
         kwargs_dict,
@@ -727,7 +727,7 @@ def create_ai_create_knowledge_graph() -> str:
             "timeout": {"type": int, "default": 120}
         }
     )
-    
+
     # Validate source_data_cid
     if not source_data_cid:
         return {
@@ -742,25 +742,25 @@ def create_ai_create_knowledge_graph() -> str:
     if not AI_ML_AVAILABLE and allow_simulation:
         # Fallback to simulation for demonstration
         start_time = time.time()
-        
+
         # Generate simulated entity types if not provided
         sim_entity_types = entity_types or ["Person", "Organization", "Location", "Event", "Topic", "Product"]
-        
+
         # Generate simulated relationship types if not provided
         sim_relationship_types = relationship_types or ["relatedTo", "partOf", "hasProperty", "locatedIn", "createdBy"]
-        
+
         # Simulate processing delay
         time.sleep(0.5)
-        
+
         # Generate simulated entities
         entities = []
         entity_ids = []
-        
+
         for i in range(min(max_entities, 25)):  # Simulate up to 25 entities
             entity_type = sim_entity_types[i % len(sim_entity_types)]
             entity_id = f"{entity_type.lower()}_{i}"
             entity_ids.append(entity_id)
-            
+
             # Create entity with appropriate properties based on type
             if entity_type == "Person":
                 entity = {
@@ -802,26 +802,26 @@ def create_ai_create_knowledge_graph() -> str:
                         "mentions": i + 1
                     }
                 }
-                
+
             # Add text context if requested
             if include_text_context:
                 entity["context"] = f"This is a sample text mentioning {entity['name']} in the source document."
-                
+
             entities.append(entity)
-            
+
         # Generate simulated relationships
         relationships = []
         for i in range(min(max_entities * 2, 50)):  # Simulate up to 50 relationships
             # Ensure we have at least 2 entities to create relationships
             if len(entity_ids) < 2:
                 continue
-                
+
             # Get random source and target entities (ensure they're different)
             source_idx = i % len(entity_ids)
             target_idx = (i + 1 + (i % 3)) % len(entity_ids)  # Ensure different from source
-            
+
             relationship_type = sim_relationship_types[i % len(sim_relationship_types)]
-            
+
             relationship = {
                 "id": f"rel_{i}",
                 "type": relationship_type,
@@ -832,26 +832,26 @@ def create_ai_create_knowledge_graph() -> str:
                     "weight": i % 10
                 }
             }
-            
+
             # Add text context if requested
             if include_text_context:
                 source_name = entities[source_idx]["name"]
                 target_name = entities[target_idx]["name"]
                 relationship["context"] = f"This is evidence that {source_name} is {relationship_type} {target_name}."
-                
+
             relationships.append(relationship)
-            
+
         # Create simulated graph CID
         graph_cid = f"Qm{os.urandom(16).hex()}"
-        
+
         # Create intermediate results CID if requested
         intermediate_results_cid = None
         if save_intermediate_results:
             intermediate_results_cid = f"Qm{os.urandom(16).hex()}"
-            
+
         # Calculate processing time
         processing_time_ms = int((time.time() - start_time) * 1000)
-        
+
         # Return simulated results
         result = {
             "success": True,
@@ -867,24 +867,24 @@ def create_ai_create_knowledge_graph() -> str:
             "source_data_cid": source_data_cid,
             "processing_time_ms": processing_time_ms
         }
-        
+
         # Add intermediate results if requested
         if save_intermediate_results:
             result["intermediate_results_cid"] = intermediate_results_cid
-            
+
         # Add entity and relationship type counts
         result["entity_types"] = {
             entity_type: len([e for e in entities if e["type"] == entity_type])
             for entity_type in set(e["type"] for e in entities)
         }
-        
+
         result["relationship_types"] = {
             rel_type: len([r for r in relationships if r["type"] == rel_type])
             for rel_type in set(r["type"] for r in relationships)
         }
-        
+
         return result
-        
+
     elif not AI_ML_AVAILABLE and not allow_simulation:
         return {
             "success": False,
@@ -899,15 +899,15 @@ def create_ai_create_knowledge_graph() -> str:
     try:
         # Create knowledge graph manager
         kg_manager = ai_ml_integration.KnowledgeGraphManager(self.kit)
-        
+
         # Create knowledge graph
         result = kg_manager.create_knowledge_graph(
             source_data_cid=source_data_cid,
             **kwargs_dict
         )
-        
+
         return result
-        
+
     except Exception as e:
         # Return error information
         return {
@@ -942,10 +942,10 @@ def create_ai_test_inference() -> str:
 ) -> Dict[str, Any]:
     """
     Run inference on a test dataset using a model and evaluate performance.
-    
-    This method loads a model and test dataset, performs inference, 
+
+    This method loads a model and test dataset, performs inference,
     computes evaluation metrics, and optionally saves the predictions.
-    
+
     Args:
         model_cid: CID of the model to use for inference
         test_data_cid: CID of the test dataset
@@ -960,7 +960,7 @@ def create_ai_test_inference() -> str:
         allow_simulation: Whether to allow simulated results when AI/ML integration is unavailable
         timeout: Operation timeout in seconds
         **kwargs: Additional parameters for inference
-    
+
     Returns:
         Dict[str, Any]: Dictionary containing operation results with these keys:
             - "success": bool indicating if the operation succeeded
@@ -984,7 +984,7 @@ def create_ai_test_inference() -> str:
     import json
     import uuid
     from . import validation
-    
+
     # Validate required parameters
     if not model_cid:
         return {
@@ -994,7 +994,7 @@ def create_ai_test_inference() -> str:
             "error": "Model CID cannot be empty",
             "error_type": "ValidationError"
         }
-    
+
     if not test_data_cid:
         return {
             "success": False,
@@ -1003,7 +1003,7 @@ def create_ai_test_inference() -> str:
             "error": "Test data CID cannot be empty",
             "error_type": "ValidationError"
         }
-    
+
     # Build kwargs dictionary with explicit parameters
     kwargs_dict = {
         "batch_size": batch_size,
@@ -1013,7 +1013,7 @@ def create_ai_test_inference() -> str:
         "precision": precision,
         "timeout": timeout
     }
-    
+
     # Add optional parameters if provided
     if max_samples is not None:
         kwargs_dict["max_samples"] = max_samples
@@ -1021,10 +1021,10 @@ def create_ai_test_inference() -> str:
         kwargs_dict["metrics"] = metrics
     if device is not None:
         kwargs_dict["device"] = device
-    
+
     # Add any additional kwargs
     kwargs_dict.update(kwargs)
-    
+
     # Validate parameters
     validation.validate_parameters(
         kwargs_dict,
@@ -1040,7 +1040,7 @@ def create_ai_test_inference() -> str:
             "timeout": {"type": int, "default": 300}
         }
     )
-    
+
     # Validate output format
     valid_formats = ["json", "csv", "parquet"]
     if output_format not in valid_formats:
@@ -1051,23 +1051,23 @@ def create_ai_test_inference() -> str:
             "error": f"Invalid output format: {output_format}. Valid formats: {', '.join(valid_formats)}",
             "error_type": "ValidationError"
         }
-    
+
     # Check if AI/ML integration is available
     if not AI_ML_AVAILABLE and allow_simulation:
         # Fallback to simulation for demonstration
         start_time = time.time()
-        
+
         # Simulate processing delay
         processing_delay = random.uniform(0.5, 2.0)
         time.sleep(processing_delay)
-        
+
         # Simulate number of samples
         num_samples = max_samples if max_samples is not None else random.randint(100, 1000)
-        
+
         # Simulate metrics
         default_metrics = ["accuracy", "precision", "recall", "f1"]
         metric_names = metrics if metrics else default_metrics
-        
+
         simulated_metrics = {}
         for metric in metric_names:
             # Generate realistic metric values
@@ -1088,7 +1088,7 @@ def create_ai_test_inference() -> str:
             else:
                 # Generic metric
                 simulated_metrics[metric] = round(random.uniform(0.7, 0.98), 4)
-        
+
         # Add confusion matrix if requested
         if "confusion_matrix" in metric_names:
             # Simplified 2-class confusion matrix for simulation
@@ -1096,12 +1096,12 @@ def create_ai_test_inference() -> str:
             false_pos = int(num_samples * 0.05)
             false_neg = int(num_samples * 0.10)
             true_neg = num_samples - true_pos - false_pos - false_neg
-            
+
             simulated_metrics["confusion_matrix"] = [
                 [true_pos, false_neg],
                 [false_pos, true_neg]
             ]
-        
+
         # Simulate predictions
         sample_predictions = []
         for i in range(min(5, num_samples)):  # Show at most 5 sample predictions
@@ -1121,18 +1121,18 @@ def create_ai_test_inference() -> str:
                     "sample_id": i,
                     "prediction": round(random.uniform(0, 100), 2)
                 }
-            
+
             sample_predictions.append(prediction)
-        
+
         # Generate CID for predictions if saving
         predictions_cid = None
         if save_predictions:
             predictions_cid = f"Qm{os.urandom(16).hex()}"
-        
+
         # Calculate processing time
         processing_time_ms = int((time.time() - start_time) * 1000)
         inference_time_per_sample_ms = round(processing_time_ms / num_samples, 2)
-        
+
         # Return simulated results
         result = {
             "success": True,
@@ -1148,17 +1148,17 @@ def create_ai_test_inference() -> str:
             "inference_time_per_sample_ms": inference_time_per_sample_ms,
             "batch_size": batch_size
         }
-        
+
         # Add predictions CID if saving
         if save_predictions and predictions_cid:
             result["predictions_cid"] = predictions_cid
-            
+
         # Add device info if provided
         if device:
             result["device"] = device
-            
+
         return result
-        
+
     elif not AI_ML_AVAILABLE and not allow_simulation:
         return {
             "success": False,
@@ -1169,21 +1169,21 @@ def create_ai_test_inference() -> str:
             "model_cid": model_cid,
             "test_data_cid": test_data_cid
         }
-    
+
     # If AI/ML integration is available, use the real implementation
     try:
         # Create inference manager
         inference_manager = ai_ml_integration.InferenceManager(self.kit)
-        
+
         # Run inference
         result = inference_manager.run_inference(
             model_cid=model_cid,
             test_data_cid=test_data_cid,
             **kwargs_dict
         )
-        
+
         return result
-        
+
     except Exception as e:
         # Return error information
         return {
@@ -1205,71 +1205,71 @@ def find_methods_in_content(content: str) -> Dict[str, Tuple[int, int]]:
     for match in re.finditer(method_pattern, content):
         method_name = match.group(1)
         start_idx = match.start()
-        
+
         # Find the method body by tracking its end
         _, end_idx, _ = find_method(content, method_name)
         if end_idx > start_idx:
             methods[method_name] = (start_idx, end_idx)
-    
+
     return methods
 
 def get_last_method_end_position(content: str) -> int:
     """Find the end position of the last method in the class."""
     methods = find_methods_in_content(content)
-    
+
     if not methods:
         # If no methods found, return -1
         return -1
-    
+
     # Find the last method by end position
     last_method_name = max(methods.keys(), key=lambda name: methods[name][1])
     _, last_method_end = methods[last_method_name]
-    
+
     return last_method_end
 
 def add_new_methods(file_path: str, backup_suffix: str = ".bak.3") -> None:
     """Add new AI/ML methods to high_level_api.py."""
     # Read the file content
     content = read_file(file_path)
-    
+
     # Create a backup
     backup_path = f"{file_path}{backup_suffix}"
     write_file(backup_path, content)
     print(f"Backed up original file to {backup_path}")
-    
+
     # Find existing methods
     existing_methods = find_methods_in_content(content)
-    
+
     # Check if the methods already exist
     if "ai_create_knowledge_graph" in existing_methods:
         print("Method ai_create_knowledge_graph already exists, will enhance it")
     else:
         print("Will add new method: ai_create_knowledge_graph")
-        
+
     if "ai_test_inference" in existing_methods:
         print("Method ai_test_inference already exists, will enhance it")
     else:
         print("Will add new method: ai_test_inference")
-    
+
     # Prepare new methods
     ai_create_knowledge_graph_method = create_ai_create_knowledge_graph()
     ai_test_inference_method = create_ai_test_inference()
-    
+
     # Find where to add the new methods - after the last existing method
     last_method_end = get_last_method_end_position(content)
-    
+
     if last_method_end == -1:
         print("Could not find where to add the new methods, aborting")
         return
-    
+
     # Add the new methods after the last existing method
     updated_content = (
-        content[:last_method_end] + 
-        "\n\n" + ai_create_knowledge_graph_method + 
-        "\n\n" + ai_test_inference_method + 
+        content[:last_method_end] +
+        "\n\n" + ai_create_knowledge_graph_method +
+        "\n\n" + ai_test_inference_method +
         content[last_method_end:]
     )
-    
+
     # Write the updated content
     write_file(file_path, updated_content)
     print(f"Added new methods to {file_path}")
@@ -1277,10 +1277,10 @@ def add_new_methods(file_path: str, backup_suffix: str = ".bak.3") -> None:
 def main():
     """Main function to enhance methods in high_level_api.py."""
     filepath = '/home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py'
-    
+
     # Backup and add the new methods
     add_new_methods(filepath)
-    
+
     # Add existing enhancement methods with our new ones
     methods_to_enhance = {
         'ai_vector_search': enhance_ai_vector_search,
@@ -1289,28 +1289,28 @@ def main():
         'ai_create_knowledge_graph': lambda _: create_ai_create_knowledge_graph(),
         'ai_test_inference': lambda _: create_ai_test_inference(),
     }
-    
+
     # Read the file again (now with our new methods added)
     content = read_file(filepath)
     backup_filepath = f"{filepath}.bak.enhanced"
     write_file(backup_filepath, content)
-    
+
     # Track methods that were successfully enhanced
     enhanced_methods = []
-    
+
     # Enhance each method
     for method_name, enhance_func in methods_to_enhance.items():
         start_idx, end_idx, method_text = find_method(content, method_name)
-        
+
         if start_idx == -1:
             print(f"Could not find method {method_name}")
             continue
-        
+
         print(f"Enhancing method {method_name} (found at position {start_idx})")
         enhanced_method = enhance_func(method_text)
         content = content[:start_idx] + enhanced_method + content[end_idx:]
         enhanced_methods.append(method_name)
-    
+
     # Write the enhanced content to the original file
     write_file(filepath, content)
     print(f"Enhanced {len(enhanced_methods)} methods in {filepath}: {', '.join(enhanced_methods)}")

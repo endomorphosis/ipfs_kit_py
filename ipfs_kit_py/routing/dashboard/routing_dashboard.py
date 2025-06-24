@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class RoutingDashboardExtension:
     """
     Extension for the MCP monitoring dashboard to visualize routing metrics.
-    
+
     This extension adds routing-specific visualizations to the existing dashboard:
     - Backend selection patterns
     - Content type distribution
@@ -41,7 +41,7 @@ class RoutingDashboardExtension:
     - Geographic visualization
     - Cost analysis
     """
-    
+
     def __init__(
         self,
         dashboard: MonitoringDashboard,
@@ -49,31 +49,31 @@ class RoutingDashboardExtension:
     ):
         """
         Initialize the routing dashboard extension.
-        
+
         Args:
             dashboard: MonitoringDashboard instance to extend
             options: Optional configuration options
         """
         self.dashboard = dashboard
         self.options = options or {}
-        
+
         # Create templates and static files
         self._create_routing_templates()
         self._create_routing_static_files()
-        
+
         # Add routing data to dashboard
         self._register_data_provider()
-        
+
         # Add routing routes to dashboard
         self._register_routes()
-        
+
         logger.info("Routing dashboard extension initialized")
-    
+
     def _create_routing_templates(self):
         """Create routing-specific templates."""
         # Get templates directory from dashboard
         templates_dir = self.dashboard.templates.directory
-        
+
         # Create routing template
         routing_template = """{% extends "base.html" %}
 
@@ -86,7 +86,7 @@ class RoutingDashboardExtension:
 {% block content %}
 <section class="routing-overview">
     <h2>Routing Overview</h2>
-    
+
     <div class="status-cards">
         <div class="card">
             <h3>Routing Strategy</h3>
@@ -106,7 +106,7 @@ class RoutingDashboardExtension:
                 Current: <span>Adaptive</span>
             </div>
         </div>
-        
+
         <div class="card">
             <h3>Learning Status</h3>
             <div class="toggle-container">
@@ -122,7 +122,7 @@ class RoutingDashboardExtension:
             </div>
         </div>
     </div>
-    
+
     <div class="chart-container">
         <h3>Routing Distribution</h3>
         <div class="chart-tabs">
@@ -144,12 +144,12 @@ class RoutingDashboardExtension:
 
 <section class="routing-details">
     <h2>Optimization Factors</h2>
-    
+
     <div class="chart-container">
         <h3>Factor Weights</h3>
         <canvas id="factor-weights-chart"></canvas>
     </div>
-    
+
     <div class="optimization-cards">
         <div class="card">
             <h3>Network Quality</h3>
@@ -163,7 +163,7 @@ class RoutingDashboardExtension:
                 <p>Reliability: <span>--</span></p>
             </div>
         </div>
-        
+
         <div class="card">
             <h3>Content Match</h3>
             <div class="optimization-score" id="content-match-score">
@@ -175,7 +175,7 @@ class RoutingDashboardExtension:
                 <p>Specialized backends: <span>--</span></p>
             </div>
         </div>
-        
+
         <div class="card">
             <h3>Cost Efficiency</h3>
             <div class="optimization-score" id="cost-efficiency-score">
@@ -187,7 +187,7 @@ class RoutingDashboardExtension:
                 <p>Savings: <span>--</span></p>
             </div>
         </div>
-        
+
         <div class="card">
             <h3>Geographic</h3>
             <div class="optimization-score" id="geographic-score">
@@ -204,7 +204,7 @@ class RoutingDashboardExtension:
 
 <section class="routing-simulator">
     <h2>Routing Simulator</h2>
-    
+
     <div class="simulator-container">
         <div class="simulator-inputs">
             <div class="form-group">
@@ -222,13 +222,13 @@ class RoutingDashboardExtension:
                     <option value="generic">Generic</option>
                 </select>
             </div>
-            
+
             <div class="form-group">
                 <label for="content-size">Content Size (MB):</label>
                 <input type="range" id="content-size" min="0.1" max="1000" value="10" step="0.1">
                 <span id="content-size-value">10 MB</span>
             </div>
-            
+
             <div class="form-group">
                 <label for="routing-priority">Routing Priority:</label>
                 <select id="routing-priority">
@@ -239,7 +239,7 @@ class RoutingDashboardExtension:
                     <option value="geographic">Geographic</option>
                 </select>
             </div>
-            
+
             <div class="form-group">
                 <label for="geo-region">Geographic Region:</label>
                 <select id="geo-region">
@@ -251,10 +251,10 @@ class RoutingDashboardExtension:
                     <option value="asia-south">Asia South</option>
                 </select>
             </div>
-            
+
             <button id="simulate-routing" class="btn primary">Simulate Routing</button>
         </div>
-        
+
         <div class="simulator-results">
             <h3>Simulation Results</h3>
             <div id="simulation-loading" class="loading hidden">Simulating...</div>
@@ -264,12 +264,12 @@ class RoutingDashboardExtension:
                     <div id="selected-backend-name" class="backend-name">--</div>
                     <div id="selected-backend-score" class="backend-score">Score: --</div>
                 </div>
-                
+
                 <div class="factor-scores">
                     <h4>Factor Scores</h4>
                     <div id="factor-scores-container"></div>
                 </div>
-                
+
                 <div class="alternatives">
                     <h4>Alternative Backends</h4>
                     <div id="alternatives-list"></div>
@@ -285,63 +285,63 @@ class RoutingDashboardExtension:
 <script>
     // Connect to WebSocket for real-time updates
     const socket = new WebSocket(`ws://${window.location.host}{{ url_for('dashboard_ws') }}`);
-    
+
     socket.onmessage = function(event) {
         const data = JSON.parse(event.data);
         updateRoutingDashboard(data);
     };
-    
+
     socket.onclose = function(event) {
         console.log('WebSocket connection closed');
         setTimeout(() => {
             location.reload();
         }, 5000);
     };
-    
+
     function updateRoutingDashboard(data) {
         if (data.routing) {
             // Update routing strategy and learning status
             updateRoutingStatus(data.routing);
-            
+
             // Update distribution charts
             updateDistributionCharts(data.routing);
-            
+
             // Update optimization factors
             updateOptimizationFactors(data.routing);
         }
     }
-    
+
     // Initial request for data
     fetch('{{ url_for("dashboard_data") }}')
         .then(response => response.json())
         .then(data => updateRoutingDashboard(data))
         .catch(error => console.error('Error fetching dashboard data:', error));
-        
+
     // Setup simulator
     setupRoutingSimulator('/api/v0/routing/simulate');
 </script>
 {% endblock %}
 """
-        
+
         # Write routing template to file
         with open(os.path.join(templates_dir, "routing.html"), "w") as f:
             f.write(routing_template)
-        
+
         logger.info(f"Created routing templates in {templates_dir}")
-    
+
     def _create_routing_static_files(self):
         """Create routing-specific static files."""
         # Get static directory from dashboard
         static_dir = self.dashboard.static_dir
-        
+
         # Create CSS directory if it doesn't exist
         css_dir = os.path.join(static_dir, "css")
         os.makedirs(css_dir, exist_ok=True)
-        
+
         # Create JS directory if it doesn't exist
         js_dir = os.path.join(static_dir, "js")
         os.makedirs(js_dir, exist_ok=True)
-        
+
         # Create routing CSS
         routing_css = """/* Routing Dashboard Styles */
 
@@ -634,21 +634,21 @@ input:checked + .slider:before {
     .simulator-container {
         grid-template-columns: 1fr;
     }
-    
+
     .simulator-inputs {
         border-right: none;
         border-bottom: 1px solid #eee;
         padding-right: 0;
         padding-bottom: 1rem;
     }
-    
+
     .simulator-results {
         padding-left: 0;
         padding-top: 1rem;
     }
 }
 """
-        
+
         # Create routing JavaScript
         routing_js = """// Routing Dashboard JavaScript
 
@@ -668,7 +668,7 @@ let timeSeriesData = {
 document.addEventListener('DOMContentLoaded', function() {
     // Set up chart tabs
     setupChartTabs();
-    
+
     // Set up UI events
     setupUIEvents();
 });
@@ -676,16 +676,16 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupChartTabs() {
     const tabs = document.querySelectorAll('.chart-tab');
     const views = document.querySelectorAll('.chart-view');
-    
+
     tabs.forEach(tab => {
         tab.addEventListener('click', function() {
             // Remove active class from all tabs and views
             tabs.forEach(t => t.classList.remove('active'));
             views.forEach(v => v.classList.remove('active'));
-            
+
             // Add active class to clicked tab
             this.classList.add('active');
-            
+
             // Show corresponding view
             const chartId = this.dataset.chart;
             document.getElementById(`${chartId}-chart-view`).classList.add('active');
@@ -702,20 +702,20 @@ function setupUIEvents() {
             applyRoutingStrategy(strategy);
         });
     }
-    
+
     // Learning toggle
     const learningToggle = document.getElementById('learning-toggle');
     if (learningToggle) {
         learningToggle.addEventListener('change', function() {
             const enabled = this.checked;
             toggleLearning(enabled);
-            
+
             // Update the text
-            document.getElementById('learning-status').textContent = 
+            document.getElementById('learning-status').textContent =
                 enabled ? 'Learning Enabled' : 'Learning Disabled';
         });
     }
-    
+
     // Content size range
     const contentSizeRange = document.getElementById('content-size');
     if (contentSizeRange) {
@@ -723,7 +723,7 @@ function setupUIEvents() {
             document.getElementById('content-size-value').textContent = `${this.value} MB`;
         });
     }
-    
+
     // Simulation button
     const simulateBtn = document.getElementById('simulate-routing');
     if (simulateBtn) {
@@ -737,24 +737,24 @@ function updateRoutingStatus(data) {
     if (currentStrategyEl && data.current_strategy) {
         currentStrategyEl.textContent = data.current_strategy;
     }
-    
+
     // Update learning status
     const learningToggle = document.getElementById('learning-toggle');
     const learningStatus = document.getElementById('learning-status');
-    
+
     if (learningToggle && learningStatus && data.learning_enabled !== undefined) {
         learningToggle.checked = data.learning_enabled;
         learningStatus.textContent = data.learning_enabled ? 'Learning Enabled' : 'Learning Disabled';
     }
-    
+
     // Update learning stats
     const decisionsCount = document.getElementById('decisions-count');
     const improvementRate = document.getElementById('improvement-rate');
-    
+
     if (decisionsCount && data.decisions_analyzed) {
         decisionsCount.textContent = data.decisions_analyzed.toLocaleString();
     }
-    
+
     if (improvementRate && data.improvement_rate !== undefined) {
         improvementRate.textContent = `${data.improvement_rate.toFixed(1)}%`;
     }
@@ -763,10 +763,10 @@ function updateRoutingStatus(data) {
 function updateDistributionCharts(data) {
     // Update backends distribution chart
     updateBackendsDistributionChart(data);
-    
+
     // Update content distribution chart
     updateContentDistributionChart(data);
-    
+
     // Update time distribution chart
     updateTimeDistributionChart(data);
 }
@@ -774,18 +774,18 @@ function updateDistributionCharts(data) {
 function updateBackendsDistributionChart(data) {
     const canvas = document.getElementById('backends-distribution-chart');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     // Extract data
     let labels = [];
     let values = [];
-    
+
     if (data.backend_distribution) {
         labels = Object.keys(data.backend_distribution);
         values = Object.values(data.backend_distribution);
     }
-    
+
     // Create or update chart
     if (backendsDistributionChart) {
         backendsDistributionChart.data.labels = labels;
@@ -833,18 +833,18 @@ function updateBackendsDistributionChart(data) {
 function updateContentDistributionChart(data) {
     const canvas = document.getElementById('content-distribution-chart');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     // Extract data
     let labels = [];
     let values = [];
-    
+
     if (data.content_distribution) {
         labels = Object.keys(data.content_distribution);
         values = Object.values(data.content_distribution);
     }
-    
+
     // Create or update chart
     if (contentDistributionChart) {
         contentDistributionChart.data.labels = labels;
@@ -888,39 +888,39 @@ function updateContentDistributionChart(data) {
 function updateTimeDistributionChart(data) {
     const canvas = document.getElementById('time-distribution-chart');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     // Update time series data
     if (data.backend_distribution) {
         // Add timestamp
         const now = new Date();
         timeSeriesData.timestamps.push(now.toLocaleTimeString());
-        
+
         // Keep only last 20 timestamps
         if (timeSeriesData.timestamps.length > 20) {
             timeSeriesData.timestamps.shift();
         }
-        
+
         // Add backend counts
         for (const [backend, count] of Object.entries(data.backend_distribution)) {
             if (!timeSeriesData.backendCounts[backend]) {
                 timeSeriesData.backendCounts[backend] = [];
             }
-            
+
             timeSeriesData.backendCounts[backend].push(count);
-            
+
             // Keep only last 20 counts
             if (timeSeriesData.backendCounts[backend].length > 20) {
                 timeSeriesData.backendCounts[backend].shift();
             }
         }
-        
+
         // Remove backends that are no longer present
         for (const backend in timeSeriesData.backendCounts) {
             if (!(backend in data.backend_distribution)) {
                 timeSeriesData.backendCounts[backend].push(0);
-                
+
                 // Keep only last 20 counts
                 if (timeSeriesData.backendCounts[backend].length > 20) {
                     timeSeriesData.backendCounts[backend].shift();
@@ -928,7 +928,7 @@ function updateTimeDistributionChart(data) {
             }
         }
     }
-    
+
     // Create datasets
     const datasets = [];
     for (const [backend, counts] of Object.entries(timeSeriesData.backendCounts)) {
@@ -943,7 +943,7 @@ function updateTimeDistributionChart(data) {
             fill: true
         });
     }
-    
+
     // Create or update chart
     if (timeDistributionChart) {
         timeDistributionChart.data.labels = timeSeriesData.timestamps;
@@ -988,7 +988,7 @@ function updateTimeDistributionChart(data) {
 function updateOptimizationFactors(data) {
     // Update factor weights chart
     updateFactorWeightsChart(data);
-    
+
     // Update optimization scores
     updateOptimizationScores(data);
 }
@@ -996,18 +996,18 @@ function updateOptimizationFactors(data) {
 function updateFactorWeightsChart(data) {
     const canvas = document.getElementById('factor-weights-chart');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     // Extract data
     let labels = [];
     let values = [];
-    
+
     if (data.factor_weights) {
         labels = Object.keys(data.factor_weights);
         values = Object.values(data.factor_weights);
     }
-    
+
     // Create or update chart
     if (factorWeightsChart) {
         factorWeightsChart.data.labels = labels;
@@ -1056,19 +1056,19 @@ function updateOptimizationScores(data) {
         'Bandwidth': data.optimization_details?.network_quality?.bandwidth_mbps + ' Mbps',
         'Reliability': (data.optimization_details?.network_quality?.reliability * 100).toFixed(1) + '%'
     });
-    
+
     // Update content match score
     updateOptimizationScore('content-match', data.optimization_scores?.content_match, {
         'Match rate': (data.optimization_details?.content_match?.match_rate * 100).toFixed(1) + '%',
         'Specialized backends': data.optimization_details?.content_match?.specialized_backends?.join(', ') || '--'
     });
-    
+
     // Update cost efficiency score
     updateOptimizationScore('cost-efficiency', data.optimization_scores?.cost_efficiency, {
         'Avg cost': '$' + data.optimization_details?.cost_efficiency?.avg_cost?.toFixed(4) + '/GB',
         'Savings': '$' + data.optimization_details?.cost_efficiency?.savings?.toFixed(2) || '--'
     });
-    
+
     // Update geographic score
     updateOptimizationScore('geographic', data.optimization_scores?.geographic, {
         'Region': data.optimization_details?.geographic?.region || '--',
@@ -1079,17 +1079,17 @@ function updateOptimizationScores(data) {
 function updateOptimizationScore(id, score, details) {
     const scoreEl = document.getElementById(`${id}-score`);
     const detailsEl = document.getElementById(`${id}-details`);
-    
+
     if (scoreEl) {
         const scoreValueEl = scoreEl.querySelector('.score-value');
         if (scoreValueEl && score !== undefined) {
             scoreValueEl.textContent = score.toFixed(2);
-            
+
             // Add color based on score
             scoreValueEl.style.color = getScoreColor(score);
         }
     }
-    
+
     if (detailsEl && details) {
         // Update details
         const detailsItems = detailsEl.querySelectorAll('p');
@@ -1126,7 +1126,7 @@ function getColor(index, alpha) {
         `rgba(255, 159, 64, ${alpha})`,
         `rgba(199, 199, 199, ${alpha})`,
     ];
-    
+
     return colors[index % colors.length];
 }
 
@@ -1147,7 +1147,7 @@ function applyRoutingStrategy(strategy) {
             if (currentStrategyEl) {
                 currentStrategyEl.textContent = strategy;
             }
-            
+
             console.log(`Routing strategy updated to ${strategy}`);
         } else {
             console.error('Failed to update routing strategy');
@@ -1179,13 +1179,13 @@ function runSimulation() {
     // Show loading
     document.getElementById('simulation-loading').classList.remove('hidden');
     document.getElementById('simulation-results').classList.add('hidden');
-    
+
     // Get simulation parameters
     const contentType = document.getElementById('content-type').value;
     const contentSize = parseFloat(document.getElementById('content-size').value) * 1024 * 1024; // Convert MB to bytes
     const routingPriority = document.getElementById('routing-priority').value;
     const geoRegion = document.getElementById('geo-region').value;
-    
+
     // Run simulation
     fetch('/api/v0/routing/simulate', {
         method: 'POST',
@@ -1206,15 +1206,15 @@ function runSimulation() {
         // Hide loading
         document.getElementById('simulation-loading').classList.add('hidden');
         document.getElementById('simulation-results').classList.remove('hidden');
-        
+
         // Update selected backend
         document.getElementById('selected-backend-name').textContent = data.backend_id;
         document.getElementById('selected-backend-score').textContent = `Score: ${data.overall_score.toFixed(2)}`;
-        
+
         // Update factor scores
         const factorScoresContainer = document.getElementById('factor-scores-container');
         factorScoresContainer.innerHTML = '';
-        
+
         for (const [factor, score] of Object.entries(data.factor_scores)) {
             const factorScoreEl = document.createElement('div');
             factorScoreEl.className = 'factor-score';
@@ -1224,11 +1224,11 @@ function runSimulation() {
             `;
             factorScoresContainer.appendChild(factorScoreEl);
         }
-        
+
         // Update alternatives
         const alternativesList = document.getElementById('alternatives-list');
         alternativesList.innerHTML = '';
-        
+
         for (const alternative of data.alternatives) {
             const alternativeEl = document.createElement('div');
             alternativeEl.className = 'alternatives-item';
@@ -1249,7 +1249,7 @@ function runSimulation() {
 function setupRoutingSimulator(simulateUrl) {
     // This function can be used by other modules to configure the simulator
     // with a custom simulation URL
-    
+
     const simulateBtn = document.getElementById('simulate-routing');
     if (simulateBtn) {
         simulateBtn.onclick = function() {
@@ -1258,63 +1258,63 @@ function setupRoutingSimulator(simulateUrl) {
             const selectedBackendScore = document.getElementById('selected-backend-score');
             const factorScoresContainer = document.getElementById('factor-scores-container');
             const alternativesList = document.getElementById('alternatives-list');
-            
+
             if (selectedBackendName) selectedBackendName.textContent = '--';
             if (selectedBackendScore) selectedBackendScore.textContent = 'Score: --';
             if (factorScoresContainer) factorScoresContainer.innerHTML = '';
             if (alternativesList) alternativesList.innerHTML = '';
-            
+
             // Show loading
             document.getElementById('simulation-loading').classList.remove('hidden');
             document.getElementById('simulation-results').classList.add('hidden');
-            
+
             // Call the simulation function with custom URL
             setTimeout(runSimulation, 100);
         };
     }
 }
 """
-        
+
         # Write CSS and JS files
         with open(os.path.join(css_dir, "routing.css"), "w") as f:
             f.write(routing_css)
-        
+
         with open(os.path.join(js_dir, "routing.js"), "w") as f:
             f.write(routing_js)
-        
+
         logger.info(f"Created routing static files in {static_dir}")
-    
+
     def _register_data_provider(self):
         """Register a data provider to inject routing data into dashboard data."""
         # Get the existing _get_dashboard_data method
         original_get_dashboard_data = self.dashboard._get_dashboard_data
-        
+
         # Create a new method that extends the original
         async def extended_get_dashboard_data():
             # Get original data
             data = await original_get_dashboard_data()
-            
+
             # Add routing data
             routing_data = await self._get_routing_data()
             data["routing"] = routing_data
-            
+
             return data
-        
+
         # Replace the original method
         self.dashboard._get_dashboard_data = extended_get_dashboard_data
-        
+
         logger.info("Registered routing data provider with dashboard")
-    
+
     async def _get_routing_data(self) -> Dict[str, Any]:
         """
         Get routing system data for the dashboard.
-        
+
         Returns:
             Dictionary with routing data
         """
         # Get routing manager
         routing_manager = get_routing_manager()
-        
+
         # Basic data structure
         data = {
             "timestamp": time.time(),
@@ -1323,44 +1323,44 @@ function setupRoutingSimulator(simulateUrl) {
             "decisions_analyzed": len(routing_manager.adaptive_optimizer.decision_history),
             "improvement_rate": 0.0,  # Will be calculated if possible
         }
-        
+
         # Calculate improvement rate if there's enough data
         if len(routing_manager.adaptive_optimizer.decision_history) > 10:
             # Get the first 10 and last 10 decisions
             first_10 = routing_manager.adaptive_optimizer.decision_history[:10]
             last_10 = routing_manager.adaptive_optimizer.decision_history[-10:]
-            
+
             # Calculate success rates
             first_success_rate = sum(1 for _, success in first_10 if success) / len(first_10)
             last_success_rate = sum(1 for _, success in last_10 if success) / len(last_10)
-            
+
             # Calculate improvement
             if first_success_rate > 0:
                 improvement = ((last_success_rate - first_success_rate) / first_success_rate) * 100
                 data["improvement_rate"] = max(0, improvement)  # Don't show negative improvement
-        
+
         # Add backend distribution data
         try:
             # Get insights from router
             insights = await routing_manager.get_routing_insights()
-            
+
             # Add backend distribution
             if "load_distribution" in insights:
                 data["backend_distribution"] = insights["load_distribution"]
-            
+
             # Add content distribution
             if "optimal_backends_by_content" in insights:
                 content_distribution = {}
                 for content_type, backends in insights["optimal_backends_by_content"].items():
                     content_distribution[content_type] = len(backends)
                 data["content_distribution"] = content_distribution
-            
+
             # Add optimization factor weights
             if "optimization_weights" in insights:
                 data["factor_weights"] = insights["optimization_weights"]
         except Exception as e:
             logger.error(f"Error getting routing insights: {e}")
-        
+
         # Add optimization scores and details
         data["optimization_scores"] = {
             "network_quality": 0.85,
@@ -1368,7 +1368,7 @@ function setupRoutingSimulator(simulateUrl) {
             "cost_efficiency": 0.91,
             "geographic": 0.68,
         }
-        
+
         data["optimization_details"] = {
             "network_quality": {
                 "latency_ms": 120,
@@ -1388,20 +1388,20 @@ function setupRoutingSimulator(simulateUrl) {
                 "proximity": 45,
             },
         }
-        
+
         return data
-    
+
     def _register_routes(self):
         """Register routing routes with the dashboard."""
         # Get app from dashboard
         app = self.dashboard.app
-        
+
         # Add routing page route
         @app.get(f"{self.dashboard.path_prefix}/routing", response_class="HTMLResponse", name="dashboard_routing")
         async def dashboard_routing(request):
             """Routing dashboard page."""
             return self.dashboard.templates.TemplateResponse("routing.html", {"request": request})
-        
+
         # Add routing API routes
         @app.post("/api/v0/routing/config/strategy")
         async def update_routing_strategy(request):
@@ -1409,44 +1409,44 @@ function setupRoutingSimulator(simulateUrl) {
             # Parse request
             data = await request.json()
             strategy = data.get("strategy")
-            
+
             if not strategy:
                 return {"success": False, "error": "Missing strategy parameter"}
-            
+
             try:
                 # Get routing manager
                 routing_manager = get_routing_manager()
-                
+
                 # Update strategy
                 routing_manager.default_strategy = strategy
-                
+
                 return {"success": True}
             except Exception as e:
                 logger.error(f"Error updating routing strategy: {e}")
                 return {"success": False, "error": str(e)}
-        
+
         @app.post("/api/v0/routing/config/learning")
         async def update_learning_status(request):
             """Update learning status."""
             # Parse request
             data = await request.json()
             enabled = data.get("enabled")
-            
+
             if enabled is None:
                 return {"success": False, "error": "Missing enabled parameter"}
-            
+
             try:
                 # Get routing manager
                 routing_manager = get_routing_manager()
-                
+
                 # Update learning status
                 routing_manager.adaptive_optimizer.learning_enabled = enabled
-                
+
                 return {"success": True}
             except Exception as e:
                 logger.error(f"Error updating learning status: {e}")
                 return {"success": False, "error": str(e)}
-        
+
         @app.post("/api/v0/routing/simulate")
         async def simulate_routing(request):
             """Simulate routing for given parameters."""
@@ -1455,11 +1455,11 @@ function setupRoutingSimulator(simulateUrl) {
             content_info = data.get("content_info", {})
             priority = data.get("priority")
             region = data.get("region")
-            
+
             try:
                 # Get routing manager
                 routing_manager = get_routing_manager()
-                
+
                 # Set up client location
                 client_location = None
                 if region:
@@ -1473,11 +1473,11 @@ function setupRoutingSimulator(simulateUrl) {
                         "asia-south": {"lat": 19.1, "lon": 72.9},
                     }
                     client_location = region_coords.get(region)
-                
+
                 # Use dummy content for simulation
                 content_size = content_info.get("size_bytes", 1024 * 1024)  # Default to 1MB
                 content = b"0" * min(1024, content_size)  # Use at most 1KB for simulation
-                
+
                 # Run optimization
                 result = routing_manager.adaptive_optimizer.optimize_route(
                     content=content,
@@ -1485,7 +1485,7 @@ function setupRoutingSimulator(simulateUrl) {
                     priority=priority,
                     client_location=client_location
                 )
-                
+
                 # Convert result to JSON-serializable format
                 response = {
                     "backend_id": result.backend_id,
@@ -1494,12 +1494,12 @@ function setupRoutingSimulator(simulateUrl) {
                     "alternatives": [{"backend_id": bid, "score": score} for bid, score in result.alternatives],
                     "execution_time_ms": result.execution_time_ms,
                 }
-                
+
                 return response
             except Exception as e:
                 logger.error(f"Error simulating routing: {e}")
                 return {"error": str(e)}
-        
+
         logger.info("Registered routing routes with dashboard")
 
 
@@ -1509,11 +1509,11 @@ def extend_monitoring_dashboard(
 ) -> Optional[RoutingDashboardExtension]:
     """
     Extend the MCP monitoring dashboard with routing visualizations.
-    
+
     Args:
         dashboard: MonitoringDashboard instance to extend
         options: Optional configuration options
-        
+
     Returns:
         RoutingDashboardExtension instance or None if extension failed
     """
@@ -1521,10 +1521,10 @@ def extend_monitoring_dashboard(
         if dashboard is None:
             logger.warning("No dashboard provided, cannot create routing extension")
             return None
-        
+
         # Create extension
         extension = RoutingDashboardExtension(dashboard, options)
-        
+
         logger.info("Created routing dashboard extension")
         return extension
     except Exception as e:

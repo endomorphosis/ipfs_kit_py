@@ -21,14 +21,14 @@ class ProtectedAPIController:
     """
     Controller for protected API endpoints.
     """
-    
+
     def __init__(self):
         """Initialize the controller."""
         self.router = APIRouter(tags=["protected"])
-    
+
     def register_routes(self):
         """Register protected API routes."""
-        
+
         @self.router.get("/user_info")
         async def get_user_info(user = Depends(require_auth)):
             """
@@ -36,7 +36,7 @@ class ProtectedAPIController:
             Requires authentication.
             """
             return {"user": user}
-        
+
         @self.router.get("/admin_info")
         async def get_admin_info(user = Depends(require_permission("admin:access"))):
             """
@@ -47,7 +47,7 @@ class ProtectedAPIController:
                 "message": "You have admin access!",
                 "user": user
             }
-        
+
         @self.router.get("/backend_info/{backend_id}")
         async def get_backend_info(
             backend_id: str,
@@ -61,6 +61,6 @@ class ProtectedAPIController:
                 "message": f"You have access to the {backend_id} backend!",
                 "user": user
             }
-        
+
         # Return the router
         return self.router

@@ -19,7 +19,7 @@ def make_request(method, endpoint, **kwargs):
     """Make a request to the MCP server."""
     url = f"{base_url}{endpoint}"
     method_func = getattr(requests, method.lower())
-    
+
     try:
         response = method_func(url, **kwargs)
         response.raise_for_status()
@@ -53,7 +53,7 @@ def test_close_all_connections():
 def test_stream_content(cid="QmTkzDwWqPbnAh5YiV5VwcTLnGdwSNsNTn2aDxdXBFca7D"):
     """Test streaming content via WebRTC."""
     logger.info(f"Testing WebRTC streaming for CID: {cid}...")
-    
+
     request_data = {
         "cid": cid,
         "address": "127.0.0.1",
@@ -62,7 +62,7 @@ def test_stream_content(cid="QmTkzDwWqPbnAh5YiV5VwcTLnGdwSNsNTn2aDxdXBFca7D"):
         "benchmark": True,
         "ice_servers": [{"urls": ["stun:stun.l.google.com:19302"]}]
     }
-    
+
     response = make_request("post", "/api/v0/mcp/webrtc/stream", json=request_data)
     logger.info(f"Response: {json.dumps(response, indent=2)}")
     return response
@@ -78,24 +78,24 @@ def main():
     """Run the WebRTC tests."""
     # Test the WebRTC dependency check
     dep_check = test_webrtc_dependency_check()
-    
+
     # Only proceed if WebRTC is available
     if not dep_check.get("webrtc_available", False):
         logger.error("WebRTC is not available, skipping other tests")
         return
-    
+
     # Test streaming content
     stream_result = test_stream_content()
     server_id = stream_result.get("server_id")
-    
+
     if server_id:
         # Test stopping the stream
         time.sleep(1)  # Give the server some time to set up
         stop_result = test_stop_streaming(server_id)
-    
+
     # Test closing all connections (after starting and stopping a stream)
     close_all_result = test_close_all_connections()
-    
+
     # Report results
     if all([
         dep_check.get("success", False),

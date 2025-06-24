@@ -370,7 +370,7 @@ async def root():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("HOST", "0.0.0.0")
-    
+
     print(f"Starting fixed MCP test server at {host}:{port}")
     print(f"Health endpoint at: http://localhost:{port}{api_prefix}/health")
     print(f"Health endpoint at: http://127.0.0.1:{port}{api_prefix}/health")

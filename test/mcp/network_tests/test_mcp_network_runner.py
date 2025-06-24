@@ -57,12 +57,12 @@ def setup_logging():
 def create_test_suite(tests_to_run):
     """Create a test suite with the specified tests."""
     from test_discovery.enhanced_mcp_discovery_test import EnhancedMCPDiscoveryTest
-    
+
     suite = unittest.TestSuite()
-    
+
     for test_name in tests_to_run:
         suite.addTest(EnhancedMCPDiscoveryTest(test_name))
-        
+
     return suite
 
 def parse_args():
@@ -72,51 +72,51 @@ def parse_args():
     parser.add_argument("--intermittent", action="store_true", help="Run intermittent connectivity test")
     parser.add_argument("--time-based", action="store_true", help="Run time-based recovery test")
     parser.add_argument("--all", action="store_true", help="Run all network tests")
-    
+
     # Only parse args when running the script directly, not when imported by pytest
-    
+
     if __name__ == "__main__":
-    
+
         args = parser.parse_args()
-    
+
     else:
-    
+
         # When run under pytest, use default values
-    
+
         args = parser.parse_args([])
-    
+
     # If no arguments provided, run all tests
     if not (args.partial or args.intermittent or args.time_based or args.all):
         args.all = True
-        
+
     return args
 
 if __name__ == "__main__":
     # Setup logging
     setup_logging()
-    
+
     # Parse command-line arguments
     args = parse_args()
-    
+
     # Determine which tests to run
     tests_to_run = []
-    
+
     if args.partial or args.all:
         tests_to_run.append("test_partial_network_partition")
-        
+
     if args.intermittent or args.all:
         tests_to_run.append("test_intermittent_connectivity")
-        
+
     if args.time_based or args.all:
         tests_to_run.append("test_time_based_recovery")
-    
+
     if not tests_to_run:
         print("No tests selected to run.")
         sys.exit(1)
-    
+
     # Create and run test suite
     suite = create_test_suite(tests_to_run)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
-    
+
     # Exit with appropriate status code
     sys.exit(not result.wasSuccessful())

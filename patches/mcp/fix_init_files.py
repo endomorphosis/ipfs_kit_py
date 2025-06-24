@@ -96,37 +96,37 @@ INIT_CONTENT = {
 def fix_init_files():
     """Create or update __init__.py files in the MCP server directories."""
     print("Fixing __init__.py files in MCP server directories...")
-    
+
     for dir_path in DIRS_TO_FIX:
         full_path = PROJECT_ROOT / dir_path
-        
+
         # Ensure the directory exists
         if not full_path.exists():
             print(f"Creating directory: {full_path}")
             os.makedirs(full_path, exist_ok=True)
-        
+
         # Create or update the __init__.py file
         init_file = full_path / "__init__.py"
-        
+
         # Get the appropriate content for this directory
         content = INIT_CONTENT.get(str(dir_path), "# Auto-generated __init__.py file\n")
-        
+
         # Backup the original file if it exists
         if init_file.exists():
             backup_file = init_file.with_suffix(".py.bak")
             with open(init_file, 'r') as f:
                 original_content = f.read()
-                
+
             with open(backup_file, 'w') as f:
                 f.write(original_content)
                 print(f"Created backup at {backup_file}")
-        
+
         # Write the updated content
         with open(init_file, 'w') as f:
             f.write(content)
-            
+
         print(f"Updated {init_file}")
-    
+
     print("All __init__.py files fixed successfully")
 
 if __name__ == "__main__":

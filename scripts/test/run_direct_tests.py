@@ -33,20 +33,20 @@ def main():
         "Please use test_runner.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     # Set environment variables for WebRTC support as the original script did
     os.environ["IPFS_KIT_FORCE_WEBRTC"] = "1"
     os.environ["FORCE_WEBRTC_TESTS"] = "1"
     os.environ["IPFS_KIT_RUN_ALL_TESTS"] = "1"
-    
+
     print("Running WebRTC tests directly using the new test_runner module...")
-    
+
     # Check if test_runner.py exists
     test_runner_path = os.path.join(os.path.dirname(__file__), "test_runner.py")
     if not os.path.exists(test_runner_path):
         print("ERROR: test_runner.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Build command for the test runner
     cmd = [
         sys.executable,
@@ -54,7 +54,7 @@ def main():
         "--categories", "webrtc",
         "--verbose"
     ]
-    
+
     # Run test_runner
     try:
         print(f"Running: {' '.join(cmd)}")

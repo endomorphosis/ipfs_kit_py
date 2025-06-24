@@ -31,7 +31,7 @@ def setup_api_server():
     try:
         # Try to import and run the server
         from ipfs_kit_py import api
-        
+
         # TODO: Implement server setup if needed
         print("Please start the API server manually with:")
         print("  uvicorn ipfs_kit_py.api:app --reload --port 8000")
@@ -41,7 +41,7 @@ def setup_api_server():
         print("Failed to import ipfs_kit_py.api")
         print("Please start the API server manually.")
         return False
-    
+
     return True
 
 def list_operations(api_url, status=None, operation_type=None, backend=None, limit=10):
@@ -55,7 +55,7 @@ def list_operations(api_url, status=None, operation_type=None, backend=None, lim
         params["backend"] = backend
     if limit:
         params["limit"] = limit
-    
+
     response = requests.get(f"{api_url}/api/v0/wal/operations", params=params)
     if response.status_code == 200:
         result = response.json()
@@ -114,7 +114,7 @@ def get_wal_metrics(api_url):
         print(f"Pending operations: {result.get('pending_operations')}")
         print(f"Completed operations: {result.get('completed_operations')}")
         print(f"Failed operations: {result.get('failed_operations')}")
-        
+
         print("\nBackend Status:")
         for backend, status in result.get('backend_status', {}).items():
             status_text = "Available" if status else "Unavailable"
@@ -156,7 +156,7 @@ def update_wal_config(api_url, config_updates):
         print(f"Retry Delay: {config.get('retry_delay')} seconds")
         print(f"Archive Completed: {config.get('archive_completed')}")
         print(f"Process Interval: {config.get('process_interval')} seconds")
-        
+
         # Check for warning about settings that couldn't be updated
         if "warning" in result:
             print(f"\nWarning: {result['warning']}")
@@ -182,9 +182,9 @@ def main():
     parser = argparse.ArgumentParser(description="WAL API Example")
     parser.add_argument("--api-url", default=DEFAULT_API_URL, help="API endpoint URL")
     args = parser.parse_args()
-    
+
     api_url = args.api_url.rstrip("/")
-    
+
     # Check if server is running
     try:
         response = requests.get(f"{api_url}/health")
@@ -194,10 +194,10 @@ def main():
     except requests.exceptions.ConnectionError:
         print(f"Cannot connect to API server at {api_url}")
         setup_api_server()
-    
+
     # Simulate some operations to create WAL entries
     print("\nCreating sample operations through the WAL...")
-    
+
     # Content addition - should succeed
     add_response = requests.post(
         f"{api_url}/api/v0/add",
@@ -212,28 +212,28 @@ def main():
     else:
         print(f"Error adding content: {add_response.status_code} - {add_response.text}")
         content_cid = "QmTestCID"  # Fallback CID for demo
-    
+
     # List all operations
     operations = list_operations(api_url)
-    
+
     # Get metrics
     get_wal_metrics(api_url)
-    
+
     # Get configuration
     config = get_wal_config(api_url)
-    
+
     # If we have operations, show details of the first one
     if operations:
         operation_id = operations[0]["operation_id"]
         operation = get_operation_details(api_url, operation_id)
-        
+
         # For demonstration, let's retry an operation
         if operation and operation.get("status") == "failed":
             retry_operation(api_url, operation_id)
             # Check the updated status
             time.sleep(1)  # Give it a second to update
             get_operation_details(api_url, operation_id)
-    
+
     # Update configuration
     if config:
         print("\nUpdating WAL configuration...")
@@ -242,24 +242,24 @@ def main():
             "retry_delay": 30   # Reduce retry delay
         }
         update_wal_config(api_url, new_config)
-    
+
     # Filter operations by status
     print("\nListing pending operations...")
     pending_ops = list_operations(api_url, status="pending")
-    
+
     print("\nListing completed operations...")
     completed_ops = list_operations(api_url, status="completed")
-    
+
     # Delete an operation if available
     if operations:
         operation_id = operations[-1]["operation_id"]
         print(f"\nDeleting operation {operation_id}...")
         delete_operation(api_url, operation_id)
-        
+
         # Verify deletion
         print("\nListing operations after deletion...")
         list_operations(api_url)
-    
+
     print("\nWAL API example complete.")
 
 if __name__ == "__main__":

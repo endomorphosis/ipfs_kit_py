@@ -56,10 +56,10 @@ available_extensions = {}
 def setup_python_paths():
     """Set up Python paths for proper module imports."""
     logger.info("Setting up Python paths for module imports...")
-    
+
     # Current directory
     cwd = os.getcwd()
-    
+
     # Add the MCP SDK path
     paths_to_add = [
         # Main directory
@@ -69,7 +69,7 @@ def setup_python_paths():
         # IPFS Kit path
         os.path.join(cwd, "ipfs_kit_py"),
     ]
-    
+
     for path in paths_to_add:
         if os.path.isdir(path) and path not in sys.path:
             sys.path.insert(0, path)
@@ -82,7 +82,7 @@ def setup_python_paths():
 def import_required_modules():
     """Import required modules after setting up paths."""
     global server, FastMCP, Context, JSONResponse, Starlette, CORSMiddleware
-    
+
     try:
         # Try imports that require the MCP SDK
         import uvicorn
@@ -92,17 +92,17 @@ def import_required_modules():
         from starlette.responses import JSONResponse, StreamingResponse, Response
         from starlette.middleware.cors import CORSMiddleware
         from starlette.requests import Request
-        
+
         # JSON-RPC libraries
         from jsonrpc.dispatcher import Dispatcher
         from jsonrpc.exceptions import JSONRPCDispatchException
-        
+
         # Create FastMCP server
         server = FastMCP(
             name=f"final-mcp-server",
             instructions="Unified MCP server with comprehensive IPFS tool coverage"
         )
-        
+
         logger.info("Successfully imported required modules and created server instance")
         return True
     except ImportError as e:
@@ -113,23 +113,23 @@ def import_required_modules():
 def register_all_tools():
     """Register all available tools with the MCP server."""
     logger.info("Registering all available tools with MCP server...")
-    
+
     # Keep track of successfully registered tools
     successful_tools = []
-    
+
     try:
         # First, try to register tools from ipfs_mcp_tools_integration
         if register_ipfs_tools():
             successful_tools.append("ipfs_tools")
-        
+
         # Then, try to register tools from ipfs_mcp_fs_integration
         if register_ipfs_fs_tools():
             successful_tools.append("ipfs_fs_tools")
-        
+
         # Finally, register any additional tools
         if register_additional_tools():
             successful_tools.append("additional_tools")
-        
+
         logger.info(f"Successfully registered tool categories: {', '.join(successful_tools)}")
         return True
     except Exception as e:
@@ -148,7 +148,20 @@ def register_ipfs_tools():
     except Exception as e:
         logger.error(f"Error registering IPFS tools using unified_ipfs_tools: {e}")
         logger.error(traceback.format_exc())
-        
+
+        # Fall back to the original approach
+        logger.warning("Falling back to original IPFS tool registration approach")
+    """Register IPFS tools using unified_ipfs_tools."""
+    try:
+        import unified_ipfs_tools
+        logger.info("Using unified_ipfs_tools for IPFS tool registration")
+        result = unified_ipfs_tools.register_all_ipfs_tools(server)
+        logger.info(f"Registered IPFS tools using unified_ipfs_tools: {len(result) if isinstance(result, list) else result}")
+        return True
+    except Exception as e:
+        logger.error(f"Error registering IPFS tools using unified_ipfs_tools: {e}")
+        logger.error(traceback.format_exc())
+
         # Fall back to the original approach
         logger.warning("Falling back to original IPFS tool registration approach")
     """Register IPFS tools using ipfs_mcp_tools_integration."""
@@ -158,10 +171,10 @@ def register_ipfs_tools():
         if spec is None:
             logger.warning("ipfs_mcp_tools_integration module not found")
             return False
-        
+
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        
+
         # Register tools using the module's function
         if hasattr(module, "register_ipfs_tools"):
             result = module.register_ipfs_tools(server)
@@ -183,10 +196,10 @@ def register_ipfs_fs_tools():
         if spec is None:
             logger.warning("ipfs_mcp_fs_integration module not found")
             return False
-        
+
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        
+
         # Register tools using the module's function
         if hasattr(module, "register_ipfs_fs_tools"):
             result = module.register_ipfs_fs_tools(server)
@@ -205,12 +218,12 @@ def register_additional_tools():
     try:
         # This is where you would register any additional tools
         # For now, we'll just register a simple health check tool
-        
+
         @server.tool(name="health_check", description="Check the health of the MCP server and IPFS components")
         async def health_check(ctx: Context):
             """Check the health of the MCP server and IPFS components."""
             await ctx.info("Checking server health...")
-            
+
             health_status = {
                 "server": {
                     "status": "healthy",
@@ -223,10 +236,10 @@ def register_additional_tools():
                 },
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             await ctx.info("Health check completed successfully")
             return health_status
-        
+
         logger.info("Registered additional tools")
         return True
     except Exception as e:
@@ -238,7 +251,7 @@ def register_additional_tools():
 async def homepage(request):
     """Handle the homepage request."""
     tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
-    
+
     return JSONResponse({
         "message": "Final MCP Server is running",
         "version": __version__,
@@ -258,7 +271,7 @@ async def homepage(request):
 async def health_endpoint(request):
     """Health check endpoint for the MCP server"""
     tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
-    
+
     return JSONResponse({
         "status": "healthy",
         "version": __version__,
@@ -270,7 +283,7 @@ async def health_endpoint(request):
 async def initialize_endpoint(request):
     """Initialize endpoint for clients."""
     tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
-    
+
     return JSONResponse({
         "server_info": {
             "name": "Final MCP Server",
@@ -291,12 +304,12 @@ jsonrpc_dispatcher = None
 def setup_jsonrpc():
     """Set up JSON-RPC dispatcher and handlers."""
     global jsonrpc_dispatcher
-    
+
     try:
         from jsonrpc.dispatcher import Dispatcher
-        
+
         jsonrpc_dispatcher = Dispatcher()
-        
+
         @jsonrpc_dispatcher.add_method
         async def ping(**kwargs):
             """Simple ping method to test JSON-RPC connection."""
@@ -305,14 +318,14 @@ def setup_jsonrpc():
                 "server": "final-mcp",
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         @jsonrpc_dispatcher.add_method
         async def initialize(client_info=None, **kwargs):
             """Initialize the connection with the client."""
             logger.info(f"Received initialize request from client: {client_info}")
-            
+
             tool_names = list(server._tools.keys()) if hasattr(server, "_tools") else []
-            
+
             return {
                 "server": "final-mcp",
                 "version": __version__,
@@ -324,13 +337,13 @@ def setup_jsonrpc():
                 },
                 "tools": tool_names
             }
-        
+
         @jsonrpc_dispatcher.add_method
         async def shutdown(**kwargs):
             """Handle shutdown request from client."""
             logger.info("Received shutdown request from client")
             return {"status": "ok"}
-        
+
         logger.info("JSON-RPC dispatcher initialized successfully")
         return True
     except Exception as e:
@@ -345,19 +358,19 @@ async def handle_jsonrpc(request):
             {"jsonrpc": "2.0", "error": {"code": -32603, "message": "JSON-RPC not initialized"}, "id": None},
             status_code=500
         )
-    
+
     try:
         request_json = await request.json()
         logger.debug(f"Received JSON-RPC request: {request_json}")
-        
+
         # Process the request
         response = await jsonrpc_dispatcher.dispatch(request_json)
-        
+
         return JSONResponse(response.to_dict())
     except Exception as e:
         logger.error(f"Error handling JSON-RPC request: {e}")
         logger.error(traceback.format_exc())
-        
+
         return JSONResponse(
             {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}, "id": None},
             status_code=500
@@ -369,37 +382,37 @@ server_start_time = datetime.now()
 def main():
     """Main entry point for the server."""
     global PORT, server_start_time
-    
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Final MCP Server with integrated IPFS tools")
     parser.add_argument("--port", type=int, default=3000, help="Port to run the server on")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind the server to")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
-    
+
     PORT = args.port
-    
+
     # Set up Python paths
     if not setup_python_paths():
         logger.error("Failed to set up Python paths")
         return 1
-    
+
     # Import required modules
     if not import_required_modules():
         logger.error("Failed to import required modules")
         return 1
-    
+
     # Set up JSON-RPC
     if not setup_jsonrpc():
         logger.warning("JSON-RPC setup failed, continuing without it")
-    
+
     # Register all tools
     if not register_all_tools():
         logger.warning("Some tools could not be registered, continuing with partial functionality")
-    
+
     # Get the Starlette app from the server
     app = server.sse_app()
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -408,10 +421,10 @@ def main():
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Set up routes
     from starlette.routing import Route
-    
+
     app.routes.extend([
         Route("/", endpoint=homepage),
         Route("/health", endpoint=health_endpoint),
@@ -419,31 +432,31 @@ def main():
         Route("/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]),
         Route("/api/v0/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]),
     ])
-    
+
     # Register startup and shutdown handlers
     @app.on_event("startup")
     async def on_startup():
         """Handle server startup."""
         global server_initialized, server_start_time
-        
+
         logger.info("Starting Final MCP Server...")
         server_start_time = datetime.now()
         server_initialized = True
         initialization_event.set()
-        
+
         logger.info(f"Server started successfully on port {PORT}")
-    
+
     @app.on_event("shutdown")
     async def on_shutdown():
         """Handle server shutdown."""
         logger.info("Shutting down Final MCP Server...")
-    
+
     # Run the server
     import uvicorn
-    
+
     logger.info(f"Starting Final MCP Server on {args.host}:{PORT}...")
     uvicorn.run(app, host=args.host, port=PORT, log_level="debug" if args.debug else "info")
-    
+
     return 0
 
 if __name__ == "__main__":

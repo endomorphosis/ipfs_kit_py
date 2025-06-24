@@ -15,25 +15,25 @@ logger = logging.getLogger(__name__)
 def initialize_ipfs_model():
     """
     Initialize the IPFSModel class with extensions.
-    
+
     This function imports the necessary modules and applies extensions to the IPFSModel class.
-    
+
     Returns:
         bool: True if initialization was successful, False otherwise
     """
     try:
         # Import IPFSModel class
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
-        
+
         # Import extensions
         from ipfs_kit_py.mcp.models.ipfs_model_extensions import add_ipfs_model_extensions
-        
+
         # Apply extensions to the IPFSModel class directly
         add_ipfs_model_extensions(IPFSModel)
-        
+
         # Extract method functions from the module
         extension_module = sys.modules.get('ipfs_kit_py.mcp.models.ipfs_model_extensions')
-        
+
         if extension_module:
             # Use direct module access for methods
             for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
@@ -47,7 +47,7 @@ def initialize_ipfs_model():
         else:
             # Fallback to the globals dictionary of the function
             methods_dict = add_ipfs_model_extensions.__globals__
-            
+
             # Directly attach methods to the class
             for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
                                'swarm_peers', 'swarm_connect', 'swarm_disconnect',
@@ -56,10 +56,10 @@ def initialize_ipfs_model():
                     setattr(IPFSModel, method_name, methods_dict[method_name])
                 else:
                     logger.warning(f"Method {method_name} not found in function globals")
-        
+
         logger.info("Successfully initialized IPFSModel with extensions")
         return True
-    
+
     except ImportError as e:
         logger.error(f"Failed to import required modules: {e}")
         return False

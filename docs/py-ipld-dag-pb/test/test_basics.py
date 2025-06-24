@@ -122,7 +122,7 @@ class TestBasics:
               "name": '',
               "hash": CID.decode('QmUGhP2X8xo9dsj45vqx1H6i5WqPqLqmLQsHTTxd3ke8mp'),
               "t_size": 262158
-            }, 
+            },
             {
               "name": '',
               "hash": CID.decode('QmP7SrR76KHK9A916RbHG1ufy2TzNABZgiE23PjZDMzZXy'),

@@ -33,15 +33,15 @@ def backup_file(file_path):
 def fix_ipfs_tools_integration():
     """Fix the IPFS MCP Tools Integration file"""
     file_path = "ipfs_mcp_tools_integration.py"
-    
+
     # Create backup
     if not backup_file(file_path):
         return False
-        
+
     try:
         with open(file_path, 'r') as f:
             content = f.read()
-            
+
         # Fix the import section by adding mock implementations when imports fail
         fixed_import_section = """
 # Try to import IPFS extensions
@@ -57,69 +57,69 @@ try:
 except ImportError as e:
     IPFS_EXTENSIONS_AVAILABLE = False
     logger.warning(f"Could not import IPFS extensions: {e}. Using mock implementations.")
-    
+
     # Mock implementations for when the extensions aren't available
     def add_content(content, **kwargs):
         logger.warning("Using mock implementation of add_content")
         return {"Hash": "QmMockHash", "Size": len(content) if isinstance(content, bytes) else len(content.encode())}
-        
+
     def cat(ipfs_path, **kwargs):
         logger.warning("Using mock implementation of cat")
         return b"Mock content for " + ipfs_path.encode() if isinstance(ipfs_path, str) else ipfs_path
-        
+
     def pin_add(ipfs_path, **kwargs):
         logger.warning("Using mock implementation of pin_add")
         return {"Pins": [ipfs_path]}
-        
+
     def pin_rm(ipfs_path, **kwargs):
         logger.warning("Using mock implementation of pin_rm")
         return {"Pins": [ipfs_path]}
-        
+
     def pin_ls(ipfs_path=None, **kwargs):
         logger.warning("Using mock implementation of pin_ls")
         return {"Keys": {"QmMockHash": {"Type": "recursive"}}}
-        
+
     def get_version(**kwargs):
         logger.warning("Using mock implementation of get_version")
         return {"Version": "mock-0.11.0", "Commit": "mock"}
-        
+
     def files_ls(path="/", **kwargs):
         logger.warning("Using mock implementation of files_ls")
         return {"Entries": [{"Name": "mock-file.txt", "Type": 0, "Size": 123}]}
-        
+
     def files_mkdir(path, **kwargs):
         logger.warning("Using mock implementation of files_mkdir")
         return {}
-        
+
     def files_write(path, content, **kwargs):
         logger.warning("Using mock implementation of files_write")
         return {}
-        
+
     def files_read(path, **kwargs):
         logger.warning("Using mock implementation of files_read")
         return b"Mock content for " + path.encode() if isinstance(path, str) else path
-        
+
     def files_rm(path, **kwargs):
         logger.warning("Using mock implementation of files_rm")
         return {}
-        
+
     def files_stat(path, **kwargs):
         logger.warning("Using mock implementation of files_stat")
         return {"Hash": "QmMockHash", "Size": 123, "Type": "file"}
-        
+
     def files_cp(source, dest, **kwargs):
         logger.warning("Using mock implementation of files_cp")
         return {}
-        
+
     def files_mv(source, dest, **kwargs):
         logger.warning("Using mock implementation of files_mv")
         return {}
-        
+
     def files_flush(path="/", **kwargs):
         logger.warning("Using mock implementation of files_flush")
         return {"Hash": "QmMockHash"}
 """
-        
+
         # Replace the existing import section
         import_pattern = r"# Try to import IPFS extensions.*?(?=\n\ndef register_ipfs_tools)"
         if re.search(import_pattern, content, re.DOTALL):
@@ -127,14 +127,14 @@ except ImportError as e:
         else:
             logger.error("Could not find the import section to replace")
             return False
-            
+
         # Write the updated content
         with open(file_path, 'w') as f:
             f.write(content)
-            
+
         logger.info(f"Successfully fixed {file_path}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error fixing {file_path}: {e}")
         return False
@@ -142,15 +142,15 @@ except ImportError as e:
 def update_mcp_server_integration():
     """Update the direct_mcp_server.py file to use our new all-in-one registration"""
     file_path = "direct_mcp_server.py"
-    
+
     # Create backup
     if not backup_file(file_path):
         return False
-        
+
     try:
         with open(file_path, 'r') as f:
             content = f.read()
-            
+
         # Add our new import
         if "from register_all_backend_tools import register_all_tools" not in content:
             import_line = "import ipfs_mcp_fs_integration"
@@ -163,7 +163,7 @@ def update_mcp_server_integration():
             else:
                 logger.warning("Could not find the appropriate import location")
                 return False
-        
+
         # Replace the individual registrations with our comprehensive one
         registration_pattern = r"# Register IPFS tools\s*\nregister_ipfs_tools\(server\)\s*\n\s*# Register FS Journal tools\s*\nipfs_mcp_fs_integration\.register_with_mcp_server\(server\)"
         replacement = """# Register all IPFS tools and backend integrations
@@ -177,14 +177,14 @@ logger.info("✅ Tool registration complete")"""
         else:
             logger.warning("Could not find the tool registration section")
             return False
-            
+
         # Write the updated content
         with open(file_path, 'w') as f:
             f.write(content)
-            
+
         logger.info(f"Successfully updated {file_path}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error updating {file_path}: {e}")
         return False
@@ -192,7 +192,7 @@ logger.info("✅ Tool registration complete")"""
 def create_startup_script():
     """Create an improved startup script for the MCP server"""
     script_path = "start_enhanced_mcp_server.sh"
-    
+
     try:
         with open(script_path, 'w') as f:
             f.write("""#!/bin/bash
@@ -251,11 +251,11 @@ else
   exit 1
 fi
 """)
-        
+
         # Make the script executable
         os.chmod(script_path, 0o755)
         logger.info(f"Created startup script: {script_path}")
-        
+
         # Create the stop script as well
         stop_script_path = "stop_enhanced_mcp_server.sh"
         with open(stop_script_path, 'w') as f:
@@ -296,11 +296,11 @@ else
   echo -e "${YELLOW}No MCP server appears to be running${NC}"
 fi
 """)
-        
+
         # Make the stop script executable
         os.chmod(stop_script_path, 0o755)
         logger.info(f"Created stop script: {stop_script_path}")
-        
+
         return True
     except Exception as e:
         logger.error(f"Failed to create scripts: {e}")
@@ -309,7 +309,7 @@ fi
 def create_verification_script():
     """Create a script to verify all available tools"""
     script_path = "verify_tools.py"
-    
+
     try:
         with open(script_path, 'w') as f:
             f.write("""#!/usr/bin/env python3
@@ -338,14 +338,14 @@ def get_all_tools():
     \"\"\"Get all tools from the MCP server\"\"\"
     try:
         response = requests.post(f"{MCP_URL}/jsonrpc", json={
-            "jsonrpc": "2.0", 
+            "jsonrpc": "2.0",
             "method": "get_tools",
             "params": {},
             "id": 1
         })
         response.raise_for_status()
         data = response.json()
-        
+
         if "result" in data and "tools" in data["result"]:
             return data["result"]["tools"]
         else:
@@ -358,10 +358,10 @@ def get_all_tools():
 def group_tools_by_category(tools):
     \"\"\"Group tools by their category for better organization\"\"\"
     categories = {}
-    
+
     for tool in tools:
         name = tool.get("name", "")
-        
+
         # Determine category based on name prefix
         category = "Other"
         if name.startswith("ipfs_"):
@@ -382,21 +382,21 @@ def group_tools_by_category(tools):
             category = "Credential Management"
         elif name.startswith("webrtc_"):
             category = "WebRTC Integration"
-        
+
         # Add to appropriate category
         if category not in categories:
             categories[category] = []
         categories[category].append(tool)
-    
+
     return categories
 
 def print_tools_by_category(categories):
     \"\"\"Print tools organized by category\"\"\"
     print("\\n=== MCP Server Tools ===\\n")
-    
+
     total_tools = sum(len(tools) for tools in categories.values())
     print(f"Total tools available: {total_tools}\\n")
-    
+
     # Print each category
     for category, tools in sorted(categories.items()):
         print(f"== {category} ({len(tools)}) ==")
@@ -409,23 +409,23 @@ def print_tools_by_category(categories):
 def main():
     \"\"\"Main function\"\"\"
     logger.info("Connecting to MCP server...")
-    
+
     # Get all tools
     tools = get_all_tools()
     if not tools:
         logger.error("No tools found. Make sure the MCP server is running.")
         return 1
-    
+
     # Group and print tools
     categories = group_tools_by_category(tools)
     print_tools_by_category(categories)
-    
+
     return 0
 
 if __name__ == "__main__":
     sys.exit(main())
 """)
-        
+
         # Make the script executable
         os.chmod(script_path, 0o755)
         logger.info(f"Created verification script: {script_path}")
@@ -437,25 +437,25 @@ if __name__ == "__main__":
 def main():
     """Main function"""
     logger.info("Starting IPFS MCP Tools integration fix...")
-    
+
     # Fix the IPFS MCP Tools integration
     if not fix_ipfs_tools_integration():
         logger.error("Failed to fix IPFS MCP Tools integration")
         return 1
-    
+
     # Update the MCP server integration
     if not update_mcp_server_integration():
         logger.error("Failed to update MCP server integration")
         return 1
-    
+
     # Create startup script
     if not create_startup_script():
         logger.warning("Failed to create startup script")
-    
+
     # Create verification script
     if not create_verification_script():
         logger.warning("Failed to create verification script")
-    
+
     logger.info("""
 ✅ IPFS MCP Tools integration fix completed
 
@@ -470,7 +470,7 @@ To use the enhanced MCP server:
 2. Verify available tools: python verify_tools.py
 3. Stop the server when done: ./stop_enhanced_mcp_server.sh
 """)
-    
+
     return 0
 
 if __name__ == "__main__":

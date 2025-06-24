@@ -38,7 +38,7 @@ def fix_syntax_error():
         fixed_content = content.replace(
             "                result[\"status_code\"] = 200 if result.get(\"success\", False) else 500",
             """                result["status_code"] = 200 if result.get("success", False) else 500
-                
+
                 return result
         except Exception as e:
             # Handle any exceptions that occur during processing
@@ -53,11 +53,11 @@ def fix_syntax_error():
             }
             return result"""
         )
-        
+
         # Write the fixed content back to the file
         with open(controller_path, "w") as f:
             f.write(fixed_content)
-        
+
         logger.info("Successfully fixed syntax error in controller")
         return True
     else:

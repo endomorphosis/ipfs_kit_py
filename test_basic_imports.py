@@ -16,12 +16,12 @@ sys.path.insert(0, project_root)
 try:
     import ipfs_kit_py
     print(f"Successfully imported ipfs_kit_py from {ipfs_kit_py.__file__}")
-    
+
     # Check high_level_api
     try:
         from ipfs_kit_py import high_level_api
         print(f"Successfully imported high_level_api from {high_level_api.__file__}")
-        
+
         # Try to import IPFSSimpleAPI
         try:
             from ipfs_kit_py.high_level_api import IPFSSimpleAPI
@@ -30,7 +30,7 @@ try:
             print(f"Failed to import IPFSSimpleAPI: {e}")
     except ImportError as e:
         print(f"Failed to import high_level_api: {e}")
-        
+
 except ImportError as e:
     print(f"Failed to import ipfs_kit_py: {e}")
 

@@ -30,23 +30,23 @@ class TestMCPFixes(unittest.TestCase):
         """Set up test fixtures."""
         # Create mock IPFS instance that returns bytes for cat method
         self.mock_ipfs = MagicMock()
-        
+
         # Mock cache manager
         self.mock_cache_manager = MagicMock()
         self.mock_cache_manager.get.return_value = None
-        
+
         # Mock ipfs_kit
         self.mock_ipfs_kit = MagicMock()
-        
+
         # Create IPFSModel with mocked dependencies
         self.ipfs_model = IPFSModel(self.mock_ipfs, self.mock_cache_manager)
         self.ipfs_model.ipfs_kit = self.mock_ipfs_kit
-        
+
         # Patch normalize_response so it doesn't interfere with tests
-        self.normalize_patch = patch('ipfs_kit_py.mcp.models.ipfs_model.normalize_response', 
+        self.normalize_patch = patch('ipfs_kit_py.mcp.models.ipfs_model.normalize_response',
                                     side_effect=lambda x, *args, **kwargs: x)
         self.mock_normalize = self.normalize_patch.start()
-        
+
     def tearDown(self):
         """Tear down test fixtures."""
         self.normalize_patch.stop()
@@ -56,10 +56,10 @@ class TestMCPFixes(unittest.TestCase):
         # Setup the mock to return bytes
         test_bytes = b"test content data"
         self.mock_ipfs.cat.return_value = test_bytes
-        
+
         # Call the method
         result = self.ipfs_model.get_content("test-cid")
-        
+
         # Verify result
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "get_content")
@@ -70,10 +70,10 @@ class TestMCPFixes(unittest.TestCase):
         # Setup the mock to return bytes
         test_bytes = b"pin response data"
         self.mock_ipfs.pin.return_value = test_bytes
-        
+
         # Call the method
         result = self.ipfs_model.pin_content("test-cid")
-        
+
         # Verify result
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "pin_content")
@@ -84,10 +84,10 @@ class TestMCPFixes(unittest.TestCase):
         # Setup the mock to return bytes
         test_bytes = b"unpin response data"
         self.mock_ipfs.unpin.return_value = test_bytes
-        
+
         # Call the method
         result = self.ipfs_model.unpin_content("test-cid")
-        
+
         # Verify result
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "unpin_content")
@@ -98,10 +98,10 @@ class TestMCPFixes(unittest.TestCase):
         # Setup the mock to return bytes
         test_bytes = b"list pins response data"
         self.mock_ipfs.list_pins.return_value = test_bytes
-        
+
         # Call the method
         result = self.ipfs_model.list_pins()
-        
+
         # Verify result
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "list_pins")
@@ -114,12 +114,12 @@ class TestMCPFixes(unittest.TestCase):
         # Setup the mock to return bytes
         test_bytes = b"add response data"
         self.mock_ipfs.add_file.return_value = test_bytes
-        
+
         # Need to patch os.unlink to avoid actual file deletion
         with patch('os.unlink'):
             # Call the method with string content
             result = self.ipfs_model.add_content("test content")
-            
+
             # Verify result
             self.assertTrue(result.get("success", False))
             self.assertEqual(result.get("operation"), "add_content")
@@ -130,26 +130,26 @@ class TestMCPFixes(unittest.TestCase):
         # Since the controller methods are async and we want to keep this test simple,
         # we'll directly test that the model API methods return the correct format
         # when the controller would use them.
-        
+
         # Test that get_content returns appropriate structure
         self.mock_ipfs.cat.return_value = b"controller test content"
         result = self.ipfs_model.get_content("test-cid")
-        
+
         # This is what the controller would check for
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "get_content")
-        
+
         # Test that pin_content returns appropriate structure
         self.mock_ipfs.pin.return_value = b"pin response"
         result = self.ipfs_model.pin_content("test-cid")
-        
+
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "pin_content")
-        
+
         # Test that unpin_content returns appropriate structure
         self.mock_ipfs.unpin.return_value = b"unpin response"
         result = self.ipfs_model.unpin_content("test-cid")
-        
+
         self.assertTrue(result.get("success", False))
         self.assertEqual(result.get("operation"), "unpin_content")
 

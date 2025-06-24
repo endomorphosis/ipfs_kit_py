@@ -42,11 +42,11 @@ MCP_INIT_ENDPOINT = "/api/v0/initialize"
 
 class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
     """Handler for the MCP proxy server."""
-    
+
     def log_message(self, format, *args):
         """Override log_message to use our logger."""
         logger.info(format % args)
-    
+
     def do_OPTIONS(self):
         """Handle OPTIONS requests (CORS)."""
         self.send_response(200)
@@ -54,7 +54,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
-    
+
     def do_GET(self):
         """Handle GET requests."""
         # If the request is for the SSE endpoint, proxy it directly
@@ -62,13 +62,13 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
             try:
                 logger.info(f"Proxying SSE request to {MCP_SERVER_URL + MCP_SSE_ENDPOINT}")
                 response = urllib.request.urlopen(MCP_SERVER_URL + MCP_SSE_ENDPOINT)
-                
+
                 # Forward the response
                 self.send_response(response.status)
                 for header in response.getheaders():
                     self.send_header(header[0], header[1])
                 self.end_headers()
-                
+
                 # Stream the response
                 self.wfile.write(response.read())
             except Exception as e:
@@ -82,13 +82,13 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
             try:
                 logger.info(f"Proxying GET request to {MCP_SERVER_URL + self.path}")
                 response = urllib.request.urlopen(MCP_SERVER_URL + self.path)
-                
+
                 # Forward the response
                 self.send_response(response.status)
                 for header in response.getheaders():
                     self.send_header(header[0], header[1])
                 self.end_headers()
-                
+
                 self.wfile.write(response.read())
             except Exception as e:
                 logger.error(f"Error proxying GET request: {e}")
@@ -96,7 +96,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
-    
+
     def do_POST(self):
         """Handle POST requests."""
         # Intercept initialization requests to SSE endpoint and redirect them
@@ -109,7 +109,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                     # Check if this is an initialize request
                     if "method" in request_json and request_json["method"] == "initialize":
                         logger.info("Intercepted initialize request to SSE endpoint, redirecting...")
-                        
+
                         # Forward to the initialization endpoint
                         req = urllib.request.Request(
                             url=MCP_SERVER_URL + MCP_INIT_ENDPOINT,
@@ -117,16 +117,16 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                             headers={'Content-Type': 'application/json'},
                             method='POST'
                         )
-                        
+
                         try:
                             response = urllib.request.urlopen(req)
-                            
+
                             # Forward the response
                             self.send_response(response.status)
                             for header in response.getheaders():
                                 self.send_header(header[0], header[1])
                             self.end_headers()
-                            
+
                             self.wfile.write(response.read())
                         except urllib.error.HTTPError as e:
                             logger.error(f"Error forwarding initialize request: {e}")
@@ -134,7 +134,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                             self.send_response(200)
                             self.send_header('Content-Type', 'application/json')
                             self.end_headers()
-                            
+
                             fallback_response = {
                                 "jsonrpc": "2.0",
                                 "id": request_json.get("id", 1),
@@ -158,33 +158,33 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                                     }
                                 }
                             }
-                            
+
                             self.wfile.write(json.dumps(fallback_response).encode())
                         return
                 except Exception as e:
                     logger.error(f"Error parsing JSON request: {e}")
-        
+
         # Forward other POST requests directly
         try:
             logger.info(f"Proxying POST request to {MCP_SERVER_URL + self.path}")
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length) if content_length > 0 else b''
-            
+
             req = urllib.request.Request(
                 url=MCP_SERVER_URL + self.path,
                 data=post_data,
                 headers={'Content-Type': self.headers.get('Content-Type', 'application/json')},
                 method='POST'
             )
-            
+
             response = urllib.request.urlopen(req)
-            
+
             # Forward the response
             self.send_response(response.status)
             for header in response.getheaders():
                 self.send_header(header[0], header[1])
             self.end_headers()
-            
+
             self.wfile.write(response.read())
         except Exception as e:
             logger.error(f"Error proxying POST request: {e}")
@@ -199,16 +199,16 @@ def main():
         # Create a web server and define the handler
         handler = MCPProxyHandler
         server = socketserver.TCPServer(("", PROXY_PORT), handler)
-        
+
         print(f"Started MCP VS Code proxy on port {PROXY_PORT}")
         print(f"Redirecting VS Code initialize requests to {MCP_SERVER_URL + MCP_INIT_ENDPOINT}")
         print("Press Ctrl+C to stop")
-        
+
         # Start the server in a separate thread
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
-        
+
         # Keep the main thread running
         while True:
             server_thread.join(1)

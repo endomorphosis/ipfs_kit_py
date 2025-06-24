@@ -32,19 +32,19 @@ def main():
         "Please use server_runner.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     print("Starting enhanced MCP server with WebRTC monitor using the new server_runner module...")
-    
+
     # Check if server_runner.py exists
     server_runner_path = os.path.join(os.path.dirname(__file__), "server_runner.py")
     if not os.path.exists(server_runner_path):
         print("ERROR: server_runner.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Parse the original arguments to ensure we maintain compatibility
     import argparse
     parser = argparse.ArgumentParser(description="Enhanced MCP Server with WebRTC Monitor")
-    
+
     # MCP server options
     mcp_group = parser.add_argument_group('MCP Server Options')
     mcp_group.add_argument("--host", default="127.0.0.1", help="Host to bind to")
@@ -58,7 +58,7 @@ def main():
     mcp_group.add_argument("--parquet-cache-path", help="Path for ParquetCIDCache storage")
     mcp_group.add_argument("--memory-cache-size", type=int, help="Memory cache size in bytes")
     mcp_group.add_argument("--disk-cache-size", type=int, help="Disk cache size in bytes")
-    
+
     # WebRTC monitor options
     monitor_group = parser.add_argument_group('WebRTC Monitor Options')
     monitor_group.add_argument("--disable-webrtc-monitor", action="store_true", help="Disable WebRTC monitor")
@@ -70,10 +70,10 @@ def main():
     monitor_group.add_argument("--visualization-interval", type=float, default=30.0, help="Visualization update interval in seconds")
     monitor_group.add_argument("--report-path", default="./webrtc_reports", help="Path for WebRTC reports and visualizations")
     monitor_group.add_argument("--webrtc-config-path", help="Path to WebRTC monitor configuration file")
-    
+
     # Parse the original arguments
     args = parser.parse_args()
-    
+
     # Build command for server_runner.py with equivalent parameters
     cmd = [
         sys.executable,
@@ -82,30 +82,30 @@ def main():
         f"--host={args.host}",
         f"--port={args.port}"
     ]
-    
+
     # Add debug and isolation parameters if specified
     if args.debug:
         cmd.append("--debug")
-    
+
     if args.isolation:
         cmd.append("--isolation")
-    
+
     # Add persistence path if specified
     if args.persistence_path:
         cmd.append(f"--persistence-path={args.persistence_path}")
-    
+
     # Add metrics configuration
     if not args.disable_metrics:
         cmd.append("--metrics-enabled")
-    
+
     # Add WebRTC configuration
     if not args.disable_webrtc_monitor:
         cmd.append("--webrtc-enabled")
-    
+
     # Add watch mode if reload is specified
     if args.reload:
         cmd.append("--watch-mode")
-    
+
     # Run server_runner
     try:
         print(f"Running: {' '.join(cmd)}")

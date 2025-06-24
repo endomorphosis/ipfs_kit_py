@@ -18,17 +18,17 @@ def pretty_print(title, data):
 # Test function
 def test_lotus_client():
     print("\n🔍 Testing Lotus client functionality...")
-    
+
     # First try with real mode (non-simulation)
     print("\n📡 Testing with REAL MODE (actual Lotus daemon)...")
     try:
         # Initialize the lotus client - explicitly disable simulation mode
         lotus = lotus_kit(metadata={"simulation_mode": False})
-        
+
         # Test connection
         result = lotus.check_connection()
         pretty_print("Daemon Connection", result)
-        
+
         if result.get("success"):
             print("✅ Successfully connected to Lotus daemon!")
         else:
@@ -40,17 +40,17 @@ def test_lotus_client():
         print(f"❌ Error connecting to Lotus daemon: {str(e)}")
         print("\n⚠️ Switching to simulation mode for further tests...")
         lotus = lotus_kit(metadata={"simulation_mode": True})
-    
+
     # Test listing wallets
     print("\n💼 Testing wallet listing...")
     wallets = lotus.list_wallets()
     pretty_print("Wallet List", wallets)
-    
+
     # Test listing deals
     print("\n📄 Testing deal listing...")
     deals = lotus.client_list_deals()
     pretty_print("Deals List", deals)
-    
+
     # If we have deals, test getting info for one deal
     if deals.get("success") and deals.get("result") and len(deals.get("result")) > 0:
         deal_id = deals["result"][0].get("DealID", 1)
@@ -59,7 +59,7 @@ def test_lotus_client():
         pretty_print(f"Deal Info (ID: {deal_id})", deal_info)
     else:
         print("\n⚠️ No deals found to test deal_info")
-    
+
     # Test listing miners
     print("\n⛏️ Testing miner listing...")
     if hasattr(lotus, 'state_list_miners'):
@@ -67,35 +67,35 @@ def test_lotus_client():
         pretty_print("Miners List", miners)
     else:
         print("⚠️ state_list_miners method not available")
-    
+
     # Do a simple simulation check with import
     print("\n📦 Testing content import simulation...")
-    
+
     # Create a temporary file to import
     import tempfile
     with tempfile.NamedTemporaryFile(prefix="lotus_test_", suffix=".txt", delete=False) as temp_file:
         temp_file.write(b"Test content for Lotus client")
         temp_path = temp_file.name
-    
+
     print(f"Created temporary file at: {temp_path}")
     import_result = lotus.client_import(temp_path)
     pretty_print("Import Result", import_result)
-    
+
     # Check if we got a valid data CID
     if import_result.get("success") and import_result.get("result", {}).get("Root", {}).get("/"):
         data_cid = import_result["result"]["Root"]["/"]
         print(f"\n✅ Successfully imported content with CID: {data_cid}")
-        
+
         # Try to start a deal if we have miners and wallets
         if wallets.get("success") and wallets.get("result") and len(wallets.get("result")) > 0:
             wallet = wallets["result"][0]
-            
+
             # Get a miner address - in simulation we can use any string
             miner = "t01000"
             if hasattr(lotus, 'state_list_miners') and miners.get("success") and miners.get("result"):
                 if len(miners["result"]) > 0:
                     miner = miners["result"][0]
-            
+
             print(f"\n🤝 Testing starting a deal with miner {miner}...")
             deal_result = lotus.client_start_deal(
                 data_cid=data_cid,
@@ -105,14 +105,14 @@ def test_lotus_client():
                 wallet=wallet
             )
             pretty_print("Deal Start Result", deal_result)
-            
+
             if deal_result.get("success"):
                 print("\n✅ Successfully started a storage deal!")
             else:
                 print(f"\n❌ Failed to start storage deal: {deal_result.get('error')}")
     else:
         print(f"\n❌ Failed to import content: {import_result.get('error')}")
-    
+
     # Final status
     print("\n📋 Test Summary:")
     if lotus.simulation_mode:
@@ -120,7 +120,7 @@ def test_lotus_client():
         print("🔸 Lotus daemon was not available, but simulation worked correctly")
     else:
         print("🔸 Tests completed with ACTUAL Lotus daemon")
-    
+
     print("\n✅ Test completed! Check the results above for details.")
 
 if __name__ == "__main__":

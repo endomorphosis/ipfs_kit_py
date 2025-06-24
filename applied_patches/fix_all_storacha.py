@@ -40,10 +40,10 @@ BACKUP_STORACHA_KIT = IPFS_KIT_PY_DIR / "storacha_kit.py.bak"
 
 def backup_file(file_path):
     """Create a backup of a file.
-    
+
     Args:
         file_path: Path to the file to back up
-        
+
     Returns:
         Path to the backup file
     """
@@ -61,12 +61,12 @@ def update_storacha_kit():
     if not ENHANCED_STORACHA_KIT.exists():
         logger.error(f"Enhanced Storacha kit not found at {ENHANCED_STORACHA_KIT}")
         return False
-        
+
     try:
         # Back up the original file
         if OLD_STORACHA_KIT.exists():
             backup_file(OLD_STORACHA_KIT)
-            
+
         # Copy enhanced implementation to the original location
         shutil.copy2(ENHANCED_STORACHA_KIT, OLD_STORACHA_KIT)
         logger.info(f"Replaced {OLD_STORACHA_KIT} with enhanced implementation")
@@ -77,29 +77,29 @@ def update_storacha_kit():
 
 def update_imports_in_file(file_path):
     """Update imports in a file to use the enhanced storacha_kit.
-    
+
     Args:
         file_path: Path to the file to update
-        
+
     Returns:
         bool: True if successful, False otherwise
     """
     if not Path(file_path).exists():
         logger.error(f"File not found: {file_path}")
         return False
-        
+
     try:
         with open(file_path, 'r') as f:
             content = f.read()
-            
+
         # Check if the file uses storacha_kit
         if "storacha_kit" not in content:
             logger.debug(f"File {file_path} does not use storacha_kit")
             return True  # Not an error
-        
+
         # Back up the file
         backup_file(file_path)
-        
+
         # Update imports - no changes needed since we're replacing the original file
         # This function is kept for future enhancements if needed
         logger.info(f"Checked imports in {file_path}")
@@ -111,19 +111,19 @@ def update_imports_in_file(file_path):
 def update_mcp_extension():
     """Update the MCP Storacha extension to use enhanced implementation."""
     extension_file = MCP_EXTENSIONS_DIR / "storacha_extension.py"
-    
+
     if not extension_file.exists():
         logger.error(f"MCP Storacha extension not found at {extension_file}")
         return False
-        
+
     try:
         # Back up the extension file
         backup_file(extension_file)
-        
+
         # Read the current content
         with open(extension_file, 'r') as f:
             content = f.read()
-            
+
         # Add imports for socket module and DNS resolution check
         if "import socket" not in content:
             import_blocks = content.split("import ")
@@ -134,21 +134,21 @@ def update_mcp_extension():
                         # Add socket import to this block
                         import_blocks[i] = "socket, " + import_blocks[i]
                         break
-                        
+
                 content = "import ".join(import_blocks)
                 logger.info("Added socket import to MCP extension")
-        
+
         # Add DNS resolution check function
         if "_check_dns_resolution" not in content:
             # Find a good place to add the function - right after the imports
             lines = content.split("\n")
             insert_index = None
-            
+
             for i, line in enumerate(lines):
                 if line.strip() == "# Configure logging" or line.strip() == "logger = logging.getLogger(__name__)":
                     insert_index = i + 2  # Insert right after logger initialization
                     break
-            
+
             if insert_index:
                 dns_check_function = """
 def _check_dns_resolution(host):
@@ -163,18 +163,18 @@ def _check_dns_resolution(host):
                 lines.insert(insert_index, dns_check_function)
                 content = "\n".join(lines)
                 logger.info("Added DNS resolution check to MCP extension")
-        
+
         # Update endpoint handling code to try multiple endpoints
         if "STORACHA_ENDPOINTS = [" not in content:
             lines = content.split("\n")
             endpoints_added = False
-            
+
             for i, line in enumerate(lines):
                 if "api_endpoint =" in line and not endpoints_added:
                     # Find the surrounding block
                     start_index = max(0, i - 5)
                     end_index = min(len(lines), i + 5)
-                    
+
                     # Check if we're in the right context
                     context = "\n".join(lines[start_index:end_index])
                     if "api_key" in context and "api_endpoint" in context:
@@ -191,17 +191,17 @@ STORACHA_ENDPOINTS = [
                         lines.insert(start_index, endpoint_block)
                         endpoints_added = True
                         logger.info("Added multiple endpoint definitions to MCP extension")
-                        
+
             if endpoints_added:
                 content = "\n".join(lines)
-        
+
         # Replace the endpoint initialization to try multiple endpoints
         if "api_endpoint =" in content and "_check_dns_resolution" in content:
             # Update the endpoint initialization
             old_init = """# Ensure the default endpoint is set to the new bridge URL
 if not api_endpoint:
     api_endpoint = "https://up.storacha.network/bridge"  # Updated default endpoint"""
-            
+
             new_init = """# Ensure we have a valid endpoint to try
 if not api_endpoint:
     # Try each endpoint until we find one that resolves
@@ -211,19 +211,19 @@ if not api_endpoint:
             logger.info(f"Using Storacha endpoint: {endpoint}")
             api_endpoint = endpoint
             break
-    
+
     # Use default if none worked
     if not api_endpoint:
         logger.warning("No Storacha endpoints resolved, using the default")
         api_endpoint = STORACHA_ENDPOINTS[0]"""
-            
+
             content = content.replace(old_init, new_init)
             logger.info("Updated endpoint initialization in MCP extension")
-        
+
         # Write the updated content
         with open(extension_file, 'w') as f:
             f.write(content)
-            
+
         logger.info(f"Updated MCP Storacha extension at {extension_file}")
         return True
     except Exception as e:
@@ -233,7 +233,7 @@ if not api_endpoint:
 def find_all_storacha_files():
     """Find all files that might need updating for Storacha integration."""
     storacha_files = []
-    
+
     # Use find command for better performance
     try:
         find_output = subprocess.run(
@@ -242,11 +242,11 @@ def find_all_storacha_files():
             text=True,
             check=True
         )
-        
+
         for line in find_output.stdout.strip().split("\n"):
             if line:
                 storacha_files.append(line)
-                
+
         logger.info(f"Found {len(storacha_files)} Storacha-related files")
         return storacha_files
     except Exception as e:
@@ -256,13 +256,13 @@ def find_all_storacha_files():
 def update_all_storacha_files():
     """Update all Storacha-related files in the package."""
     files = find_all_storacha_files()
-    
+
     success_count = 0
     for file in files:
         logger.info(f"Processing {file}")
         if update_imports_in_file(file):
             success_count += 1
-    
+
     logger.info(f"Updated {success_count} out of {len(files)} files")
     return success_count == len(files)
 
@@ -271,7 +271,7 @@ def restart_mcp_server():
     try:
         # Stop any running MCP server
         logger.info("Stopping any running MCP server...")
-        
+
         # Find PID file
         pid_file = Path("/tmp/mcp/server.pid")
         if pid_file.exists():
@@ -282,7 +282,7 @@ def restart_mcp_server():
                     logger.info(f"Sent SIGTERM to MCP server process {pid}")
                 except Exception as e:
                     logger.warning(f"Error stopping MCP server: {e}")
-        
+
         # Also try to kill any process matching enhanced_mcp_server.py
         try:
             subprocess.run(
@@ -291,14 +291,14 @@ def restart_mcp_server():
             )
         except Exception:
             pass
-            
+
         # Wait for processes to terminate
         time.sleep(2)
-        
+
         # Start MCP server
         logger.info("Starting MCP server...")
         start_script = PACKAGE_ROOT / "start_mcp_server.sh"
-        
+
         if start_script.exists():
             subprocess.run([str(start_script)], check=False)
             logger.info("MCP server started")
@@ -315,7 +315,7 @@ def test_storacha_integration():
     try:
         # Wait for server to start up
         time.sleep(5)
-        
+
         # Check server health
         try:
             health_output = subprocess.run(
@@ -324,21 +324,21 @@ def test_storacha_integration():
                 text=True,
                 check=True
             )
-            
+
             if "storacha" not in health_output.stdout:
                 logger.error("Storacha not found in MCP server health output")
                 logger.debug(f"Health output: {health_output.stdout}")
                 return False
-                
+
             logger.info("Storacha found in MCP server health output")
-            
+
             # Parse the health output to check Storacha status
             try:
                 health_data = json.loads(health_output.stdout)
                 if "storage_backends" in health_data and "storacha" in health_data["storage_backends"]:
                     storacha_status = health_data["storage_backends"]["storacha"]
                     logger.info(f"Storacha status: {json.dumps(storacha_status, indent=2)}")
-                    
+
                     # Check if it's available and not simulation mode
                     if storacha_status.get("available", False) and not storacha_status.get("simulation", True):
                         logger.info("Storacha backend is available and not in simulation mode")
@@ -348,12 +348,12 @@ def test_storacha_integration():
                             logger.error("Storacha backend is not available")
                         if storacha_status.get("simulation", True):
                             logger.error("Storacha backend is in simulation mode")
-                            
+
                         if storacha_status.get("mock", False):
                             logger.warning("Storacha backend is in mock mode (this is acceptable)")
                             # If in mock mode, still consider this a success
                             return True
-                            
+
                         return False
                 else:
                     logger.error("Storacha backend not found in health output")
@@ -362,13 +362,13 @@ def test_storacha_integration():
                 logger.error("Failed to parse health output as JSON")
                 logger.debug(f"Health output: {health_output.stdout}")
                 return False
-                
+
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to check MCP server health: {e}")
             logger.debug(f"Stdout: {e.stdout}")
             logger.debug(f"Stderr: {e.stderr}")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error testing Storacha integration: {e}")
         return False
@@ -376,32 +376,32 @@ def test_storacha_integration():
 def main():
     """Main function to fix Storacha integration in all aspects."""
     logger.info("=== Fixing Storacha Integration in ipfs_kit_py ===")
-    
+
     # Step 1: Replace storacha_kit.py with enhanced implementation
     if not update_storacha_kit():
         logger.error("Failed to replace storacha_kit.py with enhanced implementation")
         return False
-    
+
     # Step 2: Update MCP extension
     if not update_mcp_extension():
         logger.error("Failed to update MCP extension")
         return False
-    
+
     # Step 3: Update imports in all Storacha-related files
     if not update_all_storacha_files():
         logger.warning("Some Storacha files could not be updated")
         # Continue anyway
-    
+
     # Step 4: Restart MCP server
     if not restart_mcp_server():
         logger.error("Failed to restart MCP server")
         return False
-    
+
     # Step 5: Test the Storacha integration
     if not test_storacha_integration():
         logger.error("Storacha integration test failed")
         return False
-    
+
     logger.info("=== Successfully fixed Storacha integration in all aspects ===")
     logger.info("Changes made:")
     logger.info("1. Replaced storacha_kit.py with enhanced implementation")
@@ -409,7 +409,7 @@ def main():
     logger.info("3. Updated imports in all Storacha-related files")
     logger.info("4. Restarted MCP server with new implementation")
     logger.info("5. Verified Storacha integration is working properly")
-    
+
     return True
 
 if __name__ == "__main__":

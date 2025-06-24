@@ -39,7 +39,7 @@ def find_lassie_binary():
     if lassie_path and os.path.exists(lassie_path) and os.access(lassie_path, os.X_OK):
         logger.info(f"Found Lassie binary from environment: {lassie_path}")
         return lassie_path
-    
+
     # Try to find it using the 'which' command
     try:
         result = subprocess.run(["which", "lassie"], capture_output=True, text=True)
@@ -49,7 +49,7 @@ def find_lassie_binary():
             return lassie_path
     except Exception:
         pass
-    
+
     # Check common locations
     common_paths = [
         "/usr/local/bin/lassie",
@@ -59,12 +59,12 @@ def find_lassie_binary():
         "./bin/lassie",
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin/lassie")
     ]
-    
+
     for path in common_paths:
         if os.path.exists(path) and os.access(path, os.X_OK):
             logger.info(f"Found Lassie binary at: {path}")
             return path
-    
+
     logger.warning("Lassie binary not found in common locations")
     return None
 
@@ -72,7 +72,7 @@ def get_system_info():
     """Get system information for downloading the correct binary."""
     system = platform.system().lower()
     machine = platform.machine().lower()
-    
+
     # Map architecture names
     arch_map = {
         'x86_64': 'amd64',
@@ -84,46 +84,46 @@ def get_system_info():
         'aarch64': 'arm64',
         'arm64': 'arm64'
     }
-    
+
     # Normalize architecture
     arch = arch_map.get(machine, machine)
-    
+
     return system, arch
 
 def download_lassie_binary():
     """Download the Lassie binary matching the system architecture."""
     system, arch = get_system_info()
-    
+
     # Create bin directory if it doesn't exist
     bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
     os.makedirs(bin_dir, exist_ok=True)
-    
+
     lassie_path = os.path.join(bin_dir, "lassie")
-    
+
     # Determine download URL based on system/arch
     # NOTE: This is a placeholder. In reality, you'd need to determine the exact URL format
     # from the GitHub releases page.
-    
+
     # Example URL format:
     # https://github.com/filecoin-project/lassie/releases/download/v0.13.0/lassie_0.13.0_linux_amd64.tar.gz
-    
+
     version_no_v = LASSIE_VERSION.lstrip('v')
     download_url = f"https://github.com/filecoin-project/lassie/releases/download/{LASSIE_VERSION}/lassie_{version_no_v}_{system}_{arch}.tar.gz"
-    
+
     logger.info(f"Attempting to download Lassie from: {download_url}")
-    
+
     try:
         # Download to a temporary file
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_path = temp_file.name
-        
+
         urllib.request.urlretrieve(download_url, temp_path)
-        
+
         # Extract the tarball
         with tempfile.TemporaryDirectory() as temp_dir:
             with tarfile.open(temp_path) as tar:
                 tar.extractall(path=temp_dir)
-            
+
             # Find the lassie executable in the extracted files
             for root, _, files in os.walk(temp_dir):
                 for file in files:
@@ -134,12 +134,12 @@ def download_lassie_binary():
                         os.chmod(lassie_path, 0o755)
                         logger.info(f"Successfully downloaded and extracted Lassie to {lassie_path}")
                         return lassie_path
-        
+
         logger.error("Could not find lassie executable in downloaded package")
         return None
     except Exception as e:
         logger.error(f"Error downloading Lassie binary: {e}")
-        
+
         # If download fails, create a mock binary for testing
         logger.info("Creating mock Lassie binary for testing purposes")
         create_mock_lassie(lassie_path)
@@ -163,7 +163,7 @@ elif [ "$command" = "fetch" ]; then
       break
     fi
   done
-  
+
   if [ -n "$cid" ]; then
     echo "Mock Lassie: Fetching $cid..."
     echo "Fetch completed successfully"
@@ -194,7 +194,7 @@ def test_lassie_binary(lassie_path):
             text=True,
             timeout=5
         )
-        
+
         if result.returncode == 0:
             logger.info(f"Lassie version: {result.stdout.strip()}")
             return True
@@ -213,7 +213,7 @@ def test_fetch_operation(lassie_path):
             # Use a well-known CID for testing
             # This is the CID for the "hello world" string
             test_cid = "QmT78zSuBmuS4z925WZfrqQ1qHaJ56DQaTfyMUF7F8ff5o"
-            
+
             # Run the fetch command with a short timeout
             result = subprocess.run(
                 [
@@ -226,7 +226,7 @@ def test_fetch_operation(lassie_path):
                 text=True,
                 timeout=15
             )
-            
+
             if result.returncode == 0:
                 logger.info(f"Successfully fetched test CID: {test_cid}")
                 # Check if file exists in output directory
@@ -250,26 +250,26 @@ def test_fetch_operation(lassie_path):
 def main():
     """Main function to setup Lassie integration."""
     logger.info("Setting up Lassie integration...")
-    
+
     # Find existing Lassie binary
     lassie_path = find_lassie_binary()
-    
+
     # Download if not found
     if not lassie_path:
         logger.info("Lassie binary not found, attempting to download...")
         lassie_path = download_lassie_binary()
-        
+
         if not lassie_path:
             logger.error("Failed to download Lassie binary")
             return False
-    
+
     # Set environment variable for the Lassie binary path
     os.environ["LASSIE_BINARY_PATH"] = lassie_path
-    
+
     # Test the binary
     if not test_lassie_binary(lassie_path):
         logger.warning("Lassie binary test failed")
-        
+
         # If test fails, create a mock binary
         logger.info("Creating mock Lassie binary")
         create_mock_lassie(lassie_path)
@@ -286,7 +286,7 @@ def main():
         except Exception as e:
             logger.warning(f"Error during fetch test: {e}")
             os.environ["LASSIE_MOCK_MODE"] = "true"
-    
+
     logger.info(f"Lassie binary path: {lassie_path}")
     logger.info(f"Mock mode: {os.environ.get('LASSIE_MOCK_MODE', 'false')}")
     logger.info("Lassie integration setup complete!")

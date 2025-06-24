@@ -57,31 +57,31 @@ def get_file_hash(file_path: str) -> str:
     """Generate a hash of a file's content."""
     if not os.path.exists(file_path):
         return ""
-    
+
     with open(file_path, 'rb') as f:
         return hashlib.md5(f.read()).hexdigest()
 
 def extract_targets_from_patch(patch_path: str) -> List[str]:
     """Determine the target file(s) for a patch by examining its content."""
     targets = []
-    
+
     # First check the filename for clues
     patch_filename = os.path.basename(patch_path)
     patch_name = os.path.splitext(patch_filename)[0].lower()
-    
+
     # Check if the filename matches any known target patterns
     for key, path in TARGET_FILES.items():
         if key in patch_name:
             targets.append(path)
-    
+
     # If we already found targets based on filename, return them
     if targets:
         return targets
-        
+
     # Otherwise examine the content
     with open(patch_path, 'r') as f:
         content = f.read()
-    
+
     # Look for common patterns in patch files to identify the target
     patterns = [
         r'MODEL_FILE\s*=\s*[\'"]([^\'"]+)[\'"]',  # Python variable declaration
@@ -92,14 +92,14 @@ def extract_targets_from_patch(patch_path: str) -> List[str]:
         r'shutil\.copy(?:2)?\([^,]+,\s*[\'"]([^\'"]+)[\'"]',  # Copy operations
         r'os\.path\.(?:exists|isfile)\([\'"]([^\'"]+)[\'"]',  # File checks
     ]
-    
+
     for pattern in patterns:
         matches = re.findall(pattern, content)
         for match in matches:
             target = match.strip()
             if target and target not in targets:
                 targets.append(target)
-    
+
     # If still no targets, check for MCP module patterns
     if not targets and 'mcp' in patch_name:
         mcp_dir = 'ipfs_kit_py/mcp'
@@ -118,25 +118,25 @@ def is_patch_applied_to_file(patch_path: str, target_path: str) -> bool:
     """Check if a patch has already been applied to a specific target file."""
     if not os.path.exists(target_path) or os.path.isdir(target_path):
         return False
-    
+
     # Read the patch file to understand what it changes
     with open(patch_path, 'r') as f:
         patch_content = f.read()
-    
+
     # Look for function definitions, key pieces of code, or other identifiers in the patch
     function_pattern = r'def\s+(\w+)'
     function_matches = re.findall(function_pattern, patch_content)
-    
+
     with open(target_path, 'r') as f:
         target_content = f.read()
-    
+
     # If there are function matches, check if they're in the target file
     if function_matches:
         for func_name in function_matches:
             # Skip very common function names like __init__
             if func_name in ['__init__', 'main']:
                 continue
-            
+
             # Create a pattern to match the function in the target file
             func_pattern = fr'def\s+{func_name}\s*\('
             if re.search(func_pattern, target_content):
@@ -151,7 +151,7 @@ def is_patch_applied_to_file(patch_path: str, target_path: str) -> bool:
                         if similarity > 0.7:  # 70% similarity threshold
                             print(f"Function {func_name} from patch appears to be applied ({similarity:.2f} similarity)")
                             return True
-    
+
     # Fallback: check for unique code snippets that would only be present after patching
     unique_lines = extract_unique_lines(patch_content)
     for line in unique_lines:
@@ -160,14 +160,14 @@ def is_patch_applied_to_file(patch_path: str, target_path: str) -> bool:
             cleaned_target = re.sub(r'\s+', '', target_content)
             if cleaned_line in cleaned_target:
                 return True
-    
+
     # If we can't determine with confidence, assume it's not applied
     return False
 
 def is_patch_applied(patch_path: str) -> bool:
     """Check if a patch has already been applied to any of its target files."""
     targets = extract_targets_from_patch(patch_path)
-    
+
     if not targets:
         print(f"WARNING: Could not determine targets for patch: {patch_path}")
         # Check if this patch exists in the applied_patches directory
@@ -176,12 +176,12 @@ def is_patch_applied(patch_path: str) -> bool:
             print(f"Found in applied_patches directory, assuming it has been applied.")
             return True
         return False
-    
+
     # Check each target
     for target in targets:
         if os.path.exists(target):
             if os.path.isdir(target):
-                # For directory targets, check if we've created backup files 
+                # For directory targets, check if we've created backup files
                 # that would indicate the patch was applied
                 backup_pattern = f"{target}/*.bak.*"
                 backup_found = False
@@ -190,7 +190,7 @@ def is_patch_applied(patch_path: str) -> bool:
                         if file.endswith(".bak") or ".bak." in file:
                             backup_found = True
                             break
-                
+
                 if backup_found:
                     print(f"Found backup files in {target}, suggesting patch may have been applied.")
                     return True
@@ -198,7 +198,7 @@ def is_patch_applied(patch_path: str) -> bool:
                 # For file targets, check the content
                 if is_patch_applied_to_file(patch_path, target):
                     return True
-    
+
     return False
 
 def extract_function_body(content: str, func_name: str) -> str:
@@ -214,7 +214,7 @@ def compare_function_bodies(body1: str, body2: str) -> float:
     # Normalize whitespace
     body1_norm = re.sub(r'\s+', ' ', body1).strip()
     body2_norm = re.sub(r'\s+', ' ', body2).strip()
-    
+
     # Use difflib to get similarity
     return difflib.SequenceMatcher(None, body1_norm, body2_norm).ratio()
 
@@ -222,31 +222,31 @@ def extract_unique_lines(content: str) -> List[str]:
     """Extract lines from content that are likely to be unique identifiers."""
     lines = content.splitlines()
     unique_lines = []
-    
+
     for line in lines:
         line = line.strip()
         # Skip comments, empty lines, and common patterns
         if not line or line.startswith('#') or line.startswith('"""') or line.startswith('def '):
             continue
-        
+
         # Look for lines with specific content that would be unique
-        if ('=' in line and not line.strip().startswith('if ') and 
+        if ('=' in line and not line.strip().startswith('if ') and
             not line.strip().startswith('for ') and not line.strip().startswith('while ')):
             unique_lines.append(line)
-    
+
     return unique_lines
 
 def apply_patch(patch_path: str) -> bool:
     """Apply a patch to the target file(s)."""
     print(f"Applying patch {patch_path}")
-    
+
     # For Python-based patches, just execute the script
     if patch_path.endswith('.py'):
         success, stdout, stderr = run_command(['python3', patch_path])
         print(stdout)
         if stderr:
             print(f"Errors: {stderr}")
-        
+
         if not success:
             print(f"Failed to apply patch: {patch_path}")
             return False
@@ -259,24 +259,24 @@ def apply_patch(patch_path: str) -> bool:
                 backup_path = f"{target}.bak.{int(os.path.getmtime(target))}"
                 shutil.copy2(target, backup_path)
                 print(f"Backup created at {backup_path}")
-                
+
                 success, stdout, stderr = run_command(['patch', target, patch_path])
                 print(stdout)
                 if stderr:
                     print(f"Errors: {stderr}")
-                
+
                 if not success:
                     print(f"Failed to apply patch to {target}")
                     # Restore from backup
                     shutil.copy2(backup_path, target)
                     return False
-    
+
     return True
 
 def test_patched_system() -> bool:
     """Run tests to verify the system still works after applying patches."""
     print("Running tests...")
-    
+
     # Run a basic syntax check on key Python files
     for root, dirs, files in os.walk("ipfs_kit_py"):
         for file in files:
@@ -287,7 +287,7 @@ def test_patched_system() -> bool:
                     print(f"Syntax error in {file_path}:")
                     print(stderr)
                     return False
-    
+
     # Run actual tests if available
     if os.path.exists("run_test_filecoin_model_anyio.py"):
         print("Running basic application test...")
@@ -297,35 +297,35 @@ def test_patched_system() -> bool:
             print(f"Test errors: {stderr}")
         if not success:
             return False
-    
+
     return True
 
 def process_patches() -> None:
     """Process all patches in the patches directory."""
     patches = []
-    
+
     # Collect all patches
     for root, dirs, files in os.walk(PATCHES_DIR):
         for file in files:
             if file.endswith(".py") or file.endswith(".patch"):
                 patch_path = os.path.join(root, file)
                 patches.append(patch_path)
-    
+
     print(f"Found {len(patches)} patches to process")
-    
+
     for patch_path in patches:
         print(f"\nProcessing patch: {patch_path}")
-        
+
         # Check if the patch has already been applied
         is_applied = is_patch_applied(patch_path)
-        
+
         if is_applied:
             print(f"Patch {patch_path} appears to be already applied")
-            
+
             # Move the patch to applied_patches directory
             patch_basename = os.path.basename(patch_path)
             dest_path = os.path.join(APPLIED_PATCHES_DIR, patch_basename)
-            
+
             # Check if the destination file already exists
             if os.path.exists(dest_path):
                 print(f"File already exists in applied_patches: {patch_basename}")
@@ -338,19 +338,19 @@ def process_patches() -> None:
                 shutil.move(patch_path, dest_path)
         else:
             print(f"Patch {patch_path} has not been applied yet")
-            
+
             # Apply the patch
             if apply_patch(patch_path):
                 print(f"Successfully applied patch: {patch_path}")
-                
+
                 # Test the system
                 if test_patched_system():
                     print("Tests passed!")
-                    
+
                     # Move the patch to applied_patches
                     patch_basename = os.path.basename(patch_path)
                     dest_path = os.path.join(APPLIED_PATCHES_DIR, patch_basename)
-                    
+
                     if os.path.exists(dest_path):
                         print(f"File already exists in applied_patches: {patch_basename}")
                         # Create a backup in backup_patches
@@ -372,7 +372,7 @@ def revert_last_patch() -> None:
     # Find the most recent .bak file
     latest_backup = None
     latest_time = 0
-    
+
     for root, dirs, files in os.walk("ipfs_kit_py"):
         for file in files:
             if ".bak." in file:
@@ -383,13 +383,13 @@ def revert_last_patch() -> None:
                         latest_backup = os.path.join(root, file)
                 except (ValueError, IndexError):
                     continue
-    
+
     if latest_backup:
         target_file = latest_backup.rsplit(".bak.", 1)[0]
         print(f"Restoring {target_file} from {latest_backup}")
         shutil.copy2(latest_backup, target_file)
         return True
-    
+
     print("No backup files found to revert.")
     return False
 
@@ -398,9 +398,9 @@ def main() -> None:
     # Create the necessary directories if they don't exist
     os.makedirs(APPLIED_PATCHES_DIR, exist_ok=True)
     os.makedirs(BACKUP_PATCHES_DIR, exist_ok=True)
-    
+
     process_patches()
-    
+
     print("\nPatch processing complete!")
 
 if __name__ == "__main__":

@@ -25,18 +25,18 @@ logger = logging.getLogger("ipfs-integration-fix")
 def fix_direct_mcp_server():
     """Fix direct_mcp_server.py to properly integrate with IPFS and FS tools"""
     logger.info("Fixing direct_mcp_server.py for IPFS and FS integration...")
-    
+
     # Path to the direct_mcp_server.py file
     server_path = "direct_mcp_server.py"
-    
+
     if not os.path.exists(server_path):
         logger.error(f"File not found: {server_path}")
         return False
-    
+
     # Read the original file
     with open(server_path, 'r') as f:
         content = f.read()
-    
+
     # Add necessary imports if they don't exist
     import_block = """
 import os
@@ -80,7 +80,7 @@ except ImportError:
     logger.warning("Multi-Backend FS not available")
     MULTI_BACKEND_FS_AVAILABLE = False
 """
-    
+
     # Check if imports exist and add if they don't
     if "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools" not in content:
         # Find the import section
@@ -97,28 +97,28 @@ except ImportError:
                 content = new_content
             else:
                 content = import_block + "\n" + content
-    
+
     # Add tool registration function if it doesn't exist
     register_function = """
 def register_all_tools(mcp_server):
     \"\"\"Register all available tools with the MCP server.\"\"\"
     logger.info("Registering all available tools with MCP server...")
-    
+
     # Register IPFS tools if available
     if IPFS_AVAILABLE:
         try:
             # Initialize IPFS model
             ipfs = ipfs_model.IPFSModel()
-            
+
             # Initialize IPFS controller
             controller = IPFSController(ipfs)
-            
+
             # Register IPFS tools
             register_ipfs_tools(mcp_server, controller, ipfs)
             logger.info("✅ Successfully registered IPFS tools")
         except Exception as e:
             logger.error(f"Failed to register IPFS tools: {e}")
-    
+
     # Register FS Journal tools if available
     if FS_JOURNAL_AVAILABLE:
         try:
@@ -126,7 +126,7 @@ def register_all_tools(mcp_server):
             logger.info("✅ Successfully registered FS Journal tools")
         except Exception as e:
             logger.error(f"Failed to register FS Journal tools: {e}")
-    
+
     # Register IPFS-FS Bridge tools if available
     if IPFS_FS_BRIDGE_AVAILABLE:
         try:
@@ -134,7 +134,7 @@ def register_all_tools(mcp_server):
             logger.info("✅ Successfully registered IPFS-FS Bridge tools")
         except Exception as e:
             logger.error(f"Failed to register IPFS-FS Bridge tools: {e}")
-    
+
     # Register Multi-Backend FS tools if available
     if MULTI_BACKEND_FS_AVAILABLE:
         try:
@@ -142,10 +142,10 @@ def register_all_tools(mcp_server):
             logger.info("✅ Successfully registered Multi-Backend FS tools")
         except Exception as e:
             logger.error(f"Failed to register Multi-Backend FS tools: {e}")
-    
+
     logger.info("Tool registration complete")
 """
-    
+
     # Check if registration function exists and add if it doesn't
     if "def register_all_tools" not in content:
         # Find a good insertion point (before the main function or at the end)
@@ -157,7 +157,7 @@ def register_all_tools(mcp_server):
         else:
             # Add at the end
             content += "\n" + register_function
-    
+
     # Update the main function to call our registration function
     if "register_all_tools(server)" not in content:
         # Find the server instantiation
@@ -170,11 +170,11 @@ def register_all_tools(mcp_server):
             if line_end > 0:
                 new_content = content[:line_end] + "\n    \n    # Register all tools\n    register_all_tools(server)" + content[line_end:]
                 content = new_content
-    
+
     # Write the updated file
     with open(server_path, 'w') as f:
         f.write(content)
-    
+
     logger.info(f"✅ Successfully fixed {server_path} for IPFS and FS integration")
     return True
 
@@ -197,13 +197,13 @@ logger = logging.getLogger(__name__)
 
 class FSJournal:
     \"\"\"Minimal File System Journal implementation\"\"\"
-    
+
     def __init__(self, base_dir=None):
         self.base_dir = base_dir or os.getcwd()
         self.journal_path = os.path.join(self.base_dir, '.fs_journal')
         os.makedirs(self.journal_path, exist_ok=True)
         logger.info(f"Initialized minimal FS Journal with base directory: {self.base_dir}")
-    
+
     def get_history(self, path, limit=50):
         \"\"\"Get history for a specific path\"\"\"
         return {
@@ -211,7 +211,7 @@ class FSJournal:
             'entries': [],
             'message': 'Minimal implementation - no history available'
         }
-    
+
     def sync_path(self, path, recursive=True):
         \"\"\"Synchronize path to journal\"\"\"
         return {
@@ -223,23 +223,23 @@ class FSJournal:
 def register_fs_journal_tools(mcp_server):
     \"\"\"Register FS Journal tools with MCP server\"\"\"
     logger.info("Registering minimal FS Journal tools...")
-    
+
     # Initialize the journal
     journal = FSJournal()
-    
+
     # Register tools
     @mcp_server.tool("fs_journal_get_history")
     def fs_journal_get_history(path, limit=50):
         \"\"\"Get history of file changes\"\"\"
         logger.info(f"MCP Tool call: fs_journal_get_history({path}, {limit})")
         return journal.get_history(path, limit)
-    
+
     @mcp_server.tool("fs_journal_sync")
     def fs_journal_sync(path, recursive=True):
         \"\"\"Synchronize changes to journal\"\"\"
         logger.info(f"MCP Tool call: fs_journal_sync({path}, {recursive})")
         return journal.sync_path(path, recursive)
-    
+
     logger.info("✅ Successfully registered minimal FS Journal tools with MCP server")
 """
         with open("fs_journal_tools.py", 'w') as f:
@@ -266,7 +266,7 @@ logger = logging.getLogger(__name__)
 def register_integration_tools(mcp_server):
     \"\"\"Register IPFS-FS integration tools with MCP server\"\"\"
     logger.info("Registering minimal IPFS-FS integration tools...")
-    
+
     @mcp_server.tool("ipfs_fs_bridge_status")
     def ipfs_fs_bridge_status(path=None):
         \"\"\"Get bridge status\"\"\"
@@ -276,7 +276,7 @@ def register_integration_tools(mcp_server):
             'path': path,
             'message': 'Minimal implementation - bridge status simulated'
         }
-    
+
     @mcp_server.tool("ipfs_fs_bridge_sync")
     def ipfs_fs_bridge_sync(path, direction="to_ipfs"):
         \"\"\"Sync between IPFS and filesystem\"\"\"
@@ -287,7 +287,7 @@ def register_integration_tools(mcp_server):
             'status': 'synced',
             'message': 'Minimal implementation - sync simulated'
         }
-    
+
     logger.info("✅ Successfully registered minimal IPFS-FS integration tools")
 """
         with open("ipfs_mcp_fs_integration.py", 'w') as f:
@@ -302,7 +302,7 @@ def fix_run_direct_mcp_server():
         logger.info("Fixing run_direct_mcp_server.py...")
         with open("run_direct_mcp_server.py", 'r') as f:
             content = f.read()
-        
+
         # Fix the imports if needed
         if "register_ipfs_tools" in content and "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools" not in content:
             content = content.replace(
@@ -317,21 +317,21 @@ def fix_run_direct_mcp_server():
 
 def fix_all_files():
     """Fix all necessary files for comprehensive IPFS tool coverage"""
-    
+
     # Fix direct_mcp_server.py
     if not fix_direct_mcp_server():
         logger.error("Failed to fix direct_mcp_server.py")
         return False
-    
+
     # Create simple FS Journal tools module if it doesn't exist
     create_fs_journal_tools()
-    
+
     # Create simple IPFS-FS Bridge module if it doesn't exist
     create_ipfs_fs_integration()
-    
+
     # Fix run_direct_mcp_server.py if it exists
     fix_run_direct_mcp_server()
-    
+
     logger.info("All files fixed successfully for comprehensive IPFS tool coverage")
     return True
 

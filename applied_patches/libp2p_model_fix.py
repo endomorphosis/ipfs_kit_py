@@ -17,7 +17,7 @@ duplicate_funcs = [
     "find_content",
     "retrieve_content",
     "get_content",
-    "announce_content", 
+    "announce_content",
     "get_connected_peers",
     "get_peer_info",
     "reset",
@@ -42,30 +42,30 @@ for func_name in duplicate_funcs:
     # Find all occurrences of the function definition
     pattern = r"(\s+)(async )?def {}\(".format(re.escape(func_name))
     matches = list(re.finditer(pattern, content))
-    
+
     if len(matches) <= 1:
         continue  # No duplicates found
-    
+
     # Keep the first occurrence, comment out others
     for match in matches[1:]:
         # Find the function body start position
         start_pos = match.start()
-        
+
         # Find the function body end position (next def at same indentation level)
         indent = match.group(1)
         next_def_pattern = r"\n{}(async )?def ".format(re.escape(indent))
         next_matches = list(re.finditer(next_def_pattern, content[start_pos:]))
-        
+
         if next_matches:
             end_pos = start_pos + next_matches[0].start()
         else:
             # If no next function, check for class end or file end
             end_pos = len(content)
-        
+
         # Extract the function and create a commented version
         func_text = content[start_pos:end_pos]
         commented_text = "\n".join([f"# {line}" for line in func_text.split("\n")])
-        
+
         # Replace in content
         content = content[:start_pos] + commented_text + content[end_pos:]
 

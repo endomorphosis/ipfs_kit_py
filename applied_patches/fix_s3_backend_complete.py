@@ -141,7 +141,7 @@ class S3Backend(BackendStorage):
 
         # Initialize local cache for frequently accessed data
         self._init_local_cache()
-        
+
     def get_name(self) -> str:
         """Get the name of this backend implementation."""
         return "s3"
@@ -334,19 +334,19 @@ class S3Backend(BackendStorage):
         if path:
             return path
         return f"mcp-s3-{uuid.uuid4()}"
-        
+
     # Implement required abstract method
     def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Add content to S3 storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the store() method with appropriate parameter mapping.
-        
+
         Args:
             content: Content to add (can be a path, bytes, or file-like object)
             metadata: Optional metadata to associate with the content
-            
+
         Returns:
             Dict with operation result including content ID
         """
@@ -354,7 +354,7 @@ class S3Backend(BackendStorage):
         options = {}
         if metadata:
             options["metadata"] = metadata
-            
+
         # Call the existing store method with mapped parameters
         return self.store(content, options=options)
 
@@ -362,30 +362,30 @@ class S3Backend(BackendStorage):
     def get_content(self, content_id: str) -> Dict[str, Any]:
         """
         Retrieve content from S3 storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the retrieve() method.
-        
+
         Args:
             content_id: ID of the content to retrieve
-            
+
         Returns:
             Dict with operation result including content data
         """
         # Call the existing retrieve method
         return self.retrieve(content_id)
-        
+
     # Implement required abstract method
     def remove_content(self, content_id: str) -> Dict[str, Any]:
         """
         Remove content from S3 storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the delete() method.
-        
+
         Args:
             content_id: ID of the content to remove
-            
+
         Returns:
             Dict with operation result
         """
@@ -732,7 +732,7 @@ class S3Backend(BackendStorage):
                     {
                         "identifier": obj.get("Key"),
                         "size": obj.get("Size"),
-                        "last_modified": 
+                        "last_modified":
                             obj.get("LastModified").isoformat() if obj.get("LastModified") else None,
                         "etag": obj.get("ETag"),
                         "backend": self.get_name(),
@@ -858,7 +858,7 @@ class S3Backend(BackendStorage):
                 "metadata": {
                     "size": response.get("ContentLength", 0),
                     "content_type": response.get("ContentType"),
-                    "last_modified": 
+                    "last_modified":
                         response.get("LastModified").isoformat()
                         if response.get("LastModified")
                         else None,

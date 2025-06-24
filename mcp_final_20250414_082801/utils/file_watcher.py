@@ -260,7 +260,7 @@ class MCPFileHandler(FileSystemEventHandler):
                 logger.error(str(e))
 
             # Log full traceback at debug level
-            
+
 
             logger.debug(f"Full traceback:\n{traceback.format_exc()}")
 
@@ -364,7 +364,7 @@ class MCPFileHandler(FileSystemEventHandler):
         lines = [f"Error in {file_path}: {str(error)}"]
 
         # Try to extract line number information if available
-        
+
 
         tb_info = traceback.extract_tb(sys.exc_info()[2])
 

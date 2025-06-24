@@ -50,7 +50,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         self.assertEqual(self.analyzer.get_content_category("audio/mp3"), "audio")
         self.assertEqual(self.analyzer.get_content_category("application/pdf"), "document")
         self.assertEqual(self.analyzer.get_content_category("text/plain"), "document")
-        
+
         # Test filename detection
         self.assertEqual(self.analyzer.get_content_category(filename="image.jpg"), "image")
         self.assertEqual(self.analyzer.get_content_category(filename="video.mp4"), "video")
@@ -59,7 +59,7 @@ class TestContentTypeAnalyzer(unittest.TestCase):
         self.assertEqual(self.analyzer.get_content_category(filename="model.pth"), "model")
         self.assertEqual(self.analyzer.get_content_category(filename="data.csv"), "dataset")
         self.assertEqual(self.analyzer.get_content_category(filename="archive.zip"), "archive")
-        
+
         # Test both MIME type and filename together (MIME type should take precedence)
         self.assertEqual(self.analyzer.get_content_category("image/jpeg", "video.mp4"), "image")
 
@@ -70,21 +70,21 @@ class TestContentTypeAnalyzer(unittest.TestCase):
             backend: self.analyzer.get_content_type_score(backend, "image/jpeg")
             for backend in StorageBackendType
         }
-        
+
         # IPFS should score high for images
         self.assertGreater(image_scores[StorageBackendType.IPFS], 0.8)
-        
+
         # HuggingFace should score high for models
         model_scores = {
             backend: self.analyzer.get_content_type_score(backend, filename="model.h5")
             for backend in StorageBackendType
         }
         self.assertGreater(model_scores[StorageBackendType.HUGGINGFACE], 0.8)
-        
+
         # Test recommendations
         image_recommendations = self.analyzer.get_recommended_backends("image/jpeg")
         self.assertIn(StorageBackendType.IPFS, image_recommendations)
-        
+
         model_recommendations = self.analyzer.get_recommended_backends(filename="model.h5")
         self.assertIn(StorageBackendType.HUGGINGFACE, model_recommendations)
 
@@ -101,66 +101,66 @@ class TestCostOptimizer(unittest.TestCase):
         # Test storage cost estimation
         size_bytes = 100 * 1024 * 1024  # 100 MB
         duration_seconds = 30 * 24 * 60 * 60  # 30 days
-        
+
         for backend in StorageBackendType:
             cost = self.optimizer.estimate_storage_cost(backend, size_bytes, duration_seconds)
             self.assertGreaterEqual(cost, 0.0)
-            
+
             # Also test retrieval cost
             retrieval_cost = self.optimizer.estimate_retrieval_cost(backend, size_bytes)
             self.assertGreaterEqual(retrieval_cost, 0.0)
-    
+
     def test_cost_scoring(self):
         """Test cost score calculation for different backends."""
         size_bytes = 100 * 1024 * 1024  # 100 MB
-        
+
         # Test storage operation
         store_scores = {
             backend: self.optimizer.get_cost_score(backend, size_bytes, "store")
             for backend in StorageBackendType
         }
-        
+
         # All scores should be between 0 and 1
         for backend, score in store_scores.items():
             self.assertGreaterEqual(score, 0.0)
             self.assertLessEqual(score, 1.0)
-        
+
         # Test retrieve operation
         retrieve_scores = {
             backend: self.optimizer.get_cost_score(backend, size_bytes, "retrieve")
             for backend in StorageBackendType
         }
-        
+
         # All scores should be between 0 and 1
         for backend, score in retrieve_scores.items():
             self.assertGreaterEqual(score, 0.0)
             self.assertLessEqual(score, 1.0)
-    
+
     def test_backend_ranking(self):
         """Test backend ranking by cost."""
         size_bytes = 100 * 1024 * 1024  # 100 MB
-        
+
         # Get rankings for storage operation
         store_ranking = self.optimizer.get_backend_ranking(
             list(StorageBackendType),
             size_bytes,
             "store"
         )
-        
+
         # Check that rankings are sorted by cost (cheapest first)
         for i in range(1, len(store_ranking)):
             self.assertLessEqual(
                 store_ranking[i-1]["cost"],
                 store_ranking[i]["cost"]
             )
-        
+
         # Get rankings for retrieval operation
         retrieve_ranking = self.optimizer.get_backend_ranking(
             list(StorageBackendType),
             size_bytes,
             "retrieve"
         )
-        
+
         # Check that rankings are sorted by cost (cheapest first)
         for i in range(1, len(retrieve_ranking)):
             self.assertLessEqual(
@@ -182,7 +182,7 @@ class TestPerformanceTracker(unittest.TestCase):
         # Record some operations
         backends = list(StorageBackendType)
         operations = ["store", "retrieve", "delete", "list"]
-        
+
         # Record 10 operations for each backend
         for _ in range(10):
             for backend in backends:
@@ -191,7 +191,7 @@ class TestPerformanceTracker(unittest.TestCase):
                     latency = random.uniform(0.1, 2.0)
                     size = random.randint(1024, 10 * 1024 * 1024) if operation in ["store", "retrieve"] else None
                     success = random.random() > 0.1  # 10% error rate
-                    
+
                     self.tracker.record_operation(
                         backend_type=backend,
                         operation_type=operation,
@@ -199,14 +199,14 @@ class TestPerformanceTracker(unittest.TestCase):
                         size=size,
                         success=success
                     )
-        
+
         # Check that operations were recorded
         stats = self.tracker.get_statistics()
-        
+
         # Each backend should have stats
         for backend in backends:
             self.assertIn(backend.value, stats["backends"])
-            
+
             # Check operation counts
             backend_stats = stats["backends"][backend.value]
             self.assertEqual(backend_stats["operation_count"], 40)  # 10 operations * 4 types
@@ -214,7 +214,7 @@ class TestPerformanceTracker(unittest.TestCase):
     def test_performance_scoring(self):
         """Test performance score calculation."""
         # Record operations with different performance characteristics
-        
+
         # Backend 1: Fast with low error rate
         for _ in range(10):
             self.tracker.record_operation(
@@ -224,7 +224,7 @@ class TestPerformanceTracker(unittest.TestCase):
                 size=1024 * 1024,
                 success=True  # No errors
             )
-        
+
         # Backend 2: Slow with high error rate
         for _ in range(10):
             self.tracker.record_operation(
@@ -234,14 +234,14 @@ class TestPerformanceTracker(unittest.TestCase):
                 size=1024 * 1024,
                 success=False  # All errors
             )
-        
+
         # Calculate performance scores
         score1 = self.tracker.get_performance_score(StorageBackendType.IPFS)
         score2 = self.tracker.get_performance_score(StorageBackendType.S3)
-        
+
         # Backend 1 should have a higher score than Backend 2
         self.assertGreater(score1, score2)
-        
+
         # Calculate operation-specific scores
         op_score1 = self.tracker.get_operation_performance_score(
             StorageBackendType.IPFS, "retrieve"
@@ -249,7 +249,7 @@ class TestPerformanceTracker(unittest.TestCase):
         op_score2 = self.tracker.get_operation_performance_score(
             StorageBackendType.S3, "retrieve"
         )
-        
+
         # Operation-specific scores should also reflect the difference
         self.assertGreater(op_score1, op_score2)
 
@@ -262,7 +262,7 @@ class TestBalancedRouter(unittest.TestCase):
         # Reset the performance tracker
         tracker = get_performance_tracker()
         tracker.reset()
-        
+
         # Create a balanced router with all backends available
         self.router = get_balanced_instance(
             config={
@@ -276,14 +276,14 @@ class TestBalancedRouter(unittest.TestCase):
             },
             available_backends=list(StorageBackendType)
         )
-        
+
         # Record some operations to populate performance metrics
         self._populate_performance_metrics()
 
     def _populate_performance_metrics(self):
         """Populate performance metrics with simulated data."""
         tracker = get_performance_tracker()
-        
+
         # Define performance characteristics for each backend
         performance_profiles = {
             StorageBackendType.IPFS: {"latency": 0.2, "error_rate": 0.05},
@@ -293,14 +293,14 @@ class TestBalancedRouter(unittest.TestCase):
             StorageBackendType.HUGGINGFACE: {"latency": 0.5, "error_rate": 0.05},
             StorageBackendType.LASSIE: {"latency": 0.6, "error_rate": 0.07}
         }
-        
+
         # Record 50 operations for each backend
         for backend, profile in performance_profiles.items():
             for _ in range(50):
                 # Add some randomness
                 latency = profile["latency"] * random.uniform(0.8, 1.2)
                 success = random.random() > profile["error_rate"]
-                
+
                 tracker.record_operation(
                     backend_type=backend,
                     operation_type="store",
@@ -308,7 +308,7 @@ class TestBalancedRouter(unittest.TestCase):
                     size=1024 * 1024,
                     success=success
                 )
-                
+
                 tracker.record_operation(
                     backend_type=backend,
                     operation_type="retrieve",
@@ -324,15 +324,15 @@ class TestBalancedRouter(unittest.TestCase):
             "content_type": "image/jpeg",
             "size": 500 * 1024  # 500 KB
         })
-        
+
         # IPFS should be selected for images
         self.assertEqual(backend, StorageBackendType.IPFS)
-        
+
         # Test large file routing
         backend, reason = self.router._simple_strategy({
             "size": 2 * 1024 * 1024 * 1024  # 2 GB
         })
-        
+
         # Filecoin or S3 should be selected for large files
         self.assertIn(backend, [StorageBackendType.FILECOIN, StorageBackendType.S3])
 
@@ -341,7 +341,7 @@ class TestBalancedRouter(unittest.TestCase):
         backend, reason = self.router._performance_strategy({
             "operation": "retrieve"
         })
-        
+
         # Verify result
         self.assertIsNotNone(backend)
         self.assertIn("performance_score", reason)
@@ -352,7 +352,7 @@ class TestBalancedRouter(unittest.TestCase):
             "operation": "store",
             "size": 100 * 1024 * 1024  # 100 MB
         })
-        
+
         # Verify result
         self.assertIsNotNone(backend)
         self.assertIn("cost_score", reason)
@@ -360,7 +360,7 @@ class TestBalancedRouter(unittest.TestCase):
     def test_reliability_strategy(self):
         """Test reliability-based routing strategy."""
         backend, reason = self.router._reliability_strategy({})
-        
+
         # Verify result
         self.assertIsNotNone(backend)
         self.assertIn("reliability_score", reason)
@@ -402,32 +402,32 @@ class TestBalancedRouter(unittest.TestCase):
                 }
             }
         ]
-        
+
         # Run all scenarios
         for scenario in test_scenarios:
             backend, reason = self.router._balanced_strategy(scenario["request"])
-            
+
             # Verify result
             self.assertIsNotNone(backend)
             self.assertIn("balanced_score", reason)
-            
+
             # Print scenario results
             print(f"\n{scenario['name']}:")
             print(f"  Selected backend: {backend.value}")
             print(f"  Reason: {reason}")
-            
+
             # Parse score components
             if "balanced_score" in reason:
                 score_str = reason.split("_", 1)[1]
                 overall_score = float(score_str.split("_")[0])
-                
+
                 components_str = "_".join(score_str.split("_")[1:])
                 components = {}
                 for comp in components_str.split(","):
                     if ":" in comp:
                         k, v = comp.split(":")
                         components[k] = float(v)
-                
+
                 print(f"  Overall score: {overall_score:.2f}")
                 print(f"  Score components: {json.dumps(components, indent=2)}")
 
@@ -440,10 +440,10 @@ class TestBalancedRouter(unittest.TestCase):
                 "size": 500 * 1024,
                 "operation": "store"
             })
-        
+
         # Get statistics
         stats = self.router.get_statistics()
-        
+
         # Verify statistics
         self.assertIn("router_metrics", stats)
         self.assertIn("decision_counts", stats["router_metrics"])
@@ -488,14 +488,14 @@ class TestRouterIntegration(unittest.TestCase):
                 }
             }
         ]
-        
+
         # Run all scenarios
         for scenario in test_scenarios:
             backend, reason = self.integration.select_backend(scenario["request"])
-            
+
             # Verify result
             self.assertIsNotNone(backend)
-            
+
             # Print scenario results
             print(f"\n{scenario['name']}:")
             print(f"  Selected backend: {backend.value}")
@@ -505,13 +505,13 @@ class TestRouterIntegration(unittest.TestCase):
 def demonstrate_router_usage():
     """Demonstrate how to use the router in a real application."""
     print("\n=== Optimized Data Routing Demonstration ===\n")
-    
+
     # Create a router integration
     router = create_router_integration(
         config={"router_type": "balanced"},
         available_backends=list(StorageBackendType)
     )
-    
+
     # Define test cases with expected outcomes
     test_cases = [
         {
@@ -575,28 +575,28 @@ def demonstrate_router_usage():
             "expected_backends": [StorageBackendType.IPFS, StorageBackendType.S3]
         }
     ]
-    
+
     # Run all test cases
     for case in test_cases:
         print(f"\n{case['description']}:")
         print(f"  Request: {json.dumps(case['request'], indent=2)}")
-        
+
         # Select backend
         start_time = time.time()
         backend, reason = router.select_backend(case["request"])
         decision_time = (time.time() - start_time) * 1000  # ms
-        
+
         # Print results
         print(f"  Selected: {backend.value}")
         print(f"  Reason: {reason}")
         print(f"  Decision time: {decision_time:.2f} ms")
-        
+
         # Check if result matches expected backends
         if backend in case["expected_backends"]:
             print(f"  ✓ Result matches one of the expected backends")
         else:
             print(f"  ✗ Result does not match expected backends: {[b.value for b in case['expected_backends']]}")
-    
+
     # Print router statistics
     print("\nRouter Statistics:")
     stats = router.get_statistics()
@@ -607,6 +607,6 @@ def demonstrate_router_usage():
 if __name__ == "__main__":
     # Run the demonstration
     demonstrate_router_usage()
-    
+
     # Run the tests
     unittest.main()

@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 def apply_fixes(mcp_server=None):
     """
     Apply WebRTC AnyIO fixes to MCP server.
-    
+
     Args:
         mcp_server: Optional MCP server instance to patch directly
                    If None, the fix will be applied to the module for future instances
-    
+
     Returns:
         True if fixes were applied successfully, False otherwise
     """
@@ -42,24 +42,24 @@ def apply_fixes(mcp_server=None):
         except ImportError:
             logger.error("AnyIO package is required for this fix. Install with: pip install anyio sniffio")
             return False
-        
+
         # Import the fix module
         from fixes.webrtc_anyio_fix import (
-            patch_ipfs_model_methods, 
+            patch_ipfs_model_methods,
             patch_webrtc_controller_methods
         )
-        
+
         # If a server instance was provided, patch it directly
         if mcp_server is not None:
             logger.info("Applying WebRTC AnyIO fixes to MCP server instance")
-            
+
             # Patch the IPFS model
             if hasattr(mcp_server, 'models') and 'ipfs' in mcp_server.models:
                 patch_ipfs_model_methods(mcp_server.models['ipfs'])
                 logger.info("Patched IPFS model in server instance")
             else:
                 logger.warning("Could not find IPFS model in server instance")
-            
+
             # Patch the WebRTC controller if it exists
             if hasattr(mcp_server, 'controllers'):
                 for name, controller in mcp_server.controllers.items():
@@ -71,21 +71,21 @@ def apply_fixes(mcp_server=None):
                                 logger.info(f"Patched WebRTC controller {name} in server instance")
                         except Exception as e:
                             logger.warning(f"Error patching controller {name}: {e}")
-                        
+
             return True
-            
+
         # Otherwise, patch the modules for all future instances
         else:
             logger.info("Applying WebRTC AnyIO fixes to modules")
-            
+
             # Import models and controller modules
             from ipfs_kit_py.mcp.models import ipfs_model
-            
+
             # Monkey patch the IPFS model module
             original_stop_streaming = ipfs_model.IPFSModel.stop_webrtc_streaming
             original_close_connection = ipfs_model.IPFSModel.close_webrtc_connection
             original_close_all_connections = ipfs_model.IPFSModel.close_all_webrtc_connections
-            
+
             # Get our fixed methods
             from fixes.webrtc_anyio_fix import (
                 patched_stop_webrtc_streaming,
@@ -95,50 +95,50 @@ def apply_fixes(mcp_server=None):
                 async_close_webrtc_connection,
                 async_close_all_webrtc_connections
             )
-            
+
             # Replace the methods in the class
             ipfs_model.IPFSModel.stop_webrtc_streaming = patched_stop_webrtc_streaming
             ipfs_model.IPFSModel.close_webrtc_connection = patched_close_webrtc_connection
             ipfs_model.IPFSModel.close_all_webrtc_connections = patched_close_all_webrtc_connections
-            
+
             # Add async methods
             ipfs_model.IPFSModel.async_stop_webrtc_streaming = async_stop_webrtc_streaming
             ipfs_model.IPFSModel.async_close_webrtc_connection = async_close_webrtc_connection
             ipfs_model.IPFSModel.async_close_all_webrtc_connections = async_close_all_webrtc_connections
-            
+
             logger.info("Successfully patched IPFS model module")
-            
+
             # Try to patch the WebRTC controller if it exists
             try:
                 from ipfs_kit_py.mcp.controllers import webrtc_controller
-                
+
                 # Store original methods for reference
                 original_controller_stop = webrtc_controller.WebRTCController.stop_streaming
                 original_controller_close = webrtc_controller.WebRTCController.close_connection
                 original_controller_close_all = webrtc_controller.WebRTCController.close_all_connections
-                
+
                 # Create wrapper methods for the controller
                 async def new_stop_streaming(self, server_id: str):
                     return await self.ipfs_model.async_stop_webrtc_streaming(server_id)
-                    
+
                 async def new_close_connection(self, connection_id: str):
                     return await self.ipfs_model.async_close_webrtc_connection(connection_id)
-                    
+
                 async def new_close_all_connections(self):
                     return await self.ipfs_model.async_close_all_webrtc_connections()
-                
+
                 # Replace the methods
                 webrtc_controller.WebRTCController.stop_streaming = new_stop_streaming
                 webrtc_controller.WebRTCController.close_connection = new_close_connection
                 webrtc_controller.WebRTCController.close_all_connections = new_close_all_connections
-                
+
                 logger.info("Successfully patched WebRTC controller module")
-                
+
             except ImportError:
                 logger.warning("WebRTC controller module not found, skipping controller patches")
-                
+
             return True
-            
+
     except Exception as e:
         logger.error(f"Error applying WebRTC AnyIO fixes: {e}")
         import traceback
@@ -148,7 +148,7 @@ def apply_fixes(mcp_server=None):
 if __name__ == "__main__":
     # Apply fixes to modules for future MCP server instances
     success = apply_fixes()
-    
+
     if success:
         print("✅ Successfully applied WebRTC AnyIO fixes")
         sys.exit(0)

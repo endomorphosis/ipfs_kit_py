@@ -76,13 +76,13 @@ async def test_stats_endpoint(client, base_url):
 async def run_tests(backend, port):
     """Run all tests against the server."""
     base_url = f"http://localhost:{port}/api/v0/mcp"
-    
+
     logger.info(f"Starting MCP server tests using {backend} backend on port {port}")
-    
+
     # Start the server
     server_process = subprocess.Popen(
-        [sys.executable, "run_mcp_server_anyio.py", 
-         "--port", str(port), 
+        [sys.executable, "run_mcp_server_anyio.py",
+         "--port", str(port),
          "--backend", backend,
          "--debug",
          "--isolation"],
@@ -90,16 +90,16 @@ async def run_tests(backend, port):
         stderr=subprocess.PIPE,
         text=True
     )
-    
+
     # Give the server time to start
     logger.info("Waiting for server to start...")
     await anyio.sleep(5)
-    
+
     # Check if server is running
     try:
         server_running = False
         retries = 0
-        
+
         async with httpx.AsyncClient() as client:
             while not server_running and retries < 5:
                 try:
@@ -114,12 +114,12 @@ async def run_tests(backend, port):
                     retries += 1
                     logger.info(f"Server not ready, retrying ({retries}/5)...")
                     await anyio.sleep(2)
-            
+
             if not server_running:
                 logger.error("Failed to connect to server after multiple attempts")
                 server_process.terminate()
                 return False
-                
+
             # Run the tests sequentially
             results = []
             results.append(await test_health_endpoint(client, base_url))
@@ -127,7 +127,7 @@ async def run_tests(backend, port):
             results.append(await test_pins_endpoint(client, base_url))
             results.append(await test_exists_endpoint(client, base_url))
             results.append(await test_stats_endpoint(client, base_url))
-            
+
             success = all(results)
     except Exception as e:
         logger.error(f"Test error: {e}")
@@ -141,14 +141,14 @@ async def run_tests(backend, port):
         except subprocess.TimeoutExpired:
             logger.warning("Server didn't terminate cleanly, sending SIGKILL")
             server_process.kill()  # Force kill if it doesn't terminate cleanly
-        
+
         # Get server output
         stdout, stderr = server_process.communicate()
         if stdout:
             logger.info(f"Server stdout: {stdout}")
         if stderr:
             logger.info(f"Server stderr: {stderr}")
-    
+
     return success
 
 async def main():
@@ -157,7 +157,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Test AnyIO-based MCP server")
     parser.add_argument("--asyncio-port", type=int, default=8101, help="Port for asyncio backend tests")
     parser.add_argument("--trio-port", type=int, default=8102, help="Port for trio backend tests")
-    parser.add_argument("--backend", choices=["asyncio", "trio", "both"], default="both", 
+    parser.add_argument("--backend", choices=["asyncio", "trio", "both"], default="both",
                         help="Which backend(s) to test")
     # Only parse args when running the script directly, not when imported by pytest
     if __name__ == "__main__":
@@ -165,10 +165,10 @@ async def main():
     else:
         # When run under pytest, use default values
         args = parser.parse_args([])
-    
+
     # Track overall success
     success = True
-    
+
     # Test with asyncio backend
     if args.backend in ["asyncio", "both"]:
         logger.info("Running tests with asyncio backend")
@@ -178,7 +178,7 @@ async def main():
         else:
             logger.error("Some asyncio backend tests FAILED")
             success = False
-    
+
     # Test with trio backend
     if args.backend in ["trio", "both"]:
         logger.info("Running tests with trio backend")
@@ -188,7 +188,7 @@ async def main():
         else:
             logger.error("Some trio backend tests FAILED")
             success = False
-    
+
     # Final results
     if success:
         logger.info("ALL TESTS PASSED")

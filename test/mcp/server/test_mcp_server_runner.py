@@ -66,13 +66,13 @@ init_error = None
 # Create and register MCP server
 try:
     from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
-    
+
     # Import ipfs_kit to properly initialize IPFS
     from ipfs_kit_py.ipfs_kit import ipfs_kit
-    
+
     # Create an ipfs_kit instance
     kit = ipfs_kit()
-    
+
     # Create MCP server with debug and isolation modes
     mcp_server = MCPServer(
         debug_mode=True,
@@ -80,11 +80,11 @@ try:
         persistence_path=os.path.expanduser("~/.ipfs_kit/mcp_test"),
         ipfs_kit_instance=kit  # Pass the already initialized kit instance
     )
-    
+
     # Register with app using the correct prefix for proper controller routes
-    # Using /api/v0 instead of /api/v0/mcp fixes the 404 errors with advanced controllers 
+    # Using /api/v0 instead of /api/v0/mcp fixes the 404 errors with advanced controllers
     mcp_server.register_with_app(app, prefix="/api/v0")
-    
+
     init_success = True
     logger.info("MCP server initialized and registered with app")
 except Exception as e:
@@ -96,7 +96,7 @@ except Exception as e:
 async def root():
     if init_success:
         return {
-            "message": "MCP Server is running for tests", 
+            "message": "MCP Server is running for tests",
             "status": "ready",
             "endpoints": {
                 "health_check": "/api/v0/health"

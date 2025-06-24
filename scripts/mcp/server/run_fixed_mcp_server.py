@@ -32,15 +32,15 @@ def main():
         "Please use server_runner.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     print("Starting fixed MCP server using the new server_runner module...")
-    
+
     # Check if server_runner.py exists
     server_runner_path = os.path.join(os.path.dirname(__file__), "server_runner.py")
     if not os.path.exists(server_runner_path):
         print("ERROR: server_runner.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Build command for server_runner.py with equivalent parameters
     cmd = [
         sys.executable,
@@ -51,7 +51,7 @@ def main():
         "--host=127.0.0.1",
         "--api-prefix=/api/v0/mcp"
     ]
-    
+
     # Run server_runner
     try:
         print(f"Running: {' '.join(cmd)}")

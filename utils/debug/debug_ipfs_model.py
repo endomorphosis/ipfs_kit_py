@@ -42,16 +42,16 @@ except ImportError:
 def test_ipfs_model():
     """Test the IPFSModel's check_daemon_status method directly."""
     logger.info("Creating IPFSModel instance with real ipfs_kit")
-    
+
     try:
         # Create the ipfs_kit instance
         kit = ipfs_kit()
         logger.info(f"Created ipfs_kit instance: {kit}")
-        
+
         # Create the model with the real kit
         model = IPFSModel(ipfs_kit_instance=kit)
         logger.info(f"Created IPFSModel instance with real kit: {model}")
-        
+
         # Inspect the check_daemon_status method in ipfs_kit
         if hasattr(kit, 'check_daemon_status'):
             signature = inspect.signature(kit.check_daemon_status)
@@ -60,7 +60,7 @@ def test_ipfs_model():
             logger.info(f"Parameter count: {len(signature.parameters)}")
         else:
             logger.warning("ipfs_kit has no check_daemon_status method")
-            
+
         # Test with no daemon_type
         logger.info("Testing check_daemon_status with no daemon_type")
         try:
@@ -70,7 +70,7 @@ def test_ipfs_model():
         except Exception as e:
             logger.error(f"Error in check_daemon_status with no daemon_type: {e}")
             logger.error(traceback.format_exc())
-            
+
         # Test with daemon_type="ipfs"
         logger.info("Testing check_daemon_status with daemon_type='ipfs'")
         try:
@@ -80,9 +80,9 @@ def test_ipfs_model():
         except Exception as e:
             logger.error(f"Error in check_daemon_status with daemon_type='ipfs': {e}")
             logger.error(traceback.format_exc())
-            
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Error in test_ipfs_model: {e}")
         logger.error(traceback.format_exc())

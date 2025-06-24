@@ -28,11 +28,11 @@ logger = logging.getLogger(__name__)
 class AdvancedFilecoinClient:
     """
     Client for interacting with advanced Filecoin features.
-    
+
     This client implements the capabilities outlined in the MCP roadmap's
     "Advanced Filecoin Integration" section.
     """
-    
+
     def __init__(
         self,
         base_url: str = None,
@@ -43,7 +43,7 @@ class AdvancedFilecoinClient:
     ):
         """
         Initialize the Advanced Filecoin Client.
-        
+
         Args:
             base_url: Base URL for the Filecoin advanced API
             api_key: API key for authentication
@@ -57,28 +57,28 @@ class AdvancedFilecoinClient:
         self.mock_mode = mock_mode
         self.timeout = timeout
         self.max_retries = max_retries
-        
+
         # Normalize base URL
         if not self.base_url.endswith("/"):
             self.base_url = self.base_url + "/"
-        
+
         # Setup session for connection pooling
         self.session = requests.Session()
-        
+
         # Set default headers
         self.session.headers.update({
             "User-Agent": "MCP-Advanced-Filecoin-Client/1.0",
             "Accept": "application/json",
             "Content-Type": "application/json"
         })
-        
+
         # Add API key if provided
         if self.api_key:
             self.session.headers.update({"Authorization": f"Bearer {self.api_key}"})
-        
+
         # Base API endpoint path
         self.api_path = "api/v0/filecoin/advanced/"
-        
+
         logger.info(f"Initialized Advanced Filecoin Client with base URL: {self.base_url}")
 
     def _make_request(
@@ -91,26 +91,26 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Make an HTTP request to the API with retry logic.
-        
+
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint path
             params: Query parameters
             data: Request body data
             retries: Number of retries (uses instance default if None)
-            
+
         Returns:
             Response data as dictionary
         """
         if retries is None:
             retries = self.max_retries
-        
+
         # Handle mock mode
         if self.mock_mode and endpoint != "status":
             return self._mock_response(method, endpoint, params, data)
-        
+
         url = urljoin(self.base_url, self.api_path + endpoint)
-        
+
         for attempt in range(retries + 1):
             try:
                 if method.lower() == "get":
@@ -123,11 +123,11 @@ class AdvancedFilecoinClient:
                     response = self.session.delete(url, params=params, json=data, timeout=self.timeout)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
-                
+
                 # Check for successful response
                 if response.status_code >= 200 and response.status_code < 300:
                     return response.json()
-                
+
                 # Handle error responses
                 error_msg = f"API error: {response.status_code}"
                 try:
@@ -136,41 +136,41 @@ class AdvancedFilecoinClient:
                         error_msg = f"API error: {response.status_code} - {error_data['detail']}"
                 except Exception:
                     error_msg = f"API error: {response.status_code} - {response.text}"
-                
+
                 # Log error
                 logger.error(error_msg)
-                
+
                 # For 5xx errors, retry
                 if response.status_code >= 500 and attempt < retries:
                     wait_time = 2 ** attempt  # Exponential backoff
                     logger.info(f"Retrying after {wait_time}s (attempt {attempt+1}/{retries})")
                     time.sleep(wait_time)
                     continue
-                
+
                 # For 4xx errors or final retry, return error
                 return {
                     "success": False,
                     "error": error_msg,
                     "status_code": response.status_code
                 }
-                
+
             except requests.RequestException as e:
                 logger.error(f"Request error: {str(e)}")
-                
+
                 # Retry on connection errors
                 if attempt < retries:
                     wait_time = 2 ** attempt  # Exponential backoff
                     logger.info(f"Retrying after {wait_time}s (attempt {attempt+1}/{retries})")
                     time.sleep(wait_time)
                     continue
-                
+
                 # Final retry, return error
                 return {
                     "success": False,
                     "error": f"Request failed: {str(e)}",
                     "status_code": 0
                 }
-        
+
         # Should never get here, but just in case
         return {
             "success": False,
@@ -187,25 +187,25 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Generate mock responses for testing purposes.
-        
+
         Args:
             method: HTTP method
             endpoint: API endpoint
             params: Query parameters
             data: Request body data
-            
+
         Returns:
             Mock response data
         """
         logger.info(f"Generating mock response for {method} {endpoint}")
-        
+
         # Basic successful response
         response = {
             "success": True,
             "mock": True,
             "timestamp": time.time()
         }
-        
+
         # Network statistics
         if endpoint == "network/stats":
             response.update({
@@ -220,7 +220,7 @@ class AdvancedFilecoinClient:
                     "total_deals": 1000,
                 }
             })
-        
+
         # Gas prices
         elif endpoint == "network/gas":
             days = params.get("days", 7) if params else 7
@@ -236,7 +236,7 @@ class AdvancedFilecoinClient:
                 ],
                 "period_days": days
             })
-        
+
         # Storage stats
         elif endpoint == "network/storage":
             response.update({
@@ -259,7 +259,7 @@ class AdvancedFilecoinClient:
                     "Oceania": {"capacity": 1000000000000, "price": "30000000000"},
                 }
             })
-        
+
         # List miners
         elif endpoint == "miners":
             miner_count = 5
@@ -278,7 +278,7 @@ class AdvancedFilecoinClient:
                 "count": miner_count,
                 "total_miners": miner_count
             })
-        
+
         # Get miner info
         elif endpoint.startswith("miners/"):
             miner_id = endpoint.split("/")[-1]
@@ -307,7 +307,7 @@ class AdvancedFilecoinClient:
                     ]
                 }
             })
-        
+
         # Recommend miners
         elif endpoint == "miners/recommend":
             size = params.get("size", 1024 * 1024) if params else 1024 * 1024
@@ -315,10 +315,10 @@ class AdvancedFilecoinClient:
             gib = size / (1024 * 1024 * 1024)
             if gib < 0.001:
                 gib = 0.001  # Minimum 1 MiB
-            
+
             recommended = [f"t0100{i}" for i in range(replication)]
             costs = []
-            
+
             for i in range(replication):
                 price_per_gib_per_epoch = 50000000000 - i * 5000000000
                 duration = 518400  # 180 days in epochs
@@ -330,7 +330,7 @@ class AdvancedFilecoinClient:
                     "total_cost_fil": str(int(total_cost) / 1e18),
                     "duration_days": 180,
                 })
-            
+
             response.update({
                 "recommended_miners": recommended,
                 "file_size_bytes": size,
@@ -340,17 +340,17 @@ class AdvancedFilecoinClient:
                 "total_cost": str(sum(int(c["total_cost"]) for c in costs)),
                 "total_cost_fil": str(sum(int(c["total_cost"]) for c in costs) / 1e18),
             })
-        
+
         # Make deal
         elif endpoint == "storage/deal":
             cid = data.get("cid", "") if data else ""
             if not cid or cid == "auto":
                 import uuid
                 cid = f"bafy{uuid.uuid4().hex}"
-            
+
             miner_id = data.get("miner_id", "") if data else ""
             miners = [miner_id] if miner_id else [f"t0100{i}" for i in range(data.get("replication", 1) if data else 1)]
-            
+
             deals = []
             for i, miner in enumerate(miners):
                 deal_id = f"deal-{uuid.uuid4().hex}"
@@ -369,13 +369,13 @@ class AdvancedFilecoinClient:
                     "verified": data.get("verified", False) if data else False,
                     "state": "proposed",
                 })
-            
+
             response.update({
                 "cid": cid,
                 "deals": deals,
                 "deal_count": len(deals),
             })
-        
+
         # Get deal info
         elif endpoint.startswith("storage/deal/"):
             deal_id = endpoint.split("/")[-1]
@@ -402,13 +402,13 @@ class AdvancedFilecoinClient:
                     ],
                 }
             })
-        
+
         # Get CID info
         elif endpoint.startswith("storage/cid/"):
             cid = endpoint.split("/")[-1]
             deal_count = 3
             deals = []
-            
+
             for i in range(deal_count):
                 deals.append({
                     "deal_id": f"deal-{cid}-{i}",
@@ -425,7 +425,7 @@ class AdvancedFilecoinClient:
                     "verified": False,
                     "state": ["proposed", "published", "active"][i % 3],
                 })
-            
+
             response.update({
                 "cid": cid,
                 "size": 1024 * 1024,
@@ -434,7 +434,7 @@ class AdvancedFilecoinClient:
                 "created_at": time.time() - 3600,
                 "replication": deal_count,
             })
-        
+
         # Get deal health
         elif endpoint.startswith("health/deal/"):
             deal_id = endpoint.split("/")[-1]
@@ -457,12 +457,12 @@ class AdvancedFilecoinClient:
                     {"time": time.time() - 1800, "state": "active", "message": "Deal activated by storage provider"},
                 ],
             })
-        
+
         # Get CID health
         elif endpoint.startswith("health/cid/"):
             cid = endpoint.split("/")[-1]
             deal_count = 3
-            
+
             deal_healths = []
             for i in range(deal_count):
                 health = 95 - (i * 5)  # Decrease health for each deal to simulate variation
@@ -473,14 +473,14 @@ class AdvancedFilecoinClient:
                     "health": health,
                     "last_checked": time.time() - 1800,
                 })
-            
+
             # Calculate overall health
             overall_health = sum(d["health"] for d in deal_healths) / len(deal_healths)
-            
+
             # Determine if repairs are needed
             needs_repair = overall_health < 90
             repair_recommendations = []
-            
+
             if needs_repair:
                 # Find unhealthy deals
                 unhealthy_deals = [d for d in deal_healths if d["health"] < 90]
@@ -491,7 +491,7 @@ class AdvancedFilecoinClient:
                         "action": "replicate",
                         "reason": f"Deal health below threshold: {deal['health']}",
                     })
-            
+
             response.update({
                 "cid": cid,
                 "overall_health": overall_health,
@@ -502,12 +502,12 @@ class AdvancedFilecoinClient:
                 "needs_repair": needs_repair,
                 "repair_recommendations": repair_recommendations,
             })
-        
+
         # Repair content
         elif endpoint == "health/repair":
             cid = params.get("cid", "") if params else ""
             strategy = params.get("strategy", "replicate") if params else "replicate"
-            
+
             repair_results = []
             if strategy == "replicate":
                 for i in range(2):
@@ -535,7 +535,7 @@ class AdvancedFilecoinClient:
                         "new_miner": f"t0100{i+3}",
                         "status": "migrated",
                     })
-            
+
             response.update({
                 "cid": cid,
                 "strategy": strategy,
@@ -543,7 +543,7 @@ class AdvancedFilecoinClient:
                 "repair_actions": len(repair_results),
                 "results": repair_results,
             })
-        
+
         # Blockchain status
         elif endpoint == "blockchain/status":
             response.update({
@@ -564,13 +564,13 @@ class AdvancedFilecoinClient:
                     for i in range(5)
                 ],
             })
-        
+
         # Blockchain blocks
         elif endpoint == "blockchain/blocks":
             limit = params.get("limit", 10) if params else 10
             start = params.get("start", 1000000 - limit) if params else 1000000 - limit
             end = params.get("end", 1000000) if params else 1000000
-            
+
             blocks = [
                 {
                     "height": h,
@@ -583,19 +583,19 @@ class AdvancedFilecoinClient:
                 }
                 for h in range(start, end + 1)
             ]
-            
+
             response.update({
                 "blocks": blocks,
                 "count": len(blocks),
                 "chain_height": 1000000,
             })
-        
+
         # Blockchain deals
         elif endpoint == "blockchain/deals":
             limit = params.get("limit", 100) if params else 100
             miner = params.get("miner", None) if params else None
             status = params.get("status", None) if params else None
-            
+
             deals = []
             for i in range(limit):
                 deal = {
@@ -613,16 +613,16 @@ class AdvancedFilecoinClient:
                     "verified": i % 3 == 0,
                     "state": ["proposed", "published", "active", "sealed"][i % 4],
                 }
-                
+
                 # Apply filters
                 if miner and deal["miner"] != miner:
                     continue
-                
+
                 if status and deal["state"] != status:
                     continue
-                
+
                 deals.append(deal)
-            
+
             response.update({
                 "deals": deals[:limit],
                 "count": len(deals),
@@ -632,7 +632,7 @@ class AdvancedFilecoinClient:
                     "status": status,
                 },
             })
-        
+
         # Transaction status
         elif endpoint.startswith("blockchain/transaction/"):
             tx_id = endpoint.split("/")[-1]
@@ -651,7 +651,7 @@ class AdvancedFilecoinClient:
                     "confirmations": 5 + hash(tx_id) % 5,
                 }
             })
-        
+
         return response
 
     def check_api_status(self) -> Dict[str, Any]:
@@ -660,9 +660,9 @@ class AdvancedFilecoinClient:
             # Try to connect to the API's status endpoint
             base_url = self.base_url.rstrip("/")
             url = f"{base_url}/status"
-            
+
             response = self.session.get(url, timeout=self.timeout)
-            
+
             if response.status_code == 200:
                 try:
                     data = response.json()
@@ -684,7 +684,7 @@ class AdvancedFilecoinClient:
                     "status": "error",
                     "message": f"API returned status code {response.status_code}",
                 }
-        
+
         except requests.RequestException as e:
             return {
                 "success": False,
@@ -695,7 +695,7 @@ class AdvancedFilecoinClient:
     def get_network_stats(self) -> Dict[str, Any]:
         """
         Get current Filecoin network statistics including capacity, miners, and pricing.
-        
+
         Returns:
             Network statistics including chain height, storage capacity, active miners, etc.
         """
@@ -704,10 +704,10 @@ class AdvancedFilecoinClient:
     def get_gas_prices(self, days: int = 7) -> Dict[str, Any]:
         """
         Get gas price trends for the Filecoin network.
-        
+
         Args:
             days: Number of days of gas price history to retrieve
-            
+
         Returns:
             Gas price trends including current base fee and historical data
         """
@@ -716,7 +716,7 @@ class AdvancedFilecoinClient:
     def get_storage_stats(self) -> Dict[str, Any]:
         """
         Get storage capacity and utilization statistics including regional breakdowns.
-        
+
         Returns:
             Storage statistics including total capacity, utilization, and price trends
         """
@@ -732,40 +732,40 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         List and filter storage miners based on various criteria.
-        
+
         Args:
             region: Filter miners by geographic region
             min_reputation: Minimum reputation score (0-5 scale)
             max_price: Maximum price in attoFIL
             available_space: Minimum available space in bytes
             limit: Maximum number of miners to return
-            
+
         Returns:
             List of miners matching the specified criteria
         """
         params = {"limit": limit}
-        
+
         if region:
             params["region"] = region
-        
+
         if min_reputation is not None:
             params["min_reputation"] = min_reputation
-        
+
         if max_price:
             params["max_price"] = max_price
-        
+
         if available_space is not None:
             params["available_space"] = available_space
-        
+
         return self._make_request("GET", "miners", params=params)
 
     def get_miner_info(self, miner_id: str) -> Dict[str, Any]:
         """
         Get detailed information about a specific miner including performance metrics.
-        
+
         Args:
             miner_id: Miner ID to query (e.g., "t01000")
-            
+
         Returns:
             Detailed information about the miner including performance history
         """
@@ -782,7 +782,7 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Get miner recommendations based on file requirements and optimization criteria.
-        
+
         Args:
             size: File size in bytes
             replication: Number of replicas desired
@@ -790,7 +790,7 @@ class AdvancedFilecoinClient:
             duration: Deal duration in epochs (default 518400, ~180 days)
             region: Preferred geographic region
             verified: Whether to use verified datacap for deals
-            
+
         Returns:
             Recommended miners with cost estimates and optimized selection
         """
@@ -800,13 +800,13 @@ class AdvancedFilecoinClient:
             "duration": duration,
             "verified": verified
         }
-        
+
         if max_price:
             params["max_price"] = max_price
-        
+
         if region:
             params["region"] = region
-        
+
         return self._make_request("GET", "miners/recommend", params=params)
 
     def make_storage_deal(
@@ -820,7 +820,7 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Create storage deals with enhanced options like replication and miner selection.
-        
+
         Args:
             cid: Content ID to store (use "auto" to generate a new CID for testing)
             miner_id: Specific miner to use (or None for automatic selection)
@@ -828,7 +828,7 @@ class AdvancedFilecoinClient:
             replication: Number of replicas to create
             max_price: Maximum price per GiB per epoch in attoFIL
             verified: Whether to use verified datacap for the deal
-            
+
         Returns:
             Created storage deal(s) information
         """
@@ -838,22 +838,22 @@ class AdvancedFilecoinClient:
             "replication": replication,
             "verified": verified
         }
-        
+
         if miner_id:
             data["miner_id"] = miner_id
-        
+
         if max_price:
             data["max_price"] = max_price
-        
+
         return self._make_request("POST", "storage/deal", data=data)
 
     def get_deal_info(self, deal_id: str) -> Dict[str, Any]:
         """
         Get detailed information about a specific storage deal.
-        
+
         Args:
             deal_id: Deal ID to query
-            
+
         Returns:
             Detailed information about the storage deal
         """
@@ -862,10 +862,10 @@ class AdvancedFilecoinClient:
     def get_content_deals(self, cid: str) -> Dict[str, Any]:
         """
         Get information about all storage deals for a specific content ID.
-        
+
         Args:
             cid: Content ID to query
-            
+
         Returns:
             Information about all deals storing the specified content
         """
@@ -874,10 +874,10 @@ class AdvancedFilecoinClient:
     def get_deal_health(self, deal_id: str) -> Dict[str, Any]:
         """
         Get health metrics and status for a specific storage deal.
-        
+
         Args:
             deal_id: Deal ID to check
-            
+
         Returns:
             Health metrics including latest checks and status history
         """
@@ -886,10 +886,10 @@ class AdvancedFilecoinClient:
     def get_content_health(self, cid: str) -> Dict[str, Any]:
         """
         Get health metrics for all deals storing a specific content ID.
-        
+
         Args:
             cid: Content ID to check
-            
+
         Returns:
             Health metrics for all deals storing the content with repair recommendations
         """
@@ -902,11 +902,11 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Initiate repair operations for content with unhealthy deals.
-        
+
         Args:
             cid: Content ID to repair
             strategy: Repair strategy (replicate, recover, migrate)
-            
+
         Returns:
             Results of repair operations
         """
@@ -914,13 +914,13 @@ class AdvancedFilecoinClient:
             "cid": cid,
             "strategy": strategy
         }
-        
+
         return self._make_request("POST", "health/repair", params=params)
 
     def get_blockchain_status(self) -> Dict[str, Any]:
         """
         Get current blockchain status including height and recent blocks.
-        
+
         Returns:
             Current blockchain status information
         """
@@ -934,23 +934,23 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Get blockchain blocks within a specified range.
-        
+
         Args:
             start: Starting block height
             end: Ending block height
             limit: Maximum number of blocks to return
-            
+
         Returns:
             List of blockchain blocks matching the criteria
         """
         params = {"limit": limit}
-        
+
         if start is not None:
             params["start"] = start
-        
+
         if end is not None:
             params["end"] = end
-        
+
         return self._make_request("GET", "blockchain/blocks", params=params)
 
     def get_blockchain_deals(
@@ -961,32 +961,32 @@ class AdvancedFilecoinClient:
     ) -> Dict[str, Any]:
         """
         Get on-chain deal information with filtering options.
-        
+
         Args:
             miner: Filter by miner ID
             status: Filter by deal status
             limit: Maximum number of deals to return
-            
+
         Returns:
             List of on-chain deals matching the criteria
         """
         params = {"limit": limit}
-        
+
         if miner:
             params["miner"] = miner
-        
+
         if status:
             params["status"] = status
-        
+
         return self._make_request("GET", "blockchain/deals", params=params)
 
     def get_transaction_status(self, tx_id: str) -> Dict[str, Any]:
         """
         Get the status of a blockchain transaction.
-        
+
         Args:
             tx_id: Transaction ID to query
-            
+
         Returns:
             Transaction status and details
         """

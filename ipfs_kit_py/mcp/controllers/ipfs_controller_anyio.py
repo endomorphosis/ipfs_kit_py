@@ -76,9 +76,9 @@ class StreamRequest(BaseModel):
 
 class IPFSOperationRequest:
     """Request model for IPFS operations."""
-    
+
     def __init__(
-        self, 
+        self,
         operation: str,
         cid: Optional[str] = None,
         path: Optional[str] = None,
@@ -115,88 +115,88 @@ class ReplicationPolicyResponse(BaseModel):
 
 class IPFSControllerAnyIO:
     """AnyIO-compatible controller for IPFS operations."""
-    
+
     def __init__(self, ipfs_model):
         """Initialize with an IPFS model."""
         self.ipfs_model = ipfs_model
         self.logger = logging.getLogger(__name__)
-    
+
     async def add_file(self, request) -> Dict[str, Any]:
         """Add a file to IPFS."""
         self.logger.info(f"Adding file with options: {request.options}")
         result = await self.ipfs_model.add_async(request.data, **request.options)
         return {"hash": result.get("Hash", ""), "success": True}
-    
+
     async def get_file(self, request) -> Dict[str, Any]:
         """Get a file from IPFS."""
         self.logger.info(f"Getting file with CID: {request.cid}")
         data = await self.ipfs_model.get_async(request.cid, **request.options)
         return {"data": data, "success": True}
-    
+
     async def cat_file(self, request) -> Dict[str, Any]:
         """Cat a file from IPFS."""
         self.logger.info(f"Catting file with CID: {request.cid}")
         data = await self.ipfs_model.cat_async(request.cid, **request.options)
         return {"data": data, "success": True}
-    
+
     async def pin_add(self, request) -> Dict[str, Any]:
         """Pin a file in IPFS."""
         self.logger.info(f"Pinning CID: {request.cid}")
         result = await self.ipfs_model.pin_add_async(request.cid, **request.options)
         return {"pins": result.get("Pins", []), "success": True}
-    
+
     async def pin_rm(self, request) -> Dict[str, Any]:
         """Unpin a file from IPFS."""
         self.logger.info(f"Unpinning CID: {request.cid}")
         result = await self.ipfs_model.pin_rm_async(request.cid, **request.options)
         return {"pins": result.get("Pins", []), "success": True}
-    
+
     async def pin_ls(self, request) -> Dict[str, Any]:
         """List pinned content in IPFS."""
         self.logger.info("Listing pins")
         result = await self.ipfs_model.pin_ls_async(**request.options)
         return {"pins": result.get("Keys", {}), "success": True}
-    
+
     async def ls(self, request) -> Dict[str, Any]:
         """List content in IPFS."""
         self.logger.info(f"Listing content for CID: {request.cid}")
         result = await self.ipfs_model.ls_async(request.cid, **request.options)
         return {"objects": result.get("Objects", []), "success": True}
-    
+
     async def name_publish(self, request) -> Dict[str, Any]:
         """Publish a name to IPNS."""
         self.logger.info(f"Publishing name for CID: {request.cid}")
         result = await self.ipfs_model.name_publish_async(request.cid, **request.options)
         return {"name": result.get("Name", ""), "value": result.get("Value", ""), "success": True}
-    
+
     async def name_resolve(self, request) -> Dict[str, Any]:
         """Resolve a name from IPNS."""
         self.logger.info(f"Resolving name: {request.path}")
         result = await self.ipfs_model.name_resolve_async(request.path, **request.options)
         return {"path": result.get("Path", ""), "success": True}
-    
+
     async def dht_findprovs(self, request) -> Dict[str, Any]:
         """Find providers for a CID via DHT."""
         self.logger.info(f"Finding providers for CID: {request.cid}")
         result = await self.ipfs_model.dht_findprovs_async(request.cid, **request.options)
         return {"providers": result, "success": True}
-    
+
     async def dht_findpeer(self, request) -> Dict[str, Any]:
         """Find a peer via DHT."""
         self.logger.info(f"Finding peer: {request.path}")
         result = await self.ipfs_model.dht_findpeer_async(request.path, **request.options)
         return {"peer": result, "success": True}
-    
+
     async def dht_provide(self, request) -> Dict[str, Any]:
         """Announce that this node can provide a CID."""
         self.logger.info(f"Providing CID: {request.cid}")
         result = await self.ipfs_model.dht_provide_async(request.cid, **request.options)
         return {"success": True}
-    
+
     async def read_file(self, request: ReadFileRequest) -> Dict[str, Any]:
         """Read content from a file."""
         self.logger.info(f"Reading from file: {request.path}")
-        
+
         try:
             if not os.path.exists(request.path):
                 return {
@@ -204,7 +204,7 @@ class IPFSControllerAnyIO:
                     "path": request.path,
                     "error": "File not found"
                 }
-                
+
             with open(request.path, 'rb') as f:
                 if request.offset > 0:
                     f.seek(request.offset)
@@ -212,7 +212,7 @@ class IPFSControllerAnyIO:
                     data = f.read(request.length)
                 else:
                     data = f.read()
-            
+
             # Convert to string if encoding is specified
             if request.encoding:
                 try:
@@ -244,7 +244,7 @@ class IPFSControllerAnyIO:
                 "path": request.path,
                 "error": f"Failed to read file: {str(e)}"
             }
-        
+
     async def write_file(self, request: WriteFileRequest) -> Dict[str, Any]:
         """Write content to a file."""
         self.logger.info(f"Writing to file: {request.path}")
@@ -252,7 +252,7 @@ class IPFSControllerAnyIO:
         # Convert string to bytes if necessary
         if isinstance(content, str):
             content = content.encode(request.encoding)
-            
+
         # Create parent directories if requested
         if request.create_dirs:
             try:
@@ -266,7 +266,7 @@ class IPFSControllerAnyIO:
                     "path": request.path,
                     "error": f"Failed to create directories: {str(e)}"
                 }
-                
+
         # Check if file exists and handle overwrite
         if os.path.exists(request.path) and not request.overwrite:
             return {
@@ -274,7 +274,7 @@ class IPFSControllerAnyIO:
                 "path": request.path,
                 "error": "File exists and overwrite is False"
             }
-            
+
         try:
             with open(request.path, 'wb') as f:
                 f.write(content)
@@ -290,29 +290,29 @@ class IPFSControllerAnyIO:
                 "path": request.path,
                 "error": f"Failed to write file: {str(e)}"
             }
-    
+
     async def get_resource_stats(self) -> ResourceStatsResponse:
         """Get resource statistics for this node."""
         self.logger.info("Getting resource statistics")
-        
+
         try:
             # Get system stats
             import psutil
-            
+
             cpu_percent = psutil.cpu_percent(interval=0.1)
             memory_percent = psutil.virtual_memory().percent
             disk_percent = psutil.disk_usage('/').percent
-            
+
             # Get network stats
             net_io = psutil.net_io_counters()
             network_in = net_io.bytes_recv
             network_out = net_io.bytes_sent
-            
+
             # Get IPFS repo stats
             repo_stats = await self.ipfs_model.repo_stat_async()
             ipfs_repo_size = repo_stats.get("RepoSize", 0)
             ipfs_objects = repo_stats.get("NumObjects", 0)
-            
+
             return ResourceStatsResponse(
                 cpu_percent=cpu_percent,
                 memory_percent=memory_percent,
@@ -326,11 +326,11 @@ class IPFSControllerAnyIO:
             self.logger.error(f"Error getting resource stats: {str(e)}")
             # Return defaults on error
             return ResourceStatsResponse()
-    
+
     async def stream_data(self, request: StreamRequest) -> Dict[str, Any]:
         """Stream data from a source, returning a generator."""
         self.logger.info(f"Streaming from {request.stream_type}: {request.path}")
-        
+
         # Handle different stream types
         if request.stream_type == "file":
             # Stream from file
@@ -338,11 +338,11 @@ class IPFSControllerAnyIO:
                 if request.path.startswith("Qm") or request.path.startswith("bafy"):
                     # This is a CID - stream from IPFS
                     self.logger.info(f"Streaming content from IPFS with CID: {request.path}")
-                    
+
                     # Get file size first (optional for progress reporting)
                     ls_result = await self.ipfs_model.ls_async(request.path)
                     file_size = ls_result.get("Objects", [{}])[0].get("Size", 0)
-                    
+
                     # Setup streaming response from IPFS cat with offset
                     async def ipfs_stream_generator():
                         offset = 0
@@ -352,7 +352,7 @@ class IPFSControllerAnyIO:
                                 break
                             yield chunk
                             offset += len(chunk)
-                            
+
                     return {
                         "success": True,
                         "stream": ipfs_stream_generator(),
@@ -366,9 +366,9 @@ class IPFSControllerAnyIO:
                             "success": False,
                             "error": f"File not found: {request.path}"
                         }
-                        
+
                     file_size = os.path.getsize(request.path)
-                    
+
                     # Setup streaming response from local file
                     async def file_stream_generator():
                         with open(request.path, "rb") as f:
@@ -377,7 +377,7 @@ class IPFSControllerAnyIO:
                                 if not chunk:
                                     break
                                 yield chunk
-                                
+
                     return {
                         "success": True,
                         "stream": file_stream_generator(),
@@ -395,18 +395,18 @@ class IPFSControllerAnyIO:
             try:
                 import cv2
                 import numpy as np
-                
+
                 camera_id = 0
                 if request.path.isdigit():
                     camera_id = int(request.path)
-                
+
                 cap = cv2.VideoCapture(camera_id)
                 if not cap.isOpened():
                     return {
                         "success": False,
                         "error": f"Could not open camera with ID: {camera_id}"
                     }
-                    
+
                 # Setup streaming response for camera feed
                 async def camera_stream_generator():
                     try:
@@ -414,7 +414,7 @@ class IPFSControllerAnyIO:
                             ret, frame = cap.read()
                             if not ret:
                                 break
-                                
+
                             # Convert to requested format if specified
                             if request.format == "jpeg":
                                 _, buffer = cv2.imencode(".jpg", frame)
@@ -425,14 +425,14 @@ class IPFSControllerAnyIO:
                             else:
                                 # Default: raw frame bytes
                                 yield frame.tobytes()
-                                
+
                             # Rate limiting to avoid overwhelming the system
                             await anyio.sleep(0.03)  # ~30fps
                     finally:
                         cap.release()
-                        
+
                 content_type = "image/jpeg" if request.format == "jpeg" else "image/png" if request.format == "png" else "application/octet-stream"
-                
+
                 return {
                     "success": True,
                     "stream": camera_stream_generator(),

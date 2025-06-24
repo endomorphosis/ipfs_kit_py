@@ -1794,7 +1794,7 @@ class ClusterDashboard:
         active_alerts = getattr(self.monitoring, "active_alerts", [])
         html += f"""
         </div>
-        
+
         <h2>Active Alerts ({len(active_alerts)})</h2>
 """
 
@@ -1814,23 +1814,23 @@ class ClusterDashboard:
         # Add charts section
         html += """
         <h2>Performance Metrics</h2>
-        
+
         <div class="chart-container">
             <canvas id="cpuChart"></canvas>
         </div>
-        
+
         <div class="chart-container">
             <canvas id="memoryChart"></canvas>
         </div>
-        
+
         <div class="chart-container">
             <canvas id="diskChart"></canvas>
         </div>
-        
+
         <script>
             // This would be populated with real data in a full implementation
             const timeLabels = Array.from({length: 24}, (_, i) => `${i}h ago`).reverse();
-            
+
             // CPU chart
             new Chart(document.getElementById('cpuChart'), {
                 type: 'line',
@@ -1859,7 +1859,7 @@ class ClusterDashboard:
                     }
                 }
             });
-            
+
             // Memory chart
             new Chart(document.getElementById('memoryChart'), {
                 type: 'line',
@@ -1888,7 +1888,7 @@ class ClusterDashboard:
                     }
                 }
             });
-            
+
             // Disk chart
             new Chart(document.getElementById('diskChart'), {
                 type: 'line',

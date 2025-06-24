@@ -117,24 +117,24 @@ def create_rbac_api_router(
 ) -> APIRouter:
     """
     Create an API router for RBAC functions.
-    
+
     Args:
         rbac_manager: RBAC manager instance
         get_current_admin_user: Optional dependency for admin-only endpoints
-        
+
     Returns:
         Configured APIRouter
     """
     router = APIRouter(tags=["Role-Based Access Control"])
-    
+
     # Use provided RBAC manager or get singleton instance
     manager = rbac_manager or get_rbac_manager()
-    
+
     if manager is None:
         logger.warning("RBAC manager not available - RBAC endpoints will return errors")
-    
+
     # Permission management endpoints
-    
+
     @router.get(
         "/permissions",
         response_model=StandardResponse,
@@ -152,11 +152,11 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Get permissions
             permissions = manager.list_permissions()
-            
+
             # Apply resource type filter if provided
             if resource_type:
                 try:
@@ -169,7 +169,7 @@ def create_rbac_api_router(
                         error_code="invalid_resource_type",
                         error_details={"valid_types": [t.value for t in ResourceType]}
                     )
-            
+
             # Convert to response format
             permission_info = [
                 PermissionInfo(
@@ -183,7 +183,7 @@ def create_rbac_api_router(
                 )
                 for perm in permissions
             ]
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Found {len(permission_info)} permissions",
@@ -196,7 +196,7 @@ def create_rbac_api_router(
                 message=f"Failed to list permissions: {str(e)}",
                 error_code="permission_list_error"
             )
-    
+
     @router.get(
         "/permissions/{permission_id}",
         response_model=StandardResponse,
@@ -214,18 +214,18 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Get permission from manager
             permission = manager.get_permission(permission_id)
-            
+
             if not permission:
                 return ErrorResponse(
                     success=False,
                     message=f"Permission {permission_id} not found",
                     error_code="permission_not_found"
                 )
-            
+
             # Convert to response format
             permission_detail = PermissionDetail(
                 id=permission.id,
@@ -238,7 +238,7 @@ def create_rbac_api_router(
                 created_at=permission.created_at,
                 updated_at=permission.updated_at
             )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Permission {permission_id} retrieved",
@@ -251,7 +251,7 @@ def create_rbac_api_router(
                 message=f"Failed to get permission: {str(e)}",
                 error_code="permission_get_error"
             )
-    
+
     @router.post(
         "/permissions",
         response_model=StandardResponse,
@@ -269,7 +269,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Validate resource type
             try:
@@ -281,7 +281,7 @@ def create_rbac_api_router(
                     error_code="invalid_resource_type",
                     error_details={"valid_types": [t.value for t in ResourceType]}
                 )
-            
+
             # Validate actions
             actions = set()
             for action in request.actions:
@@ -294,7 +294,7 @@ def create_rbac_api_router(
                         error_code="invalid_action_type",
                         error_details={"valid_actions": [a.value for a in ActionType]}
                     )
-            
+
             # Check if permission with same name already exists
             existing = manager.get_permission_by_name(request.name)
             if existing:
@@ -303,7 +303,7 @@ def create_rbac_api_router(
                     message=f"Permission with name '{request.name}' already exists",
                     error_code="permission_exists"
                 )
-            
+
             # Create permission
             permission = manager.create_permission(
                 name=request.name,
@@ -313,7 +313,7 @@ def create_rbac_api_router(
                 resource_id=request.resource_id,
                 conditions=request.conditions
             )
-            
+
             # Convert to response format
             permission_detail = PermissionDetail(
                 id=permission.id,
@@ -326,7 +326,7 @@ def create_rbac_api_router(
                 created_at=permission.created_at,
                 updated_at=permission.updated_at
             )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Permission {permission.name} created",
@@ -339,7 +339,7 @@ def create_rbac_api_router(
                 message=f"Failed to create permission: {str(e)}",
                 error_code="permission_create_error"
             )
-    
+
     @router.put(
         "/permissions/{permission_id}",
         response_model=StandardResponse,
@@ -358,7 +358,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Check if permission exists
             if not manager.get_permission(permission_id):
@@ -367,17 +367,17 @@ def create_rbac_api_router(
                     message=f"Permission {permission_id} not found",
                     error_code="permission_not_found"
                 )
-            
+
             # Prepare update data
             update_data = {}
-            
+
             if request:
                 if request.name is not None:
                     update_data["name"] = request.name
-                
+
                 if request.description is not None:
                     update_data["description"] = request.description
-                
+
                 if request.actions is not None:
                     # Validate actions
                     try:
@@ -392,16 +392,16 @@ def create_rbac_api_router(
                             error_code="invalid_action_type",
                             error_details={"valid_actions": [a.value for a in ActionType]}
                         )
-                
+
                 if request.resource_id is not None:
                     update_data["resource_id"] = request.resource_id
-                
+
                 if request.conditions is not None:
                     update_data["conditions"] = request.conditions
-                
+
             # Update permission
             permission = manager.update_permission(permission_id, **update_data)
-            
+
             # Convert to response format
             permission_detail = PermissionDetail(
                 id=permission.id,
@@ -414,7 +414,7 @@ def create_rbac_api_router(
                 created_at=permission.created_at,
                 updated_at=permission.updated_at
             )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Permission {permission.name} updated",
@@ -427,7 +427,7 @@ def create_rbac_api_router(
                 message=f"Failed to update permission: {str(e)}",
                 error_code="permission_update_error"
             )
-    
+
     @router.delete(
         "/permissions/{permission_id}",
         response_model=StandardResponse,
@@ -445,7 +445,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Get permission first for the response
             permission = manager.get_permission(permission_id)
@@ -455,17 +455,17 @@ def create_rbac_api_router(
                     message=f"Permission {permission_id} not found",
                     error_code="permission_not_found"
                 )
-            
+
             # Delete permission
             success = manager.delete_permission(permission_id)
-            
+
             if not success:
                 return ErrorResponse(
                     success=False,
                     message=f"Failed to delete permission {permission_id}. It may be in use by roles.",
                     error_code="permission_delete_error"
                 )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Permission {permission.name} deleted",
@@ -478,9 +478,9 @@ def create_rbac_api_router(
                 message=f"Failed to delete permission: {str(e)}",
                 error_code="permission_delete_error"
             )
-    
+
     # Role management endpoints
-    
+
     @router.get(
         "/roles",
         response_model=StandardResponse,
@@ -498,14 +498,14 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Get roles
             roles = manager.list_roles()
-            
+
             # Convert to response format
             role_list = []
-            
+
             for role in roles:
                 role_data = RoleInfo(
                     id=role.id,
@@ -514,11 +514,11 @@ def create_rbac_api_router(
                     created_at=role.created_at,
                     updated_at=role.updated_at
                 )
-                
+
                 if include_permissions:
                     # Get full role with permissions
                     perm_ids = list(manager.get_role_permissions(role.id, include_parents=False))
-                    
+
                     # Get permission details
                     perm_details = []
                     for perm_id in perm_ids:
@@ -535,7 +535,7 @@ def create_rbac_api_router(
                                     updated_at=perm.updated_at
                                 )
                             )
-                    
+
                     # Create role detail
                     role_detail = RoleDetail(
                         **role_data.dict(),
@@ -546,7 +546,7 @@ def create_rbac_api_router(
                     role_list.append(role_detail)
                 else:
                     role_list.append(role_data)
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Found {len(role_list)} roles",
@@ -559,7 +559,7 @@ def create_rbac_api_router(
                 message=f"Failed to list roles: {str(e)}",
                 error_code="role_list_error"
             )
-    
+
     @router.get(
         "/roles/{role_id}",
         response_model=StandardResponse,
@@ -578,18 +578,18 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Get role from manager
             role = manager.get_role(role_id)
-            
+
             if not role:
                 return ErrorResponse(
                     success=False,
                     message=f"Role {role_id} not found",
                     error_code="role_not_found"
                 )
-            
+
             # Create response data
             role_data = RoleDetail(
                 id=role.id,
@@ -600,7 +600,7 @@ def create_rbac_api_router(
                 created_at=role.created_at,
                 updated_at=role.updated_at
             )
-            
+
             # Add permission details if requested
             if include_permissions:
                 perm_details = []
@@ -618,9 +618,9 @@ def create_rbac_api_router(
                                 updated_at=perm.updated_at
                             )
                         )
-                
+
                 role_data.permission_details = perm_details
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Role {role.name} retrieved",
@@ -633,7 +633,7 @@ def create_rbac_api_router(
                 message=f"Failed to get role: {str(e)}",
                 error_code="role_get_error"
             )
-    
+
     @router.post(
         "/roles",
         response_model=StandardResponse,
@@ -651,7 +651,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Check if role with same name already exists
             existing = manager.get_role_by_name(request.name)
@@ -661,7 +661,7 @@ def create_rbac_api_router(
                     message=f"Role with name '{request.name}' already exists",
                     error_code="role_exists"
                 )
-            
+
             # Validate permissions
             if request.permissions:
                 for perm_id in request.permissions:
@@ -673,7 +673,7 @@ def create_rbac_api_router(
                             error_code="permission_not_found",
                             error_details={"permission_id": perm_id}
                         )
-            
+
             # Validate parent roles
             if request.parent_roles:
                 for parent_id in request.parent_roles:
@@ -685,7 +685,7 @@ def create_rbac_api_router(
                             error_code="role_not_found",
                             error_details={"role_id": parent_id}
                         )
-            
+
             # Create role
             role = manager.create_role(
                 name=request.name,
@@ -693,7 +693,7 @@ def create_rbac_api_router(
                 permissions=request.permissions,
                 parent_roles=request.parent_roles
             )
-            
+
             # Convert to response format
             role_data = RoleDetail(
                 id=role.id,
@@ -704,7 +704,7 @@ def create_rbac_api_router(
                 created_at=role.created_at,
                 updated_at=role.updated_at
             )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Role {role.name} created",
@@ -724,7 +724,7 @@ def create_rbac_api_router(
                 message=f"Failed to create role: {str(e)}",
                 error_code="role_create_error"
             )
-    
+
     @router.put(
         "/roles/{role_id}",
         response_model=StandardResponse,
@@ -743,7 +743,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Check if role exists
             if not manager.get_role(role_id):
@@ -752,10 +752,10 @@ def create_rbac_api_router(
                     message=f"Role {role_id} not found",
                     error_code="role_not_found"
                 )
-            
+
             # Prepare update data
             update_data = {}
-            
+
             if request:
                 if request.name is not None:
                     # Check for name conflict
@@ -767,10 +767,10 @@ def create_rbac_api_router(
                             error_code="role_exists"
                         )
                     update_data["name"] = request.name
-                
+
                 if request.description is not None:
                     update_data["description"] = request.description
-                
+
                 if request.permissions is not None:
                     # Validate permissions
                     for perm_id in request.permissions:
@@ -783,7 +783,7 @@ def create_rbac_api_router(
                                 error_details={"permission_id": perm_id}
                             )
                     update_data["permissions"] = request.permissions
-                
+
                 if request.parent_roles is not None:
                     # Validate parent roles
                     for parent_id in request.parent_roles:
@@ -795,7 +795,7 @@ def create_rbac_api_router(
                                 error_code="role_not_found",
                                 error_details={"role_id": parent_id}
                             )
-                    
+
                     # Check for cycles
                     if role_id in request.parent_roles:
                         return ErrorResponse(
@@ -803,12 +803,12 @@ def create_rbac_api_router(
                             message="Role cannot be its own parent",
                             error_code="role_cycle_error"
                         )
-                        
+
                     update_data["parent_roles"] = request.parent_roles
-            
+
             # Update role
             role = manager.update_role(role_id, **update_data)
-            
+
             # Create response data
             role_data = RoleDetail(
                 id=role.id,
@@ -819,7 +819,7 @@ def create_rbac_api_router(
                 created_at=role.created_at,
                 updated_at=role.updated_at
             )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Role {role.name} updated",
@@ -832,7 +832,7 @@ def create_rbac_api_router(
                 message=f"Failed to update role: {str(e)}",
                 error_code="role_update_error"
             )
-    
+
     @router.delete(
         "/roles/{role_id}",
         response_model=StandardResponse,
@@ -850,7 +850,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Get role first for the response
             role = manager.get_role(role_id)
@@ -860,17 +860,17 @@ def create_rbac_api_router(
                     message=f"Role {role_id} not found",
                     error_code="role_not_found"
                 )
-            
+
             # Delete role
             success = manager.delete_role(role_id)
-            
+
             if not success:
                 return ErrorResponse(
                     success=False,
                     message=f"Failed to delete role {role_id}. It may be referenced by other roles.",
                     error_code="role_delete_error"
                 )
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Role {role.name} deleted",
@@ -883,9 +883,9 @@ def create_rbac_api_router(
                 message=f"Failed to delete role: {str(e)}",
                 error_code="role_delete_error"
             )
-    
+
     # Role-permission management endpoints
-    
+
     @router.post(
         "/roles/{role_id}/permissions/{permission_id}",
         response_model=StandardResponse,
@@ -904,7 +904,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Check if role exists
             role = manager.get_role(role_id)
@@ -914,7 +914,7 @@ def create_rbac_api_router(
                     message=f"Role {role_id} not found",
                     error_code="role_not_found"
                 )
-            
+
             # Check if permission exists
             permission = manager.get_permission(permission_id)
             if not permission:
@@ -923,7 +923,7 @@ def create_rbac_api_router(
                     message=f"Permission {permission_id} not found",
                     error_code="permission_not_found"
                 )
-            
+
             # Add permission to role
             if permission_id in role.permissions:
                 return StandardResponse(
@@ -931,10 +931,10 @@ def create_rbac_api_router(
                     message=f"Permission {permission.name} already assigned to role {role.name}",
                     data={"role_id": role_id, "permission_id": permission_id}
                 )
-            
+
             role.add_permission(permission_id)
             manager.store.save_role(role)
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Permission {permission.name} added to role {role.name}",
@@ -947,7 +947,7 @@ def create_rbac_api_router(
                 message=f"Failed to add permission to role: {str(e)}",
                 error_code="permission_add_error"
             )
-    
+
     @router.delete(
         "/roles/{role_id}/permissions/{permission_id}",
         response_model=StandardResponse,
@@ -966,7 +966,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Check if role exists
             role = manager.get_role(role_id)
@@ -976,7 +976,7 @@ def create_rbac_api_router(
                     message=f"Role {role_id} not found",
                     error_code="role_not_found"
                 )
-            
+
             # Check if permission exists
             permission = manager.get_permission(permission_id)
             if not permission:
@@ -985,7 +985,7 @@ def create_rbac_api_router(
                     message=f"Permission {permission_id} not found",
                     error_code="permission_not_found"
                 )
-            
+
             # Remove permission from role
             if permission_id not in role.permissions:
                 return StandardResponse(
@@ -993,10 +993,10 @@ def create_rbac_api_router(
                     message=f"Permission {permission.name} not assigned to role {role.name}",
                     data={"role_id": role_id, "permission_id": permission_id}
                 )
-            
+
             role.remove_permission(permission_id)
             manager.store.save_role(role)
-            
+
             return StandardResponse(
                 success=True,
                 message=f"Permission {permission.name} removed from role {role.name}",
@@ -1009,9 +1009,9 @@ def create_rbac_api_router(
                 message=f"Failed to remove permission from role: {str(e)}",
                 error_code="permission_remove_error"
             )
-    
+
     # Authorization check endpoints
-    
+
     @router.post(
         "/check/authorize",
         response_model=StandardResponse,
@@ -1028,7 +1028,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Convert role names to IDs if needed
             role_ids = []
@@ -1039,7 +1039,7 @@ def create_rbac_api_router(
                     role_obj = manager.get_role_by_name(role)
                     if role_obj:
                         role_ids.append(role_obj.id)
-            
+
             # Check authorization
             try:
                 is_authorized = manager.has_permission(
@@ -1055,7 +1055,7 @@ def create_rbac_api_router(
                     message=str(e),
                     error_code="authorization_check_error"
                 )
-            
+
             return StandardResponse(
                 success=True,
                 message="Authorization check completed",
@@ -1074,7 +1074,7 @@ def create_rbac_api_router(
                 message=f"Failed to check authorization: {str(e)}",
                 error_code="authorization_check_error"
             )
-    
+
     @router.post(
         "/check/permission",
         response_model=StandardResponse,
@@ -1091,7 +1091,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Check permission
             is_authorized = manager.user_has_permission(
@@ -1100,7 +1100,7 @@ def create_rbac_api_router(
                 resource_id=request.resource_id,
                 context=request.context
             )
-            
+
             return StandardResponse(
                 success=True,
                 message="Permission check completed",
@@ -1118,7 +1118,7 @@ def create_rbac_api_router(
                 message=f"Failed to check permission: {str(e)}",
                 error_code="permission_check_error"
             )
-    
+
     @router.post(
         "/check/backend-permissions",
         response_model=StandardResponse,
@@ -1135,7 +1135,7 @@ def create_rbac_api_router(
                 message="RBAC manager not available",
                 error_code="rbac_unavailable"
             )
-        
+
         try:
             # Convert role names to IDs if needed
             role_ids = []
@@ -1146,16 +1146,16 @@ def create_rbac_api_router(
                     role_obj = manager.get_role_by_name(role)
                     if role_obj:
                         role_ids.append(role_obj.id)
-            
+
             # Get backend permissions
             backend_permissions = manager.get_backend_permissions(role_ids)
-            
+
             # Convert from sets to lists for JSON serialization
             serializable_permissions = {
                 backend_id: list(actions)
                 for backend_id, actions in backend_permissions.items()
             }
-            
+
             return StandardResponse(
                 success=True,
                 message="Backend permissions retrieved",
@@ -1171,5 +1171,5 @@ def create_rbac_api_router(
                 message=f"Failed to get backend permissions: {str(e)}",
                 error_code="backend_permissions_error"
             )
-    
+
     return router

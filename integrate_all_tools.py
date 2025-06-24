@@ -26,7 +26,7 @@ def run_command(command, description=None):
     """Run a command and log output"""
     if description:
         logger.info(f"{description}...")
-    
+
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
         if result.stdout.strip():
@@ -72,11 +72,11 @@ def main():
         "direct_mcp_server.py",
         "patch_direct_mcp_server.py"
     ]
-    
+
     for filepath in required_files:
         if not check_file_exists(filepath):
             return 1
-    
+
     # Make Python scripts executable
     python_scripts = [
         "ipfs_mcp_tools.py",
@@ -84,34 +84,34 @@ def main():
         "multi_backend_fs_integration.py",
         "patch_direct_mcp_server.py"
     ]
-    
+
     for script in python_scripts:
         make_executable(script)
-    
+
     # Run the patch script
     # Register all controller tools
     logger.info("Registering all controller tools...")
     register_all_controller_tools.main()
-    
+
     logger.info("Running patch script...")
     if not run_command(["python3", "patch_direct_mcp_server.py"]):
         return 1
-    
+
     # Make shell scripts executable
     shell_scripts = [
         "start_ipfs_mcp_with_tools.sh",
         "stop_ipfs_mcp.sh",
         "verify_ipfs_tools.py"
     ]
-    
+
     for script in shell_scripts:
         make_executable(script)
-    
+
     # Run verification
     logger.info("Running verification...")
     if not run_command(["python3", "verify_ipfs_tools.py"]):
         logger.warning("Verification found issues. Please check the output.")
-    
+
     logger.info("\n========== INTEGRATION COMPLETE ==========\n")
     logger.info("All IPFS tools have been integrated with the MCP server and virtual filesystem features.")
     logger.info("\nTo start the MCP server with IPFS tools:")
@@ -120,7 +120,7 @@ def main():
     logger.info("  ./stop_ipfs_mcp.sh")
     logger.info("\nFor more information, see:")
     logger.info("  README_IPFS_COMPREHENSIVE_TOOLS.md")
-    
+
     return 0
 
 if __name__ == "__main__":

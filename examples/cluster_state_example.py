@@ -25,7 +25,7 @@ def print_section(title):
 def run_master_example():
     """Example of a master node managing the cluster state."""
     print_section("MASTER NODE EXAMPLE")
-    
+
     # Initialize master node
     print("Initializing master node...")
     master_kit = ipfs_kit(
@@ -39,45 +39,45 @@ def run_master_example():
             "description": "Master node for demo"
         }
     )
-    
+
     # Check readiness
     ready = master_kit('ipfs_kit_ready')
     print(f"Master node ready: {ready['ready']}")
-    
+
     if not ready['ready']:
         print("Master node not ready. Please check IPFS daemon and try again.")
         return
-    
+
     # Get cluster status
     status = master_kit('get_cluster_status')
     print(f"Cluster status: {status['success']}")
-    
+
     # Create a task
     print("\nCreating a sample task...")
-    task_result = master_kit('create_task', 
-                            task_type="example_task", 
+    task_result = master_kit('create_task',
+                            task_type="example_task",
                             parameters={"param1": "value1", "param2": 42},
                             priority=5)
-    
+
     if not task_result['success']:
         print(f"Failed to create task: {task_result.get('error', 'Unknown error')}")
         return
-    
+
     task_id = task_result['task_id']
     print(f"Created task: {task_id}")
-    
+
     # Check task status
     time.sleep(1)  # Give a moment for the state to update
     status_result = master_kit('get_task_status', task_id=task_id)
     print(f"Task status: {status_result.get('status', 'unknown')}")
-    
+
     # Get state interface info
     state_info = master_kit('get_state_interface_info')
     if state_info['success']:
         print("\nState interface information:")
         print(f"  State path: {state_info['state_path']}")
         print(f"  Access method: {state_info['access_method']}")
-        
+
         # Save state path for external access
         state_path = state_info['state_path']
         with open("/tmp/ipfs_state_path.txt", "w") as f:
@@ -85,7 +85,7 @@ def run_master_example():
         print(f"Saved state path to /tmp/ipfs_state_path.txt for external process access")
     else:
         print(f"Failed to get state interface info: {state_info.get('error', 'Unknown error')}")
-    
+
     print("\nMaster node running. Press Ctrl+C to exit.")
     try:
         while True:
@@ -96,7 +96,7 @@ def run_master_example():
 def run_external_access_example():
     """Example of accessing the cluster state from an external process."""
     print_section("EXTERNAL PROCESS ACCESS EXAMPLE")
-    
+
     # Try to read state path from file
     try:
         with open("/tmp/ipfs_state_path.txt", "r") as f:
@@ -108,28 +108,28 @@ def run_external_access_example():
         if not state_path:
             print("Could not find state path. Exiting.")
             return
-    
+
     print(f"Using state path: {state_path}")
-    
+
     # Get cluster metadata
     print("\nRetrieving cluster metadata...")
     metadata = cluster_state_helpers.get_cluster_metadata(state_path)
-    
+
     if not metadata:
         print("Failed to retrieve cluster metadata. Is the master node running?")
         return
-    
+
     print(f"Cluster ID: {metadata['cluster_id']}")
     print(f"Master node: {metadata['master_id']}")
     print(f"Last updated: {time.ctime(metadata['updated_at'])}")
     print(f"Nodes: {metadata['node_count']}")
     print(f"Tasks: {metadata['task_count']}")
     print(f"Content items: {metadata['content_count']}")
-    
+
     # Get a more detailed cluster summary
     print("\nGetting detailed cluster status...")
     summary = cluster_state_helpers.get_cluster_status_summary(state_path)
-    
+
     if summary:
         print("\nCluster Status Summary:")
         print(f"  Active nodes: {summary['nodes']['active']} / {summary['nodes']['total']}")
@@ -143,11 +143,11 @@ def run_external_access_example():
         print(f"    By status: {summary['tasks']['by_status']}")
     else:
         print("Failed to get cluster status summary.")
-    
+
     # Get all nodes
     print("\nListing all nodes:")
     nodes = cluster_state_helpers.get_all_nodes(state_path)
-    
+
     if nodes:
         for node in nodes:
             role = node.get('role', 'unknown')
@@ -155,11 +155,11 @@ def run_external_access_example():
             print(f"  Node {node['id']} ({role}): {status}")
     else:
         print("Failed to retrieve nodes.")
-    
+
     # Get all tasks
     print("\nListing all tasks:")
     tasks = cluster_state_helpers.get_all_tasks(state_path)
-    
+
     if tasks:
         for task in tasks:
             task_type = task.get('type', 'unknown')
@@ -167,11 +167,11 @@ def run_external_access_example():
             print(f"  Task {task['id']} ({task_type}): {status}")
     else:
         print("Failed to retrieve tasks.")
-    
+
     # Try to find worker nodes with GPU capability
     print("\nFinding worker nodes with GPUs:")
     gpu_nodes = cluster_state_helpers.find_nodes_with_gpu(state_path)
-    
+
     if gpu_nodes:
         for node in gpu_nodes:
             gpu_count = node.get('resources', {}).get('gpu_count', 0)
@@ -186,9 +186,9 @@ def main():
         print("  master: Run the master node example (creates and manages the cluster state)")
         print("  external: Run the external process access example (reads the cluster state)")
         sys.exit(1)
-    
+
     mode = sys.argv[1].lower()
-    
+
     if mode == "master":
         run_master_example()
     elif mode == "external":

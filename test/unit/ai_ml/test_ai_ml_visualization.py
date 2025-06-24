@@ -24,7 +24,7 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    
+
 # Force matplotlib to be available for testing
 MATPLOTLIB_AVAILABLE = True
 
@@ -34,7 +34,7 @@ try:
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
-    
+
 # Force plotly to be available for testing
 PLOTLY_AVAILABLE = True
 
@@ -170,7 +170,7 @@ class TestAIMLVisualization(unittest.TestCase):
         """Test interactive training metrics visualization with Plotly."""
         # Skip this test due to compatibility issues between Plotly and Pandas
         self.skipTest("Skipping interactive plot test due to Plotly/Pandas compatibility issues")
-        
+
         # This test is skipped to avoid the following error:
         # TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
         # Occurs in Plotly's basevalidators.py when checking for pandas types
@@ -236,7 +236,7 @@ class TestAIMLVisualization(unittest.TestCase):
         """Test HTML report generation."""
         # Skip this test due to compatibility issues between Plotly and Pandas
         self.skipTest("Skipping HTML report test due to Plotly/Pandas compatibility issues")
-        
+
         # This test is skipped to avoid the following error:
         # TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
         # Occurs in Plotly's basevalidators.py when checking for pandas types

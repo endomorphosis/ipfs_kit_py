@@ -64,20 +64,20 @@ demo_router = APIRouter(prefix="/demo", tags=["Demo"])
 async def run_demo(request: DemoRequest):
     """
     Run a demonstration of advanced IPFS operations.
-    
+
     This endpoint runs a selected demo operation to showcase the advanced IPFS functionality.
-    
+
     Args:
         request: The demo request parameters
-        
+
     Returns:
         Results of the demo operation
     """
     start_time = time.time()
-    
+
     # Get the advanced IPFS operations instance
     advanced_ipfs = get_advanced_ipfs()
-    
+
     # Dispatch to the appropriate demo based on the requested operation
     if request.operation == "dht":
         return await run_dht_demo(advanced_ipfs, request, start_time)
@@ -91,11 +91,11 @@ async def run_demo(request: DemoRequest):
 async def run_dht_demo(advanced_ipfs, request: DemoRequest, start_time: float) -> DemoResponse:
     """Run a DHT operations demo."""
     logger.info("Running DHT operations demo")
-    
+
     # For the demo, we'll try to discover peers
     max_peers = 5  # Keep small for the demo
     timeout = 10  # Short timeout for the demo
-    
+
     # If a peer ID was provided, use it for a targeted query
     if request.peer_id:
         # Try to find the specified peer
@@ -109,9 +109,9 @@ async def run_dht_demo(advanced_ipfs, request: DemoRequest, start_time: float) -
         # Discover random peers
         result = advanced_ipfs.dht_discover_peers(max_peers=max_peers, timeout=timeout)
         operation = "dht_discover_peers"
-    
+
     duration_ms = (time.time() - start_time) * 1000
-    
+
     return DemoResponse(
         success=result.get("success", False),
         operation=operation,
@@ -122,13 +122,13 @@ async def run_dht_demo(advanced_ipfs, request: DemoRequest, start_time: float) -
 async def run_ipns_demo(advanced_ipfs, request: DemoRequest, start_time: float) -> DemoResponse:
     """Run an IPNS operations demo."""
     logger.info("Running IPNS operations demo")
-    
+
     # For the demo, we'll do a basic key operation and IPNS publish/resolve
-    
+
     # Generate a unique test key name
     import uuid
     test_key_name = f"demo-key-{uuid.uuid4().hex[:8]}"
-    
+
     try:
         # Create a new key
         create_result = advanced_ipfs.create_key(test_key_name)
@@ -139,7 +139,7 @@ async def run_ipns_demo(advanced_ipfs, request: DemoRequest, start_time: float) 
                 result=create_result,
                 duration_ms=(time.time() - start_time) * 1000
             )
-        
+
         # If a CID was provided, publish it with the new key
         if request.cid:
             publish_result = advanced_ipfs.publish(
@@ -148,12 +148,12 @@ async def run_ipns_demo(advanced_ipfs, request: DemoRequest, start_time: float) 
                 lifetime="1h",  # Short lifetime for demo
                 ttl="5m",       # Short TTL for demo
             )
-            
+
             if publish_result.get("success", False):
                 # Resolve the name we just published
                 name_to_resolve = publish_result.get("name")
                 resolve_result = advanced_ipfs.resolve(name_to_resolve)
-                
+
                 # Return the combined results
                 result = {
                     "key_creation": create_result,
@@ -172,16 +172,16 @@ async def run_ipns_demo(advanced_ipfs, request: DemoRequest, start_time: float) 
             # Just return the key creation result
             result = create_result
             operation = "ipns_create_key"
-        
+
     finally:
         # Clean up by removing the test key (don't impact operation success)
         try:
             advanced_ipfs.remove_key(test_key_name)
         except Exception as e:
             logger.warning(f"Failed to clean up test key {test_key_name}: {e}")
-    
+
     duration_ms = (time.time() - start_time) * 1000
-    
+
     return DemoResponse(
         success=True,
         operation=operation,
@@ -192,7 +192,7 @@ async def run_ipns_demo(advanced_ipfs, request: DemoRequest, start_time: float) 
 async def run_dag_demo(advanced_ipfs, request: DemoRequest, start_time: float) -> DemoResponse:
     """Run a DAG operations demo."""
     logger.info("Running DAG operations demo")
-    
+
     # If data was provided, use it for the demo
     if request.data:
         test_data = request.data
@@ -211,10 +211,10 @@ async def run_dag_demo(advanced_ipfs, request: DemoRequest, start_time: float) -
                 }
             }
         }
-    
+
     # Store the data in the DAG
     put_result = advanced_ipfs.dag_put(test_data)
-    
+
     if not put_result.get("success", False):
         return DemoResponse(
             success=False,
@@ -222,22 +222,22 @@ async def run_dag_demo(advanced_ipfs, request: DemoRequest, start_time: float) -
             result=put_result,
             duration_ms=(time.time() - start_time) * 1000
         )
-    
+
     cid = put_result.get("cid")
-    
+
     # Retrieve the data we just stored
     get_result = advanced_ipfs.dag_get(cid)
-    
+
     # Get stats about the node
     stat_result = advanced_ipfs.dag_stat(cid)
-    
+
     # Retrieve a nested path
     nested_path_result = advanced_ipfs.dag_get(cid, path="/nested/metadata")
-    
+
     # Update the data with a new field
     update_data = {"updated": time.time(), "demo_completed": True}
     update_result = advanced_ipfs.dag_update_node(cid, update_data)
-    
+
     # Combine all results
     result = {
         "put": put_result,
@@ -246,9 +246,9 @@ async def run_dag_demo(advanced_ipfs, request: DemoRequest, start_time: float) -
         "nested_path": nested_path_result,
         "update": update_result
     }
-    
+
     duration_ms = (time.time() - start_time) * 1000
-    
+
     return DemoResponse(
         success=True,
         operation="dag_operations",
@@ -270,43 +270,43 @@ async def on_shutdown():
 # Example usage in a script
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Run the demo app
     uvicorn.run("ipfs_advanced_integration:app", host="0.0.0.0", port=8000, reload=True)
-    
+
     # Alternatively, you could use the modules directly without FastAPI:
     """
     # Direct usage example (uncomment to use)
-    
+
     # Configure logging
     logging.basicConfig(level=logging.INFO)
-    
+
     # Initialize advanced IPFS operations
     from ipfs_kit_py.mcp.extensions.advanced_ipfs_operations import get_instance
-    
+
     # Get the advanced IPFS operations instance with custom configuration
     advanced_ipfs = get_instance({
         "api_url": "http://127.0.0.1:5001/api/v0",
         "max_connections": 5,
     })
-    
+
     # Use DHT operations
     peer_id = "QmYourPeerID"  # Replace with a real peer ID
     print(f"Finding peer {peer_id}...")
     result = advanced_ipfs.dht_find_peer(peer_id)
     print(f"Result: {json.dumps(result, indent=2)}")
-    
+
     # Use IPNS operations
     print("Creating a new IPNS key...")
     key_result = advanced_ipfs.create_key("test-key")
     print(f"Key created: {json.dumps(key_result, indent=2)}")
-    
+
     # Use DAG operations
     test_data = {"name": "Test Node", "value": 42}
     print(f"Storing data in DAG: {test_data}")
     put_result = advanced_ipfs.dag_put(test_data)
     print(f"DAG node created: {json.dumps(put_result, indent=2)}")
-    
+
     # Clean up
     print("Shutting down...")
     advanced_ipfs.shutdown()

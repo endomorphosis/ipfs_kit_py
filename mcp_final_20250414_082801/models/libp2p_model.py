@@ -107,7 +107,7 @@ if HAS_LIBP2P:
 
     # Import enhanced content routing
     try:
-        from ipfs_kit_py.libp2p.enhanced_content_routing import 
+        from ipfs_kit_py.libp2p.enhanced_content_routing import
 EnhancedContentRouter
 RecursiveContentRouter
 apply_to_peer
@@ -126,11 +126,11 @@ class LibP2PModel:
     logger = logging.getLogger(__name__)
     """
     Model for libp2p-based peer-to-peer operations.
-    
+
     This model provides access to direct peer-to-peer communication functionality
     using libp2p, without requiring the full IPFS daemon. It handles peer discovery,
     content routing, and direct content exchange.
-    
+
     Attributes:
         libp2p_peer: The underlying IPFSLibp2pPeer instance
         cache_manager: Optional cache manager for improved performance

@@ -173,7 +173,7 @@ class WebRTCControllerAnyIO:
         """
         try:
             logger.info(f"Creating WebRTC stream of type {request.stream_type}")
-            
+
             # Call the model's create_stream method
             result = await self.webrtc_model.create_stream(
                 stream_id=request.stream_id,
@@ -183,7 +183,7 @@ class WebRTCControllerAnyIO:
                 encryption=request.encryption,
                 peer_id=request.peer_id
             )
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error creating WebRTC stream: {error_msg}")
@@ -192,14 +192,14 @@ class WebRTCControllerAnyIO:
                     "stream_id": request.stream_id,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "stream_id": request.stream_id,
                 "peer_connection_id": result.get("peer_connection_id"),
                 "ice_candidates": result.get("ice_candidates")
             }
-            
+
         except Exception as e:
             logger.error(f"Error creating WebRTC stream: {e}")
             return {
@@ -220,10 +220,10 @@ class WebRTCControllerAnyIO:
         """
         try:
             logger.info(f"Closing WebRTC stream: {stream_id}")
-            
+
             # Call the model's close_stream method
             result = await self.webrtc_model.close_stream(stream_id)
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error closing WebRTC stream: {error_msg}")
@@ -232,12 +232,12 @@ class WebRTCControllerAnyIO:
                     "stream_id": stream_id,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "stream_id": stream_id
             }
-            
+
         except Exception as e:
             logger.error(f"Error closing WebRTC stream: {e}")
             return {
@@ -258,7 +258,7 @@ class WebRTCControllerAnyIO:
         """
         try:
             logger.info(f"Establishing WebRTC connection with peer: {request.peer_id}")
-            
+
             # Call the model's establish_connection method
             result = await self.webrtc_model.establish_connection(
                 peer_id=request.peer_id,
@@ -266,7 +266,7 @@ class WebRTCControllerAnyIO:
                 offer_sdp=request.offer_sdp,
                 ice_candidates=request.ice_candidates
             )
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error establishing WebRTC connection: {error_msg}")
@@ -274,14 +274,14 @@ class WebRTCControllerAnyIO:
                     "success": False,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "connection_id": result.get("connection_id"),
                 "answer_sdp": result.get("answer_sdp"),
                 "ice_candidates": result.get("ice_candidates")
             }
-            
+
         except Exception as e:
             logger.error(f"Error establishing WebRTC connection: {e}")
             return {
@@ -301,10 +301,10 @@ class WebRTCControllerAnyIO:
         """
         try:
             logger.info(f"Closing WebRTC connection: {connection_id}")
-            
+
             # Call the model's close_connection method
             result = await self.webrtc_model.close_connection(connection_id)
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error closing WebRTC connection: {error_msg}")
@@ -313,12 +313,12 @@ class WebRTCControllerAnyIO:
                     "connection_id": connection_id,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "connection_id": connection_id
             }
-            
+
         except Exception as e:
             logger.error(f"Error closing WebRTC connection: {e}")
             return {
@@ -339,13 +339,13 @@ class WebRTCControllerAnyIO:
         """
         try:
             logger.info(f"Getting WebRTC stats for connection: {request.connection_id}")
-            
+
             # Call the model's get_stats method
             result = await self.webrtc_model.get_stats(
                 connection_id=request.connection_id,
                 stats_type=request.stats_type
             )
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error getting WebRTC stats: {error_msg}")
@@ -354,7 +354,7 @@ class WebRTCControllerAnyIO:
                     "connection_id": request.connection_id,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "connection_id": request.connection_id,
@@ -362,7 +362,7 @@ class WebRTCControllerAnyIO:
                 "inbound_stats": result.get("inbound_stats"),
                 "outbound_stats": result.get("outbound_stats")
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting WebRTC stats: {e}")
             return {
@@ -380,10 +380,10 @@ class WebRTCControllerAnyIO:
         """
         try:
             logger.info("Getting WebRTC resource usage")
-            
+
             # Call the model's get_resource_usage method
             result = await self.webrtc_model.get_resource_usage()
-            
+
             return {
                 "cpu_percent": result.get("cpu_percent", 0.0),
                 "memory_percent": result.get("memory_percent", 0.0),
@@ -391,7 +391,7 @@ class WebRTCControllerAnyIO:
                 "network_io": result.get("network_io", {}),
                 "connection_count": result.get("connection_count", 0)
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting WebRTC resource usage: {e}")
             return {

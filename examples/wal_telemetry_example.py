@@ -47,14 +47,14 @@ except ImportError:
 def generate_test_operations(wal, count=50, operation_types=None, backends=None, error_rate=0.1):
     """
     Generate test operations to collect telemetry data.
-    
+
     Args:
         wal: StorageWriteAheadLog instance
         count: Number of operations to generate
         operation_types: List of operation types to use (None for default)
         backends: List of backends to use (None for default)
         error_rate: Probability of operation failure (0.0 - 1.0)
-        
+
     Returns:
         List of operation IDs
     """
@@ -65,20 +65,20 @@ def generate_test_operations(wal, count=50, operation_types=None, backends=None,
             OperationType.PIN.value,
             OperationType.UNPIN.value
         ]
-        
+
     if backends is None:
         backends = [
             BackendType.IPFS.value,
             BackendType.S3.value,
             BackendType.STORACHA.value
         ]
-    
+
     operation_ids = []
     for i in range(count):
         # Select random operation type and backend
         op_type = random.choice(operation_types)
         backend = random.choice(backends)
-        
+
         # Create sample parameters
         if op_type == OperationType.ADD.value:
             parameters = {"path": f"/tmp/file{i}.txt", "size": random.randint(1024, 1024*1024)}
@@ -90,31 +90,31 @@ def generate_test_operations(wal, count=50, operation_types=None, backends=None,
             parameters = {"cid": f"Qm{''.join([random.choice('abcdef0123456789') for _ in range(44)])}", "recursive": True}
         else:
             parameters = {"operation": op_type}
-        
+
         # Intentionally fail some operations based on error_rate
         if random.random() < error_rate:
             # For testing, we can modify mock handler behavior via custom parameter
             parameters["__test_fail"] = True
-        
+
         # Add operation to WAL
         result = wal.add_operation(
             operation_type=op_type,
             backend=backend,
             parameters=parameters
         )
-        
+
         if result.get("success", False):
             operation_ids.append(result["operation_id"])
             logger.info(f"Added operation: {result['operation_id']} ({op_type} on {backend})")
         else:
             logger.error(f"Failed to add operation: {result.get('error', 'Unknown error')}")
-    
+
     return operation_ids
 
 def display_real_time_metrics(metrics):
     """Display real-time metrics in a readable format."""
     print("\n=== Real-Time Metrics ===")
-    
+
     # Display latency metrics
     if metrics.get("latency"):
         print("\nLatency Metrics:")
@@ -127,21 +127,21 @@ def display_real_time_metrics(metrics):
             print(f"    Max: {latency_data['max']:.4f}s")
             print(f"    95th Percentile: {latency_data['percentile_95']:.4f}s")
             print(f"    Sample Count: {latency_data['count']}")
-    
+
     # Display success rate metrics
     if metrics.get("success_rate"):
         print("\nSuccess Rate Metrics:")
         for key, rate in metrics["success_rate"].items():
             op_type, backend = key.split(":")
             print(f"  {op_type} on {backend}: {rate * 100:.2f}%")
-    
+
     # Display error rate metrics
     if metrics.get("error_rate"):
         print("\nError Rate Metrics:")
         for key, rate in metrics["error_rate"].items():
             op_type, backend = key.split(":")
             print(f"  {op_type} on {backend}: {rate * 100:.2f}%")
-    
+
     # Display throughput metrics
     if metrics.get("throughput"):
         print("\nThroughput Metrics:")
@@ -151,7 +151,7 @@ def display_real_time_metrics(metrics):
                 print(f"  {op_type} on {backend}: {throughput:.2f} ops/min")
             else:
                 print(f"  {key}: {throughput:.2f} ops/min")
-    
+
     # Display status distribution
     if metrics.get("status_distribution"):
         print("\nOperation Status Distribution:")
@@ -166,22 +166,22 @@ def run_telemetry_example():
     if not WAL_AVAILABLE:
         logger.error("WAL system not available. Example cannot run.")
         return
-    
+
     # Create directories for data and reports
     os.makedirs("~/.ipfs_kit/wal", exist_ok=True)
     os.makedirs("~/.ipfs_kit/telemetry", exist_ok=True)
     report_path = os.path.join(os.getcwd(), "telemetry_report")
     os.makedirs(report_path, exist_ok=True)
-    
+
     # Create health monitor for backend status tracking
     logger.info("Creating health monitor...")
     health_monitor = BackendHealthMonitor(
         check_interval=5,
         history_size=10,
-        status_change_callback=lambda backend, old, new: 
+        status_change_callback=lambda backend, old, new:
             logger.info(f"Backend {backend} status changed from {old} to {new}")
     )
-    
+
     # Create WAL instance
     logger.info("Creating WAL instance...")
     wal = StorageWriteAheadLog(
@@ -189,7 +189,7 @@ def run_telemetry_example():
         partition_size=100,
         health_monitor=health_monitor
     )
-    
+
     # Create telemetry instance
     logger.info("Setting up telemetry system...")
     telemetry = WALTelemetry(
@@ -199,7 +199,7 @@ def run_telemetry_example():
         enable_detailed_timing=True,
         operation_hooks=True  # Install hooks for automatic metrics collection
     )
-    
+
     # Generate test operations
     logger.info("Generating test operations...")
     operation_ids = generate_test_operations(
@@ -207,48 +207,48 @@ def run_telemetry_example():
         count=50,
         error_rate=0.15  # 15% failure rate for testing
     )
-    
+
     # Wait for operations to complete
     logger.info("Waiting for operations to complete...")
     for i in range(3):
         logger.info(f"Processing cycle {i+1}...")
         # Let operations process
         time.sleep(5)
-        
+
         # Get current statistics
         stats = wal.get_statistics()
         logger.info(f"Current stats: {stats}")
-    
+
     # Get and display real-time metrics
     logger.info("Retrieving real-time metrics...")
     real_time_metrics = telemetry.get_real_time_metrics()
     display_real_time_metrics(real_time_metrics)
-    
+
     # Generate a performance report
     logger.info("Generating performance report...")
     time_now = time.time()
     time_range = (time_now - 3600, time_now)  # Last hour
-    
+
     report_result = telemetry.create_performance_report(
         output_path=report_path,
         time_range=time_range
     )
-    
+
     if report_result.get("success", False):
         logger.info(f"Performance report generated at: {report_result['report_path']}")
     else:
         logger.error(f"Failed to generate report: {report_result.get('error', 'Unknown error')}")
-    
+
     # Query specific metrics with different aggregations
     logger.info("\nQuerying metrics with different aggregations...")
-    
+
     # Get average latency by operation type
     avg_latency = telemetry.get_metrics(
         metric_type=TelemetryMetricType.OPERATION_LATENCY,
         time_range=time_range,
         aggregation=TelemetryAggregation.AVERAGE
     )
-    
+
     print("\n=== Average Latency by Operation Type ===")
     try:
         for op_type, backends in avg_latency.get("metrics", {}).items():
@@ -257,38 +257,38 @@ def run_telemetry_example():
                 print(f"  Backend: {backend}, Average Latency: {latency:.4f}s")
     except (KeyError, ValueError, TypeError) as e:
         print(f"Error displaying latency metrics: {e}")
-        
+
     # Get maximum success rate
     success_rate = telemetry.get_metrics(
         metric_type=TelemetryMetricType.SUCCESS_RATE,
         time_range=time_range,
         aggregation=TelemetryAggregation.MAXIMUM
     )
-    
+
     print("\n=== Maximum Success Rate ===")
     try:
         for category, rate in success_rate.get("metrics", {}).get("success_rate", {}).items():
             print(f"  {category}: {rate * 100:.2f}%")
     except (KeyError, ValueError, TypeError) as e:
         print(f"Error displaying success rate metrics: {e}")
-        
+
     # Get throughput rate
     throughput = telemetry.get_metrics(
         metric_type=TelemetryMetricType.THROUGHPUT,
         time_range=time_range,
         aggregation=TelemetryAggregation.AVERAGE
     )
-    
+
     print("\n=== Average Throughput ===")
     try:
         for category, rate in throughput.get("metrics", {}).items():
             print(f"  {category}: {rate:.2f} ops/min")
     except (KeyError, ValueError, TypeError) as e:
         print(f"Error displaying throughput metrics: {e}")
-    
+
     # Visualize specific metrics
     logger.info("\nGenerating specific metric visualizations...")
-    
+
     # Visualize latency for a specific operation type
     telemetry.visualize_metrics(
         metric_type=TelemetryMetricType.OPERATION_LATENCY,
@@ -296,7 +296,7 @@ def run_telemetry_example():
         operation_type=OperationType.ADD.value,
         time_range=time_range
     )
-    
+
     # Visualize health for a specific backend
     telemetry.visualize_metrics(
         metric_type=TelemetryMetricType.BACKEND_HEALTH,
@@ -304,13 +304,13 @@ def run_telemetry_example():
         backend=BackendType.IPFS.value,
         time_range=time_range
     )
-    
+
     # Clean up
     logger.info("Cleaning up resources...")
     telemetry.close()
     wal.close()
     health_monitor.close()
-    
+
     logger.info("Telemetry example completed.")
     logger.info(f"Performance report and visualizations saved to: {report_path}")
 

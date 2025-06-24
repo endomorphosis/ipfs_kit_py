@@ -55,15 +55,15 @@ logger = logging.getLogger("model_registry_client")
 class ModelRegistryClient:
     """
     Client for interacting with the Model Registry API.
-    
+
     This class provides a high-level interface for common operations
     such as creating models, uploading versions, and managing metadata.
     """
-    
+
     def __init__(self, api_url: str = "http://localhost:5000"):
         """
         Initialize the client.
-        
+
         Args:
             api_url: Base URL for the API
         """
@@ -71,48 +71,48 @@ class ModelRegistryClient:
         self.base_url = f"{self.api_url}/api/v0/ai/models"
         self.token = None
         self.session = None
-    
+
     async def __aenter__(self):
         """Context manager entry."""
         self.session = aiohttp.ClientSession()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         if self.session:
             await self.session.close()
             self.session = None
-    
+
     def authenticate(self, token: str):
         """
         Set authentication token.
-        
+
         Args:
             token: JWT token for authentication
         """
         self.token = token
-    
+
     def _get_headers(self) -> Dict[str, str]:
         """
         Get request headers.
-        
+
         Returns:
             Dictionary of headers
         """
         headers = {
             "Accept": "application/json"
         }
-        
+
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
-        
+
         return headers
-    
+
     async def _ensure_session(self):
         """Ensure an HTTP session exists."""
         if not self.session:
             self.session = aiohttp.ClientSession()
-    
+
     async def _request(
         self,
         method: str,
@@ -124,7 +124,7 @@ class ModelRegistryClient:
     ) -> Dict[str, Any]:
         """
         Make an HTTP request to the API.
-        
+
         Args:
             method: HTTP method
             path: API path
@@ -132,22 +132,22 @@ class ModelRegistryClient:
             json_data: Optional JSON data
             data: Optional form data
             files: Optional files
-            
+
         Returns:
             Response data
-        
+
         Raises:
             ValueError: If the request fails
         """
         await self._ensure_session()
-        
+
         url = f"{self.base_url}{path}"
         headers = self._get_headers()
-        
+
         # Handle file uploads
         if files:
             form_data = aiohttp.FormData()
-            
+
             # Add form fields
             if data:
                 for key, value in data.items():
@@ -155,13 +155,13 @@ class ModelRegistryClient:
                         form_data.add_field(key, json.dumps(value))
                     else:
                         form_data.add_field(key, str(value))
-            
+
             # Add files
             for key, file_info in files.items():
                 file_path = file_info.get("path")
                 file_name = file_info.get("filename", os.path.basename(file_path))
                 file_content = file_info.get("content")
-                
+
                 if file_content:
                     form_data.add_field(
                         key,
@@ -175,7 +175,7 @@ class ModelRegistryClient:
                             f.read(),
                             filename=file_name
                         )
-            
+
             # Make request
             async with self.session.request(
                 method,
@@ -187,9 +187,9 @@ class ModelRegistryClient:
                 if response.status >= 400:
                     error_text = await response.text()
                     raise ValueError(f"Request failed with status {response.status}: {error_text}")
-                
+
                 return await response.json()
-        
+
         # Regular request (no files)
         async with self.session.request(
             method,
@@ -202,11 +202,11 @@ class ModelRegistryClient:
             if response.status >= 400:
                 error_text = await response.text()
                 raise ValueError(f"Request failed with status {response.status}: {error_text}")
-            
+
             return await response.json()
-    
+
     # Model management
-    
+
     async def create_model(
         self,
         name: str,
@@ -219,7 +219,7 @@ class ModelRegistryClient:
     ) -> Dict[str, Any]:
         """
         Create a new model.
-        
+
         Args:
             name: Model name
             description: Optional model description
@@ -228,7 +228,7 @@ class ModelRegistryClient:
             project: Optional project name
             metadata: Optional metadata
             tags: Optional tags
-            
+
         Returns:
             Created model information
         """
@@ -236,7 +236,7 @@ class ModelRegistryClient:
             "name": name,
             "description": description
         }
-        
+
         if model_type:
             data["model_type"] = model_type
         if team:
@@ -247,25 +247,25 @@ class ModelRegistryClient:
             data["metadata"] = metadata
         if tags:
             data["tags"] = tags
-        
+
         response = await self._request("POST", "", json_data=data)
         return response.get("model", {})
-    
+
     async def get_model(self, model_id: str, include_versions: bool = False) -> Dict[str, Any]:
         """
         Get a model by ID.
-        
+
         Args:
             model_id: Model ID
             include_versions: Whether to include version details
-            
+
         Returns:
             Model information
         """
         params = {"include_versions": "true" if include_versions else "false"}
         response = await self._request("GET", f"/{model_id}", params=params)
         return response.get("model", {})
-    
+
     async def update_model(
         self,
         model_id: str,
@@ -279,7 +279,7 @@ class ModelRegistryClient:
     ) -> Dict[str, Any]:
         """
         Update a model's metadata.
-        
+
         Args:
             model_id: Model ID
             name: Optional new name
@@ -289,12 +289,12 @@ class ModelRegistryClient:
             project: Optional new project
             metadata: Optional new metadata
             tags: Optional new tags
-            
+
         Returns:
             Updated model information
         """
         data = {}
-        
+
         if name is not None:
             data["name"] = name
         if description is not None:
@@ -309,23 +309,23 @@ class ModelRegistryClient:
             data["metadata"] = metadata
         if tags is not None:
             data["tags"] = tags
-        
+
         response = await self._request("PATCH", f"/{model_id}", json_data=data)
         return response.get("model", {})
-    
+
     async def delete_model(self, model_id: str) -> bool:
         """
         Delete a model.
-        
+
         Args:
             model_id: Model ID
-            
+
         Returns:
             Success flag
         """
         response = await self._request("DELETE", f"/{model_id}")
         return response.get("success", False)
-    
+
     async def list_models(
         self,
         name: Optional[str] = None,
@@ -337,7 +337,7 @@ class ModelRegistryClient:
     ) -> List[Dict[str, Any]]:
         """
         List models with optional filtering.
-        
+
         Args:
             name: Filter by name (substring match)
             owner: Filter by owner
@@ -345,12 +345,12 @@ class ModelRegistryClient:
             model_type: Filter by model type
             team: Filter by team
             project: Filter by project
-            
+
         Returns:
             List of models
         """
         params = {}
-        
+
         if name:
             params["name"] = name
         if owner:
@@ -363,12 +363,12 @@ class ModelRegistryClient:
             params["team"] = team
         if project:
             params["project"] = project
-        
+
         response = await self._request("GET", "", params=params)
         return response.get("models", [])
-    
+
     # Version management
-    
+
     async def upload_model_version(
         self,
         model_id: str,
@@ -389,7 +389,7 @@ class ModelRegistryClient:
     ) -> Dict[str, Any]:
         """
         Upload a new model version.
-        
+
         Args:
             model_id: Model ID
             version: Version string (e.g. "1.0.0")
@@ -406,7 +406,7 @@ class ModelRegistryClient:
             experiment_id: Optional experiment ID
             storage_backend: Storage backend (default: ipfs)
             status: Initial status (default: draft)
-            
+
         Returns:
             Created version information
         """
@@ -418,7 +418,7 @@ class ModelRegistryClient:
             "storage_backend": storage_backend,
             "status": status
         }
-        
+
         if framework:
             data["framework"] = framework
         if framework_version:
@@ -433,20 +433,20 @@ class ModelRegistryClient:
             data["dataset_refs"] = json.dumps(dataset_refs)
         if experiment_id:
             data["experiment_id"] = experiment_id
-        
+
         files = {
             "model_file": {"path": model_path}
         }
-        
+
         response = await self._request(
             "POST",
             f"/{model_id}/versions",
             data=data,
             files=files
         )
-        
+
         return response.get("version", {})
-    
+
     async def upload_model_bytes(
         self,
         model_id: str,
@@ -468,7 +468,7 @@ class ModelRegistryClient:
     ) -> Dict[str, Any]:
         """
         Upload a new model version from bytes.
-        
+
         Args:
             model_id: Model ID
             version: Version string (e.g. "1.0.0")
@@ -486,7 +486,7 @@ class ModelRegistryClient:
             experiment_id: Optional experiment ID
             storage_backend: Storage backend (default: ipfs)
             status: Initial status (default: draft)
-            
+
         Returns:
             Created version information
         """
@@ -498,7 +498,7 @@ class ModelRegistryClient:
             "storage_backend": storage_backend,
             "status": status
         }
-        
+
         if framework:
             data["framework"] = framework
         if framework_version:
@@ -513,96 +513,96 @@ class ModelRegistryClient:
             data["dataset_refs"] = json.dumps(dataset_refs)
         if experiment_id:
             data["experiment_id"] = experiment_id
-        
+
         files = {
             "model_file": {
                 "filename": model_filename,
                 "content": model_bytes
             }
         }
-        
+
         response = await self._request(
             "POST",
             f"/{model_id}/versions",
             data=data,
             files=files
         )
-        
+
         return response.get("version", {})
-    
+
     async def get_version(self, model_id: str, version_id: str) -> Dict[str, Any]:
         """
         Get a model version.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
-            
+
         Returns:
             Version information
         """
         response = await self._request("GET", f"/{model_id}/versions/{version_id}")
         return response.get("version", {})
-    
+
     async def download_version(self, model_id: str, version_id: str, output_path: str) -> bool:
         """
         Download a model version.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
             output_path: Path to save the model file
-            
+
         Returns:
             Success flag
         """
         await self._ensure_session()
-        
+
         url = f"{self.base_url}/{model_id}/versions/{version_id}/download"
         headers = self._get_headers()
-        
+
         try:
             async with self.session.get(url, headers=headers) as response:
                 if response.status >= 400:
                     error_text = await response.text()
                     raise ValueError(f"Download failed with status {response.status}: {error_text}")
-                
+
                 # Save to file
                 with open(output_path, "wb") as f:
                     f.write(await response.read())
-                
+
                 return True
         except Exception as e:
             logger.error(f"Error downloading model version: {e}")
             return False
-    
+
     async def get_version_bytes(self, model_id: str, version_id: str) -> Optional[bytes]:
         """
         Get a model version as bytes.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
-            
+
         Returns:
             Model bytes or None if failed
         """
         await self._ensure_session()
-        
+
         url = f"{self.base_url}/{model_id}/versions/{version_id}/download"
         headers = self._get_headers()
-        
+
         try:
             async with self.session.get(url, headers=headers) as response:
                 if response.status >= 400:
                     error_text = await response.text()
                     raise ValueError(f"Download failed with status {response.status}: {error_text}")
-                
+
                 return await response.read()
         except Exception as e:
             logger.error(f"Error downloading model version: {e}")
             return None
-    
+
     async def update_version(
         self,
         model_id: str,
@@ -614,7 +614,7 @@ class ModelRegistryClient:
     ) -> Dict[str, Any]:
         """
         Update a model version's metadata.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
@@ -622,12 +622,12 @@ class ModelRegistryClient:
             status: Optional new status
             metadata: Optional new metadata
             tags: Optional new tags
-            
+
         Returns:
             Updated version information
         """
         data = {}
-        
+
         if description is not None:
             data["description"] = description
         if status is not None:
@@ -636,24 +636,24 @@ class ModelRegistryClient:
             data["metadata"] = metadata
         if tags is not None:
             data["tags"] = tags
-        
+
         response = await self._request("PATCH", f"/{model_id}/versions/{version_id}", json_data=data)
         return response.get("version", {})
-    
+
     async def delete_version(self, model_id: str, version_id: str) -> bool:
         """
         Delete a model version.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
-            
+
         Returns:
             Success flag
         """
         response = await self._request("DELETE", f"/{model_id}/versions/{version_id}")
         return response.get("success", False)
-    
+
     async def list_versions(
         self,
         model_id: str,
@@ -664,19 +664,19 @@ class ModelRegistryClient:
     ) -> List[Dict[str, Any]]:
         """
         List versions of a model with optional filtering.
-        
+
         Args:
             model_id: Model ID
             status: Filter by status
             framework: Filter by framework
             format: Filter by format
             tags: Filter by tags (comma-separated)
-            
+
         Returns:
             List of versions
         """
         params = {}
-        
+
         if status:
             params["status"] = status
         if framework:
@@ -685,54 +685,54 @@ class ModelRegistryClient:
             params["format"] = format
         if tags:
             params["tags"] = ",".join(tags)
-        
+
         response = await self._request("GET", f"/{model_id}/versions", params=params)
         return response.get("versions", [])
-    
+
     # Production and latest versions
-    
+
     async def set_production_version(self, model_id: str, version_id: str) -> bool:
         """
         Set a version as the production version.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
-            
+
         Returns:
             Success flag
         """
         response = await self._request("POST", f"/{model_id}/production/{version_id}")
         return response.get("success", False)
-    
+
     async def get_production_version(self, model_id: str) -> Dict[str, Any]:
         """
         Get the production version of a model.
-        
+
         Args:
             model_id: Model ID
-            
+
         Returns:
             Production version information
         """
         response = await self._request("GET", f"/{model_id}/production")
         return response.get("version", {})
-    
+
     async def get_latest_version(self, model_id: str) -> Dict[str, Any]:
         """
         Get the latest version of a model.
-        
+
         Args:
             model_id: Model ID
-            
+
         Returns:
             Latest version information
         """
         response = await self._request("GET", f"/{model_id}/latest")
         return response.get("version", {})
-    
+
     # Metrics and deployment
-    
+
     async def update_metrics(
         self,
         model_id: str,
@@ -741,18 +741,18 @@ class ModelRegistryClient:
     ) -> bool:
         """
         Update metrics for a model version.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
             metrics: Metrics dictionary
-            
+
         Returns:
             Success flag
         """
         response = await self._request("POST", f"/{model_id}/versions/{version_id}/metrics", json_data=metrics)
         return response.get("success", False)
-    
+
     async def update_deployment_config(
         self,
         model_id: str,
@@ -761,28 +761,28 @@ class ModelRegistryClient:
     ) -> bool:
         """
         Update deployment configuration for a model version.
-        
+
         Args:
             model_id: Model ID
             version_id: Version ID
             config: Deployment configuration
-            
+
         Returns:
             Success flag
         """
         response = await self._request("POST", f"/{model_id}/versions/{version_id}/deployment", json_data=config)
         return response.get("success", False)
-    
+
     # Version comparison
-    
+
     async def compare_versions(self, version1_id: str, version2_id: str) -> Dict[str, Any]:
         """
         Compare two model versions.
-        
+
         Args:
             version1_id: First version ID
             version2_id: Second version ID
-            
+
         Returns:
             Comparison results
         """
@@ -790,6 +790,6 @@ class ModelRegistryClient:
             "version1": version1_id,
             "version2": version2_id
         }
-        
+
         response = await self._request("GET", "/versions/compare", params=params)
         return response

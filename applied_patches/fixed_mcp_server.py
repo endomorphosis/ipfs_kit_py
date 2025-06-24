@@ -73,9 +73,9 @@ def source_credentials():
 def check_ipfs_daemon():
     """Check if IPFS daemon is running."""
     try:
-        result = subprocess.run(["ipfs", "version"], 
-                              capture_output=True, 
-                              text=True, 
+        result = subprocess.run(["ipfs", "version"],
+                              capture_output=True,
+                              text=True,
                               timeout=5)
         return result.returncode == 0
     except Exception as e:
@@ -87,7 +87,7 @@ def start_ipfs_daemon():
     if not check_ipfs_daemon():
         try:
             # Start daemon in background
-            subprocess.Popen(["ipfs", "daemon", "--routing=dhtclient"], 
+            subprocess.Popen(["ipfs", "daemon", "--routing=dhtclient"],
                            stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
             # Wait a moment for it to initialize
@@ -103,13 +103,13 @@ def run_ipfs_command(command, input_data=None):
     try:
         full_command = ["ipfs"] + command
         if input_data:
-            result = subprocess.run(full_command, 
+            result = subprocess.run(full_command,
                                   input=input_data,
                                   capture_output=True)
         else:
-            result = subprocess.run(full_command, 
+            result = subprocess.run(full_command,
                                   capture_output=True)
-        
+
         if result.returncode == 0:
             return {"success": True, "output": result.stdout}
         else:
@@ -157,7 +157,7 @@ async def root():
                 f"{API_PREFIX}/ipfs/pin/ls"
             ],
             "storage": [
-                f"{API_PREFIX}/storage/health", 
+                f"{API_PREFIX}/storage/health",
                 f"{API_PREFIX}/huggingface/status",
                 f"{API_PREFIX}/huggingface/from_ipfs",
                 f"{API_PREFIX}/huggingface/to_ipfs",
@@ -193,9 +193,9 @@ async def health():
         mcp_extensions.update_storage_backends(storage_backends)
     except Exception as e:
         logger.warning(f"Error updating storage backends status: {e}")
-    
+
     ipfs_running = check_ipfs_daemon()
-    
+
     health_info = {
         "success": True,
         "status": "healthy" if ipfs_running else "degraded",
@@ -209,7 +209,7 @@ async def health():
         },
         "storage_backends": storage_backends
     }
-    
+
     return health_info
 
 # Storage health endpoint
@@ -225,7 +225,7 @@ async def storage_health():
         mcp_extensions.update_storage_backends(storage_backends)
     except Exception as e:
         logger.warning(f"Error updating storage backends status: {e}")
-    
+
     return {
         "success": True,
         "timestamp": time.time(),
@@ -240,7 +240,7 @@ async def ipfs_version():
     """Get IPFS version information."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["version"])
     if result["success"]:
         try:
@@ -258,7 +258,7 @@ async def ipfs_add(file: UploadFile = File(...)):
     """Add a file to IPFS."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     try:
         # Create a temporary file to store the uploaded content
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -266,24 +266,24 @@ async def ipfs_add(file: UploadFile = File(...)):
             content = await file.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
-        
+
         # Add the file to IPFS
         result = run_ipfs_command(["add", "-q", temp_file_path])
-        
+
         # Clean up the temporary file
         os.unlink(temp_file_path)
-        
+
         if result["success"]:
             cid = result["output"].decode('utf-8').strip()
             return {
-                "success": True, 
+                "success": True,
                 "cid": cid,
                 "size": len(content),
                 "name": file.filename
             }
         else:
             return {"success": False, "error": result["error"]}
-    
+
     except Exception as e:
         logger.error(f"Error adding file to IPFS: {e}")
         return {"success": False, "error": str(e)}
@@ -294,13 +294,13 @@ async def ipfs_cat(cid: str):
     """Get content from IPFS by CID."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["cat", cid])
     if result["success"]:
         # Use StreamingResponse to handle large files efficiently
         async def content_generator():
             yield result["output"]
-        
+
         return StreamingResponse(
             content_generator(),
             media_type="application/octet-stream"
@@ -314,7 +314,7 @@ async def ipfs_pin_add(cid: str = Form(...)):
     """Pin content in IPFS by CID."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["pin", "add", cid])
     if result["success"]:
         return {"success": True, "cid": cid, "pinned": True}
@@ -327,20 +327,20 @@ async def ipfs_pin_list():
     """List pinned content in IPFS."""
     if not start_ipfs_daemon():
         raise HTTPException(status_code=500, detail="IPFS daemon is not running")
-    
+
     result = run_ipfs_command(["pin", "ls", "--type=recursive"])
     if result["success"]:
         try:
             output = result["output"].decode('utf-8').strip()
             pins = {}
-            
+
             for line in output.split('\n'):
                 if line:
                     parts = line.split(' ')
                     if len(parts) >= 2:
                         cid = parts[0]
                         pins[cid] = {"type": "recursive"}
-            
+
             return {"success": True, "pins": pins}
         except Exception as e:
             logger.error(f"Error parsing pin list: {e}")
@@ -355,7 +355,7 @@ app.include_router(router, prefix=API_PREFIX)
 def create_mock_router(backend_name, api_prefix):
     """Create a mock router for a storage backend that might not work."""
     mock_router = APIRouter(prefix=f"{api_prefix}/{backend_name}")
-    
+
     @mock_router.get("/status")
     async def status():
         """Get status of the storage backend."""
@@ -367,27 +367,27 @@ def create_mock_router(backend_name, api_prefix):
             "message": f"Using mock {backend_name} implementation",
             "timestamp": time.time()
         }
-    
+
     @mock_router.post("/from_ipfs")
     async def from_ipfs(cid: str = Form(...), path: Optional[str] = Form(None)):
         """Upload content from IPFS to storage backend."""
         # Create mock storage directory
         mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", f"mock_{backend_name}")
         os.makedirs(mock_dir, exist_ok=True)
-        
+
         # Get content from IPFS
         result = run_ipfs_command(["cat", cid])
         if not result["success"]:
             return {"success": False, "mock": True, "error": f"Failed to get content from IPFS: {result['error']}"}
-        
+
         # Save to mock storage
         file_path = path or f"ipfs/{cid}"
         full_path = os.path.join(mock_dir, file_path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        
+
         with open(full_path, "wb") as f:
             f.write(result["output"])
-        
+
         return {
             "success": True,
             "mock": True,
@@ -396,27 +396,27 @@ def create_mock_router(backend_name, api_prefix):
             "cid": cid,
             "path": file_path
         }
-    
+
     @mock_router.post("/to_ipfs")
     async def to_ipfs(file_path: str = Form(...), cid: Optional[str] = Form(None)):
         """Upload content from storage backend to IPFS."""
         # Check if file exists in mock storage
         mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", f"mock_{backend_name}")
         mock_file_path = os.path.join(mock_dir, file_path)
-        
+
         if not os.path.exists(mock_file_path):
             # Create a dummy file with random content for demonstration
             os.makedirs(os.path.dirname(mock_file_path), exist_ok=True)
             with open(mock_file_path, "wb") as f:
                 f.write(os.urandom(1024))  # 1KB random data
-        
+
         # Add to IPFS
         result = run_ipfs_command(["add", "-q", mock_file_path])
         if not result["success"]:
             return {"success": False, "mock": True, "error": f"Failed to add to IPFS: {result['error']}"}
-        
+
         new_cid = result["output"].decode('utf-8').strip()
-        
+
         return {
             "success": True,
             "mock": True,
@@ -424,7 +424,7 @@ def create_mock_router(backend_name, api_prefix):
             "cid": new_cid,
             "source": f"mock_{backend_name}:{file_path}"
         }
-    
+
     # Special case for Lassie which has a different API
     if backend_name == "lassie":
         @mock_router.post("/retrieve")
@@ -433,20 +433,20 @@ def create_mock_router(backend_name, api_prefix):
             # Create mock storage directory
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_lassie")
             os.makedirs(mock_dir, exist_ok=True)
-            
+
             # Get content from IPFS as a fallback
             result = run_ipfs_command(["cat", cid])
             if not result["success"]:
                 return {"success": False, "mock": True, "error": f"Failed to get content from IPFS: {result['error']}"}
-            
+
             # Save to mock storage
             file_path = path or f"retrieved/{cid}"
             full_path = os.path.join(mock_dir, file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             with open(full_path, "wb") as f:
                 f.write(result["output"])
-            
+
             return {
                 "success": True,
                 "mock": True,
@@ -455,7 +455,7 @@ def create_mock_router(backend_name, api_prefix):
                 "cid": cid,
                 "size": len(result["output"])
             }
-    
+
     return mock_router
 
 # Add extension routers
@@ -463,19 +463,19 @@ try:
     # Import extension integration module
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     import mcp_extensions
-    
+
     # Try to create and add extension routers
     extension_routers = mcp_extensions.create_extension_routers(API_PREFIX)
     for ext_router in extension_routers:
         app.include_router(ext_router)
         logger.info(f"Added extension router: {ext_router.prefix}")
-    
+
     # Update storage backends status
     mcp_extensions.update_storage_backends(storage_backends)
 except Exception as e:
     logger.error(f"Error setting up extensions: {e}")
     logger.info("Setting up mock extension routers as fallback")
-    
+
     # Add mock routers for all storage backends to ensure functionality
     for backend in ["huggingface", "s3", "filecoin", "storacha", "lassie"]:
         if not storage_backends.get(backend, {}).get("available", False):
@@ -490,23 +490,23 @@ except Exception as e:
 if __name__ == "__main__":
     # Create necessary directories
     os.makedirs("logs", exist_ok=True)
-    
+
     # Source credentials
     source_credentials()
-    
+
     # Start IPFS daemon if not running
     start_ipfs_daemon()
-    
+
     # Write PID file
     with open("fixed_mcp_server.pid", "w") as f:
         f.write(str(os.getpid()))
-    
+
     # Run server
     logger.info(f"Starting fixed MCP server on port {PORT}")
     logger.info(f"API prefix: {API_PREFIX}")
     logger.info(f"Debug mode: {DEBUG_MODE}")
     logger.info(f"Server ID: {SERVER_ID}")
-    
+
     uvicorn.run(
         "fixed_mcp_server:app",
         host=HOST,

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class IPFSModelAnyIO(IPFSModel):
     """
     Asynchronous IPFS storage model for MCP server.
-    
+
     This class extends IPFSModel to provide fully asynchronous methods
     for interacting with IPFS storage using AnyIO.
     """
@@ -45,7 +45,7 @@ class IPFSModelAnyIO(IPFSModel):
             cache_manager=cache_manager,
             credential_manager=credential_manager,
         )
-        
+
         logger.info("IPFS AnyIO Model initialized")
 
     async def _read_file_content_async(self, file_path: str) -> bytes:
@@ -73,7 +73,7 @@ class IPFSModelAnyIO(IPFSModel):
             await file.write(content)
 
     async def add_content_from_file(
-        self, 
+        self,
         file_path: str,
         **kwargs
     ) -> Dict[str, Any]:
@@ -89,37 +89,37 @@ class IPFSModelAnyIO(IPFSModel):
         """
         result = self._create_result_template("add_content_from_file")
         start_time = time.time()
-        
+
         try:
             # Read file content asynchronously
             content = await self._read_file_content_async(file_path)
             content_size = len(content)
-            
+
             # Use file name as filename parameter if not provided
             if "filename" not in kwargs:
                 import os
                 kwargs["filename"] = os.path.basename(file_path)
-                
+
             # Add to IPFS
             add_result = await self.add_content(content, **kwargs)
-            
+
             # Copy results
             for key, value in add_result.items():
                 if key not in ["operation", "operation_id"]:
                     result[key] = value
-                    
+
             result["success"] = add_result.get("success", False)
             result["file_path"] = file_path
-            
+
         except Exception as e:
             return await self._handle_exception_async(e, result, "add_content_from_file")
-        
+
         return await self._handle_operation_result_async(
             result, "upload", start_time, content_size
         )
 
     async def get_content_to_file(
-        self, 
+        self,
         content_id: str,
         file_path: str,
         **kwargs
@@ -137,23 +137,23 @@ class IPFSModelAnyIO(IPFSModel):
         """
         result = self._create_result_template("get_content_to_file")
         start_time = time.time()
-        
+
         try:
             # Get content from IPFS
             get_result = await self.get_content(content_id, **kwargs)
-            
+
             if get_result.get("success", False):
                 content = get_result.get("content")
-                
+
                 # Write content to file asynchronously
                 if content:
                     await self._write_file_content_async(file_path, content)
-                    
+
                     # Copy results
                     for key, value in get_result.items():
                         if key not in ["operation", "operation_id", "content"]:
                             result[key] = value
-                            
+
                     result["success"] = True
                     result["file_path"] = file_path
                     result["size"] = len(content) if isinstance(content, bytes) else 0
@@ -167,16 +167,16 @@ class IPFSModelAnyIO(IPFSModel):
                 result["error"] = get_result.get("error", "Unknown error retrieving content")
                 result["error_type"] = get_result.get("error_type", "IPFSError")
                 result["backend_details"] = get_result.get("backend_details", {})
-            
+
         except Exception as e:
             return await self._handle_exception_async(e, result, "get_content_to_file")
-        
+
         return await self._handle_operation_result_async(
             result, "download", start_time, result.get("size", 0)
         )
 
     async def verify_content(
-        self, 
+        self,
         content_id: str,
         **kwargs
     ) -> Dict[str, Any]:
@@ -194,27 +194,27 @@ class IPFSModelAnyIO(IPFSModel):
         """
         result = self._create_result_template("verify_content")
         start_time = time.time()
-        
+
         try:
             # Check if pinned
             exists = self.ipfs_backend.exists(content_id)
             result["exists"] = exists
-            
+
             # Try to retrieve if requested
             check_retrievable = kwargs.get("check_retrievable", True)
             if check_retrievable:
                 timeout = kwargs.get("timeout", 10)
-                
+
                 # Try retrieval with timeout
                 options = {"timeout": timeout}
                 backend_result = self.ipfs_backend.retrieve(
                     identifier=content_id,
                     options=options
                 )
-                
+
                 retrievable = backend_result.get("success", False)
                 result["retrievable"] = retrievable
-                
+
                 if retrievable:
                     # Get content size
                     content_data = backend_result.get("data")
@@ -222,21 +222,21 @@ class IPFSModelAnyIO(IPFSModel):
                     result["size"] = content_size
                 else:
                     result["retrieval_error"] = backend_result.get("error")
-            
+
             # Get metadata if content exists
             if exists:
                 metadata_result = self.ipfs_backend.get_metadata(content_id)
                 if metadata_result.get("success", False):
                     result["metadata"] = metadata_result.get("metadata", {})
-            
+
             # Set overall success based on existence and retrievability
             result["success"] = exists
             if check_retrievable:
                 result["success"] = exists and result["retrievable"]
-            
+
         except Exception as e:
             return await self._handle_exception_async(e, result, "verify_content")
-        
+
         return await self._handle_operation_result_async(result, "verify", start_time)
 
     async def get_network_stats(self, **kwargs) -> Dict[str, Any]:
@@ -252,12 +252,12 @@ class IPFSModelAnyIO(IPFSModel):
         """
         result = self._create_result_template("get_network_stats")
         start_time = time.time()
-        
+
         try:
             # This is a mock implementation since we don't have direct access
             # to IPFS network stats through the backend
             # In a real implementation, this would call ipfs stats commands
-            
+
             result["success"] = True
             result["stats"] = {
                 "bandwidth": {
@@ -274,16 +274,16 @@ class IPFSModelAnyIO(IPFSModel):
                     "objects": 0,
                 },
             }
-            
+
             # Get actual stats if the backend supports it
             if hasattr(self.ipfs_backend, 'get_stats'):
                 backend_stats = self.ipfs_backend.get_stats()
                 if backend_stats:
                     result["stats"] = backend_stats
-            
+
         except Exception as e:
             return await self._handle_exception_async(e, result, "get_network_stats")
-        
+
         return await self._handle_operation_result_async(result, "stats", start_time)
 
     # Create synchronous versions of async methods using the helper decorator

@@ -18,21 +18,21 @@ from ..models.responses import StandardResponse, ErrorResponse
 logger = logging.getLogger(__name__)
 
 def create_api_key_cache_router(
-    key_admin: ApiKeyAdminEndpoints, 
+    key_admin: ApiKeyAdminEndpoints,
     get_current_user_admin
 ) -> APIRouter:
     """
     Create a router for API key cache management.
-    
+
     Args:
         key_admin: API key admin endpoints
         get_current_user_admin: Dependency for getting admin user
-        
+
     Returns:
         Configured router
     """
     router = APIRouter(tags=["API Key Cache Management"])
-    
+
     @router.get(
         "/stats",
         response_model=StandardResponse,
@@ -45,7 +45,7 @@ def create_api_key_cache_router(
         """Get API key cache statistics."""
         try:
             stats = await key_admin.get_stats()
-            
+
             return StandardResponse(
                 success=True,
                 message="API key cache statistics retrieved",
@@ -57,7 +57,7 @@ def create_api_key_cache_router(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to get cache statistics: {str(e)}"
             )
-    
+
     @router.post(
         "/clear",
         response_model=StandardResponse,
@@ -70,7 +70,7 @@ def create_api_key_cache_router(
         """Clear the API key cache."""
         try:
             result = await key_admin.clear_cache()
-            
+
             return StandardResponse(
                 success=True,
                 message="API key cache cleared successfully",
@@ -82,7 +82,7 @@ def create_api_key_cache_router(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to clear cache: {str(e)}"
             )
-    
+
     @router.post(
         "/invalidate/user/{user_id}",
         response_model=StandardResponse,
@@ -96,7 +96,7 @@ def create_api_key_cache_router(
         """Invalidate all API keys for a user."""
         try:
             result = await key_admin.invalidate_user_keys(user_id)
-            
+
             return StandardResponse(
                 success=True,
                 message=f"API keys for user {user_id} invalidated",
@@ -108,7 +108,7 @@ def create_api_key_cache_router(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to invalidate user keys: {str(e)}"
             )
-    
+
     @router.post(
         "/invalidate/key/{key_id}",
         response_model=StandardResponse,
@@ -122,7 +122,7 @@ def create_api_key_cache_router(
         """Invalidate a specific API key."""
         try:
             result = await key_admin.invalidate_key(key_id)
-            
+
             return StandardResponse(
                 success=True,
                 message=f"API key {key_id} invalidated",
@@ -134,5 +134,5 @@ def create_api_key_cache_router(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to invalidate key: {str(e)}"
             )
-    
+
     return router

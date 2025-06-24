@@ -17,21 +17,21 @@ from pathlib import Path
 def test_ai_ml_endpoints(base_url: str, verbose: bool = False) -> Dict[str, Any]:
     """
     Test the AI/ML endpoints of the MCP server.
-    
+
     Args:
         base_url: The base URL of the MCP server
         verbose: Whether to print verbose output
-        
+
     Returns:
         A dictionary with test results
     """
     # Ensure the base URL has the correct format
     if not base_url.endswith('/'):
         base_url += '/'
-    
+
     # The AI/ML endpoints base URL
     ai_base_url = f"{base_url}api/v0/ai"
-    
+
     # Results dictionary
     results = {
         "success": True,
@@ -43,7 +43,7 @@ def test_ai_ml_endpoints(base_url: str, verbose: bool = False) -> Dict[str, Any]
         "endpoints_failed": 0,
         "endpoint_results": {}
     }
-    
+
     # Helper function for making requests and handling errors
     def make_request(endpoint: str, method: str = "GET", data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         url = f"{ai_base_url}/{endpoint}"
@@ -55,11 +55,11 @@ def test_ai_ml_endpoints(base_url: str, verbose: bool = False) -> Dict[str, Any]
             "response": None,
             "error": None
         }
-        
+
         try:
             if verbose:
                 print(f"Testing {method} {url}...")
-            
+
             if method == "GET":
                 response = requests.get(url, timeout=10)
             elif method == "POST":
@@ -71,26 +71,26 @@ def test_ai_ml_endpoints(base_url: str, verbose: bool = False) -> Dict[str, Any]
             else:
                 result["error"] = f"Unsupported method: {method}"
                 return result
-            
+
             result["status_code"] = response.status_code
-            
+
             # Try to parse response as JSON
             try:
                 result["response"] = response.json()
             except json.JSONDecodeError:
                 result["response"] = response.text
-            
+
             # Check if the request was successful
             if 200 <= response.status_code < 300:
                 result["success"] = True
             else:
                 result["error"] = f"HTTP Error {response.status_code}: {response.reason}"
-            
+
             return result
         except requests.exceptions.RequestException as e:
             result["error"] = str(e)
             return result
-    
+
     # Define the endpoints to test
     endpoints_to_test = [
         # Model Registry endpoints
@@ -105,32 +105,32 @@ def test_ai_ml_endpoints(base_url: str, verbose: bool = False) -> Dict[str, Any]
             "description": "Test model for AI/ML integration"
         }}
     ]
-    
+
     # Test each endpoint
     for endpoint_test in endpoints_to_test:
         endpoint_name = endpoint_test["name"]
         result = make_request(
-            endpoint_test["endpoint"], 
-            endpoint_test["method"], 
+            endpoint_test["endpoint"],
+            endpoint_test["method"],
             endpoint_test.get("data")
         )
-        
+
         results["endpoints_tested"] += 1
         if result["success"]:
             results["endpoints_succeeded"] += 1
         else:
             results["endpoints_failed"] += 1
-        
+
         results["endpoint_results"][endpoint_name] = result
-        
+
         if verbose:
             print(f"Endpoint {endpoint_name}: {'SUCCESS' if result['success'] else 'FAILURE'}")
             if not result["success"]:
                 print(f"  Error: {result['error']}")
-    
+
     # Update overall success status
     results["success"] = results["endpoints_failed"] == 0
-    
+
     return results
 
 def main():
@@ -140,11 +140,11 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
     parser.add_argument("--output", "-o", type=str, help="Output file for test results (JSON format)")
     args = parser.parse_args()
-    
+
     # Run the tests
     print(f"Testing AI/ML endpoints at {args.url}...")
     results = test_ai_ml_endpoints(args.url, args.verbose)
-    
+
     # Print summary
     print("\nTest Summary:")
     print(f"Base URL: {results['base_url']}")
@@ -153,7 +153,7 @@ def main():
     print(f"Endpoints Succeeded: {results['endpoints_succeeded']}")
     print(f"Endpoints Failed: {results['endpoints_failed']}")
     print(f"Overall Status: {'SUCCESS' if results['success'] else 'FAILURE'}")
-    
+
     # Save results to file if requested
     if args.output:
         try:
@@ -162,7 +162,7 @@ def main():
             print(f"\nTest results saved to {args.output}")
         except Exception as e:
             print(f"Error saving results to {args.output}: {e}")
-    
+
     # Exit with appropriate status code
     sys.exit(0 if results["success"] else 1)
 

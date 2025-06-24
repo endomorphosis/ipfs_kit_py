@@ -62,7 +62,7 @@ def health():
             "ipfs": True,
             "storage_manager": True,
             "filecoin": True,
-            "huggingface": True, 
+            "huggingface": True,
             "storacha": True,
             "lassie": True,
             "s3": True
@@ -112,6 +112,6 @@ if __name__ == '__main__':
     port = 8080
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
-    
+
     logger.info(f"Starting Flask Health Endpoint on port {port}")
     app.run(host='0.0.0.0', port=port, debug=True)

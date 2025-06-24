@@ -33,7 +33,7 @@ def verify_ipfs_backend():
         logger.info("Importing IPFSBackend class...")
         from ipfs_kit_py.mcp.storage_manager.backends.ipfs_backend import IPFSBackend
         from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
-        
+
         # Initialize the backend with test configuration
         logger.info("Initializing IPFS backend...")
         resources = {
@@ -42,41 +42,41 @@ def verify_ipfs_backend():
             "ipfs_timeout": 30,
             "allow_mock": True,  # Allow mock for environments without IPFS daemon
         }
-        
+
         metadata = {
             "performance_metrics_file": "/tmp/ipfs_metrics.json",
             "backend_name": "ipfs_verification_test",
         }
-        
+
         # Create the backend instance
         backend = IPFSBackend(resources, metadata)
-        
+
         # Check if we're using mock implementation
         is_mock = hasattr(backend.ipfs, "_mock_implementation") and backend.ipfs._mock_implementation
         if is_mock:
             logger.warning("IPFS backend initialized with mock implementation")
         else:
             logger.info("IPFS backend initialized successfully with real implementation")
-        
+
         # Verify backend properties
         logger.info(f"Backend type: {backend.backend_type}")
         logger.info(f"Backend name: {backend.get_name()}")
-        
+
         # Test basic operations if we have a real implementation
         if not is_mock:
             # Add content
             test_content = b"Test content for IPFS backend verification"
             logger.info("Adding test content to IPFS...")
             add_result = backend.add_content(test_content)
-            
+
             if add_result.get("success"):
                 cid = add_result.get("identifier")
                 logger.info(f"Content added successfully with CID: {cid}")
-                
+
                 # Get content
                 logger.info(f"Retrieving content with CID: {cid}...")
                 get_result = backend.get_content(cid)
-                
+
                 if get_result.get("success"):
                     retrieved_content = get_result.get("data")
                     if retrieved_content == test_content:
@@ -85,7 +85,7 @@ def verify_ipfs_backend():
                         logger.error("Retrieved content does not match original")
                 else:
                     logger.error(f"Failed to retrieve content: {get_result.get('error')}")
-                
+
                 # Get metadata
                 logger.info(f"Getting metadata for CID: {cid}...")
                 metadata_result = backend.get_metadata(cid)
@@ -93,7 +93,7 @@ def verify_ipfs_backend():
                     logger.info(f"Metadata retrieved: {json.dumps(metadata_result.get('metadata'), indent=2)}")
                 else:
                     logger.error(f"Failed to get metadata: {metadata_result.get('error')}")
-                
+
                 # Clean up
                 logger.info(f"Removing test content with CID: {cid}...")
                 remove_result = backend.remove_content(cid)
@@ -101,7 +101,7 @@ def verify_ipfs_backend():
                     logger.info("Content removed successfully")
                 else:
                     logger.error(f"Failed to remove content: {remove_result.get('error')}")
-                
+
                 # Get performance metrics
                 logger.info("Getting performance metrics...")
                 metrics = backend.get_performance_metrics()
@@ -121,10 +121,10 @@ def verify_ipfs_backend():
             ]
             for i, op_result in enumerate(mock_operations):
                 logger.info(f"Mock operation {i+1} returned: {op_result.get('success', False)} (This should be False for mock)")
-        
+
         logger.info("IPFS backend verification completed")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error verifying IPFS backend: {e}", exc_info=True)
         return False
@@ -132,7 +132,7 @@ def verify_ipfs_backend():
 if __name__ == "__main__":
     logger.info("Starting IPFS backend verification...")
     success = verify_ipfs_backend()
-    
+
     if success:
         logger.info("✅ IPFS backend verification successful")
         sys.exit(0)

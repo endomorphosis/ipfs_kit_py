@@ -17,15 +17,15 @@ async def test_storage_endpoint():
     # Create MCP server instance
     server = MCPServer(debug_mode=True)
     app = server.create_fastapi_app()
-    
+
     # Start server in the background
     config = uvicorn.Config(app, host='127.0.0.1', port=8000, log_level='info')
     uvicorn_server = uvicorn.Server(config)
     server_task = anyio.create_task(uvicorn_server.serve())
-    
+
     # Wait for server to start
     await anyio.sleep(5)
-    
+
     try:
         # Make a request to the storage status endpoint
         logger.info("Making request to /api/v0/storage/status")
@@ -35,7 +35,7 @@ async def test_storage_endpoint():
                 text = await response.text()
                 logger.info(f'Status: {status}')
                 logger.info(f'Response: {text}')
-                
+
                 return status == 200
     except Exception as e:
         logger.error(f"Error testing endpoint: {e}")

@@ -23,7 +23,7 @@ _advanced_ipfs_instance = None
 def get_advanced_ipfs() -> AdvancedIPFSOperations:
     """
     Get or create an instance of the AdvancedIPFSOperations class.
-    
+
     Returns:
         AdvancedIPFSOperations: The AdvancedIPFSOperations instance
     """
@@ -46,7 +46,7 @@ async def dht_find_peer(
 ):
     """
     Find a specific peer in the DHT network.
-    
+
     Returns addresses where the peer can be reached.
     """
     try:
@@ -67,12 +67,12 @@ async def dht_find_providers(
 ):
     """
     Find peers in the network that can provide a specific content (CID).
-    
+
     Returns a list of provider peer IDs.
     """
     try:
         ipfs_adv = get_advanced_ipfs()
-        result = ipfs_adv.dht_find_providers(cid, num_providers=num_providers, 
+        result = ipfs_adv.dht_find_providers(cid, num_providers=num_providers,
                                            options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
@@ -107,12 +107,12 @@ async def dht_provide(
 ):
     """
     Announce to the network that we are providing a given CID.
-    
+
     This allows other peers to find us when they search for this content.
     """
     try:
         ipfs_adv = get_advanced_ipfs()
-        result = ipfs_adv.dht_provide(cid, recursive=recursive, 
+        result = ipfs_adv.dht_provide(cid, recursive=recursive,
                                     options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
@@ -168,7 +168,7 @@ async def dag_get(
 ):
     """
     Get a DAG node from IPFS.
-    
+
     This can retrieve a complex data structure from IPFS with full IPLD support.
     """
     try:
@@ -189,7 +189,7 @@ async def dag_put(
 ):
     """
     Put a DAG node into IPFS.
-    
+
     This allows storing complex data structures in IPFS with IPLD support.
     """
     try:
@@ -245,7 +245,7 @@ async def dag_export(
 ):
     """
     Export a DAG to a .car (Content Addressable aRchive) file.
-    
+
     Returns the CAR file content as a binary response.
     """
     try:
@@ -253,7 +253,7 @@ async def dag_export(
         result = ipfs_adv.dag_export(cid, options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
-        
+
         # Return binary response
         from fastapi.responses import Response
         return Response(
@@ -277,12 +277,12 @@ async def name_publish(
 ):
     """
     Publish a CID to IPNS.
-    
+
     This creates a mutable pointer to the immutable CID.
     """
     try:
         ipfs_adv = get_advanced_ipfs()
-        result = ipfs_adv.name_publish(cid, key=key, lifetime=lifetime, ttl=ttl, 
+        result = ipfs_adv.name_publish(cid, key=key, lifetime=lifetime, ttl=ttl,
                                      options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
@@ -303,7 +303,7 @@ async def name_resolve(
     """
     try:
         ipfs_adv = get_advanced_ipfs()
-        result = ipfs_adv.name_resolve(name, recursive=recursive, nocache=nocache, 
+        result = ipfs_adv.name_resolve(name, recursive=recursive, nocache=nocache,
                                      options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
@@ -341,7 +341,7 @@ async def key_gen(
     """
     try:
         ipfs_adv = get_advanced_ipfs()
-        result = ipfs_adv.key_gen(name, type_str=type, size=size, 
+        result = ipfs_adv.key_gen(name, type_str=type, size=size,
                                 options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
@@ -492,7 +492,7 @@ async def object_patch_add_link(
     """
     try:
         ipfs_adv = get_advanced_ipfs()
-        result = ipfs_adv.object_patch_add_link(cid, name, link_cid, 
+        result = ipfs_adv.object_patch_add_link(cid, name, link_cid,
                                               options={"timeout": timeout})
         if not result.get("success", False):
             return handle_operation_error(result)
@@ -537,7 +537,7 @@ async def get_stats():
 def register_advanced_ipfs_routes(app):
     """
     Register the advanced IPFS routes with the FastAPI application.
-    
+
     Args:
         app: The FastAPI application instance
     """

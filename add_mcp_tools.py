@@ -60,7 +60,7 @@ async def health():
 async def initialize():
     """
     Initialize endpoint for VS Code MCP protocol.
-    
+
     This endpoint is called by VS Code when it first connects to the MCP server.
     It returns information about the server's capabilities.
     """
@@ -82,7 +82,7 @@ async def initialize():
 async def jsonrpc():
     """
     JSON-RPC endpoint for VS Code MCP protocol.
-    
+
     This endpoint is called by VS Code for JSON-RPC communication.
     """
     return {"jsonrpc": "2.0", "result": "ok", "id": 1}
@@ -93,7 +93,7 @@ def main():
     port = 9994
     if len(sys.argv) > 1 and sys.argv[1].isdigit():
         port = int(sys.argv[1])
-    
+
     logger.info(f"Starting MCP Initialize Endpoint server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
 

@@ -1,7 +1,7 @@
 """
 Apache Arrow IPC Example for Optimized Data Routing
 
-This example demonstrates how to use the Apache Arrow IPC interface for 
+This example demonstrates how to use the Apache Arrow IPC interface for
 optimized data routing, which provides a high-performance way to communicate
 with the routing system from separate processes.
 
@@ -25,9 +25,9 @@ logger = logging.getLogger("arrow_ipc_example")
 
 # Sample content types for demonstration
 SAMPLE_CONTENT_TYPES = [
-    "application/pdf", 
-    "image/jpeg", 
-    "video/mp4", 
+    "application/pdf",
+    "image/jpeg",
+    "video/mp4",
     "text/plain",
     "application/json"
 ]
@@ -53,7 +53,7 @@ async def run_ipc_server():
         # Import necessary components
         from ipfs_kit_py.routing import RoutingManager, RoutingManagerSettings
         from ipfs_kit_py.routing.arrow_ipc import start_ipc_server
-        
+
         # Initialize routing manager
         settings = RoutingManagerSettings(
             enabled=True,
@@ -63,15 +63,15 @@ async def run_ipc_server():
             collect_metrics_on_startup=True,
             learning_enabled=True
         )
-        
+
         routing_manager = await RoutingManager.create(settings)
         logger.info(f"Initialized routing manager with backends: {settings.backends}")
-        
+
         # Start IPC server
         socket_path = "/tmp/ipfs_kit_routing_example.sock"
         server = await start_ipc_server(socket_path, routing_manager)
         logger.info(f"Started Arrow IPC server on {socket_path}")
-        
+
         # Keep server running
         try:
             while True:
@@ -82,7 +82,7 @@ async def run_ipc_server():
             # Cleanup
             await server.stop()
             logger.info("IPC server stopped")
-            
+
     except ImportError as e:
         logger.error(f"Error importing routing components: {e}")
         sys.exit(1)
@@ -95,22 +95,22 @@ async def run_ipc_client():
     try:
         # Import necessary components
         from ipfs_kit_py.routing.arrow_ipc import ArrowIPCClient
-        
+
         # Create client
         socket_path = "/tmp/ipfs_kit_routing_example.sock"
         client = ArrowIPCClient(socket_path)
-        
+
         # Connect to server
         await client.connect()
         logger.info(f"Connected to Arrow IPC server on {socket_path}")
-        
+
         # Process different content types
         for content_type in SAMPLE_CONTENT_TYPES:
             # Generate content info
             content_info = generate_mock_content_info(content_type)
-            
+
             logger.info(f"Processing {content_type} content: {content_info['filename']}")
-            
+
             # Try different routing strategies
             for strategy in ["content_type", "cost", "performance", "hybrid"]:
                 # Select backend using the current strategy
@@ -121,12 +121,12 @@ async def run_ipc_client():
                     metadata=content_info["metadata"],
                     strategy=strategy
                 )
-                
+
                 logger.info(f"Strategy '{strategy}' selected backend: {backend_id}")
-                
+
                 # Simulate storage operation
                 success = random.random() > 0.1  # 90% success rate
-                
+
                 # Record the outcome
                 await client.record_outcome(
                     backend_id=backend_id,
@@ -136,13 +136,13 @@ async def run_ipc_client():
                     success=success,
                     duration_ms=random.randint(10, 500)
                 )
-                
+
                 logger.info(f"Recorded outcome: success={success}")
-        
+
         # Disconnect
         await client.disconnect()
         logger.info("Disconnected from IPC server")
-        
+
     except ImportError as e:
         logger.error(f"Error importing routing components: {e}")
         sys.exit(1)
@@ -154,10 +154,10 @@ async def run_example():
     """Run the complete Arrow IPC example."""
     # Start server in background task
     server_task = asyncio.create_task(run_ipc_server())
-    
+
     # Wait for server to start
     await asyncio.sleep(2)
-    
+
     try:
         # Run client
         await run_ipc_client()

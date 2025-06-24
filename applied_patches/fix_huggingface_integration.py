@@ -43,10 +43,10 @@ BACKUP_HF_EXTENSION = MCP_EXTENSIONS_DIR / "huggingface_extension.py.bak"
 
 def backup_file(file_path):
     """Create a backup of a file.
-    
+
     Args:
         file_path: Path to the file to back up
-        
+
     Returns:
         Path to the backup file
     """
@@ -64,12 +64,12 @@ def update_huggingface_storage():
     if not ENHANCED_HF_STORAGE.exists():
         logger.error(f"Enhanced HuggingFace storage implementation not found at {ENHANCED_HF_STORAGE}")
         return False
-        
+
     try:
         # Back up the original file
         if ORIGINAL_HF_STORAGE.exists():
             backup_file(ORIGINAL_HF_STORAGE)
-            
+
         # Copy enhanced implementation to the original location
         shutil.copy2(ENHANCED_HF_STORAGE, ORIGINAL_HF_STORAGE)
         logger.info(f"Replaced {ORIGINAL_HF_STORAGE} with enhanced implementation")
@@ -83,31 +83,31 @@ def update_huggingface_extension():
     if not HF_EXTENSION.exists():
         logger.error(f"HuggingFace extension not found at {HF_EXTENSION}")
         return False
-        
+
     try:
         # Back up the original file
         backup_file(HF_EXTENSION)
-        
+
         # Read the extension file content
         with open(HF_EXTENSION, 'r') as f:
             content = f.read()
-        
+
         # Update initialization part to include more configuration parameters
         old_init = """# Create HuggingFace storage instance
 huggingface_storage = HuggingFaceStorage()"""
-        
+
         new_init = """# Create HuggingFace storage instance with robust configuration
 # Get token from environment variable
 token = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
 # Get organization from environment variable (optional)
 organization = os.environ.get("HUGGINGFACE_ORGANIZATION") or os.environ.get("HF_ORGANIZATION")
 # Get repository name from environment variable or use default
-repo_name = (os.environ.get("HUGGINGFACE_REPO") or 
-             os.environ.get("HF_REPO") or 
+repo_name = (os.environ.get("HUGGINGFACE_REPO") or
+             os.environ.get("HF_REPO") or
              "ipfs-storage")
 # Get repository type from environment variable or use default
-repo_type = (os.environ.get("HUGGINGFACE_REPO_TYPE") or 
-             os.environ.get("HF_REPO_TYPE") or 
+repo_type = (os.environ.get("HUGGINGFACE_REPO_TYPE") or
+             os.environ.get("HF_REPO_TYPE") or
              "dataset")  # Options: 'dataset', 'model', 'space'
 
 # Initialize storage with configuration
@@ -119,10 +119,10 @@ huggingface_storage = HuggingFaceStorage(
 )
 logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {repo_type})"
             f"{' in organization: ' + organization if organization else ''}")"""
-        
+
         # Replace the initialization
         updated_content = content.replace(old_init, new_init)
-        
+
         # Update error handling in endpoints to include detailed diagnostics
         # For from_ipfs endpoint
         old_from_ipfs_error = """if not result.get("success", False):
@@ -134,7 +134,7 @@ logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {rep
                     "configuration": "Set HUGGINGFACE_TOKEN environment variable with your API token"
                 }
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))"""
-            
+
         new_from_ipfs_error = """if not result.get("success", False):
             if result.get("simulation", False):
                 return {
@@ -143,11 +143,11 @@ logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {rep
                     "instructions": "Install HuggingFace Hub SDK with: pip install huggingface_hub",
                     "configuration": "Set HUGGINGFACE_TOKEN environment variable with your API token"
                 }
-            
+
             # Enhanced error handling with diagnostics
             error_detail = result.get("error", "Unknown error")
             error_details = result.get("error_details", {})
-            
+
             # If there are suggested actions, include them in the response
             if error_details and "suggested_actions" in error_details:
                 error_response = {
@@ -158,12 +158,12 @@ logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {rep
                     "possible_causes": error_details.get("possible_causes", [])
                 }
                 return error_response
-                
+
             raise HTTPException(status_code=500, detail=error_detail)"""
-            
+
         # Replace the error handling in from_ipfs endpoint
         updated_content = updated_content.replace(old_from_ipfs_error, new_from_ipfs_error)
-        
+
         # Also update error handling in to_ipfs endpoint (similar pattern)
         old_to_ipfs_error = """if not result.get("success", False):
             if result.get("simulation", False):
@@ -174,10 +174,10 @@ logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {rep
                     "configuration": "Set HUGGINGFACE_TOKEN environment variable with your API token"
                 }
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))"""
-            
+
         # Use the same enhanced error handling
         updated_content = updated_content.replace(old_to_ipfs_error, new_from_ipfs_error)
-        
+
         # Also update error handling in list_files endpoint (similar pattern)
         old_list_files_error = """if not result.get("success", False):
             if result.get("simulation", False):
@@ -188,16 +188,16 @@ logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {rep
                     "configuration": "Set HUGGINGFACE_TOKEN environment variable with your API token"
                 }
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))"""
-            
+
         # Use the same enhanced error handling
         updated_content = updated_content.replace(old_list_files_error, new_from_ipfs_error)
-        
+
         # Update the storage_backends update function to include more info
         old_update_function = """# Function to update storage_backends with actual status
 def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
     """
     Update storage_backends dictionary with actual HuggingFace status.
-    
+
     Args:
         storage_backends: Dictionary of storage backends to update
     """
@@ -208,17 +208,17 @@ def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
         "message": status.get("message", ""),
         "error": status.get("error", None)
     }"""
-    
+
         new_update_function = """# Function to update storage_backends with actual status
 def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
     """
     Update storage_backends dictionary with actual HuggingFace status.
-    
+
     Args:
         storage_backends: Dictionary of storage backends to update
     """
     status = huggingface_storage.status()
-    
+
     # Create a comprehensive status object with detailed information
     hf_status = {
         "available": status.get("available", False),
@@ -227,28 +227,28 @@ def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
         "message": status.get("message", ""),
         "error": status.get("error", None)
     }
-    
+
     # Add repository information if available
     if "repository" in status:
         hf_status["repository"] = status["repository"]
-    
+
     # Add user info if available
     if "user" in status:
         hf_status["user"] = status["user"]
-    
+
     # Add mock storage path if in mock mode
     if status.get("mock", False) and "mock_storage_path" in status:
         hf_status["mock_storage_path"] = status["mock_storage_path"]
-    
+
     storage_backends["huggingface"] = hf_status"""
-    
+
         # Replace the update function with the enhanced version
         updated_content = updated_content.replace(old_update_function, new_update_function)
-        
+
         # Write the updated content back to the file
         with open(HF_EXTENSION, 'w') as f:
             f.write(updated_content)
-            
+
         logger.info(f"Updated {HF_EXTENSION} with enhanced initialization and error handling")
         return True
     except Exception as e:
@@ -264,7 +264,7 @@ def add_environment_variables():
             # Read existing content
             with open(creds_file, 'r') as f:
                 content = f.read()
-                
+
             # Check if HuggingFace variables are already defined
             if "HUGGINGFACE_REPO_TYPE" not in content:
                 # Add the variables
@@ -278,15 +278,15 @@ export HUGGINGFACE_REPO_TYPE="dataset"  # Options: dataset, model, space
                 # If HUGGINGFACE_TOKEN is already there, don't add it again
                 if "HUGGINGFACE_TOKEN" not in content:
                     additions += "# export HUGGINGFACE_TOKEN=\"your-huggingface-token\"\n"
-                    
+
                 # Append to the file
                 with open(creds_file, 'a') as f:
                     f.write(additions)
-                    
+
                 logger.info(f"Added HuggingFace configuration to {creds_file}")
         else:
             logger.warning(f"Credentials file {creds_file} not found, skipping environment variable setup")
-            
+
         return True
     except Exception as e:
         logger.error(f"Failed to add environment variables: {e}")
@@ -297,7 +297,7 @@ def restart_mcp_server():
     try:
         # Stop any running MCP server
         logger.info("Stopping any running MCP server...")
-        
+
         # Find PID file
         pid_file = Path("/tmp/mcp/server.pid")
         if pid_file.exists():
@@ -308,7 +308,7 @@ def restart_mcp_server():
                     logger.info(f"Sent SIGTERM to MCP server process {pid}")
                 except Exception as e:
                     logger.warning(f"Error stopping MCP server: {e}")
-        
+
         # Also try to kill any process matching enhanced_mcp_server.py
         try:
             subprocess.run(
@@ -317,14 +317,14 @@ def restart_mcp_server():
             )
         except Exception:
             pass
-            
+
         # Wait for processes to terminate
         time.sleep(2)
-        
+
         # Start MCP server
         logger.info("Starting MCP server...")
         start_script = PACKAGE_ROOT / "start_mcp_server.sh"
-        
+
         if start_script.exists():
             subprocess.run([str(start_script)], check=False)
             logger.info("MCP server started")
@@ -341,7 +341,7 @@ def test_huggingface_integration():
     try:
         # Wait for server to start up
         time.sleep(5)
-        
+
         # Check server health
         try:
             health_output = subprocess.run(
@@ -350,33 +350,33 @@ def test_huggingface_integration():
                 text=True,
                 check=True
             )
-            
+
             if "huggingface" not in health_output.stdout.lower():
                 logger.error("HuggingFace not found in MCP server health output")
                 logger.debug(f"Health output: {health_output.stdout}")
                 return False
-                
+
             logger.info("HuggingFace found in MCP server health output")
-            
+
             # Parse the health output to check HuggingFace status
             try:
                 health_data = json.loads(health_output.stdout)
                 if "storage_backends" in health_data and "huggingface" in health_data["storage_backends"]:
                     hf_status = health_data["storage_backends"]["huggingface"]
                     logger.info(f"HuggingFace status: {json.dumps(hf_status, indent=2)}")
-                    
+
                     # Check if it's available and not simulation mode
                     if hf_status.get("available", False) and not hf_status.get("simulation", True):
                         logger.info("HuggingFace backend is available and not in simulation mode")
-                        
+
                         # Check repository configuration if available
                         if "repository" in hf_status:
                             logger.info(f"HuggingFace repository: {hf_status['repository']}")
-                            
+
                         # Even mock mode is acceptable
                         if hf_status.get("mock", False):
                             logger.info("HuggingFace is running in mock mode (acceptable)")
-                            
+
                         return True
                     else:
                         if not hf_status.get("available", False):
@@ -391,13 +391,13 @@ def test_huggingface_integration():
                 logger.error("Failed to parse health output as JSON")
                 logger.debug(f"Health output: {health_output.stdout}")
                 return False
-                
+
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to check MCP server health: {e}")
             logger.debug(f"Stdout: {e.stdout}")
             logger.debug(f"Stderr: {e.stderr}")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error testing HuggingFace integration: {e}")
         return False
@@ -405,32 +405,32 @@ def test_huggingface_integration():
 def main():
     """Main function to fix HuggingFace integration."""
     logger.info("=== Fixing HuggingFace Integration ===")
-    
+
     # Step 1: Replace huggingface_storage.py with enhanced implementation
     if not update_huggingface_storage():
         logger.error("Failed to update HuggingFace storage implementation")
         return False
-    
+
     # Step 2: Update HuggingFace extension
     if not update_huggingface_extension():
         logger.error("Failed to update HuggingFace extension")
         return False
-    
+
     # Step 3: Add environment variables to configuration
     if not add_environment_variables():
         logger.warning("Failed to add environment variables (not critical)")
         # Continue anyway
-    
+
     # Step 4: Restart MCP server
     if not restart_mcp_server():
         logger.error("Failed to restart MCP server")
         return False
-    
+
     # Step 5: Test the HuggingFace integration
     if not test_huggingface_integration():
         logger.error("HuggingFace integration test failed")
         return False
-    
+
     logger.info("=== Successfully fixed HuggingFace integration ===")
     logger.info("Changes made:")
     logger.info("1. Replaced huggingface_storage.py with enhanced implementation")
@@ -438,7 +438,7 @@ def main():
     logger.info("3. Added HuggingFace environment variables to configuration")
     logger.info("4. Restarted MCP server with new implementation")
     logger.info("5. Verified HuggingFace integration is working properly")
-    
+
     logger.info("")
     logger.info("=== Configuration Instructions ===")
     logger.info("To use with your own HuggingFace account:")
@@ -450,7 +450,7 @@ def main():
     logger.info("   - model: For models")
     logger.info("   - space: For spaces")
     logger.info("5. Restart the MCP server with ./start_mcp_server.sh")
-    
+
     return True
 
 if __name__ == "__main__":

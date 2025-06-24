@@ -33,15 +33,15 @@ def main():
         "Please use network_simulator.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     print("Running asymmetric partition test using the new network_simulator module...")
-    
+
     # Check if network_simulator.py exists
     network_simulator_path = os.path.join(os.path.dirname(__file__), "network_simulator.py")
     if not os.path.exists(network_simulator_path):
         print("ERROR: network_simulator.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Build command for asymmetric partition scenario
     cmd = [
         sys.executable,
@@ -51,7 +51,7 @@ def main():
         "--duration", "60",
         "--verbose"
     ]
-    
+
     # Run network_simulator
     try:
         print(f"Running: {' '.join(cmd)}")

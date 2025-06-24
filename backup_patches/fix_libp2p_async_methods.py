@@ -32,20 +32,20 @@ def replacement(match):
     parameters = match.group(2)
     return_type = match.group(3) or "Dict[str, Any]"
     docstring = match.group(4)
-    
+
     # Parse parameters
     param_list = []
     if ',' in parameters:
         # Split the parameters and remove 'self'
         param_list = [p.strip() for p in parameters.split(',')[1:]]
-    
+
     # Extract parameter names (without type hints or default values)
     param_names = []
     for param in param_list:
         # Extract just the parameter name (before : or =)
         name = param.split(':')[0].split('=')[0].strip()
         param_names.append(name)
-    
+
     # Build the helper function definition
     helper_function = f"""
     async def {method_name}({parameters}) -> {return_type}:
@@ -55,11 +55,11 @@ def replacement(match):
         # Define a helper function to avoid parameter issues
         def _{method_name}_sync():
             return LibP2PModel.{method_name}(self{', ' + ', '.join(param_names) if param_names else ''})
-            
+
         # Use anyio to run the synchronous version in a thread
         import anyio
         return await anyio.to_thread.run_sync(_{method_name}_sync)"""
-    
+
     return helper_function
 
 # Apply the fixes
@@ -72,23 +72,23 @@ register_handler_replacement = """
     async def register_message_handler(self, handler_id: str, protocol_id: str, description: Optional[str] = None) -> Dict[str, Any]:
         \"\"\"
         Async version of register_message_handler for use with async controllers.
-        
+
         Args:
             handler_id: Unique identifier for the handler
             protocol_id: Protocol ID to handle
             description: Optional description of the handler
-            
+
         Returns:
             Dict with registration status
         \"\"\"
         # Create a dummy handler function
         def dummy_handler(message):
             pass
-        
+
         # Define a helper function to avoid parameter issues
         def _register_message_handler_sync():
             return LibP2PModel.register_message_handler(self, protocol_id, dummy_handler, handler_id)
-            
+
         # Use anyio to run the synchronous version in a thread
         import anyio
         return await anyio.to_thread.run_sync(_register_message_handler_sync)"""

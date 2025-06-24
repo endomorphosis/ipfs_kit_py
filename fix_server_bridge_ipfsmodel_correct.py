@@ -23,7 +23,7 @@ old_init = '''            # Create config for IPFS model
                 "isolation": self.isolation_mode,
                 "log_level": self.log_level
             }
-            
+
             # Correctly initialize the IPFS model with the config parameter
             ipfs_model = IPFSModel(
                 ipfs_backend=None,  # Will be initialized later if needed
@@ -37,7 +37,7 @@ new_init = '''            # Create config for IPFS model
                 "isolation": self.isolation_mode,
                 "log_level": self.log_level
             }
-            
+
             # Correctly initialize the IPFS model with the config parameter
             ipfs_model = IPFSModel(
                 ipfs_kit_instance=None,  # Will be initialized later if needed
@@ -46,11 +46,11 @@ new_init = '''            # Create config for IPFS model
 # Replace the problematic code block
 if old_init in content:
     modified_content = content.replace(old_init, new_init)
-    
+
     # Write the modified content back to the file
     with open(server_bridge_path, 'w') as f:
         f.write(modified_content)
-    
+
     print(f"✅ Successfully fixed IPFSModel initialization in {server_bridge_path}")
     print("   Changed parameters to match IPFSModel constructor.")
 else:
@@ -59,18 +59,18 @@ else:
                 ipfs_backend=None,  # Will be initialized later if needed
                 debug_mode=self.debug_mode,
                 log_level=self.log_level,'''
-    
+
     new_pattern = '''            ipfs_model = IPFSModel(
                 ipfs_kit_instance=None,  # Will be initialized later if needed
                 config=ipfs_config,'''
-    
+
     if old_pattern in content:
         modified_content = content.replace(old_pattern, new_pattern)
-        
+
         # Write the modified content back to the file
         with open(server_bridge_path, 'w') as f:
             f.write(modified_content)
-        
+
         print(f"✅ Successfully fixed IPFSModel initialization in {server_bridge_path}")
         print("   Changed parameters to match IPFSModel constructor.")
     else:

@@ -341,26 +341,26 @@ class DAGController:
         logger.debug(f"Exporting DAG with CID: {cid}")
         try:
             result = self.dag_operations.export_data(cid=cid, output_file=None, progress=progress)
-            
+
             if not result.get("success", False):
                 raise HTTPException(
                     status_code=500, detail=f"Error exporting DAG: {result.get('error', 'Unknown error')}"
                 )
-                
+
             data = result.get("data")
             if not data:
                 raise HTTPException(
                     status_code=500, detail="No data returned from export operation"
                 )
-                
+
             # Return the data as a downloadable file
             headers = {
                 "Content-Disposition": f'attachment; filename="{cid}.car"',
                 "Content-Type": "application/vnd.ipld.car",
             }
-            
+
             return Response(content=data, headers=headers)
-            
+
         except HTTPException:
             raise
         except Exception as e:

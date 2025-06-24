@@ -75,7 +75,7 @@ def create_tool_registry():
                 "required": ["cid"]
             }
         },
-        
+
         # MFS (Mutable File System) operations
         {
             "name": "ipfs_files_ls",
@@ -250,7 +250,7 @@ def create_tool_registry():
                 }
             }
         },
-        
+
         # Advanced IPFS features
         {
             "name": "ipfs_pubsub_publish",
@@ -322,7 +322,7 @@ def create_tool_registry():
                 "required": ["cid"]
             }
         },
-        
+
         # Multi-backend tools
         {
             "name": "fs_journal_get_history",
@@ -400,7 +400,7 @@ def create_tool_registry():
                 "required": ["ctx"]
             }
         },
-        
+
         # Storage backend tools
         {
             "name": "init_huggingface_backend",
@@ -527,7 +527,7 @@ def create_tool_registry():
                 "required": ["ctx"]
             }
         },
-        
+
         # Multi-backend management tools
         {
             "name": "multi_backend_map",
@@ -635,18 +635,18 @@ def create_tool_registry():
             }
         }
     ]
-    
+
     return tools
 
 def register_tools():
     """Register tools with the MCP server by writing them to a file"""
     try:
         tools = create_tool_registry()
-        
+
         # Write tools to a file that will be loaded by the MCP server
         with open("mcp_registered_tools.json", "w") as f:
             json.dump(tools, f, indent=2)
-            
+
         logger.info(f"✅ Successfully registered {len(tools)} tools with MCP server")
         return True
     except Exception as e:

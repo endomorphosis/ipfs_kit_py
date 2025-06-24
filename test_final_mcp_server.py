@@ -26,7 +26,7 @@ def check_server_health():
     try:
         response = requests.get(f"{SERVER_URL}/health")
         response.raise_for_status()
-        
+
         logger.info(f"Server is healthy: {response.json()}")
         return True
     except Exception as e:
@@ -38,10 +38,10 @@ def get_available_tools():
     try:
         response = requests.post(f"{SERVER_URL}/initialize")
         response.raise_for_status()
-        
+
         data = response.json()
         tools = data.get("capabilities", {}).get("tools", [])
-        
+
         logger.info(f"Available tools: {tools}")
         return tools
     except Exception as e:
@@ -57,17 +57,17 @@ def test_jsonrpc_endpoint():
             "params": {},
             "id": 1
         }
-        
+
         response = requests.post(
             f"{SERVER_URL}/jsonrpc",
             json=payload,
             headers={"Content-Type": "application/json"}
         )
         response.raise_for_status()
-        
+
         result = response.json()
         logger.info(f"JSON-RPC ping result: {result}")
-        
+
         return True
     except Exception as e:
         logger.error(f"JSON-RPC test failed: {e}")
@@ -76,26 +76,26 @@ def test_jsonrpc_endpoint():
 def main():
     """Main entry point."""
     logger.info("Starting tests for final MCP server...")
-    
+
     # Check server health
     if not check_server_health():
         logger.error("Server health check failed. Is the server running?")
         return 1
-    
+
     # Get available tools
     tools = get_available_tools()
     if not tools:
         logger.error("No tools found. Server configuration may be incomplete.")
         return 1
-    
+
     # Test JSON-RPC endpoint
     if not test_jsonrpc_endpoint():
         logger.warning("JSON-RPC endpoint test failed. Some functionality may be limited.")
-    
+
     # Output summary
     logger.info(f"Tests completed. Found {len(tools)} tools.")
     logger.info("Server appears to be functioning correctly.")
-    
+
     return 0
 
 if __name__ == "__main__":

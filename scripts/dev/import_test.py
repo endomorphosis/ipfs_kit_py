@@ -16,11 +16,11 @@ def test_imports():
         logger.info("Importing high_level_api")
         from ipfs_kit_py import high_level_api
         logger.info("high_level_api imported successfully")
-        
+
         logger.info("Importing IPFSSimpleAPI")
         from ipfs_kit_py.high_level_api import IPFSSimpleAPI
         logger.info("IPFSSimpleAPI imported successfully")
-        
+
         logger.info("All imports successful")
         return True
     except Exception as e:

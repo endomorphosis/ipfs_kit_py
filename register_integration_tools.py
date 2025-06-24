@@ -37,21 +37,21 @@ def register_tools():
         # Import FS Journal integration
         from fs_journal_tools import register_fs_journal_tools, create_journal_and_bridge
         from ipfs_mcp_fs_integration import register_all_tools, init_integration
-        
+
         # Check if server is running
         if not check_server_health():
             logger.error("Server is not running or not healthy")
             return False
-        
+
         # Initialize FS Journal and IPFS-FS Bridge
         logger.info("Initializing FS Journal and IPFS-FS Bridge...")
         init_result = init_integration()
         if not init_result.get("success", False):
             logger.error(f"Failed to initialize: {init_result.get('error', 'Unknown error')}")
             return False
-        
+
         logger.info("Registering tools directly through API calls...")
-        
+
         # Define the tools to register
         tools_to_register = [
             {
@@ -103,7 +103,7 @@ def register_tools():
                 }
             }
         ]
-        
+
         # Register via API
         for tool in tools_to_register:
             try:
@@ -113,9 +113,9 @@ def register_tools():
                 logger.info(f"Tool registration for {tool['name']} simulated")
             except Exception as e:
                 logger.error(f"Failed to register tool {tool['name']}: {e}")
-        
+
         logger.info("✅ Successfully registered integration tools")
-        
+
         return True
     except ImportError as e:
         logger.error(f"Failed to import required modules: {e}")
@@ -128,7 +128,7 @@ def main():
     """Main function to run the tool registration"""
     logger.info("Starting integration tool registration...")
     success = register_tools()
-    
+
     if success:
         logger.info("✅ Tool registration completed successfully")
         return 0

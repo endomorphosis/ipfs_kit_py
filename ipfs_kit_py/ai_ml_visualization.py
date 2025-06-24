@@ -691,10 +691,10 @@ class AIMLVisualization:
                 plt.xticks(rotation=45, ha="right")
 
             ax.set_title("Dataset Loading Performance")
-            
+
             # Add padding to the figure before calling tight_layout to avoid warnings
             fig.subplots_adjust(top=0.85, bottom=0.15)
-            
+
             # We'll wrap tight_layout in a try/except to avoid warnings
             try:
                 with warnings.catch_warnings():

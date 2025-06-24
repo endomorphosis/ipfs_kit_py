@@ -3,7 +3,7 @@
 import unittest
 
 class TestMinimalWebRTC(unittest.TestCase):
-    
+
     def test_webrtc_import(self):
         """Test that we can import the WebRTC flag."""
         try:

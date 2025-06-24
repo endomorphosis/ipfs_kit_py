@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 def initialize_router_with_backends() -> OptimizedRouter:
     """Initialize a router and register some backends."""
     router = OptimizedRouter()
-    
+
     # Register IPFS backend
     router.register_backend(
         backend_id="ipfs-backend",
@@ -63,7 +63,7 @@ def initialize_router_with_backends() -> OptimizedRouter:
             "supported_compliance": [ComplianceType.PUBLIC]
         }
     )
-    
+
     # Register S3 backend
     router.register_backend(
         backend_id="s3-backend",
@@ -92,7 +92,7 @@ def initialize_router_with_backends() -> OptimizedRouter:
             ]
         }
     )
-    
+
     # Register Filecoin backend
     router.register_backend(
         backend_id="filecoin-backend",
@@ -119,13 +119,13 @@ def initialize_router_with_backends() -> OptimizedRouter:
             ]
         }
     )
-    
+
     return router
 
 
 def create_routing_policies(router: OptimizedRouter) -> None:
     """Create various routing policies for different use cases."""
-    
+
     # Create a cost-optimized policy for archive data
     cost_policy = RoutingPolicy(
         id="cost-optimized",
@@ -149,7 +149,7 @@ def create_routing_policies(router: OptimizedRouter) -> None:
         }
     )
     router.add_policy(cost_policy)
-    
+
     # Create a performance-optimized policy for frequently accessed data
     performance_policy = RoutingPolicy(
         id="performance-optimized",
@@ -175,7 +175,7 @@ def create_routing_policies(router: OptimizedRouter) -> None:
         }
     )
     router.add_policy(performance_policy)
-    
+
     # Create a compliance-focused policy for sensitive data
     compliance_policy = RoutingPolicy(
         id="compliance-optimized",
@@ -198,7 +198,7 @@ def create_routing_policies(router: OptimizedRouter) -> None:
         }
     )
     router.add_policy(compliance_policy)
-    
+
     # Create a redundancy-focused policy for critical data
     redundancy_policy = RoutingPolicy(
         id="redundancy-optimized",
@@ -210,14 +210,14 @@ def create_routing_policies(router: OptimizedRouter) -> None:
         min_availability_percentage=99.999,
     )
     router.add_policy(redundancy_policy)
-    
+
     # Set the default policy
     router.set_default_policy("performance-optimized")
 
 
 def make_routing_decisions(router: OptimizedRouter) -> None:
     """Demonstrate making routing decisions for different content types."""
-    
+
     # Small image file - should go to a fast backend
     small_image_metadata = {
         "mime_type": "image/jpeg",
@@ -228,7 +228,7 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
         "access_frequency": "high",
         "compliance_requirements": []
     }
-    
+
     try:
         image_decision = router.get_route_for_content(
             content_id="image1.jpg",
@@ -236,12 +236,12 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
             operation="store",
             policy_id="performance-optimized"
         )
-        
+
         logger.info(f"Routing decision for image: {image_decision.primary_backend_id}")
         logger.info(f"Decision factors: {image_decision.decision_factors}")
     except Exception as e:
         logger.error(f"Error routing image: {e}")
-    
+
     # Large backup file - should go to a cost-effective backend
     large_backup_metadata = {
         "mime_type": "application/zip",
@@ -252,7 +252,7 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
         "access_frequency": "low",
         "compliance_requirements": []
     }
-    
+
     try:
         backup_decision = router.get_route_for_content(
             content_id="system_backup.zip",
@@ -260,12 +260,12 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
             operation="store",
             policy_id="cost-optimized"
         )
-        
+
         logger.info(f"Routing decision for backup: {backup_decision.primary_backend_id}")
         logger.info(f"Decision factors: {backup_decision.decision_factors}")
     except Exception as e:
         logger.error(f"Error routing backup: {e}")
-    
+
     # Financial data - should go to a compliant backend
     financial_data_metadata = {
         "mime_type": "application/json",
@@ -276,7 +276,7 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
         "access_frequency": "medium",
         "compliance_requirements": ["sox", "hipaa"]
     }
-    
+
     try:
         financial_decision = router.get_route_for_content(
             content_id="financial_data.json",
@@ -284,7 +284,7 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
             operation="store",
             policy_id="compliance-optimized"
         )
-        
+
         logger.info(f"Routing decision for financial data: {financial_decision.primary_backend_id}")
         logger.info(f"Decision factors: {financial_decision.decision_factors}")
     except Exception as e:
@@ -293,17 +293,17 @@ def make_routing_decisions(router: OptimizedRouter) -> None:
 
 def analyze_backend_performance(router: OptimizedRouter) -> None:
     """Analyze backend performance and connectivity."""
-    
+
     # Analyze connectivity to backends
     for backend_id in ["ipfs-backend", "s3-backend", "filecoin-backend"]:
         connectivity = router.analyze_backend_connectivity(backend_id)
         logger.info(f"Connectivity to {backend_id}: {connectivity}")
-    
+
     # Get performance rankings
     metrics_collector = router._metrics_collector
     performance_ranking = metrics_collector.get_backend_performance_ranking()
     logger.info(f"Performance ranking: {performance_ranking}")
-    
+
     # Get cost rankings
     cost_ranking = metrics_collector.get_backend_cost_ranking()
     logger.info(f"Cost ranking: {cost_ranking}")
@@ -312,19 +312,19 @@ def analyze_backend_performance(router: OptimizedRouter) -> None:
 def main() -> None:
     """Main function to demonstrate the Optimized Router."""
     logger.info("Initializing Optimized Router example...")
-    
+
     # Initialize router with backends
     router = initialize_router_with_backends()
-    
+
     # Create routing policies
     create_routing_policies(router)
-    
+
     # Make routing decisions
     make_routing_decisions(router)
-    
+
     # Analyze backend performance
     analyze_backend_performance(router)
-    
+
     logger.info("Optimized Router example completed.")
 
 

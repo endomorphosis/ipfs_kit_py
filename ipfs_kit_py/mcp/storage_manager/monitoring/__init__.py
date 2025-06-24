@@ -6,7 +6,7 @@ addressing the performance monitoring requirements in the MCP roadmap.
 """
 
 from .performance_monitor import (
-    IPFSPerformanceMonitor, 
+    IPFSPerformanceMonitor,
     PerformanceTracker,
     OperationType
 )

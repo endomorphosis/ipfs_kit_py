@@ -35,17 +35,17 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
         """Set up test environment."""
         # Create a mock IPFS model
         self.mock_ipfs_model = MagicMock()
-        
+
         # Create a Distributed controller with the mock model
         self.controller = DistributedController(self.mock_ipfs_model)
-        
+
         # Create a FastAPI app and test client
         self.app = FastAPI()
         router = APIRouter()
         self.controller.register_routes(router)
         self.app.include_router(router)
         self.client = TestClient(self.app)
-        
+
         # Print all registered routes for debugging
         print("\nRegistered routes:")
         for route in self.app.routes:
@@ -72,10 +72,10 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
             "uptime_seconds": 3600,
             "timestamp": 1712345678
         }
-        
+
         # Make API request
         response = self.client.get("/distributed/status")
-        
+
         # Verify response
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -87,14 +87,14 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
         self.assertEqual(data["cluster_id"], "Cluster456")
         self.assertEqual(data["peers_count"], 3)
         self.assertEqual(data["active_tasks"], 5)
-        
+
         # Verify model method was called correctly
         self.mock_ipfs_model.execute_command.assert_called_with(
             command="get_distributed_status",
             args=[],
             params={}
         )
-    
+
     def test_get_peers(self):
         """Test the peers endpoint."""
         # Set up mock return value for get_distributed_peers
@@ -133,10 +133,10 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
             "cluster_id": "Cluster456",
             "timestamp": 1712345680
         }
-        
+
         # Make API request
         response = self.client.get("/distributed/peers")
-        
+
         # Verify response
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -145,21 +145,21 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
         self.assertEqual(len(data["peers"]), 2)
         self.assertEqual(data["count"], 2)
         self.assertEqual(data["cluster_id"], "Cluster456")
-        
+
         # Verify details of first peer
         peer = data["peers"][0]
         self.assertEqual(peer["id"], "Peer1")
         self.assertEqual(peer["role"], "worker")
         self.assertEqual(peer["status"], "online")
         self.assertEqual(peer["resources"]["cpu_cores"], 4)
-        
+
         # Verify model method was called correctly
         self.mock_ipfs_model.execute_command.assert_called_with(
             command="get_distributed_peers",
             args=[],
             params={}
         )
-    
+
     def test_get_peers_with_status_filter(self):
         """Test the peers endpoint with status filter."""
         # Set up mock return value
@@ -179,23 +179,23 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
             "cluster_id": "Cluster456",
             "timestamp": 1712345680
         }
-        
+
         # Make API request with status filter
         response = self.client.get("/distributed/peers?status=online")
-        
+
         # Verify response
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue(data["success"])
         self.assertEqual(len(data["peers"]), 1)
-        
+
         # Verify model method was called with correct parameters
         self.mock_ipfs_model.execute_command.assert_called_with(
             command="get_distributed_peers",
             args=[],
             params={"status": "online"}
         )
-    
+
     def test_ping_peer(self):
         """Test the ping peer endpoint."""
         # Set up mock return value for ping_distributed_peer
@@ -208,10 +208,10 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
             "hops": 1,
             "timestamp": 1712345680
         }
-        
+
         # Make API request
         response = self.client.get("/distributed/ping/Peer1")
-        
+
         # Verify response
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -221,22 +221,22 @@ class TestMCPDistributedEndpoints(unittest.TestCase):
         self.assertTrue(data["reachable"])
         self.assertEqual(data["latency_ms"], 25.5)
         self.assertEqual(data["hops"], 1)
-        
+
         # Verify model method was called correctly
         self.mock_ipfs_model.execute_command.assert_called_with(
             command="ping_distributed_peer",
             args=["Peer1"],
             params={}
         )
-    
+
     def test_error_handling(self):
         """Test error handling in Distributed controller."""
         # Set up mock to raise an exception
         self.mock_ipfs_model.execute_command.side_effect = Exception("Test error")
-        
+
         # Make API request
         response = self.client.get("/distributed/status")
-        
+
         # Verify response is an error response
         self.assertEqual(response.status_code, 404)
         data = response.json()

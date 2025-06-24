@@ -32,15 +32,15 @@ def main():
         "Please use daemon_manager.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     print("Starting IPFS daemon using the new daemon_manager module...")
-    
+
     # Check if daemon_manager.py exists
     daemon_manager_path = os.path.join(os.path.dirname(__file__), "daemon_manager.py")
     if not os.path.exists(daemon_manager_path):
         print("ERROR: daemon_manager.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Build command
     cmd = [
         sys.executable,
@@ -48,12 +48,12 @@ def main():
         "--daemons", "ipfs",
         "--start"
     ]
-    
+
     # Run daemon_manager
     try:
         print(f"Running: {' '.join(cmd)}")
         result = subprocess.run(cmd)
-        
+
         if result.returncode == 0:
             print("\n----------------------------------------------------------")
             print("IPFS daemon is running successfully!")
@@ -61,7 +61,7 @@ def main():
             print("To check daemon status: python daemon_manager.py --status")
             print("To stop the daemon: python daemon_manager.py --daemons ipfs --stop")
             print("----------------------------------------------------------\n")
-            
+
             return 0
         else:
             print("Failed to start IPFS daemon. See log output for details.")

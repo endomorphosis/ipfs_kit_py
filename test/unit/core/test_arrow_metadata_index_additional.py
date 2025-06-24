@@ -280,7 +280,7 @@ class TestArrowMetadataIndexAdditional(unittest.TestCase):
                 # Just check it's a table-like object with basic attributes
                 self.assertTrue(hasattr(result, 'column_names'), "Result should have column_names attribute")
             self.assertEqual(result.num_rows, 0)
-            
+
             # Verify schema matches the index schema
             self.assertEqual(result.schema, self.index.schema)
 

@@ -138,37 +138,37 @@ def extend_ipfs_kit_class(ipfs_kit_cls):
                 try:
                     # Try direct import first
                     from ..libp2p_peer import IPFSLibp2pPeer, HAS_LIBP2P as PEER_HAS_LIBP2P
-                    
+
                     if not PEER_HAS_LIBP2P:
                         logger = getattr(self, "logger", logging.getLogger(__name__))
                         logger.warning("Cannot create libp2p peer: dependencies not available")
                         return fs
-                        
+
                     self.libp2p_peer = IPFSLibp2pPeer(role=getattr(self, "role", "leecher"))
                     logger = getattr(self, "logger", logging.getLogger(__name__))
                     logger.debug(f"Created libp2p peer with role {getattr(self, 'role', 'leecher')}")
-                    
+
                 except ImportError:
                     # If direct import fails, try importlib for more controlled import
                     logger = getattr(self, "logger", logging.getLogger(__name__))
                     logger.debug("Direct import failed, trying importlib")
-                    
+
                     spec = importlib.util.find_spec("ipfs_kit_py.libp2p_peer")
                     if spec is None:
                         logger.warning("libp2p_peer module not found")
                         return fs
-                        
+
                     libp2p_peer_module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(libp2p_peer_module)
-                    
+
                     if not getattr(libp2p_peer_module, "HAS_LIBP2P", False):
                         logger.warning("Cannot create libp2p peer: dependencies not available")
                         return fs
-                        
+
                     IPFSLibp2pPeer = getattr(libp2p_peer_module, "IPFSLibp2pPeer")
                     self.libp2p_peer = IPFSLibp2pPeer(role=getattr(self, "role", "leecher"))
                     logger.debug(f"Created libp2p peer with role {getattr(self, 'role', 'leecher')} using importlib")
-                    
+
             except Exception as e:
                 logger = getattr(self, "logger", logging.getLogger(__name__))
                 logger.warning(f"Failed to create libp2p peer: {str(e)}")
@@ -179,10 +179,10 @@ def extend_ipfs_kit_class(ipfs_kit_cls):
             # Get the register_libp2p_with_ipfs_kit function
             # We avoid direct imports to prevent circular dependencies
             from . import register_libp2p_with_ipfs_kit as register_func
-            
+
             # Register the peer with the kit
             result = register_func(self, self.libp2p_peer, extend_cache=True)
-            
+
             logger = getattr(self, "logger", logging.getLogger(__name__))
             if result:
                 logger.info("Successfully registered libp2p integration with IPFSKit")
@@ -214,16 +214,16 @@ def apply_ipfs_kit_integration(ipfs_kit_class=None):
 
     Returns:
         Type: The extended IPFSKit class if successful, original class otherwise
-        
+
     Example:
         from ipfs_kit_py.ipfs_kit import IPFSKit
         from ipfs_kit_py.libp2p import apply_ipfs_kit_integration
-        
+
         # Extend the class
         enhanced_kit_class = apply_ipfs_kit_integration(IPFSKit)
     """
     logger = logging.getLogger(__name__)
-    
+
     # Check if libp2p is available
     if not HAS_LIBP2P:
         logger.warning("Cannot apply IPFSKit integration: libp2p is not available")
@@ -234,7 +234,7 @@ def apply_ipfs_kit_integration(ipfs_kit_class=None):
         if ipfs_kit_class is None:
             logger.info("No IPFSKit class provided, returning None")
             return None
-            
+
         # Validate that we have a class and not an instance
         if not isinstance(ipfs_kit_class, type):
             logger.warning(f"Expected a class but got {type(ipfs_kit_class).__name__} instance, returning as is")
@@ -247,10 +247,10 @@ def apply_ipfs_kit_integration(ipfs_kit_class=None):
             # Add a basic implementation of get_filesystem
             def basic_get_filesystem(self, **kwargs):
                 """Basic implementation of get_filesystem for testing.
-                
+
                 This is a fallback implementation when the original class
                 doesn't have a get_filesystem method.
-                
+
                 Returns:
                     None: This implementation always returns None
                 """
@@ -268,10 +268,10 @@ def apply_ipfs_kit_integration(ipfs_kit_class=None):
 
         # Extend the class
         extended_class = extend_ipfs_kit_class(ipfs_kit_class)
-        
+
         # Mark the class as extended
         setattr(extended_class, "_libp2p_integrated", True)
-        
+
         logger.info(f"Successfully applied libp2p integration to {extended_class.__name__}")
         return extended_class
 

@@ -78,7 +78,7 @@ try:
     import json
     # Import JSON-RPC libraries
     # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.dispatcher import Dispatcher
-    # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.exceptions import JSONRPCDispatchException 
+    # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.exceptions import JSONRPCDispatchException
     imports_succeeded = True
     logger.info("Successfully imported MCP and Starlette modules.")
 except ImportError as e:
@@ -148,7 +148,7 @@ logger.info("✅ Tool registration complete")
 
 
 
-# Server initialization state 
+# Server initialization state
 server_initialized = False
 initialization_lock = asyncio.Lock()
 initialization_event = asyncio.Event()
@@ -212,7 +212,7 @@ def run_pytest(test_paths=None):
         cmd = ["pytest", "-xvs"]
         if test_paths:
             cmd.extend(test_paths)
-        
+
         result = subprocess.run(
             cmd,
             cwd=os.getcwd(),
@@ -230,7 +230,7 @@ async def start_other_instance(port):
     cmd = [sys.executable, script_path]
     env = os.environ.copy()
     env["PORT"] = str(port)
-    
+
     try:
         process = subprocess.Popen(
             cmd,
@@ -272,32 +272,32 @@ async def switch_active_version(new_color):
 async def perform_blue_green_deployment(modified_file=None):
     """
     Perform a blue/green deployment.
-    
+
     1. Start the inactive instance
     2. Run health checks on the new instance
     3. If healthy, switch the active version
     4. Shutdown the old instance
     """
     global deployment_in_progress, deployment_status
-    
+
     if deployment_in_progress:
         logger.warning("Deployment already in progress, cannot start another")
         return {"success": False, "message": "Deployment already in progress"}
-    
+
     deployment_in_progress = True
     deployment_status = {
         "status": "starting",
         "details": f"Starting deployment of {modified_file if modified_file else 'server'}",
         "start_time": time.time()
     }
-    
+
     # Determine the target color and port
     target_color = "green" if is_blue else "blue"
     target_port = DEPLOYMENT_CONFIG["green_port"] if is_blue else DEPLOYMENT_CONFIG["blue_port"]
-    
+
     logger.info("Starting blue/green deployment from %s to %s", server_color, target_color)
     deployment_status["status"] = "testing"
-    
+
     try:
         # Run tests before starting the new instance
         if modified_file and modified_file.endswith(".py"):
@@ -311,7 +311,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 logger.error("Syntax check failed for %s: %s", modified_file, syntax_output)
                 deployment_in_progress = False
                 return {"success": False, "message": f"Syntax check failed: {syntax_output}"}
-            
+
             # Run specific test suite if defined
             if DEPLOYMENT_CONFIG["test_suite"]:
                 pytest_ok, pytest_output = run_pytest(DEPLOYMENT_CONFIG["test_suite"])
@@ -324,7 +324,7 @@ async def perform_blue_green_deployment(modified_file=None):
                     logger.error("Tests failed for %s", modified_file)
                     deployment_in_progress = False
                     return {"success": False, "message": f"Tests failed: {pytest_output[:500]}..."}
-        
+
         # Start the new instance
         deployment_status["status"] = "starting_instance"
         pid = await start_other_instance(target_port)
@@ -336,7 +336,7 @@ async def perform_blue_green_deployment(modified_file=None):
             }
             deployment_in_progress = False
             return {"success": False, "message": "Failed to start new instance"}
-        
+
         # Wait for the new instance to start and perform health checks
         deployment_status["status"] = "health_checks"
         max_attempts = 10
@@ -354,7 +354,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 deployment_in_progress = False
                 return {"success": False, "message": f"Health checks failed: {health_output}"}
             await asyncio.sleep(DEPLOYMENT_CONFIG["health_check_interval"])
-        
+
         # Switch the active version
         deployment_status["status"] = "switching"
         switch_ok = await switch_active_version(target_color)
@@ -366,24 +366,24 @@ async def perform_blue_green_deployment(modified_file=None):
             }
             deployment_in_progress = False
             return {"success": False, "message": "Failed to switch active version"}
-        
+
         # Shutdown this instance
         deployment_status["status"] = "completing"
         logger.info("Deployment completed successfully. Shutting down %s instance.", server_color)
         asyncio.create_task(delayed_shutdown(os.getpid(), 3))
-        
+
         deployment_status = {
             "status": "succeeded",
             "details": f"Deployment completed successfully. Switched from {server_color} to {target_color}.",
             "start_time": deployment_status["start_time"],
             "end_time": time.time()
         }
-        
+
         return {
-            "success": True, 
+            "success": True,
             "message": f"Deployment completed successfully. Switched from {server_color} to {target_color}."
         }
-        
+
     except Exception as e:
         logger.error("Deployment error: %s", e)
         deployment_status = {
@@ -397,47 +397,47 @@ async def perform_blue_green_deployment(modified_file=None):
 # --- MCP Tools (Define only if imports succeeded) ---
 if imports_succeeded:
     @server.tool(name="list_files", description="Lists files and directories with detailed information")
-    async def list_files(ctx: Context, directory: str = ".", recursive: bool = False, 
+    async def list_files(ctx: Context, directory: str = ".", recursive: bool = False,
                         include_hidden: bool = False, filter_pattern: str = None) -> Dict[str, Any]:
         """
         Lists files and directories with detailed information.
-        
+
         Args:
             ctx: The MCP context
             directory: Relative path to the directory to list
             recursive: If True, list files recursively in subdirectories
             include_hidden: If True, include hidden files (starting with .)
             filter_pattern: Optional glob pattern to filter files (e.g., "*.py")
-            
+
         Returns:
             A dictionary containing file listing information and statistics
         """
         logger.info("Received request to list files in %s (recursive=%s, include_hidden=%s, filter_pattern=%s)", directory, recursive, include_hidden, filter_pattern)
         await ctx.info(f"Listing files in {directory}")
-        
+
         project_root = os.getcwd()
         absolute_dir = os.path.abspath(os.path.join(project_root, directory))
-        
+
         # Security check to prevent directory traversal
         if not absolute_dir.startswith(project_root):
             error_msg = f"Error: Directory path '{directory}' is outside the allowed project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         # Check if directory exists
         if not os.path.exists(absolute_dir):
             error_msg = f"Error: Directory '{directory}' does not exist."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not os.path.isdir(absolute_dir):
             error_msg = f"Error: Path '{directory}' is not a directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-        
+
         try:
             result = {
                 "base_directory": directory,
@@ -449,7 +449,7 @@ if imports_succeeded:
                     "extensions": {}
                 }
             }
-            
+
             # Function to process a file or directory
             def process_item(path, rel_path):
                 is_directory = os.path.isdir(path)
@@ -458,16 +458,16 @@ if imports_succeeded:
                     "path": rel_path,
                     "is_directory": is_directory,
                 }
-                
+
                 # Skip hidden files if not include_hidden
                 if not include_hidden and os.path.basename(path).startswith('.'):
                     return None
-                    
+
                 # Apply filter pattern if specified
                 if filter_pattern and not is_directory:
                     if not fnmatch.fnmatch(os.path.basename(path), filter_pattern):
                         return None
-                
+
                 if is_directory:
                     result["statistics"]["total_directories"] += 1
                     item["item_count"] = len(os.listdir(path))
@@ -476,11 +476,11 @@ if imports_succeeded:
                     size = os.path.getsize(path)
                     result["statistics"]["total_size_bytes"] += size
                     item["size_bytes"] = size
-                    
+
                     # Add file modification time
                     mtime = os.path.getmtime(path)
                     item["modified_time"] = datetime.fromtimestamp(mtime).isoformat()
-                    
+
                     # Track extension statistics
                     _, ext = os.path.splitext(path)
                     if ext:
@@ -492,7 +492,7 @@ if imports_succeeded:
                             }
                         result["statistics"]["extensions"][ext]["count"] += 1
                         result["statistics"]["extensions"][ext]["total_size"] += size
-                    
+
                     # Try to detect if binary file
                     try:
                         if size > 0:
@@ -507,21 +507,21 @@ if imports_succeeded:
                     except Exception as e:
                         logger.warning("Error checking if file is binary: %s", str(e))
                         item["is_binary"] = None
-                
+
                 return item
-                
+
             # Walk directory and collect information
             if recursive:
                 for root, dirs, files in os.walk(absolute_dir):
                     # Calculate relative path from project root
                     rel_root = os.path.relpath(root, project_root)
-                    
+
                     # Process directories
                     for d in dirs:
                         item = process_item(os.path.join(root, d), os.path.join(rel_root, d))
                         if item:
                             result["items"].append(item)
-                    
+
                     # Process files
                     for f in files:
                         item = process_item(os.path.join(root, f), os.path.join(rel_root, f))
@@ -535,10 +535,10 @@ if imports_succeeded:
                     item = process_item(item_path, rel_path)
                     if item:
                         result["items"].append(item)
-            
+
             # Sort items alphabetically, directories first
             result["items"].sort(key=lambda x: (not x["is_directory"], x["name"].lower()))
-            
+
             # Calculate human-readable size
             total_size = result["statistics"]["total_size_bytes"]
             size_units = ["B", "KB", "MB", "GB", "TB"]
@@ -546,9 +546,9 @@ if imports_succeeded:
             while total_size > 1024 and size_index < len(size_units) - 1:
                 total_size /= 1024
                 size_index += 1
-                
+
             result["statistics"]["human_readable_size"] = f"{total_size:.2f} {size_units[size_index]}"
-            
+
             # Format the extensions in a more readable way
             for ext in result["statistics"]["extensions"]:
                 ext_data = result["statistics"]["extensions"][ext]
@@ -558,11 +558,11 @@ if imports_succeeded:
                     ext_size /= 1024
                     ext_size_index += 1
                 ext_data["human_readable_size"] = f"{ext_size:.2f} {size_units[ext_size_index]}"
-            
+
             await ctx.info(f"Found {result['statistics']['total_files']} files and {result['statistics']['total_directories']} directories in {directory}")
             logger.info("Successfully listed files in %s with %s files", directory, result['statistics']['total_files'])
             return result
-            
+
         except Exception as e:
             error_msg = f"Error listing files in '{directory}': {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -573,33 +573,33 @@ if imports_succeeded:
     async def file_exists(ctx: Context, path: str) -> Dict[str, Any]:
         """
         Checks if a file or directory exists.
-        
+
         Args:
             ctx: The MCP context
             path: Path to check (relative to project root)
-            
+
         Returns:
             A dictionary containing existence information
         """
         project_root = os.getcwd()
         abs_path = os.path.abspath(os.path.join(project_root, path))
-        
+
         logger.info("Received request to check if path %s exists", path)
         await ctx.info(f"Checking if {path} exists")
-        
+
         # Security check to prevent directory traversal
         if not abs_path.startswith(project_root):
             error_msg = f"Error: Path must be within the project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         try:
             exists = os.path.exists(abs_path)
             is_dir = os.path.isdir(abs_path) if exists else False
             is_file = os.path.isfile(abs_path) if exists else False
             is_symlink = os.path.islink(abs_path) if exists else False
-            
+
             result = {
                 "path": path,
                 "exists": exists,
@@ -607,7 +607,7 @@ if imports_succeeded:
                 "is_file": is_file,
                 "is_symlink": is_symlink
             }
-            
+
             # Add additional information if file exists
             if exists:
                 if is_file:
@@ -615,14 +615,14 @@ if imports_succeeded:
                     result["size_human"] = f"{result['size_bytes'] / 1024:.1f} KB" if result['size_bytes'] < 1024 * 1024 else f"{result['size_bytes'] / (1024 * 1024):.1f} MB"
                 elif is_dir:
                     result["is_empty"] = not bool(os.listdir(abs_path))
-                
+
                 result["modified_time"] = datetime.fromtimestamp(os.path.getmtime(abs_path)).isoformat()
-                
-            await ctx.info(f"Path {path} {'exists' if exists else 'does not exist'}" + 
+
+            await ctx.info(f"Path {path} {'exists' if exists else 'does not exist'}" +
                           (f" (is a {'directory' if is_dir else 'file'})" if exists else ""))
             logger.info("Checked existence for %s: %s", path, exists)
             return result
-            
+
         except Exception as e:
             error_msg = f"Error checking existence of '{path}': {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -633,37 +633,37 @@ if imports_succeeded:
     async def get_file_stats(ctx: Context, path: str) -> Dict[str, Any]:
         """
         Gets detailed statistics about a file or directory.
-        
+
         Args:
             ctx: The MCP context
             path: Path to the file or directory (relative to project root)
-            
+
         Returns:
             A dictionary containing comprehensive file or directory statistics
         """
         project_root = os.getcwd()
         abs_path = os.path.abspath(os.path.join(project_root, path))
-        
+
         logger.info("Received request to get stats for %s", path)
         await ctx.info(f"Getting statistics for {path}")
-        
+
         # Security check to prevent directory traversal
         if not abs_path.startswith(project_root):
             error_msg = f"Error: Path must be within the project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not os.path.exists(abs_path):
             error_msg = f"Error: Path '{path}' does not exist."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         try:
             stats = os.stat(abs_path)
             is_dir = os.path.isdir(abs_path)
-            
+
             result = {
                 "path": path,
                 "absolute_path": abs_path,
@@ -679,7 +679,7 @@ if imports_succeeded:
                 "modify_time": datetime.fromtimestamp(stats.st_mtime).isoformat(),
                 "create_time": datetime.fromtimestamp(stats.st_ctime).isoformat()
             }
-            
+
             # Format size in human-readable form
             size = stats.st_size
             size_units = ["B", "KB", "MB", "GB", "TB"]
@@ -688,12 +688,12 @@ if imports_succeeded:
                 size /= 1024
                 size_index += 1
             result["size_human"] = f"{size:.2f} {size_units[size_index]}"
-            
+
             # Add file extension and type detection for files
             if not is_dir:
                 _, ext = os.path.splitext(abs_path)
                 result["extension"] = ext.lower() if ext else ""
-                
+
                 # Try to detect file type
                 try:
                     import magic
@@ -707,7 +707,7 @@ if imports_succeeded:
                             result["is_binary"] = null_count > 0
                             if null_count > 0:
                                 result["binary_hint"] = "Contains null bytes"
-            
+
             # Add directory-specific information
             if is_dir:
                 contents = os.listdir(abs_path)
@@ -715,11 +715,11 @@ if imports_succeeded:
                 result["file_count"] = len([i for i in contents if os.path.isfile(os.path.join(abs_path, i))])
                 result["dir_count"] = len([i for i in contents if os.path.isdir(os.path.join(abs_path, i))])
                 result["is_empty"] = len(contents) == 0
-                
+
                 # For small directories, include item list
                 if len(contents) <= 100:
                     result["contents"] = contents
-            
+
             # Get owner/group names if possible
             try:
                 import pwd
@@ -734,11 +734,11 @@ if imports_succeeded:
                 # Skip if the UID/GID doesn't exist
                 result["owner"] = str(stats.st_uid)
                 result["group"] = str(stats.st_gid)
-            
+
             await ctx.info(f"Retrieved statistics for {path}")
             logger.info("Successfully got file stats for %s", path)
             return result
-            
+
         except Exception as e:
             error_msg = f"Error getting statistics for '{path}': {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -746,58 +746,58 @@ if imports_succeeded:
             return {"error": error_msg}
 
     @server.tool(name="copy_file", description="Copy a file from one location to another")
-    async def copy_file(ctx: Context, source_path: str, destination_path: str, 
+    async def copy_file(ctx: Context, source_path: str, destination_path: str,
                       overwrite: bool = False) -> Dict[str, Any]:
         """
         Copies a file from source path to destination path.
-        
+
         Args:
             ctx: The MCP context
             source_path: Path to the source file (relative to project root)
             destination_path: Path to the destination file (relative to project root)
             overwrite: If True, overwrite the destination file if it exists
-            
+
         Returns:
             A dictionary containing operation status and information
         """
         project_root = os.getcwd()
         abs_source = os.path.abspath(os.path.join(project_root, source_path))
         abs_destination = os.path.abspath(os.path.join(project_root, destination_path))
-        
+
         logger.info("Received request to copy file from %s to %s (overwrite=%s)", source_path, destination_path, overwrite)
         await ctx.info(f"Copying file from {source_path} to {destination_path}")
-        
+
         # Security check to prevent directory traversal
         if not abs_source.startswith(project_root):
             error_msg = f"Error: Source path must be within the project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not abs_destination.startswith(project_root):
             error_msg = f"Error: Destination path must be within the project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not os.path.exists(abs_source):
             error_msg = f"Error: Source file '{source_path}' does not exist."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not os.path.isfile(abs_source):
             error_msg = f"Error: Source path '{source_path}' is not a file."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if os.path.exists(abs_destination) and not overwrite:
             error_msg = f"Error: Destination file '{destination_path}' already exists and overwrite is False."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         # Create destination directory if it doesn't exist
         dest_dir = os.path.dirname(abs_destination)
         if dest_dir and not os.path.exists(dest_dir):
@@ -808,15 +808,15 @@ if imports_succeeded:
                 error_msg = f"Error creating destination directory: {str(e)}"
                 logger.error(error_msg)
                 return {"error": error_msg}
-                
+
         try:
             # Copy the file
             shutil.copy2(abs_source, abs_destination)
-            
+
             # Get file size and other stats
             file_size = os.path.getsize(abs_destination)
             file_stats = os.stat(abs_destination)
-            
+
             result = {
                 "success": True,
                 "source_path": source_path,
@@ -826,11 +826,11 @@ if imports_succeeded:
                 "created": datetime.fromtimestamp(file_stats.st_ctime).isoformat(),
                 "overwritten": os.path.exists(abs_destination) and overwrite
             }
-            
+
             logger.info("Successfully copied file from %s to %s", source_path, destination_path)
             await ctx.info(f"Successfully copied file ({result['size_human']})")
             return result
-            
+
         except Exception as e:
             error_msg = f"Error copying file from '{source_path}' to '{destination_path}': {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -838,52 +838,52 @@ if imports_succeeded:
             return {"error": error_msg}
 
     @server.tool(name="move_file", description="Move a file from one location to another")
-    async def move_file(ctx: Context, source_path: str, destination_path: str, 
+    async def move_file(ctx: Context, source_path: str, destination_path: str,
                       overwrite: bool = False) -> Dict[str, Any]:
         """
         Moves a file from source path to destination path.
-        
+
         Args:
             ctx: The MCP context
             source_path: Path to the source file (relative to project root)
             destination_path: Path to the destination file (relative to project root)
             overwrite: If True, overwrite the destination file if it exists
-            
+
         Returns:
             A dictionary containing operation status and information
         """
         project_root = os.getcwd()
         abs_source = os.path.abspath(os.path.join(project_root, source_path))
         abs_destination = os.path.abspath(os.path.join(project_root, destination_path))
-        
+
         logger.info("Received request to move file from %s to %s (overwrite=%s)", source_path, destination_path, overwrite)
         await ctx.info(f"Moving file from {source_path} to {destination_path}")
-        
+
         # Security check to prevent directory traversal
         if not abs_source.startswith(project_root):
             error_msg = f"Error: Source path must be within the project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not abs_destination.startswith(project_root):
             error_msg = f"Error: Destination path must be within the project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if not os.path.exists(abs_source):
             error_msg = f"Error: Source file '{source_path}' does not exist."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         if os.path.exists(abs_destination) and not overwrite:
             error_msg = f"Error: Destination file '{destination_path}' already exists and overwrite is False."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
-            
+
         # Create destination directory if it doesn't exist
         dest_dir = os.path.dirname(abs_destination)
         if dest_dir and not os.path.exists(dest_dir):
@@ -895,7 +895,7 @@ if imports_succeeded:
                 logger.error(error_msg)
                 await ctx.error(error_msg)
                 return {"error": error_msg}
-                
+
         try:
             # Create backup if destination exists and overwrite is True
             backup_path = None
@@ -903,19 +903,19 @@ if imports_succeeded:
                 backup_path = abs_destination + ".bak"
                 shutil.copy2(abs_destination, backup_path)
                 logger.info("Created backup of destination file: %s", backup_path)
-                
+
             # Move the file
             shutil.move(abs_source, abs_destination)
-            
+
             # Get file size and other stats
             file_size = os.path.getsize(abs_destination)
             file_stats = os.stat(abs_destination)
-            
+
             # Remove backup if everything was successful
             if backup_path and os.path.exists(backup_path):
                 os.remove(backup_path)
                 logger.info("Removed backup file: %s", backup_path)
-            
+
             result = {
                 "success": True,
                 "source_path": source_path,
@@ -926,11 +926,11 @@ if imports_succeeded:
                 "overwritten": os.path.exists(abs_destination) and overwrite,
                 "source_removed": not os.path.exists(abs_source)
             }
-            
+
             logger.info("Successfully moved file from %s to %s", source_path, destination_path)
             await ctx.info(f"Successfully moved file ({result['size_human']})")
             return result
-            
+
         except Exception as e:
             # Restore from backup if an error occurred and backup exists
             if backup_path and os.path.exists(backup_path):
@@ -940,7 +940,7 @@ if imports_succeeded:
                     logger.info("Restored destination from backup after error")
                 except:
                     logger.error("Failed to restore from backup after error")
-                    
+
             error_msg = f"Error moving file from '{source_path}' to '{destination_path}': {str(e)}"
             logger.error(error_msg, exc_info=True)
             await ctx.error(error_msg)
@@ -1703,17 +1703,17 @@ async def handle_jsonrpc(request):
             'id': req_id if 'req_id' in locals() else None
         })
 
-    
+
 
     PORT = args.port
-    
+
     # Write PID file
     with open(args.pid_file, 'w') as f:
         f.write(str(os.getpid()))
-    
+
     # Initialize services
     app = server.sse_app()
-    
+
     # Add CORS middleware for VS Code integration
     app.add_middleware(CORSMiddleware,
         allow_origins=["*"],
@@ -1722,28 +1722,28 @@ async def handle_jsonrpc(request):
         allow_headers=["*"],
 )
 # Removed unmatched parenthesis
-    
+
     # Setup routes - Core API endpoints
     app.routes.append(Route("/", endpoint=homepage))
     app.routes.append(Route("/api/v0/health", endpoint=health_check))
     app.routes.append(Route("/api/v0/initialize", endpoint=vs_code_initialize, methods=["POST"]))
     app.routes.append(Route("/health", endpoint=health_endpoint))
     app.routes.append(Route("/initialize", endpoint=initialize_endpoint, methods=["POST"]))
-    
+
     # JSON-RPC endpoints
     app.routes.append(Route("/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]))
     app.routes.append(Route("/api/v0/jsonrpc", endpoint=handle_jsonrpc, methods=["POST"]))
-    
+
     # IPFS API endpoints
     app.routes.append(Route("/api/v0/ipfs/add", endpoint=ipfs_add, methods=["POST"]))
     app.routes.append(Route("/api/v0/ipfs/cat", endpoint=ipfs_cat))
     app.routes.append(Route("/api/v0/ipfs/pin/add", endpoint=ipfs_pin_add))
-    
+
     # Update VS Code settings if requested
     if args.update_vscode:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(update_vscode_settings())
-    
+
     # Register startup and shutdown handlers
     @app.on_event("startup")
     async def on_startup():
@@ -1767,7 +1767,7 @@ async def handle_jsonrpc(request):
         except OSError:
             pass
         logger.info("MCP server services stopped")
-    
+
     logger.info("Starting MCP server on %s:%s", args.host, args.port)
     uvicorn.run(
         app,

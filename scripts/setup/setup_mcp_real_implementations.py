@@ -31,7 +31,7 @@ def check_script_executable(script_path):
 def stop_existing_processes():
     """Stop any existing MCP server and mock API processes"""
     logger.info("Stopping existing processes...")
-    
+
     # Process names to check
     processes = [
         "enhanced_mcp_server.py",
@@ -39,7 +39,7 @@ def stop_existing_processes():
         "storacha_mock_server.py",
         "lassie_mock_server.py"
     ]
-    
+
     for proc in processes:
         try:
             result = subprocess.run(
@@ -50,7 +50,7 @@ def stop_existing_processes():
                 logger.info(f"Stopped process: {proc}")
         except Exception as e:
             logger.warning(f"Error stopping {proc}: {e}")
-    
+
     # Wait for processes to stop
     time.sleep(2)
 
@@ -62,12 +62,12 @@ def run_implementation_scripts():
         "setup_storacha_implementation.py",
         "setup_lassie_implementation.py"
     ]
-    
+
     for script in scripts:
         script_path = os.path.join(os.getcwd(), script)
         if os.path.exists(script_path):
             check_script_executable(script_path)
-            
+
             logger.info(f"Running {script}...")
             try:
                 result = subprocess.run(
@@ -75,7 +75,7 @@ def run_implementation_scripts():
                     capture_output=True,
                     text=True
                 )
-                
+
                 if result.returncode == 0:
                     logger.info(f"Successfully executed {script}")
                 else:
@@ -90,9 +90,9 @@ def run_implementation_scripts():
 def create_unified_config():
     """Create a unified MCP configuration file"""
     logger.info("Creating unified MCP configuration...")
-    
+
     config_file = os.path.join(os.getcwd(), "mcp_unified_config.sh")
-    
+
     with open(config_file, 'w') as f:
         f.write("""#!/bin/bash
 # Unified MCP Configuration
@@ -153,39 +153,39 @@ echo "Storacha API URL: ${STORACHA_API_URL}"
 echo "Lassie API URL: ${LASSIE_API_URL}"
 echo "=========================="
 """)
-    
+
     # Make it executable
     os.chmod(config_file, 0o755)
-    
+
     logger.info(f"Created unified configuration at {config_file}")
     return config_file
 
 def restart_mcp_server(config_file):
     """Restart the MCP server with the new configuration"""
     logger.info("Restarting MCP server...")
-    
+
     # Ensure logs directory exists
     os.makedirs("logs", exist_ok=True)
-    
+
     # Start the enhanced MCP server with the new configuration
     cmd = f"""
-    cd {os.getcwd()} && 
-    source .venv/bin/activate && 
+    cd {os.getcwd()} &&
+    source .venv/bin/activate &&
     source {config_file} &&
     python enhanced_mcp_server.py --port 9997 --debug > logs/enhanced_mcp_real.log 2>&1 &
     echo $! > mcp_server.pid
     """
-    
+
     try:
         subprocess.run(cmd, shell=True, executable="/bin/bash")
         logger.info("MCP server started with real implementations")
-        
+
         # Wait for server to start
         time.sleep(5)
-        
+
         # Check if server is running
         check_server_health()
-        
+
         return True
     except Exception as e:
         logger.error(f"Error starting MCP server: {e}")
@@ -194,28 +194,28 @@ def restart_mcp_server(config_file):
 def check_server_health():
     """Check the health of the MCP server"""
     logger.info("Checking MCP server health...")
-    
+
     try:
         import requests
-        
+
         response = requests.get("http://localhost:9997/api/v0/health", timeout=5)
-        
+
         if response.status_code == 200:
             health_data = response.json()
             logger.info(f"MCP server status: {health_data.get('status', 'unknown')}")
-            
+
             # Check storage backends
             backends = health_data.get('storage_backends', {})
             all_working = True
-            
+
             for backend, status in backends.items():
                 if backend in ['ipfs', 'local']:
                     continue  # Skip IPFS and local which should work by default
-                
+
                 available = status.get('available', False)
                 simulation = status.get('simulation', True)
                 error = status.get('error')
-                
+
                 if available and not simulation:
                     logger.info(f"✓ {backend}: Working")
                     if error:
@@ -225,12 +225,12 @@ def check_server_health():
                     all_working = False
                     if error:
                         logger.warning(f"  Error: {error}")
-            
+
             if all_working:
                 logger.info("All storage backends are functioning!")
             else:
                 logger.warning("Some storage backends are not functioning properly")
-            
+
             return health_data
         else:
             logger.error(f"Health check failed: {response.status_code}")
@@ -245,19 +245,19 @@ def check_server_health():
 def main():
     """Main function"""
     logger.info("Starting MCP Server Real Implementation Integrator")
-    
+
     # Stop existing processes
     stop_existing_processes()
-    
+
     # Run implementation scripts
     run_implementation_scripts()
-    
+
     # Create unified configuration
     config_file = create_unified_config()
-    
+
     # Restart MCP server
     restart_mcp_server(config_file)
-    
+
     logger.info("MCP Server integration complete")
     logger.info("MCP Server is running with real implementations")
     logger.info("Check logs/enhanced_mcp_real.log for detailed logs")

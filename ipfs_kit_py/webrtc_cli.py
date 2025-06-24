@@ -67,24 +67,24 @@ def create_table(headers: List[str], rows: List[List[Any]], title: Optional[str]
     """Create a formatted ASCII table."""
     if not rows:
         return "No data available"
-        
+
     # Calculate column widths
     col_widths = [len(h) for h in headers]
     for row in rows:
         for i, cell in enumerate(row):
             if i < len(col_widths):
                 col_widths[i] = max(col_widths[i], len(str(cell)))
-    
+
     # Create separator line
     sep_line = "+"
     for width in col_widths:
         sep_line += "-" * (width + 2) + "+"
-    
+
     # Create header row
     header_row = "|"
     for i, header in enumerate(headers):
         header_row += f" {Colors.BOLD}{header}{Colors.ENDC}".ljust(col_widths[i] + 2) + "|"
-    
+
     # Create data rows
     data_rows = []
     for row in rows:
@@ -93,7 +93,7 @@ def create_table(headers: List[str], rows: List[List[Any]], title: Optional[str]
             if i < len(col_widths):
                 data_row += f" {cell}".ljust(col_widths[i] + 2) + "|"
         data_rows.append(data_row)
-    
+
     # Assemble table
     table = []
     if title:
@@ -102,14 +102,14 @@ def create_table(headers: List[str], rows: List[List[Any]], title: Optional[str]
         centered_title = title.center(table_width)
         table.append(f"{Colors.HEADER}{Colors.BOLD}{centered_title}{Colors.ENDC}")
         table.append("")
-    
+
     table.append(sep_line)
     table.append(header_row)
     table.append(sep_line)
     for row in data_rows:
         table.append(row)
     table.append(sep_line)
-    
+
     return "\n".join(table)
 
 def handle_stream_content_command(args, api):
@@ -122,7 +122,7 @@ def handle_stream_content_command(args, api):
             status = f"{Colors.GREEN}Available{Colors.ENDC}" if available else f"{Colors.RED}Missing{Colors.ENDC}"
             print(f"  - {dep_name}: {status}")
         return 1
-    
+
     # Extract arguments
     cid = args.cid
     listen_address = args.address
@@ -130,7 +130,7 @@ def handle_stream_content_command(args, api):
     quality = args.quality
     ice_servers = args.ice_servers
     benchmark = args.benchmark
-    
+
     try:
         # Parse ice servers if provided
         if ice_servers:
@@ -140,7 +140,7 @@ def handle_stream_content_command(args, api):
                 print(f"{Colors.RED}Invalid ice_servers format. Must be a valid JSON array of objects.{Colors.ENDC}")
                 print("Example: '[{\"urls\": [\"stun:stun.l.google.com:19302\"]}]'")
                 return 1
-        
+
         # Create streaming manager
         print(f"{Colors.CYAN}Initializing WebRTC streaming for IPFS content: {cid}{Colors.ENDC}")
         result = api.stream_content_webrtc(
@@ -151,7 +151,7 @@ def handle_stream_content_command(args, api):
             ice_servers=ice_servers,
             enable_benchmark=benchmark
         )
-        
+
         if result.get("success", False):
             # Display information about streaming server
             url = result.get("url")
@@ -159,17 +159,17 @@ def handle_stream_content_command(args, api):
             print(f"\nStreaming URL: {Colors.CYAN}{url}{Colors.ENDC}")
             print(f"Content CID: {cid}")
             print(f"Quality preset: {quality}")
-            
+
             # Display connection info
             print(f"\n{Colors.HEADER}Connection Information{Colors.ENDC}")
             print(f"Listen address: {listen_address}")
             print(f"Port: {port}")
-            
+
             if benchmark:
                 print(f"\n{Colors.YELLOW}Performance benchmarking enabled - results will be saved to ~/.ipfs_kit/webrtc_benchmarks/{Colors.ENDC}")
-            
+
             print(f"\n{Colors.YELLOW}Press Ctrl+C to stop streaming{Colors.ENDC}")
-            
+
             # Wait for user to stop the server
             try:
                 while True:
@@ -184,11 +184,11 @@ def handle_stream_content_command(args, api):
         else:
             print(f"{Colors.RED}Failed to start WebRTC streaming: {result.get('error', 'Unknown error')}{Colors.ENDC}")
             return 1
-        
+
     except Exception as e:
         print(f"{Colors.RED}Error: {str(e)}{Colors.ENDC}")
         return 1
-    
+
     return 0
 
 def handle_benchmark_command(args, api):
@@ -196,52 +196,52 @@ def handle_benchmark_command(args, api):
     if not HAVE_WEBRTC:
         print(f"{Colors.RED}WebRTC dependencies are not available. Install them with: pip install ipfs_kit_py[webrtc]{Colors.ENDC}")
         return 1
-    
+
     # Extract arguments
     cid = args.cid
     duration = args.duration
     output_dir = args.output_dir
     report_format = args.format
     compare_with = args.compare_with
-    
+
     try:
         # Run benchmark
         print(f"{Colors.CYAN}Running WebRTC streaming benchmark for CID: {cid}{Colors.ENDC}")
         print(f"Duration: {duration} seconds")
-        
+
         result = api.run_webrtc_benchmark(
             cid=cid,
             duration_seconds=duration,
             output_dir=output_dir,
             report_format=report_format
         )
-        
+
         if result.get("success", False):
             benchmark_id = result.get("benchmark_id")
             report_path = result.get("report_path")
-            
+
             print(f"\n{Colors.GREEN}Benchmark completed successfully!{Colors.ENDC}")
             print(f"Benchmark ID: {benchmark_id}")
-            
+
             # Display summary results
             summary = result.get("summary", {})
             if summary:
                 headers = ["Metric", "Value"]
                 rows = []
-                
+
                 # Extract key metrics
                 for metric, value in summary.items():
-                    if metric in ["avg_rtt_ms", "avg_jitter_ms", "avg_end_to_end_latency_ms", 
-                                  "p95_latency_ms", "avg_bitrate_kbps", "throughput_mbps", 
+                    if metric in ["avg_rtt_ms", "avg_jitter_ms", "avg_end_to_end_latency_ms",
+                                  "p95_latency_ms", "avg_bitrate_kbps", "throughput_mbps",
                                   "avg_frames_per_second", "avg_quality_score"]:
                         rows.append([metric, value])
-                
+
                 print("\n" + create_table(headers, rows, "Benchmark Summary"))
-            
+
             # Display report path
             if report_path:
                 print(f"\nDetailed report saved to: {Colors.CYAN}{report_path}{Colors.ENDC}")
-            
+
             # Compare with previous benchmark if requested
             if compare_with:
                 print(f"\n{Colors.CYAN}Comparing with previous benchmark: {compare_with}{Colors.ENDC}")
@@ -249,7 +249,7 @@ def handle_benchmark_command(args, api):
                     benchmark1=compare_with,
                     benchmark2=benchmark_id
                 )
-                
+
                 if compare_result.get("success", False):
                     # Display comparison summary
                     comparison = compare_result.get("comparison", {})
@@ -257,19 +257,19 @@ def handle_benchmark_command(args, api):
                         # Display regressions if any
                         regressions = compare_result.get("regressions", [])
                         improvements = compare_result.get("improvements", [])
-                        
+
                         if regressions:
                             print(f"\n{Colors.RED}Regressions detected:{Colors.ENDC}")
                             for metric in regressions:
                                 detail = comparison.get(metric, {})
                                 print(f"  - {metric}: {detail.get('baseline')} → {detail.get('current')} ({detail.get('percent_change', 0):.2f}%)")
-                        
+
                         if improvements:
                             print(f"\n{Colors.GREEN}Improvements detected:{Colors.ENDC}")
                             for metric in improvements:
                                 detail = comparison.get(metric, {})
                                 print(f"  - {metric}: {detail.get('baseline')} → {detail.get('current')} ({detail.get('percent_change', 0):.2f}%)")
-                        
+
                         if not regressions and not improvements:
                             print(f"\n{Colors.CYAN}No significant changes detected{Colors.ENDC}")
                 else:
@@ -277,11 +277,11 @@ def handle_benchmark_command(args, api):
         else:
             print(f"{Colors.RED}Failed to run benchmark: {result.get('error', 'Unknown error')}{Colors.ENDC}")
             return 1
-        
+
     except Exception as e:
         print(f"{Colors.RED}Error: {str(e)}{Colors.ENDC}")
         return 1
-    
+
     return 0
 
 def handle_connections_command(args, api):
@@ -289,20 +289,20 @@ def handle_connections_command(args, api):
     if not HAVE_WEBRTC:
         print(f"{Colors.RED}WebRTC dependencies are not available. Install them with: pip install ipfs_kit_py[webrtc]{Colors.ENDC}")
         return 1
-    
+
     # Get active connections
     try:
         if args.action == "list":
             # List active connections
             result = api.list_webrtc_connections()
-            
+
             if result.get("success", False):
                 connections = result.get("connections", [])
-                
+
                 if connections:
                     headers = ["ID", "Status", "Created", "Tracks", "Quality"]
                     rows = []
-                    
+
                     for conn in connections:
                         rows.append([
                             conn.get("id", "unknown"),
@@ -311,33 +311,33 @@ def handle_connections_command(args, api):
                             len(conn.get("tracks", [])),
                             conn.get("quality", "auto")
                         ])
-                    
+
                     print(create_table(headers, rows, "Active WebRTC Connections"))
                 else:
                     print(f"{Colors.YELLOW}No active WebRTC connections{Colors.ENDC}")
             else:
                 print(f"{Colors.RED}Failed to list connections: {result.get('error', 'Unknown error')}{Colors.ENDC}")
                 return 1
-        
+
         elif args.action == "stats":
             # Get detailed stats for a connection
             connection_id = args.id
             if not connection_id:
                 print(f"{Colors.RED}Connection ID is required for stats{Colors.ENDC}")
                 return 1
-            
+
             result = api.get_webrtc_connection_stats(connection_id=connection_id)
-            
+
             if result.get("success", False):
                 stats = result.get("stats", {})
-                
+
                 if stats:
                     # Display general connection info
                     print(f"{Colors.HEADER}{Colors.BOLD}WebRTC Connection Stats: {connection_id}{Colors.ENDC}")
                     print(f"Connection State: {stats.get('connection_state', 'unknown')}")
                     print(f"ICE State: {stats.get('ice_state', 'unknown')}")
                     print(f"Uptime: {stats.get('uptime', 0):.2f} seconds")
-                    
+
                     # Display network stats
                     network_stats = stats.get("network", {})
                     if network_stats:
@@ -349,15 +349,15 @@ def handle_connections_command(args, api):
                             ["Bitrate", f"{network_stats.get('bitrate', 0) / 1000:.2f} kbps"],
                             ["Available Bandwidth", f"{network_stats.get('available_bandwidth', 0) / 1000:.2f} kbps"]
                         ]
-                        
+
                         print("\n" + create_table(headers, rows, "Network Statistics"))
-                    
+
                     # Display tracks info
                     tracks = stats.get("tracks", [])
                     if tracks:
                         headers = ["Track ID", "Kind", "Resolution", "FPS", "Status"]
                         rows = []
-                        
+
                         for track in tracks:
                             resolution = f"{track.get('width', 0)}x{track.get('height', 0)}"
                             rows.append([
@@ -367,18 +367,18 @@ def handle_connections_command(args, api):
                                 f"{track.get('fps', 0):.2f}",
                                 "Active" if track.get("active", False) else "Inactive"
                             ])
-                        
+
                         print("\n" + create_table(headers, rows, "Media Tracks"))
                 else:
                     print(f"{Colors.YELLOW}No statistics available for connection: {connection_id}{Colors.ENDC}")
             else:
                 print(f"{Colors.RED}Failed to get connection stats: {result.get('error', 'Unknown error')}{Colors.ENDC}")
                 return 1
-        
+
         elif args.action == "close":
             # Close a specific connection or all connections
             connection_id = args.id
-            
+
             if connection_id:
                 # Close specific connection
                 print(f"{Colors.CYAN}Closing WebRTC connection: {connection_id}{Colors.ENDC}")
@@ -387,42 +387,42 @@ def handle_connections_command(args, api):
                 # Close all connections
                 print(f"{Colors.CYAN}Closing all WebRTC connections{Colors.ENDC}")
                 result = api.close_all_webrtc_connections()
-            
+
             if result.get("success", False):
                 print(f"{Colors.GREEN}Connection(s) closed successfully{Colors.ENDC}")
             else:
                 print(f"{Colors.RED}Failed to close connection(s): {result.get('error', 'Unknown error')}{Colors.ENDC}")
                 return 1
-        
+
         elif args.action == "quality":
             # Change connection quality
             connection_id = args.id
             quality = args.quality
-            
+
             if not connection_id:
                 print(f"{Colors.RED}Connection ID is required for quality change{Colors.ENDC}")
                 return 1
-            
+
             if not quality:
                 print(f"{Colors.RED}Quality level is required (low, medium, high, or auto){Colors.ENDC}")
                 return 1
-            
+
             print(f"{Colors.CYAN}Changing quality for connection {connection_id} to: {quality}{Colors.ENDC}")
             result = api.set_webrtc_quality(
                 connection_id=connection_id,
                 quality=quality
             )
-            
+
             if result.get("success", False):
                 print(f"{Colors.GREEN}Quality changed successfully{Colors.ENDC}")
             else:
                 print(f"{Colors.RED}Failed to change quality: {result.get('error', 'Unknown error')}{Colors.ENDC}")
                 return 1
-        
+
     except Exception as e:
         print(f"{Colors.RED}Error: {str(e)}{Colors.ENDC}")
         return 1
-    
+
     return 0
 
 def handle_check_dependencies_command(args, api):
@@ -431,32 +431,32 @@ def handle_check_dependencies_command(args, api):
     deps = check_webrtc_dependencies()
     webrtc_available = deps.get("webrtc_available", False)
     dependencies = deps.get("dependencies", {})
-    
+
     # Display status
     print(f"{Colors.HEADER}{Colors.BOLD}WebRTC Dependency Status{Colors.ENDC}")
     print(f"Overall WebRTC availability: {'✓' if webrtc_available else '✗'}")
-    
+
     # Create table for dependencies
     headers = ["Dependency", "Status"]
     rows = []
-    
+
     for dep_name, available in dependencies.items():
         status = f"{Colors.GREEN}Available{Colors.ENDC}" if available else f"{Colors.RED}Missing{Colors.ENDC}"
         rows.append([dep_name, status])
-    
+
     print("\n" + create_table(headers, rows, "Required Dependencies"))
-    
+
     # If not available, show installation command
     if not webrtc_available:
         print(f"\n{Colors.CYAN}To install required dependencies, run:{Colors.ENDC}")
         print(f"  pip install {deps.get('installation_command', 'ipfs_kit_py[webrtc]')}")
-    
+
     return 0
 
 def register_webrtc_commands(subparsers):
     """
     Register WebRTC-related commands with the CLI parser.
-    
+
     Args:
         subparsers: Subparser object from argparse
     """
@@ -466,11 +466,11 @@ def register_webrtc_commands(subparsers):
         help="WebRTC streaming and benchmarking operations",
     )
     webrtc_subparsers = webrtc_parser.add_subparsers(
-        dest="webrtc_command", 
-        help="WebRTC command to execute", 
+        dest="webrtc_command",
+        help="WebRTC command to execute",
         required=True
     )
-    
+
     # Stream content command
     stream_parser = webrtc_subparsers.add_parser(
         "stream",
@@ -507,7 +507,7 @@ def register_webrtc_commands(subparsers):
         help="Enable performance benchmarking",
     )
     stream_parser.set_defaults(func=lambda api, args, kwargs: api.stream_content_webrtc(**kwargs))
-    
+
     # Benchmark command
     benchmark_parser = webrtc_subparsers.add_parser(
         "benchmark",
@@ -538,7 +538,7 @@ def register_webrtc_commands(subparsers):
         help="Previous benchmark ID to compare results with",
     )
     benchmark_parser.set_defaults(func=lambda api, args, kwargs: api.run_webrtc_benchmark(**kwargs))
-    
+
     # WebRTC connections management
     conn_parser = webrtc_subparsers.add_parser(
         "connections",
@@ -549,14 +549,14 @@ def register_webrtc_commands(subparsers):
         help="Action to perform",
         required=True
     )
-    
+
     # List connections
     list_parser = conn_subparsers.add_parser(
         "list",
         help="List active WebRTC connections",
     )
     list_parser.set_defaults(func=lambda api, args, kwargs: api.list_webrtc_connections(**kwargs))
-    
+
     # Connection stats
     stats_parser = conn_subparsers.add_parser(
         "stats",
@@ -568,7 +568,7 @@ def register_webrtc_commands(subparsers):
         help="Connection ID",
     )
     stats_parser.set_defaults(func=lambda api, args, kwargs: api.get_webrtc_connection_stats(**kwargs))
-    
+
     # Close connection
     close_parser = conn_subparsers.add_parser(
         "close",
@@ -579,7 +579,7 @@ def register_webrtc_commands(subparsers):
         help="Connection ID (omit to close all connections)",
     )
     close_parser.set_defaults(func=lambda api, args, kwargs: api.close_webrtc_connection(**kwargs))
-    
+
     # Change quality
     quality_parser = conn_subparsers.add_parser(
         "quality",
@@ -597,7 +597,7 @@ def register_webrtc_commands(subparsers):
         help="Quality preset to use",
     )
     quality_parser.set_defaults(func=lambda api, args, kwargs: api.set_webrtc_quality(**kwargs))
-    
+
     # Check WebRTC dependencies
     check_parser = webrtc_subparsers.add_parser(
         "check",
@@ -620,46 +620,46 @@ def main():
               webrtc check
         """)
     )
-    
+
     # Create subparsers
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
-    
+
     # Register commands
     register_webrtc_commands(subparsers)
-    
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Check if command was provided
     if not hasattr(args, 'command') or not args.command:
         parser.print_help()
         return 1
-    
+
     # Create a simple API object for standalone execution
     class SimpleAPI:
         def stream_content_webrtc(self, **kwargs):
             return {"success": False, "error": "Not implemented in standalone mode"}
-        
+
         def run_webrtc_benchmark(self, **kwargs):
             return {"success": False, "error": "Not implemented in standalone mode"}
-        
+
         def list_webrtc_connections(self, **kwargs):
             return {"success": False, "error": "Not implemented in standalone mode"}
-        
+
         def get_webrtc_connection_stats(self, **kwargs):
             return {"success": False, "error": "Not implemented in standalone mode"}
-        
+
         def close_webrtc_connection(self, **kwargs):
             return {"success": False, "error": "Not implemented in standalone mode"}
-        
+
         def set_webrtc_quality(self, **kwargs):
             return {"success": False, "error": "Not implemented in standalone mode"}
-        
+
         def check_webrtc_dependencies(self, **kwargs):
             return {"success": True, "dependencies": check_webrtc_dependencies()}
-    
+
     api = SimpleAPI()
-    
+
     # Handle commands
     if args.command == "webrtc":
         if args.webrtc_command == "stream":
@@ -670,7 +670,7 @@ def main():
             return handle_connections_command(args, api)
         elif args.webrtc_command == "check":
             return handle_check_dependencies_command(args, api)
-    
+
     # If we got here, the command wasn't handled
     print(f"{Colors.RED}Unknown command: {args.command}{Colors.ENDC}")
     return 1

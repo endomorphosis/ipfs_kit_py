@@ -39,13 +39,13 @@ except ImportError:
     class User:
         id: str
         username: str
-        
+
     async def get_current_user():
         return User(id="mock_user", username="mock_user")
-    
+
     async def get_admin_user():
         return User(id="mock_admin", username="mock_admin")
-    
+
     AUTH_AVAILABLE = False
 
 # Create router
@@ -136,7 +136,7 @@ async def create_model(
 ):
     """
     Create a new model in the registry.
-    
+
     Returns the created model information.
     """
     # Convert model_type string to enum if provided
@@ -149,7 +149,7 @@ async def create_model(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid model type: {model.model_type}"
             )
-    
+
     # Create model
     created_model = await registry.create_model(
         name=model.name,
@@ -161,13 +161,13 @@ async def create_model(
         metadata=model.metadata,
         tags=model.tags
     )
-    
+
     if not created_model:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create model"
         )
-    
+
     # Return model details
     return {
         "success": True,
@@ -190,14 +190,14 @@ async def list_models(
 ):
     """
     List models in the registry with optional filtering.
-    
+
     Returns a list of models matching the filter criteria.
     """
     # Parse tags if provided
     tags_list = None
     if tags:
         tags_list = [tag.strip() for tag in tags.split(",")]
-    
+
     # Convert model_type string to enum if provided
     model_type_enum = None
     if model_type:
@@ -208,7 +208,7 @@ async def list_models(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid model type: {model_type}"
             )
-    
+
     # Get models
     models = await registry.list_models(
         name_filter=name,
@@ -220,7 +220,7 @@ async def list_models(
         created_after=created_after,
         created_before=created_before
     )
-    
+
     # Return model list
     return {
         "success": True,
@@ -238,17 +238,17 @@ async def get_model(
 ):
     """
     Get a model by ID.
-    
+
     Returns the model information.
     """
     model = await registry.get_model(model_id)
-    
+
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model {model_id} not found"
         )
-    
+
     # Return model details
     return {
         "success": True,
@@ -265,18 +265,18 @@ async def update_model(
 ):
     """
     Update a model's metadata.
-    
+
     Returns the updated model information.
     """
     # Check if model exists
     model = await registry.get_model(model_id)
-    
+
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model {model_id} not found"
         )
-    
+
     # Check owner or admin permission
     if model.owner != current_user.id:
         # In a real implementation, check if user is admin or has permission
@@ -286,7 +286,7 @@ async def update_model(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update this model"
             )
-    
+
     # Convert model_type string to enum if provided
     model_type = None
     if model_update.model_type:
@@ -297,7 +297,7 @@ async def update_model(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid model type: {model_update.model_type}"
             )
-    
+
     # Update model
     updated_model = await registry.update_model(
         model_id=model_id,
@@ -309,13 +309,13 @@ async def update_model(
         metadata=model_update.metadata,
         tags=model_update.tags
     )
-    
+
     if not updated_model:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update model"
         )
-    
+
     # Return updated model
     return {
         "success": True,
@@ -331,18 +331,18 @@ async def delete_model(
 ):
     """
     Delete a model and all its versions.
-    
+
     Returns success status.
     """
     # Check if model exists
     model = await registry.get_model(model_id)
-    
+
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model {model_id} not found"
         )
-    
+
     # Check owner or admin permission
     if model.owner != current_user.id:
         # In a real implementation, check if user is admin or has permission
@@ -351,16 +351,16 @@ async def delete_model(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this model"
             )
-    
+
     # Delete model
     success = await registry.delete_model(model_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete model"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -392,18 +392,18 @@ async def create_model_version(
 ):
     """
     Create a new version of a model.
-    
+
     Uploads the model file and creates a new version in the registry.
     """
     # Check if model exists
     model = await registry.get_model(model_id)
-    
+
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model {model_id} not found"
         )
-    
+
     # Check owner or admin permission
     if model.owner != current_user.id:
         # In a real implementation, check if user is admin or has write permission
@@ -412,7 +412,7 @@ async def create_model_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to create versions for this model"
             )
-    
+
     # Parse format
     try:
         model_format = ModelFormat(format)
@@ -421,7 +421,7 @@ async def create_model_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid model format: {format}"
         )
-    
+
     # Parse framework if provided
     model_framework = None
     if framework:
@@ -432,7 +432,7 @@ async def create_model_version(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid model framework: {framework}"
             )
-    
+
     # Parse status
     try:
         model_status = ModelStatus(status)
@@ -441,7 +441,7 @@ async def create_model_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid model status: {status}"
         )
-    
+
     # Parse metadata
     try:
         metadata_dict = json.loads(metadata)
@@ -450,7 +450,7 @@ async def create_model_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid metadata JSON"
         )
-    
+
     # Parse tags
     try:
         tags_list = json.loads(tags)
@@ -459,7 +459,7 @@ async def create_model_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid tags JSON"
         )
-    
+
     # Parse dataset_refs
     try:
         dataset_refs_list = json.loads(dataset_refs)
@@ -468,10 +468,10 @@ async def create_model_version(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid dataset_refs JSON"
         )
-    
+
     # Read model file
     model_data = await model_file.read()
-    
+
     # Create model version
     model_version = await registry.create_model_version(
         model_id=model_id,
@@ -491,13 +491,13 @@ async def create_model_version(
         experiment_id=experiment_id,
         status=model_status
     )
-    
+
     if not model_version:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create model version"
         )
-    
+
     # Return model version details
     return {
         "success": True,
@@ -520,18 +520,18 @@ async def list_model_versions(
 ):
     """
     List versions of a model with optional filtering.
-    
+
     Returns a list of versions matching the filter criteria.
     """
     # Check if model exists
     model = await registry.get_model(model_id)
-    
+
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model {model_id} not found"
         )
-    
+
     # Parse status if provided
     status_filter = None
     if status:
@@ -542,7 +542,7 @@ async def list_model_versions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid version status: {status}"
             )
-    
+
     # Parse framework if provided
     framework_filter = None
     if framework:
@@ -553,7 +553,7 @@ async def list_model_versions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid model framework: {framework}"
             )
-    
+
     # Parse format if provided
     format_filter = None
     if format:
@@ -564,12 +564,12 @@ async def list_model_versions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid model format: {format}"
             )
-    
+
     # Parse tags if provided
     tags_list = None
     if tags:
         tags_list = [tag.strip() for tag in tags.split(",")]
-    
+
     # Get versions
     versions = await registry.list_versions(
         model_id=model_id,
@@ -580,7 +580,7 @@ async def list_model_versions(
         created_before=created_before,
         tags_filter=tags_list
     )
-    
+
     # Return version list
     return {
         "success": True,
@@ -598,25 +598,25 @@ async def get_model_version(
 ):
     """
     Get a specific version of a model.
-    
+
     Returns the version information.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Return version details
     return {
         "success": True,
@@ -634,25 +634,25 @@ async def update_model_version(
 ):
     """
     Update a model version's metadata.
-    
+
     Returns the updated version information.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Check owner or admin permission
     model = await registry.get_model(model_id)
     if model and model.owner != current_user.id:
@@ -662,7 +662,7 @@ async def update_model_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update this model version"
             )
-    
+
     # Parse status if provided
     update_status = None
     if version_update.status:
@@ -673,7 +673,7 @@ async def update_model_version(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid version status: {version_update.status}"
             )
-    
+
     # Update version
     updated_version = await registry.update_version(
         version_id=version_id,
@@ -682,13 +682,13 @@ async def update_model_version(
         metadata=version_update.metadata,
         tags=version_update.tags
     )
-    
+
     if not updated_version:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update model version"
         )
-    
+
     # Return updated version
     return {
         "success": True,
@@ -705,25 +705,25 @@ async def delete_model_version(
 ):
     """
     Delete a model version.
-    
+
     Returns success status.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Check owner or admin permission
     model = await registry.get_model(model_id)
     if model and model.owner != current_user.id:
@@ -733,16 +733,16 @@ async def delete_model_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this model version"
             )
-    
+
     # Delete version
     success = await registry.delete_version(version_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete model version"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -759,37 +759,37 @@ async def download_model_version(
 ):
     """
     Download the binary data for a model version.
-    
+
     Returns the model file as a streaming response.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Get model data
     model_data = await registry.get_model_data(version_id)
-    
+
     if not model_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model data not found"
         )
-    
+
     # Create content disposition filename
     filename = f"{model_id}_{version.version}.model"
-    
+
     # Return streaming response
     return StreamingResponse(
         io.BytesIO(model_data),
@@ -810,25 +810,25 @@ async def update_version_metrics(
 ):
     """
     Update performance metrics for a model version.
-    
+
     Returns success status.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Check owner or admin permission
     model = await registry.get_model(model_id)
     if model and model.owner != current_user.id:
@@ -838,7 +838,7 @@ async def update_version_metrics(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update metrics for this model version"
             )
-    
+
     # Create ModelMetrics from the provided data
     model_metrics = ModelMetrics(
         accuracy=metrics.accuracy,
@@ -854,16 +854,16 @@ async def update_version_metrics(
         memory_mb=metrics.memory_mb,
         custom_metrics=metrics.custom_metrics
     )
-    
+
     # Update metrics
     success = await registry.record_metrics(version_id, model_metrics)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update metrics"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -881,25 +881,25 @@ async def update_deployment_config(
 ):
     """
     Update deployment configuration for a model version.
-    
+
     Returns success status.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Check owner or admin permission
     model = await registry.get_model(model_id)
     if model and model.owner != current_user.id:
@@ -909,7 +909,7 @@ async def update_deployment_config(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update deployment config for this model version"
             )
-    
+
     # Create ModelDeploymentConfig from the provided data
     deployment_config = ModelDeploymentConfig(
         min_resources=config.min_resources,
@@ -919,16 +919,16 @@ async def update_deployment_config(
         serving_config=config.serving_config,
         custom_config=config.custom_config
     )
-    
+
     # Update deployment config
     success = await registry.update_deployment_config(version_id, deployment_config)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update deployment configuration"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -945,25 +945,25 @@ async def set_production_version(
 ):
     """
     Set a version as the production version for a model.
-    
+
     Returns success status.
     """
     # Get version
     version = await registry.get_version(version_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_id} not found"
         )
-    
+
     # Verify model ID matches
     if version.model_id != model_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Version {version_id} does not belong to model {model_id}"
         )
-    
+
     # Check owner or admin permission
     model = await registry.get_model(model_id)
     if model and model.owner != current_user.id:
@@ -973,16 +973,16 @@ async def set_production_version(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to set the production version for this model"
             )
-    
+
     # Set production version
     success = await registry.set_production_version(model_id, version_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to set production version"
         )
-    
+
     # Return success
     return {
         "success": True,
@@ -998,18 +998,18 @@ async def get_production_version(
 ):
     """
     Get the production version for a model.
-    
+
     Returns the production version information.
     """
     # Get production version
     version = await registry.get_production_version(model_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No production version found for model {model_id}"
         )
-    
+
     # Return version details
     return {
         "success": True,
@@ -1025,18 +1025,18 @@ async def get_latest_version(
 ):
     """
     Get the latest version for a model.
-    
+
     Returns the latest version information.
     """
     # Get latest version
     version = await registry.get_latest_version(model_id)
-    
+
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No versions found for model {model_id}"
         )
-    
+
     # Return version details
     return {
         "success": True,
@@ -1053,18 +1053,18 @@ async def compare_versions(
 ):
     """
     Compare two model versions.
-    
+
     Returns a comparison of the two versions.
     """
     # Compare versions
     comparison = await registry.compare_versions(version1, version2)
-    
+
     if not comparison.get("success", False):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=comparison.get("error", "Failed to compare versions")
         )
-    
+
     # Return comparison
     return comparison
 
@@ -1072,20 +1072,20 @@ async def compare_versions(
 def initialize_model_registry(backend_manager: Any) -> ModelRegistry:
     """
     Initialize the model registry.
-    
+
     Args:
         backend_manager: Backend manager instance
-        
+
     Returns:
         Initialized model registry
     """
     global _model_registry
-    
+
     # Create data directory
     data_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "model_registry")
     os.makedirs(data_dir, exist_ok=True)
-    
+
     # Create registry
     _model_registry = ModelRegistry(data_dir, backend_manager)
-    
+
     return _model_registry

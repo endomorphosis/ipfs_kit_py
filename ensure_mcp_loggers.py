@@ -23,12 +23,12 @@ def patch_module(module_name):
             module = sys.modules[module_name]
         else:
             module = importlib.import_module(module_name)
-        
+
         # Add logger if not present
         if not hasattr(module, 'logger'):
             module.logger = logging.getLogger(module_name)
             logger.info(f"Added logger to module {module_name}")
-        
+
         # Return the patched module
         return module
     except ImportError:
@@ -46,10 +46,10 @@ def patch_all_mcp_resources():
         'mcp.server.lowlevel.handler',
         'mcp.server.fastmcp'
     ]
-    
+
     for module_name in modules_to_patch:
         patch_module(module_name)
-    
+
     logger.info("Completed MCP resource module patching")
 
 if __name__ == "__main__":

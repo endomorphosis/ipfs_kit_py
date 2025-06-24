@@ -50,35 +50,35 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
         result = []
         items = []
         stats = {}
-        
+
         # List files and directories
         for item in os.listdir(directory):
             if not include_hidden and item.startswith('.'):
                 continue
-            
+
             path = os.path.join(directory, item)
             is_dir = os.path.isdir(path)
-            
+
             # Get basic item stats
             item_info = {
                 "name": item,
                 "path": path,
                 "is_directory": is_dir
             }
-            
+
             # Add additional stats
             try:
                 stat_info = os.stat(path)
                 item_info["size_bytes"] = stat_info.st_size
                 item_info["modified_time"] = stat_info.st_mtime
-                
+
                 # Count items in directory
                 if is_dir:
                     try:
                         item_info["item_count"] = len(os.listdir(path))
                     except:
                         item_info["item_count"] = 0
-                
+
                 # Check if it's a binary file
                 if not is_dir:
                     try:
@@ -87,12 +87,12 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
                         item_info["is_binary"] = False
                     except UnicodeDecodeError:
                         item_info["is_binary"] = True
-                
+
             except Exception as e:
                 logger.warning(f"Error getting stats for {path}: {e}")
-            
+
             items.append(item_info)
-            
+
             # Recursive listing
             if recursive and is_dir:
                 try:
@@ -102,11 +102,11 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
                         result.extend(sub_items["items"])
                 except Exception as e:
                     logger.warning(f"Error recursively listing {path}: {e}")
-        
+
         # Create file statistics
         dirs = [item for item in items if item.get("is_directory")]
         files = [item for item in items if not item.get("is_directory")]
-        
+
         # Get extensions
         extensions = {}
         for item in files:
@@ -122,10 +122,10 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
                         "total_size": item.get("size_bytes", 0),
                         "human_readable_size": f"{item.get('size_bytes', 0) / 1024:.2f} KB"
                     }
-        
+
         # Calculate total size
         total_size = sum(item.get("size_bytes", 0) for item in items)
-        
+
         # Construct the result
         return {
             "success": True,
@@ -157,7 +157,7 @@ async def read_file(path):
                 "error": f"File not found: {path}",
                 "path": path
             }
-        
+
         # Check if it's a directory
         if os.path.isdir(path):
             return {
@@ -165,12 +165,12 @@ async def read_file(path):
                 "error": f"Path is a directory, not a file: {path}",
                 "path": path
             }
-        
+
         # Get file stats
         stat_info = os.stat(path)
         file_size = stat_info.st_size
         modified_time = stat_info.st_mtime
-        
+
         # Read the file
         try:
             with open(path, 'r') as f:
@@ -183,7 +183,7 @@ async def read_file(path):
             import base64
             content = base64.b64encode(content).decode('utf-8')
             is_binary = True
-        
+
         return {
             "success": True,
             "path": path,
@@ -207,7 +207,7 @@ async def write_file(path, content):
         parent_dir = os.path.dirname(path)
         if parent_dir and not os.path.exists(parent_dir):
             os.makedirs(parent_dir, exist_ok=True)
-        
+
         # Check for binary content (base64 encoded)
         if isinstance(content, str) and content.startswith('base64:'):
             import base64
@@ -218,12 +218,12 @@ async def write_file(path, content):
             # Write text content
             with open(path, 'w') as f:
                 f.write(content)
-        
+
         # Get file stats
         stat_info = os.stat(path)
         file_size = stat_info.st_size
         modified_time = stat_info.st_mtime
-        
+
         return {
             "success": True,
             "path": path,
@@ -267,7 +267,7 @@ def generate_connection_id():
 async def sse_endpoint(request: Request):
     # Server-Sent Events (SSE) endpoint for MCP protocol.
     connection_id = generate_connection_id()
-    
+
     # Generator for SSE events
     async def event_generator():
         # Initial connection event
@@ -280,14 +280,14 @@ async def sse_endpoint(request: Request):
             "id": connection_id,
             "data": json.dumps(connection_event)
         }
-        
+
         # Store connection information
         queue = asyncio.Queue()
         sse_connections[connection_id] = {
             "queue": queue,
             "last_event_time": time.time()
         }
-        
+
         try:
             # Send heartbeat every 30 seconds to keep connection alive
             while True:
@@ -316,7 +316,7 @@ async def sse_endpoint(request: Request):
             if connection_id in sse_connections:
                 del sse_connections[connection_id]
             logger.info(f"SSE connection closed: {connection_id}")
-    
+
     # Return SSE response
     return EventSourceResponse(event_generator())
 
@@ -341,7 +341,7 @@ async def send_event(connection_id: str, event: Dict[str, Any]):
 async def handle_messages(request: Request, background_tasks: BackgroundTasks):
     # Handle MCP messages for compatibility with VSCode extension.
     data = await request.json()
-    
+
     # Extract session ID from query parameters
     session_id = request.query_params.get("session_id")
     if not session_id:
@@ -349,10 +349,10 @@ async def handle_messages(request: Request, background_tasks: BackgroundTasks):
             status_code=400,
             content={"error": "Session ID is required"}
         )
-    
+
     # Process message in background to allow quick response
     background_tasks.add_task(process_message, session_id, data)
-    
+
     # Return accepted response immediately
     return JSONResponse(
         status_code=202,
@@ -364,13 +364,13 @@ async def process_message(session_id: str, message: Dict[str, Any]):
     # Process an MCP message from VSCode extension.
     # Log the message
     logger.info(f"Processing MCP message for session {session_id}")
-    
+
     try:
         # Handle different message types
         if "name" in message and "args" in message:
             # This is a tool call
             tool_result = await handle_tool(Request(scope={"type": "http"}))
-            
+
             # Send result back through SSE
             if session_id in sse_connections:
                 event_data = {
@@ -436,7 +436,7 @@ TOOL_MAP = {
     "list_files": list_files,
     "read_file": read_file,
     "write_file": write_file,
-    
+
     # Placeholder stubs for IPFS tools (for testing the MCP integration)
     "ipfs_add": add_mock_content,
     "ipfs_cat": cat_mock_content,
@@ -488,26 +488,26 @@ async def initialize():
 async def handle_tool(request: Request):
     """Handle MCP tool requests."""
     data = await request.json()
-    
+
     tool_name = data.get("name")
     args = data.get("args", {})
-    
+
     logger.info(f"Tool request received: {tool_name} with args: {args}")
-    
+
     if not tool_name:
         return JSONResponse(
             status_code=400,
             content={"error": "Tool name is required"}
         )
-    
+
     if tool_name not in TOOL_MAP:
         return JSONResponse(
             status_code=404,
             content={"error": f"Tool '{tool_name}' not found"}
         )
-    
+
     tool_impl = TOOL_MAP[tool_name]
-    
+
     try:
         # Call the tool with args
         result = await tool_impl(**args)
@@ -540,7 +540,7 @@ def main():
     print(f"Available Tools: {len(AVAILABLE_TOOLS)}")
     print("Starting server on http://localhost:8000")
     print("Use this URL in your VS Code MCP extension settings")
-    
+
     # Run the server
     uvicorn.run(app, host="0.0.0.0", port=8000)
 

@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 
 class WebRTCShutdownTester:
     """Test the WebRTC controller shutdown procedure."""
-    
+
     def __init__(self, server_url: str = "http://localhost:9993", timeout: int = 30):
         """Initialize the WebRTC shutdown tester.
-        
+
         Args:
             server_url: Base URL for the MCP server
             timeout: Timeout in seconds for operations
@@ -38,88 +38,88 @@ class WebRTCShutdownTester:
         self.server_url = server_url.rstrip('/')
         self.timeout = timeout
         self.session = requests.Session()
-        
+
     def run_test(self) -> bool:
         """Run the shutdown test.
-        
+
         Returns:
             True if the test passes, False otherwise
         """
         logger.info("Starting WebRTC controller shutdown test")
-        
+
         try:
             # Check server connectivity
             self._check_server_connectivity()
-            
+
             # Start a WebRTC server and make connections
             server_id = self._start_webrtc_server()
             if not server_id:
                 logger.error("Failed to start WebRTC server")
                 return False
-                
+
             logger.info(f"Successfully started WebRTC server with ID: {server_id}")
-            
+
             # Check WebRTC status
             webrtc_status = self._get_webrtc_status()
             logger.info(f"WebRTC status: {webrtc_status}")
-            
+
             # Start a server process to test shutdown
             server_process = self._start_test_server()
             if not server_process:
                 logger.error("Failed to start test server")
                 return False
-                
+
             logger.info(f"Started test server with PID: {server_process.pid}")
-            
+
             # Give the server time to initialize
             time.sleep(5)
-            
+
             # Verify server is running
             if not self._verify_test_server(server_process):
                 logger.error("Test server verification failed")
                 return False
-                
+
             # Stop the server with SIGINT to trigger shutdown
             logger.info("Stopping server with SIGINT to test shutdown")
             server_process.send_signal(signal.SIGINT)
-            
+
             # Wait for server to exit
             try:
                 exit_code = server_process.wait(timeout=self.timeout)
                 logger.info(f"Server exited with code: {exit_code}")
-                
+
                 if exit_code != 0:
                     logger.warning(f"Server exited with non-zero code: {exit_code}")
-                    
+
                 # Check for any "coroutine was never awaited" warnings in the logs
                 log_file = "mcp_anyio_test_server.log"
                 if os.path.exists(log_file):
                     with open(log_file, "r") as f:
                         log_content = f.read()
-                        
+
                     if "coroutine was never awaited" in log_content:
                         logger.error("Found 'coroutine was never awaited' warnings in logs")
                         logger.error("WebRTC controller shutdown test FAILED")
                         return False
-                        
+
                 logger.info("No coroutine warnings found - shutdown successful!")
                 logger.info("WebRTC controller shutdown test PASSED")
                 return True
-                
+
             except subprocess.TimeoutExpired:
                 logger.error(f"Server didn't exit within timeout ({self.timeout}s)")
                 server_process.kill()
                 logger.error("WebRTC controller shutdown test FAILED")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error during shutdown test: {e}")
             logger.error("WebRTC controller shutdown test FAILED")
             return False
-            
+
     def _check_server_connectivity(self) -> bool:
         """Check connectivity to the MCP server.
-        
+
         Returns:
             True if connected, False otherwise
         """
@@ -134,10 +134,10 @@ class WebRTCShutdownTester:
         except Exception as e:
             logger.error(f"Failed to connect to server: {e}")
             return False
-            
+
     def _start_webrtc_server(self) -> Optional[str]:
         """Start a WebRTC streaming server.
-        
+
         Returns:
             Server ID if successful, None otherwise
         """
@@ -148,7 +148,7 @@ class WebRTCShutdownTester:
                 json={"duration": 10, "resolution": "640x480"},
                 timeout=self.timeout
             )
-            
+
             if response.status_code == 200:
                 data = response.json()
                 if data.get("success", False):
@@ -158,14 +158,14 @@ class WebRTCShutdownTester:
                     return None
             else:
                 logger.warning("Benchmark endpoint not available, trying to create server directly")
-                
+
                 # Try to start a server directly
                 response = self.session.post(
                     f"{self.server_url}/api/v0/webrtc/stream",
                     json={"source": "test", "options": {"is_test": True}},
                     timeout=self.timeout
                 )
-                
+
                 if response.status_code == 200:
                     data = response.json()
                     if data.get("success", False):
@@ -176,14 +176,14 @@ class WebRTCShutdownTester:
                 else:
                     logger.error(f"Failed to start WebRTC server: {response.status_code}")
                     return None
-                    
+
         except Exception as e:
             logger.error(f"Error starting WebRTC server: {e}")
             return None
-            
+
     def _get_webrtc_status(self) -> Dict[str, Any]:
         """Get WebRTC status.
-        
+
         Returns:
             WebRTC status dictionary
         """
@@ -192,7 +192,7 @@ class WebRTCShutdownTester:
                 f"{self.server_url}/api/v0/webrtc/status",
                 timeout=self.timeout
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -201,10 +201,10 @@ class WebRTCShutdownTester:
         except Exception as e:
             logger.warning(f"Error getting WebRTC status: {e}")
             return {"error": str(e)}
-            
+
     def _start_test_server(self) -> Optional[subprocess.Popen]:
         """Start a test server for shutdown testing.
-        
+
         Returns:
             Server process if successful, None otherwise
         """
@@ -214,7 +214,7 @@ class WebRTCShutdownTester:
             if not os.path.exists(script_path):
                 logger.error(f"Server script not found: {script_path}")
                 return None
-                
+
             # Start the server process
             cmd = [
                 sys.executable,
@@ -223,9 +223,9 @@ class WebRTCShutdownTester:
                 "--debug",  # Enable debug mode for better logging
                 "--log-file", "mcp_anyio_test_server.log"
             ]
-            
+
             logger.info(f"Starting test server with command: {' '.join(cmd)}")
-            
+
             # Start the process with stdout/stderr redirection
             server_process = subprocess.Popen(
                 cmd,
@@ -233,19 +233,19 @@ class WebRTCShutdownTester:
                 stderr=subprocess.PIPE,
                 universal_newlines=True
             )
-            
+
             return server_process
-            
+
         except Exception as e:
             logger.error(f"Error starting test server: {e}")
             return None
-            
+
     def _verify_test_server(self, process: subprocess.Popen) -> bool:
         """Verify the test server is running.
-        
+
         Args:
             process: Server process to verify
-            
+
         Returns:
             True if running, False otherwise
         """
@@ -254,18 +254,18 @@ class WebRTCShutdownTester:
             if process.poll() is not None:
                 logger.error(f"Server process terminated prematurely with code: {process.returncode}")
                 return False
-                
+
             # Try connecting to the test server
             test_url = self.server_url.replace("9993", "9994")
             response = requests.get(f"{test_url}/api/v0/health", timeout=5)
-            
+
             if response.status_code == 200:
                 logger.info("Test server is running")
                 return True
             else:
                 logger.error(f"Test server returned unexpected status code: {response.status_code}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error verifying test server: {e}")
             return False
@@ -281,11 +281,11 @@ def main():
     else:
         # When run under pytest, use default values
         args = parser.parse_args([])
-    
+
     # Create and run the tester
     tester = WebRTCShutdownTester(server_url=args.url, timeout=args.timeout)
     success = tester.run_test()
-    
+
     # Exit with appropriate code
     sys.exit(0 if success else 1)
 

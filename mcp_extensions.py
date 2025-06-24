@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 def update_storage_backends(storage_backends: Dict[str, Dict[str, Any]]) -> None:
     """
     Update the storage backends status with real implementations.
-    
+
     Args:
         storage_backends: Dictionary of storage backends to update
     """
     logger.info("Updating storage backends status with real implementations")
-    
+
     # Update HuggingFace status
     try:
         import huggingface_hub
@@ -33,7 +33,7 @@ def update_storage_backends(storage_backends: Dict[str, Dict[str, Any]]) -> None
             logger.info("HuggingFace backend is available with token")
     except Exception as e:
         logger.warning(f"Error checking HuggingFace availability: {e}")
-    
+
     # Update S3 status
     try:
         import boto3
@@ -49,7 +49,7 @@ def update_storage_backends(storage_backends: Dict[str, Dict[str, Any]]) -> None
             logger.warning(f"Error checking S3 credentials: {e}")
     except ImportError:
         logger.warning("boto3 not installed, S3 backend not available")
-    
+
     # Update Filecoin status
     try:
         # Check if Lotus is installed
@@ -61,7 +61,7 @@ def update_storage_backends(storage_backends: Dict[str, Dict[str, Any]]) -> None
             logger.info(f"Filecoin backend is available with Lotus at {lotus_path}")
     except Exception as e:
         logger.warning(f"Error checking Filecoin availability: {e}")
-    
+
     # Update Storacha status
     try:
         storacha_token = os.environ.get("STORACHA_TOKEN")
@@ -72,7 +72,7 @@ def update_storage_backends(storage_backends: Dict[str, Dict[str, Any]]) -> None
             logger.info("Storacha backend is available with token")
     except Exception as e:
         logger.warning(f"Error checking Storacha availability: {e}")
-    
+
     # Update Lassie status
     try:
         lassie_path = os.environ.get("LASSIE_BINARY_PATH")
@@ -87,10 +87,10 @@ def update_storage_backends(storage_backends: Dict[str, Dict[str, Any]]) -> None
 def create_extension_routers(api_prefix: str) -> List[Any]:
     """
     Create and return FastAPI routers for storage backend extensions.
-    
+
     Args:
         api_prefix: API prefix for endpoints
-        
+
     Returns:
         List of FastAPI routers
     """
@@ -99,12 +99,12 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
         from typing import Optional
         import tempfile
         import os
-        
+
         routers = []
-        
+
         # Create HuggingFace router
         huggingface_router = APIRouter(prefix=f"{api_prefix}/huggingface")
-        
+
         @huggingface_router.get("/status")
         async def huggingface_status():
             """Get HuggingFace backend status."""
@@ -134,35 +134,35 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                     "simulation": True,
                     "error": str(e)
                 }
-        
+
         @huggingface_router.post("/from_ipfs")
         async def huggingface_from_ipfs(cid: str = Form(...), path: Optional[str] = Form(None)):
             """Upload content from IPFS to HuggingFace."""
             # Create mock storage directory
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_huggingface")
             os.makedirs(mock_dir, exist_ok=True)
-            
+
             # Get content from IPFS
             import subprocess
             result = subprocess.run(
                 ["ipfs", "cat", cid],
                 capture_output=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
                 }
-            
+
             # Save to mock storage
             file_path = path or f"ipfs/{cid}"
             full_path = os.path.join(mock_dir, file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             with open(full_path, "wb") as f:
                 f.write(result.stdout)
-            
+
             return {
                 "success": True,
                 "message": "Content stored in HuggingFace storage (mock)",
@@ -170,20 +170,20 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 "cid": cid,
                 "path": file_path
             }
-        
+
         @huggingface_router.post("/to_ipfs")
         async def huggingface_to_ipfs(file_path: str = Form(...)):
             """Upload content from HuggingFace to IPFS."""
             # Check if file exists in mock storage
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_huggingface")
             mock_file_path = os.path.join(mock_dir, file_path)
-            
+
             if not os.path.exists(mock_file_path):
                 # Create a dummy file with random content for demonstration
                 os.makedirs(os.path.dirname(mock_file_path), exist_ok=True)
                 with open(mock_file_path, "wb") as f:
                     f.write(os.urandom(1024))  # 1KB random data
-            
+
             # Add to IPFS
             import subprocess
             result = subprocess.run(
@@ -191,28 +191,28 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to add to IPFS: {result.stderr}"
                 }
-            
+
             new_cid = result.stdout.strip()
-            
+
             return {
                 "success": True,
                 "message": "Added content from HuggingFace storage to IPFS (mock)",
                 "cid": new_cid,
                 "source": f"mock_huggingface:{file_path}"
             }
-        
+
         routers.append(huggingface_router)
         logger.info("Added HuggingFace router")
-        
+
         # Add S3 router
         s3_router = APIRouter(prefix=f"{api_prefix}/s3")
-        
+
         @s3_router.get("/status")
         async def s3_status():
             """Get S3 backend status."""
@@ -243,35 +243,35 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                     "simulation": True,
                     "error": str(e)
                 }
-        
+
         @s3_router.post("/from_ipfs")
         async def s3_from_ipfs(cid: str = Form(...), path: Optional[str] = Form(None), bucket: Optional[str] = Form("ipfs-storage-demo")):
             """Upload content from IPFS to S3."""
             # Create mock storage directory
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_s3")
             os.makedirs(mock_dir, exist_ok=True)
-            
+
             # Get content from IPFS
             import subprocess
             result = subprocess.run(
                 ["ipfs", "cat", cid],
                 capture_output=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
                 }
-            
+
             # Save to mock storage
             file_path = path or f"ipfs/{cid}"
             full_path = os.path.join(mock_dir, file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             with open(full_path, "wb") as f:
                 f.write(result.stdout)
-            
+
             return {
                 "success": True,
                 "message": "Content stored in S3 storage (mock)",
@@ -280,20 +280,20 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 "path": file_path,
                 "bucket": bucket
             }
-        
+
         @s3_router.post("/to_ipfs")
         async def s3_to_ipfs(file_path: str = Form(...), bucket: Optional[str] = Form("ipfs-storage-demo")):
             """Upload content from S3 to IPFS."""
             # Check if file exists in mock storage
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_s3")
             mock_file_path = os.path.join(mock_dir, file_path)
-            
+
             if not os.path.exists(mock_file_path):
                 # Create a dummy file with random content for demonstration
                 os.makedirs(os.path.dirname(mock_file_path), exist_ok=True)
                 with open(mock_file_path, "wb") as f:
                     f.write(os.urandom(1024))  # 1KB random data
-            
+
             # Add to IPFS
             import subprocess
             result = subprocess.run(
@@ -301,15 +301,15 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to add to IPFS: {result.stderr}"
                 }
-            
+
             new_cid = result.stdout.strip()
-            
+
             return {
                 "success": True,
                 "message": "Added content from S3 storage to IPFS (mock)",
@@ -317,13 +317,13 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 "source": f"mock_s3:{file_path}",
                 "bucket": bucket
             }
-        
+
         routers.append(s3_router)
         logger.info("Added S3 router")
-        
+
         # Add Filecoin router
         filecoin_router = APIRouter(prefix=f"{api_prefix}/filecoin")
-        
+
         @filecoin_router.get("/status")
         async def filecoin_status():
             """Get Filecoin backend status."""
@@ -355,35 +355,35 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                     "simulation": True,
                     "error": str(e)
                 }
-        
+
         @filecoin_router.post("/from_ipfs")
         async def filecoin_from_ipfs(cid: str = Form(...), path: Optional[str] = Form(None)):
             """Upload content from IPFS to Filecoin."""
             # Create mock storage directory
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin")
             os.makedirs(mock_dir, exist_ok=True)
-            
+
             # Get content from IPFS
             import subprocess
             result = subprocess.run(
                 ["ipfs", "cat", cid],
                 capture_output=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
                 }
-            
+
             # Save to mock storage
             file_path = path or f"ipfs/{cid}"
             full_path = os.path.join(mock_dir, file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             with open(full_path, "wb") as f:
                 f.write(result.stdout)
-            
+
             return {
                 "success": True,
                 "message": "Content stored in Filecoin storage (mock)",
@@ -392,20 +392,20 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 "path": file_path,
                 "deal_id": f"mock-deal-{int(time.time())}"
             }
-        
+
         @filecoin_router.post("/to_ipfs")
         async def filecoin_to_ipfs(file_path: str = Form(...)):
             """Upload content from Filecoin to IPFS."""
             # Check if file exists in mock storage
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin")
             mock_file_path = os.path.join(mock_dir, file_path)
-            
+
             if not os.path.exists(mock_file_path):
                 # Create a dummy file with random content for demonstration
                 os.makedirs(os.path.dirname(mock_file_path), exist_ok=True)
                 with open(mock_file_path, "wb") as f:
                     f.write(os.urandom(1024))  # 1KB random data
-            
+
             # Add to IPFS
             import subprocess
             result = subprocess.run(
@@ -413,28 +413,28 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to add to IPFS: {result.stderr}"
                 }
-            
+
             new_cid = result.stdout.strip()
-            
+
             return {
                 "success": True,
                 "message": "Added content from Filecoin storage to IPFS (mock)",
                 "cid": new_cid,
                 "source": f"mock_filecoin:{file_path}"
             }
-        
+
         routers.append(filecoin_router)
         logger.info("Added Filecoin router")
-        
+
         # Add Storacha router
         storacha_router = APIRouter(prefix=f"{api_prefix}/storacha")
-        
+
         @storacha_router.get("/status")
         async def storacha_status():
             """Get Storacha backend status."""
@@ -464,35 +464,35 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                     "simulation": True,
                     "error": str(e)
                 }
-        
+
         @storacha_router.post("/from_ipfs")
         async def storacha_from_ipfs(cid: str = Form(...), path: Optional[str] = Form(None)):
             """Upload content from IPFS to Storacha."""
             # Create mock storage directory
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha")
             os.makedirs(mock_dir, exist_ok=True)
-            
+
             # Get content from IPFS
             import subprocess
             result = subprocess.run(
                 ["ipfs", "cat", cid],
                 capture_output=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
                 }
-            
+
             # Save to mock storage
             file_path = path or f"ipfs/{cid}"
             full_path = os.path.join(mock_dir, file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             with open(full_path, "wb") as f:
                 f.write(result.stdout)
-            
+
             return {
                 "success": True,
                 "message": "Content stored in Storacha storage (mock)",
@@ -501,20 +501,20 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 "path": file_path,
                 "space_did": f"did:web:mock.storage.web3:{int(time.time())}"
             }
-        
+
         @storacha_router.post("/to_ipfs")
         async def storacha_to_ipfs(file_path: str = Form(...)):
             """Upload content from Storacha to IPFS."""
             # Check if file exists in mock storage
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha")
             mock_file_path = os.path.join(mock_dir, file_path)
-            
+
             if not os.path.exists(mock_file_path):
                 # Create a dummy file with random content for demonstration
                 os.makedirs(os.path.dirname(mock_file_path), exist_ok=True)
                 with open(mock_file_path, "wb") as f:
                     f.write(os.urandom(1024))  # 1KB random data
-            
+
             # Add to IPFS
             import subprocess
             result = subprocess.run(
@@ -522,28 +522,28 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to add to IPFS: {result.stderr}"
                 }
-            
+
             new_cid = result.stdout.strip()
-            
+
             return {
                 "success": True,
                 "message": "Added content from Storacha storage to IPFS (mock)",
                 "cid": new_cid,
                 "source": f"mock_storacha:{file_path}"
             }
-        
+
         routers.append(storacha_router)
         logger.info("Added Storacha router")
-        
+
         # Add Lassie router
         lassie_router = APIRouter(prefix=f"{api_prefix}/lassie")
-        
+
         @lassie_router.get("/status")
         async def lassie_status():
             """Get Lassie backend status."""
@@ -575,35 +575,35 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                     "simulation": True,
                     "error": str(e)
                 }
-        
+
         @lassie_router.post("/retrieve")
         async def lassie_retrieve(cid: str = Form(...), path: Optional[str] = Form(None)):
             """Retrieve content using Lassie."""
             # Create mock storage directory
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_lassie")
             os.makedirs(mock_dir, exist_ok=True)
-            
+
             # Get content from IPFS as a fallback
             import subprocess
             result = subprocess.run(
                 ["ipfs", "cat", cid],
                 capture_output=True
             )
-            
+
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
                 }
-            
+
             # Save to mock storage
             file_path = path or f"retrieved/{cid}"
             full_path = os.path.join(mock_dir, file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             with open(full_path, "wb") as f:
                 f.write(result.stdout)
-            
+
             return {
                 "success": True,
                 "message": "Content retrieved using Lassie (mock)",
@@ -611,13 +611,13 @@ def create_extension_routers(api_prefix: str) -> List[Any]:
                 "cid": cid,
                 "size": len(result.stdout)
             }
-        
+
         routers.append(lassie_router)
         logger.info("Added Lassie router")
-        
+
         # Log all routers explicitly
         logger.info(f"Created {len(routers)} routers with prefixes: {[r.prefix for r in routers]}")
-        
+
         return routers
     except Exception as e:
         logger.error(f"Error creating extension routers: {e}")

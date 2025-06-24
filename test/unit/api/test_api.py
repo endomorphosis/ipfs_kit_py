@@ -353,7 +353,7 @@ def test_model_classes():
 
 
 @pytest.mark.skipif(
-    importlib.util.find_spec("fastapi") is None or 
+    importlib.util.find_spec("fastapi") is None or
     # Skip when running full test suite with pytest or arguments like pytest -xvs
     any(arg in sys.argv for arg in ['-xvs', '-v', '--verbose']),
     reason="Skip when FastAPI is not installed or when running as part of the full test suite"
@@ -362,19 +362,19 @@ def test_run_server():
     """Test the run_server function with mocked uvicorn.run."""
     # Import required modules
     import uvicorn
-    
+
     # Clear API module cache to make sure it's reloaded
     if 'ipfs_kit_py.api' in sys.modules:
         del sys.modules['ipfs_kit_py.api']
-    
+
     # Mock the uvicorn.run function to prevent actual server startup
     with patch('uvicorn.run') as mock_run:
         # Import the function after patching
         from ipfs_kit_py.api import run_server
-        
+
         # Call the function with test parameters
         run_server(host="localhost", port=8888, reload=True)
-        
+
         # Check if mock was called with correct parameters
         mock_run.assert_called_once_with(
             "ipfs_kit_py.api:app",
@@ -424,23 +424,23 @@ def test_openapi_schema():
     schema = response.json()
     assert schema["info"]["title"] == "IPFS Kit API"
     assert schema["info"]["version"] == "0.1.1"
-    
+
     # Test the custom endpoint
     response = client.get("/api/openapi")
     assert response.status_code == 200
     custom_schema = response.json()
     assert custom_schema["info"]["title"] == "IPFS Kit API"
     assert custom_schema["info"]["version"] == "0.1.1"
-    
+
     # Verify they are the same schema
     assert schema == custom_schema
-    
+
     # Verify the schema contains the expected paths
     assert "/health" in schema["paths"]
     assert "/api/v0/add" in schema["paths"]
     assert "/api/v0/cat" in schema["paths"]
     assert "/api/v0/pin/add" in schema["paths"]
-    
+
     # Verify components are defined
     assert "components" in schema
     assert "schemas" in schema["components"]

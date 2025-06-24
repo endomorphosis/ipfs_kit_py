@@ -32,20 +32,20 @@ def main():
         "Please use test_runner.py instead.",
         DeprecationWarning, stacklevel=2
     )
-    
+
     print("Running tests using the new test_runner module...")
-    
+
     # Check if test_runner.py exists
     test_runner_path = os.path.join(os.path.dirname(__file__), "test_runner.py")
     if not os.path.exists(test_runner_path):
         print("ERROR: test_runner.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Set environment variables to force WebRTC dependencies as the original script did
     os.environ["IPFS_KIT_FORCE_WEBRTC"] = "1"
     os.environ["FORCE_WEBRTC_TESTS"] = "1"
     os.environ["IPFS_KIT_RUN_ALL_TESTS"] = "1"
-    
+
     # Import the module to set the environment variables
     print("Importing IPFS Kit components to apply environment variables...")
     try:
@@ -53,14 +53,14 @@ def main():
         print(f"HAVE_WEBRTC: {ipfs_kit_py.webrtc_streaming.HAVE_WEBRTC}")
     except ImportError:
         print("Warning: Could not import WebRTC modules. Some tests may be skipped.")
-    
+
     # Build command - run all test categories
     cmd = [
         sys.executable,
         test_runner_path,
         "--verbose"
     ]
-    
+
     # Run test_runner
     try:
         print(f"Running: {' '.join(cmd)}")

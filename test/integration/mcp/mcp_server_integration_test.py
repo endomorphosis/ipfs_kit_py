@@ -45,10 +45,10 @@ async def main():
     try:
         from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
         from ipfs_kit_py.ipfs_kit import ipfs_kit
-        
+
         # Create kit instance
         kit = ipfs_kit()
-        
+
         # Create MCP server with appropriate settings
         mcp_server = MCPServer(
             debug_mode=True,
@@ -56,7 +56,7 @@ async def main():
             persistence_path=os.path.expanduser("~/.ipfs_kit/mcp_test"),
             ipfs_kit_instance=kit
         )
-        
+
         # Register server with app
         mcp_server.register_with_app(app, prefix="/api/v0")
         logger.info("MCP server initialized successfully")
@@ -67,7 +67,7 @@ async def main():
     # Create test client
     client = TestClient(app)
     logger.info("Test client created")
-    
+
     # Helper function to run tests
     def run_test(name, endpoint, method="GET", json_data=None, params=None, expected_status=200):
         logger.info(f"Testing {name}...")
@@ -75,29 +75,29 @@ async def main():
             response = client.get(endpoint, params=params)
         else:
             response = client.post(endpoint, json=json_data, params=params)
-            
+
         status_ok = response.status_code == expected_status
         result_prefix = "✅" if status_ok else "❌"
         logger.info(f"{result_prefix} {name}: Status {response.status_code}")
-        
+
         # Log response details
         try:
             response_json = response.json()
             logger.info(f"Response: {json.dumps(response_json, indent=2)}")
         except Exception:
             logger.info(f"Response: {response.text}")
-            
+
         return status_ok, response
-    
+
     # Run the tests
     results = {}
-    
+
     # Test health endpoint
     results["health"] = run_test(
         name="Health Check",
         endpoint="/api/v0/health"
     )
-    
+
     # Test DHT findpeer
     results["dht_findpeer"] = run_test(
         name="DHT FindPeer",
@@ -105,7 +105,7 @@ async def main():
         method="GET",
         params={"peer_id": "QmTest123"}
     )
-    
+
     # Test DHT findprovs
     results["dht_findprovs"] = run_test(
         name="DHT FindProviders",
@@ -113,7 +113,7 @@ async def main():
         method="GET",
         params={"cid": "QmTest123"}
     )
-    
+
     # Test files mkdir
     test_dir = f"/test_dir_{int(time.time())}"
     results["files_mkdir"] = run_test(
@@ -122,7 +122,7 @@ async def main():
         method="POST",
         json_data={"path": test_dir, "parents": True}
     )
-    
+
     # Test files ls (standard)
     results["files_ls_standard"] = run_test(
         name="Files List (Standard)",
@@ -130,7 +130,7 @@ async def main():
         method="POST",
         json_data={"path": "/"}
     )
-    
+
     # Test files ls with long parameter (our fix)
     results["files_ls_long"] = run_test(
         name="Files List (with Long parameter)",
@@ -138,7 +138,7 @@ async def main():
         method="POST",
         json_data={"path": "/", "long": True}
     )
-    
+
     # Test files stat (our fix)
     results["files_stat"] = run_test(
         name="Files Stat",
@@ -146,7 +146,7 @@ async def main():
         method="GET",
         params={"path": "/"}
     )
-    
+
     # Print summary
     logger.info("\n=== Test Summary ===")
     all_passed = True
@@ -155,7 +155,7 @@ async def main():
         logger.info(f"{result_prefix} {name}")
         if not status:
             all_passed = False
-    
+
     logger.info(f"\nTest {'PASSED' if all_passed else 'FAILED'}")
     return 0 if all_passed else 1
 

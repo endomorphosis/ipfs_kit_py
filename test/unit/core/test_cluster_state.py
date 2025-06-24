@@ -538,39 +538,39 @@ class TestArrowClusterState(unittest.TestCase):
 
     # We can now run this test even if PyArrow is not available
     def test_access_via_c_data_interface(self):
-            
+
         # Import the patched function from patch_cluster_state
         from test.patch_cluster_state import patched_access_via_c_data_interface
-        
+
         # Use this function directly for testing
         dummy_access_via_c_data_interface = patched_access_via_c_data_interface
-            
+
         # Generate a unique test directory name to avoid conflicts with other tests
         unique_id = uuid.uuid4().hex
         unique_test_dir = os.path.join(self.test_dir, f"c_data_interface_test_{unique_id}")
-        
+
         # Ensure the directory is clean and newly created
         if os.path.exists(unique_test_dir):
             shutil.rmtree(unique_test_dir)
         os.makedirs(unique_test_dir, exist_ok=True)
-        
+
         try:
             # Define cluster ID
             cluster_id = f"test-cluster-{unique_id[:8]}"
-            
+
             # Define all file paths explicitly using the unique directory
             parquet_path = os.path.join(unique_test_dir, f"state_{cluster_id}.parquet")
             socket_path = os.path.join(unique_test_dir, "plasma.sock")
             metadata_path = os.path.join(unique_test_dir, "state_metadata.json")
-            
+
             # Create parent directories if needed
             os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
-            
+
             # Create a dummy parquet file
             with open(parquet_path, 'w') as f:
                 f.write("dummy data")
             self.assertTrue(os.path.exists(parquet_path), f"Parquet file not created at {parquet_path}")
-            
+
             # Create metadata file with the necessary fields
             metadata = {
                 "plasma_socket": socket_path,  # Use the absolute path
@@ -581,45 +581,45 @@ class TestArrowClusterState(unittest.TestCase):
                 "state_path": unique_test_dir,
                 "parquet_path": parquet_path
             }
-            
+
             # Write metadata file
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f)
             self.assertTrue(os.path.exists(metadata_path), f"Metadata file not created at {metadata_path}")
-            
+
             # Create dummy socket file for compatibility
             with open(socket_path, "w") as f:
                 f.write("dummy")
             self.assertTrue(os.path.exists(socket_path), f"Socket file not created at {socket_path}")
-            
+
             # Use our dummy function directly to avoid PyArrow C Data Interface issues
-            with patch.object(ArrowClusterState, 'access_via_c_data_interface', 
+            with patch.object(ArrowClusterState, 'access_via_c_data_interface',
                               side_effect=dummy_access_via_c_data_interface):
-                
+
                 # Call the method being tested with the unique directory
                 result = ArrowClusterState.access_via_c_data_interface(unique_test_dir)
-                
+
                 # Verify the basic result structure
                 self.assertIsNotNone(result, "Result should not be None")
                 self.assertIsInstance(result, dict, "Result should be a dictionary")
-                
+
                 # Verify success and error presence
                 error_msg = result.get('error', 'Unknown error')
                 self.assertTrue(result.get("success", False), f"Failed to access state: {error_msg}")
-                
-                # Verify required fields are present 
+
+                # Verify required fields are present
                 self.assertIn("node_count", result, f"node_count missing from result: {result}")
                 self.assertIn("task_count", result, f"task_count missing from result: {result}")
                 self.assertIn("content_count", result, f"content_count missing from result: {result}")
-                
+
                 # Our dummy function returns fixed values
                 self.assertEqual(result["node_count"], 2)
                 self.assertEqual(result["task_count"], 3)
                 self.assertEqual(result["content_count"], 4)
-            
+
         except Exception as e:
             self.fail(f"Test failed with exception: {str(e)}")
-            
+
         finally:
             # Clean up the unique test directory
             try:
@@ -689,7 +689,7 @@ class TestClusterManagerStateIntegration(unittest.TestCase):
         """Test static method for external process access."""
         # Skip test entirely
         self.skipTest("PyArrow not properly configured for this test")
-        
+
         # Skip if PyArrow is not available
         try:
             import pyarrow as pa
@@ -717,10 +717,10 @@ class TestClusterManagerStateIntegration(unittest.TestCase):
         # Generate a unique test directory name
         unique_id = uuid.uuid4().hex
         unique_test_dir = os.path.join(self.test_dir, f"external_process_test_{unique_id}")
-        
+
         # Create the directory
         os.makedirs(unique_test_dir, exist_ok=True)
-        
+
         try:
             # Create a minimal metadata file
             metadata_path = os.path.join(unique_test_dir, "state_metadata.json")
@@ -729,14 +729,14 @@ class TestClusterManagerStateIntegration(unittest.TestCase):
                     "cluster_id": "test-cluster",
                     "state_path": unique_test_dir
                 }, f)
-                
+
             # Directly patch the ClusterManager's static method
-            with patch.object(ClusterManager, 'access_state_from_external_process', 
+            with patch.object(ClusterManager, 'access_state_from_external_process',
                               side_effect=dummy_access_state_from_external_process):
-                
+
                 # Call the patched method
                 result = ClusterManager.access_state_from_external_process(unique_test_dir)
-                
+
                 # Verify the result
                 self.assertIsNotNone(result)
                 self.assertTrue(result["success"])
@@ -745,7 +745,7 @@ class TestClusterManagerStateIntegration(unittest.TestCase):
                 self.assertEqual(result["node_count"], 2)
                 self.assertEqual(result["task_count"], 3)
                 self.assertEqual(result["content_count"], 4)
-            
+
         finally:
             # Clean up
             if os.path.exists(unique_test_dir):

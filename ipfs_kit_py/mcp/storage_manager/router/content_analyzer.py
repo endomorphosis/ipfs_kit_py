@@ -1,7 +1,7 @@
 """
 Content Type Analyzer for Optimized Data Routing
 
-This module analyzes content types and characteristics to make 
+This module analyzes content types and characteristics to make
 intelligent routing decisions for different kinds of content.
 """
 
@@ -19,26 +19,26 @@ logger = logging.getLogger(__name__)
 class ContentTypeAnalyzer:
     """
     Analyzes content to determine optimal storage strategies.
-    
+
     This component examines content type, structure, and characteristics
     to inform intelligent routing decisions.
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the content type analyzer.
-        
+
         Args:
             config: Analyzer configuration
         """
         self.config = config or {}
-        
+
         # Content type mappings: regex pattern -> backend preference
         self.content_type_mappings = self.config.get("content_type_mappings", {})
-        
+
         # Content type scoring: backend -> content type -> score
         self.content_type_scores = self.config.get("content_type_scores", {})
-        
+
         # Default scores for general categories
         self.default_category_scores = {
             "image": {
@@ -122,7 +122,7 @@ class ContentTypeAnalyzer:
                 StorageBackendType.LASSIE.value: 0.7,
             },
         }
-        
+
         # Initialize MIME type to category mapping
         self.mime_to_category = {
             # Images
@@ -164,7 +164,7 @@ class ContentTypeAnalyzer:
             # Text
             "text/": "text",
         }
-        
+
         # Initialize extension to category mapping
         self.extension_to_category = {
             # Images
@@ -246,18 +246,18 @@ class ContentTypeAnalyzer:
             ".rst": "text",
             ".log": "text",
         }
-        
+
         # Ensure mimetypes are initialized
         mimetypes.init()
-    
+
     def get_content_category(self, content_type: Optional[str] = None, filename: Optional[str] = None) -> str:
         """
         Determine the content category based on MIME type and/or filename.
-        
+
         Args:
             content_type: MIME type
             filename: Filename
-            
+
         Returns:
             Content category
         """
@@ -266,16 +266,16 @@ class ContentTypeAnalyzer:
             for mime_prefix, category in self.mime_to_category.items():
                 if content_type.startswith(mime_prefix):
                     return category
-        
+
         # If no match or no content type, try filename
         if filename:
             # Get extension
             ext = os.path.splitext(filename)[1].lower()
-            
+
             # Check direct extension mapping
             if ext in self.extension_to_category:
                 return self.extension_to_category[ext]
-            
+
             # If extension not in our map but we have a filename, try to get mime type
             if not content_type:
                 guessed_type = mimetypes.guess_type(filename)[0]
@@ -283,67 +283,67 @@ class ContentTypeAnalyzer:
                     for mime_prefix, category in self.mime_to_category.items():
                         if guessed_type.startswith(mime_prefix):
                             return category
-        
+
         # If all else fails, return "other"
         return "other"
-    
+
     def get_content_type_score(self, backend_type: StorageBackendType, content_type: Optional[str] = None, filename: Optional[str] = None) -> float:
         """
         Calculate a content type score for a backend.
-        
+
         Args:
             backend_type: Backend type
             content_type: MIME type
             filename: Filename
-            
+
         Returns:
             Content type score (higher is better)
         """
         backend_name = backend_type.value
-        
+
         # Determine content category
         category = self.get_content_category(content_type, filename)
-        
+
         # Check if we have a specific score for this content type
         if backend_name in self.content_type_scores:
             backend_scores = self.content_type_scores[backend_name]
-            
+
             # Try exact content type match
             if content_type and content_type in backend_scores:
                 return backend_scores[content_type]
-            
+
             # Try category match
             if category in backend_scores:
                 return backend_scores[category]
-        
+
         # Fall back to default category scores
         if category in self.default_category_scores:
             category_scores = self.default_category_scores[category]
             if backend_name in category_scores:
                 return category_scores[backend_name]
-        
+
         # If no match, return neutral score
         return 0.5
-    
-    def get_recommended_backends(self, content_type: Optional[str] = None, filename: Optional[str] = None, 
+
+    def get_recommended_backends(self, content_type: Optional[str] = None, filename: Optional[str] = None,
                                 threshold: float = 0.7) -> List[StorageBackendType]:
         """
         Get recommended backends for a content type.
-        
+
         Args:
             content_type: MIME type
             filename: Filename
             threshold: Minimum score threshold
-            
+
         Returns:
             List of recommended backends
         """
         category = self.get_content_category(content_type, filename)
         recommendations = []
-        
+
         if category in self.default_category_scores:
             category_scores = self.default_category_scores[category]
-            
+
             for backend_name, score in category_scores.items():
                 if score >= threshold:
                     try:
@@ -352,16 +352,16 @@ class ContentTypeAnalyzer:
                     except ValueError:
                         # Invalid backend name
                         pass
-        
+
         return recommendations
-    
+
     def get_size_recommendations(self, size: int) -> Dict[str, List[StorageBackendType]]:
         """
         Get backend recommendations based on content size.
-        
+
         Args:
             size: Content size in bytes
-            
+
         Returns:
             Dictionary mapping size categories to recommended backends
         """
@@ -371,7 +371,7 @@ class ContentTypeAnalyzer:
             "large": [],    # 100MB - 1GB
             "very_large": []  # > 1GB
         }
-        
+
         # Small files (< 1MB)
         if size < 1024 * 1024:
             recommendations["small"] = [
@@ -379,7 +379,7 @@ class ContentTypeAnalyzer:
                 StorageBackendType.S3,
                 StorageBackendType.STORACHA
             ]
-        
+
         # Medium files (1MB - 100MB)
         elif size < 100 * 1024 * 1024:
             recommendations["medium"] = [
@@ -388,7 +388,7 @@ class ContentTypeAnalyzer:
                 StorageBackendType.STORACHA,
                 StorageBackendType.HUGGINGFACE
             ]
-        
+
         # Large files (100MB - 1GB)
         elif size < 1024 * 1024 * 1024:
             recommendations["large"] = [
@@ -396,14 +396,14 @@ class ContentTypeAnalyzer:
                 StorageBackendType.FILECOIN,
                 StorageBackendType.LASSIE
             ]
-        
+
         # Very large files (> 1GB)
         else:
             recommendations["very_large"] = [
                 StorageBackendType.FILECOIN,
                 StorageBackendType.S3
             ]
-        
+
         return recommendations
 
 
@@ -413,10 +413,10 @@ _instance = None
 def get_instance(config: Optional[Dict[str, Any]] = None) -> ContentTypeAnalyzer:
     """
     Get or create the singleton content type analyzer instance.
-    
+
     Args:
         config: Optional analyzer configuration
-        
+
     Returns:
         ContentTypeAnalyzer instance
     """

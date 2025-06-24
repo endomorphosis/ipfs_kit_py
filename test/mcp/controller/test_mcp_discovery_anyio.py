@@ -16,15 +16,15 @@ def test_mcp_discovery_controller_anyio_import():
         # First try importing from the new consolidated location
         from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import MCPDiscoveryControllerAnyIO as OriginalClass
         print("Successfully imported MCPDiscoveryControllerAnyIO from the original location!")
-        
+
         # Now verify that we can access the controller through the backward compatibility path
         import ipfs_kit_py.mcp.controllers
         assert hasattr(ipfs_kit_py.mcp_server.controllers, 'MCPDiscoveryControllerAnyIO'), \
             "MCPDiscoveryControllerAnyIO not found in ipfs_kit_py.mcp_server.controllers module"
-            
+
         BackwardClass = ipfs_kit_py.mcp_server.controllers.MCPDiscoveryControllerAnyIO
         assert BackwardClass is OriginalClass, "The classes from different import paths should be the same"
-        
+
         print("Successfully verified backward compatibility import path!")
         print("Import check passed!")
     except ImportError as e:
@@ -35,7 +35,7 @@ def test_mcp_discovery_controller_anyio_import():
             # Create a symlink to the controller file if needed
             import os
             os.makedirs("/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp_server/controllers", exist_ok=True)
-            
+
             # Add a proper import mechanism
             with open("/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp_server/controllers/__init__.py", "w") as f:
                 f.write("""
@@ -44,7 +44,7 @@ from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import MCPDiscov
 # Define __all__ to expose these classes
 __all__ = ['MCPDiscoveryControllerAnyIO']
 """)
-                
+
             # Try the import again
             print("Created necessary paths and files, trying import again...")
             from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import MCPDiscoveryControllerAnyIO

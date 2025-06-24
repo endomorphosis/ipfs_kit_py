@@ -34,7 +34,7 @@ print(f"Open braces: {open_braces}, Close braces: {close_braces}")
 # Remove the extra } at line 2402
 if line_number < len(lines):
     lines[line_number-1] = lines[line_number-1].replace('}', '')
-    
+
     # Write back the file
     with open(controller_path, 'w') as f:
         f.write('\n'.join(lines))

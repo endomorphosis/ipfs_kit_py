@@ -45,12 +45,12 @@ def find_vscode_settings():
         os.path.expanduser('~/.vscode/extensions/saoudrizwan.claude-dev/settings/cline_mcp_settings.json'),
         os.path.expanduser('~/.vscode-server/extensions/saoudrizwan.claude-dev/settings/cline_mcp_settings.json')
     ]
-    
+
     for path in potential_paths:
         if os.path.exists(path):
             logger.info(f"Found VSCode MCP settings at: {path}")
             return path
-    
+
     logger.warning("Could not find VSCode MCP settings file")
     return None
 
@@ -262,7 +262,7 @@ def create_ipfs_mcp_config(server_name="ipfs-kit-mcp"):
             }
         }
     ]
-    
+
     # Define resources
     resources = [
         {
@@ -282,7 +282,7 @@ def create_ipfs_mcp_config(server_name="ipfs-kit-mcp"):
             "description": "Root of the Mutable File System"
         }
     ]
-    
+
     # Create server configuration
     server_config = {
         "name": server_name,
@@ -290,7 +290,7 @@ def create_ipfs_mcp_config(server_name="ipfs-kit-mcp"):
         "tools": tools,
         "resources": resources
     }
-    
+
     return server_config
 
 def update_vscode_settings(settings_path, server_config):
@@ -298,24 +298,24 @@ def update_vscode_settings(settings_path, server_config):
     try:
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(settings_path), exist_ok=True)
-        
+
         # Load existing settings if they exist
         if os.path.exists(settings_path):
             with open(settings_path, 'r') as f:
                 settings = json.load(f)
         else:
             settings = {"servers": []}
-        
+
         # Remove existing server with the same name if it exists
         settings["servers"] = [s for s in settings.get("servers", []) if s.get("name") != server_config["name"]]
-        
+
         # Add the new server configuration
         settings["servers"].append(server_config)
-        
+
         # Write the updated settings
         with open(settings_path, 'w') as f:
             json.dump(settings, f, indent=2)
-        
+
         logger.info(f"Successfully updated VSCode MCP settings at {settings_path}")
         return True
     except Exception as e:
@@ -325,21 +325,21 @@ def update_vscode_settings(settings_path, server_config):
 def main():
     """Main function."""
     args = parse_args()
-    
+
     # Find VSCode settings
     settings_path = find_vscode_settings()
     if not settings_path and args.apply:
         logger.error("Could not find VSCode settings file")
         return 1
-    
+
     # Create MCP configuration
     server_config = create_ipfs_mcp_config(args.server_name)
     logger.info(f"Created MCP configuration for server: {args.server_name}")
-    
+
     # Show configuration
     print(f"MCP Server Configuration for {args.server_name}:")
     print(json.dumps(server_config, indent=2))
-    
+
     # Update VSCode settings if requested
     if args.apply and settings_path:
         success = update_vscode_settings(settings_path, server_config)
@@ -352,7 +352,7 @@ def main():
         print("Could not apply changes: VSCode settings file not found")
     else:
         print("Dry run: Use --apply to update VSCode settings")
-    
+
     return 0
 
 if __name__ == "__main__":

@@ -16,27 +16,27 @@ logger = logging.getLogger(__name__)
 
 class FilecoinModel:
     """Model for Filecoin operations."""
-    
+
     def __init__(self, lotus_api_url=None, lotus_token=None):
         """Initialize the Filecoin model."""
         self.lotus_api_url = lotus_api_url or os.environ.get("LOTUS_API", "http://127.0.0.1:1234/rpc/v0")
         self.lotus_token = lotus_token or os.environ.get("LOTUS_TOKEN", "")
         self.deals = []  # Store deals for mock implementation
         self.tipsets = []  # Store tipsets for mock implementation
-        
+
         logger.info(f"Initialized Filecoin model with API URL: {self.lotus_api_url}")
-    
+
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for Lotus API requests."""
         headers = {"Content-Type": "application/json"}
         if self.lotus_token:
             headers["Authorization"] = f"Bearer {self.lotus_token}"
         return headers
-    
+
     def _mock_request(self, method: str, params: List[Any]) -> Any:
         """Mock Lotus API request for testing."""
         logger.info(f"Mock Lotus API request: {method} {params}")
-        
+
         if method == "ChainHead":
             # Mock chain head response
             return {
@@ -47,7 +47,7 @@ class FilecoinModel:
                 ],
                 "Timestamp": int(time.time())
             }
-        
+
         elif method == "ClientGetDealInfo":
             # Mock deal info response
             deal_id = params[0] if params else "mock_deal_id"
@@ -77,7 +77,7 @@ class FilecoinModel:
                 "Client": "f0123456",
                 "CreationTime": "2023-01-01T00:00:00Z"
             }
-        
+
         elif method == "ClientListDeals":
             # Mock list deals response
             return [
@@ -110,12 +110,12 @@ class FilecoinModel:
                     "CreationTime": "2023-01-01T00:00:00Z"
                 }
             ]
-        
+
         elif method == "ClientStartDeal":
             # Mock start deal response
             cid = params[0]["Data"]["Root"]["root"] if params else "bafy2bzaceblgmfoiiymfm6zgmc7wevs5aj7ipnyubxc5r7bbgpub6m26zzdza"
             deal_id = f"mock_deal_id_{len(self.deals) + 1}"
-            
+
             # Create a new deal and add it to the list
             deal = FilecoinDeal(
                 deal_id=deal_id,
@@ -130,9 +130,9 @@ class FilecoinModel:
                 cid=cid
             )
             self.deals.append(deal)
-            
+
             return {"root": "/"}
-        
+
         elif method == "ChainGetTipSet":
             # Mock get tipset response
             for tipset in self.tipsets:
@@ -142,7 +142,7 @@ class FilecoinModel:
                         "Blocks": [{"Cid": {"root": cid}} for cid in tipset.key],
                         "Timestamp": tipset.timestamp
                     }
-            
+
             # Return a mock tipset if none found
             return {
                 "Height": 1000,
@@ -152,14 +152,14 @@ class FilecoinModel:
                 ],
                 "Timestamp": int(time.time())
             }
-        
+
         elif method == "WalletBalance":
             # Mock wallet balance response
             return "100000000000000000"
-        
+
         # Default mock response
         return None
-    
+
     def create_deal(
         self,
         cid: str,
@@ -185,7 +185,7 @@ class FilecoinModel:
                 "MinBlocksDuration": duration,
                 "VerifiedDeal": verified
             }])
-            
+
             # Find the newly created deal
             for deal in self.deals:
                 if deal.cid == cid and deal.deal_id.startswith("mock_deal_id_"):
@@ -197,7 +197,7 @@ class FilecoinModel:
                         "client": deal.client_address,
                         "price": deal.price_per_epoch * (deal.end_epoch - deal.start_epoch)
                     }
-            
+
             return {
                 "deal_id": f"mock_deal_id_{len(self.deals)}",
                 "cid": cid,
@@ -206,11 +206,11 @@ class FilecoinModel:
                 "client": client_address or "f0123456",
                 "price": (price_max or 1000000000) * duration
             }
-        
+
         except Exception as e:
             logger.error(f"Error creating Filecoin deal: {str(e)}")
             return {"error": str(e)}
-    
+
     async def create_deal_async(
         self,
         cid: str,
@@ -231,13 +231,13 @@ class FilecoinModel:
             client_address=client_address,
             miner_addresses=miner_addresses
         )
-    
+
     def get_deal_status(self, deal_id: str) -> Dict[str, Any]:
         """Get the status of a Filecoin storage deal."""
         try:
             # In a real implementation, this would call the Lotus API
             response = self._mock_request("ClientGetDealInfo", [deal_id])
-            
+
             return {
                 "deal_id": deal_id,
                 "status": response.get("State", "unknown"),
@@ -249,15 +249,15 @@ class FilecoinModel:
                 "client": response.get("Client", ""),
                 "creation_time": response.get("CreationTime", "")
             }
-        
+
         except Exception as e:
             logger.error(f"Error getting Filecoin deal status: {str(e)}")
             return {"error": str(e)}
-    
+
     async def get_deal_status_async(self, deal_id: str) -> Dict[str, Any]:
         """Get the status of a Filecoin storage deal asynchronously."""
         return self.get_deal_status(deal_id)
-    
+
     def list_deals(
         self,
         address: Optional[str] = None,
@@ -269,7 +269,7 @@ class FilecoinModel:
         try:
             # In a real implementation, this would call the Lotus API
             response = self._mock_request("ClientListDeals", [])
-            
+
             deals = []
             for deal_data in response:
                 deal = {
@@ -285,27 +285,27 @@ class FilecoinModel:
                     "client": deal_data.get("Client", ""),
                     "creation_time": deal_data.get("CreationTime", "")
                 }
-                
+
                 # Apply filters
                 if address and address != deal["client"] and address != deal["provider"]:
                     continue
                 if status and status != deal["status"]:
                     continue
-                
+
                 deals.append(deal)
-            
+
             # Apply pagination
             if offset is not None:
                 deals = deals[offset:]
             if limit is not None:
                 deals = deals[:limit]
-            
+
             return deals
-        
+
         except Exception as e:
             logger.error(f"Error listing Filecoin deals: {str(e)}")
             return []
-    
+
     async def list_deals_async(
         self,
         address: Optional[str] = None,
@@ -320,27 +320,27 @@ class FilecoinModel:
             limit=limit,
             offset=offset
         )
-    
+
     def get_chain_head(self) -> Dict[str, Any]:
         """Get the current chain head tipset."""
         try:
             # In a real implementation, this would call the Lotus API
             response = self._mock_request("ChainHead", [])
-            
+
             return {
                 "height": response.get("Height", 0),
                 "blocks": [block.get("Cid", {}).get("root", "") for block in response.get("Blocks", [])],
                 "timestamp": response.get("Timestamp", 0)
             }
-        
+
         except Exception as e:
             logger.error(f"Error getting Filecoin chain head: {str(e)}")
             return {"error": str(e)}
-    
+
     async def get_chain_head_async(self) -> Dict[str, Any]:
         """Get the current chain head tipset asynchronously."""
         return self.get_chain_head()
-    
+
     def get_tipset(
         self,
         key: Optional[List[str]] = None,
@@ -350,17 +350,17 @@ class FilecoinModel:
         try:
             # In a real implementation, this would call the Lotus API
             response = self._mock_request("ChainGetTipSet", [key])
-            
+
             return {
                 "height": response.get("Height", 0),
                 "blocks": [block.get("Cid", {}).get("root", "") for block in response.get("Blocks", [])],
                 "timestamp": response.get("Timestamp", 0)
             }
-        
+
         except Exception as e:
             logger.error(f"Error getting Filecoin tipset: {str(e)}")
             return {"error": str(e)}
-    
+
     async def get_tipset_async(
         self,
         key: Optional[List[str]] = None,
@@ -368,27 +368,27 @@ class FilecoinModel:
     ) -> Dict[str, Any]:
         """Get a specific tipset by key or height asynchronously."""
         return self.get_tipset(key=key, height=height)
-    
+
     def get_wallet_balance(self, address: str) -> Dict[str, Any]:
         """Get the balance of a Filecoin wallet address."""
         try:
             # In a real implementation, this would call the Lotus API
             response = self._mock_request("WalletBalance", [address])
-            
+
             # Convert from attoFIL to FIL
             balance_attofil = int(response or 0)
             balance_fil = balance_attofil / 1e18
-            
+
             return {
                 "address": address,
                 "balance_attofil": balance_attofil,
                 "balance_fil": balance_fil
             }
-        
+
         except Exception as e:
             logger.error(f"Error getting Filecoin wallet balance: {str(e)}")
             return {"error": str(e)}
-    
+
     async def get_wallet_balance_async(self, address: str) -> Dict[str, Any]:
         """Get the balance of a Filecoin wallet address asynchronously."""
         return self.get_wallet_balance(address)

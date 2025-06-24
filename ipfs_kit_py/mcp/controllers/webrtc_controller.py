@@ -20,7 +20,7 @@ except ImportError:
         def __init__(self, **kwargs):
             for key, value in kwargs.items():
                 setattr(self, key, value)
-            
+
     # Add Field as a no-op function
     def Field(**kwargs):
         return None
@@ -494,7 +494,7 @@ class WebRTCController:
             )
 
             # Import asyncio for handling asyncio tasks
-            
+
 
             # Use AnyIO since we already imported it at the top of the file
             handle_anyio_cancel()
@@ -611,7 +611,7 @@ class WebRTCController:
         try:
             # Try using anyio (preferred method)
             try:
-                
+
 
                 anyio.run(self.shutdown)
                 return

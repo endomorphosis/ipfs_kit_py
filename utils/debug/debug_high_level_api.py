@@ -13,24 +13,24 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 try:
     # Import the High-Level API
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-    
+
     print("Successfully imported IPFSSimpleAPI")
-    
+
     # Try to instantiate the API
     try:
         api = IPFSSimpleAPI()
         print(f"Successfully instantiated IPFSSimpleAPI with role: {api.config.get('role')}")
-        
+
         # Try basic operations
         try:
             # Add content
             content = b"Test content for debugging"
             result = api.add(content)
             print(f"Add result: {result}")
-            
+
             if result.get("success"):
                 cid = result.get("cid")
-                
+
                 # Get content
                 try:
                     retrieved = api.get(cid)

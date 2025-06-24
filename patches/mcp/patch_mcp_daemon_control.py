@@ -9,10 +9,10 @@ def apply_daemon_control_patch():
     # Apply runtime patch to enable manual daemon control.
     try:
         from ipfs_kit_py.mcp.server_anyio import MCPServer
-        
+
         # Original start_daemon method has a check that prevents manual control
         original_start_daemon = MCPServer.start_daemon
-        
+
         # Create a new implementation that bypasses the check
         async def patched_start_daemon(self, daemon_type: str):
             # Patched version that allows manual daemon control.
@@ -24,7 +24,7 @@ def apply_daemon_control_patch():
                     "error": f"Invalid daemon type: {daemon_type}. Must be one of: {', '.join(valid_types)}",
                     "error_type": "InvalidDaemonType"
                 }
-            
+
             # Try to start the daemon directly using our helper functions
             if daemon_type == 'ipfs':
                 from fix_mcp_daemons import start_ipfs_daemon
@@ -56,7 +56,7 @@ def apply_daemon_control_patch():
                     "error": f"Daemon type not implemented: {daemon_type}",
                     "error_type": "NotImplemented"
                 }
-        
+
         # Replace the method
         MCPServer.start_daemon = patched_start_daemon
         logger.info("Successfully patched MCPServer.start_daemon to enable manual daemon control")

@@ -32,13 +32,13 @@ get_health_replacement = """def _get_health_sync():
                 "operation": "get_health",
                 "timestamp": time.time()
             }
-            
+
             # Return early if libp2p is not available
             if not self._is_available_sync():
                 result["error"] = "libp2p is not available"
                 result["error_type"] = "dependency_missing"
                 return result
-                
+
             try:
                 # Basic health check - get peer ID
                 result["success"] = True
@@ -58,19 +58,19 @@ register_handler_replacement = """    async def register_message_handler(self, h
         #     handler_id: Unique identifier for the handler
         #     protocol_id: Protocol ID to handle
         #     description: Optional description of the handler
-        #            
+        #
         # Returns:
         #     Dict with registration status
-        
+
         # Define a helper function to avoid parameter issues
         def _register_message_handler_sync():
             # Create a dummy handler function
             def dummy_handler(message):
                 pass
-                
+
             # Call the synchronous method with the correct parameter order
             return self.register_message_handler(protocol_id, dummy_handler, handler_id)
-            
+
         # Use anyio to run the synchronous version in a thread
         import anyio
         return await anyio.to_thread.run_sync(_register_message_handler_sync)"""

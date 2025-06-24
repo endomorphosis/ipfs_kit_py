@@ -154,13 +154,13 @@ class StorageManagerControllerAnyIO:
         """
         try:
             logger.info("Getting storage statistics")
-            
+
             # Call the model's get_storage_stats method
             result = await self.storage_manager_model.get_storage_stats(
                 backend=request.backend,
                 include_details=request.include_details
             )
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error getting storage statistics: {error_msg}")
@@ -169,7 +169,7 @@ class StorageManagerControllerAnyIO:
                     "timestamp": int(time.time()),
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "timestamp": result.get("timestamp", int(time.time())),
@@ -178,7 +178,7 @@ class StorageManagerControllerAnyIO:
                 "item_count": result.get("item_count", 0),
                 "backend_stats": result.get("backend_stats", {})
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting storage statistics: {e}")
             return {
@@ -199,7 +199,7 @@ class StorageManagerControllerAnyIO:
         """
         try:
             logger.info(f"Creating replication policy for CID: {request.cid}")
-            
+
             # Call the model's create_replication_policy method
             result = await self.storage_manager_model.create_replication_policy(
                 cid=request.cid,
@@ -208,7 +208,7 @@ class StorageManagerControllerAnyIO:
                 priority=request.priority,
                 verify=request.verify
             )
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error creating replication policy: {error_msg}")
@@ -217,14 +217,14 @@ class StorageManagerControllerAnyIO:
                     "cid": request.cid,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "cid": request.cid,
                 "message": result.get("message", "Replication policy created successfully"),
                 "replicas": result.get("replicas", [])
             }
-            
+
         except Exception as e:
             logger.error(f"Error creating replication policy: {e}")
             return {
@@ -245,7 +245,7 @@ class StorageManagerControllerAnyIO:
         """
         try:
             logger.info(f"Adding storage backend: {request.backend_id} (type: {request.backend_type})")
-            
+
             # Call the model's add_storage_backend method
             result = await self.storage_manager_model.add_storage_backend(
                 backend_id=request.backend_id,
@@ -254,7 +254,7 @@ class StorageManagerControllerAnyIO:
                 enabled=request.enabled,
                 priority=request.priority
             )
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error adding storage backend: {error_msg}")
@@ -263,13 +263,13 @@ class StorageManagerControllerAnyIO:
                     "backend_id": request.backend_id,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "backend_id": request.backend_id,
                 "message": result.get("message", "Storage backend added successfully")
             }
-            
+
         except Exception as e:
             logger.error(f"Error adding storage backend: {e}")
             return {
@@ -290,10 +290,10 @@ class StorageManagerControllerAnyIO:
         """
         try:
             logger.info(f"Removing storage backend: {backend_id}")
-            
+
             # Call the model's remove_storage_backend method
             result = await self.storage_manager_model.remove_storage_backend(backend_id)
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error removing storage backend: {error_msg}")
@@ -302,13 +302,13 @@ class StorageManagerControllerAnyIO:
                     "backend_id": backend_id,
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "backend_id": backend_id,
                 "message": result.get("message", "Storage backend removed successfully")
             }
-            
+
         except Exception as e:
             logger.error(f"Error removing storage backend: {e}")
             return {
@@ -326,10 +326,10 @@ class StorageManagerControllerAnyIO:
         """
         try:
             logger.info("Listing storage backends")
-            
+
             # Call the model's list_storage_backends method
             result = await self.storage_manager_model.list_storage_backends()
-            
+
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 logger.error(f"Error listing storage backends: {error_msg}")
@@ -338,13 +338,13 @@ class StorageManagerControllerAnyIO:
                     "backends": [],
                     "error": error_msg
                 }
-            
+
             return {
                 "success": True,
                 "backends": result.get("backends", []),
                 "count": len(result.get("backends", []))
             }
-            
+
         except Exception as e:
             logger.error(f"Error listing storage backends: {e}")
             return {

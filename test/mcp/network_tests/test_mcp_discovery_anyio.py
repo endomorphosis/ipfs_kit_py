@@ -14,7 +14,7 @@ def test_mcp_discovery_controller_anyio_import():
     try:
         # Just check if the module can be imported
         from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import MCPDiscoveryControllerAnyIO
-        
+
         print("Successfully imported MCPDiscoveryControllerAnyIO!")
         print("Import check passed!")
         # The test passes if we reach this point

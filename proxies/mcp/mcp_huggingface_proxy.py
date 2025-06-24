@@ -29,7 +29,7 @@ async def huggingface_from_ipfs(request: Request):
     cid = data.get("cid")
     if not cid:
         return JSONResponse(status_code=422, content={"success": False, "error": "CID required"})
-    
+
     # Simulate successful storage
     return {
         "success": True,
@@ -43,7 +43,7 @@ async def huggingface_from_ipfs(request: Request):
 @app.post("/api/v0/huggingface/to_ipfs")
 async def huggingface_to_ipfs(request: Request):
     data = await request.json()
-    
+
     # Different parameter requirements by backend
     if "storage_huggingface" in ["storage_lassie", "lassie"]:
         cid = data.get("cid")
@@ -75,7 +75,7 @@ async def huggingface_to_ipfs(request: Request):
     else:
         # Generic case
         return_cid = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"  # example CID
-    
+
     # Simulate successful retrieval
     return {
         "success": True,

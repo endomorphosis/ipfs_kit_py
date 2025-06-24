@@ -26,11 +26,11 @@ def run_tests(args):
     if args.mock:
         os.environ['MCP_TEST_MOCK'] = '1'
         logger.info("Running tests in MOCK mode")
-    
+
     # Add project root to path
     project_root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    
+
     # Determine test path
     if args.component:
         if args.component == 'ipfs':
@@ -49,12 +49,12 @@ def run_tests(args):
             test_path = f'tests.integration.{args.component}'
     else:
         test_path = 'tests.integration'
-    
+
     logger.info(f"Running tests from: {test_path}")
-    
+
     # Run the tests
     result = unittest.main(module=test_path, exit=False, argv=[''])
-    
+
     # Return appropriate exit code
     return 0 if result.result.wasSuccessful() else 1
 
@@ -64,23 +64,23 @@ def main():
     parser.add_argument('--mock', action='store_true', help='Run tests in mock mode')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
     parser.add_argument('--component', '-c', help='Test specific component (ipfs, filecoin, streaming, search)')
-    
+
     # Only parse args when running the script directly, not when imported by pytest
-    
+
     if __name__ == "__main__":
-    
+
         args = parser.parse_args()
-    
+
     else:
-    
+
         # When run under pytest, use default values
-    
+
         args = parser.parse_args([])
-    
+
     # Set logging level based on verbosity
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     return run_tests(args)
 
 if __name__ == '__main__':

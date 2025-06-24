@@ -59,7 +59,7 @@ def kill_mcp_server_processes():
 def start_mcp_server():
     """Start a new MCP server."""
     print("Starting new MCP server...")
-    
+
     # Start the server as a new process and detach
     server_process = subprocess.Popen(
         [sys.executable, "run_mcp_server_anyio.py", "--isolation", "--debug", "--skip-daemon"],
@@ -67,17 +67,17 @@ def start_mcp_server():
         stderr=subprocess.PIPE,
         preexec_fn=os.setpgrp  # Detach the process
     )
-    
+
     # Wait a bit to make sure it starts
     time.sleep(2)
-    
+
     if server_process.poll() is not None:
         print("Server failed to start!")
         stdout, stderr = server_process.communicate()
         print("STDOUT:", stdout.decode())
         print("STDERR:", stderr.decode())
         return False
-    
+
     print(f"MCP server started with PID {server_process.pid}")
     return True
 
@@ -85,10 +85,10 @@ def main():
     """Main function."""
     # Kill existing MCP server processes
     kill_mcp_server_processes()
-    
+
     # Start a new MCP server
     success = start_mcp_server()
-    
+
     return 0 if success else 1
 
 if __name__ == "__main__":

@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 class LibP2PController:
     """Controller for LibP2P operations."""
-    
+
     def __init__(self, libp2p_model):
         """Initialize with a LibP2P model."""
         self.libp2p_model = libp2p_model
         self.logger = logging.getLogger(__name__)
-    
+
     def start_node(self, request) -> Dict[str, Any]:
         """Start the LibP2P node."""
         self.logger.info("Starting LibP2P node")
@@ -41,7 +41,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error starting LibP2P node: {str(e)}"
             }
-    
+
     def stop_node(self, request) -> Dict[str, Any]:
         """Stop the LibP2P node."""
         self.logger.info("Stopping LibP2P node")
@@ -57,7 +57,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error stopping LibP2P node: {str(e)}"
             }
-    
+
     def connect_peer(self, request) -> Dict[str, Any]:
         """Connect to a peer."""
         peer_addr = request.peer_addr
@@ -74,7 +74,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error connecting to peer: {str(e)}"
             }
-    
+
     def disconnect_peer(self, request) -> Dict[str, Any]:
         """Disconnect from a peer."""
         peer_id = request.peer_id
@@ -91,7 +91,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error disconnecting from peer: {str(e)}"
             }
-    
+
     def get_peers(self, request) -> Dict[str, Any]:
         """Get connected peers."""
         self.logger.info("Getting connected peers")
@@ -109,7 +109,7 @@ class LibP2PController:
                 "message": f"Error getting connected peers: {str(e)}",
                 "peers": []
             }
-    
+
     def dht_get(self, request) -> Dict[str, Any]:
         """Get a value from the DHT."""
         key = request.key
@@ -135,7 +135,7 @@ class LibP2PController:
                 "message": f"Error getting value from DHT: {str(e)}",
                 "value": None
             }
-    
+
     def dht_put(self, request) -> Dict[str, Any]:
         """Put a value in the DHT."""
         key = request.key
@@ -153,7 +153,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error putting value in DHT: {str(e)}"
             }
-    
+
     def dht_find_providers(self, request) -> Dict[str, Any]:
         """Find providers for a CID."""
         cid = request.cid
@@ -172,7 +172,7 @@ class LibP2PController:
                 "message": f"Error finding providers: {str(e)}",
                 "providers": []
             }
-    
+
     def dht_provide(self, request) -> Dict[str, Any]:
         """Announce that this node can provide a CID."""
         cid = request.cid
@@ -189,7 +189,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error providing CID: {str(e)}"
             }
-    
+
     def pubsub_subscribe(self, request) -> Dict[str, Any]:
         """Subscribe to a pubsub topic."""
         topic = request.topic
@@ -198,7 +198,7 @@ class LibP2PController:
             # We need a callback for the subscription
             def message_callback(peer_id, data):
                 self.logger.info(f"Received message on topic {topic} from peer {peer_id}")
-            
+
             success = self.libp2p_model.pubsub_subscribe(topic, message_callback)
             return {
                 "success": success,
@@ -210,7 +210,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error subscribing to topic: {str(e)}"
             }
-    
+
     def pubsub_publish(self, request) -> Dict[str, Any]:
         """Publish to a pubsub topic."""
         topic = request.topic
@@ -219,7 +219,7 @@ class LibP2PController:
         try:
             if isinstance(data, str):
                 data = data.encode()
-            
+
             success = self.libp2p_model.pubsub_publish(topic, data)
             return {
                 "success": success,
@@ -231,7 +231,7 @@ class LibP2PController:
                 "success": False,
                 "message": f"Error publishing to topic: {str(e)}"
             }
-    
+
     def get_node_info(self, request) -> Dict[str, Any]:
         """Get information about the LibP2P node."""
         self.logger.info("Getting LibP2P node info")

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class IPFSModel:
     """Simplified IPFS model for testing."""
-    
+
     def __init__(self):
         self.ipfs_kit = MagicMock()
         self.operation_stats = {
@@ -25,7 +25,7 @@ class IPFSModel:
             "success_count": 0,
             "failure_count": 0
         }
-    
+
     def ipfs_name_resolve(self, name: str, recursive: bool = True, nocache: bool = False, timeout: int = None):
         """
         Resolve an IPNS name to a CID.
@@ -83,27 +83,27 @@ class IPFSModel:
             # Execute the command
             try:
                 cmd_result = self.ipfs_kit.run_ipfs_command(cmd)
-                
+
                 # Handle the case where cmd_result is raw bytes instead of a dictionary
                 if isinstance(cmd_result, bytes):
                     # Log the raw response for debugging
                     logger.debug(f"Raw bytes response from ipfs name resolve: {cmd_result}")
                     result["raw_output"] = cmd_result
-                    
+
                     # Try to decode the bytes as UTF-8 text
                     try:
                         decoded = cmd_result.decode("utf-8", errors="replace").strip()
                         result["success"] = True
                         result["path"] = decoded
                         result["duration_ms"] = (time.time() - start_time) * 1000
-                        
+
                         # Update operation stats
                         if "name_resolve" not in self.operation_stats:
                             self.operation_stats["name_resolve"] = {"count": 0, "errors": 0}
                         self.operation_stats["name_resolve"]["count"] = self.operation_stats["name_resolve"].get("count", 0) + 1
                         self.operation_stats["total_operations"] += 1
                         self.operation_stats["success_count"] += 1
-                        
+
                         logger.info(f"Successfully resolved IPNS name {name} to {result.get('path', 'unknown path')}")
                         return result
                     except Exception as decode_error:
@@ -117,7 +117,7 @@ class IPFSModel:
                     result["error_type"] = "unexpected_response_type"
                     logger.error(f"Unexpected response type from IPFS name resolve: {type(cmd_result)}")
                     return result
-                    
+
             except AttributeError:
                 # If run_ipfs_command doesn't exist, use subprocess directly
                 import subprocess
@@ -140,7 +140,7 @@ class IPFSModel:
                     error_msg = stderr.decode("utf-8", errors="replace")
                 else:
                     error_msg = str(stderr)
-                
+
                 result["error"] = error_msg
                 result["error_type"] = "command_error"
                 logger.error(f"IPFS name resolve command failed: {result['error']}")
@@ -193,26 +193,26 @@ class IPFSModel:
 
 class TestIPFSNameResolve(unittest.TestCase):
     """Test cases for ipfs_name_resolve method."""
-    
+
     def setUp(self):
         self.ipfs_model = IPFSModel()
-    
+
     def test_ipfs_name_resolve_handles_bytes_stdout(self):
         """Test that ipfs_name_resolve properly handles bytes in stdout."""
         # Test direct bytes response from run_ipfs_command
         test_bytes = b"/ipfs/QmResolvedTestCID"
         self.ipfs_model.ipfs_kit.run_ipfs_command.return_value = test_bytes
-        
+
         # Call the method
         result = self.ipfs_model.ipfs_name_resolve("test")
-        
+
         # Verify the method correctly handled the bytes response
         self.assertTrue(result["success"])
         self.assertEqual(result["operation"], "ipfs_name_resolve")
         self.assertEqual(result["name"], "test")
         self.assertEqual(result["path"], "/ipfs/QmResolvedTestCID")
         self.assertEqual(result["raw_output"], test_bytes)
-        
+
     def test_ipfs_name_resolve_handles_dict_response(self):
         """Test that ipfs_name_resolve properly handles dictionary responses."""
         # Test dictionary response
@@ -223,10 +223,10 @@ class TestIPFSNameResolve(unittest.TestCase):
             "returncode": 0
         }
         self.ipfs_model.ipfs_kit.run_ipfs_command.return_value = test_response
-        
+
         # Call the method
         result = self.ipfs_model.ipfs_name_resolve("test")
-        
+
         # Verify the method correctly handled the dictionary response
         self.assertTrue(result["success"])
         self.assertEqual(result["operation"], "ipfs_name_resolve")

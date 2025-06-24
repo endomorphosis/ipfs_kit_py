@@ -2,7 +2,7 @@
 """
 IPFS DHT Operations Demo
 
-This script demonstrates how to use the enhanced DHT (Distributed Hash Table) 
+This script demonstrates how to use the enhanced DHT (Distributed Hash Table)
 operations in the IPFS backend, which improve network participation capabilities.
 
 Usage:
@@ -35,12 +35,12 @@ import ipfs_backend
 def print_result(title: str, result: Dict[str, Any]) -> None:
     """Print operation result with formatting."""
     print(f"\n=== {title} ===")
-    
+
     if result.get("success", False):
         print("✅ Operation succeeded")
     else:
         print("❌ Operation failed")
-    
+
     # Print details
     for key, value in result.items():
         if key != "details":
@@ -48,7 +48,7 @@ def print_result(title: str, result: Dict[str, Any]) -> None:
                 print(f"{key}: {json.dumps(value, indent=2)}")
             else:
                 print(f"{key}: {value}")
-    
+
     # Print performance stats
     if "details" in result and "stats" in result.get("details", {}):
         print("\nPerformance stats:")
@@ -67,10 +67,10 @@ def demo_provide(backend, cid=None):
         if not store_result.get("success", False):
             print("❌ Failed to store test content")
             return
-        
+
         cid = store_result["identifier"]
         print(f"Stored test content with CID: {cid}")
-    
+
     # Provide the content
     result = backend.dht_provide(cid, recursive=True)
     print_result("DHT Provide Operation", result)
@@ -82,11 +82,11 @@ def demo_find_providers(backend, cid=None):
     if not cid:
         cid = "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"  # IPFS default empty directory
         print(f"Using default IPFS empty directory CID: {cid}")
-    
+
     # Find providers
     result = backend.dht_find_providers(cid, num_providers=5, timeout=30)
     print_result("DHT Find Providers Operation", result)
-    
+
     if result.get("success", False) and len(result.get("providers", [])) > 0:
         print(f"\nFound {len(result['providers'])} providers for CID: {cid}")
         for idx, provider in enumerate(result["providers"]):
@@ -105,11 +105,11 @@ def demo_find_peer(backend, peer_id=None):
         # Use a common IPFS bootstrap node
         peer_id = "QmSoLer265NRgSp2LA3dPaeykiS1J6DifTC88f5uVQKNAd"
         print(f"Using IPFS bootstrap node peer ID: {peer_id}")
-    
+
     # Find peer
     result = backend.dht_find_peer(peer_id, timeout=30)
     print_result("DHT Find Peer Operation", result)
-    
+
     if result.get("success", False):
         print(f"\nFound peer {peer_id} with {len(result.get('addresses', []))} addresses:")
         for addr in result.get("addresses", []):
@@ -125,11 +125,11 @@ def demo_query(backend, key=None):
         # Use IPNS key format
         key = "/ipns/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
         print(f"Using sample DHT key: {key}")
-    
+
     # Query DHT
     result = backend.dht_query(key, timeout=30)
     print_result("DHT Query Operation", result)
-    
+
     if result.get("success", False):
         print(f"\nReceived {len(result.get('responses', []))} responses for key: {key}")
         for idx, response in enumerate(result.get("responses", [])):
@@ -144,53 +144,53 @@ def main():
     """Run the demonstration script."""
     parser = argparse.ArgumentParser(description="Demo IPFS DHT operations")
     parser.add_argument(
-        "operation", 
-        nargs="?", 
+        "operation",
+        nargs="?",
         default="all",
         choices=["provide", "find_providers", "find_peer", "query", "all"],
         help="DHT operation to demonstrate"
     )
     parser.add_argument(
-        "--cid", 
+        "--cid",
         help="CID to use for provide or find_providers operations"
     )
     parser.add_argument(
-        "--peer", 
+        "--peer",
         help="Peer ID to use for find_peer operation"
     )
     parser.add_argument(
-        "--key", 
+        "--key",
         help="Key to use for query operation"
     )
-    
+
     args = parser.parse_args()
-    
+
     print("IPFS DHT Operations Demo")
     print("========================")
-    
+
     # Initialize the backend
     backend = ipfs_backend.get_instance()
-    
+
     if not backend.is_available():
         print("❌ IPFS backend is not available (using mock implementation)")
         print("This script requires a real IPFS node. Please install and run IPFS daemon.")
         return 1
-    
+
     print(f"IPFS backend initialized: {backend.get_name()}")
-    
+
     # Run the requested demo
     if args.operation == "provide" or args.operation == "all":
         demo_provide(backend, args.cid)
-    
+
     if args.operation == "find_providers" or args.operation == "all":
         demo_find_providers(backend, args.cid)
-    
+
     if args.operation == "find_peer" or args.operation == "all":
         demo_find_peer(backend, args.peer)
-    
+
     if args.operation == "query" or args.operation == "all":
         demo_query(backend, args.key)
-    
+
     print("\nDemo completed.")
     return 0
 

@@ -36,7 +36,7 @@ def is_daemon_running():
     pid = get_daemon_pid()
     if pid is None:
         return False
-    
+
     # Check if process exists
     try:
         os.kill(pid, 0)
@@ -49,12 +49,12 @@ def start_daemon(lite=False):
     if is_daemon_running():
         print("Lotus daemon is already running")
         return True
-    
+
     # Build command
     cmd = [LOTUS_BIN, "daemon"]
     if lite:
         cmd.append("--lite")
-        
+
     # Start daemon process
     try:
         print("Starting Lotus daemon...")
@@ -64,14 +64,14 @@ def start_daemon(lite=False):
             stderr=subprocess.STDOUT,
             universal_newlines=True
         )
-        
+
         # Wait for daemon to start
         for i in range(10):
             time.sleep(1)
             if is_daemon_running():
                 print("Lotus daemon started successfully")
                 return True
-        
+
         print("Warning: Daemon seems to be starting, but PID file not found yet")
         print("Check 'lotus net id' to verify if daemon is ready")
         return True
@@ -85,18 +85,18 @@ def stop_daemon():
     if pid is None:
         print("Lotus daemon is not running")
         return True
-    
+
     try:
         # Try graceful shutdown first
         subprocess.run([LOTUS_BIN, "daemon", "stop"], check=True)
-        
+
         # Wait for process to exit
         for i in range(10):
             time.sleep(1)
             if not is_daemon_running():
                 print("Lotus daemon stopped successfully")
                 return True
-        
+
         # Force kill if still running
         print("Daemon not responding to graceful shutdown, force killing...")
         os.kill(pid, signal.SIGKILL)
@@ -110,7 +110,7 @@ def check_status():
     if is_daemon_running():
         pid = get_daemon_pid()
         print(f"Lotus daemon is running (PID: {pid})")
-        
+
         # Get additional info
         try:
             info = subprocess.check_output([LOTUS_BIN, "net", "id"], universal_newlines=True)
@@ -124,19 +124,19 @@ def check_status():
 def main():
     parser = argparse.ArgumentParser(description="Lotus daemon helper")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
-    
+
     # Start command
     start_parser = subparsers.add_parser("start", help="Start Lotus daemon")
     start_parser.add_argument("--lite", action="store_true", help="Start in lite mode")
-    
+
     # Stop command
     subparsers.add_parser("stop", help="Stop Lotus daemon")
-    
+
     # Status command
     subparsers.add_parser("status", help="Check Lotus daemon status")
-    
+
     args = parser.parse_args()
-    
+
     if args.command == "start":
         start_daemon(args.lite)
     elif args.command == "stop":

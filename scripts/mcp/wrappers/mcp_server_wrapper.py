@@ -28,7 +28,7 @@ def check_server_running():
         try:
             with open(SERVER_PID_FILE, "r") as f:
                 pid = int(f.read().strip())
-            
+
             # Check if process is running
             try:
                 os.kill(pid, 0)
@@ -53,10 +53,10 @@ def start_server():
     existing_pid = check_server_running()
     if existing_pid:
         return existing_pid
-    
+
     # Start the server as a subprocess
     logger.info(f"Starting MCP server on port {SERVER_PORT}...")
-    
+
     with open(SERVER_LOG_FILE, "w") as log_file:
         process = subprocess.Popen(
             [sys.executable, "run_mcp_server_for_tests.py", "--port", str(SERVER_PORT)],
@@ -64,11 +64,11 @@ def start_server():
             stderr=subprocess.STDOUT,
             start_new_session=True  # Detach from parent process
         )
-    
+
     # Save PID to file
     with open(SERVER_PID_FILE, "w") as f:
         f.write(str(process.pid))
-    
+
     # Wait for server to start
     logger.info(f"Server started with PID {process.pid}, waiting for it to initialize...")
     max_attempts = 30
@@ -82,15 +82,15 @@ def start_server():
                 return process.pid
         except requests.exceptions.RequestException:
             pass
-        
+
         time.sleep(1)
-        
+
         # Check if process is still running
         if process.poll() is not None:
             logger.error(f"Server process exited with code {process.returncode}")
             logger.error("Check server.log for details")
             return None
-    
+
     logger.error(f"Server did not initialize after {max_attempts} attempts")
     return None
 
@@ -108,13 +108,13 @@ def stop_server(pid=None):
         else:
             logger.warning("No PID file found")
             return False
-    
+
     # Send termination signal
     try:
         logger.info(f"Stopping server with PID {pid}...")
         # Try to send SIGTERM to process group
         os.killpg(os.getpgid(pid), signal.SIGTERM)
-        
+
         # Wait for process to terminate
         for _ in range(10):
             try:
@@ -127,11 +127,11 @@ def stop_server(pid=None):
             # Process didn't terminate, try SIGKILL
             logger.warning(f"Server did not stop gracefully, sending SIGKILL...")
             os.killpg(os.getpgid(pid), signal.SIGKILL)
-        
+
         # Clean up PID file
         if os.path.exists(SERVER_PID_FILE):
             os.remove(SERVER_PID_FILE)
-            
+
         return True
     except OSError as e:
         logger.error(f"Failed to stop server: {e}")
@@ -151,7 +151,7 @@ def main():
     """Main entry point."""
     # Register cleanup function
     atexit.register(cleanup)
-    
+
     # Handle command line arguments
     if len(sys.argv) > 1:
         if sys.argv[1] == "start":

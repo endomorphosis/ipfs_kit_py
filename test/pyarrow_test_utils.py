@@ -38,7 +38,7 @@ mock_pyarrow.Table.to_pandas = MagicMock(return_value=MagicMock())
 def pyarrow_mock_context():
     """
     Context manager for patching PyArrow imports in a block.
-    
+
     Usage:
         with pyarrow_mock_context():
             # Code that uses PyArrow
@@ -53,11 +53,11 @@ def with_pyarrow_mocks(cls):
 def _has_attribute(obj, attr_name):
     """
     Safely check if an object has an attribute.
-    
+
     Args:
         obj: Object to check
         attr_name: Attribute name to check
-        
+
     Returns:
         True if the attribute exists, False otherwise
     """
@@ -72,16 +72,16 @@ def _has_attribute(obj, attr_name):
 def patch_storage_wal_tests():
     """
     Create and return patches specifically for storage_wal tests.
-    
+
     Returns:
         List of active patch objects that should be stopped in test teardown
     """
     patches = []
-    
+
     # Patch basic PyArrow module
     pa_patch = patch.dict('sys.modules', {'pyarrow': mock_pyarrow})
     patches.append(pa_patch)
-    
+
     # Try to load the storage_wal module if not already loaded
     if 'ipfs_kit_py.storage_wal' not in sys.modules:
         try:
@@ -89,48 +89,48 @@ def patch_storage_wal_tests():
         except ImportError:
             # If we can't import it, return just the PyArrow patch
             return patches
-    
+
     # Now try to get the module and class
     try:
         storage_wal_module = sys.modules.get('ipfs_kit_py.storage_wal')
         if storage_wal_module:
             storage_wal_class = getattr(storage_wal_module, 'StorageWriteAheadLog', None)
-            
+
             # Only patch these methods if they actually exist in the class
             # This prevents AttributeError when patching non-existent methods
-            
+
             # Try to create mocks for methods we know we need to patch
             # Use different approach based on whether we're mocking a class or instance method
-            
+
             # For _append_to_partition_arrow
             if storage_wal_class and hasattr(storage_wal_class, '_append_to_partition_arrow'):
-                append_patch = patch('ipfs_kit_py.storage_wal.StorageWriteAheadLog._append_to_partition_arrow', 
+                append_patch = patch('ipfs_kit_py.storage_wal.StorageWriteAheadLog._append_to_partition_arrow',
                                     return_value=True)
                 patches.append(append_patch)
-            
+
             # Rather than trying to patch specific methods, add general methods to the mock class
             storage_wal_class_mock = MagicMock()
             storage_wal_class_mock._append_to_partition_arrow.return_value = True
             storage_wal_class_mock._read_partition_arrow.return_value = []
-            
+
             # For _read_partition_arrow - conditionally patch only if it exists
             # We'll use a more dynamic approach instead
-            class_methods_patch = patch('ipfs_kit_py.storage_wal.StorageWriteAheadLog', 
+            class_methods_patch = patch('ipfs_kit_py.storage_wal.StorageWriteAheadLog',
                                        storage_wal_class_mock)
             patches.append(class_methods_patch)
-            
+
     except (ImportError, AttributeError) as e:
         logger.warning(f"Could not set up storage_wal patches: {e}")
-    
+
     return patches
 
 def apply_pyarrow_mock_patches():
     """
     Apply all PyArrow mock patches and return the active patches.
-    
+
     This function is useful when you need to apply patches outside of a
     test context, such as in module-level code.
-    
+
     Returns:
         List of active patch objects that should be stopped later
     """
@@ -142,10 +142,10 @@ def apply_pyarrow_mock_patches():
 def patch_schema_column_optimization_tests(func):
     """
     Decorator to patch PyArrow schema column optimization tests.
-    
+
     Args:
         func: Test function to decorate
-        
+
     Returns:
         Decorated function with patched schema column optimization
     """
@@ -155,12 +155,12 @@ def patch_schema_column_optimization_tests(func):
         mock_schema = MagicMock()
         mock_schema.names = ['col1', 'col2', 'col3']
         mock_schema.metadata = {b'key1': b'value1', b'key2': b'value2'}
-        
+
         # Create mock table
         mock_table = MagicMock()
         mock_table.schema = mock_schema
         mock_table.column_names = ['col1', 'col2', 'col3']
-        
+
         with patch.dict('sys.modules', {'pyarrow': mock_pyarrow}):
             with patch('pyarrow.Schema', return_value=mock_schema):
                 with patch('pyarrow.Table', return_value=mock_table):

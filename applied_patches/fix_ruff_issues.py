@@ -14,12 +14,12 @@ def fix_unused_imports(file_path, content):
     lines = content.split("\n")
     new_lines = []
     skip_next = False
-    
+
     for i, line in enumerate(lines):
         if skip_next:
             skip_next = False
             continue
-            
+
         # Skip lines that are marked as unused imports
         if i < len(lines) - 1 and "F401" in lines[i+1] and not line.strip().startswith("#"):
             # Check if this is part of a multi-line import with parentheses
@@ -36,9 +36,9 @@ def fix_unused_imports(file_path, content):
             else:
                 # Skip this line
                 continue
-        
+
         new_lines.append(line)
-    
+
     return "\n".join(new_lines)
 
 def fix_bare_except(file_path, content):
@@ -55,7 +55,7 @@ def fix_undefined_names(file_path, content):
         "aiofiles": "import aiofiles",
         "time": "import time",
     }
-    
+
     lines = content.split("\n")
     for name, import_stmt in fixes.items():
         if f"F821 Undefined name `{name}`" in content and import_stmt not in content:
@@ -71,9 +71,9 @@ def fix_undefined_names(file_path, content):
                     if line.strip():  # If not an empty line
                         break
                     import_pos = i
-                    
+
             lines.insert(import_pos, import_stmt)
-    
+
     return "\n".join(lines)
 
 def fix_ambiguous_names(file_path, content):
@@ -87,17 +87,17 @@ def process_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            
+
         # Apply fixes
         content = fix_unused_imports(file_path, content)
         content = fix_bare_except(file_path, content)
         content = fix_undefined_names(file_path, content)
         content = fix_ambiguous_names(file_path, content)
-        
+
         # Write the fixed content back
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
-            
+
         print(f"Fixed {file_path}")
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
@@ -114,5 +114,5 @@ if __name__ == "__main__":
         target_dir = sys.argv[1]
     else:
         target_dir = "ipfs_kit_py/mcp"
-    
+
     main(target_dir)

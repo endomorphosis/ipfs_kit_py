@@ -59,10 +59,10 @@ class TestClusterStateHelpers(unittest.TestCase):
         """Set up test environment before each test."""
         # Initialize logger
         self.logger = logging.getLogger(__name__)
-        
+
         # Options for both temporary or persistent test directories
         use_temp_dir = True  # Set to False to use persistent directory for WAL testing
-        
+
         if use_temp_dir:
             # Create temporary directory for test files (for CI/CD)
             self.test_dir = tempfile.mkdtemp()
@@ -73,17 +73,17 @@ class TestClusterStateHelpers(unittest.TestCase):
             self.test_dir = os.path.join(home_dir, ".ipfs_kit_py_test_data")
             os.makedirs(self.test_dir, exist_ok=True)
             self.using_temp_dir = False
-            
+
         self.logger.info(f"Created test directory: {self.test_dir} (temporary: {self.using_temp_dir})")
-        
+
         # Create state path for testing - use data_dir name to suggest persistence
         self.state_path = os.path.join(self.test_dir, "data_dir")
         os.makedirs(self.state_path, exist_ok=True)
         self.logger.info(f"Created state path: {self.state_path}")
-        
+
         # Create fake plasma socket path
         self.plasma_socket = os.path.join(self.state_path, "plasma.sock")
-        
+
         # Create fake metadata file
         metadata = {
             "plasma_socket": self.plasma_socket,
@@ -92,12 +92,12 @@ class TestClusterStateHelpers(unittest.TestCase):
             "version": 1,
             "cluster_id": "test-cluster",
         }
-        
+
         metadata_path = os.path.join(self.state_path, "state_metadata.json")
         with open(metadata_path, "w") as f:
             json.dump(metadata, f)
         self.logger.info(f"Created metadata file: {metadata_path}")
-        
+
         # Create dummy socket file
         with open(self.plasma_socket, "w") as f:
             f.write("dummy")
@@ -158,7 +158,7 @@ class TestClusterStateHelpers(unittest.TestCase):
         # Skip if fixtures not available
         if not FIXTURES_AVAILABLE:
             self.skipTest("Arrow fixtures not available")
-        
+
         # Create a real parquet file for testing instead of mocking PyArrow
         test_data = {
             'cluster_id': ['test-cluster'],
@@ -171,27 +171,27 @@ class TestClusterStateHelpers(unittest.TestCase):
             'tasks': [[]],
             'content': [[]]
         }
-        
+
         # Use PyArrow directly rather than mocking
         try:
             import pyarrow as pa
             import pyarrow.parquet as pq
-            
+
             # Create a table and write it to a parquet file
             table = pa.Table.from_pydict(test_data)
             # Ensure we use an absolute path
             parquet_path = os.path.abspath(os.path.join(self.state_path, "state_test-cluster.parquet"))
-            
+
             # Ensure the directory exists before writing the file
             os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
-            
+
             # Write the table to the parquet file
             pq.write_table(table, parquet_path)
-            
+
             # Verify the file exists
             if not os.path.exists(parquet_path):
                 self.fail(f"Failed to create parquet file at {parquet_path}")
-                
+
             # Print debug info
             self.logger.info(f"Created parquet file at {parquet_path}, size: {os.path.getsize(parquet_path)}")
 
@@ -207,59 +207,59 @@ class TestClusterStateHelpers(unittest.TestCase):
             with patch("ipfs_kit_py.cluster_state_helpers.connect_to_state_store") as mock_connect:
                 # Configure connect_to_state_store to return our metadata
                 mock_connect.return_value = (None, metadata)
-                
+
                 # Call the function under test
                 result = get_cluster_state(self.state_path)
-                
+
                 # Verify results
                 self.assertIsNotNone(result)
-                
+
                 # Check that the result has appropriate properties (works with both real and mock PyArrow tables)
                 if hasattr(result, 'num_rows') and not isinstance(result.num_rows, MagicMock):
                     # Real PyArrow table
                     self.assertEqual(result.num_rows, 1)
                     self.assertIn('cluster_id', result.column_names)
-                    
+
                     # Verify cluster_id matches
                     cluster_id = result.column('cluster_id')[0].as_py()
                     self.assertEqual(cluster_id, 'test-cluster')
-                    
+
                     # Optional: Check all columns
                     for col in result.column_names:
                         self.assertIn(col, test_data.keys())
                 else:
                     # We're dealing with a mock, so we just verify it's not None
                     self.assertTrue(True, "Result is available as a mock object")
-            
+
             # Test case for nonexistent path - without triggering log error for CI/CD
             nonexistent_path = os.path.join(self.state_path, "data_dir")  # Use a persistent-looking path name
-            
+
             # Patch the logger to avoid ERROR messages in CI/CD
             with patch("ipfs_kit_py.cluster_state_helpers.logger") as mock_logger:
                 with patch("ipfs_kit_py.cluster_state_helpers.connect_to_state_store") as mock_connect:
                     # Return None for metadata to simulate error
                     mock_connect.return_value = (None, None)
-                    
+
                     # Call the function
                     result = get_cluster_state(nonexistent_path)
-                    
+
                     # Verify results
                     self.assertIsNone(result)
-                    
+
                     # Verify logger was called but change verification to avoid CI error
                     mock_logger.error.assert_called_once()  # Just verify it was called, don't check message
-                
+
         except ImportError:
             self.skipTest("PyArrow not available for testing")
 
-            
+
             # Set up mocks for this test case
             mock_connect.return_value = (None, {})  # Metadata without parquet_path
             mock_exists.return_value = True  # Doesn't matter for this case
-            
+
             # Call the function under test
             result = get_cluster_state(self.state_path)
-            
+
             # Assertions for Case 3
             mock_connect.assert_called_once_with(self.state_path)
             mock_exists.assert_not_called()  # Shouldn't check existence if path is missing
@@ -958,26 +958,26 @@ class TestClusterStateHelpers(unittest.TestCase):
 @unittest.skipIf(not ARROW_AVAILABLE or not FIXTURES_AVAILABLE, "PyArrow or fixtures not available")
 class TestClusterStateHelpersWithFixtures(unittest.TestCase):
     """Test cluster state helpers using the new fixtures."""
-    
+
     def setUp(self):
         """Set up test environment."""
         # Create temporary directory
         self.test_dir = tempfile.mkdtemp()
-        
+
         # Create a mock table using the helper
         self.mock_table = ArrowMockHelper.create_mock_table()
-        
+
         # Mock get_cluster_state to return our mock table
         self.get_state_patcher = patch('ipfs_kit_py.cluster_state_helpers.get_cluster_state')
         self.mock_get_state = self.get_state_patcher.start()
         self.mock_get_state.return_value = self.mock_table
-        
+
     def tearDown(self):
         """Clean up after tests."""
         self.get_state_patcher.stop()
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
-    
+
     def test_get_all_nodes_with_fixtures(self):
         """Test getting nodes using the new fixtures."""
         # Create test nodes using the NodeFixture
@@ -986,7 +986,7 @@ class TestClusterStateHelpersWithFixtures(unittest.TestCase):
             NodeFixture.create_worker_node("worker1"),
             NodeFixture.create_worker_node("worker2", online=False),  # Offline worker
         ]
-        
+
         # Create a direct test function that doesn't depend on mocking get_all_nodes
         def verify_nodes(nodes):
             # Verify result
@@ -995,10 +995,10 @@ class TestClusterStateHelpersWithFixtures(unittest.TestCase):
             self.assertEqual(nodes[0]["role"], "master")
             self.assertEqual(nodes[1]["id"], "worker1")
             self.assertEqual(nodes[2]["status"], "offline")
-            
+
         # Just verify the test nodes directly
         verify_nodes(test_nodes)
-    
+
     def test_find_nodes_by_role_with_fixtures(self):
         """Test finding nodes by role using the new fixtures."""
         # Create test nodes using the NodeFixture
@@ -1008,31 +1008,31 @@ class TestClusterStateHelpersWithFixtures(unittest.TestCase):
             NodeFixture.create_worker_node("worker2"),
             NodeFixture.create_worker_node("worker3", online=False),
         ]
-        
+
         # Create direct test function that implements find_nodes_by_role logic
         def filter_nodes_by_role(nodes, role):
             return [node for node in nodes if node.get("role") == role]
-        
+
         # Find worker nodes
         workers = filter_nodes_by_role(test_nodes, "worker")
-        
+
         # Verify results
         self.assertEqual(len(workers), 3)  # All workers, including offline
         self.assertEqual(workers[0]["id"], "worker1")
         self.assertEqual(workers[1]["id"], "worker2")
         self.assertEqual(workers[2]["id"], "worker3")
-        
+
         # Find master nodes
         masters = filter_nodes_by_role(test_nodes, "master")
-        
+
         # Verify results
         self.assertEqual(len(masters), 1)
         self.assertEqual(masters[0]["id"], "master1")
-        
+
         # Find online workers
         online_workers = [n for n in workers if n["status"] == "online"]
         self.assertEqual(len(online_workers), 2)
-    
+
     def test_get_task_execution_metrics_with_fixtures(self):
         """Test task execution metrics using the TaskFixture."""
         # Create test tasks using the TaskFixture
@@ -1044,13 +1044,13 @@ class TestClusterStateHelpersWithFixtures(unittest.TestCase):
             TaskFixture.create_embedding_task("task4", status="failed"),
             TaskFixture.create_training_task("task5", status="completed"),
         ]
-        
+
         # Add realistic timestamps for completed tasks - using seconds not milliseconds
         test_tasks[0]["started_at"] = now - 300  # 5 min ago
         test_tasks[0]["completed_at"] = now - 100  # Took 200 sec
         test_tasks[4]["started_at"] = now - 500  # 8.3 min ago
         test_tasks[4]["completed_at"] = now - 350  # Took 150 sec
-        
+
         # Calculate metrics directly using the logic from get_task_execution_metrics
         metrics = {
             "total_tasks": len(test_tasks),
@@ -1060,40 +1060,40 @@ class TestClusterStateHelpersWithFixtures(unittest.TestCase):
             "failed_tasks": sum(1 for t in test_tasks if t["status"] == "failed"),
             "task_types": {}
         }
-        
+
         # Calculate completion rate (completed / (completed + failed))
         completed_and_failed = metrics["completed_tasks"] + metrics["failed_tasks"]
-        metrics["completion_rate"] = (metrics["completed_tasks"] / completed_and_failed 
+        metrics["completion_rate"] = (metrics["completed_tasks"] / completed_and_failed
                                      if completed_and_failed > 0 else 0.0)
-        
+
         # Calculate average execution time
-        completed_tasks = [t for t in test_tasks if t["status"] == "completed" 
+        completed_tasks = [t for t in test_tasks if t["status"] == "completed"
                            and "started_at" in t and "completed_at" in t]
         if completed_tasks:
             execution_times = [(t["completed_at"] - t["started_at"]) for t in completed_tasks]
             metrics["average_execution_time"] = sum(execution_times) / len(execution_times)
         else:
             metrics["average_execution_time"] = 0.0
-            
+
         # Calculate task type distribution
         for task in test_tasks:
             task_type = task.get("type", "unknown")
             if task_type not in metrics["task_types"]:
                 metrics["task_types"][task_type] = 0
             metrics["task_types"][task_type] += 1
-        
+
         # Verify metrics
         self.assertEqual(metrics["total_tasks"], 5)
         self.assertEqual(metrics["completed_tasks"], 2)
         self.assertEqual(metrics["running_tasks"], 1)
         self.assertEqual(metrics["pending_tasks"], 1)
         self.assertEqual(metrics["failed_tasks"], 1)
-        
+
         self.assertAlmostEqual(metrics["completion_rate"], 2/3, places=2)  # 2 completed, 1 failed
-        
+
         # Average execution time (200 + 150) / 2 = 175 seconds
         self.assertAlmostEqual(metrics["average_execution_time"], 175, places=0)
-        
+
         # Check task types distribution
         self.assertEqual(metrics["task_types"]["model_training"], 3)
         self.assertEqual(metrics["task_types"]["embedding_generation"], 2)

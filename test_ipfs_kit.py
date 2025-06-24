@@ -26,21 +26,21 @@ def test_backend_storage():
     """Test that BackendStorage class exists and has expected methods."""
     try:
         from ipfs_kit_py.mcp.storage_manager.backend_base import BackendStorage
-        
+
         # Verify it's a class
         assert isinstance(BackendStorage, type), "BackendStorage should be a class"
-        
+
         # Check for expected methods
         methods = ['store', 'retrieve', 'list_keys', 'delete']
         for method in methods:
             assert hasattr(BackendStorage, method), f"BackendStorage missing '{method}' method"
-            
+
         logger.info(f"✅ BackendStorage class exists with required methods: {', '.join(methods)}")
         return True
     except Exception as e:
         logger.error(f"❌ Error in test_backend_storage: {e}")
         return False
-        
+
 def test_ipfs_kit_import():
     """Test basic IPFS Kit import."""
     try:
@@ -58,7 +58,7 @@ def run_tests():
         test_backend_storage,
         test_ipfs_kit_import
     ]
-    
+
     results = []
     for test in tests:
         try:
@@ -72,15 +72,15 @@ def run_tests():
         except Exception as e:
             logger.error(f"❌ {test.__name__} - ERROR: {e}")
             results.append(False)
-    
+
     # Print summary
     passed = sum(1 for r in results if r)
     total = len(results)
-    
+
     logger.info("\n" + "=" * 50)
     logger.info(f"TEST SUMMARY: {passed}/{total} tests passed")
     logger.info("=" * 50)
-    
+
     return passed == total
 
 if __name__ == "__main__":

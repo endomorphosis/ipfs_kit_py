@@ -179,7 +179,7 @@ async def overall_storage_status():
             "simulation_mode": True,
             "version": "Simulation v1.0"
         }
-    
+
     return {
         "success": True,
         "operation_id": f"status-{int(time.time())}",
@@ -199,10 +199,10 @@ def main():
     else:
         # When run under pytest, use default values
         args = parser.parse_args([])
-    
+
     logger.info(f"Starting MCP Simulation Server on {args.host}:{args.port}")
     logger.info("All storage backends are simulated and will report as working")
-    
+
     uvicorn.run(app, host=args.host, port=args.port)
 
 if __name__ == "__main__":

@@ -39,22 +39,22 @@ adaptive_optimizer = create_adaptive_optimizer()
 # Models for API
 class ClientInfo(BaseModel):
     """Client information for routing decisions."""
-    
+
     client_id: Optional[str] = Field(None, description="Client identifier")
     location: Optional[Dict[str, float]] = Field(
-        None, 
+        None,
         description="Geographic location (lat/lon)"
     )
     region: Optional[str] = Field(None, description="Client region")
     network_info: Optional[Dict[str, Any]] = Field(
-        None, 
+        None,
         description="Client network information"
     )
 
 
 class RoutingRequest(BaseModel):
     """Request for routing optimization."""
-    
+
     content_hash: Optional[str] = Field(None, description="Content hash if available")
     content_type: Optional[str] = Field(None, description="Content MIME type")
     content_size_bytes: int = Field(0, description="Content size in bytes")
@@ -67,7 +67,7 @@ class RoutingRequest(BaseModel):
 
 class RoutingResponse(BaseModel):
     """Response for routing optimization."""
-    
+
     backend_id: str = Field(..., description="Selected backend identifier")
     overall_score: float = Field(..., description="Overall score of the selection")
     factor_scores: Dict[str, float] = Field(..., description="Scores for each factor")
@@ -78,13 +78,13 @@ class RoutingResponse(BaseModel):
 
 class MetricsUpdateRequest(BaseModel):
     """Request to update backend metrics."""
-    
+
     metrics: Dict[str, Any] = Field(..., description="Backend metrics")
 
 
 class NetworkMetricsResponse(BaseModel):
     """Response with network metrics."""
-    
+
     backend_id: str = Field(..., description="Backend identifier")
     region: Optional[str] = Field(None, description="Backend region")
     metrics: Dict[str, Any] = Field(..., description="Network metrics")
@@ -94,21 +94,21 @@ class NetworkMetricsResponse(BaseModel):
 
 class InsightsResponse(BaseModel):
     """Response with routing insights."""
-    
+
     optimal_backends_by_content: Dict[str, List[str]] = Field(
-        ..., 
+        ...,
         description="Optimal backends by content type"
     )
     network_quality_ranking: Dict[str, Dict[str, Any]] = Field(
-        ..., 
+        ...,
         description="Backends ranked by network quality"
     )
     load_distribution: Dict[str, float] = Field(
-        ..., 
+        ...,
         description="Load distribution across backends"
     )
     optimization_weights: Dict[str, float] = Field(
-        ..., 
+        ...,
         description="Current optimization weights"
     )
 
@@ -118,7 +118,7 @@ class InsightsResponse(BaseModel):
 async def optimize_route(request: RoutingRequest = Body(...)):
     """
     Optimize routing for content.
-    
+
     Returns the optimal backend for storing the content based on various factors.
     """
     try:
@@ -126,7 +126,7 @@ async def optimize_route(request: RoutingRequest = Body(...)):
         client_location = None
         if request.client_info and request.client_info.location:
             client_location = request.client_info.location
-        
+
         # Convert priority if provided
         priority = None
         if request.priority:
@@ -134,7 +134,7 @@ async def optimize_route(request: RoutingRequest = Body(...)):
                 priority = RoutingPriority(request.priority)
             except ValueError:
                 priority = RoutingPriority.BALANCED
-        
+
         # Extract content category if provided
         content_category = None
         if request.category:
@@ -142,18 +142,18 @@ async def optimize_route(request: RoutingRequest = Body(...)):
                 content_category = ContentCategory(request.category)
             except ValueError:
                 pass
-        
+
         # Create metadata
         metadata = request.metadata or {}
         if request.content_type:
             metadata["content_type"] = request.content_type
         if content_category:
             metadata["category"] = content_category.value
-        
+
         # Create dummy content for optimization
         # In a real scenario, we might have the actual content or a sample
         content = b"0" * min(1024, request.content_size_bytes)  # Use at most 1KB for the sample
-        
+
         # Get routing decision
         result = adaptive_optimizer.optimize_route(
             content=content,
@@ -162,7 +162,7 @@ async def optimize_route(request: RoutingRequest = Body(...)):
             priority=priority,
             client_location=client_location
         )
-        
+
         # Convert result to response
         response = RoutingResponse(
             backend_id=result.backend_id,
@@ -172,9 +172,9 @@ async def optimize_route(request: RoutingRequest = Body(...)):
             content_analysis=result.content_analysis,
             execution_time_ms=result.execution_time_ms
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error optimizing route: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -188,7 +188,7 @@ async def record_routing_outcome(
 ):
     """
     Record the outcome of a routing decision.
-    
+
     This helps the system learn from past decisions and improve future routing.
     """
     try:
@@ -199,19 +199,19 @@ async def record_routing_outcome(
                 content_category = ContentCategory(request.category)
             except ValueError:
                 content_category = ContentCategory.OTHER
-        
+
         # Create dummy result for recording
         result = RouteOptimizationResult(backend_id)
         result.content_analysis = {
             "category": content_category.value if content_category else ContentCategory.OTHER.value,
             "size_bytes": request.content_size_bytes
         }
-        
+
         # Record outcome
         adaptive_optimizer.record_outcome(result, success)
-        
+
         return {"status": "success"}
-        
+
     except Exception as e:
         logger.error(f"Error recording outcome: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -221,13 +221,13 @@ async def record_routing_outcome(
 async def get_network_metrics(backend_id: str, region: Optional[str] = None):
     """
     Get network metrics for a backend.
-    
+
     Returns detailed network quality metrics for a specific backend.
     """
     try:
         # Get metrics from network analyzer
         metrics = adaptive_optimizer.network_analyzer.get_metrics(backend_id, region or "")
-        
+
         # Convert to response
         response = NetworkMetricsResponse(
             backend_id=backend_id,
@@ -240,9 +240,9 @@ async def get_network_metrics(backend_id: str, region: Optional[str] = None):
             overall_quality=metrics.get_overall_quality().value,
             performance_score=metrics.get_performance_score()
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error getting network metrics: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -252,14 +252,14 @@ async def get_network_metrics(backend_id: str, region: Optional[str] = None):
 async def get_routing_insights():
     """
     Get insights from the routing system.
-    
+
     Returns information about the current state of the routing system,
     including optimal backends for different content types and performance rankings.
     """
     try:
         # Generate insights
         insights = adaptive_optimizer.generate_insights()
-        
+
         # Convert to response
         response = InsightsResponse(
             optimal_backends_by_content=insights["optimal_backends_by_content"],
@@ -267,9 +267,9 @@ async def get_routing_insights():
             load_distribution=insights.get("load_distribution", {}),
             optimization_weights=insights["optimization_weights"]
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error getting insights: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -279,16 +279,16 @@ async def get_routing_insights():
 async def collect_all_metrics(backend_ids: List[str] = Body(...)):
     """
     Trigger collection of metrics for backends.
-    
+
     This endpoint triggers the collection of network metrics and other
     performance data for the specified backends.
     """
     try:
         # Collect metrics asynchronously
         asyncio.create_task(adaptive_optimizer.collect_all_metrics(backend_ids))
-        
+
         return {"status": "metrics collection started"}
-        
+
     except Exception as e:
         logger.error(f"Error starting metrics collection: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -301,7 +301,7 @@ async def update_backend_metrics(
 ):
     """
     Update metrics for a backend.
-    
+
     This endpoint allows updating performance and cost metrics for a backend.
     """
     try:
@@ -319,12 +319,12 @@ async def update_backend_metrics(
             multi_region=request.metrics.get("multi_region", False),
             uptime_percentage=request.metrics.get("uptime_percentage", 99.9)
         )
-        
+
         # Update metrics
         adaptive_optimizer.update_backend_metrics(backend_id, metrics)
-        
+
         return {"status": "success"}
-        
+
     except Exception as e:
         logger.error(f"Error updating backend metrics: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -337,7 +337,7 @@ async def enable_synthetic_data(
 ):
     """
     Enable synthetic data generation for testing.
-    
+
     This endpoint enables the generation of synthetic network metrics
     for testing purposes.
     """
@@ -346,9 +346,9 @@ async def enable_synthetic_data(
             backend_ids=backend_ids,
             update_interval_seconds=update_interval_seconds
         )
-        
+
         return {"status": "synthetic data generation enabled"}
-        
+
     except Exception as e:
         logger.error(f"Error enabling synthetic data: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -358,14 +358,14 @@ async def enable_synthetic_data(
 async def disable_synthetic_data():
     """
     Disable synthetic data generation.
-    
+
     This endpoint disables the generation of synthetic network metrics.
     """
     try:
         adaptive_optimizer.network_analyzer.disable_synthetic_data()
-        
+
         return {"status": "synthetic data generation disabled"}
-        
+
     except Exception as e:
         logger.error(f"Error disabling synthetic data: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

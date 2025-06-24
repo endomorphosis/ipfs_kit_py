@@ -55,7 +55,7 @@ async def jsonrpc_handler(request: Request):
     try:
         data = await request.json()
         logger.info(f"Received JSON-RPC request: {data}")
-        
+
         # Handle 'initialize' request
         if data.get("method") == "initialize":
             logger.info("Processing initialize request from VS Code")
@@ -88,19 +88,19 @@ async def jsonrpc_handler(request: Request):
                 }
             }
             return JSONResponse(content=response, status_code=200, media_type="application/vscode-jsonrpc")
-        
+
         # Handle 'shutdown' request
         elif data.get("method") == "shutdown":
             logger.info("Received shutdown request from VS Code")
             response = {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
             return JSONResponse(content=response, status_code=200, media_type="application/vscode-jsonrpc")
-        
+
         # Handle 'exit' notification
         elif data.get("method") == "exit":
             logger.info("Received exit notification from VS Code")
             response = {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
             return JSONResponse(content=response, status_code=200, media_type="application/vscode-jsonrpc")
-        
+
         else:
             logger.warning(f"Unhandled JSON-RPC method: {data.get('method')}")
             error_resp = {"jsonrpc": "2.0", "id": data.get("id"),
@@ -123,13 +123,13 @@ def main():
     parser.add_argument("--port", type=int, default=9995,
                       help="Port number to use (default: 9995)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    
+
     args = parser.parse_args()
-    
+
     log_level = "debug" if args.debug else "info"
-    
+
     print(f"Starting MCP JSON-RPC Proxy on port {args.port}...")
-    
+
     # Run the server
     uvicorn.run(
         "mcp_jsonrpc_proxy:app",

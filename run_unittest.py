@@ -19,13 +19,13 @@ from test_basic import TestBasicFunctionality
 if __name__ == "__main__":
     # Create a test suite
     suite = unittest.TestSuite()
-    
+
     # Add test classes
     suite.addTest(unittest.makeSuite(TestBasicFunctionality))
-    
+
     # Run the tests
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
-    
+
     # Set exit code based on test results
     sys.exit(not result.wasSuccessful())

@@ -58,7 +58,7 @@ def add_to_ipfs(file_path):
     if result.returncode != 0:
         logger.error(f"Failed to add file to IPFS: {result.stderr}")
         return None
-    
+
     cid = result.stdout.strip()
     logger.info(f"Added to IPFS with CID: {cid}")
     return cid
@@ -129,59 +129,59 @@ def main():
 
     # Initialize the storage backend
     storage = StorachaStorage()
-    
+
     # Test connection status
     status = test_status(storage)
-    
+
     # If connection failed but mock mode is available, switch to mock mode
     if not status.get("success", False) and not storage.mock_mode and STORACHA_LIBRARIES_AVAILABLE:
         logger.info("Connection failed, switching to mock mode...")
         storage.mock_mode = True
         storage.simulation_mode = False
         status = test_status(storage)
-    
+
     # Skip further tests if status check failed
     if not status.get("success", False):
         logger.error("Status check failed, skipping further tests")
         return 1
-    
+
     # Create a test file
     file_path = create_test_file(args.test_file)
-    
+
     try:
         # Add the file to IPFS
         cid = add_to_ipfs(file_path)
         if not cid:
             logger.error("Failed to add file to IPFS, skipping further tests")
             return 1
-        
+
         # Test from_ipfs operation
         result = test_from_ipfs(storage, cid)
         if not result.get("success", False):
             logger.error("from_ipfs operation failed, skipping related tests")
             return 1
-        
+
         # Get the storage ID from the result
         storage_id = result.get("storage_id")
         if storage_id:
             # Test check_status operation
             test_check_status(storage, storage_id)
-            
+
             # Test to_ipfs operation
             test_to_ipfs(storage, storage_id)
-            
+
             # Test list_blobs operation
             test_list_blobs(storage)
-            
+
             # Test get_blob operation
             test_get_blob(storage, cid)
-            
+
             # Test remove_blob operation
             test_remove_blob(storage, cid)
-            
+
         logger.info("All tests completed successfully!")
         return 0
-        
+
     finally:
         # Clean up the test file
         if os.path.exists(file_path):

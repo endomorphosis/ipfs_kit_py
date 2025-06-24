@@ -25,14 +25,14 @@ with open(ipfs_model_path, 'r') as f:
 if 'isolation_mode' not in content:
     # Find the IPFSModel class constructor
     constructor_match = None
-    
+
     # Look for the __init__ method
     init_patterns = [
         "def __init__(self, host=None, port=None",
         "def __init__(self, host=",
         "def __init__(self",
     ]
-    
+
     for pattern in init_patterns:
         if pattern in content:
             init_index = content.find(pattern)
@@ -42,7 +42,7 @@ if 'isolation_mode' not in content:
                 if sig_end != -1:
                     constructor_match = content[init_index:sig_end+1]
                     break
-    
+
     if constructor_match:
         # Add isolation_mode parameter to the constructor if not already there
         new_constructor = constructor_match
@@ -52,13 +52,13 @@ if 'isolation_mode' not in content:
                 new_constructor = constructor_match.replace(")", ", isolation_mode=False)")
             else:
                 new_constructor = constructor_match + ", isolation_mode=False):"
-        
+
         # Update the constructor signature
         content = content.replace(constructor_match, new_constructor)
-        
+
         # Find where to add the isolation_mode attribute in the __init__ method body
         init_body_start = content.find(":", content.find(constructor_match)) + 1
-        
+
         # Look for common patterns like self.host = host or self.ipfs_host = host
         # to find where to insert our new attribute
         common_self_attrs = ["self.host", "self.port", "self.ipfs_host", "self.ipfs_port"]
@@ -71,7 +71,7 @@ if 'isolation_mode' not in content:
                     # Insert after this line
                     content = content[:line_end+1] + "        self.isolation_mode = isolation_mode\n" + content[line_end+1:]
                     break
-        
+
         print(f"✅ Added isolation_mode attribute to IPFSModel constructor in {ipfs_model_path}")
     else:
         print(f"❌ Could not find the constructor in {ipfs_model_path}")

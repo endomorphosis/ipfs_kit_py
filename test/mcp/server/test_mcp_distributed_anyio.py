@@ -42,7 +42,7 @@ try:
     from ipfs_kit_py.mcp import MCPServer
     from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
     from ipfs_kit_py.mcp.controllers.distributed_controller import (
-        DistributedController, 
+        DistributedController,
         PeerDiscoveryRequest,
         ClusterCacheRequest,
         ClusterStateRequest,
@@ -56,28 +56,28 @@ except ImportError:
 
 class MockWebSocket:
     """Mock WebSocket for testing WebSocket endpoints."""
-    
+
     def __init__(self):
         self.sent_messages = []
         self.client_state = 1  # Connected
         self.received_queue = anyio.create_memory_object_stream(10)
-        
+
     async def accept(self):
         return
-        
+
     async def send_json(self, data):
         self.sent_messages.append(data)
-        
+
     async def send_text(self, text):
         self.sent_messages.append(text)
-        
+
     async def receive_json(self):
         # Return a default subscription request
         return {
             "type": "subscribe",
             "events": ["node_status", "task_status"]
         }
-        
+
     async def receive_text(self):
         # If there's something in the queue, return it
         try:
@@ -85,10 +85,10 @@ class MockWebSocket:
         except anyio.EndOfStream:
             # Otherwise raise an exception to simulate disconnection
             raise Exception("Connection closed")
-        
+
     async def close(self):
         self.client_state = 0  # Disconnected
-        
+
     def add_received_message(self, message):
         """Add a message to the receive queue for testing."""
         self.received_queue.send_nowait(message)
@@ -96,15 +96,15 @@ class MockWebSocket:
 @unittest.skipIf(not MCP_AVAILABLE, "MCP server not available")
 class TestMCPDistributed(unittest.TestCase):
     """Tests for the MCP Distributed controller implementation."""
-    
+
     def setUp(self):
         """Set up test environment before each test."""
         # Create a temp directory for the cache
         self.temp_dir = tempfile.mkdtemp(prefix="ipfs_mcp_test_")
-        
+
         # Mock the IPFS API with distributed operation responses
         self.mock_ipfs_api = MagicMock()
-        
+
         # Setup mock responses for distributed operations
         # Peer discovery
         self.mock_ipfs_api.execute_command.return_value = {
@@ -116,7 +116,7 @@ class TestMCPDistributed(unittest.TestCase):
             ],
             "discovery_methods_used": ["mdns", "dht"]
         }
-        
+
         # Node registration
         self.mock_ipfs_api.execute_command.return_value = {
             "success": True,
@@ -127,41 +127,41 @@ class TestMCPDistributed(unittest.TestCase):
             "cluster_id": "Cluster1",
             "master_address": "/ip4/127.0.0.1/tcp/9096/p2p/Master1"
         }
-        
+
         # Initialize the MCP server
         self.mcp_server = MCPServer(
             debug_mode=True,
             isolation_mode=True,
             persistence_path=self.temp_dir
         )
-        
+
         # Replace the ipfs_kit instance with our mock
         self.mcp_server.ipfs_kit = self.mock_ipfs_api
-        
+
         # Reinitialize the IPFS model with our mock
         self.mcp_server.models["ipfs"] = IPFSModel(self.mock_ipfs_api, self.mcp_server.persistence)
-        
+
         # Create Distributed controller instance for testing
         self.distributed_controller = DistributedController(self.mcp_server.models["ipfs"])
-        
+
         # Create a FastAPI router for testing
         self.router = APIRouter()
         self.distributed_controller.register_routes(self.router)
-    
+
     def tearDown(self):
         """Clean up after each test."""
         # Clean up temp directory
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
+
     def test_controller_initialization(self):
         """Test that the Distributed controller initializes correctly."""
         # Verify that the controller is initialized
         self.assertIsInstance(self.distributed_controller, DistributedController)
-        
+
         # Verify that it has a reference to the IPFS model
         self.assertEqual(self.distributed_controller.ipfs_model, self.mcp_server.models["ipfs"])
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_discover_peers(self):
@@ -176,7 +176,7 @@ class TestMCPDistributed(unittest.TestCase):
             ],
             "discovery_methods_used": ["mdns", "dht"]
         }
-        
+
         # Create peer discovery request
         request = PeerDiscoveryRequest(
             discovery_methods=["mdns", "dht", "bootstrap"],
@@ -184,16 +184,16 @@ class TestMCPDistributed(unittest.TestCase):
             timeout_seconds=10,
             discovery_namespace="test-cluster"
         )
-        
+
         # Call the peer discovery endpoint
         result = await self.distributed_controller.discover_peers(request)
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(len(result["peers"]), 2)
         self.assertEqual(result["total_peers_found"], 2)
         self.assertEqual(result["discovery_methods_used"], ["mdns", "dht"])
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="discover_peers",
@@ -205,7 +205,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "discovery_namespace": "test-cluster"
             }
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_register_node(self):
@@ -223,7 +223,7 @@ class TestMCPDistributed(unittest.TestCase):
                 {"id": "Peer1", "address": "/ip4/127.0.0.1/tcp/4001/p2p/Peer1", "role": "master"}
             ]
         }
-        
+
         # Create node registration request
         request = NodeRegistrationRequest(
             role="worker",
@@ -231,10 +231,10 @@ class TestMCPDistributed(unittest.TestCase):
             resources={"cpu_cores": 4, "memory_gb": 8},
             address="/ip4/192.168.1.101/tcp/4001"
         )
-        
+
         # Call the node registration endpoint
         result = await self.distributed_controller.register_node(request)
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(result["node_id"], "Node1")
@@ -243,7 +243,7 @@ class TestMCPDistributed(unittest.TestCase):
         self.assertEqual(result["cluster_id"], "Cluster1")
         self.assertEqual(result["master_address"], "/ip4/127.0.0.1/tcp/9096/p2p/Master1")
         self.assertEqual(len(result["peers"]), 1)
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="register_node",
@@ -257,7 +257,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "metadata": None
             }
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_cache_operation(self):
@@ -274,7 +274,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "Node3": "success"
             }
         }
-        
+
         # Create cache operation request
         request = ClusterCacheRequest(
             operation="put",
@@ -283,10 +283,10 @@ class TestMCPDistributed(unittest.TestCase):
             propagate=True,
             ttl_seconds=3600
         )
-        
+
         # Call the cache operation endpoint
         result = await self.distributed_controller.cache_operation(request)
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(result["operation"], "put")
@@ -294,7 +294,7 @@ class TestMCPDistributed(unittest.TestCase):
         self.assertEqual(result["value"], {"config": {"max_connections": 100}})
         self.assertEqual(result["nodes_affected"], 3)
         self.assertEqual(len(result["propagation_status"]), 3)
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="cluster_cache_operation",
@@ -307,7 +307,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "ttl_seconds": 3600
             }
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_state_operation(self):
@@ -319,24 +319,24 @@ class TestMCPDistributed(unittest.TestCase):
             "value": {"status": "online"},
             "update_count": 1
         }
-        
+
         # Create state operation request
         request = ClusterStateRequest(
             operation="update",
             path="nodes.Node1.status",
             value="online"
         )
-        
+
         # Call the state operation endpoint
         result = await self.distributed_controller.state_operation(request)
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(result["operation"], "update")
         self.assertEqual(result["path"], "nodes.Node1.status")
         self.assertEqual(result["value"], {"status": "online"})
         self.assertEqual(result["update_count"], 1)
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="cluster_state_operation",
@@ -348,7 +348,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "subscription_id": None
             }
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_submit_task(self):
@@ -361,7 +361,7 @@ class TestMCPDistributed(unittest.TestCase):
             "status": "pending",
             "assigned_to": "Node2"
         }
-        
+
         # Create task submission request
         request = DistributedTaskRequest(
             task_type="process_dataset",
@@ -369,17 +369,17 @@ class TestMCPDistributed(unittest.TestCase):
             priority=8,
             target_role="worker"
         )
-        
+
         # Call the task submission endpoint
         result = await self.distributed_controller.submit_task(request)
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(result["task_id"], "Task1")
         self.assertEqual(result["task_type"], "process_dataset")
         self.assertEqual(result["status"], "pending")
         self.assertEqual(result["assigned_to"], "Node2")
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="submit_distributed_task",
@@ -392,7 +392,7 @@ class TestMCPDistributed(unittest.TestCase):
                 "timeout_seconds": None
             }
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_get_task_status(self):
@@ -407,10 +407,10 @@ class TestMCPDistributed(unittest.TestCase):
             "assigned_to": "Node2",
             "progress": 50.0
         }
-        
+
         # Call the task status endpoint
         result = await self.distributed_controller.get_task_status("Task1")
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(result["task_id"], "Task1")
@@ -418,14 +418,14 @@ class TestMCPDistributed(unittest.TestCase):
         self.assertEqual(result["status"], "processing")
         self.assertEqual(result["assigned_to"], "Node2")
         self.assertEqual(result["progress"], 50.0)
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="get_distributed_task_status",
             args=["Task1"],
             params={}
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_cancel_task(self):
@@ -439,24 +439,24 @@ class TestMCPDistributed(unittest.TestCase):
             "status": "cancelled",
             "assigned_to": "Node2"
         }
-        
+
         # Call the task cancellation endpoint
         result = await self.distributed_controller.cancel_task("Task1")
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(result["task_id"], "Task1")
         self.assertEqual(result["task_type"], "process_dataset")
         self.assertEqual(result["status"], "cancelled")
         self.assertEqual(result["assigned_to"], "Node2")
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="cancel_distributed_task",
             args=["Task1"],
             params={}
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_list_tasks(self):
@@ -485,21 +485,21 @@ class TestMCPDistributed(unittest.TestCase):
             "active_count": 1,
             "pending_count": 1
         }
-        
+
         # Call the task listing endpoint
         result = await self.distributed_controller.list_tasks(
             filter_status="processing",
             filter_type=None,
             filter_node=None
         )
-        
+
         # Verify the result
         self.assertTrue(result["success"])
         self.assertEqual(len(result["tasks"]), 2)
         self.assertEqual(result["total_count"], 2)
         self.assertEqual(result["active_count"], 1)
         self.assertEqual(result["pending_count"], 1)
-        
+
         # Verify that the model was called correctly
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="list_distributed_tasks",
@@ -510,48 +510,48 @@ class TestMCPDistributed(unittest.TestCase):
                 "filter_node": None
             }
         )
-    
+
     @unittest.skipIf(not FASTAPI_AVAILABLE, "FastAPI not available")
     @pytest.mark.anyio
     async def test_websocket_events(self):
         """Test the WebSocket events endpoint."""
         # Create a mock websocket
         websocket = MockWebSocket()
-        
+
         # Setup event listener mock
         self.mock_ipfs_api.add_event_listener = MagicMock()
         self.mock_ipfs_api.remove_event_listener = MagicMock()
-        
+
         # Configure the event subscription response
         self.mock_ipfs_api.execute_command.return_value = {
             "success": True,
             "operation": "register_event_subscription",
             "subscription_id": "sub-123"
         }
-        
+
         # Run the WebSocket handler in a separate task
         async with anyio.create_task_group() as tg:
             # Start the handler task
             tg.start_soon(self.distributed_controller.cluster_events_websocket, websocket)
-            
+
             # Give the task time to start
             await anyio.sleep(0.1)
-            
+
             # Verify that subscription confirmation was sent
             assert len(websocket.sent_messages) == 1
             assert websocket.sent_messages[0]["type"] == "subscription_confirmed"
-            
+
             # Verify that the event listener was added
             self.mock_ipfs_api.add_event_listener.assert_called_once()
-            
+
             # Add a ping message to test handling
             websocket.add_received_message("ping")
             await anyio.sleep(0.1)
-            
+
             # Verify pong response
             assert len(websocket.sent_messages) == 2
             assert websocket.sent_messages[1] == "pong"
-            
+
             # Add a subscription update message
             websocket.add_received_message(json.dumps({
                 "type": "update_subscription",
@@ -560,21 +560,21 @@ class TestMCPDistributed(unittest.TestCase):
                 }
             }))
             await anyio.sleep(0.1)
-            
+
             # Verify subscription update was processed
             assert len(websocket.sent_messages) == 3
             assert websocket.sent_messages[2]["type"] == "subscription_updated"
-            
+
             # Verify that the subscription was updated
             self.mock_ipfs_api.execute_command.assert_called_with(
                 command="update_event_subscription",
                 args=[websocket.sent_messages[0]["subscription_id"]],
                 params={"events": ["node_status", "task_status", "peer_discovery"]}
             )
-            
+
             # Cancel the task group to simulate client disconnect
             tg.cancel_scope.cancel()
-        
+
         # Verify that cleanup was performed
         self.mock_ipfs_api.execute_command.assert_called_with(
             command="unregister_event_subscription",

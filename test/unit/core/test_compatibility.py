@@ -19,5 +19,5 @@ except ImportError:
     class DummyAsyncioFixture:
         def __call__(self, func):
             return pytest.fixture(func)
-    
+
     pytest_asyncio = type('DummyPytestAsyncio', (), {'fixture': DummyAsyncioFixture()})

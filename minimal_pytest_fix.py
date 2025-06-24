@@ -17,17 +17,17 @@ class MockTerminalWriter:
     def __init__(self, file=None):
         self.file = file or io.StringIO()
         self.hasmarkup = False
-        
+
     def write(self, text, **kwargs):
         if hasattr(self.file, 'write'):
             self.file.write(str(text))
         return self
-        
+
     def line(self, text="", **kwargs):
         if hasattr(self.file, 'write'):
             self.file.write(str(text) + "\n")
         return self
-        
+
     def sep(self, sep="-", title=None, **kwargs):
         line = sep * 40
         if title:
@@ -35,7 +35,7 @@ class MockTerminalWriter:
         if hasattr(self.file, 'write'):
             self.file.write(line + "\n")
         return self
-        
+
     def flush(self):
         if hasattr(self.file, 'flush'):
             self.file.flush()
@@ -51,22 +51,22 @@ def apply_patches():
         # Import _pytest modules
         import _pytest.config
         import _pytest.terminal
-        
+
         # Add missing attributes to _pytest.config
         _pytest.config.create_terminal_writer = create_terminal_writer
         _pytest.config.config = _pytest.config.Config  # This fixes the specific error
-        
+
         # Patch TerminalReporter.__init__
         original_init = _pytest.terminal.TerminalReporter.__init__
-        
+
         def patched_init(self, config, file=None):
             self.config = config
             self.verbosity = getattr(config.option, 'verbose', 0) if hasattr(config, 'option') else 0
             self._tw = create_terminal_writer(config, file)
             # Skip calling original init
-            
+
         _pytest.terminal.TerminalReporter.__init__ = patched_init
-        
+
         # Patch _pytest.assertion.rewrite.assertion if needed
         if "_pytest.assertion.rewrite" in sys.modules:
             module = sys.modules["_pytest.assertion.rewrite"]
@@ -75,7 +75,7 @@ def apply_patches():
                     pass
                 module.assertion = AssertionHelper()
                 logger.info("Added missing 'assertion' attribute to _pytest.assertion.rewrite")
-        
+
         logger.info("All pytest fixes applied successfully")
         return True
     except Exception as e:

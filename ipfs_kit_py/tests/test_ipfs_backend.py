@@ -10,7 +10,7 @@ import sys
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, 
+logging.basicConfig(level=logging.INFO,
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ except ImportError as e:
 def test_ipfs_backend():
     """Test the IPFS backend initialization and basic functionality."""
     logger.info("Testing IPFS backend initialization...")
-    
+
     # Create resources and metadata for initialization
     resources = {
         "api_url": "http://localhost:5001/api/v0",  # Default local IPFS API
@@ -41,48 +41,48 @@ def test_ipfs_backend():
         "test": True,
         "description": "Test IPFS backend"
     }
-    
+
     try:
         # Initialize the backend
         backend = IPFSBackend(resources, metadata)
         logger.info(f"IPFS backend initialized successfully: {backend.get_name()}")
-        
+
         # Check if we're using the real or mock implementation
         if hasattr(backend.ipfs, "_mock_implementation") and backend.ipfs._mock_implementation:
             logger.warning("Using mock implementation (no local IPFS node available)")
         else:
             logger.info("Connected to real IPFS node")
-        
+
         # Try a simple operation
         test_content = b"Hello, IPFS from MCP!"
         logger.info("Adding test content to IPFS...")
         result = backend.add_content(test_content)
         logger.info(f"Add content result: {result}")
-        
+
         if result.get("success", False):
             content_id = result.get("identifier")
             logger.info(f"Content added with ID: {content_id}")
-            
+
             # Try retrieving the content
             logger.info(f"Retrieving content with ID: {content_id}")
             retrieve_result = backend.get_content(content_id)
             logger.info(f"Retrieve content result success: {retrieve_result.get('success', False)}")
-            
+
             if retrieve_result.get("success", False):
                 retrieved_data = retrieve_result.get("data")
                 if retrieved_data == test_content:
                     logger.info("Retrieved content matches original content")
                 else:
                     logger.error("Retrieved content does not match original content")
-            
+
             # Get metadata
             logger.info(f"Getting metadata for content ID: {content_id}")
             metadata_result = backend.get_metadata(content_id)
             logger.info(f"Metadata result: {metadata_result}")
-        
+
         logger.info("IPFS backend test completed successfully")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error testing IPFS backend: {e}")
         return False

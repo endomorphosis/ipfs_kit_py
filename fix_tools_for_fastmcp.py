@@ -29,10 +29,10 @@ def register_ipfs_tools(mcp_server):
     for tool in tools:
         tool_name = tool["name"]
         tool_schema = tool["schema"]
-        
+
         # Get description from schema if available, otherwise use a default
         description = tool_schema.get("description", f"IPFS tool: {tool_name}")
-        
+
         # Create a decorator function for this tool using the FastMCP format
         @mcp_server.tool(name=tool_name, description=description)
         async def tool_handler(ctx):
@@ -40,20 +40,20 @@ def register_ipfs_tools(mcp_server):
             params = ctx.params
             logger.info(f"Called {tool_name} with params: {params}")
             return {"success": True, "message": f"Mock implementation of {tool_name}"}
-        
+
         # Rename the function to avoid name collisions
         tool_handler.__name__ = f"ipfs_{tool_name}_handler"
-        
+
         logger.info(f"Registered tool: {tool_name}")
 
     logger.info("✅ Successfully registered all IPFS tools")
     return True
 """
-        
+
         # Write the fixed content back
         with open("ipfs_mcp_tools_integration.py", "w") as f:
             f.write(fixed_content)
-        
+
         logger.info("✅ Successfully fixed the IPFS tools integration for FastMCP compatibility")
         return True
     except Exception as e:

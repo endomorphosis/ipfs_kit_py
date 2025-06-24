@@ -34,13 +34,13 @@ async def sample_coroutine(seconds=1):
 def problematic_method():
     """
     This method demonstrates the problematic approach.
-    
+
     It attempts to handle a running event loop by creating a new one,
     which doesn't work in FastAPI context.
     """
     logger.info("Running problematic method...")
     start_time = time.time()
-    
+
     try:
         # Get or create event loop (problematic pattern)
         try:
@@ -56,14 +56,14 @@ def problematic_method():
             logger.info("No event loop in this thread, creating one")
             loop = anyio.new_event_loop()
             anyio.set_event_loop(loop)
-        
+
         # Run the coroutine using run_until_complete
         logger.info("Running coroutine with run_until_complete")
         result = loop.run_until_complete(sample_coroutine())
-        
+
         logger.info(f"Method completed successfully: {result}")
         return result
-        
+
     except Exception as e:
         logger.error(f"Error in problematic method: {e}")
         return {"success": False, "error": str(e)}
@@ -75,13 +75,13 @@ def problematic_method():
 def fixed_method():
     """
     This method demonstrates the fixed approach using AsyncEventLoopHandler.
-    
+
     It safely handles running event loops by scheduling a background task
     instead of creating a new loop.
     """
     logger.info("Running fixed method...")
     start_time = time.time()
-    
+
     try:
         # Create a fallback result for when we can't wait for the coroutine
         fallback_result = {
@@ -89,17 +89,17 @@ def fixed_method():
             "simulated": True,
             "note": "Operation scheduled in background due to running event loop"
         }
-        
+
         # Use our utility method to run the coroutine safely
         logger.info("Using AsyncEventLoopHandler to run coroutine safely")
         result = AsyncEventLoopHandler.run_coroutine(
             sample_coroutine(),
             fallback_result=fallback_result
         )
-        
+
         logger.info(f"Method completed successfully: {result}")
         return result
-        
+
     except Exception as e:
         logger.error(f"Error in fixed method: {e}")
         return {"success": False, "error": str(e)}
@@ -120,7 +120,7 @@ async def simulate_fastapi_endpoint_calls():
     """Simulate FastAPI endpoint calls in an already running event loop."""
     logger.info("\n=== SIMULATING FASTAPI ENVIRONMENT ===")
     logger.info("FastAPI uses a running event loop for handling requests")
-    
+
     # First, try the problematic method
     logger.info("\n--- Testing problematic method in FastAPI context ---")
     try:
@@ -128,7 +128,7 @@ async def simulate_fastapi_endpoint_calls():
         logger.info("Problematic method did not raise an exception (unexpected)")
     except Exception as e:
         logger.error(f"Problematic method raised an exception (expected): {e}")
-    
+
     # Now, try the fixed method
     logger.info("\n--- Testing fixed method in FastAPI context ---")
     try:
@@ -139,31 +139,31 @@ async def simulate_fastapi_endpoint_calls():
             logger.info("The coroutine was scheduled in the background, still running...")
     except Exception as e:
         logger.error(f"Fixed method raised an exception (unexpected): {e}")
-    
+
     return
 
 async def run_demo():
     """Run the complete demonstration."""
     logger.info("=== EVENT LOOP ISSUE DEMO ===\n")
-    
+
     # First, test without a running event loop
     logger.info("Testing in a context WITHOUT a running event loop:")
-    
+
     logger.info("\n--- Running problematic method ---")
     problematic_method()
-    
+
     logger.info("\n--- Running fixed method ---")
     fixed_method()
-    
+
     # Now, simulate FastAPI where the event loop is running
     app = "FastAPISimulation"
     async with lifespan(app):
         await simulate_fastapi_endpoint_calls()
-    
+
     # Wait to ensure any background tasks complete
     logger.info("\nWaiting for background tasks to complete...")
     await anyio.sleep(2)
-    
+
     logger.info("\n=== DEMO COMPLETE ===")
 
 if __name__ == "__main__":

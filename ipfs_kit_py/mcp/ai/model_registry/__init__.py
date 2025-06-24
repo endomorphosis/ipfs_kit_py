@@ -39,13 +39,13 @@ __all__ = [
     'ModelMetrics',
     'ModelDependency',
     'ModelDeploymentConfig',
-    
+
     # Enums for model metadata
     'ModelFormat',
     'ModelFramework',
     'ModelType',
     'ModelStatus',
-    
+
     # Router and initialization
     'model_registry_router',
     'initialize_model_registry'

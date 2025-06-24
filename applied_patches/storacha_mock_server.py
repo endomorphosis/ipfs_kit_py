@@ -25,13 +25,13 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         query = parse_qs(url.query)
-        
+
         # Check API key
         api_key = self.headers.get('Authorization', '').replace('Bearer ', '')
         if api_key != API_KEY:
             self.send_error(401, "Invalid API key")
             return
-        
+
         if url.path == '/v1/status':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -43,13 +43,13 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                 "message": "Storacha Mock API is running"
             }
             self.wfile.write(json.dumps(status).encode('utf-8'))
-        
+
         elif url.path.startswith('/v1/download/'):
             cid = url.path.split('/')[-1]
             if not cid:
                 self.send_error(400, "Missing CID")
                 return
-            
+
             # Check if file exists in mock storage
             mock_path = os.path.join(MOCK_DIR, "downloads", cid)
             if os.path.exists(mock_path):
@@ -66,12 +66,12 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                         ["ipfs", "cat", cid],
                         capture_output=True
                     )
-                    
+
                     if result.returncode == 0:
                         # Store the file for future use
                         with open(mock_path, 'wb') as f:
                             f.write(result.stdout)
-                        
+
                         # Return the file
                         self.send_response(200)
                         self.send_header('Content-type', 'application/octet-stream')
@@ -81,12 +81,12 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                         self.send_error(404, f"CID not found: {result.stderr.decode('utf-8')}")
                 except Exception as e:
                     self.send_error(500, f"Error: {str(e)}")
-        
+
         elif url.path == '/v1/list':
             # List files in the mock storage
             uploads_dir = os.path.join(MOCK_DIR, "uploads")
             files = []
-            
+
             for filename in os.listdir(uploads_dir):
                 if os.path.isfile(os.path.join(uploads_dir, filename)):
                     stat = os.stat(os.path.join(uploads_dir, filename))
@@ -96,7 +96,7 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                         "size": stat.st_size,
                         "uploaded_at": stat.st_mtime
                     })
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -104,81 +104,81 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                 "files": files,
                 "count": len(files)
             }).encode('utf-8'))
-        
+
         else:
             self.send_error(404, "Endpoint not found")
-    
+
     def do_POST(self):
         url = urlparse(self.path)
-        
+
         # Check API key
         api_key = self.headers.get('Authorization', '').replace('Bearer ', '')
         if api_key != API_KEY:
             self.send_error(401, "Invalid API key")
             return
-        
+
         if url.path == '/v1/upload':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
-            
+
             # Generate a file ID (simulating CID)
             file_id = f"mock{uuid.uuid4().hex}"
-            
+
             # Store the file
             file_path = os.path.join(MOCK_DIR, "uploads", file_id)
             with open(file_path, 'wb') as f:
                 f.write(post_data)
-            
+
             # Also store in IPFS to get a real CID
             try:
                 # Create a temporary file
                 temp_file = os.path.join(MOCK_DIR, f"temp_{uuid.uuid4().hex}")
                 with open(temp_file, 'wb') as f:
                     f.write(post_data)
-                
+
                 # Add to IPFS
                 result = subprocess.run(
                     ["ipfs", "add", "-q", temp_file],
                     capture_output=True,
                     text=True
                 )
-                
+
                 # Clean up
                 os.unlink(temp_file)
-                
+
                 if result.returncode == 0:
                     real_cid = result.stdout.strip()
-                    
+
                     # Use the real CID
                     os.rename(file_path, os.path.join(MOCK_DIR, "uploads", real_cid))
                     file_id = real_cid
             except Exception as e:
                 print(f"Error adding to IPFS: {e}")
-            
+
             # Return response
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            
+
             response = {
                 "success": True,
                 "cid": file_id,
                 "size": len(post_data),
                 "timestamp": time.time()
             }
-            
+
             self.wfile.write(json.dumps(response).encode('utf-8'))
-        
+
         elif url.path == '/v1/pin':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             request = json.loads(post_data.decode('utf-8'))
-            
+
             cid = request.get('cid')
             if not cid:
                 self.send_error(400, "Missing CID")
                 return
-            
+
             # Pin the CID in IPFS
             try:
                 result = subprocess.run(
@@ -186,26 +186,26 @@ class StorachaMockHandler(http.server.BaseHTTPRequestHandler):
                     capture_output=True,
                     text=True
                 )
-                
+
                 if result.returncode == 0:
                     # Return success response
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
-                    
+
                     response = {
                         "success": True,
                         "cid": cid,
                         "pinned": True,
                         "timestamp": time.time()
                     }
-                    
+
                     self.wfile.write(json.dumps(response).encode('utf-8'))
                 else:
                     self.send_error(500, f"Failed to pin CID: {result.stderr}")
             except Exception as e:
                 self.send_error(500, f"Error: {str(e)}")
-        
+
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -219,10 +219,10 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=run_server)
     server_thread.daemon = True
     server_thread.start()
-    
+
     print("Mock Storacha API server started. Press Ctrl+C to stop.")
     print(f"API Key: {API_KEY}")
-    
+
     try:
         # Keep the main thread alive
         while True:

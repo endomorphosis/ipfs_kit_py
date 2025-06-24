@@ -84,7 +84,7 @@ def handle_error(result, error, message=None):
 class storacha_kit:
     def __init__(self, resources=None, metadata=None):
         """Initialize storacha_kit with resources and metadata.
-        
+
         Args:
             resources: Optional resources like file handles or connections
             metadata: Optional metadata dictionary with configuration
@@ -115,30 +115,30 @@ class storacha_kit:
         # Initialize connection to API with robust endpoint handling
         self.api_key = self.metadata.get("api_key", os.environ.get("STORACHA_API_KEY"))
         self.api_url = self._initialize_api_endpoint()
-        
+
         # Mock mode detection - enable if specified or if API key starts with "mock_"
         if (self.api_key and self.api_key.startswith("mock_")) or self.metadata.get("force_mock", False):
             self.mock_mode = True
             logger.info("Storacha kit running in mock mode (forced or mock API key detected)")
-            
+
         # Set up the mock storage directory if in mock mode
         if self.mock_mode:
             self._setup_mock_storage()
-        
+
         # Auto-install dependencies on first run if they're not already installed
         if not self.metadata.get("skip_dependency_check", False):
             self._check_and_install_dependencies()
-        
+
         logger.info(f"Storacha kit initialized with API endpoint: {self.api_url}")
         if self.mock_mode:
             logger.info("Storacha kit is running in mock mode")
-            
+
     def _check_dns_resolution(self, host):
         """Check if a hostname can be resolved via DNS.
-        
+
         Args:
             host: Hostname to check
-            
+
         Returns:
             bool: True if resolution successful, False otherwise
         """
@@ -148,59 +148,59 @@ class storacha_kit:
         except Exception as e:
             logger.warning(f"DNS resolution failed for {host}: {e}")
             return False
-            
+
     def _setup_mock_storage(self):
         """Set up mock storage directories for local testing."""
         try:
             mock_base = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha")
             mock_spaces = os.path.join(mock_base, "spaces")
             mock_uploads = os.path.join(mock_base, "uploads")
-            
+
             # Create directories if they don't exist
             os.makedirs(mock_spaces, exist_ok=True)
             os.makedirs(mock_uploads, exist_ok=True)
-            
+
             logger.info(f"Storacha mock storage initialized at: {mock_base}")
         except Exception as e:
             logger.error(f"Error setting up mock storage: {e}")
-            
+
     def _initialize_api_endpoint(self):
         """Find a working Storacha API endpoint from the available options.
-        
+
         Returns:
             str: The first working endpoint or the default if none work
         """
         # First try the endpoint from metadata or environment
         endpoints_to_try = []
         user_endpoint = self.metadata.get("api_url") or os.environ.get("STORACHA_API_URL") or os.environ.get("STORACHA_API_ENDPOINT")
-        
+
         if user_endpoint:
             endpoints_to_try.append(user_endpoint)
-            
-        # Add standard endpoints 
+
+        # Add standard endpoints
         endpoints_to_try.extend([ep for ep in STORACHA_ENDPOINTS if ep not in endpoints_to_try])
-        
+
         logger.debug(f"Trying Storacha endpoints: {endpoints_to_try}")
-        
+
         # Try each endpoint
         working_endpoints = []
         for endpoint in endpoints_to_try:
             try:
                 # Extract hostname for DNS check
                 host = endpoint.split("://")[1].split("/")[0]
-                
+
                 # Check DNS resolution first
                 if not self._check_dns_resolution(host):
                     logger.warning(f"DNS resolution failed for {host}, skipping endpoint")
                     continue
-                
+
                 # Try a simple HEAD request to verify connectivity
                 response = requests.head(
                     endpoint,
                     timeout=5,
                     headers={"User-Agent": "ipfs-kit-storacha/1.0"}
                 )
-                
+
                 # Any response below 500 suggests the endpoint exists
                 if response.status_code < 500:
                     logger.info(f"Found working Storacha endpoint: {endpoint} (Status code: {response.status_code})")
@@ -209,46 +209,46 @@ class storacha_kit:
                     logger.warning(f"Endpoint {endpoint} returned error status: {response.status_code}")
             except (requests.RequestException, Exception) as e:
                 logger.warning(f"Error checking endpoint {endpoint}: {str(e)}")
-                
+
         # Store all working endpoints for potential fallback
         self.working_endpoints = working_endpoints
         self.last_endpoint_check = time.time()
-        
+
         # Return the first working endpoint, or default if none work
         if working_endpoints:
             return working_endpoints[0]
         else:
             logger.warning(f"No working Storacha endpoints found. Using default: {STORACHA_ENDPOINTS[0]}")
             return STORACHA_ENDPOINTS[0]
-            
+
     def _get_working_endpoint(self, force_check=False):
         """Get a working endpoint, checking connectivity if needed.
-        
+
         Args:
             force_check: Force a recheck of endpoints even if recently checked
-            
+
         Returns:
             str: A working endpoint or the default if none work
         """
         # Check if we need to refresh our endpoint list
         current_time = time.time()
-        if (force_check or 
-            not self.working_endpoints or 
+        if (force_check or
+            not self.working_endpoints or
             current_time - self.last_endpoint_check > self.endpoint_check_interval):
-            
+
             logger.debug("Refreshing Storacha endpoint list")
             self.api_url = self._initialize_api_endpoint()
-        
+
         # Return current endpoint if we have working endpoints
         if self.working_endpoints:
             return self.working_endpoints[0]
-        
+
         # Otherwise return default
         return STORACHA_ENDPOINTS[0]
-            
+
     def _make_api_request(self, method, endpoint_path, data=None, headers=None, timeout=30, retry_count=1):
         """Make an API request with robust error handling and endpoint fallback.
-        
+
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint_path: Path to add to the base endpoint
@@ -256,7 +256,7 @@ class storacha_kit:
             headers: Optional request headers
             timeout: Request timeout in seconds
             retry_count: Number of retries remaining
-            
+
         Returns:
             dict: Result dictionary with success flag and response data or error
         """
@@ -266,14 +266,14 @@ class storacha_kit:
             "method": method,
             "timestamp": time.time()
         }
-        
+
         # Return mock result if in mock mode
         if self.mock_mode:
             return self._mock_api_request(method, endpoint_path, data)
-        
+
         # Get current working endpoint
         base_endpoint = self._get_working_endpoint()
-        
+
         # Build full URL
         url = base_endpoint
         if endpoint_path:
@@ -284,17 +284,17 @@ class storacha_kit:
                 url += '/' + endpoint_path
             else:
                 url += endpoint_path
-                
+
         result["url"] = url
-        
+
         try:
             # Set up headers
             request_headers = headers or {}
             if self.api_key and "Authorization" not in request_headers:
                 request_headers["Authorization"] = f"Bearer {self.api_key}"
-                
+
             logger.debug(f"Making {method} request to {url}")
-            
+
             # Make the request
             response = requests.request(
                 method=method,
@@ -303,10 +303,10 @@ class storacha_kit:
                 headers=request_headers,
                 timeout=timeout
             )
-            
+
             # Record response info
             result["status_code"] = response.status_code
-            
+
             # Handle response based on status code
             if response.status_code < 400:
                 # Success - try to parse JSON or use text
@@ -322,7 +322,7 @@ class storacha_kit:
                     result["error_data"] = response.json()
                 except ValueError:
                     result["error_data"] = response.text
-                    
+
                 # Special handling for common errors
                 if response.status_code == 401:
                     result["error_type"] = "authentication"
@@ -332,24 +332,24 @@ class storacha_kit:
                     result["error_type"] = "server"
                 else:
                     result["error_type"] = "client"
-                    
+
         except requests.exceptions.Timeout:
             result["error"] = f"Request to {url} timed out after {timeout}s"
             result["error_type"] = "timeout"
-            
+
         except requests.exceptions.ConnectionError as e:
             result["error"] = f"Connection error: {str(e)}"
             result["error_type"] = "connection"
-            
+
             # If we have retries left and other endpoints to try, retry with next endpoint
             if retry_count > 0 and len(self.working_endpoints) > 1:
                 logger.warning(f"Connection error with {url}, trying next endpoint")
-                
+
                 # Move the failed endpoint to the end of the list
                 if base_endpoint in self.working_endpoints:
                     self.working_endpoints.remove(base_endpoint)
                     self.working_endpoints.append(base_endpoint)
-                
+
                 # Retry with next endpoint
                 return self._make_api_request(
                     method=method,
@@ -359,25 +359,25 @@ class storacha_kit:
                     timeout=timeout,
                     retry_count=retry_count-1
                 )
-                
+
         except requests.exceptions.RequestException as e:
             result["error"] = f"Request error: {str(e)}"
             result["error_type"] = "request"
-            
+
         except Exception as e:
             result["error"] = f"Unexpected error: {str(e)}"
             result["error_type"] = "unexpected"
-            
+
         return result
-    
+
     def _mock_api_request(self, method, endpoint_path, data=None):
         """Simulate an API request for mock mode.
-        
+
         Args:
-            method: HTTP method 
+            method: HTTP method
             endpoint_path: Path for the request
             data: Optional request data
-            
+
         Returns:
             dict: Mock result mimicking real API response
         """
@@ -388,7 +388,7 @@ class storacha_kit:
             "timestamp": time.time(),
             "mock": True
         }
-        
+
         # Generate appropriate mock responses based on the endpoint
         if endpoint_path.endswith("/status"):
             result["data"] = {
@@ -412,67 +412,67 @@ class storacha_kit:
         else:
             # Generic success response
             result["data"] = {"success": True}
-            
+
         logger.debug(f"Generated mock response for {method} {endpoint_path}")
         return result
-        
+
     def install(self, **kwargs):
         """Install the required dependencies for storacha_kit.
-        
+
         Returns:
             Dictionary with installation status
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("install", correlation_id)
-        
+
         try:
             # Attempt to import the installer module directly
             try:
                 # Get the path to the installer file
                 this_dir = os.path.dirname(os.path.realpath(__file__))
                 installer_path = os.path.join(os.path.dirname(this_dir), "install_storacha.py")
-                
+
                 # Add the parent directory to the path temporarily
                 sys.path.insert(0, os.path.dirname(this_dir))
-                
+
                 # Try to import the installer module
                 import importlib.util
                 spec = importlib.util.spec_from_file_location("install_storacha", installer_path)
                 install_storacha = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(install_storacha)
-                
+
                 # Use the function directly
                 verbose = self.metadata.get("debug", False)
                 force = kwargs.get("force", False)
-                
+
                 # Run the installer
                 success = install_storacha.install_dependencies_auto(force=force, verbose=verbose)
-                
+
                 if success:
                     result["success"] = True
                     result["message"] = "Successfully installed storacha dependencies"
                 else:
                     result["success"] = False
                     result["error"] = "Failed to install dependencies"
-                
+
                 return result
-                
+
             except (ImportError, AttributeError) as e:
                 # If import fails, fall back to running as a subprocess
                 logger.debug(f"Failed to import installer module directly: {e}")
                 logger.debug("Falling back to subprocess execution")
-                
+
                 # Get the path to the installer script
                 this_dir = os.path.dirname(os.path.realpath(__file__))
                 installer_path = os.path.join(os.path.dirname(this_dir), "install_storacha.py")
-                
+
                 # Run the installer script with appropriate options
                 cmd = [sys.executable, installer_path]
-                
+
                 # Add verbose flag if in debug mode
                 if self.metadata.get("debug", False):
                     cmd.append("--verbose")
-                    
+
                 # Run installer
                 process = subprocess.run(
                     cmd,
@@ -480,7 +480,7 @@ class storacha_kit:
                     check=False,
                     timeout=300  # Allow up to 5 minutes for installation
                 )
-                
+
                 # Check installation result
                 if process.returncode == 0:
                     result["success"] = True
@@ -490,16 +490,16 @@ class storacha_kit:
                     result["error"] = "Failed to install dependencies"
                     result["stdout"] = process.stdout.decode("utf-8", errors="replace")
                     result["stderr"] = process.stderr.decode("utf-8", errors="replace")
-                    
+
                 return result
-                
+
         except Exception as e:
             logger.exception(f"Error in install: {str(e)}")
             return handle_error(result, e, f"Failed to install dependencies: {str(e)}")
-    
+
     def _check_and_install_dependencies(self):
         """Check if required dependencies are installed, and install them if not.
-        
+
         This is called automatically on initialization to ensure dependencies
         are available without explicit user action.
         """
@@ -507,7 +507,7 @@ class storacha_kit:
             # Check for Python dependencies
             py_deps_installed = True
             missing_deps = []
-            
+
             # Check for requests library
             try:
                 import requests
@@ -516,14 +516,14 @@ class storacha_kit:
                 py_deps_installed = False
                 missing_deps.append("requests")
                 logger.debug("Python dependency 'requests' is missing")
-                
+
             # Check for W3 CLI
             w3_installed = False
             try:
                 # Check if the w3 command is available
                 process = subprocess.run(
-                    ["w3", "--version"], 
-                    stdout=subprocess.PIPE, 
+                    ["w3", "--version"],
+                    stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     check=False
                 )
@@ -534,22 +534,22 @@ class storacha_kit:
                     logger.debug("W3 CLI check failed with non-zero return code")
             except (FileNotFoundError, subprocess.SubprocessError):
                 logger.debug("W3 CLI is not installed")
-                
+
             # If any dependencies are missing, run the installer
             if not py_deps_installed or not w3_installed:
                 logger.info("Some dependencies are missing. Installing them now...")
-                
+
                 # If quiet mode is enabled in metadata, don't show install messages
                 quiet = self.metadata.get("quiet", False)
-                
+
                 if missing_deps and not quiet:
                     logger.info(f"Missing Python dependencies: {', '.join(missing_deps)}")
                 if not w3_installed and not quiet:
                     logger.info("W3 CLI is not installed")
-                    
+
                 # Run the installer
                 install_result = self.install()
-                
+
                 if not install_result.get("success", False):
                     if not quiet:
                         logger.warning("Failed to install dependencies automatically")
@@ -558,59 +558,59 @@ class storacha_kit:
                 else:
                     if not quiet:
                         logger.info("Dependencies installed successfully")
-                        
+
         except Exception as e:
             # Log but don't raise to avoid blocking initialization
             logger.warning(f"Error checking or installing dependencies: {str(e)}")
             logger.debug("Detailed error:", exc_info=True)
-    
+
     def login(self, email, **kwargs):
         """Log in to Web3.Storage service with email.
-        
+
         Args:
             email: Email address to use for login
-            
+
         Returns:
             Dictionary with login status and did:mailto identity
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("login", correlation_id)
         result["email"] = email
-        
+
         try:
             # In a real implementation, this would execute a w3 login command
             # For testing purposes, we'll create a mock response
-            
+
             # Generate a did:mailto identity from the email
             if "@" not in email:
                 raise ValueError(f"Invalid email format: {email}")
-                
+
             domain = email.split("@")[1]
             user_id = email.split("@")[0]
             did_mailto = f"did:mailto:{domain}:{user_id}"
-            
+
             # Set up success response
             result["success"] = True
             result["did"] = did_mailto
             result["type"] = "did:mailto"
             result["timestamp"] = time.time()
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in login: {str(e)}")
             return handle_error(result, e, f"Failed to login with email {email}: {str(e)}")
 
     def run_w3_command(self, cmd_args, check=True, timeout=60, correlation_id=None, shell=False):
         """Run a w3cli command with proper error handling.
-        
+
         Args:
             cmd_args: Command and arguments as a list or string
             check: Whether to check the return code
             timeout: Command timeout in seconds
             correlation_id: Optional correlation ID
             shell: Whether to run as a shell command
-            
+
         Returns:
             Dict with command result and output
         """
@@ -681,19 +681,19 @@ class storacha_kit:
             )
 
         return result
-    
+
     def _mock_w3_command(self, cmd_args):
         """Generate mock responses for w3 commands.
-        
+
         Args:
             cmd_args: Command and arguments
-            
+
         Returns:
             Dict with mock command result
         """
         cmd_string = " ".join(cmd_args) if isinstance(cmd_args, list) else cmd_args
         logger.debug(f"Generating mock response for command: {cmd_string}")
-        
+
         result = {
             "success": True,
             "command": cmd_args[0] if isinstance(cmd_args, list) and cmd_args else cmd_args,
@@ -701,7 +701,7 @@ class storacha_kit:
             "returncode": 0,
             "mock": True
         }
-        
+
         # Parse the command to generate appropriate mock responses
         if "version" in cmd_string:
             result["stdout"] = "w3 version v0.0.0-mock (Mock implementation for testing)"
@@ -721,7 +721,7 @@ CURRENT  NAME             DID
                 name_parts = cmd_string.split("--name")
                 if len(name_parts) > 1:
                     name = name_parts[1].strip().split(" ")[0]
-            
+
             # Mock space creation output
             result["stdout"] = f"Created space: {name} (did:mailto:test.com:space-{uuid.uuid4().hex[:8]})"
         elif "upload ls" in cmd_string or "up ls" in cmd_string:
@@ -743,12 +743,12 @@ document.pdf        3.5 MB     bafy...
         else:
             # Generic success output
             result["stdout"] = "Command executed successfully (mock mode)"
-            
+
         return result
 
     def space_ls(self, **kwargs):
         """List available spaces.
-        
+
         Returns:
             Dict with list of available spaces
         """
@@ -773,24 +773,24 @@ document.pdf        3.5 MB     bafy...
         except Exception as e:
             logger.exception(f"Error in space_ls: {str(e)}")
             return handle_error(result, e)
-            
+
     def space_info(self, space_did, **kwargs):
         """Get detailed information about a space.
-        
+
         Args:
             space_did: The DID of the space to get information for
-            
+
         Returns:
             Dictionary with space information
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("space_info", correlation_id)
         result["space_did"] = space_did
-        
+
         try:
             # In a real implementation, this would query the space info
             # For test compatibility, create a mock response
-            
+
             # Generate a space name based on the DID
             space_name = "Unknown Space"
             if "user" in space_did:
@@ -801,14 +801,14 @@ document.pdf        3.5 MB     bafy...
                 space_name = "Media Library"
             elif "space-789" in space_did:
                 space_name = "Project Files"
-                
+
             # Create mock usage data
             usage = {
                 "total": 1024 * 1024 * 1024 * 100,  # 100 GB
                 "used": 1024 * 1024 * 1024 * 25,    # 25 GB
                 "available": 1024 * 1024 * 1024 * 75  # 75 GB
             }
-            
+
             # Create mock space info
             space_info = {
                 "did": space_did,
@@ -823,26 +823,26 @@ document.pdf        3.5 MB     bafy...
                     {"did": "did:mailto:test.com:other", "role": "viewer"}
                 ]
             }
-            
+
             # Set success response
             result["success"] = True
             result["space_info"] = space_info
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in space_info: {str(e)}")
             return handle_error(result, e, f"Failed to get info for space {space_did}: {str(e)}")
-            
+
     def w3_list_spaces(self, **kwargs):
         """List all spaces accessible by the user.
-        
+
         Returns:
             Result dictionary with list of spaces
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_list_spaces", correlation_id)
-        
+
         try:
             # Create mock spaces for testing
             spaces = [
@@ -867,65 +867,65 @@ document.pdf        3.5 MB     bafy...
                     "current": False
                 }
             ]
-            
+
             result["success"] = True
             result["spaces"] = spaces
             result["count"] = len(spaces)
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_list_spaces: {str(e)}")
             return handle_error(result, e)
-            
+
     def w3_up(self, file_path, **kwargs):
         """Upload a file to Web3.Storage.
-        
+
         Args:
             file_path: Path to the file to upload
-            
+
         Returns:
             Result dictionary with upload details
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_up", correlation_id)
         result["file_path"] = file_path
-        
+
         try:
             # Verify file exists
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
-                
+
             # If in mock mode, generate a mock CID
             if self.mock_mode:
                 logger.info(f"Mock mode: Simulating upload of {file_path}")
                 mock_cid = "bafy" + str(uuid.uuid4()).replace("-", "")
-                
+
                 result["success"] = True
                 result["cid"] = mock_cid
                 result["size"] = os.path.getsize(file_path) if os.path.exists(file_path) else 0
                 result["mock"] = True
-                
+
                 return result
-                
+
             # In real mode, use the w3 command to upload
             cmd_result = self.run_w3_command(
                 ["w3", "up", file_path],
                 check=False,
                 timeout=kwargs.get("timeout", 300)  # 5 minute default timeout
             )
-            
+
             if not cmd_result.get("success", False):
                 return handle_error(
-                    result, 
+                    result,
                     IPFSError(cmd_result.get("error", "Unknown error")),
                     f"Failed to upload file: {cmd_result.get('error', 'Unknown error')}"
                 )
-                
+
             # Extract CID from output if possible
             cid = None
             output = cmd_result.get("stdout", "")
-            
+
             # Try to find CID pattern in output
             cid_match = re.search(r'CID: ([a-zA-Z0-9]+)', output) or re.search(r'cid: ([a-zA-Z0-9]+)', output)
             if cid_match:
@@ -935,7 +935,7 @@ document.pdf        3.5 MB     bafy...
                 bafy_match = re.search(r'(bafy[a-zA-Z0-9]+)', output)
                 if bafy_match:
                     cid = bafy_match.group(1)
-                    
+
             # If we still don't have a CID, check if output contains any error message
             if not cid and ("error" in output.lower() or "failed" in output.lower()):
                 return handle_error(
@@ -943,43 +943,43 @@ document.pdf        3.5 MB     bafy...
                     IPFSError("Upload failed"),
                     f"Failed to upload file: {output}"
                 )
-                
+
             # Use a mock CID if we couldn't extract one but command appeared to succeed
             if not cid:
                 cid = "bafy" + str(uuid.uuid4()).replace("-", "")
                 logger.warning(f"Could not extract CID from output, using generated CID: {cid}")
-                
+
             # Update result with success info
             result["success"] = True
             result["cid"] = cid
             result["size"] = os.path.getsize(file_path) if os.path.exists(file_path) else 0
             result["command_output"] = output
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_up: {str(e)}")
             return handle_error(result, e)
-            
+
     def w3_create(self, name=None, **kwargs):
         """Create a new space.
-        
+
         Args:
             name: Optional name for the space
-            
+
         Returns:
             Result dictionary with space information
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_create", correlation_id)
-        
+
         try:
             # Generate a mock space DID
             space_did = f"did:mailto:test.com:space-{uuid.uuid4().hex[:8]}"
-            
+
             # Use provided name or generate one
             space_name = name or f"Space {space_did[-8:]}"
-            
+
             # Create space info structure
             space_info = {
                 "did": space_did,
@@ -991,19 +991,19 @@ document.pdf        3.5 MB     bafy...
                     "available": 1024 * 1024 * 100  # 100MB
                 }
             }
-            
+
             # Set as current space
             self.space = space_did
-            
+
             result["success"] = True
             result["space_did"] = space_did
             result["name"] = space_name
             result["email"] = "user@test.com"
             result["type"] = "space"
             result["space_info"] = space_info
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_create: {str(e)}")
             return handle_error(result, e)
@@ -1038,28 +1038,28 @@ document.pdf        3.5 MB     bafy...
         result["shards"] = []
 
         return result
-        
+
     def w3_use(self, space_did, **kwargs):
         """Set the current space for operations.
-        
+
         Args:
             space_did: The DID of the space to use
-            
+
         Returns:
             Result dictionary with operation status
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_use", correlation_id)
         result["space_did"] = space_did
-        
+
         try:
             # Verify space_did is valid format
             if not space_did.startswith("did:"):
                 raise ValueError(f"Invalid space DID format: {space_did}")
-                
+
             # Set as current space
             self.space = space_did
-            
+
             # Create mock space info for response
             space_info = {
                 "did": space_did,
@@ -1071,45 +1071,45 @@ document.pdf        3.5 MB     bafy...
                     "available": 1024 * 1024 * 75  # 75MB
                 }
             }
-            
+
             result["success"] = True
             result["space_info"] = space_info
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_use: {str(e)}")
             return handle_error(result, e)
-            
+
     def w3_up_car(self, car_path, **kwargs):
         """Upload a CAR file to Web3.Storage.
-        
+
         Args:
             car_path: Path to the CAR file to upload
-            
+
         Returns:
             Result dictionary with upload details
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_up_car", correlation_id)
         result["car_path"] = car_path
-        
+
         try:
             # Verify file exists
             if not os.path.exists(car_path):
                 raise FileNotFoundError(f"CAR file not found: {car_path}")
-                
+
             # For test compatibility, generate mock CIDs
             mock_root_cid = "bafy" + str(uuid.uuid4()).replace("-", "")
             mock_car_cid = "bagbaieratjb" + str(uuid.uuid4()).replace("-", "")[:20]
-            
+
             result["success"] = True
             result["cid"] = mock_root_cid
             result["car_cid"] = mock_car_cid
             result["size"] = os.path.getsize(car_path) if os.path.exists(car_path) else 0
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_up_car: {str(e)}")
             return handle_error(result, e)
@@ -1203,32 +1203,32 @@ document.pdf        3.5 MB     bafy...
         result["cid"] = "bagbaieratjbwkujpc5jlmvcnwmni4lw4ukfoixc6twjq5rqkikf3tcemuua"
 
         return result
-        
+
     # Implementation of w3_cat method
     def w3_cat(self, cid, **kwargs):
         """Retrieve content by CID from Web3.Storage.
-        
+
         Args:
             cid: Content identifier to retrieve
-            
+
         Returns:
             Result dictionary with content data
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_cat", correlation_id)
         result["cid"] = cid
-        
+
         try:
             # For now, generate mock content for testing
             content = b"Mock content for testing w3_cat functionality for CID: " + cid.encode('utf-8')
-            
+
             # Return success result
             result["success"] = True
             result["content"] = content
             result["size"] = len(content)
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_cat: {str(e)}")
             return handle_error(result, e, f"Error retrieving content for CID {cid}: {str(e)}")
@@ -1236,13 +1236,13 @@ document.pdf        3.5 MB     bafy...
     # Method for listing uploads
     def w3_list(self, **kwargs):
         """List uploads in the current space.
-        
+
         Returns:
             Result dictionary with list of uploads
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_list", correlation_id)
-        
+
         try:
             # Generate mock uploads for testing
             uploads = []
@@ -1255,51 +1255,51 @@ document.pdf        3.5 MB     bafy...
                     "type": "application/octet-stream",
                     "created": time.time() - (i * 86400)  # Each one created 1 day apart
                 })
-                
+
             result["success"] = True
             result["uploads"] = uploads
             result["count"] = len(uploads)
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_list: {str(e)}")
             return handle_error(result, e)
-    
+
     # Add method for removing content by CID
     def w3_remove(self, cid, **kwargs):
         """Remove content by CID from the current space.
-        
+
         Args:
             cid: The CID of the content to remove
-            
+
         Returns:
             Result dictionary with removal status
         """
         correlation_id = kwargs.get("correlation_id", self.correlation_id)
         result = create_result_dict("w3_remove", correlation_id)
         result["cid"] = cid
-        
+
         try:
             # Simple mock implementation that just returns success
             result["success"] = True
             result["removed"] = True
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in w3_remove: {str(e)}")
             return handle_error(result, e)
-            
+
     # Add the store_get method needed for test_batch_operations and MCP server
     def store_get(self, space_did, cid, output_file=None, **kwargs):
         """Get content from a space by CID.
-        
+
         Args:
             space_did: The DID of the space to get content from
             cid: The CID of the content to retrieve
             output_file: Optional path to save the retrieved content to
-            
+
         Returns:
             Result dictionary with operation outcome
         """
@@ -1307,11 +1307,11 @@ document.pdf        3.5 MB     bafy...
         result = create_result_dict("store_get", correlation_id)
         result["space_did"] = space_did
         result["cid"] = cid
-        
+
         try:
             # For now, just create mock content for testing
             content = b"Mock content for testing store_get functionality"
-            
+
             # If output file is specified, write the content to it
             if output_file:
                 with open(output_file, "wb") as f:
@@ -1322,18 +1322,18 @@ document.pdf        3.5 MB     bafy...
                 # If no output file, return the content directly
                 result["success"] = True
                 result["content"] = content
-                
+
             result["size_bytes"] = len(content)
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error in store_get: {str(e)}")
             return handle_error(result, e, f"Error retrieving content from space {space_did}: {str(e)}")
-            
+
     def _log_operation(self, operation, success, details=None):
         """Log operation details with consistent format.
-        
+
         Args:
             operation: Operation name
             success: Whether operation succeeded
@@ -1343,14 +1343,14 @@ document.pdf        3.5 MB     bafy...
             logger.info(f"Storacha {operation} successful: {details or ''}")
         else:
             logger.error(f"Storacha {operation} failed: {details or ''}")
-            
+
     # Helper method to check if file exists and get size
     def _get_file_size(self, file_path):
         """Get size of a file if it exists.
-        
+
         Args:
             file_path: Path to file
-            
+
         Returns:
             int: Size in bytes or 0 if file not found
         """

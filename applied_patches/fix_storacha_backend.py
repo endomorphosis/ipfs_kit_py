@@ -385,7 +385,7 @@ class StorachaBackend(BackendStorage):
 
         # Initialize local cache for frequently accessed data
         self._init_local_cache()
-        
+
     def get_name(self) -> str:
         """Get the name of this backend implementation."""
         return "storacha"
@@ -529,19 +529,19 @@ class StorachaBackend(BackendStorage):
     def _is_file_like(self, obj):
         """Check if object is file-like (has read method)."""
         return hasattr(obj, "read") and callable(obj.read)
-        
+
     # Implement required abstract method
     def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Add content to Storacha storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the store() method with appropriate parameter mapping.
-        
+
         Args:
             content: Content to add (can be a path, bytes, or file-like object)
             metadata: Optional metadata to associate with the content
-            
+
         Returns:
             Dict with operation result including content ID
         """
@@ -549,7 +549,7 @@ class StorachaBackend(BackendStorage):
         options = {}
         if metadata:
             options["metadata"] = metadata
-            
+
         # Call the existing store method with mapped parameters
         return self.store(content, options=options)
 
@@ -557,30 +557,30 @@ class StorachaBackend(BackendStorage):
     def get_content(self, content_id: str) -> Dict[str, Any]:
         """
         Retrieve content from Storacha storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the retrieve() method.
-        
+
         Args:
             content_id: ID of the content to retrieve
-            
+
         Returns:
             Dict with operation result including content data
         """
         # Call the existing retrieve method
         return self.retrieve(content_id)
-        
+
     # Implement required abstract method
     def remove_content(self, content_id: str) -> Dict[str, Any]:
         """
         Remove content from Storacha storage.
-        
+
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the delete() method.
-        
+
         Args:
             content_id: ID of the content to remove
-            
+
         Returns:
             Dict with operation result
         """
@@ -1246,7 +1246,7 @@ class StorachaBackend(BackendStorage):
 
         # Combine metadata for target backend
         combined_metadata = {**metadata, **migration_metadata}
-        
+
         # Store in target backend using add_content (not store, as we've fixed the method names)
         store_result = target_backend.add_content(data, combined_metadata)
 

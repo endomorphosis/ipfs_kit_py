@@ -52,11 +52,11 @@ logger = logging.getLogger(__name__)
 
 class MCPTestRunner:
     """MCP Server test runner that manages server process."""
-    
+
     def __init__(self, server_cmd, host="localhost", port=9992, debug=False):
         """
         Initialize the test runner.
-        
+
         Args:
             server_cmd: Command to start the MCP server
             host: Host to bind the server to
@@ -70,7 +70,7 @@ class MCPTestRunner:
         self.server_process = None
         self.server_output_file = None
         self.results_file = tempfile.NamedTemporaryFile(
-            mode='w+', 
+            mode='w+',
             suffix='.json',
             prefix='mcp_test_results_',
             delete=False
@@ -85,14 +85,14 @@ class MCPTestRunner:
             },
             "tests": {}
         }
-        
+
         # Register cleanup handler
         atexit.register(self.cleanup)
-        
+
     def start_server(self):
         """Start the MCP server process."""
         logger.info(f"Starting MCP server on {self.host}:{self.port}...")
-        
+
         # Create output file for server logs
         self.server_output_file = tempfile.NamedTemporaryFile(
             mode='w+',
@@ -100,13 +100,13 @@ class MCPTestRunner:
             prefix='mcp_server_',
             delete=False
         )
-        
+
         # Start the MCP server with the run_mcp_server_anyio.py script
         cmd = ["python", "run_mcp_server_anyio.py", "--host", self.host, "--port", str(self.port), "--backend", "asyncio"]
-        
+
         if self.debug:
             cmd.append("--debug")
-            
+
         # Start server process
         logger.info(f"Running command: {' '.join(cmd)}")
         self.server_process = subprocess.Popen(
@@ -115,11 +115,11 @@ class MCPTestRunner:
             stderr=subprocess.STDOUT,
             text=True
         )
-        
+
         # Wait for server to start
         logger.info(f"Waiting for server to start (PID: {self.server_process.pid})...")
         time.sleep(3)  # Wait a few seconds for server to initialize
-        
+
         # Check if process is still running
         if self.server_process.poll() is not None:
             logger.error(f"Server process exited with code {self.server_process.returncode}")
@@ -127,7 +127,7 @@ class MCPTestRunner:
             with open(self.server_output_file.name, 'r') as f:
                 logger.error(f"Server output:\n{f.read()}")
             return False
-        
+
         # Check if server is responding
         try:
             import requests
@@ -138,15 +138,15 @@ class MCPTestRunner:
         except Exception as e:
             logger.error(f"Server is not responding: {e}")
             return False
-            
+
     def stop_server(self):
         """Stop the MCP server process."""
         if self.server_process:
             logger.info(f"Stopping MCP server (PID: {self.server_process.pid})...")
-            
+
             # Try graceful shutdown first
             self.server_process.terminate()
-            
+
             # Wait for process to terminate
             try:
                 self.server_process.wait(timeout=5)
@@ -156,32 +156,32 @@ class MCPTestRunner:
                 logger.warning("Server not responding to termination, sending SIGKILL")
                 self.server_process.kill()
                 self.server_process.wait()
-                
+
             self.server_process = None
-            
+
     def run_test(self, test_script, test_name, args=None):
         """
         Run a test script.
-        
+
         Args:
             test_script: Path to test script
             test_name: Name of the test for reporting
             args: Additional arguments for the test script
-            
+
         Returns:
             True if test passed, False otherwise
         """
         logger.info(f"Running test: {test_name}")
-        
+
         # Build command
         cmd = ["python", test_script, "--url", f"http://{self.host}:{self.port}"]
-        
+
         # Add any additional arguments
         if args:
             cmd.extend(args)
-            
+
         logger.info(f"Running command: {' '.join(cmd)}")
-        
+
         # Run test process
         try:
             result = subprocess.run(
@@ -190,7 +190,7 @@ class MCPTestRunner:
                 text=True,
                 check=False
             )
-            
+
             # Store test results
             test_passed = result.returncode == 0
             self.results["tests"][test_name] = {
@@ -199,7 +199,7 @@ class MCPTestRunner:
                 "stdout": result.stdout,
                 "stderr": result.stderr
             }
-            
+
             # Update overall results
             self.results["overall"]["tests_run"] += 1
             if test_passed:
@@ -209,31 +209,31 @@ class MCPTestRunner:
                 self.results["overall"]["tests_failed"] += 1
                 logger.error(f"❌ Test {test_name} failed (code: {result.returncode})")
                 logger.error(f"Error output: {result.stderr}")
-                
+
             return test_passed
-            
+
         except Exception as e:
             logger.error(f"Error running test {test_name}: {e}")
-            
+
             # Store test results
             self.results["tests"][test_name] = {
                 "success": False,
                 "error": str(e)
             }
-            
+
             # Update overall results
             self.results["overall"]["tests_run"] += 1
             self.results["overall"]["tests_failed"] += 1
-            
+
             return False
-            
+
     def run_all_tests(self):
         """Run all test scripts."""
         logger.info("Running all MCP server tests...")
-        
+
         # Get script directory
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        
+
         # Define test scripts
         tests = [
             {
@@ -250,7 +250,7 @@ class MCPTestRunner:
                 "args": ["--verbose"]  # Run with verbose output
             }
         ]
-        
+
         # Check for optional peer websocket test
         peer_websocket_script = os.path.join(script_dir, "test_mcp_peer_websocket.py")
         if os.path.exists(peer_websocket_script):
@@ -266,7 +266,7 @@ class MCPTestRunner:
                 "skipped": True,
                 "error": "Test script not found"
             }
-        
+
         # Run each test
         for test in tests:
             # Check if script exists
@@ -282,42 +282,42 @@ class MCPTestRunner:
                     "skipped": True,
                     "error": "Test script not found"
                 }
-            
+
         # Update overall success (only consider tests that weren't skipped)
         tests_executed = sum(1 for t in self.results["tests"].values() if not t.get("skipped", False))
         tests_passed = sum(1 for t in self.results["tests"].values() if t.get("success", False))
-        
+
         self.results["overall"]["success"] = (
             tests_executed > 0 and tests_passed == tests_executed
         )
-        
+
         # Save results
         self.save_results()
-        
+
         return self.results["overall"]["success"]
-        
+
     def save_results(self):
         """Save test results to file."""
         logger.info(f"Saving test results to {self.results_path}")
-        
+
         with open(self.results_path, 'w') as f:
             json.dump(self.results, f, indent=2)
-            
+
     def cleanup(self):
         """Clean up resources."""
         # Stop server if still running
         self.stop_server()
-        
+
         # Close and remove output file
         if self.server_output_file:
             self.server_output_file.close()
             if os.path.exists(self.server_output_file.name):
                 logger.info(f"Server log saved to: {self.server_output_file.name}")
-            
+
         # Close results file
         if hasattr(self, 'results_file') and self.results_file:
             self.results_file.close()
-        
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Run all MCP server tests")
@@ -347,7 +347,7 @@ def parse_args():
 def main():
     """Main entry point."""
     args = parse_args()
-    
+
     # Create test runner
     runner = MCPTestRunner(
         server_cmd="run_mcp_server_anyio.py",
@@ -355,32 +355,32 @@ def main():
         port=args.port,
         debug=args.debug
     )
-    
+
     try:
         # Start server if needed
         if not args.no_server:
             if not runner.start_server():
                 logger.error("Failed to start MCP server, aborting tests")
                 return 1
-                
+
         # Run all tests
         success = runner.run_all_tests()
-        
+
         # Report results
         tests_run = runner.results["overall"]["tests_run"]
         tests_passed = runner.results["overall"]["tests_passed"]
         tests_failed = runner.results["overall"]["tests_failed"]
-        
+
         logger.info(f"Test results: {tests_passed}/{tests_run} passed, {tests_failed} failed")
         logger.info(f"Detailed results saved to: {runner.results_path}")
-        
+
         if success:
             logger.info("✅ All tests passed")
             return 0
         else:
             logger.error("❌ Some tests failed")
             return 1
-            
+
     finally:
         # Clean up
         if not args.no_server:

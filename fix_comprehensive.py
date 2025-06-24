@@ -89,7 +89,7 @@ async def health():
             "ipfs": True,
             "storage_manager": True,
             "filecoin": True,
-            "huggingface": True, 
+            "huggingface": True,
             "storacha": True,
             "lassie": True,
             "s3": True
@@ -138,9 +138,9 @@ async def health():
 def main():
     \"\"\"Run the minimal health endpoint server.\"\"\"
     import uvicorn
-    
+
     logger.info(f"Starting Minimal MCP Health Endpoint on {args.host}:{args.port}")
-    
+
     uvicorn.run(
         app,
         host=args.host,
@@ -200,11 +200,11 @@ update_settings() {
     if [ -f "$settings_file" ]; then
         # Create a backup
         cp "$settings_file" "${settings_file}.bak"
-        
+
         # Update settings using sed
         sed -i 's|"url": "http://localhost:[0-9]*/api/v0/sse"|"url": "http://localhost:9994/api/v0/sse"|g' "$settings_file"
         sed -i 's|"url": "http://localhost:[0-9]*/jsonrpc"|"url": "http://localhost:9995/jsonrpc"|g' "$settings_file"
-        
+
         echo "  ✅ Updated $settings_file"
     else
         echo "  ❌ Settings file not found: $settings_file"
@@ -220,7 +220,7 @@ echo -e "\nChecking server status..."
 check_server() {
     local url=$1
     local name=$2
-    
+
     if curl -s "$url" > /dev/null; then
         echo "  ✅ $name is running at $url"
     else

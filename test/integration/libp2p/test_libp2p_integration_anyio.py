@@ -211,7 +211,7 @@ class TestLibp2pIntegration(unittest.TestCase):
             role="worker",
             enable_mdns=True
         )
-        
+
         # Create the enhanced discovery instance
         self.discovery = EnhancedDHTDiscovery(
             peer=self.mock_peer,
@@ -219,19 +219,19 @@ class TestLibp2pIntegration(unittest.TestCase):
             rendezvous_strings=["ipfs-test-network"],
             debug_mode=True
         )
-        
+
         # Create P2P integration instance
         self.p2p_integration = LibP2PIntegration(
             peer=self.mock_peer,
             discovery=self.discovery,
             debug_mode=True
         )
-        
+
         # Mock IPFS Kit
         self.mock_ipfs_kit = MagicMock()
         self.mock_ipfs_kit.ipfs_add = MagicMock(return_value={"Hash": "QmTestCID"})
         self.mock_ipfs_kit.ipfs_cat = MagicMock(return_value=b"Test content")
-        
+
         # Create IPFS Kit integration instance
         self.ipfs_integration = IPFSKitLibp2pIntegration(
             ipfs_kit=self.mock_ipfs_kit,
@@ -254,12 +254,12 @@ class TestLibp2pIntegration(unittest.TestCase):
         self.assertEqual(self.discovery.bootstrap_interval, 300)
         self.assertEqual(self.discovery.rendezvous_strings, ["ipfs-test-network"])
         self.assertTrue(self.discovery.debug_mode)
-        
+
         # Verify P2P integration
         self.assertEqual(self.p2p_integration.peer, self.mock_peer)
         self.assertEqual(self.p2p_integration.discovery, self.discovery)
         self.assertTrue(self.p2p_integration.debug_mode)
-        
+
         # Verify IPFS Kit integration
         self.assertEqual(self.ipfs_integration.ipfs_kit, self.mock_ipfs_kit)
         self.assertEqual(self.ipfs_integration.p2p_integration, self.p2p_integration)
@@ -271,22 +271,22 @@ class TestLibp2pIntegration(unittest.TestCase):
         # Prepare test data
         test_cid = "QmTestContentCID"
         test_content = b"This is test content"
-        
+
         # Store test content in peer's content store
         self.mock_peer.content_store[test_cid] = test_content
-        
+
         # Set up the mock for ipfs_cat to return None first (forcing P2P retrieval)
         self.mock_ipfs_kit.ipfs_cat.side_effect = [None, test_content]
-        
+
         # Request content
         content = await self.ipfs_integration.retrieve_content(test_cid)
-        
+
         # Verify the right content was returned
         self.assertEqual(content, test_content)
-        
+
         # Verify that an attempt was made to get from IPFS first
         self.mock_ipfs_kit.ipfs_cat.assert_called_with(test_cid)
-        
+
         # Verify that the content was stored in IPFS after P2P retrieval
         self.mock_ipfs_kit.ipfs_add.assert_called()
 
@@ -295,17 +295,17 @@ class TestLibp2pIntegration(unittest.TestCase):
         """Test content publication workflow."""
         # Prepare test data
         test_content = b"Test content for publication"
-        
+
         # Mock the add result
         self.mock_ipfs_kit.ipfs_add.return_value = {"Hash": "QmPublishedCID"}
-        
+
         # Publish content
         result = await self.ipfs_integration.publish_content(test_content)
-        
+
         # Verify the publishing was successful
         self.assertTrue(result["success"])
         self.assertEqual(result["cid"], "QmPublishedCID")
-        
+
         # Verify content was added to IPFS
         self.mock_ipfs_kit.ipfs_add.assert_called_with(test_content)
 
@@ -318,16 +318,16 @@ class TestLibp2pIntegration(unittest.TestCase):
             "/ip4/192.168.1.2/tcp/4001/p2p/QmPeer2",
             "/ip4/192.168.1.3/tcp/4001/p2p/QmPeer3"
         ]
-        
+
         # Mock the discovery perform method
         async def mock_discover():
             return discovery_results
-        
+
         self.discovery.discover_peers = mock_discover
-        
+
         # Test the discovery
         peers = await self.p2p_integration.discover_peers()
-        
+
         # Verify the results
         self.assertEqual(peers, discovery_results)
 
@@ -340,16 +340,16 @@ class TestLibp2pIntegration(unittest.TestCase):
             "/ip4/192.168.1.1/tcp/4001/p2p/QmProvider1",
             "/ip4/192.168.1.2/tcp/4001/p2p/QmProvider2"
         ]
-        
+
         # Setup mock
         async def mock_find_providers(cid, **kwargs):
             return provider_peers
-            
+
         self.mock_peer.find_providers = mock_find_providers
-        
+
         # Find providers for CID
         providers = await self.p2p_integration.find_content_providers(test_cid)
-        
+
         # Verify the results
         self.assertEqual(providers, provider_peers)
 
@@ -359,43 +359,43 @@ class TestLibp2pIntegration(unittest.TestCase):
         # Prepare test data
         test_cid = "QmDirectExchangeCID"
         test_content = b"Content for direct exchange test"
-        
+
         # Setup source peer with content
         source_peer = MockIPFSLibp2pPeer(role="worker")
         source_peer.content_store[test_cid] = test_content
-        
+
         # Setup target peer (our mock peer)
         target_peer = self.mock_peer
-        
+
         # Store peer info for connection
         source_peer_id = source_peer.get_peer_id()
         mock_peer_info = f"/ip4/127.0.0.1/tcp/4001/p2p/{source_peer_id}"
-        
+
         # Mock connection and request functions
         target_peer.connect_peer = MagicMock(return_value=True)
-        
+
         async def mock_request(cid, **kwargs):
             # Simulate getting content from the other peer
             await anyio.sleep(0.1)
             return source_peer.content_store.get(cid)
-            
+
         target_peer.request_content = mock_request
-        
+
         # Configure our integration to use the target peer
         p2p_integration = LibP2PIntegration(
             peer=target_peer,
             discovery=self.discovery
         )
-        
+
         # Request content from source peer directly
         content = await p2p_integration.direct_content_exchange(
-            peer_addr=mock_peer_info, 
+            peer_addr=mock_peer_info,
             cid=test_cid
         )
-        
+
         # Verify the content was exchanged correctly
         self.assertEqual(content, test_content)
-        
+
         # Verify connection was attempted
         target_peer.connect_peer.assert_called()
 
@@ -406,36 +406,36 @@ class TestLibp2pIntegration(unittest.TestCase):
         # Skip if fixtures aren't available
         if not FIXTURES_AVAILABLE:
             self.skipTest("LibP2P test fixtures not available")
-            
+
         # Setup a network scenario with 5 nodes
         simulator = NetworkSimulator.get_instance()
         scenario = NetworkScenario(node_count=5)
-        
+
         # Initialize the network
         await scenario.setup()
-        
+
         # Create test content
         test_cid = "QmSimulationTestCID"
         test_content = b"Content for network simulation test"
-        
+
         # Store content on one node
         source_node = scenario.nodes[0]
         source_node.peer.content_store[test_cid] = test_content
         await source_node.peer.provide_content(test_cid, test_content)
-        
+
         # Have another node try to find and retrieve the content
         target_node = scenario.nodes[2]
         providers = await target_node.peer.find_providers(test_cid)
-        
+
         # There should be at least one provider
         self.assertTrue(len(providers) > 0)
-        
+
         # Retrieve content
         content = await target_node.peer.request_content(test_cid)
-        
+
         # Verify content was retrieved correctly
         self.assertEqual(content, test_content)
-        
+
         # Clean up the network simulation
         await scenario.teardown()
 
@@ -445,16 +445,16 @@ class TestLibp2pIntegration(unittest.TestCase):
         async def test_handler(stream):
             await anyio.sleep(0.1)
             return b"test response"
-            
+
         # Register protocol handler
         result = self.p2p_integration.register_protocol_handler(
             protocol="/ipfs/test/1.0.0",
             handler=test_handler
         )
-        
+
         # Verify registration was successful
         self.assertTrue(result)
-        
+
         # Verify handler was added to peer's protocol handlers
         protocol_id = "/ipfs/test/1.0.0"
         self.assertIn(protocol_id, self.mock_peer._protocol_handlers)
@@ -466,20 +466,20 @@ class TestLibp2pIntegration(unittest.TestCase):
         # Prepare test data
         test_cid = "QmFallbackTestCID"
         test_content = b"Content for fallback test"
-        
+
         # Mock the peer request_content to fail
         async def mock_request_content_fail(cid, **kwargs):
             await anyio.sleep(0.1)
             return None
-            
+
         self.mock_peer.request_content = mock_request_content_fail
-        
+
         # Mock ipfs_cat to succeed
         self.mock_ipfs_kit.ipfs_cat.return_value = test_content
-        
+
         # Request content
         content = await self.ipfs_integration.retrieve_content(test_cid, use_fallback=True)
-        
+
         # Verify content was retrieved from IPFS (fallback)
         self.assertEqual(content, test_content)
         self.mock_ipfs_kit.ipfs_cat.assert_called_with(test_cid)

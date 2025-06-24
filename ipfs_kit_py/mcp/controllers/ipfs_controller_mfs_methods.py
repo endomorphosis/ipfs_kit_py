@@ -139,7 +139,7 @@ async def read_file(self, path: str, offset: int = 0, count: int = None):
             "count": count
         }
 
-async def write_file(self, path: str, content: str, create: bool = True, truncate: bool = True, 
+async def write_file(self, path: str, content: str, create: bool = True, truncate: bool = True,
                     offset: int = 0, flush: bool = True):
     """
     Write content to a file in the MFS.
@@ -164,11 +164,11 @@ async def write_file(self, path: str, content: str, create: bool = True, truncat
     try:
         # Call IPFS model to write file
         result = self.ipfs_model.files_write(
-            path=path, 
-            content=content, 
-            create=create, 
-            truncate=truncate, 
-            offset=offset, 
+            path=path,
+            content=content,
+            create=create,
+            truncate=truncate,
+            offset=offset,
             flush=flush
         )
 

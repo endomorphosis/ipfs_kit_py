@@ -11,16 +11,16 @@ import re
 def apply_fix():
     """Apply fixes to the tiered_cache.py file."""
     file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/tiered_cache.py'
-    
+
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Find the ParquetCIDCache class
     class_match = re.search(r'class ParquetCIDCache:', content)
     if not class_match:
         print("Error: ParquetCIDCache class not found")
         return False
-    
+
     # Find and modify initialization of partitioning_config
     partitioning_match = re.search(r'self\.partitioning_config\s*=\s*self\.config\.get\("partitioning",\s*\{\}\)', content)
     if partitioning_match:
@@ -29,8 +29,8 @@ def apply_fix():
             'self.partitioning_config = self.config.get("partitioning", self._get_default_partitioning_config())'
         )
         print("Updated partitioning_config initialization")
-    
-    # Find the ParquetCIDCache.__init__ method 
+
+    # Find the ParquetCIDCache.__init__ method
     init_match = re.search(r'def __init__\(self[^:]*:([^_]*)def', content[class_match.start():], re.DOTALL)
     if init_match:
         init_body = init_match.group(1)
@@ -46,7 +46,7 @@ def apply_fix():
                 new_init_body = f"{indent}self.plasma_client = None\n{init_body}"
                 content = content.replace(init_body, new_init_body)
                 print("Added plasma_client initialization")
-    
+
     # Add the _get_default_partitioning_config method if it doesn't exist
     if '_get_default_partitioning_config' not in content:
         # Find the init method
@@ -59,7 +59,7 @@ def apply_fix():
                 method_code = """
     def _get_default_partitioning_config(self) -> Dict[str, Any]:
         \"\"\"Get default partitioning configuration.
-        
+
         Returns:
             Dictionary with default partitioning configuration
         \"\"\"
@@ -77,11 +77,11 @@ def apply_fix():
                 # Insert the method
                 content = content[:next_method] + method_code + content[next_method:]
                 print("Added _get_default_partitioning_config method")
-    
+
     # Write the updated content back to the file
     with open(file_path, 'w') as f:
         f.write(content)
-    
+
     print("Fix applied successfully!")
     return True
 

@@ -3545,7 +3545,7 @@ class IPFSControllerAnyIO:
                 logger.warning(f"Error listing peers: {result.get('error', 'Unknown error')}")
 
                 # Generate simulated peer list
-                
+
                 import uuid
 
                 peers = []

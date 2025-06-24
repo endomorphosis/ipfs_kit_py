@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 def check_lotus_installation():
     """Check if Lotus is installed"""
     try:
-        result = subprocess.run(['which', 'lotus'], 
-                              capture_output=True, 
+        result = subprocess.run(['which', 'lotus'],
+                              capture_output=True,
                               text=True)
-        
+
         if result.returncode == 0:
             lotus_path = result.stdout.strip()
             logger.info(f"Found Lotus installation at: {lotus_path}")
@@ -46,13 +46,13 @@ def install_lotus_dev_environment():
         # Create directory for Lotus
         lotus_dir = os.path.expanduser("~/.lotus-dev")
         os.makedirs(lotus_dir, exist_ok=True)
-        
+
         # Create a lotus mock binary for development
         lotus_bin_dir = os.path.join(os.getcwd(), "bin")
         os.makedirs(lotus_bin_dir, exist_ok=True)
-        
+
         lotus_mock_path = os.path.join(lotus_bin_dir, "lotus")
-        
+
         with open(lotus_mock_path, 'w') as f:
             f.write("""#!/bin/bash
 # Mock Lotus implementation for development
@@ -107,19 +107,19 @@ case "$1" in
         ;;
 esac
 """)
-        
+
         # Make it executable
         os.chmod(lotus_mock_path, 0o755)
-        
+
         logger.info(f"Created mock Lotus binary at: {lotus_mock_path}")
-        
+
         # Set up environment variables
         os.environ['LOTUS_PATH'] = lotus_dir
         os.environ['LOTUS_API_TOKEN'] = "mock-token-for-development"
         os.environ['LOTUS_API_ENDPOINT'] = "http://127.0.0.1:1234/rpc/v0"
-        
+
         return lotus_mock_path
-    
+
     except Exception as e:
         logger.error(f"Error setting up Lotus development environment: {e}")
         return None
@@ -129,7 +129,7 @@ def setup_filecoin_dev_node():
     try:
         # Set up a mock API server with Python's http.server
         api_server_path = os.path.join(os.getcwd(), "filecoin_mock_api_server.py")
-        
+
         with open(api_server_path, 'w') as f:
             f.write("""#!/usr/bin/env python3
 import http.server
@@ -149,29 +149,29 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         request = json.loads(post_data.decode('utf-8'))
-        
+
         # Process JSON-RPC request
         response = self.handle_jsonrpc(request)
-        
+
         # Send response
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(response).encode('utf-8'))
-    
+
     def handle_jsonrpc(self, request):
         method = request.get('method', '')
         params = request.get('params', [])
         req_id = request.get('id', 0)
-        
+
         print(f"Received request for method: {method}")
-        
+
         # Basic structure for JSON-RPC response
         response = {
             "jsonrpc": "2.0",
             "id": req_id
         }
-        
+
         # Handle different methods
         if method == "Filecoin.ChainHead":
             response["result"] = {
@@ -214,7 +214,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 "message": f"Mock response for {method}",
                 "timestamp": time.time()
             }
-        
+
         return response
 
 def run_server():
@@ -227,9 +227,9 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=run_server)
     server_thread.daemon = True
     server_thread.start()
-    
+
     print("Mock Filecoin API server started. Press Ctrl+C to stop.")
-    
+
     try:
         # Keep the main thread alive
         while True:
@@ -238,15 +238,15 @@ if __name__ == "__main__":
         print("Shutting down mock Filecoin API server")
         sys.exit(0)
 """)
-        
+
         # Make it executable
         os.chmod(api_server_path, 0o755)
-        
+
         logger.info(f"Created Filecoin mock API server at: {api_server_path}")
-        
+
         # Start the mock API server in the background
         logger.info("Starting Filecoin mock API server...")
-        
+
         # Use nohup to keep the server running after the script exits
         with open(os.path.join(os.getcwd(), "logs/filecoin_mock_api.log"), 'w') as log_file:
             process = subprocess.Popen(
@@ -255,18 +255,18 @@ if __name__ == "__main__":
                 stderr=subprocess.STDOUT,
                 start_new_session=True
             )
-        
+
         # Wait for the server to start
         time.sleep(2)
-        
+
         logger.info(f"Filecoin mock API server started with PID {process.pid}")
-        
+
         # Save the PID for later
         with open(os.path.join(os.getcwd(), "filecoin_mock_api.pid"), 'w') as f:
             f.write(str(process.pid))
-        
+
         return True
-    
+
     except Exception as e:
         logger.error(f"Error setting up Filecoin development node: {e}")
         return False
@@ -274,22 +274,22 @@ if __name__ == "__main__":
 def update_mcp_config():
     """Update MCP configuration with the Filecoin settings"""
     config_file = os.path.join(os.getcwd(), "mcp_config.sh")
-    
+
     try:
         # Read existing file
         with open(config_file, 'r') as f:
             lines = f.readlines()
-        
+
         # Find Filecoin section and update it
         filecoin_section_start = -1
         filecoin_section_end = -1
-        
+
         for i, line in enumerate(lines):
             if "# Filecoin configuration" in line:
                 filecoin_section_start = i
             elif filecoin_section_start > -1 and "fi" in line and filecoin_section_end == -1:
                 filecoin_section_end = i
-        
+
         if filecoin_section_start > -1 and filecoin_section_end > -1:
             # Create new Filecoin configuration
             new_filecoin_config = [
@@ -300,20 +300,20 @@ def update_mcp_config():
                 "export LOTUS_API_ENDPOINT=\"{}\"\n".format(os.environ.get('LOTUS_API_ENDPOINT')),
                 "export PATH=\"{}:$PATH\"\n".format(os.path.dirname(os.path.join(os.getcwd(), "bin/lotus")))
             ]
-            
+
             # Replace the section
             lines[filecoin_section_start:filecoin_section_end+1] = new_filecoin_config
-            
+
             # Write updated file
             with open(config_file, 'w') as f:
                 f.writelines(lines)
-            
+
             logger.info(f"Updated MCP configuration file with Filecoin settings")
             return True
         else:
             logger.error("Could not find Filecoin section in MCP configuration file")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error updating MCP configuration: {e}")
         return False
@@ -321,21 +321,21 @@ def update_mcp_config():
 def main():
     """Main function"""
     logger.info("Setting up Filecoin implementation for MCP Server")
-    
+
     # Check for existing Lotus installation
     lotus_path = check_lotus_installation()
-    
+
     # If not installed, set up development environment
     if not lotus_path:
         logger.info("Setting up Lotus development environment...")
         lotus_path = install_lotus_dev_environment()
-    
+
     # Set up Filecoin development node
     if lotus_path:
         if setup_filecoin_dev_node():
             # Update MCP configuration
             update_mcp_config()
-        
+
     logger.info("Filecoin implementation setup complete")
     logger.info("Restart the MCP server to apply changes")
 

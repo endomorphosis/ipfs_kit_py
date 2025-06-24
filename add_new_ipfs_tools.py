@@ -61,7 +61,7 @@ NEW_TOOLS = [
             }
         }
     },
-    
+
     # IPFS Bridge Tools
     {
         "name": "ipfs_fs_bridge_status",
@@ -97,7 +97,7 @@ NEW_TOOLS = [
             }
         }
     },
-    
+
     # S3 Storage Tools
     {
         "name": "s3_store_file",
@@ -147,7 +147,7 @@ NEW_TOOLS = [
             "required": ["local_path", "bucket", "key"]
         }
     },
-    
+
     # Filecoin Storage Tools
     {
         "name": "filecoin_store_file",
@@ -191,7 +191,7 @@ NEW_TOOLS = [
             "required": ["deal_id", "local_path"]
         }
     },
-    
+
     # HuggingFace Integration Tools
     {
         "name": "huggingface_model_load",
@@ -238,7 +238,7 @@ NEW_TOOLS = [
             "required": ["model_id", "input_text"]
         }
     },
-    
+
     # WebRTC Tools
     {
         "name": "webrtc_peer_connect",
@@ -290,7 +290,7 @@ NEW_TOOLS = [
             "required": ["peer_id", "data"]
         }
     },
-    
+
     # Credential Management Tools
     {
         "name": "credential_store",
@@ -359,20 +359,20 @@ def get_ipfs_tools():
 IPFS_TOOLS = [
 ]
 """)
-        
+
         # Read the current registry
         with open(registry_path, 'r') as f:
             content = f.read()
-        
+
         # Find the end of the IPFS_TOOLS list
         match = re.search(r'IPFS_TOOLS\s*=\s*\[(.*?)\]', content, re.DOTALL)
         if not match:
             logger.error(f"❌ Could not find IPFS_TOOLS list in {registry_path}")
             return False
-        
+
         # Get the current list content
         current_list = match.group(1)
-        
+
         # Format the new tools to add
         new_tools_str = ""
         for tool in tools:
@@ -382,15 +382,15 @@ IPFS_TOOLS = [
         "description": "{tool['description']}",
         "schema": {json.dumps(tool['schema'], indent=4).replace('"True"', 'True').replace('"False"', 'False')}
     }},"""
-        
+
         # Replace the list with the updated one
         updated_list = current_list + new_tools_str
         updated_content = content.replace(match.group(1), updated_list)
-        
+
         # Write the updated content
         with open(registry_path, 'w') as f:
             f.write(updated_content)
-        
+
         logger.info(f"✅ Added {len(tools)} new tools to {registry_path}")
         return True
     except Exception as e:
@@ -401,7 +401,7 @@ def main():
     """Main function"""
     # Update the IPFS tools registry
     update_ipfs_tools_registry(NEW_TOOLS)
-    
+
     logger.info("✅ Tool coverage has been improved")
     logger.info("ℹ️ Next steps:")
     logger.info("   1. Create implementation handlers for the new tools")

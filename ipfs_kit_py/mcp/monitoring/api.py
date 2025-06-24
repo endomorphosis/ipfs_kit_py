@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/v0/monitoring", tags=["monitoring"])
 
 class MonitoringAPIService:
     """Service class providing monitoring API endpoints."""
-    
+
     def __init__(
         self,
         monitoring_manager: MonitoringManager,
@@ -43,7 +43,7 @@ class MonitoringAPIService:
     ):
         """
         Initialize the monitoring API service.
-        
+
         Args:
             monitoring_manager: MCP monitoring manager
             prometheus_integration: Prometheus integration
@@ -54,10 +54,10 @@ class MonitoringAPIService:
         self.prometheus = prometheus_integration
         self.health = health_manager
         self.alerts = alert_manager
-        
+
         # Register routes with the router
         self._register_routes()
-    
+
     def _register_routes(self) -> None:
         """Register API routes with the router."""
         # Metrics routes
@@ -74,16 +74,16 @@ class MonitoringAPIService:
             """Get all metrics in JSON or Prometheus format."""
             # Update collection time
             self.prometheus.last_scrape_time = time.time()
-            
+
             # Collect custom metrics before returning
             self.prometheus.collect_custom_metrics()
-            
+
             # Return in requested format
             if format.lower() == "prometheus":
                 return PlainTextResponse(self.monitoring.get_metrics(format="prometheus"))
             else:
                 return self.monitoring.get_metrics()
-        
+
         @router.get(
             "/metrics/{tag}",
             summary="Get metrics by tag",
@@ -105,7 +105,7 @@ class MonitoringAPIService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid metric tag: {tag}"
                 )
-        
+
         # Health check routes
         @router.get(
             "/health",
@@ -116,7 +116,7 @@ class MonitoringAPIService:
         async def get_health() -> Dict[str, Any]:
             """Get overall system health status."""
             summary = self.health.get_health_summary()
-            
+
             # Add response status code based on health
             status_code = status.HTTP_200_OK
             if summary["status"] == HealthStatus.DEGRADED:
@@ -125,12 +125,12 @@ class MonitoringAPIService:
                 status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             elif summary["status"] == HealthStatus.UNKNOWN:
                 status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            
+
             return JSONResponse(
                 content=summary,
                 status_code=status_code
             )
-        
+
         @router.get(
             "/health/checks",
             summary="Get all health checks",
@@ -140,7 +140,7 @@ class MonitoringAPIService:
         async def get_health_checks() -> Dict[str, Any]:
             """Get all health checks."""
             checks = self.health.get_checks()
-            
+
             # Convert to dictionary
             check_data = {}
             for check in checks:
@@ -156,12 +156,12 @@ class MonitoringAPIService:
                     "enabled": check.enabled,
                     "labels": check.labels,
                 }
-            
+
             return {
                 "checks": check_data,
                 "count": len(checks)
             }
-        
+
         @router.get(
             "/health/checks/{check_id}",
             summary="Get health check by ID",
@@ -176,13 +176,13 @@ class MonitoringAPIService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Health check not found: {check_id}"
                 )
-            
+
             # Get latest result
             result = self.health.get_result(check_id)
-            
+
             # Get history
             history = self.health.get_result_history(check_id, limit=10)
-            
+
             # Convert to dictionary
             check_data = {
                 "id": check.id,
@@ -196,7 +196,7 @@ class MonitoringAPIService:
                 "enabled": check.enabled,
                 "labels": check.labels,
             }
-            
+
             # Add result if available
             if result:
                 check_data["latest_result"] = {
@@ -206,7 +206,7 @@ class MonitoringAPIService:
                     "details": result.details,
                     "error": result.error,
                 }
-            
+
             # Add history if available
             if history:
                 check_data["history"] = [
@@ -218,9 +218,9 @@ class MonitoringAPIService:
                     }
                     for r in history
                 ]
-            
+
             return check_data
-        
+
         @router.post(
             "/health/checks/{check_id}/run",
             summary="Run health check",
@@ -236,7 +236,7 @@ class MonitoringAPIService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Health check not found: {check_id}"
                 )
-            
+
             # Run check
             result = self.health.run_check(check_id)
             if not result:
@@ -244,7 +244,7 @@ class MonitoringAPIService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to run health check: {check_id}"
                 )
-            
+
             # Return result
             return {
                 "id": check_id,
@@ -254,7 +254,7 @@ class MonitoringAPIService:
                 "details": result.details,
                 "error": result.error,
             }
-        
+
         @router.post(
             "/health/run-all",
             summary="Run all health checks",
@@ -265,7 +265,7 @@ class MonitoringAPIService:
             """Run all health checks."""
             # Run all checks
             results = self.health.run_all_checks()
-            
+
             # Convert to dictionary
             result_data = {}
             for check_id, result in results.items():
@@ -276,17 +276,17 @@ class MonitoringAPIService:
                     "details": result.details,
                     "error": result.error,
                 }
-            
+
             # Get overall status
             summary = self.health.get_health_summary()
-            
+
             return {
                 "results": result_data,
                 "count": len(results),
                 "status": summary["status"],
                 "counts": summary["counts"],
             }
-        
+
         # Alert routes (only if alert manager is available)
         if self.alerts:
             @router.get(
@@ -310,10 +310,10 @@ class MonitoringAPIService:
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Invalid alert state: {state}"
                         )
-                
+
                 # Get alerts
                 alerts = self.alerts.get_alerts(state=alert_state)
-                
+
                 # Filter by severity if provided
                 if severity:
                     try:
@@ -324,7 +324,7 @@ class MonitoringAPIService:
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Invalid alert severity: {severity}"
                         )
-                
+
                 # Convert to dictionary
                 alert_data = []
                 for alert in alerts:
@@ -346,12 +346,12 @@ class MonitoringAPIService:
                         "suppressed": alert.suppressed,
                         "notification_count": alert.notification_count,
                     })
-                
+
                 return {
                     "alerts": alert_data,
                     "count": len(alert_data)
                 }
-            
+
             @router.get(
                 "/alerts/{alert_id}",
                 summary="Get alert by ID",
@@ -366,7 +366,7 @@ class MonitoringAPIService:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"Alert not found: {alert_id}"
                     )
-                
+
                 # Convert to dictionary
                 return {
                     "id": alert.id,
@@ -391,7 +391,7 @@ class MonitoringAPIService:
                     "last_value": alert.last_value,
                     "last_checked": alert.last_checked.isoformat(),
                 }
-            
+
             @router.get(
                 "/alerts/history",
                 summary="Get alert history",
@@ -403,7 +403,7 @@ class MonitoringAPIService:
             ) -> Dict[str, Any]:
                 """Get alert history."""
                 history = self.alerts.get_alert_history(limit=limit)
-                
+
                 # Convert to dictionary
                 history_data = []
                 for alert in history:
@@ -416,12 +416,12 @@ class MonitoringAPIService:
                         "started_at": alert.started_at.isoformat(),
                         "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
                     })
-                
+
                 return {
                     "history": history_data,
                     "count": len(history_data)
                 }
-            
+
             @router.get(
                 "/alerts/rules",
                 summary="Get alert rules",
@@ -431,7 +431,7 @@ class MonitoringAPIService:
             async def get_alert_rules() -> Dict[str, Any]:
                 """Get all alert rules."""
                 rules = self.alerts.get_rules()
-                
+
                 # Convert to dictionary
                 rule_data = []
                 for rule in rules:
@@ -450,12 +450,12 @@ class MonitoringAPIService:
                         "auto_resolve": rule.auto_resolve,
                         "resolve_duration": rule.resolve_duration,
                     })
-                
+
                 return {
                     "rules": rule_data,
                     "count": len(rule_data)
                 }
-            
+
             @router.post(
                 "/alerts/check",
                 summary="Check alerts",
@@ -466,25 +466,25 @@ class MonitoringAPIService:
                 """Manually check all alert rules."""
                 # Run alert check
                 self.alerts.check_alerts()
-                
+
                 # Get current alerts
                 alerts = self.alerts.get_alerts()
-                
+
                 # Count by state and severity
                 state_counts = {}
                 severity_counts = {}
-                
+
                 for alert in alerts:
                     state_counts[alert.state] = state_counts.get(alert.state, 0) + 1
                     severity_counts[alert.severity] = severity_counts.get(alert.severity, 0) + 1
-                
+
                 return {
                     "checked_at": datetime.now().isoformat(),
                     "alert_count": len(alerts),
                     "state_counts": state_counts,
                     "severity_counts": severity_counts,
                 }
-        
+
         # System info route
         @router.get(
             "/system",
@@ -495,7 +495,7 @@ class MonitoringAPIService:
         async def get_system_info() -> Dict[str, Any]:
             """Get detailed system information."""
             return self.monitoring.get_system_info()
-        
+
         # Dashboard routes
         @router.get(
             "/dashboard",
@@ -631,7 +631,7 @@ class MonitoringAPIService:
                             <button id="refreshBtn" class="button">Refresh Data</button>
                         </div>
                     </div>
-                    
+
                     <div class="card">
                         <div class="card-header">
                             <h2>System Health</h2>
@@ -641,7 +641,7 @@ class MonitoringAPIService:
                         <p></p>
                         <button id="checkHealthBtn" class="button">Run Health Checks</button>
                     </div>
-                    
+
                     <div class="grid">
                         <div class="card">
                             <div class="card-header">
@@ -649,7 +649,7 @@ class MonitoringAPIService:
                             </div>
                             <div id="systemMetrics"></div>
                         </div>
-                        
+
                         <div class="card">
                             <div class="card-header">
                                 <h2>Storage Metrics</h2>
@@ -657,14 +657,14 @@ class MonitoringAPIService:
                             <div id="storageMetrics"></div>
                         </div>
                     </div>
-                    
+
                     <div class="card">
                         <div class="card-header">
                             <h2>Health Checks</h2>
                         </div>
                         <div id="healthChecks"></div>
                     </div>
-                    
+
                     <div class="card">
                         <div class="card-header">
                             <h2>Active Alerts</h2>
@@ -674,19 +674,19 @@ class MonitoringAPIService:
                         <button id="checkAlertsBtn" class="button">Check Alerts</button>
                     </div>
                 </div>
-                
+
                 <script>
                     // Fetch health status
                     async function fetchHealth() {
                         try {
                             const response = await fetch('/api/v0/monitoring/health');
                             const data = await response.json();
-                            
+
                             // Update status
                             const statusEl = document.getElementById('healthStatus');
                             statusEl.textContent = data.status.toUpperCase();
                             statusEl.className = `status status-${data.status}`;
-                            
+
                             // Update details
                             const detailsHtml = `
                                 <div class="metric-row">
@@ -714,7 +714,7 @@ class MonitoringAPIService:
                                     <span class="metric-value">${data.total_checks}</span>
                                 </div>
                             `;
-                            
+
                             document.getElementById('healthDetails').innerHTML = detailsHtml;
                         } catch (error) {
                             console.error('Error fetching health:', error);
@@ -722,15 +722,15 @@ class MonitoringAPIService:
                             document.getElementById('healthStatus').className = 'status status-unhealthy';
                         }
                     }
-                    
+
                     // Fetch system metrics
                     async function fetchSystemMetrics() {
                         try {
                             const response = await fetch('/api/v0/monitoring/metrics/system');
                             const data = await response.json();
-                            
+
                             let metricsHtml = '';
-                            
+
                             // CPU usage
                             if (data.system_cpu_usage) {
                                 const cpuData = data.system_cpu_usage.series;
@@ -744,7 +744,7 @@ class MonitoringAPIService:
                                     `;
                                 }
                             }
-                            
+
                             // Memory usage
                             if (data.system_memory_usage) {
                                 const memoryData = Object.values(data.system_memory_usage.series)[0];
@@ -758,7 +758,7 @@ class MonitoringAPIService:
                                     `;
                                 }
                             }
-                            
+
                             // Disk usage
                             if (data.system_disk_usage) {
                                 const diskData = Object.values(data.system_disk_usage.series);
@@ -773,7 +773,7 @@ class MonitoringAPIService:
                                     `;
                                 }
                             }
-                            
+
                             // Network
                             if (data.network_bytes_sent) {
                                 const networkData = Object.values(data.network_bytes_sent.series);
@@ -788,22 +788,22 @@ class MonitoringAPIService:
                                     `;
                                 }
                             }
-                            
+
                             document.getElementById('systemMetrics').innerHTML = metricsHtml;
                         } catch (error) {
                             console.error('Error fetching system metrics:', error);
                             document.getElementById('systemMetrics').innerHTML = 'Error fetching system metrics';
                         }
                     }
-                    
+
                     // Fetch storage metrics
                     async function fetchStorageMetrics() {
                         try {
                             const response = await fetch('/api/v0/monitoring/metrics/backend');
                             const data = await response.json();
-                            
+
                             let metricsHtml = '';
-                            
+
                             // Backend stored bytes
                             if (data.backend_stored_bytes) {
                                 const storageData = Object.values(data.backend_stored_bytes.series);
@@ -818,25 +818,25 @@ class MonitoringAPIService:
                                     `;
                                 }
                             }
-                            
+
                             // Backend operations
                             if (data.backend_operations_total) {
                                 const opsData = Object.values(data.backend_operations_total.series);
                                 const backendOps = {};
-                                
+
                                 for (const op of opsData) {
                                     const backend = op.labels.backend;
                                     const operation = op.labels.operation;
                                     const status = op.labels.status;
-                                    
+
                                     if (!backendOps[backend]) {
                                         backendOps[backend] = { total: 0 };
                                     }
-                                    
+
                                     backendOps[backend][`${operation}_${status}`] = op.value;
                                     backendOps[backend].total += op.value;
                                 }
-                                
+
                                 for (const [backend, ops] of Object.entries(backendOps)) {
                                     metricsHtml += `
                                         <div class="metric-row">
@@ -846,43 +846,43 @@ class MonitoringAPIService:
                                     `;
                                 }
                             }
-                            
+
                             document.getElementById('storageMetrics').innerHTML = metricsHtml || 'No storage metrics available';
                         } catch (error) {
                             console.error('Error fetching storage metrics:', error);
                             document.getElementById('storageMetrics').innerHTML = 'Error fetching storage metrics';
                         }
                     }
-                    
+
                     // Fetch health checks
                     async function fetchHealthChecks() {
                         try {
                             const response = await fetch('/api/v0/monitoring/health/checks');
                             const data = await response.json();
-                            
+
                             let checksHtml = '<table id="checksTable"><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Last Run</th><th>Actions</th></tr></thead><tbody>';
-                            
+
                             // Fetch check results
                             const resultsResponse = await fetch('/api/v0/monitoring/health');
                             const resultsData = await resultsResponse.json();
-                            
+
                             // Process checks
                             for (const [id, check] of Object.entries(data.checks)) {
                                 // Get result for this check
                                 const checkResponse = await fetch(`/api/v0/monitoring/health/checks/${id}`);
                                 const checkData = await checkResponse.json();
                                 const result = checkData.latest_result;
-                                
+
                                 let status = 'Unknown';
                                 let statusClass = 'status-unknown';
                                 let lastRun = 'Never';
-                                
+
                                 if (result) {
                                     status = result.status.charAt(0).toUpperCase() + result.status.slice(1);
                                     statusClass = `status-${result.status}`;
                                     lastRun = new Date(result.timestamp).toLocaleString();
                                 }
-                                
+
                                 checksHtml += `
                                     <tr>
                                         <td>${check.name}</td>
@@ -893,7 +893,7 @@ class MonitoringAPIService:
                                     </tr>
                                 `;
                             }
-                            
+
                             checksHtml += '</tbody></table>';
                             document.getElementById('healthChecks').innerHTML = checksHtml;
                         } catch (error) {
@@ -901,31 +901,31 @@ class MonitoringAPIService:
                             document.getElementById('healthChecks').innerHTML = 'Error fetching health checks';
                         }
                     }
-                    
+
                     // Fetch alerts
                     async function fetchAlerts() {
                         try {
                             const response = await fetch('/api/v0/monitoring/alerts');
                             const data = await response.json();
-                            
+
                             if (data.alerts && data.alerts.length > 0) {
                                 let alertsHtml = '<table id="alertsTable"><thead><tr><th>Name</th><th>Severity</th><th>State</th><th>Value</th><th>Threshold</th><th>Started</th></tr></thead><tbody>';
-                                
+
                                 for (const alert of data.alerts) {
                                     const severity = alert.severity.toUpperCase();
                                     const state = alert.state.charAt(0).toUpperCase() + alert.state.slice(1);
                                     const started = new Date(alert.started_at).toLocaleString();
-                                    
+
                                     let severityClass = '';
                                     if (alert.severity === 'critical') severityClass = 'status-unhealthy';
                                     else if (alert.severity === 'warning') severityClass = 'status-degraded';
                                     else if (alert.severity === 'info') severityClass = 'status-healthy';
-                                    
+
                                     let stateClass = '';
                                     if (alert.state === 'firing') stateClass = 'status-unhealthy';
                                     else if (alert.state === 'resolved') stateClass = 'status-healthy';
                                     else if (alert.state === 'pending') stateClass = 'status-unknown';
-                                    
+
                                     alertsHtml += `
                                         <tr>
                                             <td>${alert.name}</td>
@@ -937,7 +937,7 @@ class MonitoringAPIService:
                                         </tr>
                                     `;
                                 }
-                                
+
                                 alertsHtml += '</tbody></table>';
                                 document.getElementById('alerts').innerHTML = alertsHtml;
                             } else {
@@ -948,20 +948,20 @@ class MonitoringAPIService:
                             document.getElementById('alerts').innerHTML = 'Error fetching alerts';
                         }
                     }
-                    
+
                     // Run all health checks
                     async function runAllHealthChecks() {
                         try {
                             document.getElementById('checkHealthBtn').textContent = 'Running...';
                             document.getElementById('checkHealthBtn').disabled = true;
-                            
+
                             const response = await fetch('/api/v0/monitoring/health/run-all', {
                                 method: 'POST'
                             });
-                            
+
                             await fetchHealth();
                             await fetchHealthChecks();
-                            
+
                             document.getElementById('checkHealthBtn').textContent = 'Run Health Checks';
                             document.getElementById('checkHealthBtn').disabled = false;
                         } catch (error) {
@@ -970,14 +970,14 @@ class MonitoringAPIService:
                             document.getElementById('checkHealthBtn').disabled = false;
                         }
                     }
-                    
+
                     // Run single health check
                     async function runSingleHealthCheck(id) {
                         try {
                             const response = await fetch(`/api/v0/monitoring/health/checks/${id}/run`, {
                                 method: 'POST'
                             });
-                            
+
                             // Refresh data
                             await fetchHealth();
                             await fetchHealthChecks();
@@ -985,19 +985,19 @@ class MonitoringAPIService:
                             console.error(`Error running health check ${id}:`, error);
                         }
                     }
-                    
+
                     // Check alerts
                     async function checkAlerts() {
                         try {
                             document.getElementById('checkAlertsBtn').textContent = 'Checking...';
                             document.getElementById('checkAlertsBtn').disabled = true;
-                            
+
                             const response = await fetch('/api/v0/monitoring/alerts/check', {
                                 method: 'POST'
                             });
-                            
+
                             await fetchAlerts();
-                            
+
                             document.getElementById('checkAlertsBtn').textContent = 'Check Alerts';
                             document.getElementById('checkAlertsBtn').disabled = false;
                         } catch (error) {
@@ -1006,12 +1006,12 @@ class MonitoringAPIService:
                             document.getElementById('checkAlertsBtn').disabled = false;
                         }
                     }
-                    
+
                     // Refresh all data
                     async function refreshAllData() {
                         document.getElementById('refreshBtn').textContent = 'Refreshing...';
                         document.getElementById('refreshBtn').disabled = true;
-                        
+
                         await Promise.all([
                             fetchHealth(),
                             fetchSystemMetrics(),
@@ -1019,21 +1019,21 @@ class MonitoringAPIService:
                             fetchHealthChecks(),
                             fetchAlerts()
                         ]);
-                        
+
                         document.getElementById('refreshBtn').textContent = 'Refresh Data';
                         document.getElementById('refreshBtn').disabled = false;
                     }
-                    
+
                     // Add event listeners
                     document.addEventListener('DOMContentLoaded', function() {
                         // Initial data load
                         refreshAllData();
-                        
+
                         // Button event listeners
                         document.getElementById('refreshBtn').addEventListener('click', refreshAllData);
                         document.getElementById('checkHealthBtn').addEventListener('click', runAllHealthChecks);
                         document.getElementById('checkAlertsBtn').addEventListener('click', checkAlerts);
-                        
+
                         // Make global functions available
                         window.runSingleHealthCheck = runSingleHealthCheck;
                     });
@@ -1052,13 +1052,13 @@ def create_monitoring_api(
 ) -> MonitoringAPIService:
     """
     Create the monitoring API service.
-    
+
     Args:
         monitoring_manager: MCP monitoring manager
         prometheus_integration: Prometheus integration
         health_manager: Health check manager
         alert_manager: Optional alert manager
-        
+
     Returns:
         MonitoringAPIService instance
     """

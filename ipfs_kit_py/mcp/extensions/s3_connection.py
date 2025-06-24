@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 class S3ApiError(Exception):
     """Exception raised for S3 API errors."""
-    
-    def __init__(self, message: str, status_code: Optional[int] = None, 
+
+    def __init__(self, message: str, status_code: Optional[int] = None,
                  operation: Optional[str] = None, error_code: Optional[str] = None,
                  request_id: Optional[str] = None):
         self.message = message
@@ -48,7 +48,7 @@ class S3ConnectionManager:
     - Detailed connection status tracking
     - Rate limiting detection and handling
     - Circuit breaker pattern for failing endpoints
-    
+
     Compatible with:
     - Amazon S3
     - MinIO
@@ -63,7 +63,7 @@ class S3ConnectionManager:
         "https://s3.us-east-1.amazonaws.com",  # AWS us-east-1
         "https://s3.us-west-2.amazonaws.com"   # AWS us-west-2
     ]
-    
+
     # Default rate limit parameters
     DEFAULT_RATE_LIMIT = {
         "requests_per_minute": 300,  # S3 has higher limits
@@ -141,15 +141,15 @@ class S3ConnectionManager:
                 if "url" not in endpoint:
                     logger.warning(f"Skipping endpoint without URL: {endpoint}")
                     continue
-                
+
                 # Add region if not specified
                 if "region" not in endpoint:
                     endpoint["region"] = region
-                
+
                 # Add name if not specified
                 if "name" not in endpoint:
                     endpoint["name"] = f"Custom Endpoint ({endpoint['url']})"
-                
+
                 self.endpoint_configs.append(endpoint)
 
         # Add default endpoints if we need more
@@ -186,14 +186,14 @@ class S3ConnectionManager:
             }
             for endpoint in self.endpoint_configs
         }
-        
+
         # Cache for boto3 clients (one per endpoint)
         self.clients = {}
-        
+
         # Rate limiting tracking
         self.request_timestamps = []  # List of recent request timestamps
         self.rate_limited_until = 0   # Timestamp when rate limiting expires
-        
+
         # Request metrics
         self.total_requests = 0
         self.successful_requests = 0
@@ -208,23 +208,23 @@ class S3ConnectionManager:
     def _get_client_for_endpoint(self, endpoint_url: str) -> boto3.client:
         """
         Get or create a boto3 S3 client for the specified endpoint.
-        
+
         Args:
             endpoint_url: The endpoint URL
-            
+
         Returns:
             boto3 S3 client
         """
         # Check if we already have a client for this endpoint
         if endpoint_url in self.clients:
             return self.clients[endpoint_url]
-        
+
         # Find the endpoint config for this URL
         endpoint_config = next(
             (config for config in self.endpoint_configs if config["url"] == endpoint_url),
             {"url": endpoint_url, "region": self.default_region}
         )
-        
+
         # Create a new client
         client = boto3.client(
             's3',
@@ -239,10 +239,10 @@ class S3ConnectionManager:
                 retries={'max_attempts': 0}  # We handle retries ourselves
             )
         )
-        
+
         # Cache the client
         self.clients[endpoint_url] = client
-        
+
         return client
 
     def _validate_endpoints(self) -> None:
@@ -256,13 +256,13 @@ class S3ConnectionManager:
             if self._is_circuit_open(endpoint):
                 logger.info(f"Skipping endpoint {endpoint} due to open circuit breaker")
                 continue
-            
+
             # Find the endpoint config
             endpoint_config = next(
                 (config for config in self.endpoint_configs if config["url"] == endpoint),
                 {"url": endpoint, "region": self.default_region, "name": "Unknown"}
             )
-                
+
             try:
                 # Verify DNS resolution
                 url_parts = urlparse(endpoint)
@@ -273,10 +273,10 @@ class S3ConnectionManager:
 
                 # Get client for this endpoint
                 client = self._get_client_for_endpoint(endpoint)
-                
+
                 # Start timing
                 start_time = time.time()
-                
+
                 # Try to list buckets as a health check (or use default bucket if specified)
                 if self.default_bucket:
                     # Check if default bucket exists
@@ -296,7 +296,7 @@ class S3ConnectionManager:
                     # Try to list buckets
                     client.list_buckets()
                     operation_success = True
-                
+
                 # Measure latency
                 end_time = time.time()
                 latency = int((end_time - start_time) * 1000)  # Convert to ms
@@ -307,7 +307,7 @@ class S3ConnectionManager:
                     self.working_client = client
                     self.last_working_time = time.time()
                     self._record_endpoint_success(endpoint, latency)
-                    
+
                     # Once we find a working endpoint, we can stop checking others
                     break
                 else:
@@ -349,40 +349,40 @@ class S3ConnectionManager:
         except socket.gaierror as e:
             logger.warning(f"DNS resolution failed for {hostname}: {e}")
             return False
-    
+
     def _is_circuit_open(self, endpoint: str) -> bool:
         """
         Check if the circuit breaker is open for an endpoint.
-        
+
         Args:
             endpoint: The endpoint to check
-            
+
         Returns:
             True if circuit breaker is open, False otherwise
         """
         status = self.endpoint_health[endpoint]
         if not status["circuit_open"]:
             return False
-            
+
         # Check if it's time to try again
         if time.time() > status["circuit_open_until"]:
             logger.info(f"Circuit breaker timeout elapsed for {endpoint}, resetting")
             status["circuit_open"] = False
             status["failures"] = 0
             return False
-            
+
         return True
-    
+
     def _record_endpoint_success(self, endpoint: str, latency_ms: int) -> None:
         """
         Record a successful request to an endpoint.
-        
+
         Args:
             endpoint: The endpoint that was successful
             latency_ms: Request latency in milliseconds
         """
         status = self.endpoint_health[endpoint]
-        
+
         # Update status
         status["healthy"] = True
         status["last_checked"] = time.time()
@@ -391,7 +391,7 @@ class S3ConnectionManager:
         status["requests_count"] += 1
         status["success_count"] += 1
         status["last_latency"] = latency_ms
-        
+
         # Update average latency
         if status["avg_response_time"] == 0:
             status["avg_response_time"] = latency_ms
@@ -400,35 +400,35 @@ class S3ConnectionManager:
             status["avg_response_time"] = (
                 0.8 * status["avg_response_time"] + 0.2 * latency_ms
             )
-        
+
         # Update success rate
         if status["requests_count"] > 0:
             status["success_rate"] = (
                 status["success_count"] / status["requests_count"] * 100
             )
-    
+
     def _record_endpoint_failure(self, endpoint: str) -> None:
         """
         Record a failed request to an endpoint.
-        
+
         Args:
             endpoint: The endpoint that failed
         """
         status = self.endpoint_health[endpoint]
-        
+
         # Update status
         status["healthy"] = False
         status["last_checked"] = time.time()
         status["failures"] += 1
         status["total_failures"] += 1
         status["requests_count"] += 1
-        
+
         # Update success rate
         if status["requests_count"] > 0:
             status["success_rate"] = (
                 status["success_count"] / status["requests_count"] * 100
             )
-        
+
         # Check if we need to open the circuit breaker
         if status["failures"] >= self.circuit_breaker_threshold:
             logger.warning(
@@ -440,7 +440,7 @@ class S3ConnectionManager:
     def _check_rate_limiting(self) -> bool:
         """
         Check if we're currently rate limited.
-        
+
         Returns:
             True if currently rate limited, False otherwise
         """
@@ -450,59 +450,59 @@ class S3ConnectionManager:
             wait_time = self.rate_limited_until - current_time
             logger.warning(f"Currently rate limited. Retry after {wait_time:.1f} seconds")
             return True
-            
+
         # Clean up old request timestamps
         now = datetime.now()
         one_minute_ago = now - timedelta(minutes=1)
         one_hour_ago = now - timedelta(hours=1)
-        
+
         # Keep only timestamps within the last hour
         self.request_timestamps = [ts for ts in self.request_timestamps if ts > one_hour_ago]
-        
+
         # Count requests in the last minute and hour
         requests_last_minute = sum(1 for ts in self.request_timestamps if ts > one_minute_ago)
         requests_last_hour = len(self.request_timestamps)
-        
+
         # Check if we're approaching rate limits
         if requests_last_minute >= self.rate_limits["requests_per_minute"]:
             logger.warning(f"Rate limit approached: {requests_last_minute}/{self.rate_limits['requests_per_minute']} requests in the last minute")
             self.rate_limited_until = current_time + 30  # Wait 30 seconds
             return True
-            
+
         if requests_last_hour >= self.rate_limits["requests_per_hour"]:
             logger.warning(f"Rate limit approached: {requests_last_hour}/{self.rate_limits['requests_per_hour']} requests in the last hour")
             self.rate_limited_until = current_time + 300  # Wait 5 minutes
             return True
-            
+
         return False
-    
+
     def _detect_rate_limiting(self, exception: Exception) -> bool:
         """
         Detect rate limiting from S3 error responses.
-        
+
         Args:
             exception: The exception to check
-            
+
         Returns:
             True if rate limited, False otherwise
         """
         # Record the request timestamp
         self.request_timestamps.append(datetime.now())
-        
+
         # Check for rate limit indicators
         if isinstance(exception, botocore.exceptions.ClientError):
             error_code = exception.response.get('Error', {}).get('Code', '')
-            
+
             # Common S3 throttling error codes
             if error_code in ('SlowDown', 'RequestLimitExceeded', 'ThrottlingException',
                              'RequestThrottled', 'TooManyRequestsException',
                              'ProvisionedThroughputExceededException'):
                 logger.warning(f"Rate limiting detected: {error_code}")
-                
+
                 # Set backoff time
                 self.rate_limited_until = time.time() + 60  # Default 60 second backoff
                 return True
-                
+
         return False
 
     def _get_endpoint(self) -> str:
@@ -526,12 +526,12 @@ class S3ConnectionManager:
         # If we still don't have a working endpoint, use a selection strategy
         # First, filter out endpoints with open circuit breakers
         available_endpoints = [
-            ep for ep in self.endpoints 
+            ep for ep in self.endpoints
             if not self._is_circuit_open(ep)
         ]
-        
+
         if not available_endpoints:
-            # All endpoints have open circuit breakers. 
+            # All endpoints have open circuit breakers.
             # Choose the one that will reset soonest
             logger.warning("All endpoints have open circuit breakers")
             endpoint = min(
@@ -543,7 +543,7 @@ class S3ConnectionManager:
             self.endpoint_health[endpoint]["failures"] = 0
             logger.info(f"Forcing circuit closed for {endpoint} as all endpoints are unavailable")
             return endpoint
-        
+
         # Rank available endpoints by health metrics
         ranked_endpoints = sorted(
             available_endpoints,
@@ -554,62 +554,62 @@ class S3ConnectionManager:
                 self.endpoint_health[ep]["failures"],               # Fewer failures
             )
         )
-        
+
         # Return the highest ranked endpoint
         return ranked_endpoints[0]
 
     def _call_s3_operation(
-        self, 
-        endpoint: str, 
-        operation: str, 
+        self,
+        endpoint: str,
+        operation: str,
         **kwargs
     ) -> Any:
         """
         Call an S3 operation on a specific endpoint.
-        
+
         Args:
             endpoint: The endpoint to use
             operation: S3 operation (method) name
             **kwargs: Parameters for the operation
-            
+
         Returns:
             Result of the operation
-            
+
         Raises:
             S3ApiError: If there's an error calling the operation
         """
         # Get client for this endpoint
         client = self._get_client_for_endpoint(endpoint)
-        
+
         try:
             # Get the operation method
             s3_operation = getattr(client, operation)
-            
+
             # Time the operation
             start_time = time.time()
-            
+
             # Call the operation
             response = s3_operation(**kwargs)
-            
+
             # Calculate latency
             end_time = time.time()
             latency = int((end_time - start_time) * 1000)  # Convert to ms
-            
+
             # Record success
             self._record_endpoint_success(endpoint, latency)
-            
+
             return response
-            
+
         except botocore.exceptions.ClientError as e:
             # Extract error details
             error_code = e.response.get('Error', {}).get('Code', '')
             error_message = e.response.get('Error', {}).get('Message', str(e))
             status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode', 500)
             request_id = e.response.get('ResponseMetadata', {}).get('RequestId', 'unknown')
-            
+
             # Record failure
             self._record_endpoint_failure(endpoint)
-            
+
             # Check for rate limiting
             if self._detect_rate_limiting(e):
                 # Convert to S3ApiError with rate limiting context
@@ -620,7 +620,7 @@ class S3ConnectionManager:
                     error_code="RATE_LIMITED",
                     request_id=request_id
                 )
-                
+
             # Convert to S3ApiError
             raise S3ApiError(
                 message=error_message,
@@ -629,40 +629,40 @@ class S3ConnectionManager:
                 error_code=error_code,
                 request_id=request_id
             )
-            
+
         except botocore.exceptions.BotoCoreError as e:
             # Record failure
             self._record_endpoint_failure(endpoint)
-            
+
             # Convert to S3ApiError
             raise S3ApiError(
                 message=str(e),
                 operation=operation,
                 error_code="BOTO_CORE_ERROR"
             )
-            
+
         except Exception as e:
             # Record failure
             self._record_endpoint_failure(endpoint)
-            
+
             # Convert to S3ApiError
             raise S3ApiError(
                 message=f"Unexpected error: {str(e)}",
                 operation=operation,
                 error_code="UNEXPECTED_ERROR"
             )
-        
+
     def call(self, operation: str, **kwargs) -> Any:
         """
         Call an S3 operation with automatic retries and endpoint failover.
-        
+
         Args:
             operation: S3 operation (method) name
             **kwargs: Parameters for the operation
-            
+
         Returns:
             Result of the operation
-            
+
         Raises:
             S3ApiError: If all retries fail or the API returns an error
         """
@@ -675,19 +675,19 @@ class S3ConnectionManager:
                 operation=operation,
                 error_code="RATE_LIMIT_EXCEEDED"
             )
-        
+
         # Get the best endpoint to use
         endpoint = self._get_endpoint()
-        
+
         # Initialize for retry loop
         retry_count = 0
         last_error = None
         current_endpoint = endpoint
-        
+
         # Update metrics
         self.total_requests += 1
         self.last_request_time = time.time()
-        
+
         while retry_count <= self.max_retries:
             # Check if the current endpoint's circuit breaker is open
             if self._is_circuit_open(current_endpoint):
@@ -716,37 +716,37 @@ class S3ConnectionManager:
                     self.endpoint_health[current_endpoint]["circuit_open"] = False
                     self.endpoint_health[current_endpoint]["failures"] = 0
                     logger.info(f"All endpoints have open circuit breakers. Forcing reset for {current_endpoint}")
-            
+
             try:
                 # Make the call
                 response = self._call_s3_operation(current_endpoint, operation, **kwargs)
-                
+
                 # Update metrics on success
                 self.successful_requests += 1
-                
+
                 # Update working endpoint
                 self.working_endpoint = current_endpoint
                 self.working_client = self._get_client_for_endpoint(current_endpoint)
                 self.last_working_time = time.time()
-                
+
                 # Return the result
                 return response
-                
+
             except S3ApiError as e:
                 last_error = e
                 logger.warning(
                     f"S3 operation '{operation}' on {current_endpoint} failed (attempt {retry_count + 1}/{self.max_retries + 1}): {e.message}"
                 )
-                
+
                 # Update metrics
                 self.failed_requests += 1
                 self.last_error = e.message
-                
+
                 # If this was the current working endpoint, clear it
                 if self.working_endpoint == current_endpoint:
                     self.working_endpoint = None
                     self.working_client = None
-                
+
                 # Decide if we should retry
                 # Some error codes should not be retried
                 non_retryable = [
@@ -754,7 +754,7 @@ class S3ConnectionManager:
                     "InvalidToken", "ExpiredToken", "AccountProblem", "AuthFailure",
                     "NoSuchBucket", "NoSuchKey", "NoSuchUpload", "BucketAlreadyExists"
                 ]
-                
+
                 # For rate limiting, we always try a different endpoint
                 if e.error_code == "RATE_LIMITED":
                     # Try another endpoint before incrementing retry count
@@ -765,12 +765,12 @@ class S3ConnectionManager:
                         current_endpoint = candidates[0]
                         logger.info(f"Rate limited, switching to alternative endpoint: {current_endpoint}")
                         continue
-                
+
                 # If error is not retryable, stop trying
                 if e.error_code in non_retryable:
                     logger.warning(f"Non-retryable error: {e.error_code}")
                     break
-                
+
                 # Try next endpoint before incrementing retry count
                 if retry_count < self.max_retries:
                     # Choose a different endpoint for next retry
@@ -780,14 +780,14 @@ class S3ConnectionManager:
                         candidates.sort(key=lambda ep: self.endpoint_health[ep]["failures"])
                         current_endpoint = candidates[0]
                         logger.info(f"Switching to alternative endpoint: {current_endpoint}")
-                    
+
                     # Add exponential backoff delay
                     backoff_time = 0.1 * (2**retry_count)
                     logger.info(f"Retrying in {backoff_time:.2f} seconds...")
                     time.sleep(backoff_time)
-                
+
                 retry_count += 1
-        
+
         # If we've exhausted all retries, raise the last error
         logger.error(f"All retry attempts failed for operation '{operation}'")
         if last_error:
@@ -798,28 +798,28 @@ class S3ConnectionManager:
                 operation=operation,
                 error_code="RETRY_EXHAUSTED"
             )
-    
+
     # Convenience methods for common S3 operations
-    
+
     def list_buckets(self) -> List[Dict[str, Any]]:
         """
         List all buckets.
-        
+
         Returns:
             List of bucket information dictionaries
         """
         response = self.call("list_buckets")
         return response.get("Buckets", [])
-    
+
     def list_objects(self, bucket: Optional[str] = None, prefix: str = "", **kwargs) -> Dict[str, Any]:
         """
         List objects in a bucket.
-        
+
         Args:
             bucket: Bucket name (uses default_bucket if not specified)
             prefix: Prefix to filter objects
             **kwargs: Additional parameters for list_objects_v2
-            
+
         Returns:
             Object listing information
         """
@@ -830,18 +830,18 @@ class S3ConnectionManager:
                 operation="list_objects",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         return self.call("list_objects_v2", Bucket=bucket_name, Prefix=prefix, **kwargs)
-    
+
     def get_object(self, key: str, bucket: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Get an object from a bucket.
-        
+
         Args:
             key: Object key
             bucket: Bucket name (uses default_bucket if not specified)
             **kwargs: Additional parameters for get_object
-            
+
         Returns:
             Object data and metadata
         """
@@ -852,13 +852,13 @@ class S3ConnectionManager:
                 operation="get_object",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         return self.call("get_object", Bucket=bucket_name, Key=key, **kwargs)
-        
+
     def download_file(self, key: str, file_path: str, bucket: Optional[str] = None, **kwargs) -> None:
         """
         Download an object to a file.
-        
+
         Args:
             key: Object key
             file_path: Local file path to save the object
@@ -872,22 +872,22 @@ class S3ConnectionManager:
                 operation="download_file",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
-            
+
         return self.call("download_file", Bucket=bucket_name, Key=key, Filename=file_path, **kwargs)
-    
+
     def upload_file(self, file_path: str, key: str, bucket: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Upload a file to a bucket.
-        
+
         Args:
             file_path: Local file path to upload
             key: Object key
             bucket: Bucket name (uses default_bucket if not specified)
             **kwargs: Additional parameters for upload_file
-            
+
         Returns:
             Upload response
         """
@@ -898,18 +898,18 @@ class S3ConnectionManager:
                 operation="upload_file",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         return self.call("upload_file", Filename=file_path, Bucket=bucket_name, Key=key, **kwargs)
-    
+
     def delete_object(self, key: str, bucket: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Delete an object from a bucket.
-        
+
         Args:
             key: Object key
             bucket: Bucket name (uses default_bucket if not specified)
             **kwargs: Additional parameters for delete_object
-            
+
         Returns:
             Delete response
         """
@@ -920,18 +920,18 @@ class S3ConnectionManager:
                 operation="delete_object",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         return self.call("delete_object", Bucket=bucket_name, Key=key, **kwargs)
-    
+
     def get_object_url(self, key: str, bucket: Optional[str] = None, expires_in: int = 3600) -> str:
         """
         Generate a presigned URL for an object.
-        
+
         Args:
             key: Object key
             bucket: Bucket name (uses default_bucket if not specified)
             expires_in: URL expiration time in seconds
-            
+
         Returns:
             Presigned URL
         """
@@ -942,10 +942,10 @@ class S3ConnectionManager:
                 operation="generate_presigned_url",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         # For generating URLs, we need to use the client directly
         client = self._get_client_for_endpoint(self._get_endpoint())
-        
+
         try:
             url = client.generate_presigned_url(
                 ClientMethod="get_object",
@@ -959,16 +959,16 @@ class S3ConnectionManager:
                 operation="generate_presigned_url",
                 error_code="URL_GENERATION_FAILED"
             )
-    
+
     def head_object(self, key: str, bucket: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Get object metadata without downloading the object.
-        
+
         Args:
             key: Object key
             bucket: Bucket name (uses default_bucket if not specified)
             **kwargs: Additional parameters for head_object
-            
+
         Returns:
             Object metadata
         """
@@ -979,9 +979,9 @@ class S3ConnectionManager:
                 operation="head_object",
                 error_code="NO_BUCKET_SPECIFIED"
             )
-            
+
         return self.call("head_object", Bucket=bucket_name, Key=key, **kwargs)
-    
+
     def get_status(self) -> Dict[str, Any]:
         """
         Get the current connection status.

@@ -30,33 +30,33 @@ DATA_DIR = Path(tempfile.gettempdir()) / "ipfs_kit_test_data"
 
 def create_sample_file(size_kb: int) -> str:
     """Create a sample file for testing.
-    
+
     Args:
         size_kb: Size of the file in KB
-        
+
     Returns:
         Path to the created file
     """
     # Ensure data directory exists
     DATA_DIR.mkdir(exist_ok=True)
-    
+
     # Create a file with random content
     file_path = DATA_DIR / f"test_file_{size_kb}kb_{random.randint(1000, 9999)}.bin"
-    
+
     with open(file_path, 'wb') as f:
         # Create random data in 1KB chunks
         for _ in range(size_kb):
             f.write(random.randbytes(1024))
-    
+
     logger.info(f"Created test file: {file_path} ({size_kb} KB)")
     return str(file_path)
 
 def run_ipfs_cli(command: list) -> int:
     """Run the IPFS CLI with the given command.
-    
+
     Args:
         command: Command-line arguments
-        
+
     Returns:
         Exit code
     """
@@ -65,9 +65,9 @@ def run_ipfs_cli(command: list) -> int:
         cmd = [sys.executable, "-m", "ipfs_kit_py.cli"] + command
     else:
         cmd = ["ipfs-kit"] + command
-        
+
     logger.info(f"Running: {' '.join(cmd)}")
-    
+
     try:
         process = subprocess.run(
             cmd,
@@ -75,16 +75,16 @@ def run_ipfs_cli(command: list) -> int:
             stderr=subprocess.PIPE,
             text=True
         )
-        
+
         # Display output
         if process.stdout:
             print(process.stdout)
-        
+
         if process.returncode != 0:
             logger.error(f"Command failed with code {process.returncode}")
             if process.stderr:
                 print(f"Error: {process.stderr}", file=sys.stderr)
-                
+
         return process.returncode
     except Exception as e:
         logger.error(f"Failed to run command: {e}")
@@ -98,36 +98,36 @@ def perform_wal_operations():
         create_sample_file(5),
         create_sample_file(10)
     ]
-    
+
     # Add files to IPFS
     logger.info("Adding files to IPFS...")
     for file_path in files:
         run_ipfs_cli(["add", file_path])
-    
+
     # Show WAL status
     logger.info("\nChecking WAL status...")
     run_ipfs_cli(["wal", "status"])
-    
+
     # List pending operations
     logger.info("\nListing pending operations...")
     run_ipfs_cli(["wal", "list", "pending"])
-    
+
     # Get backend health status
     logger.info("\nChecking backend health...")
     run_ipfs_cli(["wal", "health"])
-    
+
     # Process pending operations
     logger.info("\nProcessing pending operations...")
     run_ipfs_cli(["wal", "process"])
-    
+
     # Show WAL metrics
     logger.info("\nShowing WAL metrics...")
     run_ipfs_cli(["wal", "metrics"])
-    
+
     # Get WAL configuration
     logger.info("\nShowing WAL configuration...")
     run_ipfs_cli(["wal", "config"])
-    
+
     # Clean up files
     for file_path in files:
         try:
@@ -140,10 +140,10 @@ def main():
     parser = argparse.ArgumentParser(description="WAL CLI Integration Example")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
-    
+
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     try:
         # Demonstrate WAL CLI integration
         logger.info("=== WAL CLI Integration Example ===")

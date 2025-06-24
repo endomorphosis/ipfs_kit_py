@@ -186,19 +186,19 @@ class UnifiedStorageManager:
     def _load_content_registry(self):
         """Load content registry from disk if available."""
         registry_path = self.config.get("content_registry_path")
-        
+
         if not registry_path:
             # Use default path in home directory
             registry_path = os.path.expanduser("~/.ipfs_kit_py/content_registry.json")
-        
+
         try:
             if os.path.exists(registry_path):
                 with open(registry_path, "r") as f:
                     registry_data = json.load(f)
-                
+
                 for content_id, data in registry_data.items():
                     self.content_registry[content_id] = ContentReference.from_dict(data)
-                
+
                 logger.info(f"Loaded {len(self.content_registry)} items from content registry")
             else:
                 logger.info("Content registry file not found, starting with empty registry")
@@ -208,51 +208,51 @@ class UnifiedStorageManager:
     def _save_content_registry(self):
         """Save content registry to disk."""
         registry_path = self.config.get("content_registry_path")
-        
+
         if not registry_path:
             # Use default path in home directory
             registry_dir = os.path.expanduser("~/.ipfs_kit_py")
             os.makedirs(registry_dir, exist_ok=True)
             registry_path = os.path.join(registry_dir, "content_registry.json")
-        
+
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(registry_path), exist_ok=True)
-            
+
             # Convert registry to JSON-serializable format
             registry_data = {
-                content_id: content_ref.to_dict() 
+                content_id: content_ref.to_dict()
                 for content_id, content_ref in self.content_registry.items()
             }
-            
+
             # Write to temporary file first
             temp_path = f"{registry_path}.tmp"
             with open(temp_path, "w") as f:
                 json.dump(registry_data, f, indent=2)
-            
+
             # Rename to target file (atomic operation)
             os.replace(temp_path, registry_path)
-            
+
             logger.info(f"Saved {len(self.content_registry)} items to content registry")
         except Exception as e:
             logger.error(f"Failed to save content registry: {e}")
 
     def _select_backend(
-        self, 
-        data: Optional[Union[bytes, BinaryIO, str]] = None, 
+        self,
+        data: Optional[Union[bytes, BinaryIO, str]] = None,
         content_type: Optional[str] = None,
         size: Optional[int] = None,
         preference: Optional[Union[StorageBackendType, str]] = None
     ) -> Tuple[Optional[StorageBackendType], Optional[str]]:
         """
         Select the best backend for storing content based on various criteria.
-        
+
         Args:
             data: The data to be stored (optional, for content-aware selection)
             content_type: MIME type of the content (optional)
             size: Size of the content in bytes (optional)
             preference: Preferred backend (optional)
-            
+
         Returns:
             Tuple of (selected backend type, reason)
         """
@@ -264,13 +264,13 @@ class UnifiedStorageManager:
                 except ValueError:
                     # Invalid backend name, ignore preference
                     pass
-            
+
             if preference in self.backends:
                 return preference, "user_preference"
-        
+
         # Get backend selection rules from config
         selection_rules = self.config.get("backend_selection", {})
-        
+
         # Check content type rules
         if content_type and "content_type_rules" in selection_rules:
             for type_pattern, backend_name in selection_rules["content_type_rules"].items():
@@ -281,7 +281,7 @@ class UnifiedStorageManager:
                             return backend_type, f"content_type_rule:{type_pattern}"
                     except ValueError:
                         pass
-        
+
         # Check size rules
         if size is not None and "size_rules" in selection_rules:
             for size_rule, backend_name in selection_rules["size_rules"].items():
@@ -300,26 +300,26 @@ class UnifiedStorageManager:
                             return backend_type, f"size_rule:{size_rule}"
                     except ValueError:
                         pass
-        
+
         # If IPFS is available, use it as default
         if StorageBackendType.IPFS in self.backends:
             return StorageBackendType.IPFS, "default_ipfs"
-        
+
         # Otherwise use the first available backend
         if self.backends:
             backend_type = next(iter(self.backends.keys()))
             return backend_type, "first_available"
-        
+
         # No backends available
         return None, "no_backends_available"
 
     def _generate_content_id(self, data: Union[bytes, BinaryIO, str]) -> str:
         """
         Generate a unique content ID for the data.
-        
+
         Args:
             data: The data to generate an ID for
-            
+
         Returns:
             Content ID string
         """
@@ -334,23 +334,23 @@ class UnifiedStorageManager:
             data.seek(0)
             data_bytes = data.read()
             data.seek(current_pos)
-        
+
         # Generate hash of the data
         content_hash = hashlib.sha256(data_bytes).hexdigest()
-        
+
         # Generate a UUID based on the hash (consistent UUID derivation)
         namespace = uuid.UUID('00000000-0000-0000-0000-000000000000')
         content_uuid = uuid.uuid5(namespace, content_hash)
-        
+
         return f"mcp-{content_uuid}"
 
     def _calculate_content_hash(self, data: Union[bytes, BinaryIO, str]) -> str:
         """
         Calculate a hash of the content for integrity verification.
-        
+
         Args:
             data: The data to hash
-            
+
         Returns:
             Content hash string
         """
@@ -365,10 +365,10 @@ class UnifiedStorageManager:
             data.seek(0)
             data_bytes = data.read()
             data.seek(current_pos)
-        
+
         # Generate hash of the data
         content_hash = hashlib.sha256(data_bytes).hexdigest()
-        
+
         return content_hash
 
     def store(
@@ -384,7 +384,7 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         Store content in the unified storage system.
-        
+
         Args:
             data: Data to store (bytes, file-like object, or string)
             backend_preference: Preferred backend to use
@@ -394,7 +394,7 @@ class UnifiedStorageManager:
             path: Path within container
             content_id: Optional explicit content ID
             options: Additional options for storage
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -405,7 +405,7 @@ class UnifiedStorageManager:
             "operation": "store",
             "timestamp": time.time(),
         }
-        
+
         try:
             # Calculate size if possible
             if isinstance(data, bytes):
@@ -421,7 +421,7 @@ class UnifiedStorageManager:
                     data.seek(current_pos)
                 except (AttributeError, IOError):
                     size = None
-            
+
             # Select backend
             backend_type, selection_reason = self._select_backend(
                 data=data,
@@ -429,22 +429,22 @@ class UnifiedStorageManager:
                 size=size,
                 preference=backend_preference,
             )
-            
+
             if not backend_type:
                 result["error"] = "No suitable storage backend available"
                 result["error_type"] = "no_backend"
                 return result
-            
+
             # Get the backend instance
             backend = self.backends[backend_type]
-            
+
             # Generate content ID if not provided
             if not content_id:
                 content_id = self._generate_content_id(data)
-            
+
             # Calculate content hash for integrity verification
             content_hash = self._calculate_content_hash(data)
-            
+
             # Add metadata
             full_metadata = {
                 "content_id": content_id,
@@ -454,10 +454,10 @@ class UnifiedStorageManager:
                 "size": size,
                 **metadata,
             }
-            
+
             # Update options with metadata
             store_options = {**options, "metadata": full_metadata}
-            
+
             # Store in backend
             logger.info(f"Storing content {content_id} in {backend_type.value} backend")
             backend_result = backend.store(
@@ -466,13 +466,13 @@ class UnifiedStorageManager:
                 path=path,
                 options=store_options,
             )
-            
+
             if not backend_result.get("success", False):
                 result["error"] = backend_result.get("error", "Unknown error")
                 result["error_type"] = backend_result.get("error_type", "storage_error")
                 result["backend_result"] = backend_result
                 return result
-            
+
             # Get backend-specific identifier
             backend_identifier = backend_result.get("identifier")
             if not backend_identifier:
@@ -480,7 +480,7 @@ class UnifiedStorageManager:
                 result["error_type"] = "missing_identifier"
                 result["backend_result"] = backend_result
                 return result
-            
+
             # Create or update content reference
             if content_id in self.content_registry:
                 # Update existing reference
@@ -496,10 +496,10 @@ class UnifiedStorageManager:
                     metadata=full_metadata,
                 )
                 self.content_registry[content_id] = content_ref
-            
+
             # Save registry
             self._save_content_registry()
-            
+
             # Return success result
             result["success"] = True
             result["content_id"] = content_id
@@ -508,9 +508,9 @@ class UnifiedStorageManager:
             result["backend_id"] = backend_identifier
             result["selection_reason"] = selection_reason
             result["size"] = size
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error storing content: {e}")
             result["error"] = str(e)
@@ -526,13 +526,13 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         Retrieve content from the unified storage system.
-        
+
         Args:
             content_id: Content ID to retrieve
             backend_preference: Preferred backend to use
             container: Container to retrieve from
             options: Additional options for retrieval
-            
+
         Returns:
             Dictionary with operation result and content data
         """
@@ -543,22 +543,22 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "content_id": content_id,
         }
-        
+
         try:
             # Check if content is tracked
             if content_id not in self.content_registry:
                 result["error"] = f"Content ID not found: {content_id}"
                 result["error_type"] = "content_not_found"
                 return result
-            
+
             # Get content reference
             content_ref = self.content_registry[content_id]
             content_ref.record_access()
-            
+
             # Determine which backend to use
             backend_type = None
             backend_id = None
-            
+
             # If preference is specified and content is available there, use it
             if backend_preference:
                 if isinstance(backend_preference, str):
@@ -567,17 +567,17 @@ class UnifiedStorageManager:
                     except ValueError:
                         # Invalid backend name, ignore preference
                         pass
-                
+
                 if content_ref.has_location(backend_preference):
                     backend_type = backend_preference
                     backend_id = content_ref.get_location(backend_preference)
                     result["backend_selection"] = "preference_match"
-            
+
             # If no preference match, try backends in priority order
             if not backend_type:
                 # Define backend priority from config or use default
                 backend_priority = self.config.get(
-                    "retrieval_priority", 
+                    "retrieval_priority",
                     [
                         StorageBackendType.IPFS,
                         StorageBackendType.S3,
@@ -587,7 +587,7 @@ class UnifiedStorageManager:
                         StorageBackendType.LASSIE,
                     ]
                 )
-                
+
                 # Try backends in priority order
                 for priority_backend in backend_priority:
                     if content_ref.has_location(priority_backend):
@@ -595,7 +595,7 @@ class UnifiedStorageManager:
                         backend_id = content_ref.get_location(priority_backend)
                         result["backend_selection"] = "priority_order"
                         break
-            
+
             # If still no match, use any available backend
             if not backend_type:
                 for available_backend, location_id in content_ref.backend_locations.items():
@@ -603,21 +603,21 @@ class UnifiedStorageManager:
                     backend_id = location_id
                     result["backend_selection"] = "any_available"
                     break
-            
+
             # If no backends have the content, return error
             if not backend_type or not backend_id:
                 result["error"] = f"Content exists but is not available in any active backend"
                 result["error_type"] = "no_backend_available"
                 return result
-            
+
             # Get the backend instance
             if backend_type not in self.backends:
                 result["error"] = f"Backend {backend_type.value} is not available"
                 result["error_type"] = "backend_unavailable"
                 return result
-            
+
             backend = self.backends[backend_type]
-            
+
             # Retrieve from backend
             logger.info(f"Retrieving content {content_id} from {backend_type.value} backend")
             backend_result = backend.retrieve(
@@ -625,13 +625,13 @@ class UnifiedStorageManager:
                 container=container,
                 options=options,
             )
-            
+
             if not backend_result.get("success", False):
                 result["error"] = backend_result.get("error", "Unknown error")
                 result["error_type"] = backend_result.get("error_type", "retrieval_error")
                 result["backend_result"] = backend_result
                 return result
-            
+
             # Get data from backend result
             data = backend_result.get("data")
             if data is None:
@@ -639,7 +639,7 @@ class UnifiedStorageManager:
                 result["error_type"] = "missing_data"
                 result["backend_result"] = backend_result
                 return result
-            
+
             # Verify content hash if available
             if content_ref.content_hash and isinstance(data, (bytes, str)):
                 data_hash = self._calculate_content_hash(data)
@@ -647,10 +647,10 @@ class UnifiedStorageManager:
                     result["warning"] = "Content hash mismatch"
                     result["expected_hash"] = content_ref.content_hash
                     result["actual_hash"] = data_hash
-            
+
             # Save registry with updated access info
             self._save_content_registry()
-            
+
             # Return success result
             result["success"] = True
             result["data"] = data
@@ -658,9 +658,9 @@ class UnifiedStorageManager:
             result["backend_id"] = backend_id
             result["metadata"] = content_ref.metadata
             result["content_hash"] = content_ref.content_hash
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error retrieving content: {e}")
             result["error"] = str(e)
@@ -676,13 +676,13 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         Delete content from the unified storage system.
-        
+
         Args:
             content_id: Content ID to delete
             backend: Specific backend to delete from (or all if None)
             container: Container to delete from
             options: Additional options for deletion
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -693,17 +693,17 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "content_id": content_id,
         }
-        
+
         try:
             # Check if content is tracked
             if content_id not in self.content_registry:
                 result["error"] = f"Content ID not found: {content_id}"
                 result["error_type"] = "content_not_found"
                 return result
-            
+
             # Get content reference
             content_ref = self.content_registry[content_id]
-            
+
             # Convert backend to enum if needed
             if backend is not None and isinstance(backend, str):
                 try:
@@ -712,7 +712,7 @@ class UnifiedStorageManager:
                     result["error"] = f"Invalid backend type: {backend}"
                     result["error_type"] = "invalid_backend"
                     return result
-            
+
             # Determine which backends to delete from
             if backend is None:
                 # Delete from all backends
@@ -724,11 +724,11 @@ class UnifiedStorageManager:
                     result["error_type"] = "backend_location_not_found"
                     return result
                 backends_to_delete = [backend]
-            
+
             # Delete from each backend
             delete_results = {}
             overall_success = True
-            
+
             for backend_type in backends_to_delete:
                 # Skip if backend is not available
                 if backend_type not in self.backends:
@@ -739,11 +739,11 @@ class UnifiedStorageManager:
                     }
                     overall_success = False
                     continue
-                
+
                 # Get backend instance and identifier
                 backend_instance = self.backends[backend_type]
                 backend_id = content_ref.get_location(backend_type)
-                
+
                 # Delete from backend
                 logger.info(f"Deleting content {content_id} from {backend_type.value} backend")
                 backend_result = backend_instance.delete(
@@ -751,15 +751,15 @@ class UnifiedStorageManager:
                     container=container,
                     options=options,
                 )
-                
+
                 delete_results[backend_type.value] = backend_result
-                
+
                 if backend_result.get("success", False):
                     # Remove location from content reference
                     content_ref.remove_location(backend_type)
                 else:
                     overall_success = False
-            
+
             # Update or remove content reference
             if not content_ref.backend_locations:
                 # Content is not stored anywhere, remove from registry
@@ -768,10 +768,10 @@ class UnifiedStorageManager:
             else:
                 # Content still exists in some backends
                 result["remaining_backends"] = list(content_ref.backend_locations.keys())
-            
+
             # Save registry
             self._save_content_registry()
-            
+
             # Return result
             result["success"] = overall_success
             result["backend_results"] = delete_results
@@ -780,12 +780,12 @@ class UnifiedStorageManager:
                 for backend_type in backends_to_delete
                 if delete_results.get(backend_type.value, {}).get("success", False)
             ]
-            
+
             if not overall_success:
                 result["warning"] = "Some backends failed to delete the content"
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error deleting content: {e}")
             result["error"] = str(e)
@@ -803,7 +803,7 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         List content in the unified storage system.
-        
+
         Args:
             backend: Filter by backend
             container: Filter by container
@@ -811,7 +811,7 @@ class UnifiedStorageManager:
             limit: Maximum number of items to return
             offset: Number of items to skip
             options: Additional options for listing
-            
+
         Returns:
             Dictionary with operation result and content list
         """
@@ -821,7 +821,7 @@ class UnifiedStorageManager:
             "operation": "list_content",
             "timestamp": time.time(),
         }
-        
+
         try:
             # Convert backend to enum if needed
             if backend is not None and isinstance(backend, str):
@@ -831,32 +831,32 @@ class UnifiedStorageManager:
                     result["error"] = f"Invalid backend type: {backend}"
                     result["error_type"] = "invalid_backend"
                     return result
-            
+
             # Filter content based on criteria
             filtered_content = {}
-            
+
             for content_id, content_ref in self.content_registry.items():
                 # Filter by backend if specified
                 if backend is not None and not content_ref.has_location(backend):
                     continue
-                
+
                 # Filter by prefix if specified
                 if prefix is not None and not content_id.startswith(prefix):
                     continue
-                
+
                 # Add to filtered content
                 filtered_content[content_id] = content_ref
-            
+
             # Sort content by creation time (newest first)
             sorted_content = sorted(
-                filtered_content.items(), 
-                key=lambda x: x[1].created_at, 
+                filtered_content.items(),
+                key=lambda x: x[1].created_at,
                 reverse=True
             )
-            
+
             # Apply pagination
             paginated_content = sorted_content[offset : offset + limit]
-            
+
             # Format results
             content_list = []
             for content_id, content_ref in paginated_content:
@@ -875,7 +875,7 @@ class UnifiedStorageManager:
                     "last_accessed": content_ref.last_accessed,
                     "access_count": content_ref.access_count,
                 })
-            
+
             # Return success result
             result["success"] = True
             result["items"] = content_list
@@ -883,9 +883,9 @@ class UnifiedStorageManager:
             result["limit"] = limit
             result["offset"] = offset
             result["has_more"] = (offset + limit) < len(filtered_content)
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error listing content: {e}")
             result["error"] = str(e)
@@ -895,10 +895,10 @@ class UnifiedStorageManager:
     def get_content_info(self, content_id: str) -> Dict[str, Any]:
         """
         Get information about a specific content item.
-        
+
         Args:
             content_id: Content ID to get information for
-            
+
         Returns:
             Dictionary with content information
         """
@@ -908,17 +908,17 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "content_id": content_id,
         }
-        
+
         try:
             # Check if content is tracked
             if content_id not in self.content_registry:
                 result["error"] = f"Content ID not found: {content_id}"
                 result["error_type"] = "content_not_found"
                 return result
-            
+
             # Get content reference
             content_ref = self.content_registry[content_id]
-            
+
             # Get backend details
             backend_details = []
             for backend_type, location_id in content_ref.backend_locations.items():
@@ -927,7 +927,7 @@ class UnifiedStorageManager:
                     "location": location_id,
                     "backend_available": backend_type in self.backends,
                 }
-                
+
                 # Try to get metadata from backend if available
                 if backend_type in self.backends:
                     try:
@@ -936,14 +936,14 @@ class UnifiedStorageManager:
                             identifier=location_id,
                             options={"timeout": 5},  # Set a short timeout
                         )
-                        
+
                         if metadata_result.get("success", False):
                             backend_info["backend_metadata"] = metadata_result.get("metadata", {})
                     except Exception as e:
                         backend_info["metadata_error"] = str(e)
-                
+
                 backend_details.append(backend_info)
-            
+
             # Return success result
             result["success"] = True
             result["content_hash"] = content_ref.content_hash
@@ -952,9 +952,9 @@ class UnifiedStorageManager:
             result["created_at"] = content_ref.created_at
             result["last_accessed"] = content_ref.last_accessed
             result["access_count"] = content_ref.access_count
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error getting content info: {e}")
             result["error"] = str(e)
@@ -973,7 +973,7 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         Search for content in the unified storage system.
-        
+
         Args:
             query: Search query string
             search_metadata: Whether to search in metadata
@@ -982,7 +982,7 @@ class UnifiedStorageManager:
             limit: Maximum number of items to return
             offset: Number of items to skip
             options: Additional options for searching
-            
+
         Returns:
             Dictionary with search results
         """
@@ -993,14 +993,14 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "query": query,
         }
-        
+
         try:
             # Check if query is provided
             if not query:
                 result["error"] = "Search query is required"
                 result["error_type"] = "missing_query"
                 return result
-            
+
             # Convert backend to enum if needed
             if backend is not None and isinstance(backend, str):
                 try:
@@ -1009,40 +1009,40 @@ class UnifiedStorageManager:
                     result["error"] = f"Invalid backend type: {backend}"
                     result["error_type"] = "invalid_backend"
                     return result
-            
+
             # Convert query to lowercase for case-insensitive search
             query_lower = query.lower()
-            
+
             # Search content
             matching_content = {}
-            
+
             for content_id, content_ref in self.content_registry.items():
                 # Filter by backend if specified
                 if backend is not None and not content_ref.has_location(backend):
                     continue
-                
+
                 # Search in content ID if enabled
                 if search_content_ids and query_lower in content_id.lower():
                     matching_content[content_id] = content_ref
                     continue
-                
+
                 # Search in metadata if enabled
                 if search_metadata:
                     metadata_str = json.dumps(content_ref.metadata).lower()
                     if query_lower in metadata_str:
                         matching_content[content_id] = content_ref
                         continue
-            
+
             # Sort by relevance (currently just creation time)
             sorted_content = sorted(
-                matching_content.items(), 
-                key=lambda x: x[1].created_at, 
+                matching_content.items(),
+                key=lambda x: x[1].created_at,
                 reverse=True
             )
-            
+
             # Apply pagination
             paginated_content = sorted_content[offset : offset + limit]
-            
+
             # Format results
             search_results = []
             for content_id, content_ref in paginated_content:
@@ -1061,7 +1061,7 @@ class UnifiedStorageManager:
                     "last_accessed": content_ref.last_accessed,
                     "access_count": content_ref.access_count,
                 })
-            
+
             # Return success result
             result["success"] = True
             result["items"] = search_results
@@ -1069,9 +1069,9 @@ class UnifiedStorageManager:
             result["limit"] = limit
             result["offset"] = offset
             result["has_more"] = (offset + limit) < len(matching_content)
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error searching content: {e}")
             result["error"] = str(e)
@@ -1088,14 +1088,14 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         Migrate content from one backend to another.
-        
+
         Args:
             content_id: Content ID to migrate
             source_backend: Source backend
             target_backend: Target backend
             delete_source: Whether to delete content from source after migration
             options: Additional options for migration
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -1106,13 +1106,13 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "content_id": content_id,
         }
-        
+
         # Set up migration options
         migration_options = {
             **options,
             "delete_source": delete_source,
         }
-        
+
         # Use migration controller to create and execute a migration task
         task_result = self.migration_controller.add_task(
             content_id=content_id,
@@ -1121,27 +1121,27 @@ class UnifiedStorageManager:
             priority=options.get("priority", 2),  # Default to HIGH priority
             options=migration_options,
         )
-        
+
         if not task_result.get("success", False):
             return task_result
-        
+
         task_id = task_result.get("task_id")
-        
+
         # If this is a synchronous request, wait for task to complete
         if options.get("synchronous", False):
             max_wait_time = options.get("timeout", 60)  # Default timeout of 60 seconds
             wait_interval = 0.5  # Check every 0.5 seconds
-            
+
             total_waited = 0
             while total_waited < max_wait_time:
                 # Get task status
                 task_info = self.migration_controller.get_task(task_id)
-                
+
                 if not task_info:
                     result["error"] = f"Migration task {task_id} not found"
                     result["error_type"] = "task_not_found"
                     return result
-                
+
                 # Check if task is completed
                 if task_info.get("status") in ["completed", "failed", "cancelled"]:
                     # Task is done, return result
@@ -1149,30 +1149,30 @@ class UnifiedStorageManager:
                     result["task_id"] = task_id
                     result["task_status"] = task_info.get("status")
                     result["task"] = task_info
-                    
+
                     if task_info.get("status") == "failed":
                         result["error"] = task_info.get("error", "Unknown error")
                         result["error_type"] = "migration_failed"
-                    
+
                     return result
-                
+
                 # Wait before checking again
                 time.sleep(wait_interval)
                 total_waited += wait_interval
-            
+
             # Timeout reached
             result["success"] = False
             result["error"] = f"Migration timed out after {max_wait_time} seconds"
             result["error_type"] = "migration_timeout"
             result["task_id"] = task_id
             return result
-        
+
         # Asynchronous request, return task information
         result["success"] = True
         result["task_id"] = task_id
         result["async"] = True
         result["message"] = "Migration task created successfully"
-        
+
         return result
 
     def create_migration_policy(
@@ -1186,7 +1186,7 @@ class UnifiedStorageManager:
     ) -> Dict[str, Any]:
         """
         Create a migration policy.
-        
+
         Args:
             name: Policy name
             source_backend: Source backend
@@ -1194,7 +1194,7 @@ class UnifiedStorageManager:
             criteria: Criteria for selecting content to migrate
             description: Policy description
             options: Additional policy options
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -1204,7 +1204,7 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "policy_name": name,
         }
-        
+
         try:
             # Create policy
             policy = MigrationPolicy(
@@ -1215,21 +1215,21 @@ class UnifiedStorageManager:
                 criteria=criteria,
                 options=options,
             )
-            
+
             # Add to migration controller
             add_result = self.migration_controller.add_policy(policy)
-            
+
             if not add_result:
                 result["error"] = f"Failed to add policy, name may already exist: {name}"
                 result["error_type"] = "policy_add_failed"
                 return result
-            
+
             # Return success result
             result["success"] = True
             result["policy"] = policy.to_dict()
-            
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error creating migration policy: {e}")
             result["error"] = str(e)
@@ -1239,7 +1239,7 @@ class UnifiedStorageManager:
     def get_backend_status(self) -> Dict[str, Any]:
         """
         Get status information about all available backends.
-        
+
         Returns:
             Dictionary with backend status information
         """
@@ -1249,7 +1249,7 @@ class UnifiedStorageManager:
             "timestamp": time.time(),
             "backends": {},
         }
-        
+
         # Check each backend
         for backend_type, backend in self.backends.items():
             backend_info = {
@@ -1257,7 +1257,7 @@ class UnifiedStorageManager:
                 "available": True,
                 "name": backend.get_name(),
             }
-            
+
             # Try to get more specific status information if possible
             try:
                 if hasattr(backend, "get_status"):
@@ -1265,34 +1265,34 @@ class UnifiedStorageManager:
                     backend_info["status"] = status
             except Exception as e:
                 backend_info["status_error"] = str(e)
-            
+
             # Add to result
             result["backends"][backend_type.value] = backend_info
-        
+
         # Add information about content distribution
         backend_counts = {}
         for backend_type in StorageBackendType:
             backend_counts[backend_type.value] = 0
-        
+
         for content_ref in self.content_registry.values():
             for backend_type in content_ref.backend_locations.keys():
                 backend_counts[backend_type.value] += 1
-        
+
         result["content_distribution"] = backend_counts
         result["total_content"] = len(self.content_registry)
-        
+
         return result
 
     def get_migration_status(self) -> Dict[str, Any]:
         """
         Get status information about the migration controller.
-        
+
         Returns:
             Dictionary with migration status information
         """
         # Get statistics from migration controller
         stats = self.migration_controller.get_statistics()
-        
+
         result = {
             "success": True,
             "operation": "get_migration_status",
@@ -1300,5 +1300,5 @@ class UnifiedStorageManager:
             "migration_controller": stats,
             "policies": self.migration_controller.list_policies(),
         }
-        
+
         return result

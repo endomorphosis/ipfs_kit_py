@@ -10,24 +10,24 @@ class TestAria2Controller(unittest.TestCase):
         """Set up test fixtures."""
         # Create mock Aria2 model
         self.mock_aria2_model = MagicMock()
-        
+
         # Import the controller
         from ipfs_kit_py.mcp.controllers.aria2_controller import Aria2Controller
-        
+
         # Create controller with mock
         self.controller = Aria2Controller(self.mock_aria2_model)
-        
+
         # Set up FastAPI router and app
         self.router = APIRouter()
         self.controller.register_routes(self.router)
         self.app = FastAPI()
         self.app.include_router(self.router)
         self.client = TestClient(self.app)
-    
+
     def test_initialization(self):
         """Test controller initialization."""
         self.assertEqual(self.controller.aria2_model, self.mock_aria2_model)
-    
+
     def test_route_registration(self):
         """Test route registration."""
         route_paths = [route.path for route in self.router.routes]
@@ -35,7 +35,7 @@ class TestAria2Controller(unittest.TestCase):
         self.assertIn("/aria2/status", route_paths)
         self.assertIn("/aria2/list", route_paths)
         self.assertIn("/aria2/cancel/{gid}", route_paths)
-    
+
     def test_handle_status_request(self):
         """Test handling status request."""
         # Configure mock response
@@ -54,10 +54,10 @@ class TestAria2Controller(unittest.TestCase):
                 "active_connections": 10
             }
         }
-        
+
         # Send request
         response = self.client.get("/aria2/status")
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
@@ -65,10 +65,10 @@ class TestAria2Controller(unittest.TestCase):
         self.assertTrue(response_data["is_running"])
         self.assertEqual(response_data["version"], "1.36.0")
         self.assertEqual(response_data["active_downloads"], 2)
-        
+
         # Verify model was called
         self.mock_aria2_model.get_status.assert_called_once()
-    
+
     def test_handle_download_request(self):
         """Test handling download request."""
         # Configure mock response
@@ -80,7 +80,7 @@ class TestAria2Controller(unittest.TestCase):
             "total_length": 104857600,
             "added_time": 1693526400
         }
-        
+
         # Create request
         request_data = {
             "uri": "https://example.com/file.zip",
@@ -88,10 +88,10 @@ class TestAria2Controller(unittest.TestCase):
             "dir": "/downloads",
             "max_download_speed": "1M"
         }
-        
+
         # Send request
         response = self.client.post("/aria2/download", json=request_data)
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
@@ -99,7 +99,7 @@ class TestAria2Controller(unittest.TestCase):
         self.assertEqual(response_data["gid"], "2089b05ecca3d829")
         self.assertEqual(response_data["uri"], "https://example.com/file.zip")
         self.assertEqual(response_data["status"], "waiting")
-        
+
         # Verify model was called with correct parameters
         self.mock_aria2_model.add_uri.assert_called_once_with(
             uri="https://example.com/file.zip",
@@ -107,7 +107,7 @@ class TestAria2Controller(unittest.TestCase):
             dir="/downloads",
             max_download_speed="1M"
         )
-    
+
     def test_handle_list_request(self):
         """Test handling list request."""
         # Configure mock response
@@ -143,10 +143,10 @@ class TestAria2Controller(unittest.TestCase):
             ],
             "count": 2
         }
-        
+
         # Send request
         response = self.client.get("/aria2/list")
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
@@ -155,10 +155,10 @@ class TestAria2Controller(unittest.TestCase):
         self.assertEqual(response_data["downloads"][0]["gid"], "2089b05ecca3d829")
         self.assertEqual(response_data["downloads"][0]["status"], "active")
         self.assertEqual(response_data["downloads"][1]["uri"], "https://example.com/file2.zip")
-        
+
         # Verify model was called
         self.mock_aria2_model.list_downloads.assert_called_once()
-    
+
     def test_handle_download_status_request(self):
         """Test handling download status request."""
         # Configure mock response
@@ -179,15 +179,15 @@ class TestAria2Controller(unittest.TestCase):
             ],
             "error_message": None
         }
-        
+
         # Create request
         request_data = {
             "gid": "2089b05ecca3d829"
         }
-        
+
         # Send request
         response = self.client.post("/aria2/status", json=request_data)
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
@@ -195,12 +195,12 @@ class TestAria2Controller(unittest.TestCase):
         self.assertEqual(response_data["gid"], "2089b05ecca3d829")
         self.assertEqual(response_data["status"], "active")
         self.assertEqual(response_data["progress"], 0.5)
-        
+
         # Verify model was called with correct parameters
         self.mock_aria2_model.get_download_status.assert_called_once_with(
             gid="2089b05ecca3d829"
         )
-    
+
     def test_handle_cancel_request(self):
         """Test handling cancel request."""
         # Configure mock response
@@ -210,22 +210,22 @@ class TestAria2Controller(unittest.TestCase):
             "status": "removed",
             "was_active": True
         }
-        
+
         # Send request
         response = self.client.delete("/aria2/cancel/2089b05ecca3d829")
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
         self.assertTrue(response_data["success"])
         self.assertEqual(response_data["gid"], "2089b05ecca3d829")
         self.assertEqual(response_data["status"], "removed")
-        
+
         # Verify model was called with correct parameters
         self.mock_aria2_model.cancel_download.assert_called_once_with(
             gid="2089b05ecca3d829"
         )
-    
+
     def test_handle_pause_request(self):
         """Test handling pause request."""
         # Configure mock response
@@ -235,27 +235,27 @@ class TestAria2Controller(unittest.TestCase):
             "status": "paused",
             "was_active": True
         }
-        
+
         # Create request
         request_data = {
             "gid": "2089b05ecca3d829"
         }
-        
+
         # Send request
         response = self.client.post("/aria2/pause", json=request_data)
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
         self.assertTrue(response_data["success"])
         self.assertEqual(response_data["gid"], "2089b05ecca3d829")
         self.assertEqual(response_data["status"], "paused")
-        
+
         # Verify model was called with correct parameters
         self.mock_aria2_model.pause_download.assert_called_once_with(
             gid="2089b05ecca3d829"
         )
-    
+
     def test_handle_resume_request(self):
         """Test handling resume request."""
         # Configure mock response
@@ -265,27 +265,27 @@ class TestAria2Controller(unittest.TestCase):
             "status": "active",
             "was_paused": True
         }
-        
+
         # Create request
         request_data = {
             "gid": "2089b05ecca3d829"
         }
-        
+
         # Send request
         response = self.client.post("/aria2/resume", json=request_data)
-        
+
         # Check response
         self.assertEqual(response.status_code, 200)
         response_data = response.json()
         self.assertTrue(response_data["success"])
         self.assertEqual(response_data["gid"], "2089b05ecca3d829")
         self.assertEqual(response_data["status"], "active")
-        
+
         # Verify model was called with correct parameters
         self.mock_aria2_model.resume_download.assert_called_once_with(
             gid="2089b05ecca3d829"
         )
-    
+
     # Test error cases
     def test_handle_download_error(self):
         """Test handling download error."""
@@ -296,22 +296,22 @@ class TestAria2Controller(unittest.TestCase):
             "error_type": "Aria2Error",
             "uri": "https://example.com/file.zip"
         }
-        
+
         # Create request
         request_data = {
             "uri": "https://example.com/file.zip",
             "out": "file.zip"
         }
-        
+
         # Send request
         response = self.client.post("/aria2/download", json=request_data)
-        
+
         # Check response
         self.assertEqual(response.status_code, 500)
         response_data = response.json()
         self.assertEqual(response_data["detail"]["error"], "Failed to add download")
         self.assertEqual(response_data["detail"]["error_type"], "Aria2Error")
-    
+
     def test_handle_status_error(self):
         """Test handling status error."""
         # Configure mock to return error
@@ -321,39 +321,39 @@ class TestAria2Controller(unittest.TestCase):
             "error_type": "DownloadNotFoundError",
             "gid": "invalid-gid"
         }
-        
+
         # Create request
         request_data = {
             "gid": "invalid-gid"
         }
-        
+
         # Send request
         response = self.client.post("/aria2/status", json=request_data)
-        
+
         # Check response
         self.assertEqual(response.status_code, 500)
         response_data = response.json()
         self.assertEqual(response_data["detail"]["error"], "Download not found")
         self.assertEqual(response_data["detail"]["error_type"], "DownloadNotFoundError")
-    
+
     def test_handle_validation_error(self):
         """Test handling validation error."""
         # Send request with missing required fields
         response = self.client.post("/aria2/download", json={})
-        
+
         # Check response
         self.assertEqual(response.status_code, 400)
         # Validation errors return detailed information about missing fields
         self.assertIn("detail", response.json())
-    
+
     def test_unavailable_service(self):
         """Test behavior when Aria2 service is unavailable."""
         # Set controller to indicate dependencies are not available
         self.controller._has_dependencies = False
-        
+
         # Send request
         response = self.client.get("/aria2/status")
-        
+
         # Check response - should indicate service unavailable
         self.assertEqual(response.status_code, 400)
         response_data = response.json()

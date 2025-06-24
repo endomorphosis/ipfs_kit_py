@@ -1217,7 +1217,7 @@ openapi_schema = {
 def get_openapi_schema():
     """
     Returns the OpenAPI schema for the REST API server.
-    
+
     Returns:
         dict: OpenAPI schema dictionary
     """

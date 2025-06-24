@@ -62,12 +62,12 @@ def temp_dir(tmp_path_factory):
 def mock_ipfs_client():
     """Provide a mock IPFS client for tests."""
     from unittest.mock import MagicMock
-    
+
     client = MagicMock()
     client.add = MagicMock(return_value={"Hash": "QmTestHash"})
     client.cat = MagicMock(return_value=b"test content")
     client.id = MagicMock(return_value={"ID": "QmTestNodeId"})
-    
+
     return client
 
 # Skip markers for missing dependencies
@@ -81,26 +81,26 @@ def pytest_configure(config):
 def pytest_runtest_setup(item):
     """Skip tests if dependencies are missing."""
     markers = list(item.iter_markers())
-    
+
     for marker in markers:
         if marker.name == "requires_fsspec":
             try:
                 import fsspec
             except ImportError:
                 pytest.skip("fsspec not installed")
-                
+
         elif marker.name == "requires_fastapi":
             try:
                 import fastapi
             except ImportError:
                 pytest.skip("fastapi not installed")
-                
+
         elif marker.name == "requires_libp2p":
             try:
                 import libp2p
             except ImportError:
                 pytest.skip("libp2p not installed")
-                
+
         elif marker.name == "requires_webrtc":
             try:
                 import aiortc

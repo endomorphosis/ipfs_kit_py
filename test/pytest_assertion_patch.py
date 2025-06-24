@@ -21,7 +21,7 @@ def patch_assertion_rewrite():
     try:
         # Import the module
         rewrite_module = importlib.import_module('_pytest.assertion.rewrite')
-        
+
         # Add the missing attribute if it doesn't exist
         if not hasattr(rewrite_module, 'assertion'):
             setattr(rewrite_module, 'assertion', MagicMock())

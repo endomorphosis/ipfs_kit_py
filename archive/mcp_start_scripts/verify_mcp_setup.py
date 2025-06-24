@@ -40,17 +40,17 @@ def test_sse_endpoint():
             text=True,
             timeout=3
         )
-        
+
         # If curl returns anything, consider it a success
         if result.stdout:
             print(f"✅ SSE endpoint is responding: {result.stdout.splitlines()[0] if result.stdout.splitlines() else 'Connected'}")
             return True
-        
+
         # If no output but endpoint exists (curl doesn't return error), consider it a success
         if result.returncode == 28:  # Operation timeout
             print(f"✅ SSE endpoint exists but timed out as expected for streaming endpoint")
             return True
-            
+
         # Otherwise check if the endpoint exists by making a HEAD request
         head_result = subprocess.run(
             ["curl", "-s", "-I", "http://localhost:9994/api/v0/sse"],
@@ -58,7 +58,7 @@ def test_sse_endpoint():
             text=True,
             timeout=2
         )
-        
+
         if "200 OK" in head_result.stdout:
             print(f"✅ SSE endpoint exists (HEAD request successful)")
             return True
@@ -83,13 +83,13 @@ def test_jsonrpc_endpoint():
                 "capabilities": {}
             }
         }
-        
+
         # Send request to the endpoint
         response = requests.post(
             "http://localhost:9995/jsonrpc",
             json=payload
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             if data.get("result") and data.get("result").get("capabilities"):
@@ -147,15 +147,15 @@ def verify_vs_code_settings():
         # But for verification purposes, we'll just check expected URLs
         mcp_sse_url = "http://localhost:9994/api/v0/sse"
         jsonrpc_url = "http://localhost:9995/jsonrpc"
-        
+
         # Test MCP SSE URL
         sse_response = requests.get("http://localhost:9994/api/v0/sse", stream=True)
         sse_working = sse_response.status_code == 200
-        
+
         # Test JSON-RPC URL
         jsonrpc_response = requests.get("http://localhost:9995/")
         jsonrpc_working = jsonrpc_response.status_code == 200
-        
+
         if sse_working and jsonrpc_working:
             print(f"✅ VS Code settings URLs are correct and endpoints are working")
             return True
@@ -170,26 +170,26 @@ def main():
     print("=" * 60)
     print("MCP Server Verification")
     print("=" * 60)
-    
+
     tests = [
         test_mcp_server,
         # Skipping SSE endpoint test as it's difficult to test in a script
-        # test_sse_endpoint, 
+        # test_sse_endpoint,
         test_jsonrpc_endpoint,
         test_ipfs_version,
         test_simple_add,
         verify_vs_code_settings
     ]
-    
+
     successes = 0
     failures = 0
-    
+
     for test in tests:
         if test():
             successes += 1
         else:
             failures += 1
-    
+
     # Special handling for SSE endpoint - just check if it exists without waiting for stream data
     print("\nTesting SSE endpoint (existence only)...")
     try:
@@ -199,7 +199,7 @@ def main():
             text=True,
             timeout=2
         )
-        
+
         if "200" in head_result.stdout:
             print(f"✅ SSE endpoint exists and returns 200 status code")
             successes += 1
@@ -209,11 +209,11 @@ def main():
     except Exception as e:
         print(f"❌ Failed to check SSE endpoint: {e}")
         failures += 1
-    
+
     print("\n" + "=" * 60)
     print(f"Test Results: {successes} passed, {failures} failed")
     print("=" * 60)
-    
+
     if failures == 0:
         print("\n✅ All tests passed! Your MCP server setup is working correctly.")
         print("VS Code should now be able to connect to your MCP server.")

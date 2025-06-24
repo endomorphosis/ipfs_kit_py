@@ -22,9 +22,9 @@ logger = logging.getLogger("routing_example")
 
 # Sample content types and files for demonstration
 SAMPLE_CONTENT_TYPES = [
-    "application/pdf", 
-    "image/jpeg", 
-    "video/mp4", 
+    "application/pdf",
+    "image/jpeg",
+    "video/mp4",
     "text/plain",
     "application/json"
 ]
@@ -44,11 +44,11 @@ def generate_mock_metadata(content_type: str) -> Dict[str, Any]:
         "text/plain": "txt",
         "application/json": "json"
     }
-    
+
     # Create filename
     extension = extensions.get(content_type, "bin")
     filename = f"sample-{random.randint(1000, 9999)}.{extension}"
-    
+
     return {
         "content_type": content_type,
         "filename": filename,
@@ -59,27 +59,27 @@ def generate_mock_metadata(content_type: str) -> Dict[str, Any]:
 # Mock backend operations
 class MockBackendManager:
     """Mock implementation of a backend manager for demonstration."""
-    
+
     def __init__(self):
         """Initialize mock backend manager."""
         self.backends = [
-            "ipfs", 
-            "filecoin", 
-            "s3", 
+            "ipfs",
+            "filecoin",
+            "s3",
             "local"
         ]
         self.operations = []
-    
+
     async def list_backends(self) -> List[str]:
         """List available backends."""
         return self.backends
-    
+
     async def store(self, backend_id: str, content: bytes, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Store content in a backend."""
         # Simulate storage operation
         await asyncio.sleep(0.1)
         content_id = f"{backend_id}:{random.randint(100000, 999999)}"
-        
+
         # Record operation
         operation = {
             "type": "store",
@@ -90,10 +90,10 @@ class MockBackendManager:
             "success": True
         }
         self.operations.append(operation)
-        
+
         logger.info(f"Stored content in {backend_id}: {content_id}")
         return {"content_id": content_id, "success": True}
-    
+
     async def get_backend_stats(self) -> Dict[str, Dict[str, Any]]:
         """Get statistics for each backend."""
         stats = {}
@@ -101,7 +101,7 @@ class MockBackendManager:
             # Count operations for this backend
             backend_ops = [op for op in self.operations if op["backend_id"] == backend]
             total_size = sum(op["content_size"] for op in backend_ops)
-            
+
             # Generate mock stats
             stats[backend] = {
                 "operations": len(backend_ops),
@@ -115,22 +115,22 @@ class MockBackendManager:
                     "local": 0.0
                 }.get(backend, 0.01)
             }
-        
+
         return stats
 
 async def run_routing_example():
     """Run the routing example."""
     try:
         from ipfs_kit_py.routing import (
-            RoutingManager, 
+            RoutingManager,
             RoutingManagerSettings,
             RoutingStrategy,
             RoutingPriority
         )
-        
+
         # Create mock backend manager
         backend_manager = MockBackendManager()
-        
+
         # Initialize routing manager
         settings = RoutingManagerSettings(
             enabled=True,
@@ -149,19 +149,19 @@ async def run_routing_example():
                 "historical_success": 0.05
             }
         )
-        
+
         # Create routing manager
         routing_manager = await RoutingManager.create(settings)
         logger.info(f"Initialized routing manager with backends: {settings.backends}")
-        
+
         # Process different content types
         for content_type in SAMPLE_CONTENT_TYPES:
             # Generate content and metadata
             content = generate_mock_content(content_type, random.randint(10, 1000))
             metadata = generate_mock_metadata(content_type)
-            
+
             logger.info(f"Processing {content_type} content: {metadata['filename']}")
-            
+
             # Try different routing strategies
             for strategy_name in ["content_type", "cost", "performance", "hybrid"]:
                 # Select backend using the current strategy
@@ -170,12 +170,12 @@ async def run_routing_example():
                     metadata=metadata,
                     strategy=strategy_name
                 )
-                
+
                 logger.info(f"Strategy '{strategy_name}' selected backend: {backend_id}")
-                
+
                 # Store the content
                 result = await backend_manager.store(backend_id, content, metadata)
-                
+
                 # Record the outcome for learning
                 await routing_manager.record_routing_outcome(
                     backend_id=backend_id,
@@ -185,16 +185,16 @@ async def run_routing_example():
                     },
                     success=result["success"]
                 )
-        
+
         # Get routing insights
         insights = await routing_manager.get_routing_insights()
         logger.info(f"Routing insights: {insights}")
-        
+
         # Start dashboard (if requested)
         start_dashboard = input("Start the routing dashboard? (y/n): ").lower() == 'y'
         if start_dashboard:
             from ipfs_kit_py.routing.dashboard import run_dashboard
-            
+
             logger.info("Starting routing dashboard. Press Ctrl+C to stop.")
             run_dashboard({
                 "host": "127.0.0.1",
@@ -202,7 +202,7 @@ async def run_routing_example():
                 "theme": "darkly",
                 "debug": True
             })
-        
+
     except ImportError as e:
         logger.error(f"Error importing routing components: {e}")
     except Exception as e:

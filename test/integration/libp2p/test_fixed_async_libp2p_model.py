@@ -25,20 +25,20 @@ def print_method_signature(method):
 async def test_async_methods():
     """Test that all async methods are properly implemented."""
     print("Starting async methods test...")
-    
+
     # Create a model instance
     model = LibP2PModel()
-    
+
     # Test if model has logger attribute
     if not hasattr(model, 'logger'):
         print("ERROR: LibP2PModel missing logger attribute")
     else:
         print("LibP2PModel has logger attribute: OK")
-    
+
     # Test the async is_available method
     print("\nTesting is_available method:")
     print_method_signature(model.is_available)
-    
+
     try:
         # Call the async method and await it
         result = await model.is_available()
@@ -46,11 +46,11 @@ async def test_async_methods():
         print("is_available test: PASSED")
     except Exception as e:
         print(f"is_available test FAILED: {e}")
-    
+
     # Test the async get_health method
     print("\nTesting get_health method:")
     print_method_signature(model.get_health)
-    
+
     try:
         # Call the async method and await it
         result = await model.get_health()
@@ -58,11 +58,11 @@ async def test_async_methods():
         print("get_health test: PASSED")
     except Exception as e:
         print(f"get_health test FAILED: {e}")
-    
+
     # Test the async register_message_handler method
     print("\nTesting register_message_handler method:")
     print_method_signature(model.register_message_handler)
-    
+
     try:
         # Call the async method and await it
         result = await model.register_message_handler("test_handler", "test_protocol", "Test description")
@@ -70,7 +70,7 @@ async def test_async_methods():
         print("register_message_handler test: PASSED")
     except Exception as e:
         print(f"register_message_handler test FAILED: {e}")
-    
+
     print("\nAll tests completed.")
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(script_dir)
     compatibility_path = os.path.join(parent_dir, "mcp_compatibility.py")
-    
+
     if os.path.exists(compatibility_path):
         # Import and apply compatibility layer
         sys.path.insert(0, parent_dir)
@@ -62,7 +62,7 @@ try:
         add_compatibility_methods()
         patch_mcp_server()
         logger.info("Applied MCP compatibility layer")
-    
+
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
     from ipfs_kit_py.mcp import MCPServer
     from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
@@ -82,7 +82,7 @@ def create_example_app(
     disk_cache_size: int = 1024 * 1024 * 1024,  # 1GB
 ) -> FastAPI:
     """Create a FastAPI application with MCP server integration."""
-    
+
     # Initialize the FastAPI app
     app = FastAPI(
         title="IPFS Kit MCP Example",
@@ -91,7 +91,7 @@ def create_example_app(
         docs_url="/docs",
         redoc_url="/redoc",
     )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -100,25 +100,25 @@ def create_example_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Initialize the IPFS Simple API client
     ipfs_api = IPFSSimpleAPI()
-    
+
     # Create a temporary directory for cache if not provided
     if cache_dir is None:
         cache_dir = tempfile.mkdtemp(prefix="ipfs_mcp_cache_")
         logger.info(f"Created temporary cache directory: {cache_dir}")
-    
+
     # Initialize the MCP server
     mcp_server = MCPServer(
         debug_mode=debug_mode,
         isolation_mode=isolation_mode,
         persistence_path=cache_dir
     )
-    
+
     # Register the MCP server with the FastAPI app
     mcp_server.register_with_app(app, prefix=f"{api_prefix}/mcp")
-    
+
     # Add a welcome endpoint for testing
     @app.get("/")
     async def welcome():
@@ -140,7 +140,7 @@ def create_example_app(
             "debug_mode": debug_mode,
             "isolation_mode": isolation_mode,
         }
-    
+
     # Add a middleware for request timing
     @app.middleware("http")
     async def request_timer_middleware(request: Request, call_next):
@@ -150,26 +150,26 @@ def create_example_app(
         process_time = time.time() - start_time
         response.headers["X-Process-Time"] = str(process_time)
         return response
-    
+
     # Add an example endpoint using the MCP model directly (for demonstration)
     @app.get(f"{api_prefix}/direct-mcp-model-example")
     async def direct_model_example():
         """Example of directly using the MCP model layer."""
         ipfs_model = mcp_server.models["ipfs"]
-        
+
         # Use the model to get operation stats
         stats = ipfs_model.get_stats()
-        
+
         # Get cache manager stats
         cache_info = mcp_server.persistence.get_cache_info()
-        
+
         return {
             "success": True,
             "message": "Directly accessed MCP model layer",
             "model_stats": stats,
             "cache_info": cache_info,
         }
-    
+
     logger.info(f"Created FastAPI app with MCP server ({api_prefix}/mcp)")
     return app
 
@@ -184,11 +184,11 @@ def run_example_server(
         debug_mode=debug_mode,
         isolation_mode=isolation_mode,
     )
-    
+
     logger.info(f"Starting server on http://{host}:{port}")
     logger.info(f"Debug mode: {debug_mode}, Isolation mode: {isolation_mode}")
     logger.info(f"API docs available at http://{host}:{port}/docs")
-    
+
     # Run the FastAPI application
     uvicorn.run(app, host=host, port=port)
 
@@ -199,37 +199,37 @@ def call_api_example(
 ):
     """Example of calling the MCP API endpoints."""
     base_url = f"http://{host}:{port}{api_prefix}/mcp"
-    
+
     logger.info("Testing MCP API endpoints...")
-    
+
     # Test health endpoint
     try:
         response = requests.get(f"{base_url}/health")
         logger.info(f"Health check: {response.json()}")
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-    
+
     # Test adding content
     try:
         # Test adding content - trying two ways
-        
+
         # 1. Try adding via file upload
         test_content = b"Hello, IPFS MCP!"
         files = {'file': ('test.txt', test_content, 'text/plain')}
         response = requests.post(f"{base_url}/ipfs/add/file", files=files)
         result = response.json()
         logger.info(f"Add file result: {result}")
-        
+
         # 2. Try adding via JSON
         json_content = {"content": "Hello, IPFS MCP via JSON!", "filename": "test.json"}
         response2 = requests.post(f"{base_url}/ipfs/add", json=json_content)
         result2 = response2.json()
         logger.info(f"Add JSON result: {result2}")
-        
+
         # Test debug endpoints
         debug_response = requests.get(f"{base_url}/debug")
         logger.info(f"Debug state available: {debug_response.status_code == 200}")
-        
+
         operations_response = requests.get(f"{base_url}/operations")
         logger.info(f"Operations log available: {operations_response.status_code == 200}")
     except Exception as e:
@@ -242,9 +242,9 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind the server")
     parser.add_argument("--port", type=int, default=9999, help="Port to bind the server")
     parser.add_argument("--test-api", action="store_true", help="Just test the API endpoints without starting a server")
-    
+
     args = parser.parse_args()
-    
+
     if args.test_api:
         call_api_example(host=args.host, port=args.port)
     else:

@@ -36,7 +36,7 @@ class DHTMessageType(Enum):
 
 class DHTRecord:
     """Represents a record in the DHT."""
-    
+
     def __init__(
         self,
         key: str,
@@ -47,7 +47,7 @@ class DHTRecord:
     ):
         """
         Initialize a DHT record.
-        
+
         Args:
             key: The record key
             value: The record value
@@ -60,7 +60,7 @@ class DHTRecord:
         self.timestamp = timestamp or time.time()
         self.signature = signature
         self.publisher = publisher
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert record to a dictionary."""
         result = {
@@ -68,21 +68,21 @@ class DHTRecord:
             "value": base64.b64encode(self.value).decode("utf-8"),
             "timestamp": self.timestamp,
         }
-        
+
         if self.signature:
             result["signature"] = base64.b64encode(self.signature).decode("utf-8")
-        
+
         if self.publisher:
             result["publisher"] = self.publisher
-        
+
         return result
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DHTRecord":
         """Create a record from a dictionary."""
         value = base64.b64decode(data["value"])
         signature = base64.b64decode(data["signature"]) if "signature" in data else None
-        
+
         return cls(
             key=data["key"],
             value=value,
@@ -94,25 +94,25 @@ class DHTRecord:
 class DHTOperations:
     """
     Enhanced DHT Operations for IPFS networking.
-    
-    This class provides advanced Distributed Hash Table (DHT) operations, 
+
+    This class provides advanced Distributed Hash Table (DHT) operations,
     enabling sophisticated network participation and content discovery in IPFS.
     """
-    
+
     def __init__(self, connection_pool=None, config: Optional[Dict[str, Any]] = None):
         """
         Initialize DHT operations with the specified configuration.
-        
+
         Args:
             connection_pool: Optional connection pool to use
             config: Configuration options for DHT operations
         """
         self.config = config or {}
         self.connection_pool = connection_pool or get_connection_pool()
-        
+
         # Default timeout for DHT operations
         self.default_timeout = self.config.get("timeout", 30)
-        
+
         # DHT performance metrics
         self.performance_metrics = {
             "put_value": {"count": 0, "total_time": 0, "avg_time": 0, "success_rate": 1.0},
@@ -123,11 +123,11 @@ class DHTOperations:
             "query": {"count": 0, "total_time": 0, "avg_time": 0, "success_rate": 1.0},
             "routing_table": {"count": 0, "total_time": 0, "avg_time": 0, "success_rate": 1.0},
         }
-    
+
     def _update_metrics(self, operation: str, duration: float, success: bool) -> None:
         """
         Update performance metrics for an operation.
-        
+
         Args:
             operation: The operation name
             duration: The operation duration in seconds
@@ -138,14 +138,14 @@ class DHTOperations:
             metrics["count"] += 1
             metrics["total_time"] += duration
             metrics["avg_time"] = metrics["total_time"] / metrics["count"]
-            
+
             # Update success rate using exponential moving average
             alpha = 0.1  # Weight for new observations
             metrics["success_rate"] = (
-                (1 - alpha) * metrics["success_rate"] + 
+                (1 - alpha) * metrics["success_rate"] +
                 alpha * (1.0 if success else 0.0)
             )
-    
+
     def put_value(
         self,
         key: str,
@@ -154,51 +154,51 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Store a value in the DHT.
-        
-        This creates or updates a record in the IPFS DHT which can be 
+
+        This creates or updates a record in the IPFS DHT which can be
         retrieved by other peers using the same key.
-        
+
         Args:
             key: The key to store the value under
             value: The value to store
             options: Additional options for the put operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         timeout = options.get("timeout", self.default_timeout)
         start_time = time.time()
-        
+
         # Ensure value is bytes
         if isinstance(value, str):
             value = value.encode("utf-8")
-        
+
         # Create the request body
         params = {
             "arg": key,
             "timeout": str(timeout),
         }
-        
+
         files = {
             "value": ("data", value),
         }
-        
+
         # Add optional parameters
         if "verify" in options:
             params["verify"] = "true" if options["verify"] else "false"
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dht/put", params=params, files=files)
             response_json = response.json()
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("put_value", duration, success)
-            
+
             if success:
                 return {
                     "success": True,
@@ -214,11 +214,11 @@ class DHTOperations:
                     "details": response_json,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("put_value", duration, False)
-            
+
             return {
                 "success": False,
                 "key": key,
@@ -226,7 +226,7 @@ class DHTOperations:
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     def get_value(
         self,
         key: str,
@@ -234,43 +234,43 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Retrieve a value from the DHT.
-        
+
         This gets a record from the IPFS DHT by its key.
-        
+
         Args:
             key: The key to retrieve the value for
             options: Additional options for the get operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         timeout = options.get("timeout", self.default_timeout)
         start_time = time.time()
-        
+
         # Create the request parameters
         params = {
             "arg": key,
             "timeout": str(timeout),
         }
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dht/get", params=params)
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("get_value", duration, success)
-            
+
             if success:
                 response_json = response.json()
-                
+
                 # Extract the value from the responses
                 value = None
                 responses = response_json if isinstance(response_json, list) else [response_json]
-                
+
                 for resp in responses:
                     if resp.get("Type") == 5 and "Extra" in resp:  # Type 5 is VALUE
                         try:
@@ -278,7 +278,7 @@ class DHTOperations:
                             break
                         except:
                             pass
-                
+
                 return {
                     "success": True,
                     "key": key,
@@ -294,11 +294,11 @@ class DHTOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("get_value", duration, False)
-            
+
             return {
                 "success": False,
                 "key": key,
@@ -306,7 +306,7 @@ class DHTOperations:
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     def provide(
         self,
         cid: str,
@@ -315,39 +315,39 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Announce to the network that we are providing the content with the given CID.
-        
+
         Args:
             cid: The CID to announce as a provider for
             recursive: Whether to recursively provide the entire DAG
             options: Additional options for the provide operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         timeout = options.get("timeout", self.default_timeout)
         start_time = time.time()
-        
+
         # Create the request parameters
         params = {
             "arg": cid,
             "recursive": "true" if recursive else "false",
             "timeout": str(timeout),
         }
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dht/provide", params=params)
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("provide", duration, success)
-            
+
             if success:
                 response_json = response.json()
-                
+
                 return {
                     "success": True,
                     "cid": cid,
@@ -363,11 +363,11 @@ class DHTOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("provide", duration, False)
-            
+
             return {
                 "success": False,
                 "cid": cid,
@@ -375,7 +375,7 @@ class DHTOperations:
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     def find_providers(
         self,
         cid: str,
@@ -384,43 +384,43 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Find peers that are providing the content with the given CID.
-        
+
         Args:
             cid: The CID to find providers for
             num_providers: Maximum number of providers to find
             options: Additional options for the find providers operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         timeout = options.get("timeout", self.default_timeout)
         start_time = time.time()
-        
+
         # Create the request parameters
         params = {
             "arg": cid,
             "num-providers": str(num_providers),
             "timeout": str(timeout),
         }
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dht/findprovs", params=params)
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("find_providers", duration, success)
-            
+
             if success:
                 response_json = response.json()
-                
+
                 # Extract provider information
                 providers = []
                 responses = response_json if isinstance(response_json, list) else [response_json]
-                
+
                 for resp in responses:
                     if resp.get("Type") == 4 and "Responses" in resp:  # Type 4 is PROVIDER
                         for provider in resp["Responses"]:
@@ -428,7 +428,7 @@ class DHTOperations:
                                 "id": provider.get("ID"),
                                 "addresses": provider.get("Addrs", []),
                             })
-                
+
                 return {
                     "success": True,
                     "cid": cid,
@@ -445,11 +445,11 @@ class DHTOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("find_providers", duration, False)
-            
+
             return {
                 "success": False,
                 "cid": cid,
@@ -457,7 +457,7 @@ class DHTOperations:
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     def find_peer(
         self,
         peer_id: str,
@@ -465,47 +465,47 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Find information about a peer by its ID.
-        
+
         Args:
             peer_id: The ID of the peer to find
             options: Additional options for the find peer operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         timeout = options.get("timeout", self.default_timeout)
         start_time = time.time()
-        
+
         # Create the request parameters
         params = {
             "arg": peer_id,
             "timeout": str(timeout),
         }
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dht/findpeer", params=params)
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("find_peer", duration, success)
-            
+
             if success:
                 response_json = response.json()
-                
+
                 # Extract peer information
                 addresses = []
                 responses = response_json if isinstance(response_json, list) else [response_json]
-                
+
                 for resp in responses:
                     if resp.get("Type") == 2 and "Responses" in resp:  # Type 2 is PEER_RESPONSE
                         for peer in resp["Responses"]:
                             if peer.get("ID") == peer_id:
                                 addresses.extend(peer.get("Addrs", []))
-                
+
                 return {
                     "success": True,
                     "peer_id": peer_id,
@@ -521,11 +521,11 @@ class DHTOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("find_peer", duration, False)
-            
+
             return {
                 "success": False,
                 "peer_id": peer_id,
@@ -533,7 +533,7 @@ class DHTOperations:
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     def query(
         self,
         peer_id: str,
@@ -541,37 +541,37 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Find the closest peers to a given peer ID in the DHT.
-        
+
         Args:
             peer_id: The peer ID to query for
             options: Additional options for the query operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         timeout = options.get("timeout", self.default_timeout)
         start_time = time.time()
-        
+
         # Create the request parameters
         params = {
             "arg": peer_id,
             "timeout": str(timeout),
         }
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("dht/query", params=params)
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("query", duration, success)
-            
+
             if success:
                 response_json = response.json()
-                
+
                 return {
                     "success": True,
                     "peer_id": peer_id,
@@ -586,11 +586,11 @@ class DHTOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("query", duration, False)
-            
+
             return {
                 "success": False,
                 "peer_id": peer_id,
@@ -598,39 +598,39 @@ class DHTOperations:
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     def get_routing_table(
         self,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Get the local node's DHT routing table.
-        
+
         The routing table contains information about the peers that the local node
         knows about and uses for DHT operations.
-        
+
         Args:
             options: Additional options for the operation
-            
+
         Returns:
             Dictionary with operation results
         """
         options = options or {}
         start_time = time.time()
-        
+
         try:
             # Call the IPFS API
             response = self.connection_pool.post("routing/dht/table")
-            
+
             success = response.status_code == 200
-            
+
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("routing_table", duration, success)
-            
+
             if success:
                 routing_table = response.json()
-                
+
                 # Process the routing table
                 peers_info = []
                 if isinstance(routing_table, dict) and "Buckets" in routing_table:
@@ -642,7 +642,7 @@ class DHTOperations:
                                 "agent_version": peer.get("AgentVersion"),
                                 "last_useful_at": peer.get("LastUsefulAt"),
                             })
-                
+
                 return {
                     "success": True,
                     "peers": peers_info,
@@ -657,18 +657,18 @@ class DHTOperations:
                     "details": response.text,
                     "duration": duration,
                 }
-                
+
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("routing_table", duration, False)
-            
+
             return {
                 "success": False,
                 "error": f"Error getting DHT routing table: {str(e)}",
                 "exception": str(e),
                 "duration": duration,
             }
-    
+
     async def discover_peers_async(
         self,
         bootstrap_peers: Optional[List[str]] = None,
@@ -677,17 +677,17 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Asynchronously discover peers in the IPFS network.
-        
+
         This performs an iterative peer discovery by:
         1. Starting with bootstrap peers
         2. Finding closest peers to a random ID
         3. Querying each discovered peer to find more peers
-        
+
         Args:
             bootstrap_peers: Initial peers to start discovery from
             max_peers: Maximum number of peers to discover
             timeout: Maximum time for discovery in seconds
-            
+
         Returns:
             Dictionary with discovered peers information
         """
@@ -702,20 +702,20 @@ class DHTOperations:
                     bootstrap_peers = []
             except Exception:
                 bootstrap_peers = []
-        
+
         # Set of discovered peer IDs
         discovered_peers: Set[str] = set()
-        
+
         # Details for each discovered peer
         peer_details: Dict[str, Dict[str, Any]] = {}
-        
+
         # Peers to process
         peers_to_process: List[str] = []
-        
+
         # Create a random peer ID to query for
         random_bytes = hashlib.sha256(str(time.time()).encode()).digest()
         query_id = base64.b32encode(random_bytes).decode().lower()[:44]
-        
+
         # Start with a DHT query for a random ID to find initial peers
         result = self.query(query_id)
         if result["success"]:
@@ -733,7 +733,7 @@ class DHTOperations:
                                     "source": "initial_query",
                                 }
                                 peers_to_process.append(peer_id)
-        
+
         # Add bootstrap peers if we didn't get enough
         if len(peers_to_process) < 5 and bootstrap_peers:
             # Extract peer IDs from bootstrap multiaddresses
@@ -749,26 +749,26 @@ class DHTOperations:
                             "source": "bootstrap",
                         }
                         peers_to_process.append(peer_id)
-        
+
         # Start discovery with timeout
         start_time = time.time()
-        
+
         async def discover_from_peer(peer_id: str):
             """Discover peers from a specific peer."""
             if len(discovered_peers) >= max_peers:
                 return
-            
+
             if time.time() - start_time > timeout:
                 return
-            
+
             # Query for peers close to this peer
             result = self.query(peer_id)
             if not result["success"]:
                 return
-            
+
             responses = result.get("responses", [])
             new_peers = []
-            
+
             if isinstance(responses, list):
                 for resp in responses:
                     if "Responses" in resp:
@@ -782,22 +782,22 @@ class DHTOperations:
                                     "source": f"from_{peer_id[:8]}",
                                 }
                                 new_peers.append(new_peer_id)
-                                
+
                                 if len(discovered_peers) >= max_peers:
                                     return
-            
+
             # Process some of the new peers
             for new_peer_id in new_peers[:3]:  # Limit breadth of search
                 await discover_from_peer(new_peer_id)
-        
+
         # Start processing peers
         tasks = []
         for peer_id in peers_to_process[:5]:  # Start with a few peers
             tasks.append(discover_from_peer(peer_id))
-        
+
         if tasks:
             await asyncio.gather(*tasks)
-        
+
         # Return results
         return {
             "success": True,
@@ -806,7 +806,7 @@ class DHTOperations:
             "count": len(discovered_peers),
             "duration": time.time() - start_time,
         }
-    
+
     def discover_peers(
         self,
         bootstrap_peers: Optional[List[str]] = None,
@@ -815,12 +815,12 @@ class DHTOperations:
     ) -> Dict[str, Any]:
         """
         Discover peers in the IPFS network (synchronous wrapper).
-        
+
         Args:
             bootstrap_peers: Initial peers to start discovery from
             max_peers: Maximum number of peers to discover
             timeout: Maximum time for discovery in seconds
-            
+
         Returns:
             Dictionary with discovered peers information
         """
@@ -839,33 +839,33 @@ class DHTOperations:
                 "error": f"Error discovering peers: {str(e)}",
                 "exception": str(e),
             }
-    
+
     def get_network_diagnostics(
         self,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Get comprehensive diagnostics about the local node's DHT networking.
-        
+
         This collects information about the DHT routing table, peer connections,
         and network performance metrics.
-        
+
         Args:
             options: Additional options for the diagnostics
-            
+
         Returns:
             Dictionary with diagnostic information
         """
         options = options or {}
         start_time = time.time()
-        
+
         diagnostics = {
             "routing_table": None,
             "swarm_peers": None,
             "bootstrap_list": None,
             "dht_performance": self.performance_metrics,
         }
-        
+
         # Get routing table
         routing_result = self.get_routing_table()
         if routing_result["success"]:
@@ -873,7 +873,7 @@ class DHTOperations:
                 "peer_count": routing_result.get("count", 0),
                 "peers": routing_result.get("peers", []),
             }
-        
+
         # Get connected peers
         try:
             response = self.connection_pool.post("swarm/peers")
@@ -898,7 +898,7 @@ class DHTOperations:
                     }
         except Exception as e:
             diagnostics["swarm_peers_error"] = str(e)
-        
+
         # Get bootstrap list
         try:
             response = self.connection_pool.post("bootstrap/list")
@@ -910,17 +910,17 @@ class DHTOperations:
                 }
         except Exception as e:
             diagnostics["bootstrap_list_error"] = str(e)
-        
+
         return {
             "success": True,
             "diagnostics": diagnostics,
             "duration": time.time() - start_time,
         }
-    
+
     def get_metrics(self) -> Dict[str, Any]:
         """
         Get performance metrics for DHT operations.
-        
+
         Returns:
             Dictionary with performance metrics
         """

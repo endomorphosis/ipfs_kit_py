@@ -32,7 +32,7 @@ def find_mcp_settings():
         # For VS Code Insiders on macOS
         os.path.expanduser("~/Library/Application Support/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
     ]
-    
+
     # Also try to find by globbing
     try:
         home = os.path.expanduser("~")
@@ -43,7 +43,7 @@ def find_mcp_settings():
             possible_paths.extend(glob.glob(pattern))
     except Exception as e:
         logger.warning(f"Error searching for settings files: {e}")
-    
+
     found_paths = [p for p in possible_paths if os.path.exists(p)]
     return found_paths
 
@@ -61,11 +61,11 @@ def fix_mcp_settings(settings_path):
         logger.info(f"Settings file {settings_path} not found, creating new settings")
         # Create default settings
         settings = {"mcpServers": {}}
-    
+
     # Check if mcpServers exists and ensure it's a dictionary
     if "mcpServers" not in settings:
         settings["mcpServers"] = {}
-    
+
     # Handle case where mcpServers is a list instead of a dict
     if isinstance(settings["mcpServers"], list):
         logger.warning("mcpServers is a list, converting to dictionary")
@@ -78,14 +78,14 @@ def fix_mcp_settings(settings_path):
                 # If there's no name, generate a unique key
                 converted[f"server_{id(server)}"] = server
         settings["mcpServers"] = converted if converted else {"ipfs-kit-mcp": {}}
-    
+
     # Find the first MCP server or create one
     server_key = next(iter(settings["mcpServers"].keys()), "ipfs-kit-mcp")
     if server_key not in settings["mcpServers"]:
         settings["mcpServers"][server_key] = {}
-    
+
     server_config = settings["mcpServers"][server_key]
-    
+
     # Update configuration with required fields
     server_config.update({
         "disabled": False,
@@ -94,11 +94,11 @@ def fix_mcp_settings(settings_path):
         "transportType": "sse",
         "jsonRpcUrl": "http://localhost:9994/api/v0/jsonrpc"
     })
-    
+
     # Write updated settings back
     with open(settings_path, 'w') as f:
         json.dump(settings, f, indent=2)
-    
+
     logger.info(f"Updated MCP settings at {settings_path}")
     return True
 
@@ -107,10 +107,10 @@ def restart_mcp_server():
     try:
         # Stop existing processes
         subprocess.run(["pkill", "-f", "enhanced_mcp_server_fixed.py"], stderr=subprocess.DEVNULL)
-        
+
         # Start enhanced MCP server
         subprocess.Popen(["python", "./enhanced_mcp_server_fixed.py", "--port", "9994", "--api-prefix", "/api/v0"])
-        
+
         logger.info("Restarted MCP server")
         return True
     except Exception as e:
@@ -121,25 +121,25 @@ def main():
     """Main function."""
     print("🔍 Searching for VS Code MCP settings files...")
     settings_paths = find_mcp_settings()
-    
+
     if not settings_paths:
         logger.warning("No existing MCP settings files found, creating a new one")
         # Create default path
         settings_paths = [os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json")]
-        
+
         # Ensure directory exists
         os.makedirs(os.path.dirname(settings_paths[0]), exist_ok=True)
-    
+
     success = False
     for path in settings_paths:
         print(f"🔧 Fixing MCP settings at {path}")
         if fix_mcp_settings(path):
             success = True
-    
+
     if success:
         print("🔄 Restarting MCP server...")
         restart_mcp_server()
-        
+
         print("\n✅ VS Code MCP connection fixed successfully!")
         print("   Please reload VS Code or restart the extension host to apply changes.")
     else:

@@ -107,10 +107,10 @@ def make_mock_request(method, url, **kwargs):
     """Make a mock request that returns appropriate mock responses."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    
+
     # Extract endpoint from URL
     endpoint = url.replace(TEST_SERVER_URL, "").replace(TEST_API_PREFIX, "")
-    
+
     # Set response based on endpoint
     if endpoint == "/health":
         mock_response.json.return_value = MOCK_RESPONSES["health"]
@@ -144,7 +144,7 @@ def make_mock_request(method, url, **kwargs):
     else:
         # Default response
         mock_response.json.return_value = {"success": True}
-    
+
     return mock_response
 
 # Tests for MCP server functionality
@@ -157,18 +157,18 @@ def test_server_health():
     data = response.json()
     assert data["success"], "Health check reported failure"
     assert data["status"] in ["healthy", "degraded"], "Invalid health status"
-    
+
     # Check IPFS daemon status
     assert "ipfs_daemon_running" in data, "Health check missing IPFS daemon status"
-    
+
     # Check storage backends
     assert "storage_backends" in data, "Health check missing storage backends info"
     assert "ipfs" in data["storage_backends"], "IPFS backend not found"
-    
+
     # Log the health status for debugging
     print(f"Server health status: {data['status']}")
     print(f"IPFS daemon running: {data['ipfs_daemon_running']}")
-    
+
     return True
 
 def test_storage_health():
@@ -178,15 +178,15 @@ def test_storage_health():
     assert response.status_code == 200, "Storage health endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "Storage health check reported failure"
-    
+
     # Check storage backends
     assert "components" in data, "Storage health check missing components info"
     assert "ipfs" in data["components"], "IPFS component not found"
-    
+
     # Log the storage health for debugging
     print(f"Storage health mode: {data.get('mode', 'unknown')}")
     print(f"Overall status: {data.get('overall_status', 'unknown')}")
-    
+
     return True
 
 def test_ipfs_version():
@@ -198,10 +198,10 @@ def test_ipfs_version():
     assert data["success"], "IPFS version check reported failure"
     assert "version" in data, "Version information missing from response"
     assert "ipfs version" in data["version"], "Invalid version string format"
-    
+
     # Log the version for debugging
     print(f"IPFS version: {data['version']}")
-    
+
     return True
 
 def test_ipfs_add_and_cat():
@@ -209,24 +209,24 @@ def test_ipfs_add_and_cat():
     print("Testing IPFS add and cat...")
     # Test add
     response = make_mock_request("post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files={"file": "mock_file"})
-    
+
     assert response.status_code == 200, "IPFS add endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS add reported failure"
     assert "cid" in data, "CID missing from response"
-    
+
     # Store the CID for the cat test
     cid = data["cid"]
     print(f"Added content with CID: {cid}")
-    
+
     # Test cat
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/cat/{cid}")
     assert response.status_code == 200, "IPFS cat endpoint returned non-200 status"
     retrieved_content = response.content
-    
+
     assert retrieved_content, "Retrieved content is empty"
     print(f"Successfully retrieved content from IPFS")
-    
+
     return True
 
 def test_ipfs_pin_operations():
@@ -242,16 +242,16 @@ def test_ipfs_pin_operations():
     data = response.json()
     assert data["success"], "IPFS pin add reported failure"
     assert data["pinned"], "Content was not pinned"
-    
+
     # Test pin list
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/pin/ls")
     assert response.status_code == 200, "IPFS pin list endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS pin list reported failure"
     assert "pins" in data, "Pins missing from response"
-    
+
     print(f"Successfully tested IPFS pin operations")
-    
+
     return True
 
 def test_ipfs_object_operations():
@@ -263,15 +263,15 @@ def test_ipfs_object_operations():
         f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/object/new",
         data={"template": "unixfs-dir"}
     )
-    
+
     assert response.status_code == 200, "IPFS object new endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS object new reported failure"
     assert "cid" in data, "CID missing from response"
-    
+
     dir_cid = data["cid"]
     print(f"Created new directory object with CID: {dir_cid}")
-    
+
     # Test object links
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/object/links/{dir_cid}")
     assert response.status_code == 200, "IPFS object links endpoint returned non-200 status"
@@ -280,7 +280,7 @@ def test_ipfs_object_operations():
     assert "links" in data, "Links missing from response"
     assert isinstance(data["links"], list), "Links should be a list"
     print(f"Directory object has {len(data['links'])} links")
-    
+
     return True
 
 def test_ipfs_dag_operations():
@@ -292,7 +292,7 @@ def test_ipfs_dag_operations():
         "content": test_content,
         "timestamp": time.time()
     })
-    
+
     # Test DAG put
     response = make_mock_request(
         "post",
@@ -303,81 +303,81 @@ def test_ipfs_dag_operations():
             "store_codec": "dag-cbor"
         }
     )
-    
+
     assert response.status_code == 200, "IPFS DAG put endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS DAG put reported failure"
     assert "cid" in data, "CID missing from response"
-    
+
     dag_cid = data["cid"]
     print(f"Added DAG node with CID: {dag_cid}")
-    
+
     # Test DAG get
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/dag/get/{dag_cid}")
     assert response.status_code == 200, "IPFS DAG get endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS DAG get reported failure"
     assert "data" in data, "Data missing from response"
-    
+
     print(f"Successfully tested IPFS DAG operations")
-    
+
     return True
 
 def test_storage_status_endpoints():
     """Test all storage backend status endpoints."""
     print("Testing storage backend status endpoints...")
-    
+
     # Test HuggingFace status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/huggingface/status")
     assert response.status_code == 200, "HuggingFace status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "HuggingFace backend should be available"
     print(f"HuggingFace status: available={data['available']}, simulation={data.get('simulation', False)}")
-    
+
     # Test S3 status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/s3/status")
     assert response.status_code == 200, "S3 status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "S3 backend should be available"
     print(f"S3 status: available={data['available']}, simulation={data.get('simulation', False)}")
-    
+
     # Test Filecoin status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/filecoin/status")
     assert response.status_code == 200, "Filecoin status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "Filecoin backend should be available"
     print(f"Filecoin status: available={data['available']}, simulation={data.get('simulation', False)}")
-    
+
     # Test Storacha status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/storacha/status")
     assert response.status_code == 200, "Storacha status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "Storacha backend should be available"
     print(f"Storacha status: available={data['available']}, simulation={data.get('simulation', False)}")
-    
+
     # Test Lassie status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/lassie/status")
     assert response.status_code == 200, "Lassie status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "Lassie backend should be available"
     print(f"Lassie status: available={data['available']}, simulation={data.get('simulation', False)}")
-    
+
     return True
 
 def test_error_handling():
     """Test error handling in the MCP server."""
     print("Testing error handling...")
-    
+
     # Test invalid CID
     mock_response = MagicMock()
     mock_response.status_code = 404
     mock_response.json.return_value = {"detail": "Invalid CID format"}
-    
+
     # Verify error response format
     data = mock_response.json()
     assert "detail" in data, "Error response missing 'detail' field"
     print(f"Error response for invalid CID: {data}")
-    
+
     # Test missing required parameter
     mock_response = MagicMock()
     mock_response.status_code = 422
@@ -390,12 +390,12 @@ def test_error_handling():
             }
         ]
     }
-    
+
     # Verify error response format
     data = mock_response.json()
     assert "detail" in data, "Error response missing 'detail' field"
     print(f"Error response for missing param: {data}")
-    
+
     return True
 
 def main():
@@ -404,7 +404,7 @@ def main():
     print("Running MCP Server Tests with Mock Framework")
     print("="*60)
     print(f"Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    
+
     try:
         # Tests to run (in order)
         tests = [
@@ -418,7 +418,7 @@ def main():
             ("Storage Status Endpoints", test_storage_status_endpoints),
             ("Error Handling", test_error_handling),
         ]
-        
+
         # Run all tests and track results
         results = {
             'total': len(tests),
@@ -426,12 +426,12 @@ def main():
             'failed': 0,
             'failures': []
         }
-        
+
         for test_name, test_func in tests:
             print("\n" + "-"*60)
             print(f"Running test: {test_name}")
             print("-"*60)
-            
+
             try:
                 result = test_func()
                 if result:
@@ -448,7 +448,7 @@ def main():
                 traceback.print_exc()
                 results['failed'] += 1
                 results['failures'].append(f"{test_name} ({str(e)})")
-        
+
         # Print summary
         print("\n\n" + "="*60)
         print("Test Summary")
@@ -456,17 +456,17 @@ def main():
         print(f"Total tests: {results['total']}")
         print(f"Passed: {results['passed']}")
         print(f"Failed: {results['failed']}")
-        
+
         if results['failures']:
             print("\nFailed tests:")
             for failure in results['failures']:
                 print(f"  - {failure}")
         else:
             print("\nAll tests passed! ✨ 🎉 ✨")
-        
+
         # Exit with appropriate code
         return 0 if results['failed'] == 0 else 1
-        
+
     finally:
         # Clean up temporary directory
         shutil.rmtree(temp_dir)

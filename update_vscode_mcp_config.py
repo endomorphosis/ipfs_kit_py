@@ -255,7 +255,7 @@ def update_vscode_mcp_config():
     try:
         # Ensure the configuration directory exists
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-        
+
         # Load existing configuration if it exists
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH, 'r') as f:
@@ -268,21 +268,21 @@ def update_vscode_mcp_config():
         else:
             logger.info(f"No existing configuration found at {CONFIG_PATH}, creating a new one")
             config = {"servers": []}
-        
+
         # Remove any existing IPFS MCP server configuration
         config["servers"] = [s for s in config.get("servers", []) if s.get("name") != "ipfs-mcp-server"]
-        
+
         # Add the new IPFS MCP server configuration
         config["servers"].append(IPFS_MCP_CONFIG)
-        
+
         # Save the updated configuration
         with open(CONFIG_PATH, 'w') as f:
             json.dump(config, f, indent=2)
             logger.info(f"Updated configuration saved to {CONFIG_PATH}")
-        
+
         logger.info("VS Code MCP configuration updated successfully")
         logger.info(f"The IPFS MCP server is now registered with {len(IPFS_MCP_CONFIG['tools'])} tools")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error updating VS Code MCP configuration: {e}")

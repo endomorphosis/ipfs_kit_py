@@ -18,18 +18,18 @@ logger = logging.getLogger(__name__)
 def install_w3_cli():
     """Install W3 CLI tool for Storacha integration."""
     logger.info("Installing W3 CLI tool...")
-    
+
     try:
         # Check if npm is available
         subprocess.run(["npm", "--version"], check=True, capture_output=True)
-        
+
         # Install W3 CLI globally
         result = subprocess.run(
             ["npm", "install", "-g", "@web3-storage/w3cli"],
             check=True,
             capture_output=True
         )
-        
+
         logger.info("W3 CLI installation completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -43,7 +43,7 @@ def install_w3_cli():
 def install_storacha_dependencies():
     """Install Python dependencies for Storacha integration."""
     logger.info("Installing Storacha Python dependencies...")
-    
+
     try:
         # Install dependencies using pip
         requirements = [
@@ -52,14 +52,14 @@ def install_storacha_dependencies():
             "pydantic>=1.9.0",
             "anyio>=3.6.1"
         ]
-        
+
         for req in requirements:
             subprocess.run(
                 [sys.executable, "-m", "pip", "install", req],
                 check=True,
                 capture_output=True
             )
-        
+
         logger.info("Storacha Python dependencies installed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -73,10 +73,10 @@ def install_storacha_dependencies():
 def main():
     """Main function to install all Storacha dependencies."""
     logger.info("Starting Storacha dependency installation...")
-    
+
     py_deps_success = install_storacha_dependencies()
     w3_cli_success = install_w3_cli()
-    
+
     if py_deps_success and w3_cli_success:
         logger.info("All Storacha dependencies installed successfully")
         return 0
@@ -91,5 +91,5 @@ if __name__ == "__main__":
         format="%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
         datefmt="%H:%M:%S"
     )
-    
+
     sys.exit(main())

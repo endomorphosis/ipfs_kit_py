@@ -16,15 +16,15 @@ logger = logging.getLogger("ipfs_kit_cli.fs_journal")
 def register_fs_journal_commands(subparsers):
     """
     Register filesystem journal commands with the CLI.
-    
+
     Args:
         subparsers: Subparser group to add commands to
     """
     logger.debug("Registering filesystem journal commands")
-    
+
     # Add top-level fs-journal command
     fs_journal_parser = subparsers.add_parser(
-        "fs-journal", 
+        "fs-journal",
         help="Filesystem journal commands for transaction safety"
     )
     fs_journal_subparsers = fs_journal_parser.add_subparsers(
@@ -32,230 +32,230 @@ def register_fs_journal_commands(subparsers):
         help="Filesystem journal subcommand",
         required=True
     )
-    
+
     # Enable command
     enable_parser = fs_journal_subparsers.add_parser(
-        "enable", 
+        "enable",
         help="Enable filesystem journaling"
     )
     enable_parser.add_argument(
-        "--journal-path", 
-        type=str, 
+        "--journal-path",
+        type=str,
         help="Path to store journal files"
     )
     enable_parser.add_argument(
-        "--checkpoint-interval", 
-        type=int, 
-        default=50, 
+        "--checkpoint-interval",
+        type=int,
+        default=50,
         help="Number of operations between checkpoints"
     )
     enable_parser.add_argument(
-        "--wal-enabled", 
-        action="store_true", 
+        "--wal-enabled",
+        action="store_true",
         help="Enable Write-Ahead Log integration"
     )
     enable_parser.set_defaults(func=handle_fs_journal_enable)
-    
+
     # Status command
     status_parser = fs_journal_subparsers.add_parser(
-        "status", 
+        "status",
         help="Get filesystem journal status"
     )
     status_parser.set_defaults(func=handle_fs_journal_status)
-    
+
     # List transactions command
     list_parser = fs_journal_subparsers.add_parser(
-        "list", 
+        "list",
         help="List journal transactions"
     )
     list_parser.add_argument(
-        "--status", 
-        type=str, 
+        "--status",
+        type=str,
         choices=["pending", "completed", "failed", "all"],
-        default="all", 
+        default="all",
         help="Filter by transaction status"
     )
     list_parser.add_argument(
-        "--limit", 
-        type=int, 
-        default=10, 
+        "--limit",
+        type=int,
+        default=10,
         help="Maximum number of transactions to list"
     )
     list_parser.set_defaults(func=handle_fs_journal_list)
-    
+
     # Create checkpoint command
     checkpoint_parser = fs_journal_subparsers.add_parser(
-        "checkpoint", 
+        "checkpoint",
         help="Create a filesystem checkpoint"
     )
     checkpoint_parser.set_defaults(func=handle_fs_journal_checkpoint)
-    
+
     # Recover command
     recover_parser = fs_journal_subparsers.add_parser(
-        "recover", 
+        "recover",
         help="Recover from journal to a consistent state"
     )
     recover_parser.add_argument(
-        "--checkpoint-id", 
-        type=str, 
+        "--checkpoint-id",
+        type=str,
         help="Specific checkpoint ID to recover from"
     )
     recover_parser.set_defaults(func=handle_fs_journal_recover)
-    
+
     # Mount command
     mount_parser = fs_journal_subparsers.add_parser(
-        "mount", 
+        "mount",
         help="Mount a CID at a virtual path"
     )
     mount_parser.add_argument(
-        "cid", 
-        type=str, 
+        "cid",
+        type=str,
         help="CID to mount"
     )
     mount_parser.add_argument(
-        "path", 
-        type=str, 
+        "path",
+        type=str,
         help="Virtual path to mount at"
     )
     mount_parser.set_defaults(func=handle_fs_journal_mount)
-    
+
     # Create directory command
     mkdir_parser = fs_journal_subparsers.add_parser(
-        "mkdir", 
+        "mkdir",
         help="Create a directory in the virtual filesystem"
     )
     mkdir_parser.add_argument(
-        "path", 
-        type=str, 
+        "path",
+        type=str,
         help="Path to create"
     )
     mkdir_parser.add_argument(
-        "--parents", 
-        "-p", 
-        action="store_true", 
+        "--parents",
+        "-p",
+        action="store_true",
         help="Create parent directories as needed"
     )
     mkdir_parser.set_defaults(func=handle_fs_journal_mkdir)
-    
+
     # Write file command
     write_parser = fs_journal_subparsers.add_parser(
-        "write", 
+        "write",
         help="Write content to a file in the virtual filesystem"
     )
     write_parser.add_argument(
-        "path", 
-        type=str, 
+        "path",
+        type=str,
         help="Path to write to"
     )
     write_parser.add_argument(
-        "--content", 
-        type=str, 
+        "--content",
+        type=str,
         help="Content to write (string)"
     )
     write_parser.add_argument(
-        "--file", 
-        type=str, 
+        "--file",
+        type=str,
         help="File to read content from"
     )
     write_parser.set_defaults(func=handle_fs_journal_write)
-    
+
     # Read file command
     read_parser = fs_journal_subparsers.add_parser(
-        "read", 
+        "read",
         help="Read a file from the virtual filesystem"
     )
     read_parser.add_argument(
-        "path", 
-        type=str, 
+        "path",
+        type=str,
         help="Path to read"
     )
     read_parser.add_argument(
-        "--output", 
-        type=str, 
+        "--output",
+        type=str,
         help="Output file (if not specified, prints to stdout)"
     )
     read_parser.set_defaults(func=handle_fs_journal_read)
-    
+
     # Remove command
     rm_parser = fs_journal_subparsers.add_parser(
-        "rm", 
+        "rm",
         help="Remove a file or directory from the virtual filesystem"
     )
     rm_parser.add_argument(
-        "path", 
-        type=str, 
+        "path",
+        type=str,
         help="Path to remove"
     )
     rm_parser.add_argument(
-        "--recursive", 
-        "-r", 
-        action="store_true", 
+        "--recursive",
+        "-r",
+        action="store_true",
         help="Remove directories recursively"
     )
     rm_parser.set_defaults(func=handle_fs_journal_rm)
-    
+
     # Move/rename command
     mv_parser = fs_journal_subparsers.add_parser(
-        "mv", 
+        "mv",
         help="Move or rename a file or directory"
     )
     mv_parser.add_argument(
-        "source", 
-        type=str, 
+        "source",
+        type=str,
         help="Source path"
     )
     mv_parser.add_argument(
-        "destination", 
-        type=str, 
+        "destination",
+        type=str,
         help="Destination path"
     )
     mv_parser.set_defaults(func=handle_fs_journal_mv)
-    
+
     # List files command (separate from IPFS ls)
     ls_parser = fs_journal_subparsers.add_parser(
-        "ls", 
+        "ls",
         help="List files in the virtual filesystem"
     )
     ls_parser.add_argument(
-        "path", 
-        type=str, 
+        "path",
+        type=str,
         nargs="?",
         default="/",
         help="Path to list (defaults to root)"
     )
     ls_parser.add_argument(
-        "--recursive", 
-        "-r", 
-        action="store_true", 
+        "--recursive",
+        "-r",
+        action="store_true",
         help="List recursively"
     )
     ls_parser.set_defaults(func=handle_fs_journal_ls)
-    
+
     # Export filesystem to CID command
     export_parser = fs_journal_subparsers.add_parser(
-        "export", 
+        "export",
         help="Export virtual filesystem to a CID"
     )
     export_parser.add_argument(
-        "--path", 
-        type=str, 
+        "--path",
+        type=str,
         default="/",
         help="Path to export (defaults to root)"
     )
     export_parser.set_defaults(func=handle_fs_journal_export)
-    
+
     logger.debug("Filesystem journal commands registered")
 
 
 def handle_fs_journal_enable(api, args, kwargs):
     """
     Handle the 'fs-journal enable' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -264,7 +264,7 @@ def handle_fs_journal_enable(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not supported in this version"
         }
-    
+
     # Extract options from args
     options = {}
     if hasattr(args, "journal_path") and args.journal_path:
@@ -273,13 +273,13 @@ def handle_fs_journal_enable(api, args, kwargs):
         options["checkpoint_interval"] = args.checkpoint_interval
     if hasattr(args, "wal_enabled") and args.wal_enabled:
         options["wal_enabled"] = args.wal_enabled
-    
+
     # Update with any additional kwargs
     options.update(kwargs)
-    
+
     # Enable journaling
     result = api.enable_filesystem_journaling(**options)
-    
+
     return {
         "success": True,
         "message": "Filesystem journaling enabled",
@@ -291,12 +291,12 @@ def handle_fs_journal_enable(api, args, kwargs):
 def handle_fs_journal_status(api, args, kwargs):
     """
     Handle the 'fs-journal status' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -305,10 +305,10 @@ def handle_fs_journal_status(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     # Get journal status through the API
     journal = api.filesystem_journal
-    
+
     return {
         "success": True,
         "enabled": True,
@@ -328,12 +328,12 @@ def handle_fs_journal_status(api, args, kwargs):
 def handle_fs_journal_list(api, args, kwargs):
     """
     Handle the 'fs-journal list' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -342,13 +342,13 @@ def handle_fs_journal_list(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
     status_filter = args.status.upper() if args.status != "all" else None
-    
+
     # List transactions with the given filter
     transactions = journal.list_transactions(status=status_filter, limit=args.limit)
-    
+
     return {
         "success": True,
         "transactions": transactions,
@@ -360,12 +360,12 @@ def handle_fs_journal_list(api, args, kwargs):
 def handle_fs_journal_checkpoint(api, args, kwargs):
     """
     Handle the 'fs-journal checkpoint' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -374,12 +374,12 @@ def handle_fs_journal_checkpoint(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
-    
+
     # Create checkpoint and get ID
     checkpoint_id = journal.create_checkpoint()
-    
+
     return {
         "success": True,
         "checkpoint_id": checkpoint_id,
@@ -390,12 +390,12 @@ def handle_fs_journal_checkpoint(api, args, kwargs):
 def handle_fs_journal_recover(api, args, kwargs):
     """
     Handle the 'fs-journal recover' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -404,13 +404,13 @@ def handle_fs_journal_recover(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
     checkpoint_id = args.checkpoint_id if hasattr(args, "checkpoint_id") else None
-    
+
     # Perform recovery
     result = journal.recover(checkpoint_id=checkpoint_id)
-    
+
     return {
         "success": True,
         "recovered_from_checkpoint": result.get("checkpoint_id"),
@@ -423,12 +423,12 @@ def handle_fs_journal_recover(api, args, kwargs):
 def handle_fs_journal_mount(api, args, kwargs):
     """
     Handle the 'fs-journal mount' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -437,12 +437,12 @@ def handle_fs_journal_mount(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
-    
+
     # Mount CID at path
     result = journal.mount(args.cid, args.path)
-    
+
     return {
         "success": True,
         "path": args.path,
@@ -454,12 +454,12 @@ def handle_fs_journal_mount(api, args, kwargs):
 def handle_fs_journal_mkdir(api, args, kwargs):
     """
     Handle the 'fs-journal mkdir' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -468,13 +468,13 @@ def handle_fs_journal_mkdir(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
     parents = args.parents if hasattr(args, "parents") else False
-    
+
     # Create directory
     result = journal.mkdir(args.path, parents=parents)
-    
+
     return {
         "success": True,
         "path": args.path,
@@ -485,12 +485,12 @@ def handle_fs_journal_mkdir(api, args, kwargs):
 def handle_fs_journal_write(api, args, kwargs):
     """
     Handle the 'fs-journal write' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -499,9 +499,9 @@ def handle_fs_journal_write(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
-    
+
     # Get content from file or command line
     content = None
     if hasattr(args, "content") and args.content:
@@ -514,10 +514,10 @@ def handle_fs_journal_write(api, args, kwargs):
             "success": False,
             "error": "Either --content or --file must be specified"
         }
-    
+
     # Write to file
     result = journal.write(args.path, content)
-    
+
     return {
         "success": True,
         "path": args.path,
@@ -529,12 +529,12 @@ def handle_fs_journal_write(api, args, kwargs):
 def handle_fs_journal_read(api, args, kwargs):
     """
     Handle the 'fs-journal read' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -543,12 +543,12 @@ def handle_fs_journal_read(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
-    
+
     # Read from file
     content = journal.read(args.path)
-    
+
     # Write to output file if specified
     if hasattr(args, "output") and args.output:
         if isinstance(content, str):
@@ -557,14 +557,14 @@ def handle_fs_journal_read(api, args, kwargs):
         else:
             with open(args.output, "wb") as f:
                 f.write(content)
-        
+
         return {
             "success": True,
             "path": args.path,
             "size": len(content),
             "output": args.output
         }
-    
+
     # Return content directly
     return content
 
@@ -572,12 +572,12 @@ def handle_fs_journal_read(api, args, kwargs):
 def handle_fs_journal_rm(api, args, kwargs):
     """
     Handle the 'fs-journal rm' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -586,13 +586,13 @@ def handle_fs_journal_rm(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
     recursive = args.recursive if hasattr(args, "recursive") else False
-    
+
     # Remove file or directory
     result = journal.remove(args.path, recursive=recursive)
-    
+
     return {
         "success": True,
         "path": args.path,
@@ -604,12 +604,12 @@ def handle_fs_journal_rm(api, args, kwargs):
 def handle_fs_journal_mv(api, args, kwargs):
     """
     Handle the 'fs-journal mv' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -618,12 +618,12 @@ def handle_fs_journal_mv(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
-    
+
     # Move/rename file or directory
     result = journal.move(args.source, args.destination)
-    
+
     return {
         "success": True,
         "source": args.source,
@@ -635,12 +635,12 @@ def handle_fs_journal_mv(api, args, kwargs):
 def handle_fs_journal_ls(api, args, kwargs):
     """
     Handle the 'fs-journal ls' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -649,13 +649,13 @@ def handle_fs_journal_ls(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
     recursive = args.recursive if hasattr(args, "recursive") else False
-    
+
     # List directory
     result = journal.list_directory(args.path, recursive=recursive)
-    
+
     return {
         "success": True,
         "path": args.path,
@@ -666,12 +666,12 @@ def handle_fs_journal_ls(api, args, kwargs):
 def handle_fs_journal_export(api, args, kwargs):
     """
     Handle the 'fs-journal export' command.
-    
+
     Args:
         api: IPFS API instance
         args: Command line arguments
         kwargs: Additional keyword arguments
-        
+
     Returns:
         Command result
     """
@@ -680,13 +680,13 @@ def handle_fs_journal_export(api, args, kwargs):
             "success": False,
             "error": "Filesystem journaling is not enabled"
         }
-    
+
     journal = api.filesystem_journal
     path = args.path if hasattr(args, "path") else "/"
-    
+
     # Export filesystem to CID
     result = journal.export(path)
-    
+
     return {
         "success": True,
         "path": path,

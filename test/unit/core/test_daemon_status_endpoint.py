@@ -8,7 +8,7 @@ SERVER_URL = "http://localhost:9999/api/v0/ipfs/daemon/status"
 def test_daemon_status():
     """Test the daemon status endpoint."""
     print("Testing daemon status endpoint...")
-    
+
     # Test with daemon_type parameter
     print("\n1. Testing with daemon_type=ipfs:")
     try:
@@ -19,7 +19,7 @@ def test_daemon_status():
         )
         print(f"Status code: {response.status_code}")
         print(f"Response: {json.dumps(response.json(), indent=2)}")
-        
+
         if response.status_code == 200:
             print("✅ SUCCESS: Request with daemon_type=ipfs worked!")
         else:
@@ -31,9 +31,9 @@ def test_daemon_status():
             print(f"Response text: {response.text}")
         except:
             pass
-    
+
     time.sleep(1)
-    
+
     # Test without daemon_type parameter
     print("\n2. Testing without daemon_type parameter:")
     try:
@@ -44,7 +44,7 @@ def test_daemon_status():
         )
         print(f"Status code: {response.status_code}")
         print(f"Response: {json.dumps(response.json(), indent=2)}")
-        
+
         if response.status_code == 200:
             print("✅ SUCCESS: Request without daemon_type parameter worked!")
         else:
@@ -56,7 +56,7 @@ def test_daemon_status():
             print(f"Response text: {response.text}")
         except:
             pass
-    
+
     # Test healthcheck to verify server is running
     print("\n3. Testing server health endpoint:")
     try:

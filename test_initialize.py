@@ -57,10 +57,10 @@ try:
         headers={"Content-Type": "application/json"},
         timeout=10
     )
-    
+
     print(f"Initialize request status: {response.status_code}")
     print(f"Response headers: {dict(response.headers)}")
-    
+
     if response.status_code == 200:
         print("✅ Initialize endpoint is available!")
         try:
@@ -83,7 +83,7 @@ try:
         headers={"Content-Type": "application/json"},
         timeout=10
     )
-    
+
     print(f"Initialize request status: {response.status_code}")
     if response.status_code == 200:
         print("✅ Initialize endpoint is available!")
