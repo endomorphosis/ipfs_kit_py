@@ -1132,7 +1132,7 @@ def setup_advanced_routing(ipfs_kit_instance, libp2p_peer, dht_discovery=None, r
         logger.error(f"Error setting up advanced routing: {str(e)}", exc_info=True)
         return None
 
-def compatible_new_host(key_pair=None, listen_addrs=None, transport_opt=None, 
+async def compatible_new_host(key_pair=None, listen_addrs=None, transport_opt=None, 
                         muxer_opt=None, sec_opt=None, peerstore_opt=None, **kwargs):
     """
     Compatibility wrapper for the libp2p.new_host function to handle API differences.

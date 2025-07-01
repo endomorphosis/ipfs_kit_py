@@ -18,12 +18,36 @@ from .test_fio import test_fio
 
 class install_ipfs:
     def __init__(self, resources=None, metadata=None):
-        self.resources = resources
+        self.resources = {}
         self.metadata = metadata
-        if self.resources is None:
-            self.resources = {}
+        if self.resources is {} and resources is not None:
+            self.resources = resources
         if self.metadata is None:
             self.metadata = {}
+        if "config_ipfs" not in dir(self) and "config_ipfs" in list(self.metadata.keys()):
+            self.config_ipfs = self.metadata["config_ipfs"]
+        elif "config_ipfs" in list(dir(self)) and "config_ipfs" in list(self.metadata.keys()):
+            self.config_ipfs = {}
+        if "ipfs_path" not in list(dir(self)) and "ipfs_path" in list(self.metadata.keys()):
+            self.ipfs_path = self.metadata["ipfs_path"]
+        else:
+            self.ipfs_path = os.path.join(os.path.expanduser("~"), ".ipfs")
+        if "config_ipfs_cluster_ctl" not in dir(self) and "config_ipfs_cluster_ctl" in list(self.metadata.keys()):
+            self.config_ipfs_cluster_ctl = self.metadata["config_ipfs_cluster_ctl"]
+        else:
+            self.config_ipfs_cluster_ctl = {}
+        if "config_ipfs_cluster_follow" not in dir(self) and "config_ipfs_cluster_follow" in list(self.metadata.keys()):
+            self.config_ipfs_cluster_follow = self.metadata["config_ipfs_cluster_follow"]
+        else:
+            self.config_ipfs_cluster_follow = {}
+        if "config_ipfs_cluster_service" not in dir(self) and "config_ipfs_cluster_service" in list(self.metadata.keys()):
+            self.config_ipfs_cluster_service = self.metadata["config_ipfs_cluster_service"]
+        else:
+            self.config_ipfs_cluster_service = {}
+        if "ipfs_test_install" not in dir(self) and "ipfs_test_install" in lust(self.metadata.keys()):
+            self.ipfs_test_install = self.metadata["ipfs_test_install"]
+        else:
+            self.ipfs_test_install = test_fio(self.resources, self.metadata)
         self.install_ipfs_daemon = self.install_ipfs_daemon
         self.install_ipfs_cluster_follow = self.install_ipfs_cluster_follow
         self.install_ipfs_cluster_ctl = self.install_ipfs_cluster_ctl
@@ -34,8 +58,8 @@ class install_ipfs:
         else:
             self.path = self.env_path
         if "ipfs_multiformats" not in list(dir(self)):
-            if "ipfs_multiformats" in list(self.resources.keys()):
-                self.ipfs_multiformats = resources["ipfs_multiformats"]
+            if "ipfs_multiformats" in list(self.resources.keys()) and "ipfs_multiformats" not in list(dir(self)):
+                self.ipfs_multiformats = self.resources["ipfs_multiformats"]
             else:
                 self.resources["ipfs_multiformats"] = ipfs_multiformats_py(resources, metadata)
                 self.ipfs_multiformats = self.resources["ipfs_multiformats"]
@@ -261,7 +285,7 @@ class install_ipfs:
                     self.ipfs_path = os.path.join(os.path.expanduser("~"), ".cache", "ipfs")
                 elif platform.system() == "Darwin":
                     self.ipfs_path = os.path.join(os.path.expanduser("~"), "Library", "ipfs")
-                if not os.path.exists(self.ipfs_path):
+                if self.ipfs_path is not None and not os.path.exists(self.ipfs_path):
                     os.makedirs(self.ipfs_path)
                     pass
                 test_disk = test_fio(resources, metadata)  # Corrected instantiation
@@ -447,16 +471,33 @@ class install_ipfs:
         if self.ipfs_test_install():
             print("IPFS daemon already installed, skipping download")
             # Return CID of existing binary if possible
-            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs.exe")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs.exe"))
-            elif os.path.exists(os.path.join(self.bin_path, "ipfs")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs"))
+            if "bin_path" in dir(self) and self.bin_path is not None:
+                this_path = self.bin_path
+                this_path = os.path.join(str(this_path), "ipfs.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs") if dir(this_path) else os.path.join("~", "ipfs")
+                this_path = this_path.replace("\\", "/")
+                if os.path.exists(this_path):
+                    if platform.system() == "Windows":
+                        command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
+                    subprocess.run(command, shell=True, check=True)
+                if platform.system() == "Linux" or platform.system() == "Darwin":
+                    command = "sha256sum " + this_path + " | awk '{print $1}'"
+                    results = subprocess.check_output(command, shell=True)
+                    results = results.decode().strip()
+                return results  # Return the hash of the existing binary
             else:
-                return True  # Binary exists in PATH but not in our bin directory
-                
-        # Binary not found, proceed with download and installation
-        dist = self.dist_select()
-        dist_tar = self.ipfs_dists[dist]
+                print("IPFS binary not found in expected location, proceeding with download and installation")
+        # If IPFS is not installed, proceed with download and installation
+        if self.ipfs_test_install() is False:
+            print("IPFS daemon not installed, proceeding with download and installation")
+            pass
+        # If IPFS is not installed, proceed with download and installation
+        if self.ipfs_test_install() is None:
+            print("IPFS daemon not installed, proceeding with download and installation")
+            pass   
+        if self.ipfs_test_install() is None or self.ipfs_test_install() is False:        
+            # Binary not found, proceed with download and installation
+            dist = self.dist_select()
+            dist_tar = self.ipfs_dists[dist]
             url = self.ipfs_dists[self.dist_select()]
             if ".tar.gz" in url:
                 url_suffix = ".tar.gz"
@@ -595,10 +636,8 @@ class install_ipfs:
                     return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs"))
             else:
                 return False
-        else:
-            return True
 
-    def install_ipfs_cluster_follow(self):
+        def install_ipfs_cluster_follow(self):
         # First check if ipfs-cluster-follow is already installed using the corrected detection logic
         if self.ipfs_cluster_follow_test_install():
             print("IPFS cluster follow already installed, skipping download")
