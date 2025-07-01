@@ -1,0 +1,48 @@
+{
+  "start_time": "2025-06-25T15:06:53.278698",
+  "tests": {
+    "server_file_exists": {
+      "status": "PASS",
+      "message": "final_mcp_server_enhanced.py found"
+    },
+    "syntax_check": {
+      "status": "PASS",
+      "message": "Python syntax valid"
+    },
+    "module_imports": {
+      "status": "PASS",
+      "message": "All modules imported",
+      "output": "Python version: 3.12.3 (main, Jun 18 2025, 17:59:45) [GCC 13.3.0]\nFastAPI: 0.115.12\nUvicorn: OK\nRequests: 2.32.3\n"
+    },
+    "server_startup": {
+      "status": "PASS",
+      "message": "Server running (PID: 136811)"
+    },
+    "endpoint_health": {
+      "status": "PASS",
+      "message": "health endpoint responding"
+    },
+    "endpoint_info": {
+      "status": "PASS",
+      "message": "info endpoint responding"
+    },
+    "endpoint_tools": {
+      "status": "PASS",
+      "message": "tools endpoint responding"
+    },
+    "ipfs_add": {
+      "status": "PASS",
+      "message": "IPFS add operation successful",
+      "response": "{\"success\":true,\"cid\":\"Qm28c851b43ec554d8c82897228ca459b74e4bb2bffa11\",\"size\":17,\"timestamp\":\"2025-06-25T15:07:01.790300\"}"
+    },
+    "ipfs_cat": {
+      "status": "PASS",
+      "message": "IPFS cat operation successful"
+    }
+  },
+  "summary": {
+    "passed": 9,
+    "failed": 0
+  },
+  "end_time": "2025-06-25T15:07:02.187946"
+}
