@@ -1,0 +1,606 @@
+"""IPFS MCP Tools Registry - Created from scratch"""
+
+IPFS_TOOLS = [
+    # Original IPFS MFS Tools
+    {
+        "name": "ipfs_files_ls",
+        "description": "List files and directories in the IPFS MFS (Mutable File System)",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path within MFS to list (default: /)",
+                    "default": "/"
+                },
+                "long": {
+                    "type": "boolean",
+                    "description": "Use long listing format (include size, type)",
+                    "default": False
+                }
+            }
+        }
+    },
+    {
+        "name": "ipfs_files_mkdir",
+        "description": "Create directories in the IPFS MFS (Mutable File System)",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to create within MFS"
+                },
+                "parents": {
+                    "type": "boolean",
+                    "description": "Create parent directories if they don't exist",
+                    "default": True
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "ipfs_files_write",
+        "description": "Write data to a file in the IPFS MFS (Mutable File System)",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path within MFS to write to"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file"
+                },
+                "create": {
+                    "type": "boolean",
+                    "description": "Create the file if it doesn't exist",
+                    "default": True
+                },
+                "truncate": {
+                    "type": "boolean",
+                    "description": "Truncate the file if it already exists",
+                    "default": True
+                }
+            },
+            "required": ["path", "content"]
+        }
+    },
+    {
+        "name": "ipfs_files_read",
+        "description": "Read a file from the IPFS MFS (Mutable File System)",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path within MFS to read from"
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Byte offset to start reading from",
+                    "default": 0
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "Maximum number of bytes to read",
+                    "default": -1
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "ipfs_files_rm",
+        "description": "Remove files or directories from the IPFS MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path within MFS to remove"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Recursively remove directories",
+                    "default": False
+                },
+                "force": {
+                    "type": "boolean",
+                    "description": "Forcibly remove the file/directory",
+                    "default": False
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "ipfs_files_stat",
+        "description": "Get information about a file or directory in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path within MFS to get stats for"
+                },
+                "with_local": {
+                    "type": "boolean",
+                    "description": "Compute the amount of the dag that is local",
+                    "default": False
+                },
+                "size": {
+                    "type": "boolean",
+                    "description": "Compute the total size of the dag",
+                    "default": True
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "ipfs_files_cp",
+        "description": "Copy files within the IPFS MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Source path (can be an MFS or IPFS path)"
+                },
+                "dest": {
+                    "type": "string",
+                    "description": "Destination path within MFS"
+                }
+            },
+            "required": ["source", "dest"]
+        }
+    },
+    {
+        "name": "ipfs_files_mv",
+        "description": "Move files within the IPFS MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Source path (must be an MFS path)"
+                },
+                "dest": {
+                    "type": "string",
+                    "description": "Destination path within MFS"
+                }
+            },
+            "required": ["source", "dest"]
+        }
+    },
+    {
+        "name": "ipfs_name_publish",
+        "description": "Publish an IPNS name",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "IPFS path to publish"
+                },
+                "resolve": {
+                    "type": "boolean",
+                    "description": "Resolve before publishing",
+                    "default": True
+                },
+                "lifetime": {
+                    "type": "string",
+                    "description": "Time duration that the record will be valid for",
+                    "default": "24h"
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "ipfs_name_resolve",
+        "description": "Resolve an IPNS name",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "The IPNS name to resolve"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Resolve until the result is not an IPNS name",
+                    "default": True
+                },
+                "nocache": {
+                    "type": "boolean",
+                    "description": "Do not use cached entries",
+                    "default": False
+                }
+            },
+            "required": ["name"]
+        }
+    },
+    {
+        "name": "ipfs_dag_put",
+        "description": "Add a DAG node to IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "description": "The data to store as a DAG node"
+                },
+                "format": {
+                    "type": "string",
+                    "description": "The format to use for the DAG node",
+                    "default": "cbor",
+                    "enum": ["cbor", "json", "raw"]
+                },
+                "input_codec": {
+                    "type": "string",
+                    "description": "The codec that the input data is encoded with",
+                    "default": "json"
+                },
+                "pin": {
+                    "type": "boolean",
+                    "description": "Pin this object when adding",
+                    "default": False
+                }
+            },
+            "required": ["data"]
+        }
+    },
+    {
+        "name": "ipfs_dag_get",
+        "description": "Get a DAG node from IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "The CID of the DAG node to get"
+                },
+                "path": {
+                    "type": "string",
+                    "description": "The path within the DAG structure to retrieve",
+                    "default": ""
+                }
+            },
+            "required": ["cid"]
+        }
+    },
+    
+    # New FS Journal Tools
+    {
+        "name": "fs_journal_get_history",
+        "description": "Get the operation history for a path in the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to get history for"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of history entries to return",
+                    "default": 10
+                },
+                "operation_types": {
+                    "type": "array",
+                    "description": "Filter by operation types (read, write, etc.)",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "fs_journal_sync",
+        "description": "Force synchronization between virtual filesystem and actual storage",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to sync (defaults to entire filesystem)",
+                    "default": "/"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to sync recursively",
+                    "default": True
+                }
+            }
+        }
+    },
+    
+    # IPFS Bridge Tools
+    {
+        "name": "ipfs_fs_bridge_status",
+        "description": "Get the status of the IPFS-FS bridge",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "detailed": {
+                    "type": "boolean",
+                    "description": "Whether to include detailed information",
+                    "default": False
+                }
+            }
+        }
+    },
+    {
+        "name": "ipfs_fs_bridge_sync",
+        "description": "Sync between IPFS and virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to sync",
+                    "default": "/"
+                },
+                "direction": {
+                    "type": "string",
+                    "description": "Sync direction: to_ipfs, from_ipfs, or both",
+                    "enum": ["to_ipfs", "from_ipfs", "both"],
+                    "default": "both"
+                }
+            }
+        }
+    },
+    
+    # S3 Storage Tools
+    {
+        "name": "s3_store_file",
+        "description": "Store a file to S3 storage",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "local_path": {
+                    "type": "string",
+                    "description": "Local path of the file to store"
+                },
+                "bucket": {
+                    "type": "string",
+                    "description": "S3 bucket name"
+                },
+                "key": {
+                    "type": "string",
+                    "description": "S3 object key"
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Optional metadata for the object"
+                }
+            },
+            "required": ["local_path", "bucket", "key"]
+        }
+    },
+    {
+        "name": "s3_retrieve_file",
+        "description": "Retrieve a file from S3 storage",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "local_path": {
+                    "type": "string",
+                    "description": "Local path to save the file"
+                },
+                "bucket": {
+                    "type": "string",
+                    "description": "S3 bucket name"
+                },
+                "key": {
+                    "type": "string",
+                    "description": "S3 object key"
+                }
+            },
+            "required": ["local_path", "bucket", "key"]
+        }
+    },
+    
+    # Filecoin Storage Tools
+    {
+        "name": "filecoin_store_file",
+        "description": "Store a file to Filecoin storage",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "local_path": {
+                    "type": "string",
+                    "description": "Local path of the file to store"
+                },
+                "replication": {
+                    "type": "integer",
+                    "description": "Number of replicas to store",
+                    "default": 1
+                },
+                "duration": {
+                    "type": "integer",
+                    "description": "Storage duration in days",
+                    "default": 180
+                }
+            },
+            "required": ["local_path"]
+        }
+    },
+    {
+        "name": "filecoin_retrieve_deal",
+        "description": "Retrieve a file from Filecoin storage by deal ID",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "deal_id": {
+                    "type": "string",
+                    "description": "Filecoin deal ID"
+                },
+                "local_path": {
+                    "type": "string",
+                    "description": "Local path to save the file"
+                }
+            },
+            "required": ["deal_id", "local_path"]
+        }
+    },
+    
+    # HuggingFace Integration Tools
+    {
+        "name": "huggingface_model_load",
+        "description": "Load a model from HuggingFace",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "model_id": {
+                    "type": "string",
+                    "description": "HuggingFace model ID"
+                },
+                "task": {
+                    "type": "string",
+                    "description": "Task type (translation, summarization, etc.)",
+                    "default": "text-generation"
+                },
+                "cache_dir": {
+                    "type": "string",
+                    "description": "Directory to cache the model"
+                }
+            },
+            "required": ["model_id"]
+        }
+    },
+    {
+        "name": "huggingface_model_inference",
+        "description": "Run inference on a loaded HuggingFace model",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "model_id": {
+                    "type": "string",
+                    "description": "HuggingFace model ID"
+                },
+                "input_text": {
+                    "type": "string",
+                    "description": "Input text for the model"
+                },
+                "parameters": {
+                    "type": "object",
+                    "description": "Additional parameters for the model"
+                }
+            },
+            "required": ["model_id", "input_text"]
+        }
+    },
+    
+    # WebRTC Tools
+    {
+        "name": "webrtc_peer_connect",
+        "description": "Connect to another peer via WebRTC",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "peer_id": {
+                    "type": "string",
+                    "description": "ID of the peer to connect to"
+                },
+                "signaling_server": {
+                    "type": "string",
+                    "description": "Signaling server URL",
+                    "default": "wss://signaling.ipfs.io"
+                },
+                "ice_servers": {
+                    "type": "array",
+                    "description": "STUN/TURN servers to use",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["peer_id"]
+        }
+    },
+    {
+        "name": "webrtc_send_data",
+        "description": "Send data to a connected WebRTC peer",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "peer_id": {
+                    "type": "string",
+                    "description": "ID of the peer to send data to"
+                },
+                "data": {
+                    "type": "string",
+                    "description": "Data to send to the peer"
+                },
+                "data_type": {
+                    "type": "string",
+                    "description": "Type of data being sent",
+                    "enum": ["text", "binary", "json"],
+                    "default": "text"
+                }
+            },
+            "required": ["peer_id", "data"]
+        }
+    },
+    
+    # Credential Management Tools
+    {
+        "name": "credential_store",
+        "description": "Store a credential for a specific service",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "description": "Service the credential is for"
+                },
+                "credential_type": {
+                    "type": "string",
+                    "description": "Type of credential",
+                    "enum": ["api_key", "oauth_token", "username_password", "jwt", "other"],
+                    "default": "api_key"
+                },
+                "credential_data": {
+                    "type": "object",
+                    "description": "Credential data"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "description": "ISO8601 timestamp when the credential expires (optional)"
+                }
+            },
+            "required": ["service", "credential_data"]
+        }
+    },
+    {
+        "name": "credential_retrieve",
+        "description": "Retrieve a credential for a specific service",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "description": "Service to retrieve credential for"
+                },
+                "credential_type": {
+                    "type": "string",
+                    "description": "Type of credential to retrieve",
+                    "enum": ["api_key", "oauth_token", "username_password", "jwt", "other"],
+                    "default": "api_key"
+                }
+            },
+            "required": ["service"]
+        }
+    }
+]
+
+def get_ipfs_tools():
+    """Get all IPFS tool definitions"""
+    return IPFS_TOOLS

@@ -1,0 +1,71 @@
+# Core dependencies
+requests>=2.28.0
+psutil>=5.9.0
+pyyaml>=6.0
+importlib-metadata>=4.12.0; python_version < '3.10'
+protobuf
+eth-hash
+eth-keys
+semver
+multiaddr
+pytest-timeout
+
+
+# Optional: IPFS multiformat support
+multiformats>=0.2.0
+
+# Optional: S3/AWS integration
+boto3>=1.26.0
+
+# Optional: FSSpec integration
+fsspec>=2023.3.0
+requests-unixsocket>=0.3.0
+
+# Optional: Arrow integration
+pyarrow>=12.0.0
+pandas>=1.3.0
+
+# Optional: AI/ML integration
+numpy>=1.22.0
+scikit-learn>=1.0.0
+mmh3>=0.7.1 # Added for probabilistic data structures
+# torch>=2.0.0  # Commented out as it's a large dependency - install separately as needed
+faiss-cpu>=1.7.4
+networkx>=3.0
+huggingface_hub>=0.19.0
+
+# Optional: API server
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+
+# Optional: GraphQL API 
+graphene>=3.4.0
+
+# Optional: Async support
+aiohttp>=3.8.4
+
+# Optional: libp2p support (includes base58 for encoding)
+base58>=2.1.1
+
+# Optional: Performance metrics
+matplotlib>=3.5.0
+
+# Testing dependencies - use [dev] extra for these
+# pytest>=7.0.0
+# pytest-asyncio>=0.21.0 # Added for async tests
+# pytest-cov>=4.1.0
+# black>=23.3.0
+# isort>=5.12.0
+# mypy>=1.3.0
+# pylint>=2.17.0
+# build>=0.10.0
+# twine>=4.0.2
+
+# Install dependencies with optional groups:
+# pip install -e ".[fsspec,arrow]" - for basic filesystem features
+# pip install -e ".[dev]" - for development tools
+# pip install -e ".[full]" - for all features
+# pip install -e ".[performance]" - for performance metrics
+# pip install -e ".[api]" - for API server features
+sse-starlette>=1.0.0
