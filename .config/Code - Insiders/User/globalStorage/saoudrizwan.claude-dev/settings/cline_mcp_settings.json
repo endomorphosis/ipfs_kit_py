@@ -1,141 +1,44 @@
 {
-"mcpServers": [
+  "mcpServers": [
     {
-      "name": "ipfs-kit-mcp",
-      "description": "IPFS Kit MCP Server with storage backends (IPFS, Filecoin, Hugging Face, Storacha, Lassie, S3)",
-      "url": "http://localhost:9996",
-      "transportType": "http",
-      "initializeEndpoint": "/api/v0/initialize",
-      "sseEndpoint": "/api/v0/sse",
+      "name": "ipfs-kit-production",
+      "description": "IPFS Kit MCP Server with Real IPFS Integration and Enhanced Daemon Management",
+      "command": "python3",
+      "args": ["/home/barberb/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py"],
+      "transportType": "stdio",
       "enabled": true,
-      "authentication": {
-        "type": "none"
+      "env": {
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/home/barberb/.local/bin",
+        "PYTHONPATH": "/home/barberb/ipfs_kit_py"
       },
-      "resources": [
-        {
-          "uri": "ipfs://info",
-          "description": "IPFS node information",
-          "mediaType": "application/json"
-        },
-        {
-          "uri": "storage://backends",
-          "description": "Available storage backends",
-          "mediaType": "application/json"
-        }
-      ],
       "tools": [
         {
           "name": "ipfs_add",
-          "description": "Add content to IPFS",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "content": {
-                "type": "string",
-                "description": "Content to add to IPFS"
-              },
-              "pin": {
-                "type": "boolean",
-                "description": "Whether to pin the content",
-                "default": true
-              }
-            },
-            "required": ["content"]
-          },
-          "outputSchema": {
-            "type": "object",
-            "properties": {
-              "cid": {
-                "type": "string",
-                "description": "Content identifier (CID) of the added content"
-              },
-              "size": {
-                "type": "integer",
-                "description": "Size of the added content in bytes"
-              }
-            }
-          }
+          "description": "Add content to IPFS and return the CID (REAL OPERATION)"
         },
         {
           "name": "ipfs_cat",
-          "description": "Retrieve content from IPFS",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "cid": {
-                "type": "string",
-                "description": "Content identifier (CID) to retrieve"
-              }
-            },
-            "required": ["cid"]
-          },
-          "outputSchema": {
-            "type": "object",
-            "properties": {
-              "content": {
-                "type": "string",
-                "description": "Retrieved content"
-              }
-            }
-          }
+          "description": "Retrieve and display content from IPFS (REAL OPERATION)"
         },
         {
           "name": "ipfs_pin",
-          "description": "Pin content in IPFS",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "cid": {
-                "type": "string",
-                "description": "Content identifier (CID) to pin"
-              }
-            },
-            "required": ["cid"]
-          },
-          "outputSchema": {
-            "type": "object",
-            "properties": {
-              "success": {
-                "type": "boolean",
-                "description": "Whether the pinning was successful"
-              }
-            }
-          }
+          "description": "Pin content in IPFS to prevent garbage collection (REAL OPERATION)"
         },
         {
-          "name": "storage_transfer",
-          "description": "Transfer content between storage backends",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "source": {
-                "type": "string",
-                "description": "Source storage backend (ipfs, filecoin, huggingface, storacha, lassie, s3)"
-              },
-              "destination": {
-                "type": "string",
-                "description": "Destination storage backend (ipfs, filecoin, huggingface, storacha, lassie, s3)"
-              },
-              "identifier": {
-                "type": "string",
-                "description": "Content identifier in the source backend"
-              }
-            },
-            "required": ["source", "destination", "identifier"]
-          },
-          "outputSchema": {
-            "type": "object",
-            "properties": {
-              "success": {
-                "type": "boolean",
-                "description": "Whether the transfer was successful"
-              },
-              "destinationId": {
-                "type": "string",
-                "description": "Identifier of the content in the destination backend"
-              }
-            }
-          }
+          "name": "ipfs_list_pins",
+          "description": "List all pinned content in IPFS (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_version",
+          "description": "Get IPFS daemon version information (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_id",
+          "description": "Get IPFS node identity and network information (REAL OPERATION)"
+        },
+        {
+          "name": "system_health",
+          "description": "Get comprehensive system health status including IPFS daemon status"
         }
       ]
     }

@@ -13,17 +13,64 @@ import time
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
 from .ipfs_multiformats import ipfs_multiformats_py
-from .test_fio import test_fio
-
-
+from .test_fio import test_fio  # Corrected import statement
 class install_ipfs:
     def __init__(self, resources=None, metadata=None):
-        self.resources = resources
+        self.resources = {}
         self.metadata = metadata
-        if self.resources is None:
+        self.ipfs_path = None
+        self.config_ipfs_cluster_ctl = None
+        self.config_ipfs_cluster_follow = None
+        self.config_ipfs_cluster_service = None
+        self.install_ipfs_cluster_follow = None
+        self.install_ipfs_cluster_ctl = None
+        self.install_ipfs_cluster_service = None
+        if resources is not None and isinstance(resources, dict):
+            self.resources = resources
+        elif resources is not None and isinstance(resources, install_ipfs):
+            self.resources = resources.resources
+        elif resources is not None and isinstance(resources, install_ipfs):
+            self.resources = resources.resources
+        elif resources is not None and isinstance(resources, list):
             self.resources = {}
+            for resource in resources:
+                if isinstance(resource, dict):
+                    self.resources.update(resource)
+                elif isinstance(resource, install_ipfs):
+                    self.resources.update(resource.resources)
+                else:
+                    raise TypeError("resources must be a dict or install_ipfs instance")
+                
+        if self.resources == {} and resources is not None:
+            self.resources = resources
+        if self.resources is {} and resources is not None:
+            self.resources = resources
         if self.metadata is None:
             self.metadata = {}
+        if "config_ipfs" not in dir(self) and "config_ipfs" in list(self.metadata.keys()):
+            self.config_ipfs = self.metadata["config_ipfs"]
+        elif "config_ipfs" in list(dir(self)) and "config_ipfs" in list(self.metadata.keys()):
+            self.config_ipfs = self.metadata["config_ipfs"]
+        if "ipfs_path" not in list(dir(self)) and "ipfs_path" in list(self.metadata.keys()):
+            self.ipfs_path = self.metadata["ipfs_path"]
+        else:
+            self.ipfs_path = os.path.join(os.path.expanduser("~"), ".ipfs")
+        if "config_ipfs_cluster_ctl" not in dir(self) and "config_ipfs_cluster_ctl" in list(self.metadata.keys()):
+            self.config_ipfs_cluster_ctl = self.metadata["config_ipfs_cluster_ctl"]
+        else:
+            self.config_ipfs_cluster_ctl = {}
+        if "config_ipfs_cluster_follow" not in dir(self) and "config_ipfs_cluster_follow" in list(self.metadata.keys()):
+            self.config_ipfs_cluster_follow = self.metadata["config_ipfs_cluster_follow"]
+        else:
+            self.config_ipfs_cluster_follow = {}
+        if "config_ipfs_cluster_service" not in dir(self) and "config_ipfs_cluster_service" in list(self.metadata.keys()):
+            self.config_ipfs_cluster_service = self.metadata["config_ipfs_cluster_service"]
+        else:
+            self.config_ipfs_cluster_service = {}
+        if "ipfs_test_install" not in dir(self) and "ipfs_test_install" in lust(self.metadata.keys()):
+            self.ipfs_test_install = self.metadata["ipfs_test_install"]
+        else:
+            self.ipfs_test_install = test_fio(self.resources, self.metadata)
         self.install_ipfs_daemon = self.install_ipfs_daemon
         self.install_ipfs_cluster_follow = self.install_ipfs_cluster_follow
         self.install_ipfs_cluster_ctl = self.install_ipfs_cluster_ctl
@@ -34,8 +81,8 @@ class install_ipfs:
         else:
             self.path = self.env_path
         if "ipfs_multiformats" not in list(dir(self)):
-            if "ipfs_multiformats" in list(self.resources.keys()):
-                self.ipfs_multiformats = resources["ipfs_multiformats"]
+            if "ipfs_multiformats" in list(self.resources.keys()) and "ipfs_multiformats" not in list(dir(self)):
+                self.ipfs_multiformats = self.resources["ipfs_multiformats"]
             else:
                 self.resources["ipfs_multiformats"] = ipfs_multiformats_py(resources, metadata)
                 self.ipfs_multiformats = self.resources["ipfs_multiformats"]
@@ -261,7 +308,7 @@ class install_ipfs:
                     self.ipfs_path = os.path.join(os.path.expanduser("~"), ".cache", "ipfs")
                 elif platform.system() == "Darwin":
                     self.ipfs_path = os.path.join(os.path.expanduser("~"), "Library", "ipfs")
-                if not os.path.exists(self.ipfs_path):
+                if self.ipfs_path is not None and not os.path.exists(self.ipfs_path):
                     os.makedirs(self.ipfs_path)
                     pass
                 test_disk = test_fio(resources, metadata)  # Corrected instantiation
@@ -447,16 +494,35 @@ class install_ipfs:
         if self.ipfs_test_install():
             print("IPFS daemon already installed, skipping download")
             # Return CID of existing binary if possible
-            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs.exe")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs.exe"))
-            elif os.path.exists(os.path.join(self.bin_path, "ipfs")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs"))
+            if "bin_path" in dir(self) and self.bin_path is not None:
+                command = ""
+                restults = ""
+                this_path = self.bin_path
+                this_path = os.path.join(str(this_path), "ipfs.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs") if dir(this_path) else os.path.join("~", "ipfs")
+                this_path = this_path.replace("\\", "/")
+                if os.path.exists(this_path):
+                    if platform.system() == "Windows":
+                        command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
+                    subprocess.run(command, shell=True, check=True)
+                if platform.system() == "Linux" or platform.system() == "Darwin":
+                    command = "sha256sum " + this_path + " | awk '{print $1}'"
+                    results = subprocess.check_output(command, shell=True)
+                    results = results.decode().strip()
+                return results  # Return the hash of the existing binary
             else:
-                return True  # Binary exists in PATH but not in our bin directory
-                
-        # Binary not found, proceed with download and installation
-        dist = self.dist_select()
-        dist_tar = self.ipfs_dists[dist]
+                print("IPFS binary not found in expected location, proceeding with download and installation")
+        # If IPFS is not installed, proceed with download and installation
+        if self.ipfs_test_install() is False:
+            print("IPFS daemon not installed, proceeding with download and installation")
+            pass
+        # If IPFS is not installed, proceed with download and installation
+        if self.ipfs_test_install() is None:
+            print("IPFS daemon not installed, proceeding with download and installation")
+            pass   
+        if self.ipfs_test_install() is None or self.ipfs_test_install() is False:        
+            # Binary not found, proceed with download and installation
+            dist = self.dist_select()
+            dist_tar = self.ipfs_dists[dist]
             url = self.ipfs_dists[self.dist_select()]
             if ".tar.gz" in url:
                 url_suffix = ".tar.gz"
@@ -503,7 +569,7 @@ class install_ipfs:
                             os.rename(move_source_path, move_dest_path)
                         else:
                             print(move_source_path)
-                            raise ("Error moving ipfs.exe, source path does not exist")
+                            raise Exception("IPFS binary not found after extraction")
                         results = subprocess.check_output(command, shell=True)
                         results = results.decode()
                     else:
@@ -595,21 +661,33 @@ class install_ipfs:
                     return self.ipfs_multiformats.get_cid(os.path.join(self.path_string, "ipfs"))
             else:
                 return False
-        else:
-            return True
 
     def install_ipfs_cluster_follow(self):
         # First check if ipfs-cluster-follow is already installed using the corrected detection logic
         if self.ipfs_cluster_follow_test_install():
             print("IPFS cluster follow already installed, skipping download")
             # Return CID of existing binary if possible
-            if platform.system() == "Windows" and os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-follow.exe")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-follow.exe"))
-            elif os.path.exists(os.path.join(self.bin_path, "ipfs-cluster-follow")):
-                return self.ipfs_multiformats.get_cid(os.path.join(self.bin_path, "ipfs-cluster-follow"))
+            this_path = self.bin_path
+            this_path = os.path.join(str(this_path), "ipfs-cluster-follow.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs-cluster-follow") if dir(this_path) else os.path.join("~", "ipfs-cluster-follow")
+            this_path = this_path.replace("\\", "/")
+            if os.path.exists(this_path): 
+                if platform.system() == "Windows":
+                    command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
+                else:
+                    command = "sha256sum " + this_path + " | awk '{print $1}'"
+                results = subprocess.check_output(command, shell=True)
+                results = results.decode().strip()
+                return results
             else:
-                return True  # Binary exists in PATH but not in our bin directory
-                
+                print("ipfs-cluster-follow binary not found in expected location, proceeding with download and installation")
+        # If ipfs-cluster-follow is not installed, proceed with download and installation
+        if self.ipfs_cluster_follow_test_install() is False:
+            print("IPFS cluster follow not installed, proceeding with download and installation")  
+        if self.ipfs_cluster_follow_test_install() is None:
+            print("IPFS cluster follow not installed, proceeding with download and installation")
+        if self.ipfs_cluster_follow_test_install() is None or self.ipfs_cluster_follow_test_install() is False:
+            print("IPFS cluster follow not installed, proceeding with download and installation")
+
         # Binary not found, proceed with download and installation
         dist = self.dist_select()
         dist_tar = self.ipfs_cluster_follow_dists[dist]
@@ -659,24 +737,12 @@ class install_ipfs:
                             os.rename(move_source_path, move_dest_path)
                         else:
                             print(move_source_path)
-                            raise ("Error moving ipfs.exe, source path does not exist")
+                            raise Exception("Error moving ipfs.exe, source path does not exist")
                         results = subprocess.check_output(command, shell=True)
                         results = results.decode()
                     else:
-                        command = "unzip " + this_tempfile.name + " -d " + self.tmp_path
-                        results = subprocess.check_output(command, shell=True)
-                        results = results.decode()
-                        command = (
-                            "cd "
-                            + self.tmp_path
-                            + "/ipfs-cluster-follow && mv ipfs-cluster-follow.exe "
-                            + self.this_dir
-                            + "/bin/ && chmod +x "
-                            + self.this_dir
-                            + "/bin/ipfs-cluster-follow.exe"
-                        )
-                        results = subprocess.check_output(command, shell=True)
-                        results = results.decode()
+                        command = f"unzip {this_tempfile.name} -d {self.tmp_path} && cd {self.tmp_path}/ipfs-cluster-follow && mv ipfs-cluster-follow.exe {self.this_dir}/bin/ && chmod +x {self.this_dir}/bin/ipfs-cluster-follow.exe"
+                        results = subprocess.check_output(command, shell=True).decode()
                 else:
                     command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
                     results = subprocess.check_output(command, shell=True)
@@ -704,70 +770,33 @@ class install_ipfs:
                     command = "cd " + self.tmp_path + "/ipfs-cluster-follow && bash install.sh"
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
-                    command = (
-                        "cd "
-                        + self.tmp_path
-                        + '/ipfs-cluster-follow && mkdir -p "'
-                        + self.this_dir
-                        + '/bin/" && mv ipfs-cluster-follow "'
-                        + self.this_dir
-                        + '/bin/" && chmod +x "$'
-                        + self.this_dir
-                        + '/bin/ipfs-cluster-follow"'
-                    )
+                    command = str("cd " + self.tmp_path + '/ipfs-cluster-follow && mkdir -p "' + self.this_dir + '/bin/" && mv ipfs-cluster-follow "' + self.this_dir + '/bin/" && chmod +x "$' + self.this_dir + '/bin/ipfs-cluster-follow"')
                     results = subprocess.check_output(command, shell=True)
                     pass
                 elif platform.system() == "Windows":
-                    command = (
-                        "move "
-                        + os.path.join(
-                            self.tmp_path, "ipfs-cluster-follow", "ipfs-cluster-follow.exe"
-                        )
-                        + " "
-                        + os.path.join(self.this_dir, "bin", "ipfs-cluster-follow.exe")
-                    )
+                    command = ( "move "   + os.path.join(    self.tmp_path, "ipfs-cluster-follow", "ipfs-cluster-follow.exe" ) + " " + os.path.join(self.this_dir, "bin", "ipfs-cluster-follow.exe") )
                     results = subprocess.check_output(command, shell=True)
                     results = results.decode()
                     pass
                 else:
-                    # NOTE: Clean this up and make better logging or drop the error all together
-                    print(
-                        "You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service"
-                    )
-                    command = (
-                        "cd "
-                        + self.tmp_path
-                        + '/ipfs-cluster-follow && mkdir -p "'
-                        + self.this_dir
-                        + '/bin/" && mv ipfs "'
-                        + self.this_dir
-                        + '/bin/" && chmod +x "$'
-                        + self.this_dir
-                        + '/bin/ipfs-cluster-follow"'
-                    )
+                    print("You need to be root to write to /etc/systemd/system/ipfs-cluster-follow.service")
+                    command = f"cd {self.tmp_path}/ipfs-cluster-follow && mkdir -p \"{self.this_dir}/bin/\" && mv ipfs \"{self.this_dir}/bin/\" && chmod +x \"{self.this_dir}/bin/ipfs-cluster-follow\""
                     results = subprocess.check_output(command, shell=True)
                     pass
-            if platform.system() == "windows":
+            bin_path = self.bin_path
+            bin_path = os.path.join(str(bin_path), "ipfs-cluster-follow.exe") if platform.system() == "Windows" else os.path.join(str(bin_path), "ipfs-cluster-follow") if dir(bin_path) else os.path.join("~", "ipfs-cluster-follow")
+            bin_path = bin_path.replace("\\", "/")
+            if platform.system() == "Windows":
                 command = os.path.join(self.bin_path, "ipfs-cluster-follow.exe") + " --version"
-            if platform.system() == "linux":
-                command = os.path.join(self.bin_path, "ipfs-cluster-follow") + " --version"
-            if platform.system() == "darwin":
-                command = os.path.join(self.bin_path, "ipfs-cluster-follow") + " --version"
-            results = subprocess.check_output(command, shell=True)
-            results = results.decode()
+            else:
+                command = os.path.join(self.bin_path, "ipfs-cluster-follow") + "    --version"
+            results = subprocess.check_output(command, shell=True).decode()
             if "ipfs" in results:
-                if platform.system() == "Windows":
-                    return self.ipfs_multiformats.get_cid(
-                        os.path.join(self.bin_path, "ipfs-cluster-follow.exe")
-                    )
-                elif platform.system() == "Linux":
-                    return self.ipfs_multiformats.get_cid(
-                        os.path.join(self.bin_path, "ipfs-cluster-follow")
-                    )
+                return self.ipfs_multiformats.get_cid(
+                    os.path.join(self.bin_path, "ipfs-cluster-follow.exe" if platform.system    () == "Windows" else "ipfs-cluster-follow")
+                )
             else:
                 return False
-        else:
-            return True
 
     def install_ipfs_cluster_ctl(self):
         # First check if ipfs-cluster-ctl is already installed using the corrected detection logic
@@ -2308,11 +2337,7 @@ class install_ipfs:
                 find_daemon_results = find_daemon_results.decode()
                 pass
 
-            run_daemon_cmd = (
-                self.path_string
-                + " IPFS_PATH="
-                + self.ipfs_path
-                + " ipfs daemon --enable-pubsub-experiment"
+            run_daemon_cmd = ( self.path_string + " IPFS_PATH=" + self.ipfs_path + " ipfs daemon --enable-pubsub-experiment"
             )
             run_daemon = subprocess.Popen(run_daemon_cmd, shell=True)
             time.sleep(5)
@@ -2489,7 +2514,7 @@ class install_ipfs:
             elif platform.system() == "Linux" and os.geteuid() != 0:
                 run_command = self.path_string + " ipfs-cluster-service -d daemon "
             elif platform.system() == "Windows":
-                run_command = os.path.join(self.bin_path, "ipfs-cluster-service.exe") + "-d daemon"
+                run_command = str(os.path.join(self.bin_path, "ipfs-cluster-service.exe") + "-d daemon")
             elif platform.system() == "Darwin":
                 run_command = self.path_string + " ipfs-cluster-service daemon"
             # run_command = self.path_string + " IPFS_CLUSTER_PATH="+ self.ipfs_path +" ipfs-cluster-service daemon"
@@ -2534,54 +2559,25 @@ class install_ipfs:
         try:
             os.makedirs(ipfs_path, exist_ok=True)
             if platform.system() == "Linux" and os.geteuid() == 0:
-                run_ipfs_cluster_command = (
-                    self.path_string
-                    + " IPFS_CLUSTER_PATH="
-                    + self.ipfs_path
-                    + " ipfs-cluster-ctl --version"
-                )
-                run_ipfs_cluster_command_results = subprocess.check_output(
-                    run_ipfs_cluster_command, shell=True
-                )
+                run_ipfs_cluster_command = str( self.path_string + " IPFS_CLUSTER_PATH=" + self.ipfs_path + " ipfs-cluster-ctl --version" )
+                run_ipfs_cluster_command_results = subprocess.check_output( run_ipfs_cluster_command, shell=True )
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
-
-                run = (
-                    self.path_string
-                    + " IPFS_CLUSTER_PATH="
-                    + self.ipfs_path
-                    + " ipfs-cluster-ctl peers ls"
-                )
+                run = str( self.path_string + " IPFS_CLUSTER_PATH=" + self.ipfs_path + " ipfs-cluster-ctl peers ls" )
                 run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
                 pass
             elif platform.system() == "Linux" and os.geteuid() != 0:
-                run_ipfs_cluster_command = (
-                    self.path_string
-                    + " IPFS_CLUSTER_PATH="
-                    + self.ipfs_path
-                    + " ipfs-cluster-ctl --version"
-                )
-                run_ipfs_cluster_command_results = subprocess.check_output(
-                    run_ipfs_cluster_command, shell=True
-                )
+                run_ipfs_cluster_command = str( self.path_string + " IPFS_CLUSTER_PATH=" + self.ipfs_path + " ipfs-cluster-ctl --version" )
+                run_ipfs_cluster_command_results = subprocess.check_output( run_ipfs_cluster_command, shell=True  )
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
-
-                run = (
-                    self.path_string
-                    + " IPFS_CLUSTER_PATH="
-                    + self.ipfs_path
-                    + " ipfs-cluster-ctl peers ls"
-                )
+                run = str(self.path_string + " IPFS_CLUSTER_PATH=" + self.ipfs_path + " ipfs-cluster-ctl peers ls")
                 run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
                 pass
             elif platform.system() == "Windows":
-                run_ipfs_cluster_command = (
-                    os.path.join(self.bin_path, "ipfs-cluster-ctl.exe") + " --version"
-                )
-                run_ipfs_cluster_command_results = subprocess.check_output(
-                    run_ipfs_cluster_command, shell=True
-                )
+                this_path = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe")
+                run_ipfs_cluster_command = str( this_path + " --version")
+                run_ipfs_cluster_command_results = subprocess.check_output(run_ipfs_cluster_command, shell=True )
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
 
                 run = os.path.join(self.bin_path, "ipfs-cluster-ctl.exe") + " peers ls"
@@ -2589,23 +2585,13 @@ class install_ipfs:
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
                 pass
             elif platform.system() == "Darwin":
-                run_ipfs_cluster_command = (
-                    self.path_string
-                    + " IPFS_CLUSTER_PATH="
-                    + self.ipfs_path
-                    + " ipfs-cluster-ctl --version"
-                )
+                run_ipfs_cluster_command = str(self.path_string + " IPFS_CLUSTER_PATH=" + self.ipfs_path + " ipfs-cluster-ctl --version")
                 run_ipfs_cluster_command_results = subprocess.check_output(
                     run_ipfs_cluster_command, shell=True
                 )
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
 
-                run = (
-                    self.path_string
-                    + " IPFS_CLUSTER_PATH="
-                    + self.ipfs_path
-                    + " ipfs-cluster-ctl peers ls"
-                )
+                run = str(self.path_string + " IPFS_CLUSTER_PATH=" + self.ipfs_path + " ipfs-cluster-ctl peers ls" )
                 run_ipfs_cluster_command_results = subprocess.check_output(run, shell=True)
                 run_ipfs_cluster_command_results = run_ipfs_cluster_command_results.decode()
 
@@ -2649,7 +2635,8 @@ class install_ipfs:
             ipfs_path = kwargs["ipfs_path"]
         elif "ipfs_path" in list(self.__dict__.keys()):
             ipfs_path = self.ipfs_path
-
+        else:
+            ipfs_path = os.path.join(os.path.expanduser("~"), ".ipfs-cluster-follow")
         if not os.path.exists(ipfs_path):
             os.makedirs(ipfs_path, exist_ok=True)
             pass

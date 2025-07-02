@@ -13,6 +13,117 @@ logger = logging.getLogger(__name__)
 # Singleton instance for the IPFS backend
 _backend_instance = None
 
+class IPFSBackendError(Exception):
+    """Custom exception for IPFS backend errors."""
+    pass
+
+class MockIPFS:
+    """Mock IPFS client for testing purposes."""
+    
+    def __getattr__(self, name):
+        """Mock method to handle calls to the IPFS client."""
+        def mock_method(*args, **kwargs):
+            logger.info(f"Mock IPFS method called: {name}({args}, {kwargs})")
+            if name == "add":
+                return {"Hash": "QmMockHash", "Name": "mock_file"}
+            elif name == "cat":
+                return b"Mock content"
+            elif name == "get":
+                return b"Mock content"
+            elif name == "ls":
+                return {"Objects": [{"Hash": "QmMockHash", "Links": []}]}
+            elif name.startswith("pin_"):
+                return {"Pins": ["QmMockHash"]}
+            elif name == "id":
+                return {"ID": "MockPeerID", "Addresses": ["/ip4/127.0.0.1/tcp/5001/http"]}
+            elif name == "swarm_peers":
+                return {"Peers": [{"Peer": "QmMockPeerID", "Addr": "/ip4/127.0.0.1/tcp/4001"}]}
+            elif name == "check_health":
+                return True
+            elif name == "get":
+                return b"Mock content"
+            elif name == "pin":
+                return {"Pins": ["QmMockHash"]}
+            elif name == "rm":
+                return {"Removed": "QmMockHash"}
+            elif name == "api_class":
+                return "MockIPFS"
+            # Add more mock methods as needed
+            return {}
+        return mock_method
+
+    def __init__(self):
+        """Initialize the mock IPFS client."""
+        logger.info("Initialized mock IPFS client")
+        self._mock_data = {}
+
+    def add(self, content: Union[str, bytes], **kwargs) -> bytes:
+        """Mock method to add content to IPFS."""
+        logger.info(f"Mock add called with content: {content}")
+        if isinstance(content, str):
+            content = content.encode('utf-8')
+        hash_value = "QmMockHash"
+        return content
+
+    def cat(self, cid: str, **kwargs) -> bytes:
+        """Mock method to retrieve content from IPFS."""
+        logger.info(f"Mock cat called with CID: {cid}")
+        return b"Mock content"
+    
+    def get(self, cid: str, **kwargs) -> bytes:
+        """Mock method to get content from IPFS."""
+        logger.info(f"Mock get called with CID: {cid}")
+        return b"Mock content"
+    
+    def ls(self, cid: str, **kwargs) -> Dict[str, Any]:
+        """Mock method to list content in IPFS."""
+        logger.info(f"Mock ls called with CID: {cid}")
+        return {"Objects": [{"Hash": "QmMockHash", "Links": []}]}
+    
+    def pin_add(self, cid: str, **kwargs) -> Dict[str, Any]:
+        """Mock method to pin content in IPFS."""
+        logger.info(f"Mock pin_add called with CID: {cid}")
+        return {"Pins": ["QmMockHash"]}
+    
+    def pin_ls(self, **kwargs) -> Dict[str, Any]:
+        """Mock method to list pinned content in IPFS."""
+        logger.info("Mock pin_ls called")
+        return {"Keys": {"QmMockHash": {"Type": "recursive"}}}
+    
+    def pin_rm(self, cid: str, **kwargs) -> Dict[str, Any]:
+        """Mock method to remove pinned content from IPFS."""
+        logger.info(f"Mock pin_rm called with CID: {cid}")
+        return {"Pins": ["QmMockHash"]}
+    
+    def id(self) -> Dict[str, Any]:
+        """Mock method to get IPFS node ID information."""
+        logger.info("Mock id called")
+        return {"ID": "MockPeerID", "Addresses": ["/ip4/127.0.0.1/tcp/5001/http"]}
+    
+    def swarm_peers(self) -> Dict[str, Any]:
+        """Mock method to get IPFS swarm peers."""
+        logger.info("Mock swarm_peers called")
+        return {"Peers": [{"Peer": "QmMockPeerID", "Addr": "/ip4/127.0.0.1/tcp/4001"}]}
+    
+    def check_health(self) -> bool:
+        """Mock method to check IPFS node health."""
+        logger.info("Mock check_health called")
+        return True
+    
+    def get(self, cid: str, **kwargs) -> bytes:
+        """Mock method to get content from IPFS."""
+        logger.info(f"Mock get called with CID: {cid}")
+        return b"Mock content"
+    
+    def rm(self, cid: str, **kwargs) -> Dict[str, Any]:
+        """Mock method to remove content from IPFS."""
+        logger.info(f"Mock rm called with CID: {cid}")
+        return {"Removed": cid}
+    
+    def api_class(self) -> str:
+        """Mock method to return the API class."""
+        logger.info("Mock api_class called")
+        return "MockIPFS"
 
 class IPFSBackend:
     """Interface for interacting with different IPFS implementations."""
@@ -38,7 +149,9 @@ class IPFSBackend:
         self.port = port
         self.options = kwargs
         self.client = None
-        
+        self.client = MockIPFS()  # Default to mock client
+        logger.info(f"Initializing IPFS backend with implementation: {self.implementation}, host: {self.host}, port: {self.port}")
+
         # Initialize client based on implementation
         self._initialize_client()
     
@@ -124,26 +237,27 @@ class IPFSBackend:
     
     def _initialize_mock_client(self) -> None:
         """Initialize a mock IPFS client for testing."""
-        class MockIPFS:
-            def __getattr__(self, name):
-                def mock_method(*args, **kwargs):
-                    logger.info(f"Mock IPFS method called: {name}({args}, {kwargs})")
-                    if name == "add":
-                        return {"Hash": "QmMockHash", "Name": "mock_file"}
-                    elif name == "cat":
-                        return b"Mock content"
-                    elif name == "get":
-                        return b"Mock content"
-                    elif name == "ls":
-                        return {"Objects": [{"Hash": "QmMockHash", "Links": []}]}
-                    elif name.startswith("pin_"):
-                        return {"Pins": ["QmMockHash"]}
-                    elif name == "id":
-                        return {"ID": "MockPeerID", "Addresses": ["/ip4/127.0.0.1/tcp/4001"]}
-                    return {}
-                return mock_method
-        
         self.client = MockIPFS()
+        self.client.api_class = lambda: "MockIPFS"
+        self.client.add = lambda *args, **kwargs: {"Hash": "QmMockHash", "Name": "mock_file"}
+        self.client.cat = lambda *args, **kwargs: b"Mock content"
+        self.client.get = lambda *args, **kwargs: b"Mock content"
+        self.client.pins = lambda *args, **kwargs: {"Pins": ["QmMockHash"]}
+        self.client.id = lambda: {"ID": "MockPeerID", "Addresses": ["/ip4/127.0.0.1/tcp/5001/http"]}
+        self.client.ls = lambda *args, **kwargs: {"Objects": [{"Hash": "QmMockHash", "Links": []}]}
+        self.client.pin_add = lambda *args, **kwargs: {"Pins": ["QmMockHash"]}
+        self.client.pin_ls = lambda *args, **kwargs: {"Keys": {"QmMockHash": {"Type": "recursive"}}}
+        self.client.pin_rm = lambda *args, **kwargs: {"Pins": ["QmMockHash"]}
+        self.client.id = lambda: {"ID": "MockPeerID", "Addresses": ["/ip4/127.0.0.1/tcp/5001/http"]}
+        self.client.swarm_peers = lambda: {"Peers": [{"Peer": "QmMockPeerID", "Addr": "/ip4/127.0.0.1/tcp/5001/http"}]}
+        self.client.swarm = lambda: {"peers": lambda: {"Peers": [{"Peer": "QmMockPeerID", "Addr": "/ip4/127.0.0.1/tcp/5001/http"}]}}
+        self.client.swarm_peers = lambda: {"Peers": [{"Peer": "QmMockPeerID", "Addr": "/ip4/127.0.0.1/tcp/5001/http"}]} # Mock swarm peers method
+        self.client.peers = lambda: {"Peers": [{"Peer": "QmMockPeerID", "Addr": "/ip4/127.0.0.1/tcp/5001/http"}]}
+        self.client.check_health = lambda: True
+        self.client.get = lambda cid, **kwargs: b"Mock content"
+        self.client.rm = lambda cid, **kwargs: {"Removed": cid}
+        self.client.api_class = lambda: "MockIPFS"
+        self.client.__init__()
         logger.info("Initialized mock IPFS client")
     
     def add(self, *args, **kwargs) -> Dict[str, Any]:
