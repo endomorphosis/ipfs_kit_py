@@ -56,13 +56,14 @@ def test_mcp_server():
         ]
         
         # Send messages
-        for i, msg in enumerate(messages, 1):
-            print(f"📤 Sending message {i}: {msg['method']}")
-            proc.stdin.write(json.dumps(msg) + "\n")
-            proc.stdin.flush()
-            time.sleep(0.5)  # Small delay between messages
-        
-        proc.stdin.close()
+        if proc.stdin:
+            for i, msg in enumerate(messages, 1):
+                print(f"📤 Sending message {i}: {msg['method']}")
+                proc.stdin.write(json.dumps(msg) + "\n")
+                proc.stdin.flush()
+                time.sleep(0.5)  # Small delay between messages
+            
+            proc.stdin.close()
         
         # Wait for processing
         try:

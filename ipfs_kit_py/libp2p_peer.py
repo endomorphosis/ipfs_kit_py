@@ -53,10 +53,12 @@ if HAS_LIBP2P:
         # Handle missing pubsub_utils gracefully
         HAS_PUBSUB = True
         try:
-            import libp2p.tools.pubsub.utils as pubsub_utils
+            from libp2p.pubsub.gossipsub import GossipSub
+            from libp2p.pubsub.floodsub import FloodSub
+            logger.debug("libp2p pubsub modules available")
         except ImportError as e:
             HAS_PUBSUB = False
-            logger.warning(f"libp2p.tools.pubsub module not available: {e}. PubSub functionality will be limited.")
+            logger.warning(f"libp2p.pubsub modules not available: {e}. PubSub functionality will be limited.")
             # Import our custom pubsub implementation
             from ipfs_kit_py.libp2p.tools.pubsub.utils import create_pubsub
             
@@ -84,13 +86,17 @@ if HAS_LIBP2P:
         from libp2p.network.exceptions import SwarmException
         
         try:
+            from libp2p.network.stream.net_stream import NetStream as INetStream
             from libp2p.network.stream.exceptions import StreamError
-            from libp2p.network.stream.net_stream_interface import INetStream
         except ImportError as e:
             logger.warning(f"libp2p.network.stream modules not available: {e}. Streaming functionality will be limited.")
-            # Define a minimal StreamError class
+            # Define minimal fallback classes
             class StreamError(Exception):
                 """Error in stream operations."""
+                pass
+            
+            class INetStream:
+                """Minimal stream interface fallback."""
                 pass
             
         from libp2p.peer.id import ID as PeerID
@@ -270,31 +276,69 @@ class IPFSLibp2pPeer:
             
             # Set up components synchronously
             try:
-                # Try with newer anyio version that supports timeout
-                anyio.run(self._async_init, timeout=30)
-            except TypeError:
-                # Fallback for older anyio versions that don't support timeout
-                anyio.run(self._async_init)
+                # Check if we're already in an async context
+                try:
+                    import sniffio
+                    current_async_library = sniffio.current_async_library()
+                    # We're in an async context, defer initialization
+                    self.logger.info(f"In {current_async_library} context, deferring libp2p initialization")
+                    self._deferred_init = True
+                except sniffio.AsyncLibraryNotFoundError:
+                    # Not in async context, safe to run
+                    self._deferred_init = False
+                    try:
+                        # Try with newer anyio version that supports timeout
+                        anyio.run(self._async_init, timeout=30)
+                    except TypeError:
+                        # Fallback for older anyio versions that don't support timeout
+                        anyio.run(self._async_init)
+            except ImportError:
+                # sniffio not available, try to detect manually
+                try:
+                    asyncio.get_running_loop()
+                    # We're in an asyncio context, defer initialization
+                    self.logger.info("In asyncio context, deferring libp2p initialization")
+                    self._deferred_init = True
+                except RuntimeError:
+                    # No running loop, safe to run
+                    self._deferred_init = False
+                    try:
+                        # Try with newer anyio version that supports timeout
+                        anyio.run(self._async_init, timeout=30)
+                    except TypeError:
+                        # Fallback for older anyio versions that don't support timeout
+                        anyio.run(self._async_init)
 
             # Connect to bootstrap peers
-            if bootstrap_peers:
+            if bootstrap_peers and not self._deferred_init:
                 for peer in bootstrap_peers:
                     self.connect_peer(peer)
 
             # Start discovery
-            if enable_mdns:
+            if enable_mdns and not self._deferred_init:
                 self.start_discovery()
 
             # Initialize empty known relays list
             self.known_relays = []
 
             self._running = True
-            self.logger.info(f"libp2p peer initialized with ID: {self.get_peer_id()}")
+            if self._deferred_init:
+                self.logger.info(f"libp2p peer created (deferred init) with ID: {self.get_peer_id() if hasattr(self, 'key_pair') else 'pending'}")
+            else:
+                self.logger.info(f"libp2p peer initialized with ID: {self.get_peer_id()}")
         except Exception as e:
             self.logger.error(f"Failed to initialize libp2p peer: {str(e)}")
             # Clean up any resources that were initialized
             self.close()
             raise LibP2PError(f"Failed to initialize libp2p peer: {str(e)}")
+
+    async def ensure_initialized(self):
+        """Ensure the peer is fully initialized (call this from async context if deferred)."""
+        if getattr(self, '_deferred_init', False) and not getattr(self, '_initialized', False):
+            await self._async_init()
+            self._initialized = True
+            self._deferred_init = False
+            self.logger.info(f"Completed deferred initialization for peer: {self.get_peer_id()}")
 
     async def _init_task_group(self):
         """Initialize the task group for background tasks."""

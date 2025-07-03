@@ -18,6 +18,7 @@ import tempfile
 import threading
 import time
 import uuid
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 # Arrow imports
@@ -168,7 +169,51 @@ def create_cluster_state_schema():
     )
 
 
-class ArrowClusterState:
+class ClusterStateInterface(ABC):
+    """Abstract base class for cluster state management implementations."""
+    
+    @abstractmethod
+    def get_nodes(self) -> Dict[str, Any]:
+        """Get all nodes in the cluster."""
+        pass
+    
+    @abstractmethod
+    def update_node(self, node_id: str, **kwargs) -> bool:
+        """Update node information."""
+        pass
+    
+    @abstractmethod
+    def remove_node(self, node_id: str) -> bool:
+        """Remove a node from the cluster."""
+        pass
+    
+    @abstractmethod
+    def get_tasks(self) -> Dict[str, Any]:
+        """Get all tasks in the cluster."""
+        pass
+    
+    @abstractmethod
+    def add_task(self, task_id: str, task_type: str, parameters: Optional[Dict] = None, priority: int = 0) -> bool:
+        """Add a new task."""
+        pass
+    
+    @abstractmethod
+    def update_task(self, task_id: str, **kwargs) -> bool:
+        """Update task information."""
+        pass
+    
+    @abstractmethod
+    def get_content(self) -> Dict[str, Any]:
+        """Get content registry information."""
+        pass
+    
+    @abstractmethod
+    def update_content(self, cid: str, content_info: Dict[str, Any]) -> bool:
+        """Update content information."""
+        pass
+
+
+class ArrowClusterState(ClusterStateInterface):
     """Arrow-based cluster state with shared memory access.
 
     This class provides a shared, persistent state store for cluster management

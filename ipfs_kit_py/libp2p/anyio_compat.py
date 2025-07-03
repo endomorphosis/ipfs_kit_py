@@ -3,6 +3,7 @@ AnyIO compatibility module to provide missing StreamReader and StreamWriter clas
 
 This module adds backward compatibility for code expecting anyio.StreamReader
 and anyio.StreamWriter attributes that may not be present in newer anyio versions.
+It also provides task group compatibility across different anyio versions.
 """
 
 import anyio
@@ -44,6 +45,17 @@ class StreamWriter(Protocol):
     async def wait_closed(self) -> None:
         """Wait until the stream is closed."""
         ...
+
+
+# AnyIO compatibility functions
+def create_task_group():
+    """Create a task group compatible with current anyio version."""
+    return anyio.create_task_group()
+
+
+async def sleep(delay: float) -> None:
+    """Sleep for the given number of seconds."""
+    await anyio.sleep(delay)
 
 
 # Monkey patch anyio module if attributes are missing

@@ -1,0 +1,176 @@
+{
+  "test_timestamp": "2025-07-03T06:44:29.260939",
+  "phase": "Phase 2 - Comprehensive Tool Coverage",
+  "test_results": {
+    "tool_registration": {
+      "total_expected": 50,
+      "total_found": 50,
+      "categories": {
+        "IPFS Core Operations": {
+          "expected": 18,
+          "found": 18,
+          "missing": []
+        },
+        "IPFS Advanced Operations": {
+          "expected": 8,
+          "found": 8,
+          "missing": []
+        },
+        "IPFS MFS Tools": {
+          "expected": 10,
+          "found": 10,
+          "missing": []
+        },
+        "Virtual Filesystem Tools": {
+          "expected": 13,
+          "found": 13,
+          "missing": []
+        },
+        "System Tools": {
+          "expected": 1,
+          "found": 1,
+          "missing": []
+        }
+      },
+      "success": true
+    },
+    "tool_execution": {
+      "ipfs_version": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_version not found in IPFS Kit"
+        }
+      },
+      "ipfs_id": {
+        "success": true,
+        "result": {
+          "success": true,
+          "operation": "id",
+          "id": "QmTest123",
+          "addresses": [
+            "/ip4/127.0.0.1/tcp/4001/p2p/QmTest123",
+            "/ip4/192.168.1.100/tcp/4001/p2p/QmTest123"
+          ],
+          "agent_version": "kubo/0.18.0/",
+          "protocol_version": "ipfs/0.1.0"
+        }
+      },
+      "ipfs_add": {
+        "success": true,
+        "result": {
+          "success": true,
+          "operation": "ipfs_add",
+          "cid": "QmNV37zxr8DjkbW3YdLZQLDHsfqG3R7um3kTJFewSzrmUK",
+          "size": 23
+        }
+      },
+      "ipfs_stats": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_stats not found in IPFS Kit"
+        }
+      },
+      "ipfs_dht_findpeer": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_dht_findpeer not found in IPFS Kit"
+        }
+      },
+      "ipfs_name_resolve": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_name_resolve not found in IPFS Kit"
+        }
+      },
+      "ipfs_pubsub_peers": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_pubsub_peers not found in IPFS Kit"
+        }
+      },
+      "ipfs_files_ls": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_files_ls not found in IPFS Kit"
+        }
+      },
+      "ipfs_files_mkdir": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_files_mkdir not found in IPFS Kit"
+        }
+      },
+      "ipfs_files_write": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_files_write not found in IPFS Kit"
+        }
+      },
+      "vfs_list_mounts": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method vfs_list_mounts not found in IPFS Kit"
+        }
+      },
+      "vfs_mkdir": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method vfs_mkdir not found in IPFS Kit"
+        }
+      },
+      "vfs_write": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method vfs_write not found in IPFS Kit"
+        }
+      },
+      "vfs_ls": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method vfs_ls not found in IPFS Kit"
+        }
+      },
+      "system_health": {
+        "success": true,
+        "result": {
+          "success": true,
+          "timestamp": "2025-07-03T06:44:28.258434",
+          "system": {
+            "cpu_percent": 57.1,
+            "memory_percent": 58.0,
+            "disk_usage": {
+              "total": 237559742464,
+              "used": 40211578880,
+              "free": 197348163584,
+              "percent": 16.9
+            }
+          },
+          "ipfs": {
+            "daemon_running": true,
+            "mock_fallback": false,
+            "connection_test": true
+          }
+        }
+      }
+    }
+  },
+  "summary": {
+    "tools_registered": 50,
+    "tools_expected": 50,
+    "registration_success": true,
+    "sample_execution_count": 15,
+    "successful_executions": 3
+  }
+}

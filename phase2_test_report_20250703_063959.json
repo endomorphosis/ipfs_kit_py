@@ -1,0 +1,122 @@
+{
+  "test_timestamp": "2025-07-03T06:39:59.245366",
+  "phase": "Phase 2 - Comprehensive Tool Coverage",
+  "test_results": {
+    "tool_registration": {
+      "total_expected": 37,
+      "total_found": 37,
+      "categories": {
+        "IPFS Core Operations": {
+          "expected": 18,
+          "found": 18,
+          "missing": []
+        },
+        "IPFS Advanced Operations": {
+          "expected": 8,
+          "found": 8,
+          "missing": []
+        },
+        "IPFS MFS Tools": {
+          "expected": 10,
+          "found": 10,
+          "missing": []
+        },
+        "System Tools": {
+          "expected": 1,
+          "found": 1,
+          "missing": []
+        }
+      },
+      "success": true
+    },
+    "tool_execution": {
+      "ipfs_version": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_version not found in IPFS Kit"
+        }
+      },
+      "ipfs_id": {
+        "success": true,
+        "result": {
+          "success": true,
+          "operation": "id",
+          "id": "QmTest123",
+          "addresses": [
+            "/ip4/127.0.0.1/tcp/4001/p2p/QmTest123",
+            "/ip4/192.168.1.100/tcp/4001/p2p/QmTest123"
+          ],
+          "agent_version": "kubo/0.18.0/",
+          "protocol_version": "ipfs/0.1.0"
+        }
+      },
+      "ipfs_add": {
+        "success": true,
+        "result": {
+          "success": true,
+          "operation": "ipfs_add",
+          "cid": "QmZzSdctQ5ttdGe68npAFUerM5MqScv9MzLLDrsJkZtpdx",
+          "size": 14
+        }
+      },
+      "ipfs_dht_findpeer": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_dht_findpeer not found in IPFS Kit"
+        }
+      },
+      "ipfs_name_resolve": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_name_resolve not found in IPFS Kit"
+        }
+      },
+      "ipfs_files_ls": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_files_ls not found in IPFS Kit"
+        }
+      },
+      "ipfs_files_mkdir": {
+        "success": false,
+        "result": {
+          "success": false,
+          "error": "Method ipfs_files_mkdir not found in IPFS Kit"
+        }
+      },
+      "system_health": {
+        "success": true,
+        "result": {
+          "success": true,
+          "timestamp": "2025-07-03T06:39:58.244578",
+          "system": {
+            "cpu_percent": 37.8,
+            "memory_percent": 58.8,
+            "disk_usage": {
+              "total": 237596180480,
+              "used": 40203714560,
+              "free": 197392465920,
+              "percent": 16.9
+            }
+          },
+          "ipfs": {
+            "daemon_running": true,
+            "mock_fallback": false,
+            "connection_test": true
+          }
+        }
+      }
+    }
+  },
+  "summary": {
+    "tools_registered": 37,
+    "tools_expected": 37,
+    "registration_success": true,
+    "sample_execution_count": 8,
+    "successful_executions": 3
+  }
+}

@@ -38,7 +38,9 @@ logger = logging.getLogger("enhanced-mcp-ipfs-kit-daemon-mgmt")
 __version__ = "2.2.0"
 
 # Add the project root to Python path to import ipfs_kit_py
-project_root = os.path.dirname(os.path.abspath(__file__))
+# Go up from mcp/ to the root directory
+current_file = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(current_file))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -51,6 +53,7 @@ class IPFSKitIntegration:
         self.ipfs_kit = None
         self.daemon_process = None
         self.use_mock_fallback = False
+        self._ensure_daemon_running = self._ensure_daemon_running if self.ipfs_kit else lambda: False
         self._initialize_ipfs_kit()
     
     def _initialize_ipfs_kit(self):
@@ -129,9 +132,27 @@ class IPFSKitIntegration:
         if self._test_ipfs_connection():
             logger.info("IPFS daemon already running")
             return True
-        
+        if hasattr(self.ipfs_kit, '_ensure_daemon_running') and not self.ipfs_kit._ensure_daemon_running:
+            # If IPFS Kit is not available or doesn't support daemon management, fallback to direct commands
+            logger.warning("IPFS Kit does not support daemon management, falling back to direct commands")
+            self.use_mock_fallback = True
+            self.ipfs_kit = None  # Use direct commands instead
+        elif self.ipfs_kit and hasattr(self.ipfs_kit, '_ensure_daemon_running'):
+            # If IPFS Kit is available, use it to start the daemon
+            try:
+                result = self.ipfs_kit._ensure_daemon_running("ipfs")
+                if result.get("success", False):
+                    logger.info("Successfully started IPFS daemon via IPFS Kit")
+                    return True
+            except Exception as e:
+                logger.warning(f"Failed to start daemon via IPFS Kit: {e}")
+        else:
+            logger.warning("IPFS Kit not available for daemon management, falling back to direct commands")
+            self.use_mock_fallback = True
+            self.ipfs_kit = None
         # Try to start daemon using ipfs_kit if available
-        if self.ipfs_kit and hasattr(self.ipfs_kit, '_ensure_daemon_running'):
+        types = __import__('types')
+        if self.ipfs_kit and hasattr(self.ipfs_kit, '_ensure_daemon_running') and isinstance(self.ipfs_kit._ensure_daemon_running, types.MethodType):
             try:
                 result = self.ipfs_kit._ensure_daemon_running("ipfs")
                 if result.get("success", False):
@@ -251,7 +272,7 @@ class IPFSKitIntegration:
                 if cid:
                     result = subprocess.run(['ipfs', 'cat', cid], 
                                           capture_output=True, text=True, timeout=30)
-                    if result.returncode == 0:
+                    if result.returncode == 0 and "decode" in dir(result.stdout) and isinstance(result.stdout, bytes):
                         return {
                             "success": True,
                             "operation": operation,

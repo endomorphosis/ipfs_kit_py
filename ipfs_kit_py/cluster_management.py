@@ -23,7 +23,16 @@ from .cluster_coordinator import (
     Task,
     TaskStatus,
 )
-from .cluster_state import ArrowClusterState
+from .cluster_state import ClusterStateInterface
+try:
+    from .cluster_state import ArrowClusterState
+    HAS_ARROW_CLUSTER_STATE = True
+except ImportError:
+    HAS_ARROW_CLUSTER_STATE = False
+    # Create a fallback cluster state
+    class ArrowClusterState:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("pyarrow not available - install with: pip install ipfs_kit_py[arrow]")
 
 # Local imports
 from .error import (
