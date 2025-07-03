@@ -38,7 +38,9 @@ logger = logging.getLogger("enhanced-mcp-ipfs-kit-daemon-mgmt")
 __version__ = "2.2.0"
 
 # Add the project root to Python path to import ipfs_kit_py
-project_root = os.path.dirname(os.path.abspath(__file__))
+# Go up from mcp/ipfs_kit/mcp/ to the root directory
+current_file = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -973,6 +975,14 @@ async def handle_message(server: EnhancedMCPServerWithDaemonMgmt, message: Dict[
             result = await server.handle_resources_templates_list(params)
         elif method == "tools/call":
             result = await server.handle_tools_call(params)
+        elif method == "notifications/initialized":
+            # Handle initialization notification - no response needed
+            logger.info("Client initialization notification received")
+            return None
+        elif method and method.startswith("notifications/"):
+            # Handle other notifications - no response needed
+            logger.info(f"Notification received: {method}")
+            return None
         else:
             raise Exception(f"Unknown method: {method}")
         
