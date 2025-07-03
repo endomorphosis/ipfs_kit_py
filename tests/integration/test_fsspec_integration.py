@@ -20,7 +20,7 @@ if not os.getcwd() in sys.path:
     sys.path.insert(0, os.getcwd())
 
 # Import our MockIPFSFileSystem
-from tools.test_utils.test_fsspec_simple import MockIPFSFileSystem
+from mcp.ipfs_kit.tools.test_utils.test_fsspec_simple import MockIPFSFileSystem
 
 class TestFSSpecIntegration(unittest.TestCase):
     """Test FSSpec integration in high_level_api."""

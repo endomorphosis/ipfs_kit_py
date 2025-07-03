@@ -1674,8 +1674,9 @@ class MinHash:
         return minhash
 
 
-class ParquetCIDCache:
-    """Parquet-based CID cache for IPFS content with advanced partitioning strategies.
+if HAS_PYARROW:
+    class ParquetCIDCache:
+        """Parquet-based CID cache for IPFS content with advanced partitioning strategies.
     
     This cache stores CID metadata in an efficient columnar format using Apache Parquet.
     It provides fast querying, filtering, and advanced analytics over CID data, while 
@@ -6507,4 +6508,8 @@ class ParquetCIDCache:
             "rust_example": rust_example,
             "note": "These examples demonstrate zero-copy access to the cache data across languages."
         }
+
+else:
+    # Fallback when PyArrow is not available
+    ParquetCIDCache = None
 

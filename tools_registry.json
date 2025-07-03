@@ -1,0 +1,686 @@
+{
+  "tools": {
+    "example_ping": {
+      "name": "example_ping",
+      "category": "system",
+      "description": "Example ping tool for testing",
+      "parameters": {
+        "message": {
+          "type": "string",
+          "description": "Message to echo back"
+        }
+      },
+      "returns": {
+        "response": {
+          "type": "string",
+          "description": "Echo response"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "4dd8ad80eb5ee996e95ecc7262bcbbab"
+    },
+    "ipfs_add": {
+      "name": "ipfs_add",
+      "category": "ipfs_core",
+      "description": "Add content to IPFS and return its CID",
+      "parameters": {
+        "content": {
+          "type": "string",
+          "description": "Content to add to IPFS"
+        },
+        "file_path": {
+          "type": "string",
+          "description": "Path to file to add to IPFS (alternative to content)",
+          "required": false
+        },
+        "pin": {
+          "type": "boolean",
+          "description": "Whether to pin the content",
+          "default": true
+        },
+        "wrap_with_directory": {
+          "type": "boolean",
+          "description": "Wrap the content in a directory",
+          "default": false
+        }
+      },
+      "returns": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier"
+        },
+        "size": {
+          "type": "string",
+          "description": "Size of added content"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of added content"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "b0d02ebebec4f49d967511e8a7e6727e"
+    },
+    "ipfs_cat": {
+      "name": "ipfs_cat",
+      "category": "ipfs_core",
+      "description": "Get content from IPFS by CID",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier to retrieve"
+        },
+        "offset": {
+          "type": "integer",
+          "description": "Byte offset to start reading",
+          "required": false
+        },
+        "length": {
+          "type": "integer",
+          "description": "Maximum number of bytes to read",
+          "required": false
+        }
+      },
+      "returns": {
+        "content": {
+          "type": "string",
+          "description": "Content data"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Content size in bytes"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "2c78c634a59e98b5a1d881106f7b0e3a"
+    },
+    "ipfs_get": {
+      "name": "ipfs_get",
+      "category": "ipfs_core",
+      "description": "Download IPFS content to local filesystem",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier to download"
+        },
+        "output_path": {
+          "type": "string",
+          "description": "Local path to save content",
+          "required": false
+        }
+      },
+      "returns": {
+        "path": {
+          "type": "string",
+          "description": "Local path where content was saved"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Downloaded size in bytes"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "1beac62287eaf2922538e9d08d90c4c6"
+    },
+    "ipfs_ls": {
+      "name": "ipfs_ls",
+      "category": "ipfs_core",
+      "description": "List directory contents in IPFS",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "IPFS path to list (e.g., /ipfs/QmHash or just QmHash)"
+        },
+        "resolve_type": {
+          "type": "boolean",
+          "description": "Resolve the type of each entry",
+          "default": true
+        }
+      },
+      "returns": {
+        "entries": {
+          "type": "array",
+          "description": "Directory entries"
+        },
+        "path": {
+          "type": "string",
+          "description": "Listed path"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "439e3ce5738c8802231f718916cba39b"
+    },
+    "ipfs_pin_add": {
+      "name": "ipfs_pin_add",
+      "category": "ipfs_core",
+      "description": "Pin content in IPFS to prevent garbage collection",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier to pin"
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Recursively pin the object linked to by the specified object(s)",
+          "default": true
+        }
+      },
+      "returns": {
+        "pins": {
+          "type": "array",
+          "description": "List of pinned CIDs"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "388784f37fbfc3e33996b8c5380a921a"
+    },
+    "ipfs_pin_rm": {
+      "name": "ipfs_pin_rm",
+      "category": "ipfs_core",
+      "description": "Remove pin from IPFS content",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier to unpin"
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Recursively unpin the object linked to by the specified object(s)",
+          "default": true
+        }
+      },
+      "returns": {
+        "pins": {
+          "type": "array",
+          "description": "List of unpinned CIDs"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "49c718009f6d9eb603953f9c4a533e1a"
+    },
+    "ipfs_pin_ls": {
+      "name": "ipfs_pin_ls",
+      "category": "ipfs_core",
+      "description": "List pinned objects in IPFS",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Type of pins to list: all, direct, indirect, recursive",
+          "default": "all"
+        },
+        "cid": {
+          "type": "string",
+          "description": "Specific CID to check (optional)",
+          "required": false
+        }
+      },
+      "returns": {
+        "pins": {
+          "type": "object",
+          "description": "Map of CID to pin type"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "8a6fe4142ace4b69d4f282aafbb11c92"
+    },
+    "ipfs_pin_update": {
+      "name": "ipfs_pin_update",
+      "category": "ipfs_core",
+      "description": "Update a pin to a new CID",
+      "parameters": {
+        "old_cid": {
+          "type": "string",
+          "description": "CID to unpin"
+        },
+        "new_cid": {
+          "type": "string",
+          "description": "CID to pin"
+        },
+        "unpin": {
+          "type": "boolean",
+          "description": "Remove the old pin",
+          "default": true
+        }
+      },
+      "returns": {
+        "pins": {
+          "type": "array",
+          "description": "List of updated pins"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "1d45285e6586aad8dcd42dba349df1f6"
+    },
+    "ipfs_id": {
+      "name": "ipfs_id",
+      "category": "ipfs_core",
+      "description": "Get IPFS node identity information",
+      "parameters": {
+        "peer_id": {
+          "type": "string",
+          "description": "Peer ID to get info for (optional, defaults to local node)",
+          "required": false
+        }
+      },
+      "returns": {
+        "id": {
+          "type": "string",
+          "description": "Peer ID"
+        },
+        "public_key": {
+          "type": "string",
+          "description": "Public key"
+        },
+        "addresses": {
+          "type": "array",
+          "description": "Multiaddresses"
+        },
+        "agent_version": {
+          "type": "string",
+          "description": "Agent version"
+        },
+        "protocol_version": {
+          "type": "string",
+          "description": "Protocol version"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "c0cabfc23a2d00f9163edf85f82ebfea"
+    },
+    "ipfs_version": {
+      "name": "ipfs_version",
+      "category": "ipfs_core",
+      "description": "Get IPFS version information",
+      "parameters": {
+        "number": {
+          "type": "boolean",
+          "description": "Only show the version number",
+          "default": false
+        },
+        "commit": {
+          "type": "boolean",
+          "description": "Show the commit hash",
+          "default": false
+        },
+        "repo": {
+          "type": "boolean",
+          "description": "Show repo version",
+          "default": false
+        },
+        "all": {
+          "type": "boolean",
+          "description": "Show all version information",
+          "default": false
+        }
+      },
+      "returns": {
+        "version": {
+          "type": "string",
+          "description": "IPFS version"
+        },
+        "commit": {
+          "type": "string",
+          "description": "Git commit hash"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository version"
+        },
+        "system": {
+          "type": "string",
+          "description": "System information"
+        },
+        "golang": {
+          "type": "string",
+          "description": "Go version"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "fb6a64a60468da8f563ebac020a6b64a"
+    },
+    "ipfs_stats": {
+      "name": "ipfs_stats",
+      "category": "ipfs_core",
+      "description": "Get IPFS node statistics",
+      "parameters": {
+        "human": {
+          "type": "boolean",
+          "description": "Print sizes in human readable format",
+          "default": false
+        }
+      },
+      "returns": {
+        "repo_size": {
+          "type": "integer",
+          "description": "Repository size in bytes"
+        },
+        "storage_max": {
+          "type": "integer",
+          "description": "Maximum storage"
+        },
+        "num_objects": {
+          "type": "integer",
+          "description": "Number of objects"
+        },
+        "repo_path": {
+          "type": "string",
+          "description": "Repository path"
+        },
+        "version": {
+          "type": "string",
+          "description": "Repository version"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "55f3929c4e428a368fa4cabe9d1a3058"
+    },
+    "ipfs_swarm_peers": {
+      "name": "ipfs_swarm_peers",
+      "category": "ipfs_core",
+      "description": "List peers connected to this IPFS node",
+      "parameters": {
+        "verbose": {
+          "type": "boolean",
+          "description": "Display extra information",
+          "default": false
+        },
+        "streams": {
+          "type": "boolean",
+          "description": "Also list information about streams",
+          "default": false
+        },
+        "latency": {
+          "type": "boolean",
+          "description": "Also list information about latency",
+          "default": false
+        }
+      },
+      "returns": {
+        "peers": {
+          "type": "array",
+          "description": "List of connected peers"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "4d109260a91d1560975186b86d3e8021"
+    },
+    "ipfs_refs": {
+      "name": "ipfs_refs",
+      "category": "ipfs_core",
+      "description": "List object references from IPFS content",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier to get references from"
+        },
+        "format": {
+          "type": "string",
+          "description": "Output format for references",
+          "default": "<dst>"
+        },
+        "edges": {
+          "type": "boolean",
+          "description": "Output edge format: <src> -> <dst>",
+          "default": false
+        },
+        "unique": {
+          "type": "boolean",
+          "description": "Omit duplicate refs from output",
+          "default": false
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Recursively list references",
+          "default": false
+        }
+      },
+      "returns": {
+        "refs": {
+          "type": "array",
+          "description": "List of references"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "848ca4be3ecec73f80e4e3e9c322a71e"
+    },
+    "ipfs_refs_local": {
+      "name": "ipfs_refs_local",
+      "category": "ipfs_core",
+      "description": "List all local references (objects in local storage)",
+      "parameters": {},
+      "returns": {
+        "refs": {
+          "type": "array",
+          "description": "List of local references"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "5ee8edd65a95d639bf0a240fd34c15f7"
+    },
+    "ipfs_block_stat": {
+      "name": "ipfs_block_stat",
+      "category": "ipfs_core",
+      "description": "Get statistics for an IPFS block",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier of the block"
+        }
+      },
+      "returns": {
+        "key": {
+          "type": "string",
+          "description": "Block key (CID)"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Block size in bytes"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "046505328a9040c30055e76ce093f03c"
+    },
+    "ipfs_block_get": {
+      "name": "ipfs_block_get",
+      "category": "ipfs_core",
+      "description": "Get raw IPFS block content",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier of the block"
+        }
+      },
+      "returns": {
+        "data": {
+          "type": "string",
+          "description": "Raw block data (base64 encoded)"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Block size in bytes"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "4db734c9db646d6c617815d500d79260"
+    },
+    "ipfs_dag_get": {
+      "name": "ipfs_dag_get",
+      "category": "ipfs_core",
+      "description": "Get IPFS DAG node",
+      "parameters": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier of the DAG node"
+        },
+        "output_codec": {
+          "type": "string",
+          "description": "Output codec (dag-json, dag-cbor, etc.)",
+          "default": "dag-json"
+        }
+      },
+      "returns": {
+        "data": {
+          "type": "object",
+          "description": "DAG node data"
+        },
+        "cid": {
+          "type": "string",
+          "description": "Content identifier"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "a159fab2b0a60f76745069f1f11e46db"
+    },
+    "ipfs_dag_put": {
+      "name": "ipfs_dag_put",
+      "category": "ipfs_core",
+      "description": "Add IPFS DAG node",
+      "parameters": {
+        "data": {
+          "type": "object",
+          "description": "DAG node data to add"
+        },
+        "input_codec": {
+          "type": "string",
+          "description": "Input codec (dag-json, dag-cbor, etc.)",
+          "default": "dag-json"
+        },
+        "store_codec": {
+          "type": "string",
+          "description": "Codec to store the object in",
+          "default": "dag-cbor"
+        },
+        "pin": {
+          "type": "boolean",
+          "description": "Pin the object",
+          "default": false
+        }
+      },
+      "returns": {
+        "cid": {
+          "type": "string",
+          "description": "Content identifier of created DAG node"
+        }
+      },
+      "version": "1.0.0",
+      "dependencies": [
+        "requests"
+      ],
+      "status": "loaded",
+      "module_path": null,
+      "last_updated": null,
+      "checksum": "3ad238c0e6eb89e8448f4695328d0cb3"
+    }
+  },
+  "discovery_paths": [
+    "/home/barberb/ipfs_kit_py/ipfs_kit_py",
+    "/home/barberb/ipfs_kit_py/tools",
+    "/home/barberb/ipfs_kit_py/mcp"
+  ]
+}

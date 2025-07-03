@@ -16,6 +16,7 @@ import json
 import time
 import uuid
 import logging
+import shutil
 import anyio
 from typing import Dict, List, Any, Optional, Set, Callable
 from enum import Enum
@@ -26,8 +27,15 @@ try:
     from websockets.server import WebSocketServerProtocol
     from websockets.client import WebSocketClientProtocol
     WEBSOCKET_AVAILABLE = True
+    WebSocketProtocol = WebSocketServerProtocol
 except ImportError:
     WEBSOCKET_AVAILABLE = False
+    # Define dummy types for when websockets is not available
+    from typing import Any
+    WebSocketServerProtocol = Any
+    WebSocketClientProtocol = Any
+    WebSocketProtocol = Any
+    websockets = None
     
 # FastAPI imports for server integration
 try:
@@ -189,7 +197,7 @@ class PeerWebSocketServer:
         self.peer_ttl = peer_ttl
         
         self.peers: Dict[str, PeerInfo] = {}
-        self.connections: Dict[WebSocketServerProtocol, str] = {}
+        self.connections: Dict[Any, str] = {}  # Use Any instead of WebSocketServerProtocol
         self.server = None
         self.cleanup_task = None
         self.heartbeat_task = None
@@ -266,7 +274,7 @@ class PeerWebSocketServer:
             
         logger.info("Peer WebSocket server stopped")
         
-    async def handle_connection(self, websocket: WebSocketServerProtocol, path: str):
+    async def handle_connection(self, websocket: Any, path: str):
         """
         Handle a new WebSocket connection.
         
@@ -297,7 +305,7 @@ class PeerWebSocketServer:
         except Exception as e:
             logger.error(f"Error handling WebSocket connection: {e}")
             
-    async def _process_message(self, websocket: WebSocketServerProtocol, message: str):
+    async def _process_message(self, websocket: Any, message: str):
         """
         Process a message from a client.
         
@@ -365,7 +373,7 @@ class PeerWebSocketServer:
             logger.error(f"Error processing message: {e}")
             await self._send_error(websocket, f"Error processing message: {str(e)}")
             
-    async def _send_peer_list(self, websocket: WebSocketServerProtocol, filters: Dict[str, Any] = None):
+    async def _send_peer_list(self, websocket: Any, filters: Optional[Dict[str, Any]] = None):
         """
         Send peer list to a client.
         
@@ -401,7 +409,7 @@ class PeerWebSocketServer:
             "timestamp": time.time()
         }))
         
-    async def _send_error(self, websocket: WebSocketServerProtocol, error_message: str):
+    async def _send_error(self, websocket: Any, error_message: str):
         """
         Send an error message to a client.
         
@@ -533,7 +541,7 @@ class PeerWebSocketClient:
         self.max_reconnect_attempts = max_reconnect_attempts
         
         self.peers: Dict[str, PeerInfo] = {}
-        self.connections: Dict[str, WebSocketClientProtocol] = {}
+        self.connections: Dict[str, Any] = {}
         self.discovery_servers: Dict[str, Dict[str, Any]] = {}
         self.running = False
         self.tasks = set()
@@ -785,7 +793,7 @@ class PeerWebSocketClient:
                 logger.info(f"Reconnecting to {url} in {self.reconnect_interval}s (attempt 1/{self.max_reconnect_attempts})")
                 await anyio.sleep(self.reconnect_interval)
         
-    async def _send_heartbeat(self, websocket: WebSocketClientProtocol):
+    async def _send_heartbeat(self, websocket: Any):
         """
         Send a heartbeat to a server.
         
