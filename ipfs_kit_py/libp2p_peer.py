@@ -79,7 +79,7 @@ if HAS_LIBP2P:
             from libp2p.kademlia.network import KademliaServer
         except ImportError as e:
             HAS_KADEMLIA = False
-            logger.warning(f"libp2p.kademlia module not available: {e}. DHT functionality will be limited.")
+            logger.debug(f"libp2p.kademlia module not available: {e}. DHT functionality will be limited.")
             # Use our custom implementation
             from ipfs_kit_py.libp2p.kademlia.network import KademliaServer
             

@@ -37,22 +37,28 @@ try:
 except (subprocess.SubprocessError, FileNotFoundError, OSError):
     # Try with specific binary path in bin directory
     try:
-        bin_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "bin", "lotus")
+        # Use absolute path to the package's bin directory
+        package_dir = os.path.dirname(os.path.realpath(__file__))
+        bin_path = os.path.join(package_dir, "bin", "lotus")
         result = subprocess.run([bin_path, "--version"], capture_output=True, timeout=2)
         LOTUS_AVAILABLE = result.returncode == 0
         # If this succeeds, update PATH and store the binary path
         if LOTUS_AVAILABLE:
-            os.environ["PATH"] = os.path.dirname(bin_path) + ":" + os.environ.get("PATH", "")
+            bin_dir = os.path.dirname(bin_path)
+            if bin_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = bin_dir + ":" + os.environ.get("PATH", "")
             LOTUS_BINARY_PATH = bin_path
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         # Try one more location - explicit lotus-bin subdirectory
         try:
-            alt_bin_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "bin", "lotus-bin", "lotus")
+            alt_bin_path = os.path.join(package_dir, "bin", "lotus-bin", "lotus")
             result = subprocess.run([alt_bin_path, "--version"], capture_output=True, timeout=2)
             LOTUS_AVAILABLE = result.returncode == 0
             # If this succeeds, update PATH and store the binary path
             if LOTUS_AVAILABLE:
-                os.environ["PATH"] = os.path.dirname(alt_bin_path) + ":" + os.environ.get("PATH", "")
+                bin_dir = os.path.dirname(alt_bin_path)
+                if bin_dir not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = bin_dir + ":" + os.environ.get("PATH", "")
                 LOTUS_BINARY_PATH = alt_bin_path
         except (subprocess.SubprocessError, FileNotFoundError, OSError):
             LOTUS_AVAILABLE = False
@@ -600,7 +606,7 @@ class lotus_kit:
             
         try:
             # Try to import and use the install_lotus module
-            from install_lotus import install_lotus as LotusInstaller
+            from .install_lotus import install_lotus as LotusInstaller
             
             # Create installer with auto_install_deps set to True
             installer_metadata = {

@@ -20,10 +20,23 @@ logger = logging.getLogger(__name__)
 
 # Check if lassie is actually available by trying to run it
 try:
-    result = subprocess.run(["lassie", "--version"], capture_output=True, timeout=2)
+    result = subprocess.run(["lassie", "version"], capture_output=True, timeout=2)
     LASSIE_AVAILABLE = result.returncode == 0
 except (subprocess.SubprocessError, FileNotFoundError, OSError):
-    LASSIE_AVAILABLE = False
+    # Try with specific binary path in bin directory
+    try:
+        # Use absolute path to the package's bin directory
+        package_dir = os.path.dirname(os.path.realpath(__file__))
+        bin_path = os.path.join(package_dir, "bin", "lassie")
+        result = subprocess.run([bin_path, "version"], capture_output=True, timeout=2)
+        LASSIE_AVAILABLE = result.returncode == 0
+        # If this succeeds, update PATH
+        if LASSIE_AVAILABLE:
+            bin_dir = os.path.dirname(bin_path)
+            if bin_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = bin_dir + ":" + os.environ.get("PATH", "")
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        LASSIE_AVAILABLE = False
 
 logger.info(f"Lassie binary available: {LASSIE_AVAILABLE}")
 

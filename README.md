@@ -46,6 +46,43 @@ pip install ipfs_kit_py
 pip install ipfs_kit_py[full,ai_ml,webrtc]
 ```
 
+### 🔧 Automatic Binary Installation
+
+**IPFS Kit Python** automatically downloads and installs required binaries when you first import the package or create a virtual environment:
+
+- **🌐 IPFS Binaries**: Kubo daemon, cluster service, cluster control, and cluster follow tools
+- **🔗 Lotus Binaries**: Lotus daemon and miner for Filecoin integration
+- **📦 Lassie Binary**: High-performance IPFS retrieval client
+- **☁️ Storacha Dependencies**: Web3.Storage Python and NPM dependencies
+
+```python
+# Automatic installation on first import
+from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
+
+# All installers are available and ready to use
+ipfs_installer = install_ipfs()
+lotus_installer = install_lotus()  
+lassie_installer = install_lassie()
+storacha_installer = install_storacha()
+
+# Check installation status
+from ipfs_kit_py import (
+    INSTALL_IPFS_AVAILABLE,
+    INSTALL_LOTUS_AVAILABLE, 
+    INSTALL_LASSIE_AVAILABLE,
+    INSTALL_STORACHA_AVAILABLE
+)
+```
+
+**Manual Installation** (if needed):
+```python
+# Install specific components
+ipfs_installer.install_ipfs_daemon()
+lotus_installer.install_lotus_daemon()
+lassie_installer.install_lassie_daemon()
+storacha_installer.install_storacha_dependencies()
+```
+
 ## 🌟 Key Features
 
 ### ✅ Production MCP Server (100% Tested)
@@ -55,6 +92,13 @@ pip install ipfs_kit_py[full,ai_ml,webrtc]
 - **Mock IPFS Implementation**: Reliable testing without IPFS daemon dependency
 - **Health Monitoring**: `/health`, `/stats`, `/metrics` endpoints
 - **Auto-generated Documentation**: Interactive API docs at `/docs`
+
+### 🔧 Automatic Binary Management
+- **Smart Auto-Installation**: Automatically downloads and installs required binaries
+- **Multi-Platform Support**: Works on Linux, macOS, and Windows
+- **Four Core Installers**: IPFS, Lotus, Lassie, and Storacha dependencies
+- **Virtual Environment Integration**: Binaries installed when venv is created
+- **MCP Server Ready**: All dependencies available for immediate use
 
 ### 📦 IPFS Operations (All Validated ✅)
 
@@ -276,21 +320,69 @@ result = response.json()['result']
 
 ### Python Package Usage
 ```python
-from ipfs_kit_py import IPFSKit
+# Import the high-level API (if available)
+try:
+    from ipfs_kit_py import IPFSSimpleAPI
+    api = IPFSSimpleAPI()
+    print("High-level API available")
+except ImportError:
+    print("High-level API not available in this configuration")
 
-# High-level API
-kit = IPFSKit()
-cid = kit.add_content("Hello World!")
-content = kit.get_content(cid)
+# Use the MCP server for IPFS operations
+# Start server: python final_mcp_server_enhanced.py
+# Then use REST API or JSON-RPC endpoints
+```
+
+### Using the Installers
+```python
+# Import installers (automatically triggers binary installation)
+from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
+
+# Create installer instances
+ipfs_installer = install_ipfs()
+lotus_installer = install_lotus()
+lassie_installer = install_lassie()
+storacha_installer = install_storacha()
+
+# Check if binaries are available
+from ipfs_kit_py import (
+    INSTALL_IPFS_AVAILABLE,
+    INSTALL_LOTUS_AVAILABLE,
+    INSTALL_LASSIE_AVAILABLE,
+    INSTALL_STORACHA_AVAILABLE
+)
+
+print(f"IPFS: {INSTALL_IPFS_AVAILABLE}")
+print(f"Lotus: {INSTALL_LOTUS_AVAILABLE}")
+print(f"Lassie: {INSTALL_LASSIE_AVAILABLE}")
+print(f"Storacha: {INSTALL_STORACHA_AVAILABLE}")
+
+# Manual installation (if needed)
+ipfs_installer.install_ipfs_daemon()
+lotus_installer.install_lotus_daemon()
+lassie_installer.install_lassie_daemon()
+storacha_installer.install_storacha_dependencies()
 ```
 
 ## 📚 Documentation
 
+- **[Installer Documentation](./docs/INSTALLER_DOCUMENTATION.md)** - Complete installer system guide
 - **[MCP Tools Validation](./docs/MCP_TOOLS_VALIDATION_COMPLETE.md)** - Complete testing results
 - **[Workspace Cleanup](./docs/WORKSPACE_CLEANUP_COMPLETE.md)** - Organization details
 - **[API Documentation](http://localhost:9998/docs)** - Interactive API docs (when server running)
 - **[Examples](./examples/)** - Usage examples and tutorials
 - **[Configuration](./config/)** - Configuration options and examples
+
+### 🔧 Installer System
+
+The package includes four automatic installers:
+
+1. **🌐 IPFS Installer** - Core IPFS binaries and cluster tools
+2. **🔗 Lotus Installer** - Filecoin network integration  
+3. **📦 Lassie Installer** - High-performance IPFS retrieval
+4. **☁️ Storacha Installer** - Web3.Storage dependencies
+
+See [Installer Documentation](./docs/INSTALLER_DOCUMENTATION.md) for complete details.
 
 ## 🤝 Contributing
 

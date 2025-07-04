@@ -2585,8 +2585,6 @@ class EnhancedMCPServerWithDaemonMgmt:
                 return await self.ipfs_integration.execute_ipfs_operation("ipfs_swarm_peers", **arguments)
             elif tool_name == "ipfs_pin_update":
                 return await self.ipfs_integration.execute_ipfs_operation("ipfs_pin_update", **arguments)
-            elif tool_name == "ipfs_swarm_peers":
-                return await self.ipfs_integration.execute_ipfs_operation("ipfs_swarm_peers", **arguments)
             elif tool_name == "ipfs_refs":
                 return await self.ipfs_integration.execute_ipfs_operation("ipfs_refs", **arguments)
             elif tool_name == "ipfs_refs_local":

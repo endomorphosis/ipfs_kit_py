@@ -103,17 +103,25 @@ OPTIONAL_DEPENDENCIES = [
 
 # Check if we're installed with the libp2p extra
 try:
-    # Try to import pkg_resources which can check for extras
-    import pkg_resources
-    pkg = pkg_resources.working_set.by_key.get('ipfs_kit_py')
-    if pkg:
-        # Check if the libp2p extra is installed
-        extras = pkg.extras if hasattr(pkg, 'extras') else []
-        HAS_LIBP2P_EXTRA = 'libp2p' in extras
-    else:
-        HAS_LIBP2P_EXTRA = False
-except (ImportError, AttributeError):
-    # If pkg_resources isn't available or there's any error, assume no extras
+    # Try the newer importlib.metadata first (Python 3.8+)
+    try:
+        from importlib.metadata import metadata
+        pkg_metadata = metadata('ipfs_kit_py')
+        # Check if the libp2p extra is installed by looking at requires
+        requires = pkg_metadata.get_all('Requires-Dist') or []
+        HAS_LIBP2P_EXTRA = any('extra == "libp2p"' in req for req in requires)
+    except ImportError:
+        # Fallback to pkg_resources for older Python versions
+        import pkg_resources
+        pkg = pkg_resources.working_set.by_key.get('ipfs_kit_py')
+        if pkg:
+            # Check if the libp2p extra is installed
+            extras = pkg.extras if hasattr(pkg, 'extras') else []
+            HAS_LIBP2P_EXTRA = 'libp2p' in extras
+        else:
+            HAS_LIBP2P_EXTRA = False
+except (ImportError, AttributeError, Exception):
+    # If there's any error, assume no extras
     HAS_LIBP2P_EXTRA = False
 
 logger.debug(f"libp2p extra detected: {HAS_LIBP2P_EXTRA}")

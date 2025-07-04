@@ -852,7 +852,7 @@ class lotus_daemon:
                 daemon_env["LOTUS_PATH"] = self.lotus_path
                 daemon_env["LOTUS_SKIP_GENESIS_CHECK"] = "1"  # Skip genesis check for test networks
                 
-                if lotus_version and "1.24" in lotus_version and not network_flag_present:
+                if lotus_version and not network_flag_present:
                     # Check if the specific version supports the network flag
                     version_supports_network = False
                     
@@ -869,7 +869,7 @@ class lotus_daemon:
                         # Only add the network flag if it's supported and not already specified
                         cmd.append("--network=butterflynet")  # Use a smaller test network
                     else:
-                        logger.info("This Lotus version (1.24.0+mainnet+git.7c093485c) does not support the network flag")
+                        logger.info(f"This Lotus version ({lotus_version}) does not support the network flag")
                     
                 # Note: offline flag is not supported in Lotus 1.24.0
                 
@@ -958,7 +958,10 @@ class lotus_daemon:
                                     logger.info(f"Created minimal config.toml in {self.lotus_path}")
                                     
                                     # Try initialization again with updated config
-                                    init_cmd = ["lotus", "daemon", "--lite", "--bootstrap=false", "--network=butterflynet", "--init-only"]
+                                    if version_supports_network:
+                                        init_cmd = ["lotus", "daemon", "--lite", "--bootstrap=false", "--network=butterflynet", "--init-only"]
+                                    else:
+                                        init_cmd = ["lotus", "daemon", "--lite", "--bootstrap=false", "--init-only"]
                                     init_result = self.run_command(init_cmd, check=False, timeout=30)
                                     logger.debug(f"Second init attempt result: {init_result}")
                                     

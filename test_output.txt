@@ -1,0 +1,11 @@
+Testing HAS_LOTUS availability...
+Error: name '__all__' is not defined
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/test_has_lotus_file.py", line 12, in <module>
+    import ipfs_kit_py.ipfs_kit
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/__init__.py", line 373, in <module>
+    from .ipfs_kit import ipfs_kit
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/ipfs_kit.py", line 146, in <module>
+    __all__.append('HAS_LOTUS')
+    ^^^^^^^
+NameError: name '__all__' is not defined. Did you mean: '__name__'?

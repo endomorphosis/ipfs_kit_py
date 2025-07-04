@@ -1,5 +1,55 @@
 """
 IPFS Kit - Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration.
+
+This package provides comprehensive IPFS functionality including:
+
+🌐 **IPFS Operations**: Core IPFS daemon, cluster management, and content operations
+🔗 **Filecoin Integration**: Lotus daemon and miner for Filecoin network interaction  
+📦 **High-Performance Retrieval**: Lassie client for fast IPFS content retrieval
+☁️ **Web3 Storage**: Storacha/Web3.Storage integration for decentralized storage
+🤖 **AI/ML Integration**: Machine learning pipeline support with transformers
+📡 **MCP Server**: Model Context Protocol server for AI assistant integration
+
+## Automatic Binary Installation
+
+The package automatically downloads and installs required binaries when imported:
+
+- **IPFS**: ipfs, ipfs-cluster-service, ipfs-cluster-ctl, ipfs-cluster-follow
+- **Lotus**: lotus, lotus-miner  
+- **Lassie**: lassie
+- **Storacha**: Python and NPM dependencies
+
+## Quick Start
+
+```python
+# Import triggers automatic binary installation
+from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
+
+# Check installation status
+from ipfs_kit_py import (
+    INSTALL_IPFS_AVAILABLE,
+    INSTALL_LOTUS_AVAILABLE, 
+    INSTALL_LASSIE_AVAILABLE,
+    INSTALL_STORACHA_AVAILABLE
+)
+
+# Use installers directly
+ipfs_installer = install_ipfs()
+ipfs_installer.install_ipfs_daemon()
+
+# Or use the MCP server for IPFS operations
+# Start server: python final_mcp_server_enhanced.py --host 0.0.0.0 --port 9998
+```
+
+## MCP Server Integration
+
+The package includes a production-ready MCP server:
+
+```bash
+python final_mcp_server_enhanced.py --host 0.0.0.0 --port 9998
+```
+
+For detailed documentation, see: https://github.com/endomorphosis/ipfs_kit_py
 """
 
 __version__ = "0.2.0"
@@ -20,61 +70,147 @@ _DOWNLOAD_BINARIES_AUTOMATICALLY = True
 
 
 def download_binaries():
-    """Download platform-specific binaries for IPFS and related tools."""
+    """
+    Download platform-specific binaries and install dependencies for IPFS, Lotus, Lassie, and Storacha.
+    
+    This function automatically:
+    1. Downloads IPFS binaries (ipfs, ipfs-cluster-service, ipfs-cluster-ctl, ipfs-cluster-follow)
+    2. Downloads Lotus binaries (lotus, lotus-miner) 
+    3. Downloads Lassie binary (lassie)
+    4. Installs Storacha Python and NPM dependencies
+    
+    All binaries are platform-specific and downloaded from official sources.
+    Installation progress is logged and errors are handled gracefully.
+    
+    Returns:
+        None
+        
+    Raises:
+        Exception: If critical installation steps fail (logged as warnings)
+    """
     global _BINARIES_DOWNLOADED
 
     if _BINARIES_DOWNLOADED:
         return
 
+    bin_dir = os.path.join(os.path.dirname(__file__), "bin")
+    os.makedirs(bin_dir, exist_ok=True)
+
+    # Download IPFS binaries
     try:
-        # Import the installer
         from .install_ipfs import install_ipfs
-
         logger.info(f"Auto-downloading IPFS binaries for {platform.system()} {platform.machine()}")
-
-        # Create installer instance
+        
         installer = install_ipfs()
-
-        # Install core binaries based on platform
+        
+        # Install core IPFS binaries
         try:
-            if not os.path.exists(os.path.join(os.path.dirname(__file__), "bin", "ipfs")):
+            ipfs_binary = "ipfs.exe" if platform.system() == "Windows" else "ipfs"
+            if not os.path.exists(os.path.join(bin_dir, ipfs_binary)):
                 installer.install_ipfs_daemon()
                 logger.info("Downloaded IPFS daemon successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS daemon: {e}")
 
         try:
-            if not os.path.exists(
-                os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-service")
-            ):
+            cluster_service_binary = "ipfs-cluster-service.exe" if platform.system() == "Windows" else "ipfs-cluster-service"
+            if not os.path.exists(os.path.join(bin_dir, cluster_service_binary)):
                 installer.install_ipfs_cluster_service()
                 logger.info("Downloaded IPFS cluster service successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS cluster service: {e}")
 
         try:
-            if not os.path.exists(
-                os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-ctl")
-            ):
+            cluster_ctl_binary = "ipfs-cluster-ctl.exe" if platform.system() == "Windows" else "ipfs-cluster-ctl"
+            if not os.path.exists(os.path.join(bin_dir, cluster_ctl_binary)):
                 installer.install_ipfs_cluster_ctl()
                 logger.info("Downloaded IPFS cluster control successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS cluster control: {e}")
 
         try:
-            if not os.path.exists(
-                os.path.join(os.path.dirname(__file__), "bin", "ipfs-cluster-follow")
-            ):
+            cluster_follow_binary = "ipfs-cluster-follow.exe" if platform.system() == "Windows" else "ipfs-cluster-follow"
+            if not os.path.exists(os.path.join(bin_dir, cluster_follow_binary)):
                 installer.install_ipfs_cluster_follow()
                 logger.info("Downloaded IPFS cluster follow successfully")
         except Exception as e:
             logger.warning(f"Failed to download IPFS cluster follow: {e}")
 
-        _BINARIES_DOWNLOADED = True
-        logger.info("IPFS binary downloads completed")
-
     except Exception as e:
         logger.error(f"Error downloading IPFS binaries: {e}")
+
+    # Download Lotus binaries
+    try:
+        from .install_lotus import install_lotus
+        logger.info(f"Auto-downloading Lotus binaries for {platform.system()} {platform.machine()}")
+        
+        lotus_installer = install_lotus()
+        
+        # Install Lotus binaries
+        try:
+            lotus_binary = "lotus.exe" if platform.system() == "Windows" else "lotus"
+            if not os.path.exists(os.path.join(bin_dir, lotus_binary)):
+                lotus_installer.install_lotus_daemon()
+                logger.info("Downloaded Lotus daemon successfully")
+        except Exception as e:
+            logger.warning(f"Failed to download Lotus daemon: {e}")
+
+        try:
+            lotus_miner_binary = "lotus-miner.exe" if platform.system() == "Windows" else "lotus-miner"
+            if not os.path.exists(os.path.join(bin_dir, lotus_miner_binary)):
+                lotus_installer.install_lotus_miner()
+                logger.info("Downloaded Lotus miner successfully")
+        except Exception as e:
+            logger.warning(f"Failed to download Lotus miner: {e}")
+
+    except Exception as e:
+        logger.error(f"Error downloading Lotus binaries: {e}")
+
+    # Download Lassie binaries
+    try:
+        from .install_lassie import install_lassie
+        logger.info(f"Auto-downloading Lassie binaries for {platform.system()} {platform.machine()}")
+        
+        lassie_installer = install_lassie()
+        
+        # Install Lassie binary
+        try:
+            lassie_binary = "lassie.exe" if platform.system() == "Windows" else "lassie"
+            if not os.path.exists(os.path.join(bin_dir, lassie_binary)):
+                lassie_installer.install_lassie_daemon()
+                logger.info("Downloaded Lassie daemon successfully")
+        except Exception as e:
+            logger.warning(f"Failed to download Lassie daemon: {e}")
+
+    except Exception as e:
+        logger.error(f"Error downloading Lassie binaries: {e}")
+
+    # Install Storacha dependencies
+    try:
+        from .install_storacha import install_storacha
+        logger.info(f"Auto-installing Storacha dependencies for {platform.system()} {platform.machine()}")
+        
+        storacha_installer = install_storacha()
+        
+        # Install Storacha Python and NPM dependencies
+        try:
+            storacha_installer.install_storacha_dependencies()
+            logger.info("Installed Storacha dependencies successfully")
+        except Exception as e:
+            logger.warning(f"Failed to install Storacha dependencies: {e}")
+
+        # Install w3 CLI tool
+        try:
+            storacha_installer.install_w3_cli()
+            logger.info("Installed w3 CLI tool successfully")
+        except Exception as e:
+            logger.warning(f"Failed to install w3 CLI tool: {e}")
+
+    except Exception as e:
+        logger.error(f"Error installing Storacha dependencies: {e}")
+
+    _BINARIES_DOWNLOADED = True
+    logger.info("All binary downloads completed")
 
 
 # Auto-download binaries on import if enabled
@@ -84,9 +220,16 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
     os.makedirs(bin_dir, exist_ok=True)
 
     # Check if any binaries need to be downloaded
+    ipfs_binary = "ipfs.exe" if platform.system() == "Windows" else "ipfs"
+    lotus_binary = "lotus.exe" if platform.system() == "Windows" else "lotus"
+    lassie_binary = "lassie.exe" if platform.system() == "Windows" else "lassie"
+    storacha_marker = os.path.join(bin_dir, ".storacha_installed")
+    
     if not (
-        os.path.exists(os.path.join(bin_dir, "ipfs"))
-        or (platform.system() == "Windows" and os.path.exists(os.path.join(bin_dir, "ipfs.exe")))
+        os.path.exists(os.path.join(bin_dir, ipfs_binary))
+        and os.path.exists(os.path.join(bin_dir, lotus_binary))
+        and os.path.exists(os.path.join(bin_dir, lassie_binary))
+        and os.path.exists(storacha_marker)
     ):
         try:
             download_binaries()
@@ -177,10 +320,34 @@ try:
 except ImportError:
     register_wal_api = None
 
+# Export installer modules
 try:
     from .install_ipfs import install_ipfs
+    INSTALL_IPFS_AVAILABLE = True
 except ImportError:
     install_ipfs = None
+    INSTALL_IPFS_AVAILABLE = False
+
+try:
+    from .install_lotus import install_lotus
+    INSTALL_LOTUS_AVAILABLE = True
+except ImportError:
+    install_lotus = None
+    INSTALL_LOTUS_AVAILABLE = False
+
+try:
+    from .install_lassie import install_lassie
+    INSTALL_LASSIE_AVAILABLE = True
+except ImportError:
+    install_lassie = None
+    INSTALL_LASSIE_AVAILABLE = False
+
+try:
+    from .install_storacha import install_storacha
+    INSTALL_STORACHA_AVAILABLE = True
+except ImportError:
+    install_storacha = None
+    INSTALL_STORACHA_AVAILABLE = False
 
 try:
     from .ipfs import ipfs_py

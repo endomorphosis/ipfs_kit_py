@@ -142,6 +142,9 @@ try:
 except ImportError:
     HAS_LOTUS = False
 
+# Make HAS_LOTUS available globally
+globals()['HAS_LOTUS'] = HAS_LOTUS
+
 # Try to import huggingface_kit
 try:
     from .huggingface_kit import huggingface_kit
@@ -156,8 +159,8 @@ try:
 except ImportError:
     HAS_LIBP2P = False
 
-# Make HAS_LIBP2P a global variable
-__all__ = ['HAS_LIBP2P']
+# Make HAS_LIBP2P and HAS_LOTUS global variables
+__all__ = ['HAS_LIBP2P', 'HAS_LOTUS']
 
 # Try to import IPLD extension
 try:
@@ -482,9 +485,9 @@ class ipfs_kit:
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
                 # Initialize Lotus Kit if available
                 if HAS_LOTUS:
-                    # Auto-start is opted into based on metadata
+                    # Auto-start is opted into based on metadata, default to True for leecher role too
                     lotus_metadata = self.metadata.copy()
-                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", False)
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
                     self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
 
@@ -505,9 +508,9 @@ class ipfs_kit:
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
                 # Initialize Lotus Kit if available
                 if HAS_LOTUS:
-                    # Auto-start is opted into based on metadata
+                    # Auto-start is opted into based on metadata, default to True for worker role too
                     lotus_metadata = self.metadata.copy()
-                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", False)
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
                     self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
 
