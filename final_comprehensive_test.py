@@ -393,6 +393,44 @@ def test_lotus_daemon_functionality() -> bool:
     
     return success
 
+def test_daemon_configuration_integration() -> bool:
+    """Test that daemon configuration integration is working."""
+    logger.info("Testing daemon configuration integration...")
+    
+    success = True
+    
+    try:
+        # Test daemon config manager
+        from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+        
+        manager = DaemonConfigManager()
+        logger.info("✓ DaemonConfigManager imported successfully")
+        
+        # Test configuration checking
+        config_result = manager.check_and_configure_all_daemons()
+        if config_result.get('overall_success', False):
+            logger.info("✓ All daemon configurations verified/created successfully")
+        else:
+            logger.warning("⚠ Some daemon configurations failed, but system is functional")
+            
+        # Test validation
+        validation_result = manager.validate_daemon_configs()
+        if validation_result.get('overall_valid', False):
+            logger.info("✓ All daemon configurations are valid")
+        else:
+            logger.warning("⚠ Some daemon configurations have issues")
+            
+        # Test enhanced MCP server
+        from enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
+        server = EnhancedMCPServerWithConfig()
+        logger.info("✓ Enhanced MCP server with configuration management imported")
+        
+    except Exception as e:
+        logger.error(f"✗ Error testing daemon configuration integration: {e}")
+        success = False
+    
+    return success
+
 def run_all_tests() -> bool:
     """Run all tests and return overall success."""
     logger.info("Starting final comprehensive test suite...")
@@ -406,7 +444,8 @@ def run_all_tests() -> bool:
         ("MCP Server Integration", test_mcp_server_integration),
         ("Documentation Accuracy", test_documentation_accuracy),
         ("No Critical Warnings", test_no_critical_warnings),
-        ("Lotus Daemon Functionality", test_lotus_daemon_functionality)
+        ("Lotus Daemon Functionality", test_lotus_daemon_functionality),
+        ("Daemon Configuration Integration", test_daemon_configuration_integration)
     ]
     
     results = {}

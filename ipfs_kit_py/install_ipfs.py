@@ -1307,4 +1307,33 @@ class install_ipfs:
                 command = "tar -xvzf " + this_tempfile.name + " -C " + self.tmp_path
                 results = subprocess.check_output(command, shell=True)
 
+
+    def ensure_daemon_configured(self):
+        """Ensure IPFS daemon is properly configured before starting."""
+        try:
+            # Check if configuration exists
+            config_file = os.path.join(self.ipfs_path, "config")
+            if not os.path.exists(config_file):
+                print(f"IPFS configuration not found at {config_file}, creating...")
+                
+                # Run configuration
+                config_result = self.config_ipfs(
+                    ipfs_path=self.ipfs_path,
+                    cluster_name=getattr(self, 'cluster_name', 'ipfs-kit-cluster')
+                )
+                
+                if config_result.get("error"):
+                    print(f"Failed to configure IPFS: {config_result['error']}")
+                    return False
+                
+                print("IPFS configured successfully")
+                return True
+            else:
+                print("IPFS configuration already exists")
+                return True
+                
+        except Exception as e:
+            print(f"Error ensuring IPFS configuration: {e}")
+            return False
+
         return True

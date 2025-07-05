@@ -784,6 +784,21 @@ class ipfs_kit:
         """
         self.logger.info(f"Starting required daemons for role: {self.role}")
 
+        # Ensure all daemons are properly configured before starting
+        try:
+            from .daemon_config_manager import DaemonConfigManager
+            config_manager = DaemonConfigManager(self)
+            config_result = config_manager.check_and_configure_all_daemons()
+            if not config_result.get('overall_success', False):
+                self.logger.warning('Some daemon configurations failed, but continuing...')
+                self.logger.warning(f'Config summary: {config_result.get("summary", "No summary")}')
+            else:
+                self.logger.info('All daemon configurations validated successfully')
+        except Exception as config_error:
+            self.logger.warning(f'Daemon configuration check failed: {config_error}')
+            self.logger.warning('Continuing with daemon startup...')
+
+
         try:
             # All roles need the IPFS daemon
             if hasattr(self, 'ipfs'):

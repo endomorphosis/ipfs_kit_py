@@ -2635,4 +2635,33 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
+
+    def ensure_daemon_configured(self):
+        """Ensure Lotus daemon is properly configured before starting."""
+        try:
+            # Check if configuration exists
+            config_file = os.path.join(self.lotus_path, "config.toml")
+            if not os.path.exists(config_file):
+                print(f"Lotus configuration not found at {config_file}, creating...")
+                
+                # Run configuration
+                config_result = self.config_lotus(
+                    api_port=getattr(self, 'api_port', 1234),
+                    p2p_port=getattr(self, 'p2p_port', 1235)
+                )
+                
+                if not config_result.get("success", False):
+                    print(f"Failed to configure Lotus: {config_result.get('error', 'Unknown error')}")
+                    return False
+                
+                print("Lotus configured successfully")
+                return True
+            else:
+                print("Lotus configuration already exists")
+                return True
+                
+        except Exception as e:
+            print(f"Error ensuring Lotus configuration: {e}")
+            return False
+
     main()
