@@ -1,3 +1,1 @@
-This is a test file for MCP server testing.
-It contains multiple lines of text.
-Testing IPFS file upload functionality.
+Hello IPFS! This is a test file.

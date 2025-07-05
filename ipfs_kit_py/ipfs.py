@@ -1469,41 +1469,41 @@ class ipfs_py:
                     if os.path.isdir(file_path):
                         file_results.append(
                             {
-                                "path": file_path,
-                                "success": False,
-                                "skipped": True,
-                                "reason": "Directory skipped (ipfs_add_path2 only processes files)",
-                            }
+                    result["removed"] = True
+                    result["file_result"] = rm_result
+                    result["unpin_result"] = unpin_result
+                else:
+                    result["success"] = True
+                    result["path"] = path
+                    result["removed"] = True
+                    result["file_result"] = rm_result
+
+            elif path_type == "directory":
+                if kwargs.get("recursive", True):
+                    ls_result = self.ipfs_ls_path(path, correlation_id=correlation_id)
+
+                    if not ls_result["success"]:
+                        return handle_error(
+                            result,
+                            IPFSError(
+                                f"Failed to list directory: {ls_result.get('error', 'Unknown error')}"
+                            ),
                         )
-                        continue
 
-                    # Build command for this file
-                    cmd = ["ipfs", "add"]
+                    child_results = {}
 
-                    # Add to-files flag for MFS path
-                    cmd.append(f"--to-files={file_path}")
+                    for item in ls_result.get("items", []):
+                        if item.strip():
+                            child_path = f"{path}/{item}"
+                            child_result = self.ipfs_remove_path(child_path, **kwargs)
+                            child_results[child_path] = child_result
 
-                    # Add any additional flags
-                    if kwargs.get("quiet"):
-                        cmd.append("--quiet")
-                    if kwargs.get("only_hash"):
-                        cmd.append("--only-hash")
-                    if kwargs.get("pin", True) is False:
-                        cmd.append("--pin=false")
-                    if kwargs.get("cid_version") is not None:
-                        cmd.append(f"--cid-version={kwargs['cid_version']}")
+                    cmd_rm = ["ipfs", "files", "rmdir", path]
+                    rm_result = self.run_ipfs_command(cmd_rm, correlation_id=correlation_id)
 
-                    # Add the file path as the last argument
-                    cmd.append(file_path)
-
-                    # Run the command securely without shell=True
-                    cmd_result = self.run_ipfs_command(cmd, correlation_id=correlation_id)
-
-                    # Process file result
-                    file_result = {"path": file_path, "success": cmd_result["success"]}
-
-                    if cmd_result["success"]:
-                        output = cmd_result.get("stdout", "")
+                    result["success"] = rm_result["success"]
+                    result["path"] = path
+                    result["removed"] = rm_result["success"]
 
                         # Parse output to get CID
                         if output.strip():
@@ -2189,185 +2189,6 @@ class ipfs_py:
             result["disconnected"] = True
         return result
 
-    def swarm_peers(self) -> Dict[str, Any]:
-        """
-        Get a list of peers connected to this node.
-
-        Returns:
-            Dict containing operation result with keys:
-            - success: Whether the operation was successful
-            - peers: List of connected peers (if successful)
-            - timestamp: Time of operation
-            - error: Error message (if unsuccessful)
-        """
-        start_time = time.time()
-        result = {
-            "success": False,
-            "operation": "swarm_peers",
-            "timestamp": start_time
-        }
-
-        try:
-            # Check if IPFS kit is available and call its method
-            # Assuming self.ipfs_kit is the underlying library instance
-            # The plan uses self.ipfs_kit, but this class is ipfs_py, let's use self
-            # if hasattr(self, 'ipfs_swarm_peers'): # Check if the method exists on self
-            # Let's try calling the existing ipfs_swarm_peers first
-            peers_result = self.ipfs_swarm_peers() # Call the existing method
-            if peers_result and peers_result.get("success"):
-                # Use the result from the existing method if successful
-                result.update(peers_result)
-                # Ensure peer_count is present
-                if "peers" in result and isinstance(result["peers"], list):
-                     result["peer_count"] = len(result["peers"])
-                else:
-                     result["peer_count"] = 0 # Default if peers list is missing or not a list
-            else:
-                 # Fallback to simulation if the existing method fails or doesn't exist
-                 logger.info("ipfs_swarm_peers failed or not found, falling back to simulation.")
-                 # Simulation mode
-                 # Generate some sample peers for testing
-                 sample_peers = [
-                     {
-                         "peer": f"QmPeer{i}",
-                         "addr": f"/ip4/192.168.0.{i}/tcp/4001",
-                         "direction": "outbound" if i % 2 == 0 else "inbound",
-                         "latency": f"{i * 10}ms"
-                     }
-                     for i in range(1, 6)  # 5 sample peers
-                 ]
-
-                 result.update({
-                     "success": True,
-                     "peers": sample_peers,
-                     "peer_count": len(sample_peers),
-                     "simulated": True
-                 })
-
-            return result
-        except Exception as e:
-            logger.error(f"Error getting IPFS swarm peers: {str(e)}")
-            result.update({
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
-            return result
-        finally:
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-    def swarm_connect(self, peer_addr: str) -> Dict[str, Any]:
-        """
-        Connect to a peer.
-
-        Args:
-            peer_addr: The address of the peer to connect to
-
-        Returns:
-            Dict containing operation result with keys:
-            - success: Whether the operation was successful
-            - peer: The peer address connected to (if successful)
-            - timestamp: Time of operation
-            - error: Error message (if unsuccessful)
-        """
-        start_time = time.time()
-        result = {
-            "success": False,
-            "operation": "swarm_connect",
-            "timestamp": start_time,
-            "peer_addr": peer_addr
-        }
-
-        try:
-            # Validate peer address format
-            if not self._validate_peer_addr(peer_addr):
-                raise ValueError(f"Invalid peer address format: {peer_addr}")
-
-            # Check if IPFS kit is available and call its method
-            # Assuming self.ipfs_kit is the underlying library instance
-            # Let's try calling the existing ipfs_swarm_connect first
-            connect_result = self.ipfs_swarm_connect(peer_addr) # Call existing method
-            if connect_result and connect_result.get("success", False):
-                 result.update(connect_result) # Use the result from the existing method
-                 result["connected"] = True # Ensure connected flag is set
-            else:
-                 # Fallback to simulation if the existing method fails or doesn't exist
-                 logger.info("ipfs_swarm_connect failed or not found, falling back to simulation.")
-                 # Simulation mode
-                 # Always return success in simulation mode
-                 result.update({
-                     "success": True,
-                     "connected": True,
-                     "peer": peer_addr,
-                     "simulated": True
-                 })
-
-            return result
-        except Exception as e:
-            logger.error(f"Error connecting to peer {peer_addr}: {str(e)}")
-            result.update({
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
-            return result
-        finally:
-            result["duration_ms"] = (time.time() - start_time) * 1000
-
-    def swarm_disconnect(self, peer_addr: str) -> Dict[str, Any]:
-        """
-        Disconnect from a peer.
-
-        Args:
-            peer_addr: The address of the peer to disconnect from
-
-        Returns:
-            Dict containing operation result with keys:
-            - success: Whether the operation was successful
-            - peer: The peer address disconnected from (if successful)
-            - timestamp: Time of operation
-            - error: Error message (if unsuccessful)
-        """
-        start_time = time.time()
-        result = {
-            "success": False,
-            "operation": "swarm_disconnect",
-            "timestamp": start_time,
-            "peer_addr": peer_addr
-        }
-
-        try:
-            # Validate peer address format
-            if not self._validate_peer_addr(peer_addr):
-                raise ValueError(f"Invalid peer address format: {peer_addr}")
-
-            # Check if IPFS kit is available and call its method
-            # Assuming self.ipfs_kit is the underlying library instance
-            # Let's try calling the existing ipfs_swarm_disconnect first
-            disconnect_result = self.ipfs_swarm_disconnect(peer_addr) # Call existing method
-            if disconnect_result and disconnect_result.get("success", False):
-                 result.update(disconnect_result) # Use the result from the existing method
-                 result["disconnected"] = True # Ensure disconnected flag is set
-            else:
-                 # Fallback to simulation if the existing method fails or doesn't exist
-                 logger.info("ipfs_swarm_disconnect failed or not found, falling back to simulation.")
-                 # Simulation mode
-                 # Always return success in simulation mode
-                 result.update({
-                     "success": True,
-                     "disconnected": True,
-                     "peer": peer_addr,
-                     "simulated": True
-                 })
-
-            return result
-        except Exception as e:
-            logger.error(f"Error disconnecting from peer {peer_addr}: {str(e)}")
-            result.update({
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
-            return result
-        finally:
-            result["duration_ms"] = (time.time() - start_time) * 1000
 
     def dht_findpeer(self, peer_id):
         """Find a specific peer via the DHT and retrieve addresses.

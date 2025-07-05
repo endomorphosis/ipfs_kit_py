@@ -47,7 +47,7 @@ class EnhancedMCPServerWithConfig:
         try:
             # Step 1: Initialize configuration manager
             logger.info("📋 Initializing daemon configuration manager...")
-            from daemon_config_manager import DaemonConfigManager
+            from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
             self.daemon_config_manager = DaemonConfigManager()
             
             # Step 2: Check and configure all daemons
@@ -252,7 +252,7 @@ def main():
     
     # Handle config-only operations
     if args.check_config or args.validate_config:
-        from daemon_config_manager import DaemonConfigManager
+        from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
         
         manager = DaemonConfigManager()
         

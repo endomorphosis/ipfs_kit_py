@@ -33,7 +33,7 @@ from .error import (
     perform_with_retry,
 )
 import functools
-from typing import Callable, TypeVar, Optional, Any
+from typing import Callable, TypeVar, Optional, Any, Dict, List
 
 # Define a generic type variable for the return type
 RT = TypeVar('RT')
@@ -65,6 +65,7 @@ def auto_retry_on_daemon_failure(daemon_type: str = "ipfs", max_retries: int = 3
 
                 # Check if operation failed due to daemon not running
                 if (not result.get("success", False) and
+                    isinstance(result.get("error"), str) and # Ensure error is a string before calling lower()
                     result.get("error", "").lower().find("daemon") >= 0 and
                     "not running" in result.get("error", "").lower()):
 
@@ -370,17 +371,6 @@ class ipfs_kit:
                 - 'enable_monitoring' (bool): Enables cluster monitoring features.
                 - 'auto_download_binaries' (bool): Controls automatic binary downloads.
                 - 'auto_start_daemons' (bool): Controls automatic daemon initialization.
-                Defaults to None.
-            enable_libp2p (bool, optional): Explicitly enable libp2p features.
-                Defaults to False. Can be overridden by `metadata['enable_libp2p']`.
-            enable_cluster_management (bool, optional): Explicitly enable advanced
-                cluster management features. Defaults to False. Can be overridden
-                by `metadata['enable_cluster_management']`.
-            enable_metadata_index (bool, optional): Explicitly enable the Arrow
-                metadata index. Defaults to False. Can be overridden by
-                `metadata['enable_metadata_index']`.
-            auto_start_daemons (bool, optional): Automatically start all required
-                daemons (IPFS, IPFS Cluster, etc.) based on the node's role.
                 Defaults to True. Can be overridden by `metadata['auto_start_daemons']`.
         """
         # Initialize logger
@@ -474,7 +464,7 @@ class ipfs_kit:
             # Initialize components based on role
             if self.role == "leecher":
                 # Leecher only needs IPFS daemon
-                self.ipfs = ipfs_py(metadata={"role": self.role})
+                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
@@ -493,7 +483,7 @@ class ipfs_kit:
 
             elif self.role == "worker":
                 # Worker needs IPFS daemon and cluster-follow
-                self.ipfs = ipfs_py(metadata={"role": self.role})
+                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
                 self.ipfs_cluster_follow = ipfs_cluster_follow(
                     resources=resources,
                     metadata={"role": self.role, "cluster_name": metadata.get("cluster_name")},
@@ -516,7 +506,7 @@ class ipfs_kit:
 
             elif self.role == "master":
                 # Master needs IPFS daemon, cluster-service, and cluster-ctl
-                self.ipfs = ipfs_py(metadata={"role": self.role})
+                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
                 self.ipfs_cluster_service = ipfs_cluster_service(
                     resources=resources, metadata={"role": self.role}
                 )
@@ -745,7 +735,7 @@ class ipfs_kit:
             sync_interval = metadata.get("metadata_sync_interval", 300) if metadata else 300
             auto_sync = metadata.get("metadata_auto_sync", True) if metadata else True
             cluster_id = metadata.get("cluster_name") if metadata else None
-            if not cluster_id and "cluster_id" in self.config:
+            if not cluster_id and hasattr(self, "config") and "cluster_id" in self.config:
                 cluster_id = self.config["cluster_id"]
 
             self._metadata_index = ArrowMetadataIndex(
@@ -1231,14 +1221,16 @@ class ipfs_kit:
                         cluster_id=cluster_id,
                         node_id=node_id,
                     )
-
-            # Return the instance
-            return self._metadata_index
-
+                if auto_sync:
+                    self._metadata_sync_handler.start(sync_interval=sync_interval)
+            result["success"] = True
+            result["metadata_index_enabled"] = True
+            result["auto_sync"] = auto_sync
+            self.logger.info(f"Arrow metadata index enabled. Auto-sync: {auto_sync}")
         except Exception as e:
-            handle_error(result, e, "Failed to get Arrow metadata index")
-            self.logger.error(f"Error getting Arrow metadata index: {str(e)}")
-            return None
+            handle_error(result, e, "Failed to initialize Arrow metadata index")
+            self.logger.error(f"Error initializing Arrow metadata index: {str(e)}")
+        return result
 
     def sync_metadata_index(self, **kwargs):
         """Synchronize the metadata index with peers.
@@ -1294,7 +1286,7 @@ class ipfs_kit:
 
             # Publish the index
             publish_result = self._metadata_index.publish_index_dag()
-            result.update(publish_result)
+            result.update(publish)
             return result
 
         except Exception as e:
@@ -1363,7 +1355,7 @@ class ipfs_kit:
             # This prevents circular imports and provides better error messages
             try:
                 import libp2p
-                libp2p_available = True
+                libp2p_installed = True
             except ImportError:
                 self.logger.warning("libp2p package is not installed. Skipping libp2p setup.")
                 self.logger.info("To enable libp2p, install it with: pip install libp2p")
@@ -1583,7 +1575,6 @@ class ipfs_kit:
         result = create_result_dict(operation, correlation_id)
 
         try:
-            # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
@@ -1617,7 +1608,6 @@ class ipfs_kit:
         result = create_result_dict(operation, correlation_id)
 
         try:
-            # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
@@ -1649,7 +1639,6 @@ class ipfs_kit:
         result = create_result_dict(operation, correlation_id)
 
         try:
-            # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
@@ -1683,7 +1672,6 @@ class ipfs_kit:
         result = create_result_dict(operation, correlation_id)
 
         try:
-            # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
@@ -1715,7 +1703,6 @@ class ipfs_kit:
         result = create_result_dict(operation, correlation_id)
 
         try:
-            # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
@@ -1966,6 +1953,42 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
+    def ipfs_dag_get(self, cid, **kwargs):
+        """Get a DAG node from IPFS."""
+        operation = "ipfs_dag_get"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+
+            dag_result = self.ipfs.dag_get(cid, **kwargs)
+            result.update(dag_result)
+            result["success"] = dag_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
+    def ipfs_dag_put(self, data, **kwargs):
+        """Add a DAG node to IPFS."""
+        operation = "ipfs_dag_put"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
+
+        try:
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+
+            dag_result = self.ipfs.dag_put(data, **kwargs)
+            result.update(dag_result)
+            result["success"] = dag_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
     def ipfs_id(self, **kwargs):
         """Get node information.
 
@@ -2126,7 +2149,6 @@ class ipfs_kit:
         Returns:
             IPFSFileSystem instance for interacting with IPFS content as a filesystem
         """
-        # Check if fsspec integration is available
         if not FSSPEC_AVAILABLE:
             self.logger.error("FSSpec integration not available. Integration is disabled.")
             return None
@@ -2998,8 +3020,8 @@ class ipfs_kit:
                 try:
                     ipfs_result = self.ipfs.ipfs_remove_path(path, **kwargs)
                 except Exception as e:
-                    self.logger.error(f"Error removing from IPFS: {str(e)}")
                     result["ipfs_error"] = str(e)
+                    self.logger.error(f"Error removing from IPFS: {str(e)}")
 
             ipfs_success = (
                 isinstance(ipfs_result, dict) and ipfs_result.get("success", False)
@@ -3029,7 +3051,7 @@ class ipfs_kit:
 
                 validate_command_args(kwargs)
                 if not is_valid_cid(pin):
-                    return handle_error(result, IPFSValidationError(f"Invalid CID format: {pin}"))
+                    raise IPFSValidationError(f"Invalid CID format: {pin}")
             except (ImportError, IPFSValidationError) as e:
                 if isinstance(e, IPFSValidationError):
                     return handle_error(result, e)
@@ -3055,8 +3077,8 @@ class ipfs_kit:
                 try:
                     ipfs_result = self.ipfs.ipfs_remove_pin(pin, **kwargs)
                 except Exception as e:
-                    self.logger.error(f"Error removing pin from IPFS: {str(e)}")
                     result["ipfs_error"] = str(e)
+                    self.logger.error(f"Error removing pin from IPFS: {str(e)}")
 
             ipfs_success = (
                 isinstance(ipfs_result, dict) and ipfs_result.get("success", False)
@@ -3073,9 +3095,12 @@ class ipfs_kit:
             if self.role == "master":
                 result["fully_successful"] = ipfs_success and cluster_success
             result["cid"] = pin
-            if cluster_result is not None:
-                result["ipfs_cluster"] = cluster_result
-            result["ipfs"] = ipfs_result
+
+            # Only include ipfs_cluster key for master role
+            if self.role == "master":
+                result["ipfs_cluster"] = result1
+
+            result["ipfs"] = result2
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -3559,7 +3584,7 @@ class ipfs_kit:
             if not hasattr(self, "ipfs_cluster_ctl"):
                 return handle_error(result, IPFSError("ipfs_cluster_ctl component not initialized"))
 
-            # Call the component's method
+            # Delegate to the ipfs_cluster_ctl_health method
             health_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_health(**kwargs)
 
             # Return the results
@@ -3593,14 +3618,6 @@ class ipfs_kit:
                     results["ipfs_cluster_follow"] = self.ipfs_cluster_follow.ipfs_follow_stop()
                 except Exception as e:
                     results["ipfs_cluster_follow"] = str(e)
-            if hasattr(self, "ipfs"):
-                try:
-                    results["ipfs"] = self.ipfs.daemon_stop()
-                except Exception as e:
-                    results["ipfs"] = str(e)
-            # Ensure values are present for the components this role doesn't use
-            results["ipfs_cluster_service"] = None
-        elif self.role == "leecher":
             if hasattr(self, "ipfs"):
                 try:
                     results["ipfs"] = self.ipfs.daemon_stop()
@@ -4191,289 +4208,6 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
-    def get_filesystem(self, **kwargs):
-        """
-        Get an FSSpec-compatible filesystem for IPFS.
-
-        Args:
-            gateway_urls: List of IPFS gateway URLs to use
-            use_gateway_fallback: Whether to use gateways as fallback when local daemon is unavailable
-            gateway_only: Whether to use only gateways (no local daemon)
-            cache_config: Configuration for the cache system
-            enable_metrics: Whether to enable performance metrics
-
-        Returns:
-            FSSpec-compatible filesystem interface for IPFS
-        """
-        if not FSSPEC_AVAILABLE:
-            raise ImportError("fsspec is not available. Please install fsspec to use this feature.")
-
-        # Initialize the filesystem on first access
-        if not hasattr(self, "_filesystem") or self._filesystem is None:
-            from .ipfs_fsspec import IPFSFileSystem
-
-            # Prepare configuration
-            fs_kwargs = {}
-
-            # Add gateway configuration if provided
-            if "gateway_urls" in kwargs:
-                fs_kwargs["gateway_urls"] = kwargs["gateway_urls"]
-
-            # Add gateway fallback configuration if provided
-            if "use_gateway_fallback" in kwargs:
-                fs_kwargs["use_gateway_fallback"] = kwargs["use_gateway_fallback"]
-
-            # Add gateway-only mode configuration if provided
-            if "gateway_only" in kwargs:
-                fs_kwargs["gateway_only"] = kwargs["gateway_only"]
-
-            # Add cache configuration if provided
-            if "cache_config" in kwargs:
-                fs_kwargs["cache_config"] = kwargs["cache_config"]
-
-            # Add metrics configuration if provided
-            if "enable_metrics" in kwargs:
-                fs_kwargs["enable_metrics"] = kwargs["enable_metrics"]
-
-            # Create the filesystem
-            self._filesystem = IPFSFileSystem(**fs_kwargs)
-
-        return self._filesystem
-
-    # Add IPFS operation methods that delegate to the ipfs component
-    def ipfs_add(self, file_path, **kwargs):
-        """Add content to IPFS.
-
-        Args:
-            file_path: Path to the file to add
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not hasattr(self, "ipfs"):
-            return {
-                "success": False,
-                "operation": "add",
-                "error": "IPFS component not available",
-                "error_type": "ComponentNotAvailable",
-            }
-
-        result = self.ipfs.add(file_path, recursive=False)
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have cid field from Hash if present
-            if "Hash" in result and "cid" not in result:
-                result["cid"] = result["Hash"]
-            # Add any other required fields
-            if "size" not in result and "Size" in result:
-                result["size"] = result["Size"]
-
-        return result
-
-    def ipfs_cat(self, cid, **kwargs):
-        """Retrieve content from IPFS.
-
-        Args:
-            cid: The CID to retrieve
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not hasattr(self, "ipfs"):
-            return {
-                "success": False,
-                "operation": "cat",
-                "error": "IPFS component not available",
-                "error_type": "ComponentNotAvailable",
-            }
-
-        result = self.ipfs.cat(cid)
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have data field
-            if "data" not in result and "stdout" in result:
-                result["data"] = result["stdout"]
-            # Add size information if not present
-            if "size" not in result and "data" in result:
-                result["size"] = len(result["data"])
-
-        return result
-
-    def ipfs_pin_add(self, cid, **kwargs):
-        """Pin content in IPFS.
-
-        Args:
-            cid: The CID to pin
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not hasattr(self, "ipfs"):
-            return {
-                "success": False,
-                "operation": "pin_add",
-                "error": "IPFS component not available",
-                "error_type": "ComponentNotAvailable",
-            }
-
-        recursive = kwargs.get("recursive", True)
-        result = self.ipfs.pin_add(cid, recursive=recursive)
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have pins field
-            if "pins" not in result:
-                result["pins"] = [cid]
-            # Add count information if not present
-            if "count" not in result and "pins" in result:
-                result["count"] = len(result["pins"])
-
-        return result
-
-    def ipfs_pin_ls(self, **kwargs):
-        """List pinned content in IPFS.
-
-        Args:
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not hasattr(self, "ipfs"):
-            return {
-                "success": False,
-                "operation": "pin_ls",
-                "error": "IPFS component not available",
-                "error_type": "ComponentNotAvailable",
-            }
-
-        result = self.ipfs.pin_ls()
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have pins field
-            if "pins" not in result:
-                result["pins"] = {}
-            # Add count information if not present
-            if "count" not in result and "pins" in result:
-                result["count"] = len(result["pins"])
-
-        return result
-
-    def ipfs_pin_rm(self, cid, **kwargs):
-        """Remove a pin from IPFS.
-
-        Args:
-            cid: The CID to unpin
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not hasattr(self, "ipfs"):
-            return {
-                "success": False,
-                "operation": "pin_rm",
-                "error": "IPFS component not available",
-                "error_type": "ComponentNotAvailable",
-            }
-
-        recursive = kwargs.get("recursive", True)
-        result = self.ipfs.pin_rm(cid, recursive=recursive)
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have pins field
-            if "pins" not in result:
-                result["pins"] = [cid]
-            # Add count information if not present
-            if "count" not in result and "pins" in result:
-                result["count"] = len(result["pins"])
-
-        return result
-
-    def ipfs_id(self, **kwargs):
-        """Get IPFS node ID information.
-
-        Args:
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not hasattr(self, "ipfs"):
-            return {
-                "success": False,
-                "operation": "id",
-                "error": "IPFS component not available",
-                "error_type": "ComponentNotAvailable",
-            }
-
-        result = self.ipfs.id()
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have required fields
-            if "id" not in result and "ID" in result:
-                result["id"] = result["ID"]
-            if "addresses" not in result and "Addresses" in result:
-                result["addresses"] = result["Addresses"]
-            if "agent_version" not in result and "AgentVersion" in result:
-                result["agent_version"] = result["AgentVersion"]
-            if "protocol_version" not in result and "ProtocolVersion" in result:
-                result["protocol_version"] = result["ProtocolVersion"]
-
-        return result
-
-    def ipfs_swarm_peers(self, **kwargs):
-        """List peers connected to the IPFS swarm.
-
-        Args:
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome including list of peers
-        """
-        if not hasattr(self, "ipfs"):
-            return {"success": True, "operation": "swarm_peers", "peers": [], "count": 0}
-
-        result = self.ipfs.swarm_peers()
-
-        # Ensure the result has the expected fields for test compatibility
-        if result and result.get("success", False):
-            # Make sure we have peers field
-            if "peers" not in result:
-                result["peers"] = []
-            # Add count information if not present
-            if "count" not in result and "peers" in result:
-                result["count"] = len(result["peers"])
-
-        return result
-
-    def ipfs_swarm_connect(self, peer_addr=None, **kwargs):
-        """Connect to a peer at the specified multiaddress.
-
-        Args:
-            peer_addr: The multiaddress of the peer to connect to
-            **kwargs: Additional arguments
-
-        Returns:
-            Result dictionary with operation outcome
-        """
-        if not peer_addr:
-            # Return a default response when no peer address is provided
-            return {
-                "success": False,
-                "error": "Missing required peer address",
-                "error_type": "ValidationError"
-            }
-        return self.ipfs.ipfs_swarm_connect(peer_addr) if hasattr(self, "ipfs") else None
-
     def ipfs_swarm_disconnect(self, peer_addr, **kwargs):
         """Disconnect from a peer at the specified multiaddress.
 
@@ -4484,1978 +4218,99 @@ class ipfs_kit:
         Returns:
             Result dictionary with operation outcome
         """
-        return self.ipfs.ipfs_swarm_disconnect(peer_addr) if hasattr(self, "ipfs") else None
-
-
-# Create a compatible IPFSKit class for tests and high_level_api
-class IPFSKit:
-    """Main IPFS Kit class."""
-
-    def __init__(self, resources=None, metadata=None):
-        """Initialize the IPFS Kit."""
-        import time
-        import os
-        import re
-        import threading
-        from unittest.mock import MagicMock
-        
-        # Import error handling utilities
+        operation = "ipfs_swarm_disconnect"
+        correlation_id = kwargs.get("correlation_id")
+        result = create_result_dict(operation, correlation_id)
         try:
-            from .error import IPFSError, IPFSValidationError, create_result_dict, handle_error
-        except ImportError:
-            # For standalone testing
-            def create_result_dict(*args):
-                return {"success": False}
-                
-            def handle_error(result, error):
-                result["error"] = str(error)
+            if not peer_addr:
+                return handle_error(result, IPFSValidationError("Missing required peer address"))
+
+            # Security validation
+            try:
+                from .validation import validate_command_args, validate_multiaddress
+
+                validate_command_args(kwargs)
+                validate_multiaddress(peer_addr)
+            except (ImportError, IPFSValidationError) as e:
+                if isinstance(e, IPFSValidationError):
+                    return handle_error(result, e)
+
+            cmd = ["ipfs", "swarm", "disconnect", peer_addr]
+            if hasattr(self.ipfs, "run_ipfs_command"):
+                cmd_result = self.ipfs.run_ipfs_command(cmd, correlation_id=correlation_id)
+                if not cmd_result["success"]:
+                    return handle_error(
+                        result,
+                        IPFSError(
+                            f"Failed to disconnect from peer: {cmd_result.get('error', 'Unknown error')}"
+                        ),
+                    )
+
+                result["success"] = True
+                result["peer"] = peer_addr
+                result["message"] = f"Successfully disconnected from {peer_addr}"
                 return result
-        
-        # Try to import libp2p installation utilities
-        try:
-            from .install_libp2p import check_dependencies, install_dependencies_auto, check_dependency
-            self.HAS_LIBP2P = check_dependencies()
-        except ImportError:
-            self.HAS_LIBP2P = False
-            
-        # Import websocket peer discovery if available
-        try:
-            from .websocket_peer_discovery import (
-                PeerWebSocketServer, 
-                PeerWebSocketClient, 
-                create_peer_info_from_ipfs_kit
-            )
-            self.HAS_WEBSOCKET_PEER_DISCOVERY = True
-            self.WEBSOCKET_AVAILABLE = True
-        except ImportError:
-            self.HAS_WEBSOCKET_PEER_DISCOVERY = False
-            self.WEBSOCKET_AVAILABLE = False
-        
-        # Setup basic logger
-        import logging
-        self.logger = logging.getLogger("ipfs_kit")
-        
-        # Initialize mock for testing
-        self.ipfs_get = lambda **kwargs: b"test content"
-        self.fs = MagicMock()
-
-    def get_filesystem(self, enable_metrics=True, **kwargs):
-        """
-        Get the filesystem interface with optional metrics.
-
-        Args:
-            enable_metrics: Whether to enable performance metrics collection
-            **kwargs: Additional configuration options to pass to the filesystem
-
-        Returns:
-            IPFSFileSystem instance with configured metrics
-        """
-        # Import on demand to avoid circular imports
-        try:
-            from .ipfs_fsspec import IPFSFileSystem
-        except ImportError:
-            # For testing, provide a mock filesystem with all the expected attributes
-            self.fs = MagicMock()
-            self.fs.get_performance_metrics.return_value = {
-                "operations": {"total_operations": 0},
-                "cache": {"memory_hits": 0, "disk_hits": 0, "misses": 0, "total": 0},
-            }
-            # Set gateway attributes for gateway compatibility tests
-            gateway_urls = kwargs.get("gateway_urls", ["https://ipfs.io/ipfs/"])
-            self.fs.gateway_urls = gateway_urls
-            self.fs.use_gateway_fallback = kwargs.get("use_gateway_fallback", False)
-            self.fs.gateway_only = kwargs.get("gateway_only", False)
-
-            return self.fs
-
-        # Create new filesystem instance with metrics enabled
-        self.fs = IPFSFileSystem(
-            ipfs_path=self.metadata.get("ipfs_path"),
-            socket_path=self.metadata.get("socket_path"),
-            role=self.role,
-            enable_metrics=enable_metrics,
-            **kwargs,
-        )
-
-        return self.fs
-
-    def __call__(self, method_name, **kwargs):
-        """Call a method by name."""
-        return {"success": True}
-
-    # Mock IPFS operations for tests
-    def ipfs_add(self, file_path, **kwargs):
-        """Add content to IPFS."""
-        return {"success": True, "operation": "add", "cid": "QmTest123", "size": 12}
-
-    def ipfs_cat(self, cid, **kwargs):
-        """Retrieve content from IPFS."""
-        return {"success": True, "operation": "cat", "data": b"Test content", "size": 12}
-
-    def ipfs_pin_add(self, cid, **kwargs):
-        """Pin content in IPFS."""
-        return {"success": True, "operation": "pin_add", "pins": ["QmTest123"], "count": 1}
-
-    def ipfs_pin_ls(self, **kwargs):
-        """List pinned content in IPFS."""
-        return {
-            "success": True,
-            "operation": "pin_ls",
-            "pins": {"QmTest123": {"type": "recursive"}, "QmTest456": {"type": "recursive"}},
-            "count": 2,
-        }
-
-    def ipfs_pin_rm(self, cid, **kwargs):
-        """Remove a pin from IPFS."""
-        return {"success": True, "operation": "pin_rm", "pins": ["QmTest123"], "count": 1}
-
-    def ipfs_swarm_peers(self, **kwargs):
-        """List peers connected to the IPFS swarm."""
-        return {
-            "success": True,
-            "operation": "swarm_peers",
-            "peers": [
-                {
-                    "addr": "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
-                    "peer": "QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
-                    "latency": "23.456ms",
-                }
-            ],
-            "count": 1,
-        }
-
-    def ipfs_id(self, **kwargs):
-        """Get IPFS node ID information."""
-        return {
-            "success": True,
-            "operation": "id",
-            "id": "QmTest123",
-            "addresses": [
-                "/ip4/127.0.0.1/tcp/4001/p2p/QmTest123",
-                "/ip4/192.168.1.100/tcp/4001/p2p/QmTest123",
-            ],
-            "agent_version": "kubo/0.18.0/",
-            "protocol_version": "ipfs/0.1.0",
-        }
-
-    def upgrade_to_worker(self, master_address=None, cluster_secret=None, config_overrides=None):
-        """Upgrade a node from leecher to worker role.
-
-        Args:
-            master_address: Multiaddress of the master node
-            cluster_secret: Secret key for the cluster
-            config_overrides: Optional configuration overrides
-
-        Returns:
-            Result dictionary with upgrade status
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            previous_role = self.role
-            self.role = "worker"
-            return {
-                "success": True,
-                "operation": "upgrade_to_worker",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "worker",
-                "actions_performed": ["Upgraded to worker role (testing mode)"],
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform the upgrade
-            return self.dynamic_roles.upgrade_to_worker(
-                master_address=master_address,
-                cluster_secret=cluster_secret,
-                config_overrides=config_overrides,
-            )
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            previous_role = self.role
-            self.role = "worker"
-            return {
-                "success": True,
-                "operation": "upgrade_to_worker",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "worker",
-                "actions_performed": ["Simple role change (module not available)"],
-            }
-
-    def upgrade_to_master(self, cluster_secret=None, config_overrides=None):
-        """Upgrade a node to master role.
-
-        Args:
-            cluster_secret: Secret key for the cluster
-            config_overrides: Optional configuration overrides
-
-        Returns:
-            Result dictionary with upgrade status
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            previous_role = self.role
-            self.role = "master"
-            return {
-                "success": True,
-                "operation": "upgrade_to_master",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "master",
-                "actions_performed": ["Upgraded to master role (testing mode)"],
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform the upgrade
-            return self.dynamic_roles.upgrade_to_master(
-                cluster_secret=cluster_secret, config_overrides=config_overrides
-            )
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            previous_role = self.role
-            self.role = "master"
-            return {
-                "success": True,
-                "operation": "upgrade_to_master",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "master",
-                "actions_performed": ["Simple role change (module not available)"],
-            }
-
-    def downgrade_to_worker(self, master_address=None, cluster_secret=None):
-        """Downgrade a node from master to worker role.
-
-        Args:
-            master_address: Multiaddress of the master node to follow
-            cluster_secret: Secret key for the cluster
-
-        Returns:
-            Result dictionary with downgrade status
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            previous_role = self.role
-            self.role = "worker"
-            return {
-                "success": True,
-                "operation": "downgrade_to_worker",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "worker",
-                "actions_performed": ["Downgraded to worker role (testing mode)"],
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform the downgrade
-            return self.dynamic_roles.downgrade_to_worker(
-                master_address=master_address, cluster_secret=cluster_secret
-            )
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            previous_role = self.role
-            self.role = "worker"
-            return {
-                "success": True,
-                "operation": "downgrade_to_worker",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "worker",
-                "actions_performed": ["Simple role change (module not available)"],
-            }
-
-    def downgrade_to_leecher(self):
-        """Downgrade a node to leecher role.
-
-        Returns:
-            Result dictionary with downgrade status
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            previous_role = self.role
-            self.role = "leecher"
-            return {
-                "success": True,
-                "operation": "downgrade_to_leecher",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "leecher",
-                "actions_performed": ["Downgraded to leecher role (testing mode)"],
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform the downgrade
-            return self.dynamic_roles.downgrade_to_leecher()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            previous_role = self.role
-            self.role = "leecher"
-            return {
-                "success": True,
-                "operation": "downgrade_to_leecher",
-                "timestamp": time.time(),
-                "previous_role": previous_role,
-                "new_role": "leecher",
-                "actions_performed": ["Simple role change (module not available)"],
-            }
-
-    def evaluate_potential_roles(self):
-        """Evaluate which roles are possible with current resources.
-
-        Returns:
-            Dictionary with capability assessment for each role
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            resources = self.detect_available_resources()
-            if isinstance(resources, dict) and "resources" in resources:
-                resources = resources["resources"]
-
-            requirements = self.get_role_requirements()
-            if isinstance(requirements, dict) and "requirements" in requirements:
-                requirements = requirements["requirements"]
-
-            # Calculate capability percentage for each role
-            evaluations = {}
-
-            for role, reqs in requirements.items():
-                # Calculate capability percentage for each resource type
-                mem_pct = resources["memory_available"] / reqs["memory_min"]
-                disk_pct = resources["disk_available"] / reqs["disk_min"]
-                cpu_pct = resources["cpu_available"] / reqs["cpu_min"]
-                bw_pct = resources["bandwidth_available"] / reqs["bandwidth_min"]
-
-                # Use the minimum percentage as the limiting factor
-                capability_pct = min(mem_pct, disk_pct, cpu_pct, bw_pct)
-
-                # Determine limiting factor
-                limiting_factor = None
-                min_pct = float("inf")
-
-                for resource_type, pct in [
-                    ("memory", mem_pct),
-                    ("disk", disk_pct),
-                    ("cpu", cpu_pct),
-                    ("bandwidth", bw_pct),
-                ]:
-                    if pct < min_pct:
-                        min_pct = pct
-                        limiting_factor = resource_type
-
-                evaluations[role] = {
-                    "capable": capability_pct >= 1.0,  # 100% or more of required resources
-                    "capability_percent": capability_pct,
-                    "limiting_factor": limiting_factor if capability_pct < 1.0 else None,
-                    "resource_percentages": {
-                        "memory": mem_pct,
-                        "disk": disk_pct,
-                        "cpu": cpu_pct,
-                        "bandwidth": bw_pct,
-                    },
-                }
-
-            return {
-                "success": True,
-                "operation": "evaluate_potential_roles",
-                "timestamp": time.time(),
-                "evaluations": evaluations,
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform the evaluation
-            return self.dynamic_roles.evaluate_potential_roles()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            # Call our testing implementation which has the logic
-            self._testing_mode = True
-            result = self.evaluate_potential_roles()
-            del self._testing_mode
-            return result
-
-    def detect_available_resources(self):
-        """Detect available system resources for role determination.
-
-        Returns:
-            Dictionary of available resources
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            return {
-                "success": True,
-                "operation": "detect_available_resources",
-                "timestamp": time.time(),
-                "resources": {
-                    "memory_available": 6 * 1024 * 1024 * 1024,  # 6GB
-                    "disk_available": 120 * 1024 * 1024 * 1024,  # 120GB
-                    "cpu_available": 3,
-                    "bandwidth_available": 8 * 1024 * 1024,  # 8MB/s
-                    "gpu_available": False,
-                    "network_stability": 0.9,  # 90% stable
-                },
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform resource detection
-            return self.dynamic_roles.detect_available_resources()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            return {
-                "success": True,
-                "operation": "detect_available_resources",
-                "timestamp": time.time(),
-                "resources": {
-                    "memory_available": 6 * 1024 * 1024 * 1024,  # 6GB
-                    "disk_available": 120 * 1024 * 1024 * 1024,  # 120GB
-                    "cpu_available": 3,
-                    "bandwidth_available": 8 * 1024 * 1024,  # 8MB/s
-                    "gpu_available": False,
-                    "network_stability": 0.9,  # 90% stable
-                },
-            }
-
-    def get_role_requirements(self):
-        """Get resource requirements for all roles.
-
-        Returns:
-            Dictionary of resource requirements for each role
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            return {
-                "success": True,
-                "operation": "get_role_requirements",
-                "timestamp": time.time(),
-                "requirements": {
-                    "leecher": {
-                        "memory_min": 2 * 1024 * 1024 * 1024,  # 2GB
-                        "disk_min": 10 * 1024 * 1024 * 1024,  # 10GB
-                        "cpu_min": 1,
-                        "bandwidth_min": 1 * 1024 * 1024,  # 1MB/s
-                    },
-                    "worker": {
-                        "memory_min": 4 * 1024 * 1024 * 1024,  # 4GB
-                        "disk_min": 100 * 1024 * 1024 * 1024,  # 100GB
-                        "cpu_min": 2,
-                        "bandwidth_min": 5 * 1024 * 1024,  # 5MB/s
-                    },
-                    "master": {
-                        "memory_min": 8 * 1024 * 1024 * 1024,  # 8GB
-                        "disk_min": 500 * 1024 * 1024 * 1024,  # 500GB
-                        "cpu_min": 4,
-                        "bandwidth_min": 10 * 1024 * 1024,  # 10MB/s
-                    },
-                },
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Get role requirements
-            return self.dynamic_roles.get_role_requirements()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            return {
-                "success": True,
-                "operation": "get_role_requirements",
-                "timestamp": time.time(),
-                "requirements": {
-                    "leecher": {
-                        "memory_min": 2 * 1024 * 1024 * 1024,  # 2GB
-                        "disk_min": 10 * 1024 * 1024 * 1024,  # 10GB
-                        "cpu_min": 1,
-                        "bandwidth_min": 1 * 1024 * 1024,  # 1MB/s
-                    },
-                    "worker": {
-                        "memory_min": 4 * 1024 * 1024 * 1024,  # 4GB
-                        "disk_min": 100 * 1024 * 1024 * 1024,  # 100GB
-                        "cpu_min": 2,
-                        "bandwidth_min": 5 * 1024 * 1024,  # 5MB/s
-                    },
-                    "master": {
-                        "memory_min": 8 * 1024 * 1024 * 1024,  # 8GB
-                        "disk_min": 500 * 1024 * 1024 * 1024,  # 500GB
-                        "cpu_min": 4,
-                        "bandwidth_min": 10 * 1024 * 1024,  # 10MB/s
-                    },
-                },
-            }
-
-    def determine_optimal_role(self):
-        """Determine the optimal role based on resources and constraints.
-
-        Returns:
-            Dictionary with optimal role determination
-        """
-        # For testing, provide a simple implementation that works without dependency
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            current_role = self.role
-            role_evaluation = self.evaluate_potential_roles().get("evaluations", {})
-
-            # Role order from lowest to highest capability requirement
-            role_order = ["leecher", "worker", "master"]
-
-            # First check: can we maintain current role?
-            if current_role in role_evaluation and role_evaluation[current_role]["capable"]:
-                # Check if we should upgrade
-                if current_role == "leecher":
-                    # Check if worker is viable
-                    if role_evaluation["worker"]["capable"]:
-                        return {
-                            "success": True,
-                            "optimal_role": "worker",
-                            "action": "upgrade",
-                            "reason": f"Node has sufficient resources for worker role ({role_evaluation['worker']['capability_percent']:.2f}x requirement)",
-                        }
-                elif current_role == "worker":
-                    # Check if master is viable
-                    if role_evaluation["master"]["capable"]:
-                        return {
-                            "success": True,
-                            "optimal_role": "master",
-                            "action": "upgrade",
-                            "reason": f"Node has sufficient resources for master role ({role_evaluation['master']['capability_percent']:.2f}x requirement)",
-                        }
-
-                # No better role available, stay as is
-                return {
-                    "success": True,
-                    "optimal_role": current_role,
-                    "action": "maintain",
-                    "reason": f"Current role '{current_role}' is optimal for available resources",
-                }
-
-            # Current role isn't viable, find the best one
-            best_role = None
-            best_capability = 0
-
-            for role, eval_data in role_evaluation.items():
-                if eval_data["capable"] and eval_data["capability_percent"] > best_capability:
-                    best_role = role
-                    best_capability = eval_data["capability_percent"]
-
-            if best_role:
-                if best_role == current_role:
-                    action = "maintain"
-                elif ["leecher", "worker", "master"].index(best_role) > [
-                    "leecher",
-                    "worker",
-                    "master",
-                ].index(current_role):
-                    action = "upgrade"
-                else:
-                    action = "downgrade"
-
-                return {
-                    "success": True,
-                    "optimal_role": best_role,
-                    "action": action,
-                    "reason": f"Changing from '{current_role}' to '{best_role}' based on resource capabilities",
-                }
-
-            # Fallback to leecher if nothing is viable
-            return {
-                "success": True,
-                "optimal_role": "leecher",
-                "action": "downgrade",
-                "reason": "Insufficient resources for current role, defaulting to leecher",
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Determine optimal role
-            return self.dynamic_roles.determine_optimal_role()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            # Call our testing implementation which has the logic
-            self._testing_mode = True
-            result = self.determine_optimal_role()
-            del self._testing_mode
-            return result
-
-    def detect_resource_changes(self):
-        """Detect significant changes in resources since last check.
-
-        Returns:
-            Dictionary containing resource change information
-        """
-        # For testing mode implementation
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            return {
-                "success": True,
-                "operation": "detect_resource_changes",
-                "timestamp": time.time(),
-                "significant_change": True,
-                "changes": {
-                    "memory_available": {
-                        "previous": 4 * 1024 * 1024 * 1024,
-                        "current": 6 * 1024 * 1024 * 1024,
-                        "difference": 2 * 1024 * 1024 * 1024,
-                        "percent_change": 50,
-                    },
-                    "disk_available": {
-                        "previous": 100 * 1024 * 1024 * 1024,
-                        "current": 120 * 1024 * 1024 * 1024,
-                        "difference": 20 * 1024 * 1024 * 1024,
-                        "percent_change": 20,
-                    },
-                },
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Detect resource changes
-            return self.dynamic_roles.detect_resource_changes()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            return {
-                "success": True,
-                "operation": "detect_resource_changes",
-                "timestamp": time.time(),
-                "significant_change": True,
-                "changes": {
-                    "memory_available": {
-                        "previous": 4 * 1024 * 1024 * 1024,
-                        "current": 6 * 1024 * 1024 * 1024,
-                        "difference": 2 * 1024 * 1024 * 1024,
-                        "percent_change": 50,
-                    },
-                    "disk_available": {
-                        "previous": 100 * 1024 * 1024 * 1024,
-                        "current": 120 * 1024 * 1024 * 1024,
-                        "difference": 20 * 1024 * 1024 * 1024,
-                        "percent_change": 20,
-                    },
-                },
-            }
-
-    def check_and_update_role(self):
-        """Check resources and automatically update role if needed.
-
-        Returns:
-            Dictionary with the result of the role check
-        """
-        # For testing mode implementation
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            # Check if resources have changed significantly
-            change_result = self.detect_resource_changes()
-
-            if not change_result["significant_change"]:
-                return {
-                    "success": True,
-                    "role_change_needed": False,
-                    "message": "No significant resource changes detected",
-                }
-
-            # Determine optimal role
-            role_result = self.determine_optimal_role()
-
-            if role_result["action"] == "maintain":
-                return {
-                    "success": True,
-                    "role_change_needed": False,
-                    "message": f"Current role '{self.role}' remains optimal",
-                }
-
-            # Need to change role
-            if role_result["action"] == "upgrade":
-                if role_result["optimal_role"] == "worker":
-                    upgrade_result = self.upgrade_to_worker()  # Call the actual (mocked) method
-                    if upgrade_result["success"]:
-                        return {
-                            "success": True,
-                            "role_change_needed": True,
-                            "role_change_executed": True,
-                            "previous_role": "leecher",
-                            "new_role": "worker",
-                            "message": "Upgraded from leecher to worker role",
-                        }
-                elif role_result["optimal_role"] == "master":
-                    upgrade_result = self.upgrade_to_master()  # Call the actual (mocked) method
-                    if upgrade_result["success"]:
-                        return {
-                            "success": True,
-                            "role_change_needed": True,
-                            "role_change_executed": True,
-                            "previous_role": "worker",
-                            "new_role": "master",
-                            "message": "Upgraded from worker to master role",
-                        }
-            elif role_result["action"] == "downgrade":
-                if role_result["optimal_role"] == "worker":
-                    downgrade_result = self.downgrade_to_worker()  # Call the actual (mocked) method
-                    if downgrade_result["success"]:
-                        return {
-                            "success": True,
-                            "role_change_needed": True,
-                            "role_change_executed": True,
-                            "previous_role": "master",
-                            "new_role": "worker",
-                            "message": "Downgraded from master to worker role",
-                        }
-                elif role_result["optimal_role"] == "leecher":
-                    downgrade_result = (
-                        self.downgrade_to_leecher()
-                    )  # Call the actual (mocked) method
-                    if downgrade_result["success"]:
-                        return {
-                            "success": True,
-                            "role_change_needed": True,
-                            "role_change_executed": True,
-                            "previous_role": "worker",
-                            "new_role": "leecher",
-                            "message": "Downgraded from worker to leecher role",
-                        }
-
-            # Something went wrong
-            return {
-                "success": False,
-                "role_change_needed": True,
-                "role_change_executed": False,
-                "message": "Failed to execute role change",
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Check and update role
-            return self.dynamic_roles.check_and_update_role()
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            # Call our testing implementation which has the logic
-            self._testing_mode = True
-            result = self.check_and_update_role()
-            del self._testing_mode
-            return result
-
-    def change_role(
-        self,
-        target_role,
-        force=False,
-        master_address=None,
-        cluster_secret=None,
-        config_overrides=None,
-    ):
-        """Change node role with user-provided parameters.
-
-        Args:
-            target_role: The target role to switch to
-            force: Whether to force the change even if resources are insufficient
-            master_address: Master node address for worker role
-            cluster_secret: Cluster secret key
-            config_overrides: Additional configuration overrides
-
-        Returns:
-            Dictionary with the result of the role change
-        """
-        # For testing mode implementation
-        if hasattr(self, "_testing_mode") and self._testing_mode:
-            # Check if role is valid
-            if target_role not in ["leecher", "worker", "master"]:
-                return {"success": False, "error": f"Invalid role: {target_role}"}
-
-            # If not forced, check if we have sufficient resources
-            if not force:
-                role_eval = self.evaluate_potential_roles()["evaluations"]
-
-                if target_role not in role_eval or not role_eval[target_role]["capable"]:
-                    return {
-                        "success": False,
-                        "error": f"Insufficient resources for role: {target_role}",
-                        "capability_percent": (
-                            role_eval[target_role]["capability_percent"]
-                            if target_role in role_eval
-                            else 0
-                        ),
-                        "limiting_factor": (
-                            role_eval[target_role].get("limiting_factor", "unknown")
-                            if target_role in role_eval
-                            else "unknown"
-                        ),
-                    }
-
-            # Execute the role change
-            current_role = self.role
-
-            if target_role == current_role:
-                return {"success": True, "message": f"Node is already in {target_role} role"}
-
-            # Handle the role change
-            if current_role == "leecher" and target_role == "worker":
-                upgrade_result = self.upgrade_to_worker()
-                return {
-                    "success": upgrade_result["success"],
-                    "previous_role": upgrade_result["previous_role"],
-                    "new_role": upgrade_result["new_role"],
-                    "message": f"Upgraded from {upgrade_result['previous_role']} to {upgrade_result['new_role']}",
-                }
-            elif current_role == "leecher" and target_role == "master":
-                upgrade_result = self.upgrade_to_master()
-                return {
-                    "success": upgrade_result["success"],
-                    "previous_role": upgrade_result["previous_role"],
-                    "new_role": upgrade_result["new_role"],
-                    "message": f"Upgraded from {upgrade_result['previous_role']} to {upgrade_result['new_role']}",
-                }
-            elif current_role == "worker" and target_role == "master":
-                upgrade_result = self.upgrade_to_master()
-                return {
-                    "success": upgrade_result["success"],
-                    "previous_role": upgrade_result["previous_role"],
-                    "new_role": upgrade_result["new_role"],
-                    "message": f"Upgraded from {upgrade_result['previous_role']} to {upgrade_result['new_role']}",
-                }
-            elif current_role == "worker" and target_role == "leecher":
-                downgrade_result = self.downgrade_to_leecher()
-                return {
-                    "success": downgrade_result["success"],
-                    "previous_role": downgrade_result["previous_role"],
-                    "new_role": downgrade_result["new_role"],
-                    "message": f"Downgraded from {downgrade_result['previous_role']} to {downgrade_result['new_role']}",
-                }
-            elif current_role == "master" and target_role == "worker":
-                downgrade_result = self.downgrade_to_worker()
-                return {
-                    "success": downgrade_result["success"],
-                    "previous_role": downgrade_result["previous_role"],
-                    "new_role": downgrade_result["new_role"],
-                    "message": f"Downgraded from {downgrade_result['previous_role']} to {downgrade_result['new_role']}",
-                }
-            elif current_role == "master" and target_role == "leecher":
-                downgrade_result = self.downgrade_to_leecher()
-                return {
-                    "success": downgrade_result["success"],
-                    "previous_role": downgrade_result["previous_role"],
-                    "new_role": downgrade_result["new_role"],
-                    "message": f"Downgraded from {downgrade_result['previous_role']} to {downgrade_result['new_role']}",
-                }
-
-            return {
-                "success": False,
-                "error": f"Unsupported role transition: {current_role} to {target_role}",
-            }
-
-        # Normal implementation
-        try:
-            from .cluster_dynamic_roles import ClusterDynamicRoles
-
-            # Initialize dynamic roles manager if not already present
-            if not hasattr(self, "dynamic_roles"):
-                self.dynamic_roles = ClusterDynamicRoles(self)
-
-            # Perform role change
-            return self.dynamic_roles.change_role(
-                target_role=target_role,
-                force=force,
-                master_address=master_address,
-                cluster_secret=cluster_secret,
-                config_overrides=config_overrides,
-            )
-        except ImportError:
-            # Fallback if ClusterDynamicRoles is not available
-            # Call our testing implementation which has the logic
-            self._testing_mode = True
-            result = self.change_role(
-                target_role=target_role,
-                force=force,
-                master_address=master_address,
-                cluster_secret=cluster_secret,
-                config_overrides=config_overrides,
-            )
-            del self._testing_mode
-            return result
-
-    def ipfs_add(self, file_path, **kwargs):
-        """Add a file or directory to IPFS.
-
-        Args:
-            file_path: Path to the file or directory to add
-            **kwargs: Additional parameters for the operation
-
-        Returns:
-            Dictionary with operation result information
-        """
-        operation = "ipfs_add"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Delegate to the ipfs instance
-            if not hasattr(self, "ipfs"):
-                return handle_error(result, IPFSError("IPFS instance not initialized"))
-
-            # Call the ipfs module's implementation
-            add_result = self.ipfs.add(file_path, **kwargs)
-            result.update(add_result)
-            result["success"] = add_result.get("success", False)
-            return result
-        except Exception as e:
-            return handle_error(result, e)
-
-    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
-    def ipfs_add_file(self, file_path, **kwargs):
-        """Alias for ipfs_add for compatibility with high-level API.
-
-        Note:
-            This method uses auto_retry_on_daemon_failure decorator to automatically
-            start the IPFS daemon and retry the operation if it fails due to the
-            daemon not running.
-        """
-        operation = "ipfs_add_file"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Delegate to the ipfs instance
-            if not hasattr(self, "ipfs"):
-                return handle_error(result, IPFSError("IPFS instance not initialized"))
-
-            # Call the ipfs module's implementation
-            add_result = self.ipfs.add(file_path, **kwargs)
-            result.update(add_result)
-            result["success"] = add_result.get("success", False)
-            return result
-        except Exception as e:
-            return handle_error(result, e)
-
-
-# IPFS Cluster Methods with Auto-Retry
-
-    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
-    def cluster_pin_add(self, cid=None, path=None, name=None, replication=None, metadata=None, **kwargs):
-        """
-        Pin content to IPFS cluster.
-
-        Pins a CID or a local file path to the IPFS cluster with automatic
-        daemon restart if needed. This method requires the IPFS Cluster daemon to be running.
-
-        Args:
-            cid (str): Content identifier to pin (if content is already in IPFS)
-            path (str): Path to local file or directory to add and pin
-            name (str): Optional custom name for the pin
-            replication (int): Replication factor for the pin
-            metadata (dict): Custom metadata for the pin
-            **kwargs: Additional parameters for the operation
-
-        Returns:
-            Dictionary with operation result and cluster status information
-
-        Note:
-            This method uses auto_retry_on_daemon_failure decorator to automatically
-            start the IPFS Cluster daemon and retry the operation if it fails due to the
-            daemon not running.
-        """
-        operation = "cluster_pin_add"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Check if IPFS Cluster is initialized
-            if not hasattr(self, "ipfs_cluster_ctl"):
-                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
-
-            # Validate that either cid or path is provided
-            if cid is None and path is None:
-                return handle_error(result, IPFSValidationError("Either cid or path must be provided"))
-
-            # Prepare parameters
-            pin_kwargs = {}
-            if name:
-                pin_kwargs["name"] = name
-            if replication:
-                pin_kwargs["replication"] = replication
-            if metadata:
-                # Convert metadata dict to JSON string if needed
-                if isinstance(metadata, dict):
-                    metadata = json.dumps(metadata)
-                pin_kwargs["metadata"] = metadata
-
-            # Add correlation ID for tracing
-            pin_kwargs["correlation_id"] = correlation_id
-
-            # Pin the CID or path
-            if path is not None:
-                # Add and pin a file or directory
-                pin_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(path=path, **pin_kwargs)
             else:
-                # Pin an existing CID
-                pin_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(path=cid, **pin_kwargs)
+                # Fallback to direct subprocess if run_ipfs_command isn't available
+                env = os.environ.copy()
+                process = subprocess.run(cmd, capture_output=True, check=True, shell=False, env=env)
+                output = process.stdout.decode().strip()
 
-            # Update result
-            result.update(pin_result)
-            result["success"] = pin_result.get("success", False)
-
-            # Extract CID from stdout if available
-            if pin_result.get("success", False) and pin_result.get("stdout"):
-                # Try to extract CID from output
-                stdout = pin_result.get("stdout", "")
-                cid_pattern = r"(Qm[a-zA-Z0-9]{44}|bafy[a-zA-Z0-9]+)"
-                cid_match = re.search(cid_pattern, stdout)
-                if cid_match:
-                    result["cid"] = cid_match.group(1)
-
-            return result
-        except Exception as e:
-            return handle_error(result, e)
-
-    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
-    def cluster_pin_rm(self, cid, **kwargs):
-        """
-        Remove a pin from IPFS cluster.
-
-        Unpins a CID from the IPFS cluster with automatic daemon restart if needed.
-        This method requires the IPFS Cluster daemon to be running.
-
-        Args:
-            cid (str): Content identifier to unpin
-            **kwargs: Additional parameters for the operation
-
-        Returns:
-            Dictionary with operation result
-
-        Note:
-            This method uses auto_retry_on_daemon_failure decorator to automatically
-            start the IPFS Cluster daemon and retry the operation if it fails due to the
-            daemon not running.
-        """
-        operation = "cluster_pin_rm"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Check if IPFS Cluster is initialized
-            if not hasattr(self, "ipfs_cluster_ctl"):
-                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
-
-            # Validate CID
-            if not cid:
-                return handle_error(result, IPFSValidationError("CID must be provided"))
-
-            # Unpin the CID
-            unpin_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_remove_pin(cid=cid, correlation_id=correlation_id)
-
-            # Update result
-            result.update(unpin_result)
-            result["success"] = unpin_result.get("success", False)
-
-            return result
-        except Exception as e:
-            return handle_error(result, e)
-
-    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
-    def cluster_pin_ls(self, cid=None, **kwargs):
-        """
-        List pins in IPFS cluster.
-
-        Lists all pins in the cluster or details for a specific CID with automatic
-        daemon restart if needed. This method requires the IPFS Cluster daemon to be running.
-
-        Args:
-            cid (str): Optional content identifier to get pin status for
-            **kwargs: Additional parameters for the operation
-
-        Returns:
-            Dictionary with operation result and pin list
-
-        Note:
-            This method uses auto_retry_on_daemon_failure decorator to automatically
-            start the IPFS Cluster daemon and retry the operation if it fails due to the
-            daemon not running.
-        """
-        operation = "cluster_pin_ls"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Check if IPFS Cluster is initialized
-            if not hasattr(self, "ipfs_cluster_ctl"):
-                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
-
-            # Get pin list
-            pin_result = self.ipfs_cluster_ctl.ipfs_cluster_get_pinset(cid=cid, correlation_id=correlation_id)
-
-            # Update result
-            result.update(pin_result)
-            result["success"] = pin_result.get("success", False)
-
-            # Parse pins from output if available
-            if pin_result.get("success", False) and pin_result.get("stdout_json"):
-                result["pins"] = pin_result.get("stdout_json")
-
-            return result
-        except Exception as e:
-            return handle_error(result, e)
-
-    @auto_retry_on_daemon_failure(daemon_type="ipfs_cluster_service", max_retries=3)
-    def cluster_status(self, cid=None, **kwargs):
-        """
-        Get status of pins in IPFS cluster.
-
-        Gets detailed status for all pins or a specific CID in the cluster with
-        automatic daemon restart if needed. This method requires the IPFS Cluster daemon to be running.
-
-        Args:
-            cid (str): Optional content identifier to get status for
-            **kwargs: Additional parameters for the operation
-
-        Returns:
-            Dictionary with operation result and status information
-
-        Note:
-            This method uses auto_retry_on_daemon_failure decorator to automatically
-            start the IPFS Cluster daemon and retry the operation if it fails due to the
-            daemon not running.
-        """
-        operation = "cluster_status"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Check if IPFS Cluster is initialized
-            if not hasattr(self, "ipfs_cluster_ctl"):
-                return handle_error(result, IPFSError("IPFS Cluster is not initialized"))
-
-            # Get status
-            status_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_status(cid=cid, correlation_id=correlation_id)
-
-            # Update result
-            result.update(status_result)
-            result["success"] = status_result.get("success", False)
-
-            # Parse status from output if available
-            if status_result.get("success", False) and status_result.get("stdout_json"):
-                result["status"] = status_result.get("stdout_json")
-
-            return result
-        except Exception as e:
-            return handle_error(result, e)
-
-# Add a demo method to show daemon auto-restart capability
-    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
-    def perform_operation_with_retry(self, operation_type="add", content=None, **kwargs):
-        """
-        Perform IPFS operations with automatic daemon restart if needed.
-
-        This method demonstrates the auto_retry_on_daemon_failure decorator's capabilities
-        by performing an operation that requires the IPFS daemon, handling failures,
-        auto-restarting the daemon if it's not running, and retrying the operation.
-
-        Args:
-            operation_type (str): Type of operation to perform ('add', 'cat', 'pin')
-            content (str, bytes, or file path): Content or CID to operate on
-            **kwargs: Additional parameters for the operation
-
-        Returns:
-            Dictionary with operation result and daemon status information
-        """
-        operation = f"perform_operation_with_retry_{operation_type}"
-        correlation_id = kwargs.get("correlation_id")
-        result = create_result_dict(operation, correlation_id)
-
-        try:
-            # Check if IPFS instance is available
-            if not hasattr(self, "ipfs"):
-                return handle_error(result, IPFSError("IPFS instance not initialized"))
-
-            # Perform the requested operation
-            if operation_type == "add":
-                if isinstance(content, str) and os.path.exists(content):
-                    # String is a file path
-                    op_result = self.ipfs.add(content)
-                else:
-                    # Content is actual data
-                    temp_file = None
-                    try:
-                        temp_file = tempfile.NamedTemporaryFile(delete=False)
-                        if isinstance(content, str):
-                            temp_file.write(content.encode('utf-8'))
-                        elif isinstance(content, bytes):
-                            temp_file.write(content)
-                        else:
-                            return handle_error(
-                                result,
-                                IPFSValidationError("Content must be string, bytes, or file path")
-                            )
-                        temp_file.close()
-                        op_result = self.ipfs.add(temp_file.name)
-                    finally:
-                        if temp_file and os.path.exists(temp_file.name):
-                            os.unlink(temp_file.name)
-            elif operation_type == "cat":
-                if not content:
-                    return handle_error(result, IPFSValidationError("CID must be provided for 'cat' operation"))
-                op_result = self.ipfs.cat(content)
-            elif operation_type == "pin":
-                if not content:
-                    return handle_error(result, IPFSValidationError("CID must be provided for 'pin' operation"))
-                op_result = self.ipfs.pin_add(content)
-            else:
-                return handle_error(result, IPFSValidationError(f"Unsupported operation type: {operation_type}"))
-
-            # Update result with operation outcome
-            result.update(op_result)
-            result["success"] = op_result.get("success", False)
-
-            # Add daemon status information
-            daemon_status = self.check_daemon_status()
-            result["daemon_status"] = daemon_status.get("daemons", {}).get("ipfs", {})
-
-            return result
-
-        except Exception as e:
-            return handle_error(result, e)
-
-# Add daemon health monitoring
-    def start_daemon_health_monitor(self, check_interval=60, auto_restart=True):
-        """
-        Start a background thread to monitor daemon health and restart if needed.
-
-        This method creates a background thread that periodically checks if
-        required daemons are running and automatically restarts them if they
-        have crashed or stopped unexpectedly.
-
-        Args:
-            check_interval (int): Time in seconds between daemon status checks
-            auto_restart (bool): Whether to automatically restart failed daemons
-
-        Returns:
-            Dictionary with information about the monitor thread
-        """
-        import threading
-
-        # Define the monitoring function
-        def daemon_monitor():
-            """Background thread function to monitor daemon health."""
-            self.logger.info(f"Starting daemon health monitor (interval: {check_interval}s)")
-
-            # Keep track of restart attempts to avoid constant restarts if daemon can't start
-            restart_attempts = {
-                "ipfs": 0,
-                "ipfs_cluster_service": 0,
-                "ipfs_cluster_follow": 0
-            }
-            max_restart_attempts = 3
-            restart_reset_time = 600  # Reset attempt counter after 10 minutes
-            last_restart_time = {
-                "ipfs": 0,
-                "ipfs_cluster_service": 0,
-                "ipfs_cluster_follow": 0
-            }
-
-            # Boolean to control thread termination
-            monitor_running = True
-            self._daemon_monitor_running = True
-
-            while monitor_running and self._daemon_monitor_running:
-                try:
-                    # Check daemon status
-                    status = self.check_daemon_status()
-
-                    if status.get("success", False):
-                        daemon_statuses = status.get("daemons", {})
-
-                        # Check each daemon type
-                        for daemon_type, daemon_info in daemon_statuses.items():
-                            # Reset restart attempts if it's been a while
-                            current_time = time.time()
-                            if current_time - last_restart_time.get(daemon_type, 0) > restart_reset_time:
-                                restart_attempts[daemon_type] = 0
-
-                            # Check if daemon should be running but isn't
-                            required_daemon = (
-                                (daemon_type == "ipfs") or
-                                (daemon_type == "ipfs_cluster_service" and self.role == "master") or
-                                (daemon_type == "ipfs_cluster_follow" and self.role == "worker")
-                            )
-
-                            if required_daemon and not daemon_info.get("running", False):
-                                self.logger.warning(f"{daemon_type} daemon not running but should be!")
-
-                                # Check if we should restart
-                                if auto_restart and restart_attempts.get(daemon_type, 0) < max_restart_attempts:
-                                    self.logger.info(f"Attempting to restart {daemon_type} daemon...")
-                                    restart_result = self._ensure_daemon_running(daemon_type)
-
-                                    # Update tracking variables
-                                    restart_attempts[daemon_type] += 1
-                                    last_restart_time[daemon_type] = current_time
-
-                                    # Log result
-                                    if restart_result.get("success", False):
-                                        self.logger.info(f"Successfully restarted {daemon_type} daemon")
-                                    else:
-                                        self.logger.error(
-                                            f"Failed to restart {daemon_type} daemon: "
-                                            f"{restart_result.get('error', 'Unknown error')}"
-                                        )
-                                else:
-                                    if restart_attempts.get(daemon_type, 0) >= max_restart_attempts:
-                                        self.logger.error(
-                                            f"Maximum restart attempts ({max_restart_attempts}) "
-                                            f"reached for {daemon_type}. Not attempting restart."
-                                        )
-                    else:
-                        self.logger.warning(f"Failed to check daemon status: {status.get('error', 'Unknown error')}")
-
-                except Exception as e:
-                    self.logger.error(f"Error in daemon health monitor: {str(e)}")
-
-                # Sleep until next check
-                for _ in range(check_interval):
-                    if not self._daemon_monitor_running:
-                        break
-                    time.sleep(1)
-
-        # Create and start monitor thread
-        self._daemon_monitor_running = True
-        self._daemon_monitor_thread = threading.Thread(
-            target=daemon_monitor,
-            name="daemon_health_monitor",
-            daemon=True  # Thread will terminate when main program exits
-        )
-        self._daemon_monitor_thread.start()
-
-        return {
-            "success": True,
-            "message": f"Daemon health monitor started with {check_interval}s interval",
-            "auto_restart": auto_restart,
-            "thread_name": self._daemon_monitor_thread.name
-        }
-
-    def stop_daemon_health_monitor(self):
-        """
-        Stop the daemon health monitoring thread.
-
-        Returns:
-            Dictionary with operation status
-        """
-        if hasattr(self, "_daemon_monitor_running") and self._daemon_monitor_running:
-            self._daemon_monitor_running = False
-
-            # Wait for thread to terminate (with timeout)
-            if hasattr(self, "_daemon_monitor_thread"):
-                self._daemon_monitor_thread.join(timeout=5)
-
-            return {
-                "success": True,
-                "message": "Daemon health monitor stopped"
-            }
-        else:
-            return {
-                "success": False,
-                "message": "Daemon health monitor not running"
-            }
-
-    def is_daemon_health_monitor_running(self):
-        """
-        Check if daemon health monitor is currently running.
-
-        Returns:
-            bool: True if monitor is running, False otherwise
-        """
-        return hasattr(self, "_daemon_monitor_running") and self._daemon_monitor_running
-
-    # WebSocket peer discovery methods
-    def start_websocket_peer_discovery_server(self, host="0.0.0.0", port=8765, **kwargs):
-        """
-        Start a WebSocket server for peer discovery.
-
-        This server allows other peers to discover this node over WebSockets,
-        which can be useful in environments where traditional IPFS discovery
-        mechanisms (mDNS, DHT) are restricted by firewalls or NAT.
-
-        Args:
-            host (str): Host address to bind the server to
-            port (int): Port number to listen on
-            max_peers (int): Maximum number of peers to track
-            heartbeat_interval (int): Interval in seconds between heartbeats
-            peer_ttl (int): Time-to-live for peer information in seconds
-            role (str): Override default peer role
-            capabilities (list): Override default peer capabilities
-
-        Returns:
-            dict: Result dictionary with server status
-        """
-        result = {
-            "success": False,
-            "operation": "start_websocket_peer_discovery_server",
-            "timestamp": time.time()
-        }
-
-        # Check if WebSocket peer discovery is available
-        if not HAS_WEBSOCKET_PEER_DISCOVERY:
-            return handle_error(
-                result,
-                ImportError("WebSocket peer discovery support is not available")
-            )
-
-        # Check if WebSockets are available
-        if not WEBSOCKET_AVAILABLE:
-            return handle_error(
-                result,
-                ImportError("WebSockets library not available. Install with: pip install websockets")
-            )
-
-        try:
-            # Create local peer info if not already present
-            if not hasattr(self, "_websocket_peer_info") or self._websocket_peer_info is None:
-                self._websocket_peer_info = create_peer_info_from_ipfs_kit(
-                    self,
-                    role=kwargs.get("role"),
-                    capabilities=kwargs.get("capabilities")
-                )
-
-            # Extract server parameters
-            max_peers = kwargs.get("max_peers", 100)
-            heartbeat_interval = kwargs.get("heartbeat_interval", 30)
-            peer_ttl = kwargs.get("peer_ttl", 300)
-
-            # Create server if not already present
-            if not hasattr(self, "_websocket_peer_server") or self._websocket_peer_server is None:
-                self._websocket_peer_server = PeerWebSocketServer(
-                    local_peer_info=self._websocket_peer_info,
-                    max_peers=max_peers,
-                    heartbeat_interval=heartbeat_interval,
-                    peer_ttl=peer_ttl
-                )
-
-                # Start server
-                import anyio
-                loop = anyio.new_event_loop()
-                anyio.set_event_loop(loop)
-                loop.run_until_complete(self._websocket_peer_server.start(host=host, port=port))
-
-                # Create server URL
-                server_url = f"ws://{host}:{port}"
-
-                # Update result
                 result["success"] = True
-                result["message"] = f"WebSocket peer discovery server started at {server_url}"
-                result["server_url"] = server_url
-                result["peer_info"] = self._websocket_peer_info.to_dict()
-
-                self.logger.info(f"WebSocket peer discovery server started at {server_url}")
-            else:
-                result["success"] = True
-                result["message"] = "WebSocket peer discovery server already running"
-                result["already_running"] = True
-
+                result["peer"] = peer_addr
+                result["message"] = output or f"Successfully disconnected from {peer_addr}"
+                return result
         except Exception as e:
             return handle_error(result, e)
 
-        return result
-
-    def stop_websocket_peer_discovery_server(self, **kwargs):
+    def _get_gpu_info(self):
         """
-        Stop the WebSocket peer discovery server.
-
-        Returns:
-            dict: Result dictionary with operation status
+        Placeholder for getting GPU information.
+        This method should be implemented to query GPU resources.
         """
-        result = {
-            "success": False,
-            "operation": "stop_websocket_peer_discovery_server",
-            "timestamp": time.time()
-        }
+        self.logger.info("Attempting to get GPU information (stub implementation).")
+        # In a real scenario, this would use a library like pynvml or subprocess to run nvidia-smi
+        return {"gpu_available": False, "gpu_count": 0, "gpu_memory_total": 0, "gpu_memory_free": 0}
 
-        # Check if WebSocket peer discovery is available
-        if not HAS_WEBSOCKET_PEER_DISCOVERY:
-            return handle_error(
-                result,
-                ImportError("WebSocket peer discovery support is not available")
-            )
+    def _setup_monitoring(self, resources=None, metadata=None):
+        """
+        Placeholder for setting up monitoring components.
+        This method should be implemented to initialize monitoring tools.
+        """
+        self.logger.info("Setting up monitoring (stub implementation).")
+        # In a real scenario, this would initialize ClusterMonitor and MetricsCollector
+        self.monitoring = MagicMock(spec=ClusterMonitor)
+        self.metrics_collector = MagicMock(spec=MetricsCollector)
+        return {"success": True, "message": "Monitoring setup complete (stub)."}
 
-        # Check if server is running
-        if not hasattr(self, "_websocket_peer_server") or self._websocket_peer_server is None:
-            result["success"] = True
-            result["message"] = "WebSocket peer discovery server not running"
-            result["already_stopped"] = True
-            return result
-
+    def _check_cluster_manager_and_call(self, method_name, *args, **kwargs):
+        """Helper to check and call cluster manager methods."""
+        operation = f"cluster_manager_{method_name}"
+        correlation_id = kwargs.get("correlation_id", str(uuid.uuid4()))
+        result = create_result_dict(operation, correlation_id)
         try:
-            # Stop server
-            import anyio
-            loop = anyio.new_event_loop()
-            anyio.set_event_loop(loop)
-            loop.run_until_complete(self._websocket_peer_server.stop())
-
-            # Clear server reference
-            self._websocket_peer_server = None
-
-            # Update result
-            result["success"] = True
-            result["message"] = "WebSocket peer discovery server stopped"
-
-            self.logger.info("WebSocket peer discovery server stopped")
-
-        except Exception as e:
-            return handle_error(result, e)
-
-        return result
-
-    def connect_to_websocket_peer_discovery(self, server_url, **kwargs):
-        """
-        Connect to a WebSocket peer discovery server.
-
-        This method allows discovering peers through a WebSocket server,
-        which can be useful in environments where traditional IPFS discovery
-        mechanisms (mDNS, DHT) are restricted by firewalls or NAT.
-
-        Args:
-            server_url (str): WebSocket URL of the discovery server
-            auto_connect (bool): Whether to automatically connect to discovered peers
-            reconnect_interval (int): Reconnect interval in seconds
-            max_reconnect_attempts (int): Maximum number of reconnect attempts
-
-        Returns:
-            dict: Result dictionary with connection status
-        """
-        result = {
-            "success": False,
-            "operation": "connect_to_websocket_peer_discovery",
-            "timestamp": time.time()
-        }
-
-        # Check if WebSocket peer discovery is available
-        if not HAS_WEBSOCKET_PEER_DISCOVERY:
-            return handle_error(
-                result,
-                ImportError("WebSocket peer discovery support is not available")
-            )
-
-        # Check if WebSockets are available
-        if not WEBSOCKET_AVAILABLE:
-            return handle_error(
-                result,
-                ImportError("WebSockets library not available. Install with: pip install websockets")
-            )
-
-        try:
-            # Create local peer info if not already present
-            if not hasattr(self, "_websocket_peer_info") or self._websocket_peer_info is None:
-                self._websocket_peer_info = create_peer_info_from_ipfs_kit(self)
-
-            # Extract client parameters
-            auto_connect = kwargs.get("auto_connect", True)
-            reconnect_interval = kwargs.get("reconnect_interval", 30)
-            max_reconnect_attempts = kwargs.get("max_reconnect_attempts", 5)
-
-            # Create client if not already present
-            if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
-                # Define callback for newly discovered peers
-                def on_peer_discovered(peer_info):
-                    self.logger.info(f"New peer discovered via WebSocket: {peer_info.peer_id}")
-
-                    # Auto-connect to the peer if enabled
-                    if auto_connect:
-                        for addr in peer_info.multiaddrs:
-                            try:
-                                connect_result = self.ipfs_swarm_connect(addr)
-                                if connect_result.get("success", False):
-                                    self.logger.info(f"Successfully connected to peer {peer_info.peer_id} at {addr}")
-                                    break
-                            except Exception as connect_err:
-                                self.logger.debug(f"Failed to connect to peer {peer_info.peer_id} at {addr}: {connect_err}")
-
-                # Create client
-                self._websocket_peer_client = PeerWebSocketClient(
-                    local_peer_info=self._websocket_peer_info,
-                    on_peer_discovered=on_peer_discovered,
-                    auto_connect=auto_connect,
-                    reconnect_interval=reconnect_interval,
-                    max_reconnect_attempts=max_reconnect_attempts
-                )
-
-                # Start client
-                import anyio
-                loop = anyio.new_event_loop()
-                anyio.set_event_loop(loop)
-                loop.run_until_complete(self._websocket_peer_client.start())
-
-            # Connect to server
-            import anyio
-            loop = anyio.new_event_loop()
-            anyio.set_event_loop(loop)
-            connection_result = loop.run_until_complete(
-                self._websocket_peer_client.connect_to_discovery_server(server_url)
-            )
-
-            # Update result
-            result["success"] = True
-            result["connected"] = connection_result
-            result["server_url"] = server_url
-
-            self.logger.info(f"Connected to WebSocket peer discovery server at {server_url}")
-
-        except Exception as e:
-            return handle_error(result, e)
-
-        return result
-
-    def disconnect_from_websocket_peer_discovery(self, **kwargs):
-        """
-        Disconnect from WebSocket peer discovery.
-
-        This stops the WebSocket peer discovery client and closes all connections.
-
-        Returns:
-            dict: Result dictionary with operation status
-        """
-        result = {
-            "success": False,
-            "operation": "disconnect_from_websocket_peer_discovery",
-            "timestamp": time.time()
-        }
-
-        # Check if WebSocket peer discovery is available
-        if not HAS_WEBSOCKET_PEER_DISCOVERY:
-            return handle_error(
-                result,
-                ImportError("WebSocket peer discovery support is not available")
-            )
-
-        # Check if client is running
-        if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
-            result["success"] = True
-            result["message"] = "WebSocket peer discovery client not running"
-            result["already_stopped"] = True
-            return result
-
-        try:
-            # Stop client
-            import anyio
-            loop = anyio.new_event_loop()
-            anyio.set_event_loop(loop)
-            loop.run_until_complete(self._websocket_peer_client.stop())
-
-            # Clear client reference
-            self._websocket_peer_client = None
-
-            # Update result
-            result["success"] = True
-            result["message"] = "WebSocket peer discovery client stopped"
-
-            self.logger.info("WebSocket peer discovery client stopped")
-
-        except Exception as e:
-            return handle_error(result, e)
-
-        return result
-
-    def get_websocket_discovered_peers(self, filter_role=None, filter_capabilities=None, **kwargs):
-        """
-        Get list of peers discovered via WebSocket.
-
-        Args:
-            filter_role (str): Filter peers by role
-            filter_capabilities (list): Filter peers by required capabilities
-
-        Returns:
-            dict: Result dictionary with discovered peers
-        """
-        result = {
-            "success": False,
-            "operation": "get_websocket_discovered_peers",
-            "timestamp": time.time()
-        }
-
-        # Check if WebSocket peer discovery is available
-        if not HAS_WEBSOCKET_PEER_DISCOVERY:
-            return handle_error(
-                result,
-                ImportError("WebSocket peer discovery support is not available")
-            )
-
-        # Check if client is running
-        if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
-            result["success"] = True
-            result["message"] = "WebSocket peer discovery client not running"
-            result["peers"] = []
-            result["count"] = 0
-            return result
-
-        try:
-            # Process capabilities filter
-            capabilities_list = filter_capabilities
-            if isinstance(filter_capabilities, str):
-                capabilities_list = filter_capabilities.split(',')
-
-            # Get peers
-            peers = self._websocket_peer_client.get_discovered_peers(
-                filter_role=filter_role,
-                filter_capabilities=capabilities_list
-            )
-
-            # Convert to dictionary representation
-            peer_dicts = [peer.to_dict() for peer in peers]
-
-            # Update result
-            result["success"] = True
-            result["peers"] = peer_dicts
-            result["count"] = len(peer_dicts)
-
-        except Exception as e:
-            return handle_error(result, e)
-
-        return result
-
-    def get_websocket_peer_by_id(self, peer_id, **kwargs):
-        """
-        Get information about a specific peer discovered via WebSocket.
-
-        Args:
-            peer_id (str): Peer identifier
-
-        Returns:
-            dict: Result dictionary with peer information
-        """
-        result = {
-            "success": False,
-            "operation": "get_websocket_peer_by_id",
-            "timestamp": time.time()
-        }
-
-        # Check if WebSocket peer discovery is available
-        if not HAS_WEBSOCKET_PEER_DISCOVERY:
-            return handle_error(
-                result,
-                ImportError("WebSocket peer discovery support is not available")
-            )
-
-        # Check if client is running
-        if not hasattr(self, "_websocket_peer_client") or self._websocket_peer_client is None:
-            return handle_error(
-                result,
-                ValueError("WebSocket peer discovery client not running")
-            )
-
-        try:
-            # Get peer
-            peer = self._websocket_peer_client.get_peer_by_id(peer_id)
-            if not peer:
+            if not HAS_CLUSTER_MANAGEMENT:
+                return handle_error(result, IPFSError("Cluster management component is not available"))
+            if not hasattr(self, "cluster_manager") or self.cluster_manager is None:
                 return handle_error(
-                    result,
-                    ValueError(f"Peer not found: {peer_id}")
+                    result, IPFSError("Cluster manager component is not initialized")
                 )
-
-            # Update result
-            result["success"] = True
-            result["peer"] = peer.to_dict()
-
-        except Exception as e:
-            return handle_error(result, e)
-
-        return result
-
-    def shutdown(self, **kwargs):
-        """
-        Shutdown the ipfs_kit instance and clean up resources.
-
-        This method ensures proper cleanup of all resources created by this instance,
-        including WebSocket peer discovery servers and clients.
-
-        Args:
-            **kwargs: Additional arguments for future extensions
-
-        Returns:
-            dict: Result dictionary with shutdown status
-        """
-        result = {
-            "success": False,
-            "operation": "shutdown",
-            "timestamp": time.time(),
-            "components_shutdown": []
-        }
-
-        try:
-            # Shutdown WebSocket peer discovery if active
-            if HAS_WEBSOCKET_PEER_DISCOVERY:
-                # Stop server if running
-                if hasattr(self, "_websocket_peer_server") and self._websocket_peer_server is not None:
-                    try:
-                        self._websocket_peer_server.stop()
-                        self._websocket_peer_server = None
-                        result["components_shutdown"].append("websocket_peer_server")
-                    except Exception as e:
-                        self.logger.warning(f"Error stopping WebSocket peer server: {str(e)}")
-
-                # Disconnect client if running
-                if hasattr(self, "_websocket_peer_client") and self._websocket_peer_client is not None:
-                    try:
-                        self._websocket_peer_client.disconnect()
-                        self._websocket_peer_client = None
-                        result["components_shutdown"].append("websocket_peer_client")
-                    except Exception as e:
-                        self.logger.warning(f"Error disconnecting WebSocket peer client: {str(e)}")
-
-            # Add other component cleanup as needed (IPFS daemon, etc.)
-            # ...
-
-            # Mark success
-            result["success"] = True
-            self.logger.info("ipfs_kit instance shutdown complete")
-
-        except Exception as e:
-            return handle_error(result, e)
-
-        return result
-
-    def __del__(self):
-        """
-        Destructor to ensure resources are cleaned up when the instance is garbage collected.
-        """
-        try:
-            self.shutdown()
-        except Exception as e:
-            # Can't use logger here as it might already be destroyed
-            if hasattr(self, 'logger'):
-                self.logger.warning(f"Error during cleanup in __del__: {str(e)}")
-
-    def start_ipfs_cluster_follow(self, **kwargs):
-        """Start the IPFS cluster-follow service.
-
-        Args:
-            **kwargs: Optional arguments
-                - cluster_name: Name of the cluster to follow (defaults to self.cluster_name)
-                - bootstrap_peer: Multiaddr of the trusted bootstrap peer to follow
-                - init: Whether to initialize before starting (defaults to True)
-                - timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with operation result information
-        """
-        result = {"success": False, "operation": "start_ipfs_cluster_follow"}
-        
-        try:
-            # Check if IPFS cluster follow is available
-            if not hasattr(self, "ipfs_cluster_follow") or self.ipfs_cluster_follow is None:
-                logger.error("IPFS Cluster Follow component not available")
-                result["error"] = "IPFS Cluster Follow component not available"
-                return result
-            
-            # Get cluster name from parameters or instance attribute
-            cluster_name = kwargs.get("cluster_name", getattr(self, "cluster_name", None))
-            if not cluster_name:
-                logger.error("Missing required parameter: cluster_name")
-                result["error"] = "Missing required parameter: cluster_name"
-                return result
-                
-            # Determine if we need to initialize first
-            should_init = kwargs.get("init", True)
-            
-            if should_init:
-                # Check if bootstrap_peer is provided
-                bootstrap_peer = kwargs.get("bootstrap_peer")
-                if not bootstrap_peer:
-                    logger.error("Missing required parameter for initialization: bootstrap_peer")
-                    result["error"] = "Missing required parameter for initialization: bootstrap_peer"
-                    return result
-                    
-                # Run initialization first
-                logger.info(f"Initializing IPFS Cluster Follow for cluster: {cluster_name}")
-                init_result = self.ipfs_cluster_follow.ipfs_follow_init(
-                    cluster_name=cluster_name,
-                    bootstrap_peer=bootstrap_peer,
-                    timeout=kwargs.get("timeout", 60)
+            if not hasattr(self.cluster_manager, method_name):
+                return handle_error(
+                    result, IPFSError(f"Method '{method_name}' not found in cluster manager component")
                 )
-                
-                # Check if initialization was successful
-                if not init_result.get("success", False):
-                    logger.error(f"Failed to initialize IPFS Cluster Follow: {init_result.get('error', 'Unknown error')}")
-                    result["error"] = f"Failed to initialize IPFS Cluster Follow: {init_result.get('error', 'Unknown error')}"
-                    result["init_result"] = init_result
-                    return result
-                    
-                logger.info(f"Successfully initialized IPFS Cluster Follow for cluster: {cluster_name}")
-                result["init_result"] = init_result
-            
-            # Start the IPFS cluster follow service
-            logger.info(f"Starting IPFS Cluster Follow for cluster: {cluster_name}")
-            start_result = self.ipfs_cluster_follow.ipfs_follow_start(
-                cluster_name=cluster_name,
-                timeout=kwargs.get("timeout", 30)
-            )
-            
-            # Set the result based on the start operation
-            result["success"] = start_result.get("success", False)
-            result["start_result"] = start_result
-            
-            if not result["success"]:
-                error_msg = start_result.get("error", "Unknown error")
-                logger.error(f"Failed to start IPFS Cluster Follow: {error_msg}")
-                result["error"] = f"Failed to start IPFS Cluster Follow: {error_msg}"
+            method = getattr(self.cluster_manager, method_name)
+            method_result = method(*args, **kwargs)
+            if isinstance(method_result, dict):
+                result.update(method_result)
+                if "success" not in result:
+                    result["success"] = True
             else:
-                logger.info(f"Successfully started IPFS Cluster Follow for cluster: {cluster_name}")
-                
+                result["success"] = True
+                result["result"] = method_result
             return result
-            
         except Exception as e:
-            logger.exception(f"Error in start_ipfs_cluster_follow: {str(e)}")
-            result["error"] = f"Error in start_ipfs_cluster_follow: {str(e)}"
-            return result
+            return handle_error(result, e)
 
 # Extend the class with methods from ipfs_kit_extensions
 extend_ipfs_kit(ipfs_kit)
@@ -6512,13 +4367,8 @@ def dht_findprovs(self, cid, num_providers=None, **kwargs):
         if not hasattr(self, "ipfs"):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
             
-        # Build kwargs to pass to ipfs
-        ipfs_kwargs = {}
-        if num_providers is not None:
-            ipfs_kwargs["num_providers"] = num_providers
-            
         # Call the ipfs module's implementation
-        response = self.ipfs.dht_findprovs(cid, **ipfs_kwargs)
+        response = self.ipfs.dht_findprovs(cid, num_providers=num_providers)
         result.update(response)
         result["success"] = response.get("success", False)
         return result
@@ -6556,11 +4406,12 @@ def files_mkdir(self, path, parents=False, **kwargs):
     except Exception as e:
         return handle_error(result, e)
         
-def files_ls(self, path="/", **kwargs):
+def files_ls(self, path="/", long=False):
     """List directory contents in the MFS.
     
     Args:
         path: Directory path in the MFS to list
+        long: Whether to use a long listing format with details
         **kwargs: Additional parameters for the operation
         
     Returns:
@@ -6578,7 +4429,7 @@ def files_ls(self, path="/", **kwargs):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
             
         # Call the ipfs module's implementation
-        response = self.ipfs.files_ls(path)
+        response = self.ipfs.files_ls(path, long)
         result.update(response)
         result["success"] = response.get("success", False)
         return result
@@ -6586,14 +4437,14 @@ def files_ls(self, path="/", **kwargs):
         return handle_error(result, e)
         
 def files_stat(self, path, **kwargs):
-    """Get file information from the MFS.
+    """Get file or directory information in the MFS (Mutable File System).
     
     Args:
-        path: Path to file or directory in the MFS
+        path: Path to stat in MFS
         **kwargs: Additional parameters for the operation
         
     Returns:
-        Dict with operation result containing file statistics
+        Dict with operation result containing file/directory information
     """
     from .error import create_result_dict, handle_error, IPFSError
     
@@ -6607,7 +4458,7 @@ def files_stat(self, path, **kwargs):
             return handle_error(result, IPFSError("IPFS instance not initialized"))
             
         # Call the ipfs module's implementation
-        response = self.ipfs.files_stat(path)
+        response = self.ipfs.files_stat(path, **kwargs)
         result.update(response)
         result["success"] = response.get("success", False)
         return result
