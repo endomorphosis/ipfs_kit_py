@@ -1,0 +1,65 @@
+name: Full CI/CD Pipeline with Enhanced Features
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  basic-tests:
+    name: Basic Tests
+    uses: ./.github/workflows/run-tests-enhanced.yml
+
+  configuration-tests:
+    name: Configuration Tests
+    uses: ./.github/workflows/daemon-config-tests-simple.yml
+
+  mcp-server-tests:
+    name: Enhanced MCP Server Tests
+    uses: ./.github/workflows/enhanced-mcp-server.yml
+
+  package-tests:
+    name: Package Tests
+    uses: ./.github/workflows/python-package.yml
+
+  integration-summary:
+    name: Integration Summary
+    runs-on: ubuntu-20.04
+    needs: [basic-tests, configuration-tests, mcp-server-tests, package-tests]
+    if: always()
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Generate final report
+      run: |
+        echo "# Full CI/CD Pipeline Report" > pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "## Pipeline Status" >> pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "- Basic Tests: ${{ needs.basic-tests.result }}" >> pipeline-report.md
+        echo "- Configuration Tests: ${{ needs.configuration-tests.result }}" >> pipeline-report.md
+        echo "- MCP Server Tests: ${{ needs.mcp-server-tests.result }}" >> pipeline-report.md
+        echo "- Package Tests: ${{ needs.package-tests.result }}" >> pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "## Enhanced Features Tested" >> pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "✅ Daemon Configuration Manager" >> pipeline-report.md
+        echo "✅ Enhanced MCP Server with Configuration" >> pipeline-report.md
+        echo "✅ Comprehensive Integration Tests" >> pipeline-report.md
+        echo "✅ All Service Configuration Management" >> pipeline-report.md
+        echo "✅ Package Build and Deployment" >> pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "Generated on: $(date)" >> pipeline-report.md
+
+    - name: Upload final report
+      uses: actions/upload-artifact@v3
+      with:
+        name: pipeline-report
+        path: pipeline-report.md

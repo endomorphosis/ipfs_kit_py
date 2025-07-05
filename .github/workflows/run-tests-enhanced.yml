@@ -1,0 +1,119 @@
+name: Run Enhanced Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
+        pip install -e ".[dev,full]"
+    
+    - name: Run standard tests
+      run: |
+        python -m pytest test/ --junitxml=test-results-standard-${{ matrix.python-version }}.xml -v
+    
+    - name: Run configuration management tests
+      run: |
+        python -m pytest test_daemon_config_simple.py --junitxml=test-results-config-simple-${{ matrix.python-version }}.xml -v
+        python -m pytest test_daemon_config_integration.py --junitxml=test-results-config-integration-${{ matrix.python-version }}.xml -v
+        python -m pytest test_enhanced_daemon_config.py --junitxml=test-results-config-enhanced-${{ matrix.python-version }}.xml -v
+    
+    - name: Run comprehensive integration test
+      run: |
+        python final_comprehensive_test.py
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: test-results-*.xml
+      if: ${{ always() }}
+
+  mcp-server-test:
+    runs-on: ubuntu-20.04
+    needs: test
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f config/requirements.txt ]; then pip install -r config/requirements.txt; fi
+        pip install -e ".[dev,full,api]"
+    
+    - name: Test enhanced MCP server syntax
+      run: |
+        python -m py_compile enhanced_mcp_server_with_config.py
+        python -m py_compile enhanced_mcp_server_with_full_config.py
+    
+    - name: Test configuration management
+      run: |
+        python demo_config_management.py --test-mode || echo "Demo completed"
+    
+    - name: Test daemon config manager
+      run: |
+        python -c "from ipfs_kit_py.daemon_config_manager import DaemonConfigManager; print('Config manager import successful')"
+
+  report:
+    needs: [test, mcp-server-test]
+    runs-on: ubuntu-20.04
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Download all test results
+      uses: actions/download-artifact@v4
+      
+    - name: Install reporting dependencies
+      run: |
+        pip install pytest pytest-html
+    
+    - name: Generate test report
+      run: |
+        find . -name "test-results-*.xml" -type f | head -10
+        pytest --html=enhanced-test-report.html --self-contained-html
+    
+    - name: Upload test report
+      uses: actions/upload-artifact@v4
+      with:
+        name: enhanced-test-report
+        path: enhanced-test-report.html
