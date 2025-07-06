@@ -44,6 +44,19 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(c
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Import the VFS system
+try:
+    from ipfs_fsspec import (
+        get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write,
+        vfs_ls, vfs_stat, vfs_mkdir, vfs_rmdir, vfs_copy, vfs_move,
+        vfs_sync_to_ipfs, vfs_sync_from_ipfs
+    )
+    HAS_VFS = True
+    logger.info("✓ VFS system imported successfully")
+except ImportError as e:
+    logger.warning(f"VFS system not available: {e}")
+    HAS_VFS = False
+
 
 class IPFSKitIntegration:
     """Integration layer for the IPFS Kit with daemon management."""
@@ -1514,8 +1527,8 @@ class IPFSKitIntegration:
             
             if long_format:
                 entries = [
-                    {"name": "file1.txt", "hash": "bafkreie_mock1", "size": 1024},
-                    {"name": "dir1", "hash": "bafkreie_mock2", "size": 0}
+                    {"name": "file1.txt", "type": "file", "size": 1024, "modified": "2025-07-03T06:00:00Z"},
+                    {"name": "dir1", "type": "directory", "size": 0, "modified": "2025-07-03T05:30:00Z"}
                 ]
             else:
                 entries = [
@@ -1646,184 +1659,204 @@ class IPFSKitIntegration:
                 "data": mock_data.get(stat_type, {})
             }
         
-        # VFS Operations Mocks
+        # VFS Operations - Use Real VFS Implementation
         elif operation == "vfs_mount":
-            ipfs_path = kwargs.get("ipfs_path", "/ipfs/mock_cid")
-            mount_point = kwargs.get("mount_point", "/tmp/mock_mount")
-            read_only = kwargs.get("read_only", True)
-            mock_response = base_response.copy()
-            mock_response.update({
-                "ipfs_path": ipfs_path,
-                "mount_point": mount_point,
-                "read_only": read_only,
-                "mounted": True
-            })
-            return mock_response
+            if HAS_VFS:
+                ipfs_path = kwargs.get("ipfs_path")
+                mount_point = kwargs.get("mount_point")
+                read_only = kwargs.get("read_only", True)
+                
+                if not ipfs_path or not mount_point:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameters: ipfs_path and mount_point"
+                    }
+                
+                result = await vfs_mount(ipfs_path, mount_point, read_only)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_unmount":
-            mount_point = kwargs.get("mount_point", "/tmp/mock_mount")
-            mock_response = base_response.copy()
-            mock_response.update({
-                "mount_point": mount_point,
-                "unmounted": True
-            })
-            return mock_response
+            if HAS_VFS:
+                mount_point = kwargs.get("mount_point")
+                
+                if not mount_point:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameter: mount_point"
+                    }
+                
+                result = await vfs_unmount(mount_point)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_list_mounts":
-            mock_response = base_response.copy()
-            mock_response.update({
-                "mounts": [
-                    {
-                        "ipfs_path": "/ipfs/bafkreie_mock1",
-                        "mount_point": "/tmp/mock_mount1",
-                        "read_only": True
-                    },
-                    {
-                        "ipfs_path": "/ipfs/bafkreie_mock2", 
-                        "mount_point": "/tmp/mock_mount2",
-                        "read_only": False
-                    }
-                ],
-                "count": 2
-            })
-            return mock_response
+            if HAS_VFS:
+                result = await vfs_list_mounts()
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_read":
-            path = kwargs.get("path", "/vfs/mock_file")
-            encoding = kwargs.get("encoding", "utf-8")
-            mock_content = f"Mock VFS content from: {path}\nEncoding: {encoding}\nTimestamp: {datetime.now().isoformat()}"
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "content": mock_content,
-                "encoding": encoding,
-                "size": len(mock_content)
-            })
-            return mock_response
+            if HAS_VFS:
+                path = kwargs.get("path")
+                encoding = kwargs.get("encoding", "utf-8")
+                
+                if not path:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameter: path"
+                    }
+                
+                result = await vfs_read(path, encoding)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_write":
-            path = kwargs.get("path", "/vfs/mock_file")
-            content = kwargs.get("content", "")
-            encoding = kwargs.get("encoding", "utf-8")
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "bytes_written": len(content),
-                "encoding": encoding
-            })
-            return mock_response
+            if HAS_VFS:
+                path = kwargs.get("path")
+                content = kwargs.get("content")
+                encoding = kwargs.get("encoding", "utf-8")
+                create_dirs = kwargs.get("create_dirs", True)
+                
+                if not path or content is None:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameters: path and content"
+                    }
+                
+                result = await vfs_write(path, content, encoding, create_dirs)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_copy":
-            source = kwargs.get("source", "/vfs/source")
-            dest = kwargs.get("dest", "/vfs/dest")
-            preserve_metadata = kwargs.get("preserve_metadata", True)
-            mock_response = base_response.copy()
-            mock_response.update({
-                "source": source,
-                "dest": dest,
-                "preserve_metadata": preserve_metadata,
-                "copied": True
-            })
-            return mock_response
+            if HAS_VFS:
+                source = kwargs.get("source")
+                dest = kwargs.get("dest")
+                preserve_metadata = kwargs.get("preserve_metadata", True)
+                
+                if not source or not dest:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameters: source and dest"
+                    }
+                
+                result = await vfs_copy(source, dest, preserve_metadata)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_move":
-            source = kwargs.get("source", "/vfs/source")
-            dest = kwargs.get("dest", "/vfs/dest")
-            mock_response = base_response.copy()
-            mock_response.update({
-                "source": source,
-                "dest": dest,
-                "moved": True
-            })
-            return mock_response
+            if HAS_VFS:
+                source = kwargs.get("source")
+                dest = kwargs.get("dest")
+                
+                if not source or not dest:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameters: source and dest"
+                    }
+                
+                result = await vfs_move(source, dest)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_mkdir":
-            path = kwargs.get("path", "/vfs/mock_dir")
-            parents = kwargs.get("parents", True)
-            mode = kwargs.get("mode", "0755")
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "mode": mode,
-                "created": True
-            })
-            return mock_response
+            if HAS_VFS:
+                path = kwargs.get("path")
+                parents = kwargs.get("parents", True)
+                mode = kwargs.get("mode", "0755")
+                
+                if not path:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameter: path"
+                    }
+                
+                result = await vfs_mkdir(path, parents, mode)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_rmdir":
-            path = kwargs.get("path", "/vfs/mock_dir")
-            recursive = kwargs.get("recursive", False)
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "recursive": recursive,
-                "removed": True
-            })
-            return mock_response
+            if HAS_VFS:
+                path = kwargs.get("path")
+                recursive = kwargs.get("recursive", False)
+                
+                if not path:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameter: path"
+                    }
+                
+                result = await vfs_rmdir(path, recursive)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_ls":
-            path = kwargs.get("path", "/vfs")
-            detailed = kwargs.get("detailed", False)
-            recursive = kwargs.get("recursive", False)
-            
-            if detailed:
-                entries = [
-                    {"name": "file1.txt", "type": "file", "size": 1024, "modified": "2025-07-03T06:00:00Z"},
-                    {"name": "dir1", "type": "directory", "size": 0, "modified": "2025-07-03T05:30:00Z"}
-                ]
+            if HAS_VFS:
+                path = kwargs.get("path")
+                detailed = kwargs.get("detailed", False)
+                recursive = kwargs.get("recursive", False)
+                
+                if not path:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameter: path"
+                    }
+                
+                result = await vfs_ls(path, detailed, recursive)
+                return result
             else:
-                entries = [
-                    {"name": "file1.txt"},
-                    {"name": "dir1"}
-                ]
-            
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "entries": entries,
-                "count": len(entries)
-            })
-            return mock_response
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_stat":
-            path = kwargs.get("path", "/vfs/mock_file")
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "stat": {
-                    "type": "file",
-                    "size": 1024,
-                    "modified": "2025-07-03T06:00:00Z",
-                    "permissions": "0644",
-                    "cid": "bafkreie_mock_vfs_stat"
-                }
-            })
-            return mock_response
+            if HAS_VFS:
+                path = kwargs.get("path")
+                
+                if not path:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameter: path"
+                    }
+                
+                result = await vfs_stat(path)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_sync_to_ipfs":
-            path = kwargs.get("path", "/")
-            recursive = kwargs.get("recursive", True)
-            mock_response = base_response.copy()
-            mock_response.update({
-                "path": path,
-                "recursive": recursive,
-                "synced_files": 5,
-                "root_cid": "bafkreie_mock_sync_root"
-            })
-            return mock_response
+            if HAS_VFS:
+                path = kwargs.get("path", "/")
+                recursive = kwargs.get("recursive", True)
+                
+                result = await vfs_sync_to_ipfs(path, recursive)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
             
         elif operation == "vfs_sync_from_ipfs":
-            ipfs_path = kwargs.get("ipfs_path", "/ipfs/mock_cid")
-            vfs_path = kwargs.get("vfs_path", "/vfs")
-            force = kwargs.get("force", False)
-            mock_response = base_response.copy()
-            mock_response.update({
-                "ipfs_path": ipfs_path,
-                "vfs_path": vfs_path,
-                "force": force,
-                "synced_files": 3,
-                "synced_bytes": 4096
-            })
-            return mock_response
+            if HAS_VFS:
+                ipfs_path = kwargs.get("ipfs_path")
+                vfs_path = kwargs.get("vfs_path")
+                force = kwargs.get("force", False)
+                
+                if not ipfs_path or not vfs_path:
+                    return {
+                        "success": False,
+                        "error": "Missing required parameters: ipfs_path and vfs_path"
+                    }
+                
+                result = await vfs_sync_from_ipfs(ipfs_path, vfs_path, force)
+                return result
+            else:
+                return self._mock_vfs_operation(operation, **kwargs)
         
         else:
             return {
