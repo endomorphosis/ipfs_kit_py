@@ -1662,17 +1662,16 @@ class IPFSKitIntegration:
             
         elif operation == "vfs_unmount":
             mount_point = kwargs.get("mount_point", "/tmp/mock_mount")
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "mount_point": mount_point,
                 "unmounted": True
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_list_mounts":
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "mounts": [
                     {
                         "ipfs_path": "/ipfs/bafkreie_mock1",
@@ -1686,79 +1685,80 @@ class IPFSKitIntegration:
                     }
                 ],
                 "count": 2
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_read":
             path = kwargs.get("path", "/vfs/mock_file")
             encoding = kwargs.get("encoding", "utf-8")
             mock_content = f"Mock VFS content from: {path}\nEncoding: {encoding}\nTimestamp: {datetime.now().isoformat()}"
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "content": mock_content,
                 "encoding": encoding,
                 "size": len(mock_content)
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_write":
             path = kwargs.get("path", "/vfs/mock_file")
             content = kwargs.get("content", "")
             encoding = kwargs.get("encoding", "utf-8")
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "bytes_written": len(content),
                 "encoding": encoding
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_copy":
             source = kwargs.get("source", "/vfs/source")
             dest = kwargs.get("dest", "/vfs/dest")
             preserve_metadata = kwargs.get("preserve_metadata", True)
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "source": source,
                 "dest": dest,
                 "preserve_metadata": preserve_metadata,
                 "copied": True
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_move":
             source = kwargs.get("source", "/vfs/source")
             dest = kwargs.get("dest", "/vfs/dest")
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "source": source,
                 "dest": dest,
                 "moved": True
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_mkdir":
             path = kwargs.get("path", "/vfs/mock_dir")
             parents = kwargs.get("parents", True)
             mode = kwargs.get("mode", "0755")
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "mode": mode,
                 "created": True
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_rmdir":
             path = kwargs.get("path", "/vfs/mock_dir")
             recursive = kwargs.get("recursive", False)
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "recursive": recursive,
                 "removed": True
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_ls":
             path = kwargs.get("path", "/vfs")
@@ -1775,20 +1775,19 @@ class IPFSKitIntegration:
                     {"name": "file1.txt"},
                     {"name": "dir1"}
                 ]
-                
-            return {
-                "success": True,
-                "operation": operation,
+            
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "entries": entries,
                 "count": len(entries)
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_stat":
             path = kwargs.get("path", "/vfs/mock_file")
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "stat": {
                     "type": "file",
@@ -1797,33 +1796,34 @@ class IPFSKitIntegration:
                     "permissions": "0644",
                     "cid": "bafkreie_mock_vfs_stat"
                 }
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_sync_to_ipfs":
             path = kwargs.get("path", "/")
             recursive = kwargs.get("recursive", True)
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "path": path,
                 "recursive": recursive,
                 "synced_files": 5,
                 "root_cid": "bafkreie_mock_sync_root"
-            }
+            })
+            return mock_response
             
         elif operation == "vfs_sync_from_ipfs":
             ipfs_path = kwargs.get("ipfs_path", "/ipfs/mock_cid")
             vfs_path = kwargs.get("vfs_path", "/vfs")
             force = kwargs.get("force", False)
-            return {
-                "success": True,
-                "operation": operation,
+            mock_response = base_response.copy()
+            mock_response.update({
                 "ipfs_path": ipfs_path,
                 "vfs_path": vfs_path,
                 "force": force,
                 "synced_files": 3,
                 "synced_bytes": 4096
-            }
+            })
+            return mock_response
         
         else:
             return {

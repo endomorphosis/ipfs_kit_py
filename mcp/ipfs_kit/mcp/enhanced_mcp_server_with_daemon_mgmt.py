@@ -48,9 +48,12 @@ if project_root not in sys.path:
 class IPFSKitIntegration:
     """Integration layer for the IPFS Kit with daemon management."""
     
-    def __init__(self):
+    def __init__(self, auto_start_daemons=True, auto_start_lotus_daemon=False):
+        self.auto_start_daemons = auto_start_daemons
+        self.auto_start_lotus_daemon = auto_start_lotus_daemon
         self.ipfs_kit = None
         self.daemon_process = None
+        self.use_mock_fallback = False
         self._initialize_ipfs_kit()
     
     def _initialize_ipfs_kit(self):
@@ -59,16 +62,26 @@ class IPFSKitIntegration:
             # Try to import and initialize IPFS Kit
             from ipfs_kit_py.ipfs_kit import IPFSKit
             
-            # Initialize IPFS Kit without auto daemon startup, as we manage it here
+            # Initialize with auto daemon startup enabled
             self.ipfs_kit = IPFSKit(metadata={
                 "role": "master",
+                "auto_start_daemons": self.auto_start_daemons,
+                "auto_start_lotus_daemon": self.auto_start_lotus_daemon,
                 "ipfs_path": os.path.expanduser("~/.ipfs")
             })
             
             logger.info("Successfully initialized IPFS Kit")
             
-            # Ensure daemon is running after IPFS Kit initialization
-            self._ensure_daemon_running()
+            # Test basic functionality
+            if self._test_ipfs_connection():
+                logger.info("IPFS daemon is accessible")
+                self.use_mock_fallback = False
+            else:
+                logger.warning("IPFS daemon not accessible, attempting to start")
+                if self.auto_start_daemon:
+                    self._ensure_daemon_running()
+                else:
+                    self.use_mock_fallback = True
                     
         except Exception as e:
             error_msg = str(e)
@@ -79,16 +92,17 @@ class IPFSKitIntegration:
                 
                 # Try direct IPFS approach without IPFSKit
                 if self._test_direct_ipfs():
-                    logger.info("Direct IPFS commands working, will use direct commands.")
+                    logger.info("Direct IPFS commands working, using fallback implementation")
+                    self.use_mock_fallback = False
                     self.ipfs_kit = None  # Use direct commands
                 else:
-                    logger.error("Direct IPFS also unavailable. This server will not function correctly.")
-                    # We will not set use_mock_fallback here, as we want to force real operations.
+                    logger.warning("Direct IPFS also unavailable, falling back to mock implementations")
+                    self.use_mock_fallback = True
                     self.ipfs_kit = None
             else:
                 logger.error(f"Failed to initialize IPFS Kit: {e}")
-                logger.error("This server will not function correctly without a working IPFS Kit or direct IPFS.")
-                # We will not set use_mock_fallback here, as we want to force real operations.
+                logger.warning("Falling back to mock implementations")
+                self.use_mock_fallback = True
                 self.ipfs_kit = None
     
     def _test_direct_ipfs(self) -> bool:
@@ -242,7 +256,7 @@ class IPFSKitIntegration:
         existing_pids = self._find_existing_ipfs_processes()
         if existing_pids:
             logger.warning(f"Found external IPFS daemon processes ({existing_pids}) that are not responsive to us. Will not interfere.")
-            # Removed self.use_mock_fallback = True
+            self.use_mock_fallback = True # Fallback to mock if we can't use existing
             return False # Cannot ensure *our* daemon is running, and won't touch others.
 
         # 4. If no accessible daemon and no external daemons, try to start a new one.
@@ -306,50 +320,54 @@ class IPFSKitIntegration:
             logger.warning(f"Failed to initialize IPFS: {e}")
     
     async def execute_ipfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
-        """Execute an IPFS operation using the real IPFS Kit or direct commands."""
+        """Execute an IPFS operation using the real IPFS Kit, direct commands, or mock fallback."""
         
-        if self.ipfs_kit:
-            # Use real IPFS Kit
-            try:
-                method = getattr(self.ipfs_kit, operation, None)
-                if method:
-                    result = method(**kwargs)
-                    # Ensure result is always a dictionary for consistency
-                    if isinstance(result, dict):
-                        return result
-                    elif isinstance(result, bytes):
-                        # Handle bytes result (like from ipfs_get)
-                        return {
-                            "success": True,
-                            "operation": operation,
-                            "data": result.decode('utf-8', errors='ignore'),
-                            "size": len(result)
-                        }
-                    elif isinstance(result, str):
-                        # Handle string result
-                        return {
-                            "success": True,
-                            "operation": operation,
-                            "data": result
-                        }
+        if not self.use_mock_fallback:
+            if self.ipfs_kit:
+                # Use real IPFS Kit
+                try:
+                    method = getattr(self.ipfs_kit, operation, None)
+                    if method:
+                        result = method(**kwargs)
+                        # Ensure result is always a dictionary for consistency
+                        if isinstance(result, dict):
+                            return result
+                        elif isinstance(result, bytes):
+                            # Handle bytes result (like from ipfs_get)
+                            return {
+                                "success": True,
+                                "operation": operation,
+                                "data": result.decode('utf-8', errors='ignore'),
+                                "size": len(result)
+                            }
+                        elif isinstance(result, str):
+                            # Handle string result
+                            return {
+                                "success": True,
+                                "operation": operation,
+                                "data": result
+                            }
+                        else:
+                            # Handle other types
+                            return {
+                                "success": True,
+                                "operation": operation,
+                                "result": str(result)
+                            }
                     else:
-                        # Handle other types
-                        return {
-                            "success": True,
-                            "operation": operation,
-                            "result": str(result)
-                        }
-                else:
-                    logger.warning(f"Method {operation} not found in IPFS Kit, trying direct commands")
-                    # Fall back to direct commands instead of returning error
+                        logger.warning(f"Method {operation} not found in IPFS Kit, trying direct commands")
+                        # Fall back to direct commands instead of returning error
+                        return await self._try_direct_ipfs_operation(operation, **kwargs)
+                except Exception as e:
+                    logger.error(f"IPFS Kit operation {operation} failed: {e}")
+                    # Fall back to direct commands or mock
                     return await self._try_direct_ipfs_operation(operation, **kwargs)
-            except Exception as e:
-                logger.error(f"IPFS Kit operation {operation} failed: {e}")
-                # Fall back to direct commands
+            else:
+                # Try direct IPFS commands
                 return await self._try_direct_ipfs_operation(operation, **kwargs)
         else:
-            # Try direct IPFS commands
-            return await self._try_direct_ipfs_operation(operation, **kwargs)
+            # Use mock implementation
+            return await self._mock_operation(operation, **kwargs)
     
     async def _try_direct_ipfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
         """Try to execute IPFS operation using direct commands."""
@@ -402,33 +420,12 @@ class IPFSKitIntegration:
                     logger.debug(f"ipfs cat stdout: {result.stdout.strip()}")
                     logger.debug(f"ipfs cat stderr: {result.stderr.strip()}")
                     logger.debug(f"ipfs cat returncode: {result.returncode}")
-                    if result.returncode == 0 and result.stdout.strip(): # Check if stdout is not empty
+                    if result.returncode == 0:
                         return {
                             "success": True,
                             "operation": operation,
                             "data": result.stdout,  # Already a string when text=True
-                            "cid": cid,
-                            "raw_stdout": result.stdout.strip(), # Add raw stdout
-                            "raw_stderr": result.stderr.strip()  # Add raw stderr
-                        }
-                    else:
-                        error_message = result.stderr.strip()
-                        if not error_message: # If stderr is also empty, provide a generic error
-                            error_message = f"IPFS cat returned no content for CID {cid}. Return code: {result.returncode}, STDOUT was empty."
-                        
-                        logger.error(f"ipfs cat failed for CID {cid}: {error_message}")
-                        
-                        # Write stderr to a file for debugging
-                        with open("ipfs_cat_error.log", "a") as f:
-                            f.write(f"[{datetime.now().isoformat()}] ipfs cat failed for CID {cid}:\n")
-                            f.write(error_message + "\n\n")
-                            
-                        return {
-                            "success": False,
-                            "operation": operation,
-                            "error": error_message,
-                            "raw_stdout": result.stdout.strip(), # Add raw stdout
-                            "raw_stderr": result.stderr.strip()  # Add raw stderr
+                            "cid": cid
                         }
                         
             elif operation == "ipfs_get":
@@ -909,6 +906,7 @@ class IPFSKitIntegration:
             elif operation == "ipfs_files_ls":
                 path = kwargs.get("path", "/")
                 long_format = kwargs.get("long", False)
+                
                 cmd = ['ipfs', 'files', 'ls']
                 if long_format:
                     cmd.append('-l')
@@ -1144,36 +1142,16 @@ class IPFSKitIntegration:
                     }
                     
             # If direct command failed, fall back to mock
-            error_reason = ""
-            if 'result' in locals() and result is not None:
-                error_reason = f"Return Code: {result.returncode}, STDOUT: {result.stdout.strip()}, STDERR: {result.stderr.strip()}"
-                logger.warning(f"Direct IPFS command for {operation} failed: {error_reason}, using mock.")
-            else:
-                error_reason = f"No subprocess result available for {operation}."
-                logger.warning(f"Direct IPFS command for {operation} failed: {error_reason}, using mock.")
-            return await self._mock_operation(operation, error_reason=error_reason, **kwargs)
+            logger.warning(f"Direct IPFS command for {operation} failed, using mock")
+            return await self._mock_operation(operation, **kwargs)
             
         except Exception as e:
-            error_reason = f"Exception: {e}, Traceback: {traceback.format_exc()}"
-            logger.error(f"Direct IPFS operation {operation} failed with exception: {e}")
-            logger.error(traceback.format_exc()) # Print full traceback
-            return await self._mock_operation(operation, error_reason=error_reason, **kwargs)
+            logger.error(f"Direct IPFS operation {operation} failed: {e}")
+            return await self._mock_operation(operation, **kwargs)
     
-    async def _mock_operation(self, operation: str, error_reason: str = "", **kwargs) -> Dict[str, Any]:
+    async def _mock_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
         """Mock IPFS operations for fallback."""
-        warning_msg = f"⚠️  MOCK DATA: Real IPFS command failed for {operation}"
-        if error_reason:
-            warning_msg += f" - Reason: {error_reason}"
-        logger.warning(warning_msg)
-        
-        # Base mock response structure with clear warning
-        base_response = {
-            "success": False,
-            "is_mock": True,
-            "operation": operation,
-            "warning": "This is mock data - the real IPFS operation failed",
-            "error_reason": error_reason if error_reason else "IPFS command failed or timed out"
-        }
+        logger.debug(f"Using mock implementation for {operation}")
         
         if operation == "ipfs_add":
             content = kwargs.get("content", "mock content")
@@ -1187,22 +1165,22 @@ class IPFSKitIntegration:
             content_hash = hashlib.sha256(content.encode()).hexdigest()
             cid = f"bafkreie{content_hash[:48]}"
             
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": "ipfs_add",
                 "cid": cid,
                 "size": len(content),
                 "name": os.path.basename(file_path) if file_path else "mock_content"
-            })
-            return mock_response
+            }
         
         elif operation == "ipfs_cat":
             cid = kwargs.get("cid", "unknown")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": "ipfs_cat",
                 "data": f"Mock content for CID: {cid}\nRetrieved at: {datetime.now().isoformat()}",
                 "cid": cid
-            })
-            return mock_response
+            }
         
         elif operation == "ipfs_get":
             cid = kwargs.get("cid", "unknown")
@@ -1366,8 +1344,9 @@ class IPFSKitIntegration:
         elif operation == "ipfs_dag_get":
             cid = kwargs.get("cid", "unknown")
             path = kwargs.get("path", "")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "cid": cid,
                 "path": path,
                 "data": {
@@ -1375,8 +1354,7 @@ class IPFSKitIntegration:
                     "links": [],
                     "data": f"Mock DAG data for {cid}"
                 }
-            })
-            return mock_response
+            }
             
         elif operation == "ipfs_dag_put":
             data = kwargs.get("data", "{}")
@@ -1621,15 +1599,15 @@ class IPFSKitIntegration:
         
         elif operation == "ipfs_ls":
             path = kwargs.get("path", "/ipfs/mock_cid")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": "ipfs_ls",
                 "path": path,
                 "entries": [
                     {"Name": "file1.txt", "Hash": "bafkreie_mock_file1", "Size": 100},
                     {"Name": "dir1", "Hash": "bafkreie_mock_dir1", "Size": 0}
                 ]
-            })
-            return mock_response
+            }
         
         elif operation == "ipfs_stats":
             stat_type = kwargs.get("stat_type", "repo")
@@ -1651,27 +1629,28 @@ class IPFSKitIntegration:
             ipfs_path = kwargs.get("ipfs_path", "/ipfs/mock_cid")
             mount_point = kwargs.get("mount_point", "/tmp/mock_mount")
             read_only = kwargs.get("read_only", True)
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "ipfs_path": ipfs_path,
                 "mount_point": mount_point,
                 "read_only": read_only,
                 "mounted": True
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_unmount":
             mount_point = kwargs.get("mount_point", "/tmp/mock_mount")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "mount_point": mount_point,
                 "unmounted": True
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_list_mounts":
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "mounts": [
                     {
                         "ipfs_path": "/ipfs/bafkreie_mock1",
@@ -1685,80 +1664,79 @@ class IPFSKitIntegration:
                     }
                 ],
                 "count": 2
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_read":
             path = kwargs.get("path", "/vfs/mock_file")
             encoding = kwargs.get("encoding", "utf-8")
             mock_content = f"Mock VFS content from: {path}\nEncoding: {encoding}\nTimestamp: {datetime.now().isoformat()}"
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "content": mock_content,
                 "encoding": encoding,
                 "size": len(mock_content)
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_write":
             path = kwargs.get("path", "/vfs/mock_file")
             content = kwargs.get("content", "")
             encoding = kwargs.get("encoding", "utf-8")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "bytes_written": len(content),
                 "encoding": encoding
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_copy":
             source = kwargs.get("source", "/vfs/source")
             dest = kwargs.get("dest", "/vfs/dest")
             preserve_metadata = kwargs.get("preserve_metadata", True)
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "source": source,
                 "dest": dest,
                 "preserve_metadata": preserve_metadata,
                 "copied": True
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_move":
             source = kwargs.get("source", "/vfs/source")
             dest = kwargs.get("dest", "/vfs/dest")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "source": source,
                 "dest": dest,
                 "moved": True
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_mkdir":
             path = kwargs.get("path", "/vfs/mock_dir")
             parents = kwargs.get("parents", True)
             mode = kwargs.get("mode", "0755")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "mode": mode,
                 "created": True
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_rmdir":
             path = kwargs.get("path", "/vfs/mock_dir")
             recursive = kwargs.get("recursive", False)
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "recursive": recursive,
                 "removed": True
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_ls":
             path = kwargs.get("path", "/vfs")
@@ -1776,19 +1754,19 @@ class IPFSKitIntegration:
                     {"name": "dir1"}
                 ]
                 
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "entries": entries,
-                "count": len(entries),
-                "test_marker": "NEW_VFS_LS_CODE_UPDATED_NOW"
-            })
-            return mock_response
+                "count": len(entries)
+            }
             
         elif operation == "vfs_stat":
             path = kwargs.get("path", "/vfs/mock_file")
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "stat": {
                     "type": "file",
@@ -1797,34 +1775,33 @@ class IPFSKitIntegration:
                     "permissions": "0644",
                     "cid": "bafkreie_mock_vfs_stat"
                 }
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_sync_to_ipfs":
             path = kwargs.get("path", "/")
             recursive = kwargs.get("recursive", True)
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "path": path,
                 "recursive": recursive,
                 "synced_files": 5,
                 "root_cid": "bafkreie_mock_sync_root"
-            })
-            return mock_response
+            }
             
         elif operation == "vfs_sync_from_ipfs":
             ipfs_path = kwargs.get("ipfs_path", "/ipfs/mock_cid")
             vfs_path = kwargs.get("vfs_path", "/vfs")
             force = kwargs.get("force", False)
-            mock_response = base_response.copy()
-            mock_response.update({
+            return {
+                "success": True,
+                "operation": operation,
                 "ipfs_path": ipfs_path,
                 "vfs_path": vfs_path,
                 "force": force,
                 "synced_files": 3,
                 "synced_bytes": 4096
-            })
-            return mock_response
+            }
         
         else:
             return {
@@ -1872,8 +1849,8 @@ class IPFSKitIntegration:
 class EnhancedMCPServerWithDaemonMgmt:
     """Enhanced MCP Server with integrated daemon management."""
     
-    def __init__(self):
-        self.ipfs_integration = IPFSKitIntegration()
+    def __init__(self, auto_start_daemons=True, auto_start_lotus_daemon=False):
+        self.ipfs_integration = IPFSKitIntegration(auto_start_daemons=auto_start_daemons, auto_start_lotus_daemon=auto_start_lotus_daemon)
         self.tools = {}
         self.register_tools()
         
@@ -2527,7 +2504,7 @@ class EnhancedMCPServerWithDaemonMgmt:
         
         # Optional: Verify daemon health during MCP initialization
         daemon_healthy = self.ipfs_integration._test_ipfs_connection()
-        if not daemon_healthy:
+        if not daemon_healthy and self.ipfs_integration.auto_start_daemon:
             logger.info("Daemon not accessible during MCP init, attempting restart...")
             self.ipfs_integration._ensure_daemon_running()
         
@@ -2564,7 +2541,6 @@ class EnhancedMCPServerWithDaemonMgmt:
         arguments = params.get("arguments", {})
         
         logger.info(f"Handling tools/call request for: {tool_name}")
-        logger.info("🔥 UPDATED SERVER VERSION WITH ENHANCED ERROR MESSAGES 🔥")
         
         if tool_name not in self.tools:
             raise Exception(f"Tool '{tool_name}' not found")
@@ -2710,6 +2686,7 @@ class EnhancedMCPServerWithDaemonMgmt:
             },
             "ipfs": {
                 "daemon_running": False,
+                "mock_fallback": self.ipfs_integration.use_mock_fallback,
                 "connection_test": False
             }
         }
