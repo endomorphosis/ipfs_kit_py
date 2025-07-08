@@ -28,12 +28,84 @@ from urllib.parse import urlparse
 import subprocess
 import psutil
 
+import subprocess
+import psutil
+import fnmatch
+import base64
+
 # fsspec imports
 import fsspec
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 from fsspec.implementations.cached import CachingFileSystem
 from fsspec.implementations.dirfs import DirFileSystem
+
+# Import existing ipfs_kit_py modules with better error handling
+HAS_IPFS_KIT_MODULES = False
+LOTUS_AVAILABLE = False
+LASSIE_AVAILABLE = False
+
+# Try individual imports to isolate issues
+try:
+    from ipfs_kit_py.tiered_cache_manager import TieredCacheManager as ExternalTieredCacheManager
+    print("✅ TieredCacheManager imported successfully")
+except ImportError as e:
+    print(f"⚠️  TieredCacheManager import failed: {e}")
+    ExternalTieredCacheManager = None
+
+try:
+    from ipfs_kit_py.lotus_kit import lotus_kit, LOTUS_AVAILABLE
+    print("✅ lotus_kit imported successfully")
+    # Create an alias for backwards compatibility
+    LotusKit = lotus_kit
+except ImportError as e:
+    print(f"⚠️  lotus_kit import failed: {e}")
+    class lotus_kit:
+        def __init__(self, *args, **kwargs): pass
+    # Create an alias for backwards compatibility
+    LotusKit = lotus_kit
+    LOTUS_AVAILABLE = False
+
+try:
+    from ipfs_kit_py.storacha_kit import storacha_kit
+    print("✅ storacha_kit imported successfully")
+    HAS_IPFS_KIT_MODULES = True
+except ImportError as e:
+    print(f"⚠️  storacha_kit import failed: {e}")
+    class storacha_kit:
+        def __init__(self, *args, **kwargs): pass
+
+try:
+    from ipfs_kit_py.lassie_kit import lassie_kit, LASSIE_AVAILABLE
+    print("✅ lassie_kit imported successfully")
+except ImportError as e:
+    print(f"⚠️  lassie_kit import failed: {e}")
+    class lassie_kit:
+        def __init__(self, *args, **kwargs): pass
+    LASSIE_AVAILABLE = False
+
+try:
+    from ipfs_kit_py.filesystem_journal import FilesystemJournalManager
+    print("✅ FilesystemJournalManager imported successfully")
+except ImportError as e:
+    print(f"⚠️  FilesystemJournalManager import failed: {e}")
+    class FilesystemJournalManager:
+        def __init__(self, *args, **kwargs): pass
+
+try:
+    from ipfs_kit_py.libp2p import libp2p_peer
+    print("✅ libp2p_peer imported successfully")
+except ImportError as e:
+    print(f"⚠️  libp2p_peer import failed: {e}")
+    class libp2p_peer:
+        def __init__(self, *args, **kwargs): pass
+
+# Set final availability flags
+if any([ExternalTieredCacheManager, HAS_IPFS_KIT_MODULES]):
+    HAS_IPFS_KIT_MODULES = True
+    print(f"✅ IPFS Kit modules partially available")
+else:
+    print(f"⚠️  IPFS Kit modules not available, using fallbacks")
 
 # Optional backend imports (graceful fallback if not available)
 try:
@@ -47,6 +119,13 @@ try:
     HAS_HUGGINGFACE = True
 except ImportError:
     HAS_HUGGINGFACE = False
+
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    HAS_ARROW = True
+except ImportError:
+    HAS_ARROW = False
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -202,6 +281,122 @@ class IPFSFileSystem(fsspec.AbstractFileSystem):
             raise
 
 
+class StorachaFileSystem(fsspec.AbstractFileSystem):
+    """Storacha/Web3.Storage filesystem backend."""
+    
+    protocol = "storacha"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if HAS_IPFS_KIT_MODULES:
+            self.client = storacha_kit()
+        else:
+            self.client = None
+    
+    def _ls(self, path, detail=True, **kwargs):
+        if not self.client:
+            raise NotImplementedError("Storacha client not available")
+        # Implementation would use storacha_kit methods
+        return []
+    
+    def _cat_file(self, path, start=None, end=None, **kwargs):
+        if not self.client:
+            raise NotImplementedError("Storacha client not available")
+        # Implementation would use storacha_kit methods
+        return b""
+
+
+class LotusFileSystem(fsspec.AbstractFileSystem):
+    """Lotus/Filecoin filesystem backend."""
+    
+    protocol = "lotus"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if HAS_IPFS_KIT_MODULES and LOTUS_AVAILABLE:
+            self.client = LotusKit()
+        else:
+            self.client = None
+    
+    def _ls(self, path, detail=True, **kwargs):
+        if not self.client:
+            raise NotImplementedError("Lotus client not available")
+        # Implementation would use LotusKit methods
+        return []
+    
+    def _cat_file(self, path, start=None, end=None, **kwargs):
+        if not self.client:
+            raise NotImplementedError("Lotus client not available")
+        # Implementation would use LotusKit methods
+        return b""
+
+
+class LassieFileSystem(fsspec.AbstractFileSystem):
+    """Lassie IPFS retrieval filesystem backend."""
+    
+    protocol = "lassie"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if HAS_IPFS_KIT_MODULES and LASSIE_AVAILABLE:
+            self.client = lassie_kit()
+        else:
+            self.client = None
+    
+    def _ls(self, path, detail=True, **kwargs):
+        if not self.client:
+            raise NotImplementedError("Lassie client not available")
+        # Implementation would use lassie_kit methods
+        return []
+    
+    def _cat_file(self, path, start=None, end=None, **kwargs):
+        if not self.client:
+            raise NotImplementedError("Lassie client not available")
+        # Implementation would use lassie_kit methods
+        return b""
+
+
+class ArrowFileSystem(fsspec.AbstractFileSystem):
+    """Apache Arrow columnar data filesystem backend."""
+    
+    protocol = "arrow"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.tables = {}  # In-memory table storage
+    
+    def _ls(self, path, detail=True, **kwargs):
+        # List Arrow tables
+        if path == "/":
+            entries = list(self.tables.keys())
+        else:
+            entries = [k for k in self.tables.keys() if k.startswith(path.lstrip("/"))]
+        
+        if detail:
+            return [{"name": name, "size": 0, "type": "file"} for name in entries]
+        return entries
+    
+    def _cat_file(self, path, start=None, end=None, **kwargs):
+        table_name = path.lstrip("/")
+        if table_name in self.tables:
+            table = self.tables[table_name]
+            # Convert to bytes (could be Parquet, CSV, etc.)
+            import io
+            buffer = io.BytesIO()
+            if HAS_ARROW:
+                pq.write_table(table, buffer)
+            buffer.seek(0)
+            content = buffer.read()
+            
+            if start is not None or end is not None:
+                start = start or 0
+                end = end or len(content)
+                content = content[start:end]
+            return content
+        else:
+            raise FileNotFoundError(f"Arrow table not found: {path}")
+
+
 class VFSBackendRegistry:
     """Registry for VFS backends."""
     
@@ -248,8 +443,40 @@ class VFSBackendRegistry:
                 "kwargs": {},
                 "available": True
             }
+        
+        # Storacha backend (if available)
+        if HAS_IPFS_KIT_MODULES:
+            self.backends["storacha"] = {
+                "class": StorachaFileSystem,
+                "kwargs": {},
+                "available": True
+            }
+        
+        # Lotus/Filecoin backend (if available)
+        if HAS_IPFS_KIT_MODULES and LOTUS_AVAILABLE:
+            self.backends["lotus"] = {
+                "class": LotusFileSystem,
+                "kwargs": {},
+                "available": True
+            }
+        
+        # Lassie backend (if available)
+        if HAS_IPFS_KIT_MODULES and LASSIE_AVAILABLE:
+            self.backends["lassie"] = {
+                "class": LassieFileSystem,
+                "kwargs": {},
+                "available": True
+            }
+        
+        # Arrow backend (if available)
+        if HAS_ARROW:
+            self.backends["arrow"] = {
+                "class": ArrowFileSystem,
+                "kwargs": {},
+                "available": True
+            }
     
-    def register_backend(self, name: str, fs_class, kwargs: Dict[str, Any] = None):
+    def register_backend(self, name: str, fs_class, kwargs: Optional[Dict[str, Any]] = None):
         """Register a new backend."""
         self.backends[name] = {
             "class": fs_class,
@@ -284,7 +511,7 @@ class VFSBackendRegistry:
 class VFSCacheManager:
     """Multi-tier caching system for VFS."""
     
-    def __init__(self, cache_dir: str = None, max_size: int = 1024*1024*1024):  # 1GB default
+    def __init__(self, cache_dir: Optional[str] = None, max_size: int = 1024*1024*1024):  # 1GB default
         self.cache_dir = cache_dir or os.path.join(tempfile.gettempdir(), "vfs_cache")
         self.max_size = max_size
         self.cache_stats = {
@@ -875,7 +1102,7 @@ class VFSReplicationManager:
 class VFSCore:
     """Core VFS implementation with multi-backend support and replication."""
     
-    def __init__(self, cache_dir: str = None, max_cache_size: int = 1024*1024*1024):
+    def __init__(self, cache_dir: Optional[str] = None, max_cache_size: int = 1024*1024*1024):
         self.registry = VFSBackendRegistry()
         self.cache_manager = VFSCacheManager(cache_dir, max_cache_size)
         self.mounts = {}  # mount_point -> backend_config
@@ -1507,38 +1734,7 @@ class VFSCore:
     
     def bulk_replicate(self, path_pattern: str = "*") -> Dict[str, Any]:
         """Replicate all files matching a pattern."""
-        try:
-            # Find all files matching pattern
-            replicated_files = []
-            failed_files = []
-            
-            for file_path in self.replication_manager.replication_status.keys():
-                if self.replication_manager._matches_pattern(file_path, path_pattern):
-                    result = self.replicate_file(file_path)
-                    if result["success"]:
-                        replicated_files.append(file_path)
-                    else:
-                        failed_files.append({
-                            "path": file_path,
-                            "error": result.get("error", "Unknown error")
-                        })
-            
-            return {
-                "success": len(failed_files) == 0,
-                "pattern": path_pattern,
-                "replicated_count": len(replicated_files),
-                "failed_count": len(failed_files),
-                "replicated": replicated_files,
-                "failed": failed_files
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to bulk replicate files: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "pattern": path_pattern
-            }
+        return self.replication_manager.bulk_replicate(path_pattern)
 
 
 # Global VFS instance

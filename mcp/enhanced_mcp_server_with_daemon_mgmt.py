@@ -70,10 +70,10 @@ class IPFSKitIntegration:
         """Initialize the IPFS Kit, handling import issues gracefully."""
         try:
             # Try to import and initialize IPFS Kit
-            from ipfs_kit_py.ipfs_kit import IPFSKit
+            from ipfs_kit_py.ipfs_kit import ipfs_kit
             
             # Initialize IPFS Kit without auto daemon startup, as we manage it here
-            self.ipfs_kit = IPFSKit(metadata={
+            self.ipfs_kit = ipfs_kit(metadata={
                 "role": "master",
                 "ipfs_path": os.path.expanduser("~/.ipfs")
             })
@@ -124,6 +124,16 @@ class IPFSKitIntegration:
                 return self._test_direct_ipfs()
         except Exception as e:
             logger.debug(f"IPFS connection test failed: {e}")
+            return False
+    
+    def _test_ipfs_api_direct(self) -> bool:
+        """Test if IPFS API is accessible directly via HTTP."""
+        try:
+            import requests
+            response = requests.get('http://localhost:5001/api/v0/id', timeout=3)
+            return response.status_code == 200
+        except Exception as e:
+            logger.debug(f"Direct API test failed: {e}")
             return False
     
     def _find_existing_ipfs_processes(self) -> List[int]:
@@ -237,12 +247,30 @@ class IPFSKitIntegration:
         """Ensure IPFS daemon is running and accessible."""
         logger.info("Ensuring IPFS daemon is running...")
 
-        # 1. Check if daemon is already running and accessible (any daemon)
-        if self._test_ipfs_connection():
-            logger.info("✓ IPFS daemon already running and accessible.")
+        # Test multiple connection methods to see if IPFS is working
+        connection_tests = [
+            ("IPFS Kit", self._test_ipfs_connection),
+            ("Direct IPFS", self._test_direct_ipfs),
+            ("HTTP API", self._test_ipfs_api_direct),
+        ]
+        
+        working_methods = []
+        for test_name, test_func in connection_tests:
+            try:
+                if test_func():
+                    working_methods.append(test_name)
+                    logger.debug(f"✓ {test_name} connection works")
+                else:
+                    logger.debug(f"✗ {test_name} connection failed")
+            except Exception as e:
+                logger.debug(f"✗ {test_name} connection test error: {e}")
+        
+        # If any connection method works, we're good
+        if working_methods:
+            logger.info(f"✓ IPFS is accessible via: {', '.join(working_methods)}")
             return True
 
-        # 2. If not accessible, check if *this* instance started a daemon that is now unresponsive
+        # If not accessible, check if *this* instance started a daemon that is now unresponsive
         if self.daemon_process and self.daemon_process.poll() is None: # Still running but unresponsive
             logger.warning("Our previously started IPFS daemon is unresponsive. Attempting to restart it.")
             self._kill_our_daemon() # New helper to kill only our daemon
@@ -250,12 +278,10 @@ class IPFSKitIntegration:
                 logger.warning("Timeout waiting for our daemon to stop.")
             self.daemon_process = None # Reset after attempting to kill
 
-        # 3. Check for *other* existing IPFS daemon processes (not started by us)
-        #    If found and not accessible, we should NOT touch them.
+        # Check for *other* existing IPFS daemon processes (not started by us)
         existing_pids = self._find_existing_ipfs_processes()
         if existing_pids:
-            logger.warning(f"Found external IPFS daemon processes ({existing_pids}) that are not responsive to us. Will not interfere.")
-            # Removed self.use_mock_fallback = True
+            logger.warning(f"Found IPFS daemon processes ({existing_pids}) but none are responsive to any connection test.")
             return False # Cannot ensure *our* daemon is running, and won't touch others.
 
         # 4. If no accessible daemon and no external daemons, try to start a new one.
@@ -277,9 +303,27 @@ class IPFSKitIntegration:
                 time.sleep(1)
                 if self.daemon_process.poll() is not None:
                     stdout, stderr = self.daemon_process.communicate()
+                    stdout_str = stdout.decode()
+                    stderr_str = stderr.decode()
+                    
                     logger.error(f"IPFS daemon exited with code {self.daemon_process.returncode}")
-                    logger.error(f"STDOUT: {stdout.decode()}")
-                    logger.error(f"STDERR: {stderr.decode()}")
+                    logger.error(f"STDOUT: {stdout_str}")
+                    logger.error(f"STDERR: {stderr_str}")
+                    
+                    # Check for specific repo version mismatch
+                    if "version" in stderr_str and "lower than your repos" in stderr_str:
+                        logger.warning("⚠️  IPFS repo version mismatch detected.")
+                        logger.warning("The daemon cannot start due to version incompatibility.")
+                        logger.info("Testing if direct IPFS commands work despite daemon failure...")
+                        
+                        # Test if direct commands work despite daemon failure
+                        if self._test_direct_ipfs():
+                            logger.info("✅ Direct IPFS commands work despite daemon failure. Proceeding without daemon.")
+                            self.daemon_process = None
+                            return True
+                        else:
+                            logger.error("❌ Direct IPFS commands also don't work.")
+                    
                     self.daemon_process = None # Clear process if it exited
                     return False
                 if self._test_ipfs_connection():
@@ -1156,15 +1200,9 @@ class IPFSKitIntegration:
                         "error": result.stderr.strip()
                     }
                     
-            # If direct command failed, fall back to mock
-            error_reason = ""
-            if 'result' in locals() and result is not None:
-                error_reason = f"Return Code: {result.returncode}, STDOUT: {result.stdout.strip()}, STDERR: {result.stderr.strip()}"
-                logger.warning(f"Direct IPFS command for {operation} failed: {error_reason}, using mock.")
-            else:
-                error_reason = f"No subprocess result available for {operation}."
-                logger.warning(f"Direct IPFS command for {operation} failed: {error_reason}, using mock.")
-            return await self._mock_operation(operation, error_reason=error_reason, **kwargs)
+            # If we reach here, the direct command failed
+            logger.warning(f"Direct IPFS command for {operation} failed, using mock.")
+            return await self._mock_operation(operation, error_reason="Direct IPFS command failed", **kwargs)
             
         except Exception as e:
             error_reason = f"Exception: {e}, Traceback: {traceback.format_exc()}"
@@ -2874,13 +2912,3 @@ async def handle_message(server: EnhancedMCPServerWithDaemonMgmt, message: Dict[
             }
         else:
             return None
-
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Server shutting down...")
-    except Exception as e:
-        logger.error(f"Server error: {e}")
-        sys.exit(1)

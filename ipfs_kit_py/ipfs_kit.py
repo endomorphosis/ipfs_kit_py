@@ -1361,37 +1361,38 @@ class ipfs_kit:
                 
             # Only attempt setup if it's actually installed
             if libp2p_installed:
-                self.libp2p = IPFSLibp2pPeer( # type: ignore
-                    identity_path=libp2p_config.get("identity_path"), # type: ignore
-                    bootstrap_peers=libp2p_config.get("bootstrap_peers", []), # type: ignore
-                    listen_addrs=libp2p_config.get("listen_addrs"), # type: ignore
-                    role=self.role,
-                    enable_mdns=libp2p_config.get("enable_mdns", True), # type: ignore
-                    enable_hole_punching=libp2p_config.get("enable_hole_punching", False), # type: ignore
-                    enable_relay=libp2p_config.get("enable_relay", False), # type: ignore
-                    tiered_storage_manager=tiered_storage_manager, # type: ignore
-                )
-                
-                # Start discovery if configured
-                if libp2p_config.get("auto_start_discovery", True): # type: ignore
-                    cluster_name = (
-                        metadata.get("cluster_name", "ipfs-kit-cluster") # type: ignore
-                        if metadata
-                        else "ipfs-kit-cluster"
+                try:
+                    self.libp2p = IPFSLibp2pPeer( # type: ignore
+                        identity_path=libp2p_config.get("identity_path"), # type: ignore
+                        bootstrap_peers=libp2p_config.get("bootstrap_peers", []), # type: ignore
+                        listen_addrs=libp2p_config.get("listen_addrs"), # type: ignore
+                        role=self.role,
+                        enable_mdns=libp2p_config.get("enable_mdns", True), # type: ignore
+                        enable_hole_punching=libp2p_config.get("enable_hole_punching", False), # type: ignore
+                        enable_relay=libp2p_config.get("enable_relay", False), # type: ignore
+                        tiered_storage_manager=tiered_storage_manager, # type: ignore
                     )
-                    self.libp2p.start_discovery(rendezvous_string=cluster_name) # type: ignore
                     
-                # Enable relay if configured
-                if libp2p_config.get("enable_relay", False): # type: ignore
-                    self.libp2p.enable_relay() # type: ignore
+                    # Start discovery if configured
+                    if libp2p_config.get("auto_start_discovery", True): # type: ignore
+                        cluster_name = (
+                            metadata.get("cluster_name", "ipfs-kit-cluster") # type: ignore
+                            if metadata
+                            else "ipfs-kit-cluster"
+                        )
+                        self.libp2p.start_discovery(rendezvous_string=cluster_name) # type: ignore
+                        
+                    # Enable relay if configured
+                    if libp2p_config.get("enable_relay", False): # type: ignore
+                        self.libp2p.enable_relay() # type: ignore
+                        
+                    self.logger.info(f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}") # type: ignore
+                    return True
                     
-                self.logger.info(f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}") # type: ignore
-                return True
-                
-            except ImportError as e:
-                self.logger.error(f"Failed to create libp2p peer due to missing dependencies: {str(e)}")
-                self.logger.info("Make sure all required libp2p dependencies are installed")
-                return False
+                except ImportError as e:
+                    self.logger.error(f"Failed to create libp2p peer due to missing dependencies: {str(e)}")
+                    self.logger.info("Make sure all required libp2p dependencies are installed")
+                    return False
         except Exception as e:
             self.logger.error(f"Failed to set up libp2p peer: {str(e)}")
             return False

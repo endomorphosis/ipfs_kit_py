@@ -263,6 +263,32 @@ class lotus_daemon:
         except Exception as e:
             logger.error(f"Error detecting Lotus version: {str(e)}")
             return None
+    
+    def _is_version_124_or_newer(self, version_string):
+        """Check if the Lotus version is 1.24.0 or newer.
+        
+        Args:
+            version_string (str): Version string like "1.33.0+mainnet+git.7bdccad3d"
+            
+        Returns:
+            bool: True if version is 1.24.0 or newer, False otherwise
+        """
+        if not version_string:
+            return False
+        
+        try:
+            # Extract version number for comparison
+            version_part = version_string.split('+')[0]  # Remove git hash
+            version_numbers = version_part.split('.')
+            if len(version_numbers) >= 2:
+                major = int(version_numbers[0])
+                minor = int(version_numbers[1])
+                # Check if version is 1.24.0+
+                return major > 1 or (major == 1 and minor >= 24)
+        except (ValueError, IndexError):
+            logger.debug(f"Could not parse version number from: {version_string}")
+        
+        return False
             
     def _check_repo_initialization(self):
         """Check if the Lotus repository is properly initialized.
@@ -381,7 +407,7 @@ class lotus_daemon:
                 cmd = ["lotus", "daemon", "--lite"]
                 
                 # Add version-specific flags
-                if lotus_version and "1.24" in lotus_version:
+                if self._is_version_124_or_newer(lotus_version):
                     # Lotus 1.24.0+ flags
                     cmd.extend(["--api", str(self.api_port)])
                     cmd.append("--bootstrap=false")
@@ -426,7 +452,7 @@ class lotus_daemon:
                 logger.info("Ran temporary daemon for repository initialization")
                 
                 # Try using the init-only command for newer Lotus versions
-                if lotus_version and "1.24" in lotus_version:
+                if self._is_version_124_or_newer(lotus_version):
                     # Start with basic init command
                     init_cmd = ["lotus", "daemon", "--lite", "--bootstrap=false", "--init-only"]
                     
@@ -817,15 +843,31 @@ class lotus_daemon:
                 self.lotus_binary_path = lotus_binary
                 
                 # Add optional arguments
-                if kwargs.get("bootstrap_peers"):
-                    for peer in kwargs.get("bootstrap_peers"):
+                bootstrap_peers = kwargs.get("bootstrap_peers")
+                if bootstrap_peers:
+                    for peer in bootstrap_peers:
                         cmd.extend(["--bootstrap-peers", peer])
                 
                 # Detect Lotus version to use appropriate flags
                 lotus_version = self._detect_lotus_version()
                 
                 # Use flags appropriate for the detected version
-                if lotus_version and "1.24" in lotus_version:
+                use_new_format = False
+                if lotus_version:
+                    try:
+                        # Extract version number for comparison
+                        version_part = lotus_version.split('+')[0]  # Remove git hash
+                        version_numbers = version_part.split('.')
+                        if len(version_numbers) >= 2:
+                            major = int(version_numbers[0])
+                            minor = int(version_numbers[1])
+                            # Use new format for 1.24.0+
+                            if major > 1 or (major == 1 and minor >= 24):
+                                use_new_format = True
+                    except (ValueError, IndexError):
+                        logger.debug(f"Could not parse version number from: {lotus_version}")
+                
+                if use_new_format:
                     # Lotus 1.24.0+ uses simpler flag format
                     cmd.extend(["--api", str(api_port)])
                     # P2P port is configured in config.toml in 1.24.0+
@@ -884,7 +926,7 @@ class lotus_daemon:
                 logger.debug(f"Starting Lotus daemon with command: {' '.join(cmd)}")
                 
                 # For Lotus 1.24.0+, try running the init command first if the API isn't working
-                if lotus_version and "1.24" in lotus_version:
+                if self._is_version_124_or_newer(lotus_version):
                     try:
                         # Check if the API endpoint file exists
                         api_endpoint_file = os.path.join(self.lotus_path, "api")
@@ -2359,7 +2401,7 @@ WantedBy=multi-user.target
         
         # Add optional network flag if we're using Lotus 1.24.0+
         lotus_version = self._detect_lotus_version()
-        if lotus_version and "1.24" in lotus_version:
+        if self._is_version_124_or_newer(lotus_version):
             # Check if the network flag is supported
             try:
                 help_cmd = [lotus_binary, "daemon", "--help"]

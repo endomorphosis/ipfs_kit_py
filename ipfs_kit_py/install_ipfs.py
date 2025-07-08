@@ -9,6 +9,10 @@ import subprocess
 import sys
 import tempfile
 import time
+try:
+    import requests
+except ImportError:
+    requests = None  # Handle gracefully if requests is not available
 
 test_folder = os.path.dirname(os.path.dirname(__file__)) + "/test"
 sys.path.append(test_folder)
@@ -138,20 +142,20 @@ class install_ipfs:
         }
 
         self.ipfs_dists = {
-            "macos arm64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_darwin-arm64.tar.gz",
-            "macos x86_64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_darwin-amd64.tar.gz",
-            "linux arm64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_linux-arm64.tar.gz",
-            "linux x86_64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_linux-amd64.tar.gz",
-            "linux x86": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_linux-386.tar.gz",
-            "linux arm": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_linux-arm.tar.gz",
-            "windows x86_64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_windows-amd64.zip",
-            "windows x86": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_windows-386.zip",
-            "freebsd x86_64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_freebsd-amd64.tar.gz",
-            "freebsd x86": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_freebsd-386.tar.gz",
-            "freebsd arm": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_freebsd-arm.tar.gz",
-            "openbsd x86_64": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_openbsd-amd64.tar.gz",
-            "openbsd x86": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_openbsd-386.tar.gz",
-            "openbsd arm": "https://dist.ipfs.tech/kubo/v0.34.1/kubo_v0.34.1_openbsd-arm.tar.gz",
+            "macos arm64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_darwin-arm64.tar.gz",
+            "macos x86_64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_darwin-amd64.tar.gz",
+            "linux arm64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_linux-arm64.tar.gz",
+            "linux x86_64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_linux-amd64.tar.gz",
+            "linux x86": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_linux-386.tar.gz",
+            "linux arm": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_linux-arm.tar.gz",
+            "windows x86_64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_windows-amd64.zip",
+            "windows x86": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_windows-386.zip",
+            "freebsd x86_64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_freebsd-amd64.tar.gz",
+            "freebsd x86": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_freebsd-386.tar.gz",
+            "freebsd arm": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_freebsd-arm.tar.gz",
+            "openbsd x86_64": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_openbsd-amd64.tar.gz",
+            "openbsd x86": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_openbsd-386.tar.gz",
+            "openbsd arm": "https://dist.ipfs.tech/kubo/v0.35.0/kubo_v0.35.0_openbsd-arm.tar.gz",
         }
         self.ipfs_dists_cids = {
             "macos arm64": "bafybeigk5q3g3q3k7m3qy4q3f",
@@ -354,36 +358,58 @@ class install_ipfs:
         return results
 
     def install_ipfs_daemon(self):
-        # First check if IPFS is already installed using the corrected detection logic
-        if self.ipfs_test_install():
-            print("IPFS daemon already installed, skipping download")
-            # Return CID of existing binary if possible
-            if "bin_path" in dir(self) and self.bin_path is not None:
-                command = ""
-                restults = ""
-                this_path = self.bin_path
-                this_path = os.path.join(str(this_path), "ipfs.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs") if dir(this_path) else os.path.join("~", "ipfs")
-                this_path = this_path.replace("\\", "/")
-                if os.path.exists(this_path):
-                    if platform.system() == "Windows":
-                        command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
-                    subprocess.run(command, shell=True, check=True)
-                if platform.system() == "Linux" or platform.system() == "Darwin":
-                    command = "sha256sum " + this_path + " | awk '{print $1}'"
-                    results = subprocess.check_output(command, shell=True)
-                    results = results.decode().strip()
-                return results  # Return the hash of the existing binary
+        # Check for latest version and update URLs
+        print("Checking for latest Kubo version...")
+        latest_version = self.get_latest_kubo_version()
+        print(f"Latest Kubo version: {latest_version}")
+        
+        # Update distribution URLs with latest version
+        self.update_ipfs_dists_with_version(latest_version)
+        
+        # Check if IPFS is already installed
+        current_version = self.get_installed_kubo_version()
+        if current_version:
+            print(f"Current installed version: {current_version}")
+            
+            # Check for repository version compatibility
+            repo_compatible = self.check_repo_compatibility(current_version)
+            if not repo_compatible:
+                print("Repository version incompatibility detected. Attempting to resolve...")
+                # Try to migrate or reset the repository
+                if self.migrate_or_reset_repo():
+                    print("Repository reset successful. Proceeding with installation...")
+                else:
+                    print("Repository reset failed. Forcing update anyway...")
+                # Continue with installation regardless
+            elif self.should_update_kubo(current_version, latest_version):
+                print(f"Update available: {current_version} -> {latest_version}")
+                print("Proceeding with update...")
             else:
-                print("IPFS binary not found in expected location, proceeding with download and installation")
-        # If IPFS is not installed, proceed with download and installation
-        if self.ipfs_test_install() is False:
+                print("IPFS daemon is up to date, skipping download")
+                # Return hash of existing binary
+                if "bin_path" in dir(self) and self.bin_path is not None:
+                    this_path = self.bin_path
+                    this_path = os.path.join(str(this_path), "ipfs.exe") if platform.system() == "Windows" else os.path.join(str(this_path), "ipfs")
+                    this_path = this_path.replace("\\", "/")
+                    if os.path.exists(this_path):
+                        try:
+                            if platform.system() == "Windows":
+                                command = "powershell -Command \"Get-FileHash -Path '" + this_path + "' -Algorithm SHA256 | Select-Object -ExpandProperty Hash\""
+                                results = subprocess.check_output(command, shell=True)
+                                return results.decode().strip()
+                            else:
+                                command = "sha256sum " + this_path + " | awk '{print $1}'"
+                                results = subprocess.check_output(command, shell=True)
+                                return results.decode().strip()
+                        except:
+                            print("Could not generate hash for existing binary")
+                            return True
+                return True
+        else:
             print("IPFS daemon not installed, proceeding with download and installation")
-            pass
-        # If IPFS is not installed, proceed with download and installation
-        if self.ipfs_test_install() is None:
-            print("IPFS daemon not installed, proceeding with download and installation")
-            pass   
-        if self.ipfs_test_install() is None or self.ipfs_test_install() is False:        
+            
+        # Proceed with installation (either new install or update)
+        if current_version is None or self.should_update_kubo(current_version, latest_version):        
             # Binary not found, proceed with download and installation
             dist = self.dist_select()
             dist_tar = self.ipfs_dists[dist]
@@ -1337,3 +1363,161 @@ class install_ipfs:
             return False
 
         return True
+
+    def get_latest_kubo_version(self):
+        """Fetch the latest Kubo version from GitHub releases."""
+        try:
+            if requests is None:
+                print("requests library not available, using fallback version v0.35.0")
+                return "v0.35.0"
+                
+            url = "https://api.github.com/repos/ipfs/kubo/releases/latest"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                latest_version = data['tag_name']  # e.g., "v0.35.0"
+                print(f"Successfully fetched latest version from GitHub: {latest_version}")
+                return latest_version
+            else:
+                print(f"Failed to fetch latest version: HTTP {response.status_code}")
+                return "v0.35.0"  # Fallback to current version
+        except Exception as e:
+            print(f"Error fetching latest Kubo version: {e}")
+            return "v0.35.0"  # Fallback to current version
+    
+    def update_ipfs_dists_with_version(self, version):
+        """Update the IPFS distribution URLs with the specified version."""
+        base_url = f"https://dist.ipfs.tech/kubo/{version}/kubo_{version}"
+        
+        self.ipfs_dists = {
+            "macos arm64": f"{base_url}_darwin-arm64.tar.gz",
+            "macos x86_64": f"{base_url}_darwin-amd64.tar.gz",
+            "linux arm64": f"{base_url}_linux-arm64.tar.gz",
+            "linux x86_64": f"{base_url}_linux-amd64.tar.gz",
+            "linux x86": f"{base_url}_linux-386.tar.gz",
+            "linux arm": f"{base_url}_linux-arm.tar.gz",
+            "windows x86_64": f"{base_url}_windows-amd64.zip",
+            "windows x86": f"{base_url}_windows-386.zip",
+            "freebsd x86_64": f"{base_url}_freebsd-amd64.tar.gz",
+            "freebsd x86": f"{base_url}_freebsd-386.tar.gz",
+            "freebsd arm": f"{base_url}_freebsd-arm.tar.gz",
+            "openbsd x86_64": f"{base_url}_openbsd-amd64.tar.gz",
+            "openbsd x86": f"{base_url}_openbsd-386.tar.gz",
+            "openbsd arm": f"{base_url}_openbsd-arm.tar.gz",
+        }
+    
+    def get_installed_kubo_version(self):
+        """Get the currently installed Kubo version."""
+        try:
+            if platform.system() == "Windows":
+                command = os.path.join(self.bin_path, "ipfs.exe") + " --version"
+            else:
+                command = os.path.join(self.bin_path, "ipfs") + " --version"
+            result = subprocess.check_output(command, shell=True)
+            version_output = result.decode().strip()
+            # Parse version from output like "ipfs version 0.35.0"
+            if "version" in version_output:
+                parts = version_output.split()
+                if len(parts) >= 3:
+                    return f"v{parts[2]}"  # Add 'v' prefix for consistency
+            return None
+        except:
+            return None
+    
+    def should_update_kubo(self, current_version, latest_version):
+        """Compare versions to determine if an update is needed."""
+        if not current_version or not latest_version:
+            return True
+        
+        try:
+            # Remove 'v' prefix for comparison
+            current = current_version.lstrip('v').split('.')
+            latest = latest_version.lstrip('v').split('.')
+            
+            # Pad with zeros if needed
+            while len(current) < 3:
+                current.append('0')
+            while len(latest) < 3:
+                latest.append('0')
+            
+            # Convert to integers for proper comparison
+            current = [int(x) for x in current[:3]]
+            latest = [int(x) for x in latest[:3]]
+            
+            return latest > current
+        except:
+            return True  # If comparison fails, assume update is needed
+
+    def check_repo_compatibility(self, current_version):
+        """Check if the current IPFS repository is compatible with the installed version."""
+        try:
+            # Check if IPFS repository exists
+            if not os.path.exists(self.ipfs_path):
+                return True  # No repo exists, so no compatibility issues
+            
+            version_file = os.path.join(self.ipfs_path, "version")
+            if not os.path.exists(version_file):
+                return True  # No version file, assume compatible
+            
+            # Read repository version
+            try:
+                with open(version_file, 'r') as f:
+                    repo_version = f.read().strip()
+                    
+                # Get the expected repo version for the current IPFS version
+                expected_repo_version = self.get_expected_repo_version(current_version)
+                
+                if repo_version != expected_repo_version:
+                    print(f"Repository version mismatch: repo={repo_version}, expected={expected_repo_version}")
+                    return False
+                    
+                return True
+            except Exception as e:
+                print(f"Error reading repository version: {e}")
+                return False
+                
+        except Exception as e:
+            print(f"Error checking repository compatibility: {e}")
+            return False
+
+    def get_expected_repo_version(self, kubo_version):
+        """Get the expected repository version for a given Kubo version."""
+        # Map Kubo versions to repository versions
+        version_map = {
+            "v0.35.0": "16",
+            "v0.34.0": "16", 
+            "v0.33.0": "16",
+            "v0.32.0": "16",
+            "v0.31.0": "16",
+            "v0.30.0": "16",
+            "v0.29.0": "15",
+            "v0.28.0": "15",
+            "v0.27.0": "15",
+            "v0.26.0": "15",
+            "v0.25.0": "15",
+            "v0.24.0": "15",
+            "v0.23.0": "15",
+        }
+        
+        return version_map.get(kubo_version, "16")  # Default to latest repo version
+
+    def migrate_or_reset_repo(self):
+        """Migrate or reset the IPFS repository when there's a version mismatch."""
+        try:
+            print(f"Attempting to resolve repository version mismatch...")
+            
+            # Backup the existing repository
+            backup_path = f"{self.ipfs_path}.backup.{int(time.time())}"
+            if os.path.exists(self.ipfs_path):
+                print(f"Backing up existing repository to {backup_path}")
+                shutil.move(self.ipfs_path, backup_path)
+            
+            # Create new repository directory
+            os.makedirs(self.ipfs_path, exist_ok=True)
+            
+            print(f"Repository reset completed. Old repository backed up to {backup_path}")
+            return True
+            
+        except Exception as e:
+            print(f"Error during repository migration/reset: {e}")
+            return False
